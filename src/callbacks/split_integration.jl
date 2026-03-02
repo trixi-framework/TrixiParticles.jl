@@ -165,8 +165,9 @@ function initialize_split_integration!(cb, vu_ode, t, integrator)
     # and `p.split_integration_data`. The latter is usually `nothing`, but we can use it
     # to store another `NamedTuple` containing all split integration data.
     vu_ode_split = copy(split_integrator.u)
-    payload = (; stage_coupling, predict_positions,
-               integrator=split_integrator, vu_ode_split, t_ref=Ref(t))
+    payload = (; stage_coupling, predict_positions, integrator=split_integrator,
+               large_integrator=integrator, vu_ode_split, t_ref=Ref(t), n_reject=Ref(0),
+               shown_info_this_step=Ref(false))
     integrator.p = (; semi, split_integration_data=payload)
 
     return cb
@@ -183,6 +184,8 @@ function (split_integration_callback::SplitIntegrationCallback)(integrator)
     new_t = integrator.t
     v_ode, u_ode = integrator.u.x
     data = integrator.p.split_integration_data
+    data.n_reject[] = integrator.stats.nreject
+    data.shown_info_this_step[] = false
 
     # Advance the split integrator to the new time
     split_integrate!(v_ode, u_ode, new_t, data)
@@ -208,40 +211,68 @@ function (split_integration_callback::SplitIntegrationCallback)(integrator)
 end
 
 # No `SplitIntegrationCallback` used
-function split_integrate_stage!(v_ode, u_ode, t, split_integration_data::Nothing)
-    return v_ode
+function split_integrate_stage!(dv_ode, v_ode, u_ode, t, split_integration_data::Nothing)
+    return true
 end
 
-function split_integrate_stage!(v_ode, u_ode, t, split_integration_data)
+function split_integrate_stage!(dv_ode, v_ode, u_ode, t, split_integration_data)
     (; stage_coupling) = split_integration_data
 
     if stage_coupling
-        split_integrate!(v_ode, u_ode, t, split_integration_data)
+        success = split_integrate!(v_ode, u_ode, t, split_integration_data)
+        if !success
+            # The split integration failed due to an instability.
+            # If this instability was caused only by a too large fluid time step
+            # and an adaptive time stepping method is used for the fluid, the fluid
+            # integrator might be able to reject the step and recover from this
+            # if the fluid RHS contains very large values (indicating an instability).
+            # We set the RHS to `Inf` and hope for the best.
+            dv_ode .= Inf
+        end
+        return success
     end
 
-    return v_ode
+    return true
 end
 
-function split_integrate!(v_ode, u_ode, t_new, split_integration_data)
-    split_integrator = split_integration_data.integrator
+function split_integrate!(v_ode, u_ode, t_new, data)
+    split_integrator = data.integrator
 
     t_previous = split_integrator.t
 
     restart = false
-    if t_new < t_previous - eps(t_previous)
+    rejected = data.large_integrator.stats.nreject > data.n_reject[]
+    data.n_reject[] = data.large_integrator.stats.nreject
+    if rejected
         # The previous time step was rejected.
         # We have to restart the split integration from the last full time step.
+        # Note that we even have to do this if `t_new == t_previous` because
+        # the split integrator was advanced to `t_new` with a rejected fluid state.
         restart = true
-    elseif t_new <= t_previous + eps(t_previous)
-        # This stage time is the same as the previous stage time.
-        # There is nothing to do here.
-        return v_ode
+
+        # Make sure we don't have to go back before the last time step
+        @assert t_new >= data.t_ref[]
+    elseif t_new < t_previous - eps(t_previous)
+        # @info "" t_new - t_previous data.large_integrator.dt t_new - data.t_ref[]
+        # The stage time is smaller than the previous stage/step time, but the last step
+        # was not rejected. This means that either the RK scheme contains a negative
+        # node value (requesting a stage time before the time of the last full step)
+        # or the node values are non-monotonic (requesting a stage time before the previous
+        # stage time). In both cases, the scheme is not suitable for stage-level coupling
+        # in the form implemented here.
+        msg = "stage-level coupling with `SplitIntegrationCallback` requires that stage " *
+              "times are monotonically increasing and that no stage time is smaller " *
+              "than the time of the last full step. This time integration scheme can " *
+              "only be used with `stage_coupling=false` when creating the " *
+              "`SplitIntegrationCallback`. It is recommended to use a different time " *
+              "integration scheme with monotonic stage times."
+        throw(ArgumentError(msg))
     end
 
     if restart
         # Restart the split integration from the last full time step
-        t_previous = split_integration_data.t_ref[]
-        vu_ode_split = split_integration_data.vu_ode_split
+        t_previous = data.t_ref[]
+        vu_ode_split = data.vu_ode_split
     else
         # Continue the split integration from the previous stage
         vu_ode_split = split_integrator.u
@@ -256,19 +287,32 @@ function split_integrate!(v_ode, u_ode, t_new, split_integration_data)
         # We modify `v_ode` and `u_ode`, which is technically not allowed during stages,
         # hence there are no guarantees about the structure part of `v_ode` and `u_ode`.
         # By copying the current split integration values, we make sure that it's correct.
-        predict_positions = Val(split_integration_data.predict_positions)
+        predict_positions = Val(data.predict_positions)
         @trixi_timeit timer() "copy back" copy_from_split!(v_ode, u_ode,
                                                            vu_ode_split.x...,
                                                            semi_large, semi_split,
                                                            t_new, t_previous;
                                                            predict_positions)
+    end
 
+    if !rejected && isapprox(t_new, t_previous)
+        # This stage time is the same as the previous stage time and we don't need to
+        # re-initialize the split integrator due to a rejected step.
+        # There is nothing to do here.
+        # IMPORTANT: This has to be after copying the solution to the large integrator.
+        # Otherwise, the large integrator might contain arbitrary values since we
+        # are modifying `v_ode` and `u_ode` during stages, which is not allowed.
+        # IMPORTANT: If we try to `return` from within the `@trixi_timeit` block,
+        # the timer output will be messed up for some reason.
+        return true
+    end
+
+    @trixi_timeit timer() "split integration" begin
         if restart
             # Reset the split integrator to the state at the last full time step
             @trixi_timeit timer() "init" begin
                 TimerOutputs.@notimeit timer() begin
                     SciMLBase.reinit!(split_integrator, vu_ode_split;
-                                      save_everystep=false, save_end=false,
                                       t0=t_previous, tf=t_new)
                 end
             end
@@ -291,7 +335,7 @@ function split_integrate!(v_ode, u_ode, t_new, split_integration_data)
         end
 
         # Integrate the split integrator up to the new time
-        SciMLBase.solve!(split_integrator)
+        sol = SciMLBase.solve!(split_integrator)
 
         # Copy the solutions back to the original integrator
         @trixi_timeit timer() "copy back" copy_from_split!(v_ode, u_ode,
@@ -300,7 +344,27 @@ function split_integrate!(v_ode, u_ode, t_new, split_integration_data)
                                                            t_new, t_previous)
     end
 
-    return v_ode
+    if sol.retcode == SciMLBase.ReturnCode.Unstable
+        if !data.shown_info_this_step[]
+            @info "split integration detected an instability. " *
+                  "If you are using an adaptive fluid time stepping method and the " *
+                  "simulation is continuing, then you can ignore " *
+                  "the \"Instability detected\" warning above. This was caused by a " *
+                  "too large fluid time step, which the adaptive method rejected. " *
+                  "If the simulation crashed, try reducing the split integration time step."
+        end
+        # Make sure the info is only shown once per time step and not in every stage
+        # of an unstable step that will be rejected.
+        data.shown_info_this_step[] = true
+
+        # Return `false` to indicate that the split integration failed due to an instability
+        return false
+    elseif sol.retcode != SciMLBase.ReturnCode.Success
+        # Unknown error
+        error("`SplitIntegrationCallback` failed with return code $(sol.retcode).")
+    end
+
+    return true
 end
 
 function kick_split!(dv_ode_split, v_ode_split, u_ode_split, p, t)
