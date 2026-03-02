@@ -2,7 +2,10 @@
 const TrixiParticlesODESolution = ODESolution{<:Any, <:Any, <:Any, <:Any, <:Any, <:Any,
                                               <:Any, <:Any,
                                               <:ODEProblem{<:Any, <:Any, <:Any,
-                                                           <:NamedTuple{(:semi, :split_integration_data), <:Tuple{Semidiscretization, Any}}}}
+                                                           <:NamedTuple{(:semi,
+                                                                         :split_integration_data),
+                                                                        <:Tuple{Semidiscretization,
+                                                                                Any}}}}
 
 # This is the main recipe
 RecipesBase.@recipe function f(sol::TrixiParticlesODESolution)
