@@ -197,20 +197,26 @@ end
 function split_integrate!(v_ode, u_ode, t_new, split_integration_data)
     split_integrator = split_integration_data.integrator
 
+    t_previous = split_integrator.t
+
     restart = false
+    if t_new < t_previous - eps(t_previous)
+        # The previous time step was rejected.
+        # We have to restart the split integration from the last full time step.
+        restart = true
+    elseif t_new <= t_previous + eps(t_previous)
+        # This stage time is the same as the previous stage time.
+        # There is nothing to do here.
+        return v_ode
+    end
+
     if restart
         # Restart the split integration from the last full time step
         t_previous = split_integration_data.t_ref[]
         vu_ode_split = split_integration_data.vu_ode_split
     else
-        # Continue the split integration from the previous stage time
-        t_previous = split_integrator.t
+        # Continue the split integration from the previous stage
         vu_ode_split = split_integrator.u
-    end
-
-    if t_new <= t_previous
-        # Nothing to do here
-        return v_ode
     end
 
     semi_split = split_integrator.p.semi
@@ -243,6 +249,7 @@ function split_integrate!(v_ode, u_ode, t_new, split_integration_data)
                 end
             end
         else
+            # Continue from the previous state
             add_tstop!(split_integrator, t_new)
         end
 
