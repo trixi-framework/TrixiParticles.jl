@@ -130,7 +130,7 @@
                 @test count_rhs_allocations(sol, semi) == 0
             end
 
-            # Now use split integration and verify that we need less than 400 iterations
+            # Now use split integration and verify that we need fewer than 400 iterations
             split_integration = SplitIntegrationCallback(RDPK3SpFSAL35(), adaptive=false,
                                                          dt=5e-5)
             @trixi_test_nowarn trixi_include(@__MODULE__,
