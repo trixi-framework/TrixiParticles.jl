@@ -128,8 +128,13 @@ function initialize_split_integration!(cb, vu_ode, t, integrator)
     @trixi_timeit timer() "split integration" begin
         @trixi_timeit timer() "init" begin
             TimerOutputs.@notimeit timer() begin
+                # Use `save_everystep=false` to avoid saving multiple copies
+                # of `v_ode` and `u_ode`.
+                # We set the final time and solve the integrator to that time in each split
+                # integration call, which will save the final solution if we don't set
+                # `save_end=false`, leading to one copy of the split state per fluid stage.
                 split_integrator = SciMLBase.init(ode_split, alg; save_everystep=false,
-                                                  kwargs...)
+                                                  save_end=false, kwargs...)
             end
 
             # Remove the `tstop` for the final time (equivalent to zero `tspan`)
@@ -233,6 +238,7 @@ function split_integrate!(v_ode, u_ode, t_new, split_integration_data)
             @trixi_timeit timer() "init" begin
                 TimerOutputs.@notimeit timer() begin
                     SciMLBase.reinit!(split_integrator, vu_ode_split;
+                                      save_everystep=false, save_end=false,
                                       t0=t_previous, tf=t_new)
                 end
             end
