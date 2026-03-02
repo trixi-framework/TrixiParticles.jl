@@ -479,7 +479,9 @@ function kick!(dv_ode, v_ode, u_ode, p, t)
 
     # This is a no-op if no split integration
     # or split integration without stage-coupling is used.
-    split_integrate_stage!(v_ode, u_ode, t, split_integration_data)
+    success = split_integrate_stage!(dv_ode, v_ode, u_ode, t, split_integration_data)
+    # Stop if the split integration is unstable.
+    !success && return dv_ode
 
     @trixi_timeit timer() "kick!" begin
         # Check that the `UpdateCallback` is used if required
