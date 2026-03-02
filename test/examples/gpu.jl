@@ -566,8 +566,6 @@ end
             min_corner = minimum(tank.boundary.coordinates, dims=2)
             max_corner = maximum(tank.boundary.coordinates, dims=2)
             max_corner[2] = gate_height + movement_function([0, 0], 0.1f0)[2]
-            # We need a very high `max_points_per_cell` because the plate resolution
-            # is much finer than the fluid resolution.
             cell_list = FullGridCellList(; min_corner, max_corner)
             semi_fullgrid = Semidiscretization(fluid_system, boundary_system_tank,
                                                boundary_system_gate, structure_system,
@@ -585,6 +583,48 @@ end
                                                              maxiters=1500) [
                 r"\[ Info: To create the self-interaction neighborhood search.*\n",
                 r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
+            ]
+            @test sol.retcode == ReturnCode.Success
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+            @test backend == Main.parallelization_backend
+        end
+
+        @trixi_testset "fsi/dam_break_plate_2d.jl split integration" begin
+            # Import variables into scope
+            trixi_include_changeprecision(Float32, @__MODULE__,
+                                          joinpath(examples_dir(), "fsi",
+                                                   "dam_break_plate_2d.jl"),
+                                          coordinates_eltype=Float32,
+                                          # Use rounded dimensions to avoid warnings
+                                          initial_fluid_size=(0.15, 0.29),
+                                          # Move plate closer to be able to use a shorter
+                                          # tspan and make CI faster.
+                                          plate_position=(0.2, 0.0),
+                                          sol=nothing, ode=nothing)
+
+            # Neighborhood search with `FullGridCellList` for GPU compatibility
+            min_corner = minimum(tank.boundary.coordinates, dims=2)
+            max_corner = maximum(tank.boundary.coordinates, dims=2)
+            cell_list = FullGridCellList(; min_corner, max_corner)
+            semi = Semidiscretization(fluid_system, boundary_system, structure_system,
+                                      neighborhood_search=GridNeighborhoodSearch{2}(;
+                                                                                    cell_list),
+                                      parallelization_backend=Main.parallelization_backend)
+
+            # Use split integration and verify that we need fewer than 400 iterations.
+            # See the CPU test for more details.
+            split_integration = SplitIntegrationCallback(RDPK3SpFSAL35(), adaptive=false,
+                                                         dt=5e-5)
+            @trixi_test_nowarn trixi_include(@__MODULE__,
+                                             joinpath(examples_dir(), "fsi",
+                                                      "dam_break_plate_2d.jl"),
+                                             tspan=(0.0, 0.2),
+                                             E=1e7, # Stiffer plate
+                                             maxiters=400,
+                                             extra_callback=split_integration,
+                                             semi=semi,
+                                             parallelization_backend=Main.parallelization_backend) [
+                r"\[ Info: To create the self-interaction neighborhood search.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
