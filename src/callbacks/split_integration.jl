@@ -191,11 +191,20 @@ function (split_integration_callback::SplitIntegrationCallback)(integrator)
     data.vu_ode_split .= data.integrator.u
     data.t_ref[] = new_t
 
-    # Tell OrdinaryDiffEq that `u` has NOT been modified.
-    # Theoretically, the TLSPH part has been modified, but since TLSPH is integrated
-    # separately, this part is never used by the main integrator (dv = du = 0).
-    # With this trick, we can avoid unnecessarily re-computing FSAL stages.
-    u_modified!(integrator, false)
+    if data.stage_coupling
+        # Tell OrdinaryDiffEq that `u` has NOT been modified.
+        # Theoretically, the TLSPH part has been modified, but in the FSAL case,
+        # the time at the last stage is the same as the step time, so the split integration
+        # above is skipped and `u` is not modified at all.
+        # Therefore, the derivative at the last stage can be reused for the next step.
+        # TODO is `u_modified` ever relevant for non-FSAL methods?
+        u_modified!(integrator, false)
+    else
+        # Tell OrdinaryDiffEq that `u` has been modified
+        u_modified!(integrator, true)
+    end
+
+    return integrator
 end
 
 # No `SplitIntegrationCallback` used
