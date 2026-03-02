@@ -6,7 +6,7 @@ mutable struct SplitIntegrationCallback{A, K}
 end
 
 @doc raw"""
-    SplitIntegrationCallback(alg; stage_coupling=true, predict_positions=true, kwargs...)
+    SplitIntegrationCallback(alg; stage_coupling=false, predict_positions=true, kwargs...)
 
 Callback to integrate the `TotalLagrangianSPHSystem`s in a `Semidiscretization`
 separately from the other systems.
@@ -27,7 +27,7 @@ of fluid to solid particles is large enough (e.g. 100:1 or more).
 - `alg`: The time integration algorithm to use for the TLSPH systems.
 
 # Keywords
-- `stage_coupling=true`:    If `false`, the TLSPH systems are only updated between full
+- `stage_coupling=false`:   If `false`, the TLSPH systems are only updated between full
                             time steps of the main integrator.
                             If `true`, the TLSPH systems are integrated to the intermediate
                             stage times of the main integrator as well. The sub-integrator
@@ -43,6 +43,10 @@ of fluid to solid particles is large enough (e.g. 100:1 or more).
                             for stability at the FSI interface.
                             For small time step size ratios, `stage_coupling=false` might be
                             sufficiently stable and more efficient than `stage_coupling=true`.
+                            Note that `stage_coupling=true` is only compatible with fluid
+                            time integration schemes that have monotonically increasing
+                            stage times and no stage time smaller than the time
+                            of the previous full step.
 - `predict_positions=true`: The force on the structure due to the fluid is kept constant
                             during one sub-integration call. When computing this force,
                             the new fluid state and the old structure state are available.
@@ -67,24 +71,22 @@ using OrdinaryDiffEq
 # Low-storage RK method with CFL condition for time step size
 callback = SplitIntegrationCallback(CarpenterKennedy2N54(williamson_condition=false),
                                     dt=1.0, # This is overwritten by the stepsize callback
-                                    callback=StepsizeCallback(cfl=1.6))
-
-# RK method with automatic error-based step size control
-callback = SplitIntegrationCallback(RDPK3SpFSAL49(), abstol=1e-6, reltol=1e-4)
+                                    callback=StepsizeCallback(cfl=1.6),
+                                    stage_coupling=true)
 
 # output
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
 │ SplitIntegrationCallback                                                                         │
 │ ════════════════════════                                                                         │
-│ alg: …………………………………………………………………… RDPK3SpFSAL49                                                    │
+│ alg: …………………………………………………………………… CarpenterKennedy2N54                                             │
 │ stage_coupling: ……………………………………… true                                                             │
 │ predict_positions: ……………………………… true                                                             │
-│ abstol: …………………………………………………………… 1.0e-6                                                           │
-│ reltol: …………………………………………………………… 0.0001                                                           │
+│ dt: ……………………………………………………………………… 1.0                                                              │
+│ callback: ……………………………………………………… StepsizeCallback(is_constant=true, cfl_number=1.6)               │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-function SplitIntegrationCallback(alg; stage_coupling=true, predict_positions=true,
+function SplitIntegrationCallback(alg; stage_coupling=false, predict_positions=true,
                                   kwargs...)
     split_integration_callback = SplitIntegrationCallback(alg, stage_coupling,
                                                           predict_positions, kwargs)
