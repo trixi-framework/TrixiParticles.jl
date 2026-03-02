@@ -632,7 +632,7 @@ end
                                           tspan=(0.0f0, 0.01f0),
                                           parallelization_backend=Main.parallelization_backend)
 
-            semi_new = sol.prob.p
+            semi_new = sol.prob.p.semi
 
             @testset verbose=true "Line" begin
                 # Interpolation parameters
