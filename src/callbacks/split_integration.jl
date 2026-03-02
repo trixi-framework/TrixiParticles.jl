@@ -1,11 +1,12 @@
 mutable struct SplitIntegrationCallback{A, K}
-    alg            :: A
-    stage_coupling :: Bool
-    kwargs         :: K
+    alg               :: A
+    stage_coupling    :: Bool
+    predict_positions :: Bool
+    kwargs            :: K
 end
 
 @doc raw"""
-    SplitIntegrationCallback(alg; stage_coupling=false, kwargs...)
+    SplitIntegrationCallback(alg; stage_coupling=true, predict_positions=true, kwargs...)
 
 Callback to integrate the `TotalLagrangianSPHSystem`s in a `Semidiscretization`
 separately from the other systems.
@@ -26,24 +27,35 @@ of fluid to solid particles is large enough (e.g. 100:1 or more).
 - `alg`: The time integration algorithm to use for the TLSPH systems.
 
 # Keywords
-- `stage_coupling=true`: If `false`, the TLSPH systems are only updated between full
-                         time steps of the main integrator.
-                         If `true`, the TLSPH systems are integrated to the intermediate
-                         stage times of the main integrator as well. The sub-integrator
-                         integrates from the previous fluid stage time to the next stage
-                         time, using the intermediate stage predictions for the fluid
-                         state. This strategy is highly efficient (no sub-steps have to be
-                         repeated) but less accurate than repeating the sub-integration
-                         with the final (as opposed to predicted) fluid state.
-                         Note that this type of stage-level coupling is still more accurate
-                         than step-level coupling (`stage_coupling=false`).
-                         For large time step size ratios, `stage_coupling=false` might
-                         require a significantly (often 2x) smaller fluid time step size
-                         for stability at the FSI interface.
-- `kwargs...`:           Additional keyword arguments passed to the integrator
-                         of the TLSPH systems. Use this for callbacks like the
-                         [`StepsizeCallback`](@ref) for choosing the sub-integration
-                         time step.
+- `stage_coupling=true`:    If `false`, the TLSPH systems are only updated between full
+                            time steps of the main integrator.
+                            If `true`, the TLSPH systems are integrated to the intermediate
+                            stage times of the main integrator as well. The sub-integrator
+                            integrates from the previous fluid stage time to the next stage
+                            time, using the intermediate stage predictions for the fluid
+                            state. This strategy is highly efficient (no sub-steps have to be
+                            repeated) but less accurate than repeating the sub-integration
+                            with the final (as opposed to predicted) fluid state.
+                            Note that this type of stage-level coupling is still more accurate
+                            than step-level coupling (`stage_coupling=false`).
+                            For large time step size ratios, `stage_coupling=false` might
+                            require a significantly (often 2x) smaller fluid time step size
+                            for stability at the FSI interface.
+- `predict_positions=true`: The force on the structure due to the fluid is kept constant
+                            during one sub-integration call. When computing this force,
+                            the new fluid state and the old structure state are available.
+                            To avoid inconsistencies and improve accuracy (not stability),
+                            we can predict the structure positions at the new time with
+                            a simple Euler step,
+                            ``u \leftarrow u + v\,(t_{\mathrm{new}} - t_{\mathrm{previous}})``,
+                            only for this fluid force calculation.
+                            If `false`, use the old structure state together with the new
+                            fluid state. If `true`, predict the structure positions for the
+                            fluid force calculation.
+- `kwargs...`:              Additional keyword arguments passed to the integrator
+                            of the TLSPH systems. Use this for callbacks like the
+                            [`StepsizeCallback`](@ref) for choosing the sub-integration
+                            time step.
 
 
 # Examples
@@ -63,13 +75,17 @@ callback = SplitIntegrationCallback(RDPK3SpFSAL49(), abstol=1e-6, reltol=1e-4)
 │ SplitIntegrationCallback                                                                         │
 │ ════════════════════════                                                                         │
 │ alg: …………………………………………………………………… RDPK3SpFSAL49                                                    │
+│ stage_coupling: ……………………………………… true                                                             │
+│ predict_positions: ……………………………… true                                                             │
 │ abstol: …………………………………………………………… 1.0e-6                                                           │
 │ reltol: …………………………………………………………… 0.0001                                                           │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-function SplitIntegrationCallback(alg; stage_coupling=false, kwargs...)
-    split_integration_callback = SplitIntegrationCallback(alg, stage_coupling, kwargs)
+function SplitIntegrationCallback(alg; stage_coupling=true, predict_positions=true,
+                                  kwargs...)
+    split_integration_callback = SplitIntegrationCallback(alg, stage_coupling,
+                                                          predict_positions, kwargs)
 
     # The first one is the `condition`, the second the `affect!`
     return DiscreteCallback(split_integration_callback, split_integration_callback,
@@ -80,7 +96,7 @@ end
 function initialize_split_integration!(cb, vu_ode, t, integrator)
     semi = integrator.p.semi
     split_integration_callback = cb.affect!
-    (; alg, stage_coupling, kwargs) = split_integration_callback
+    (; alg, stage_coupling, predict_positions, kwargs) = split_integration_callback
 
     # Disable TLSPH integration in the original integrator
     semi.integrate_tlsph[] = false
@@ -147,7 +163,8 @@ function initialize_split_integration!(cb, vu_ode, t, integrator)
     # and `p.split_integration_data`. The latter is usually `nothing`, but we can use it
     # to store another `NamedTuple` containing all split integration data.
     vu_ode_split = copy(split_integrator.u)
-    payload = (; stage_coupling, integrator=split_integrator, vu_ode_split, t_ref=Ref(t))
+    payload = (; stage_coupling, predict_positions,
+               integrator=split_integrator, vu_ode_split, t_ref=Ref(t))
     integrator.p = (; semi, split_integration_data=payload)
 
     return cb
@@ -224,15 +241,11 @@ function split_integrate!(v_ode, u_ode, t_new, split_integration_data)
     semi_large = split_integrator.p.semi_large
 
     @trixi_timeit timer() "split integration" begin
-        # Predict structure positions at `t_new` for higher accuracy (not stability).
-        # Simply apply an Euler step `u += v * (t_new - t_previous)`.
-        predict_structure_positions = true
-        predict_positions = Val(predict_structure_positions)
-
         # Copy the solutions back to the original integrator.
         # We modify `v_ode` and `u_ode`, which is technically not allowed during stages,
         # hence there are no guarantees about the structure part of `v_ode` and `u_ode`.
         # By copying the current split integration values, we make sure that it's correct.
+        predict_positions = Val(split_integration_data.predict_positions)
         @trixi_timeit timer() "copy back" copy_from_split!(v_ode, u_ode,
                                                            vu_ode_split.x...,
                                                            semi_large, semi_split,
@@ -459,7 +472,8 @@ end
 function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:SplitIntegrationCallback})
     @nospecialize cb # reduce precompilation time
     print(io, "SplitIntegrationCallback(alg=", cb.affect!.alg,
-          ", stage_coupling=", cb.affect!.stage_coupling, ")")
+          ", stage_coupling=", cb.affect!.stage_coupling,
+          ", predict_positions=", cb.affect!.predict_positions, ")")
 end
 
 function Base.show(io::IO, ::MIME"text/plain",
@@ -472,7 +486,8 @@ function Base.show(io::IO, ::MIME"text/plain",
         split_cb = cb.affect!
         setup = [
             "alg" => split_cb.alg |> typeof |> nameof |> string,
-            "stage_coupling" => split_cb.stage_coupling
+            "stage_coupling" => split_cb.stage_coupling,
+            "predict_positions" => split_cb.predict_positions
         ]
 
         for (key, value) in split_cb.kwargs
