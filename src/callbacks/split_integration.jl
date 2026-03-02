@@ -9,7 +9,7 @@ end
 
 Callback to integrate the `TotalLagrangianSPHSystem`s in a `Semidiscretization`
 separately from the other systems.
-After each time step of the main integrator (in which TLSPH systems are ignored),
+For each time step of the main integrator (in which TLSPH systems are ignored),
 the TLSPH systems are integrated for multiple smaller time steps with their own integrator.
 
 This is useful if the TLSPH systems require much smaller time steps than the fluid systems,
@@ -26,25 +26,34 @@ of fluid to solid particles is large enough (e.g. 100:1 or more).
 - `alg`: The time integration algorithm to use for the TLSPH systems.
 
 # Keywords
-- `stage_coupling=false`: If `false`, the TLSPH systems are only updated between full
-                          time steps of the main integrator.
-                          If `true`, the TLSPH systems are integrated to the intermediate
-                          stage times of the main integrator as well. The sub-integration
-                          starts from the solution at last full time step for each stage.
-                          This is significantly more expensive, but restores the stability
-                          properties of the main time integrator.
-                          For large time step size ratios, `stage_coupling=false` might
-                          require a significantly smaller time step size for stability
-                          at the FSI interface.
-- `kwargs...`: Additional keyword arguments passed to the integrator of the TLSPH systems.
+- `stage_coupling=true`: If `false`, the TLSPH systems are only updated between full
+                         time steps of the main integrator.
+                         If `true`, the TLSPH systems are integrated to the intermediate
+                         stage times of the main integrator as well. The sub-integrator
+                         integrates from the previous fluid stage time to the next stage
+                         time, using the intermediate stage predictions for the fluid
+                         state. This strategy is highly efficient (no sub-steps have to be
+                         repeated) but less accurate than repeating the sub-integration
+                         with the final (as opposed to predicted) fluid state.
+                         Note that this type of stage-level coupling is still more accurate
+                         than step-level coupling (`stage_coupling=false`).
+                         For large time step size ratios, `stage_coupling=false` might
+                         require a significantly (often 2x) smaller fluid time step size
+                         for stability at the FSI interface.
+- `kwargs...`:           Additional keyword arguments passed to the integrator
+                         of the TLSPH systems. Use this for callbacks like the
+                         [`StepsizeCallback`](@ref) for choosing the sub-integration
+                         time step.
+
 
 # Examples
 ```jldoctest; output=false
 using OrdinaryDiffEq
 
-# Low-storage RK method with fixed step size
+# Low-storage RK method with CFL condition for time step size
 callback = SplitIntegrationCallback(CarpenterKennedy2N54(williamson_condition=false),
-                                    dt=1e-5)
+                                    dt=1.0, # This is overwritten by the stepsize callback
+                                    callback=StepsizeCallback(cfl=1.6))
 
 # RK method with automatic error-based step size control
 callback = SplitIntegrationCallback(RDPK3SpFSAL49(), abstol=1e-6, reltol=1e-4)
