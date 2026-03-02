@@ -41,6 +41,8 @@ of fluid to solid particles is large enough (e.g. 100:1 or more).
                             For large time step size ratios, `stage_coupling=false` might
                             require a significantly (often 2x) smaller fluid time step size
                             for stability at the FSI interface.
+                            For small time step size ratios, `stage_coupling=false` might be
+                            sufficiently stable and more efficient than `stage_coupling=true`.
 - `predict_positions=true`: The force on the structure due to the fluid is kept constant
                             during one sub-integration call. When computing this force,
                             the new fluid state and the old structure state are available.
