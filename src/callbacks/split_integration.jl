@@ -166,8 +166,7 @@ function initialize_split_integration!(cb, vu_ode, t, integrator)
     # to store another `NamedTuple` containing all split integration data.
     vu_ode_split = copy(split_integrator.u)
     payload = (; stage_coupling, predict_positions, integrator=split_integrator,
-               large_integrator=integrator, vu_ode_split, t_ref=Ref(t), n_reject=Ref(0),
-               shown_info_this_step=Ref(false))
+               large_integrator=integrator, vu_ode_split, t_ref=Ref(t), n_reject=Ref(0))
     integrator.p = (; semi, split_integration_data=payload)
 
     return cb
@@ -185,7 +184,6 @@ function (split_integration_callback::SplitIntegrationCallback)(integrator)
     v_ode, u_ode = integrator.u.x
     data = integrator.p.split_integration_data
     data.n_reject[] = integrator.stats.nreject
-    data.shown_info_this_step[] = false
 
     # Advance the split integrator to the new time
     split_integrate!(v_ode, u_ode, new_t, data)
@@ -211,28 +209,18 @@ function (split_integration_callback::SplitIntegrationCallback)(integrator)
 end
 
 # No `SplitIntegrationCallback` used
-function split_integrate_stage!(dv_ode, v_ode, u_ode, t, split_integration_data::Nothing)
-    return true
+function split_integrate_stage!(v_ode, u_ode, t, split_integration_data::Nothing)
+    return v_ode
 end
 
-function split_integrate_stage!(dv_ode, v_ode, u_ode, t, split_integration_data)
+function split_integrate_stage!(v_ode, u_ode, t, split_integration_data)
     (; stage_coupling) = split_integration_data
 
     if stage_coupling
-        success = split_integrate!(v_ode, u_ode, t, split_integration_data)
-        if !success
-            # The split integration failed due to an instability.
-            # If this instability was caused only by a too large fluid time step
-            # and an adaptive time stepping method is used for the fluid, the fluid
-            # integrator might be able to reject the step and recover from this
-            # if the fluid RHS contains very large values (indicating an instability).
-            # We set the RHS to `Inf` and hope for the best.
-            dv_ode .= Inf
-        end
-        return success
+        split_integrate!(v_ode, u_ode, t, split_integration_data)
     end
 
-    return true
+    return v_ode
 end
 
 function split_integrate!(v_ode, u_ode, t_new, data)
@@ -336,32 +324,16 @@ function split_integrate!(v_ode, u_ode, t_new, data)
 
         # Integrate the split integrator up to the new time
         sol = SciMLBase.solve!(split_integrator)
+        if sol.retcode != SciMLBase.ReturnCode.Success
+            error("`SplitIntegrationCallback` failed with return code $(sol.retcode). " *
+                  "Try reducing the split integration time step size.")
+        end
 
         # Copy the solutions back to the original integrator
         @trixi_timeit timer() "copy back" copy_from_split!(v_ode, u_ode,
                                                            split_integrator.u.x...,
                                                            semi_large, semi_split,
                                                            t_new, t_previous)
-    end
-
-    if sol.retcode == SciMLBase.ReturnCode.Unstable
-        if !data.shown_info_this_step[]
-            @info "split integration detected an instability. " *
-                  "If you are using an adaptive fluid time stepping method and the " *
-                  "simulation is continuing, then you can ignore " *
-                  "the \"Instability detected\" warning above. This was caused by a " *
-                  "too large fluid time step, which the adaptive method rejected. " *
-                  "If the simulation crashed, try reducing the split integration time step."
-        end
-        # Make sure the info is only shown once per time step and not in every stage
-        # of an unstable step that will be rejected.
-        data.shown_info_this_step[] = true
-
-        # Return `false` to indicate that the split integration failed due to an instability
-        return false
-    elseif sol.retcode != SciMLBase.ReturnCode.Success
-        # Unknown error
-        error("`SplitIntegrationCallback` failed with return code $(sol.retcode).")
     end
 
     return true
