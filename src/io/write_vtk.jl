@@ -421,13 +421,6 @@ end
 
 function write2vtk!(vtk, v, u, t, system::RigidSPHSystem)
     n_particles = nparticles(system)
-    center_of_mass = system.cache.center_of_mass[]
-    center_of_mass_velocity = system.cache.center_of_mass_velocity[]
-    angular_velocity = system.cache.angular_velocity[]
-    resultant_force = system.cache.resultant_force[]
-    resultant_torque = system.cache.resultant_torque[]
-    angular_acceleration_force = system.cache.angular_acceleration_force[]
-    gyroscopic_acceleration = system.cache.gyroscopic_acceleration[]
 
     vtk["velocity"] = [current_velocity(v, system, particle)
                        for particle in eachparticle(system)]
@@ -435,13 +428,15 @@ function write2vtk!(vtk, v, u, t, system::RigidSPHSystem)
     vtk["mass"] = system.mass
     vtk["local_coordinates"] = system.local_coordinates
     vtk["relative_coordinates"] = system.cache.relative_coordinates
-    vtk["center_of_mass"] = [center_of_mass for _ in 1:n_particles]
-    vtk["center_of_mass_velocity"] = [center_of_mass_velocity for _ in 1:n_particles]
-    vtk["angular_velocity"] = fill(angular_velocity, n_particles)
-    vtk["resultant_force"] = [resultant_force for _ in 1:n_particles]
-    vtk["resultant_torque"] = fill(resultant_torque, n_particles)
-    vtk["angular_acceleration_force"] = fill(angular_acceleration_force, n_particles)
-    vtk["gyroscopic_acceleration"] = fill(gyroscopic_acceleration, n_particles)
+    vtk["center_of_mass"] = [system.cache.center_of_mass[] for _ in 1:n_particles]
+    vtk["center_of_mass_velocity"] = [system.cache.center_of_mass_velocity[]
+                                      for _ in 1:n_particles]
+    vtk["resultant_force"] = [system.cache.resultant_force[] for _ in 1:n_particles]
+
+    vtk["angular_velocity"] = system.cache.angular_velocity[]
+    vtk["resultant_torque"] = system.cache.resultant_torque[]
+    vtk["angular_acceleration_force"] = system.cache.angular_acceleration_force[]
+    vtk["gyroscopic_acceleration"] = system.cache.gyroscopic_acceleration[]
 
     write2vtk!(vtk, v, u, t, system.boundary_model, system)
 end

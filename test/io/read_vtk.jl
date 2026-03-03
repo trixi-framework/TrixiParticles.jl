@@ -181,17 +181,19 @@
             vtk_file = TrixiParticles.ReadVTK.VTKFile(joinpath(tmp_dir,
                                                                "tmp_file_rigid_1.vtu"))
             point_data = TrixiParticles.ReadVTK.get_point_data(vtk_file)
-            fields = collect(keys(point_data))
+            field_data = TrixiParticles.ReadVTK.get_field_data(vtk_file)
+            point_fields = collect(keys(point_data))
+            scalar_fields = collect(keys(field_data))
 
-            @test "local_coordinates" in fields
-            @test "relative_coordinates" in fields
-            @test "center_of_mass" in fields
-            @test "center_of_mass_velocity" in fields
-            @test "angular_velocity" in fields
-            @test "resultant_force" in fields
-            @test "resultant_torque" in fields
-            @test "angular_acceleration_force" in fields
-            @test "gyroscopic_acceleration" in fields
+            @test "local_coordinates" in point_fields
+            @test "relative_coordinates" in point_fields
+            @test "center_of_mass" in point_fields
+            @test "center_of_mass_velocity" in point_fields
+            @test "resultant_force" in point_fields
+            @test "angular_velocity" in scalar_fields
+            @test "resultant_torque" in scalar_fields
+            @test "angular_acceleration_force" in scalar_fields
+            @test "gyroscopic_acceleration" in scalar_fields
         end
     end
 end
