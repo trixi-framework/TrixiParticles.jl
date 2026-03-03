@@ -105,10 +105,13 @@ function compute_averaged_velocity!(system, velocity_averaging::VelocityAveragin
         alpha = 1 - exp(-dt / time_constant)
 
         @threaded semi for particle in each_integrated_particle(system)
-            v_particle = current_velocity(v, system, particle)
+            v_particle = @inbounds current_velocity(v, system, particle)
 
             for i in eachindex(v_particle)
-                averaged_velocity[i, particle] = (1 - alpha) * averaged_velocity[i, particle] + alpha * v_particle[i]
+                @inbounds averaged_velocity[i,
+                                            particle] = (1 - alpha) *
+                                                        averaged_velocity[i, particle] +
+                                                        alpha * v_particle[i]
             end
         end
     end

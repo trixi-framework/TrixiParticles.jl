@@ -57,8 +57,9 @@ function SplitIntegrationCallback(alg; kwargs...)
     # during the split integration.
     if haskey(kwargs, :callback)
         # Note that `CallbackSet`s can be nested
-        kwargs = (; kwargs..., callback=CallbackSet(values(kwargs).callback,
-                                                    UpdateAveragedVelocityCallback()))
+        kwargs = (; kwargs...,
+                  callback=CallbackSet(values(kwargs).callback,
+                                       UpdateAveragedVelocityCallback()))
     else
         kwargs = (; kwargs..., callback=UpdateAveragedVelocityCallback())
     end

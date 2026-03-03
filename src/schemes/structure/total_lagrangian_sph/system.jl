@@ -295,7 +295,7 @@ end
     # Velocity averaging used, `integrate_tlsph == true`, and no fluid system in the semi
     # means we are inside the split integration
     return !isnothing(system.velocity_averaging) && semi.integrate_tlsph[] &&
-        any(system -> system isa AbstractFluidSystem, semi.systems)
+           any(system -> system isa AbstractFluidSystem, semi.systems)
 end
 
 @inline function Base.eltype(::TotalLagrangianSPHSystem{<:Any, <:Any, ELTYPE}) where {ELTYPE}
