@@ -1,5 +1,43 @@
+@doc raw"""
+    VelocityAveraging(; time_constant)
+
+Exponential moving average (EMA) of the structure velocity used **only** for the
+fluid-structure viscous coupling (no-slip boundary condition) of a
+[`TotalLagrangianSPHSystem`](@ref).
+
+This is a stabilization option that is typically only needed for challenging FSI
+cases with very stiff structures, where high-frequency noise in the structure velocity
+can trigger instabilities or spurious pressure waves (due to aliasing) in the fluid.
+
+See [the docs](@ref velocity_averaging) for more details.
+
+!!! note "Callback Required"
+    Velocity averaging requires either an [`UpdateCallback`](@ref)
+    or a [`SplitIntegrationCallback`](@ref) to be used in the simulation.
+    In the typical use case of stabilizing a challenging FSI simulation, a
+    [`SplitIntegrationCallback`](@ref) will usually be used anyway for performance reasons.
+
+# Keywords
+- `time_constant`: Time constant ``\tau`` of the EMA (same units as simulation time).
+                   Smaller ``\tau`` smooths only very fast oscillations, which is often
+                   sufficient for stabilizing FSI simulations; larger ``\tau``
+                   can also suppress slower oscillations that are causing spurious
+                   pressure waves without destabilizing the simulation.
+
+# Examples
+```jldoctest; output=false
+VelocityAveraging(time_constant=1e-5)
+
+# output
+VelocityAveraging{Float64}(1.0e-5)
+```
+"""
 struct VelocityAveraging{ELTYPE}
     time_constant::ELTYPE
+
+    function VelocityAveraging(; time_constant)
+        return new{typeof(time_constant)}(time_constant)
+    end
 end
 
 # No velocity averaging for a system by default

@@ -64,7 +64,7 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
                     Alternatively, a user-defined neighborhood search can be passed here.
 - `velocity_averaging`: Velocity averaging technique to be applied on the velocity field
                     to obtain an averaged velocity to be used in fluid-structure interaction.
-                    See [`VelocityAveraging`](@ref) for details.
+                    See [the docs](@ref velocity_averaging) for details.
 
 !!! note
     If specifying the clamped particles manually (via `n_clamped_particles`),

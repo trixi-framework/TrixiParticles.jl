@@ -48,6 +48,7 @@ callback = SplitIntegrationCallback(RDPK3SpFSAL49(), abstol=1e-6, reltol=1e-4)
 │ alg: …………………………………………………………………… RDPK3SpFSAL49                                                    │
 │ abstol: …………………………………………………………… 1.0e-6                                                           │
 │ reltol: …………………………………………………………… 0.0001                                                           │
+│ callback: ……………………………………………………… UpdateAveragedVelocityCallback                                   │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
@@ -408,4 +409,10 @@ function update_averaged_velocity_callback!(integrator)
     u_modified!(integrator, false)
 
     return integrator
+end
+
+function Base.show(io::IO,
+                   cb::DiscreteCallback{typeof(update_averaged_velocity_callback!)})
+    @nospecialize cb # reduce precompilation time
+    print(io, "UpdateAveragedVelocityCallback")
 end
