@@ -79,7 +79,7 @@ end
         @notimeit timer() dvdu_ode = get_dvdu(integrator)
         dv_ode, du_ode = dvdu_ode.x
     end
-    
+
     v_ode, u_ode = integrator.u.x
     semi = integrator.p
 
