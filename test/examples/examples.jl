@@ -162,7 +162,8 @@
             stepsize_callback = StepsizeCallback(cfl=1.2)
             callbacks = CallbackSet(info_callback, saving_callback, split_integration,
                                     stepsize_callback)
-            sol = @trixi_test_nowarn solve(ode, CarpenterKennedy2N54(williamson_condition=false),
+            sol = @trixi_test_nowarn solve(ode,
+                                           CarpenterKennedy2N54(williamson_condition=false),
                                            maxiters=400, dt=1.0,
                                            save_everystep=false, callback=callbacks)
 
