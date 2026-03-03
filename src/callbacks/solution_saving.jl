@@ -155,7 +155,7 @@ end
 # `affect!`
 function (solution_callback::SolutionSavingCallback)(integrator)
     (; interval, output_directory, custom_quantities, git_hash, verbose,
-     prefix, latest_saved_iter, max_coordinates) = solution_callback
+     prefix, max_coordinates) = solution_callback
 
     @trixi_timeit timer() "save solution" begin
         @trixi_timeit timer() "update dvdu" begin
@@ -167,7 +167,7 @@ function (solution_callback::SolutionSavingCallback)(integrator)
         semi = integrator.p
         iter = get_iter(interval, integrator)
 
-        if iter == latest_saved_iter
+        if iter == solution_callback.latest_saved_iter
             # This should only happen at the end of the simulation when using `dt` and the
             # final time is not a multiple of the saving interval.
             @assert isfinished(integrator)
@@ -176,7 +176,7 @@ function (solution_callback::SolutionSavingCallback)(integrator)
             iter += 1
         end
 
-        latest_saved_iter = iter
+        solution_callback.latest_saved_iter = iter
 
         if verbose
             println("Writing solution to $output_directory at t = $(integrator.t)")
