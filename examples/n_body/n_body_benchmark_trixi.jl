@@ -85,15 +85,16 @@ function symplectic_euler!(velocity, coordinates, semi)
     u = vec(coordinates)
     dv = copy(v)
     du = copy(u)
+    p = (; semi)
 
     @time for _ in 1:50_000_000
-        TrixiParticles.kick!(dv, v, u, semi, 0.0)
+        TrixiParticles.kick!(dv, v, u, p, 0.0)
 
         @inbounds for i in eachindex(v)
             v[i] += 0.01 * dv[i]
         end
 
-        TrixiParticles.drift!(du, v, u, semi, 0.0)
+        TrixiParticles.drift!(du, v, u, p, 0.0)
 
         @inbounds for i in eachindex(u)
             u[i] += 0.01 * du[i]

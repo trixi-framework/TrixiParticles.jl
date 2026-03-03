@@ -134,7 +134,7 @@
             split_integration = SplitIntegrationCallback(CarpenterKennedy2N54(williamson_condition=false),
                                                          dt=5e-5)
             callbacks = CallbackSet(info_callback, saving_callback, split_integration)
-            @trixi_test_nowarn sol = solve(ode, RDPK3SpFSAL49(), maxiters=400,
+            sol = @trixi_test_nowarn solve(ode, RDPK3SpFSAL49(), maxiters=400,
                                            save_everystep=false, callback=callbacks)
 
             @test sol.retcode == ReturnCode.Success
@@ -162,7 +162,7 @@
             stepsize_callback = StepsizeCallback(cfl=1.2)
             callbacks = CallbackSet(info_callback, saving_callback, split_integration,
                                     stepsize_callback)
-            @trixi_test_nowarn sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
+            sol = @trixi_test_nowarn solve(ode, CarpenterKennedy2N54(williamson_condition=false),
                                            maxiters=400, dt=1.0,
                                            save_everystep=false, callback=callbacks)
 
