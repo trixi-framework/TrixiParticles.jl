@@ -37,7 +37,7 @@ end
 end
 
 # Count allocations of one call to the right-hand side (`kick!` + `drift!`)
-function count_rhs_allocations(sol, semi)
+function count_rhs_allocations(sol)
     t = sol.t[end]
     v_ode_, u_ode_ = sol.u[end].x
 
@@ -48,7 +48,9 @@ function count_rhs_allocations(sol, semi)
     du_ode = similar(u_ode)
 
     # Wrap neighborhood searches to avoid counting alloctations in the NHS update
-    semi_no_nhs_update = copy_semi_with_no_update_nhs(semi)
+    p = sol.prob.p
+    semi_no_nhs_update = copy_semi_with_no_update_nhs(p.semi)
+    p_no_update = TrixiParticles.@set p.semi = semi_no_nhs_update
 
     try
         # Disable timers, which cause extra allocations
@@ -58,26 +60,26 @@ function count_rhs_allocations(sol, semi)
         # `TrixiParticles.timeit_debug_enabled()` is called, which is redefined in
         # `disable_debug_timings` above.
         return @invokelatest count_rhs_allocations_inner(dv_ode, du_ode, v_ode, u_ode,
-                                                         semi_no_nhs_update, t)
+                                                         p_no_update, t)
     finally
         # Enable timers again
         @invokelatest TrixiParticles.enable_debug_timings()
     end
 end
 
-# Function barrier to avoid type instabilites with `semi_no_nhs_update`, which will
+# Function barrier to avoid type instabilites with `p_no_update`, which will
 # cause extra allocations.
 @inline function count_rhs_allocations_inner(dv_ode, du_ode, v_ode, u_ode,
-                                             semi_no_nhs_update, t)
+                                             p_no_update, t)
     # Run RHS once to avoid counting allocations from compilation
-    TrixiParticles.kick!(dv_ode, v_ode, u_ode, semi_no_nhs_update, t)
-    TrixiParticles.drift!(du_ode, v_ode, u_ode, semi_no_nhs_update, t)
+    TrixiParticles.kick!(dv_ode, v_ode, u_ode, p_no_update, t)
+    TrixiParticles.drift!(du_ode, v_ode, u_ode, p_no_update, t)
 
     # Count allocations
     allocations_kick = @allocated TrixiParticles.kick!(dv_ode, v_ode, u_ode,
-                                                       semi_no_nhs_update, t)
+                                                       p_no_update, t)
     allocations_drift = @allocated TrixiParticles.drift!(du_ode, v_ode, u_ode,
-                                                         semi_no_nhs_update, t)
+                                                         p_no_update, t)
 
     return allocations_kick + allocations_drift
 end

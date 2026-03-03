@@ -15,9 +15,9 @@
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
                 # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol, semi) < 200
+                @test count_rhs_allocations(sol) < 200
             else
-                @test count_rhs_allocations(sol, semi) == 0
+                @test count_rhs_allocations(sol) == 0
             end
         end
 
@@ -34,9 +34,9 @@
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
                 # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol, semi) < 200
+                @test count_rhs_allocations(sol) < 200
             else
-                @test count_rhs_allocations(sol, semi) == 0
+                @test count_rhs_allocations(sol) == 0
             end
         end
 
@@ -60,9 +60,9 @@
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
                 # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol, semi) < 200
+                @test count_rhs_allocations(sol) < 200
             else
-                @test count_rhs_allocations(sol, semi) == 0
+                @test count_rhs_allocations(sol) == 0
             end
         end
     end
@@ -79,9 +79,9 @@
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
                 # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol, semi) < 200
+                @test count_rhs_allocations(sol) < 200
             else
-                @test count_rhs_allocations(sol, semi) == 0
+                @test count_rhs_allocations(sol) == 0
             end
         end
 
@@ -98,9 +98,9 @@
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
                 # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol, semi) < 200
+                @test count_rhs_allocations(sol) < 200
             else
-                @test count_rhs_allocations(sol, semi) == 0
+                @test count_rhs_allocations(sol) == 0
             end
         end
 
@@ -125,9 +125,9 @@
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
                 # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol, semi) < 200
+                @test count_rhs_allocations(sol) < 200
             else
-                @test count_rhs_allocations(sol, semi) == 0
+                @test count_rhs_allocations(sol) == 0
             end
 
             # Use split integration and verify that we need fewer than 400 iterations
@@ -141,9 +141,9 @@
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
                 # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol, semi) < 200
+                @test count_rhs_allocations(sol) < 200
             else
-                @test count_rhs_allocations(sol, semi) == 0
+                @test count_rhs_allocations(sol) == 0
             end
 
             # Use stage-level coupling and verify that it is not compatible with
@@ -191,9 +191,9 @@
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
                 # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol, semi) < 200
+                @test count_rhs_allocations(sol) < 200
             else
-                @test count_rhs_allocations(sol, semi) == 0
+                @test count_rhs_allocations(sol) == 0
             end
         end
 
@@ -208,9 +208,9 @@
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
                 # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol, semi) < 500
+                @test count_rhs_allocations(sol) < 500
             else
-                @test count_rhs_allocations(sol, semi) == 0
+                @test count_rhs_allocations(sol) == 0
             end
         end
     end
@@ -221,7 +221,7 @@
                                              joinpath(examples_dir(), "n_body",
                                                       "n_body_solar_system.jl"))
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            @test count_rhs_allocations(sol) == 0
         end
 
         @trixi_testset "n_body/n_body_benchmark_trixi.jl" begin
@@ -306,7 +306,7 @@
                                                       "rectangular_tank_2d.jl"),
                                              tspan=(0.0, 0.1))
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            @test count_rhs_allocations(sol) == 0
         end
     end
     @trixi_testset "dem/collapsing_sand_pile_3d.jl" begin
@@ -315,6 +315,6 @@
                                                   "collapsing_sand_pile_3d.jl"),
                                          tspan=(0.0, 0.1))
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 end
