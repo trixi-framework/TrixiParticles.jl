@@ -46,7 +46,7 @@ end
 function initialize_stepsize_callback(discrete_callback, u, t, integrator)
     stepsize_callback = discrete_callback.affect!
 
-    semi = integrator.p
+    semi = integrator.p.semi
     set_callbacks_used!(semi, integrator)
 
     stepsize_callback(integrator)

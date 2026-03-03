@@ -127,7 +127,7 @@ function initialize_save_cb!(cb, u, t, integrator)
 end
 
 function initialize_save_cb!(solution_callback::SolutionSavingCallback, u, t, integrator)
-    semi = integrator.p
+    semi = integrator.p.semi
     set_callbacks_used!(semi, integrator)
 
     # Reset `latest_saved_iter`
