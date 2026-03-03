@@ -158,15 +158,13 @@ function (solution_callback::SolutionSavingCallback)(integrator)
      prefix, latest_saved_iter, max_coordinates) = solution_callback
 
     @trixi_timeit timer() "save solution" begin
-        vu_ode = integrator.u
-        semi = integrator.p
-        t = integrator.t
-
         @trixi_timeit timer() "update dvdu" begin
             # Don't create sub-timers here to avoid cluttering the timer output
-            @notimeit timer() dvdu_ode = get_dvdu(vu_ode, semi, t)
+            @notimeit timer() dvdu_ode = get_dvdu(integrator)
         end
 
+        vu_ode = integrator.u
+        semi = integrator.p
         iter = get_iter(interval, integrator)
 
         if iter == latest_saved_iter

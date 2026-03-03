@@ -74,16 +74,14 @@ end
 @inline function steady_state_condition!(cb, integrator)
     (; abstol, reltol, previous_ekin, interval_size) = cb
 
-    vu_ode = integrator.u
-    v_ode, u_ode = vu_ode.x
-    semi = integrator.p
-    t = integrator.t
-
     @trixi_timeit timer() "update dvdu" begin
         # Don't create sub-timers here to avoid cluttering the timer output
-        @notimeit timer() dvdu_ode = get_dvdu(vu_ode, semi, t)
+        @notimeit timer() dvdu_ode = get_dvdu(integrator)
         dv_ode, du_ode = dvdu_ode.x
     end
+    
+    v_ode, u_ode = integrator.u.x
+    semi = integrator.p
 
     # Calculate kinetic energy
     ekin = sum(semi.systems) do system

@@ -25,14 +25,16 @@ end
             (save_final_solution && isfinished(integrator)))
 end
 
-function get_dvdu(vu_ode, semi, t)
+function get_dvdu(integrator)
+    vu_ode = integrator.u
+    t = integrator.t
     dvdu_ode = similar(vu_ode)
 
     dv_ode, du_ode = dvdu_ode.x
     v_ode, u_ode = vu_ode.x
 
-    kick!(dv_ode, v_ode, u_ode, semi, t)
-    drift!(du_ode, v_ode, u_ode, semi, t)
+    kick!(dv_ode, v_ode, u_ode, integrator.p, t)
+    drift!(du_ode, v_ode, u_ode, integrator.p, t)
 
     return dvdu_ode
 end
