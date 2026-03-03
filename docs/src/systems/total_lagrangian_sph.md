@@ -133,8 +133,8 @@ prevent hourglass modes and stabilize the fluid close to the fluid-structure int
 
 ## [Velocity Averaging](@id velocity_averaging)
 
-In challenging FSI cases with very stiff structures, sometimes the two techniques
-above are not sufficient to prevent instabilities.
+In challenging FSI cases with very stiff structures, the two techniques above might not be
+sufficient to prevent instabilities.
 High-frequency noise in the structure velocity can trigger instabilities or spurious
 pressure waves (due to aliasing) in the fluid.
 Another stabilization technique is an exponential moving average (EMA) of the structure

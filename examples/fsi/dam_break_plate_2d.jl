@@ -129,7 +129,8 @@ structure_system = TotalLagrangianSPHSystem(structure,
                                             E, nu, boundary_model=boundary_model_structure,
                                             clamped_particles=1:nparticles(clamped_particles),
                                             acceleration=(0.0, -gravity),
-                                            penalty_force=PenaltyForceGanzenmueller(alpha=0.01))
+                                            penalty_force=PenaltyForceGanzenmueller(alpha=0.01),
+                                            velocity_averaging=nothing)
 
 # ==========================================================================================
 # ==== Simulation
