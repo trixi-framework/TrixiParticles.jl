@@ -49,11 +49,13 @@ end
 # when the callback is initialized.
 # This function checks for the presence of these callbacks and sets the flags accordingly.
 function set_callbacks_used!(semi, integrator)
-    update_callback_used = any(cb -> cb isa DiscreteCallback{<:UpdateCallback},
+    UpdateCB = Union{DiscreteCallback{<:Any, <:UpdateCallback},
+                     DiscreteCallback{<:Any, <:PeriodicCallbackAffect{<:UpdateCallback}}}
+    update_callback_used = any(cb -> cb isa UpdateCB,
                                integrator.opts.callback.discrete_callbacks)
     semi.update_callback_used[] = update_callback_used
 
-    integrate_tlsph = !any(cb -> cb isa DiscreteCallback{<:SplitIntegrationCallback},
+    integrate_tlsph = !any(cb -> cb isa DiscreteCallback{<:Any, <:SplitIntegrationCallback},
                            integrator.opts.callback.discrete_callbacks)
 
     semi.integrate_tlsph[] = integrate_tlsph
