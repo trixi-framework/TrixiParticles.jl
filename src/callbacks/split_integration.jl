@@ -380,7 +380,7 @@ end
 # `initialize`
 function initialize_averaged_velocity_callback!(cb, vu_ode, t, integrator)
     v_ode, u_ode = vu_ode.x
-    semi = integrator.p
+    semi = integrator.p.semi_split
 
     foreach_system(semi) do system
         initialize_averaged_velocity!(system, v_ode, semi, t)
@@ -397,7 +397,7 @@ end
 # `affect!`
 function update_averaged_velocity_callback!(integrator)
     t_new = integrator.t
-    semi = integrator.p
+    semi = integrator.p.semi_split
     v_ode, u_ode = integrator.u.x
 
     foreach_system(semi) do system
