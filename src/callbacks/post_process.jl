@@ -348,8 +348,8 @@ function Base.show(io::IO, ::MIME"text/plain",
             "filename" => callback.filename,
             "output directory" => callback.output_directory,
             "append timestamp" => callback.append_timestamp ? "yes" : "no",
-            "write json file" => callback.write_csv ? "yes" : "no",
-            "write csv file" => callback.write_json ? "yes" : "no"
+            "write json file" => callback.write_json ? "yes" : "no",
+            "write csv file" => callback.write_csv ? "yes" : "no"
         ]
 
         for (i, key) in enumerate(keys(callback.func))
@@ -385,8 +385,8 @@ function Base.show(io::IO, ::MIME"text/plain",
             "filename" => callback.filename,
             "output directory" => callback.output_directory,
             "append timestamp" => callback.append_timestamp ? "yes" : "no",
-            "write json file" => callback.write_csv ? "yes" : "no",
-            "write csv file" => callback.write_json ? "yes" : "no"
+            "write json file" => callback.write_json ? "yes" : "no",
+            "write csv file" => callback.write_csv ? "yes" : "no"
         ]
 
         for (i, key) in enumerate(keys(callback.func))
