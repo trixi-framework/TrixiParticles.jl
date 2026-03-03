@@ -619,13 +619,14 @@ end
 
             # Set up callbacks
             split_integration = SplitIntegrationCallback(CarpenterKennedy2N54(williamson_condition=false),
-                                                         stage_coupling=true, dt=5f-5)
+                                                         stage_coupling=true, dt=5.0f-5)
             stepsize_callback = StepsizeCallback(cfl=1.2f0)
             callbacks = CallbackSet(info_callback, saving_callback, split_integration,
                                     stepsize_callback)
 
             # Run the simulation
-            @trixi_test_nowarn sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
+            @trixi_test_nowarn sol = solve(ode,
+                                           CarpenterKennedy2N54(williamson_condition=false),
                                            maxiters=400, dt=1.0f0,
                                            save_everystep=false, callback=callbacks)
 
