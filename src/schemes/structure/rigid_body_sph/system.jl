@@ -28,17 +28,17 @@ torque and applied consistently to all rigid particles.
 """
 struct RigidSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
                       AV, ST, C} <: AbstractStructureSystem{NDIMS}
-    initial_condition::IC
-    initial_velocity::ARRAY2D # [dimension, particle]
-    local_coordinates::ARRAY2D # [dimension, particle]
-    mass::ARRAY1D # [particle]
-    material_density::ARRAY1D # [particle]
-    acceleration::SVector{NDIMS, ELTYPE}
-    initial_angular_velocity::AV
-    particle_spacing::ELTYPE
-    boundary_model::BM
-    source_terms::ST
-    cache::C
+    initial_condition        ::IC
+    initial_velocity         ::ARRAY2D # [dimension, particle]
+    local_coordinates        ::ARRAY2D # [dimension, particle]
+    mass                     ::ARRAY1D # [particle]
+    material_density         ::ARRAY1D # [particle]
+    acceleration             ::SVector{NDIMS, ELTYPE}
+    initial_angular_velocity ::AV
+    particle_spacing         ::ELTYPE
+    boundary_model           ::BM
+    source_terms             ::ST
+    cache                    ::C
 end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
