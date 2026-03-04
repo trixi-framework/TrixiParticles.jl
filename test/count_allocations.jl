@@ -47,7 +47,12 @@ function count_rhs_allocations(sol)
     dv_ode = similar(v_ode)
     du_ode = similar(u_ode)
 
-    # Wrap neighborhood searches to avoid counting alloctations in the NHS update
+    # Wrap neighborhood searches to avoid counting allocations in the NHS update.
+    # Note that `p.split_integration_data.split_integrator.p.semi_large` is still the old
+    # semidiscretization with the original NHS.
+    # However, we call `kick!` twice with the same `t` below, so in the second call,
+    # where the allocations are counted, the split integration does nothing because
+    # the split integrator is already at the time `t`.
     p = sol.prob.p
     semi_no_nhs_update = copy_semi_with_no_update_nhs(p.semi)
     p_no_update = TrixiParticles.@set p.semi = semi_no_nhs_update
