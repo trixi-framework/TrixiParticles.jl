@@ -516,7 +516,7 @@ end
 function inverse_inertia_tensor(inertia::SMatrix{3, 3, ELTYPE, 9}) where {ELTYPE}
     inertia_determinant = det(inertia)
     inertia_scale = max(one(ELTYPE), norm(inertia, Inf))
-    determinant_tolerance = eps(ELTYPE) * inertia_scale^3
+    determinant_tolerance = eps(inertia_scale^3)
 
     if !isfinite(inertia_determinant) || abs(inertia_determinant) <= determinant_tolerance
         return zero(inertia)
@@ -537,14 +537,41 @@ end
 end
 
 function calculate_dt(v_ode, u_ode, cfl_number, system::RigidSPHSystem, semi)
-    acceleration_norm = norm(system.acceleration)
     spacing = particle_spacing(system, first(eachparticle(system)))
 
-    if acceleration_norm <= eps(eltype(system)) || !isfinite(spacing) || spacing <= 0
-        return Inf
+    radius = maximum_particle_radius(system)
+    angular_speed = norm(system.angular_velocity[])
+    angular_acceleration = norm(system.angular_acceleration_force[])
+
+    total_mass = system.total_mass
+    translational_acceleration = system.acceleration
+    if total_mass > eps(eltype(system))
+        translational_acceleration += system.resultant_force[] / total_mass
     end
 
-    return cfl_number * spacing / acceleration_norm
+    # Simple rigid-body scales:
+    # acceleration ~ a_trans + r*(ω² + α), velocity ~ v_com + r*ω.
+    acceleration_scale = norm(translational_acceleration) +
+                         radius * (angular_speed^2 + angular_acceleration)
+    dt_acceleration = acceleration_scale <= eps(eltype(system)) ? Inf :
+                      0.25 * sqrt(spacing / acceleration_scale)
+
+    speed_scale = norm(system.center_of_mass_velocity[]) + radius * angular_speed
+    dt_velocity = speed_scale <= eps(eltype(system)) ? Inf :
+                  cfl_number * spacing / speed_scale
+
+    return min(dt_acceleration, dt_velocity)
+end
+
+function maximum_particle_radius(system::RigidSPHSystem)
+    max_radius = zero(eltype(system))
+
+    for particle in each_integrated_particle(system)
+        relative_position = extract_svector(system.relative_coordinates, system, particle)
+        max_radius = max(max_radius, norm(relative_position))
+    end
+
+    return max_radius
 end
 
 # To account for boundary effects in the viscosity term of fluid-structure interactions,

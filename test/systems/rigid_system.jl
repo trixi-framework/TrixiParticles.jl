@@ -36,7 +36,7 @@
 
         dt = TrixiParticles.calculate_dt(zeros(2, 3), zeros(2, 3), 0.25, system,
                                          nothing)
-        @test dt ≈ 0.25 * 0.1 / 9.81
+        @test dt ≈ 0.25 * sqrt(0.1 / 9.81)
     end
 
     @trixi_testset "Show" begin
@@ -78,13 +78,16 @@
         ic_2d = InitialCondition(; coordinates=coordinates_2d, mass=mass_2d,
                                  density=density_2d, angular_velocity=2.0)
 
-        system_2d = RigidSPHSystem(ic_2d)
+        system_2d = RigidSPHSystem(ic_2d; particle_spacing=0.1)
         v0_2d = zeros(2, 2)
         TrixiParticles.write_v0!(v0_2d, system_2d)
 
         @test system_2d.initial_condition.angular_velocity ≈ 2.0
         @test v0_2d ≈ [0.0 0.0
                        -1.0 1.0]
+        dt_2d = TrixiParticles.calculate_dt(v0_2d, zeros(size(v0_2d)), 0.25, system_2d,
+                                            nothing)
+        @test dt_2d ≈ 0.25 * 0.1 / 1.0
         @test_throws ArgumentError InitialCondition(; coordinates=coordinates_2d,
                                                     mass=mass_2d,
                                                     density=density_2d,
