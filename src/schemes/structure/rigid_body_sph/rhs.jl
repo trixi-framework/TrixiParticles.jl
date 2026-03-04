@@ -97,7 +97,7 @@ function apply_resultant_force_and_torque!(dv, particle_system::RigidSPHSystem)
     cache.resultant_torque[] = total_torque
     cache.angular_acceleration_force[] = angular_acceleration_force
 
-    for particle in each_integrated_particle(particle_system)
+    @threaded for particle in each_integrated_particle(particle_system)
         relative_position = extract_svector(cache.relative_coordinates, particle_system,
                                             particle)
         rotational_acceleration = angular_acceleration_cross_position(angular_acceleration_force,
