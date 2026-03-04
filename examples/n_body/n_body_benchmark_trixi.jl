@@ -85,7 +85,7 @@ function symplectic_euler!(velocity, coordinates, semi)
     u = vec(coordinates)
     dv = copy(v)
     du = copy(u)
-    p = (; semi)
+    p = (; semi, split_integration_data=nothing)
 
     @time for _ in 1:50_000_000
         TrixiParticles.kick!(dv, v, u, p, 0.0)
