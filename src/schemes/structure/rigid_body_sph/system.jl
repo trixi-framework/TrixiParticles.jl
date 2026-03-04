@@ -582,11 +582,12 @@ end
 end
 
 @inline function viscosity_model(system::Union{AbstractFluidSystem, OpenBoundarySystem},
-                                 neighbor_system::RigidSPHSystem)
-    if isnothing(neighbor_system.boundary_model)
-        return nothing
-    end
+                                 neighbor_system::RigidSPHSystem{Nothing})
+    return nothing
+end
 
+@inline function viscosity_model(system::Union{AbstractFluidSystem, OpenBoundarySystem},
+                                 neighbor_system::RigidSPHSystem)
     return neighbor_system.boundary_model.viscosity
 end
 
