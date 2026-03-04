@@ -604,7 +604,6 @@ end
                                           # tspan and make CI faster.
                                           plate_position=(0.2f0, 0.0f0),
                                           E=1.0f7, # Stiffer plate
-                                          extra_callback=split_integration,
                                           sol=nothing, ode=nothing)
 
             # Neighborhood search with `FullGridCellList` for GPU compatibility
