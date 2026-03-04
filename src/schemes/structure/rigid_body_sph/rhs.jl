@@ -113,30 +113,13 @@ function apply_resultant_force_and_torque!(dv, particle_system::RigidSPHSystem)
 end
 
 function resultant_force_and_torque(particle_system::RigidSPHSystem, force_per_particle,
-                                    relative_coordinates, ::Val{2})
-    total_force = zero(SVector{2, eltype(particle_system)})
-    total_torque = zero(eltype(particle_system))
-
-    for particle in each_integrated_particle(particle_system)
+                                    relative_coordinates)
+    particles = each_integrated_particle(particle_system)
+    total_force, total_torque = mapreduce((x, y) -> x .+ y, particles) do particle
         particle_force = extract_svector(force_per_particle, particle_system, particle)
         relative_position = extract_svector(relative_coordinates, particle_system, particle)
-        total_force += particle_force
-        total_torque += cross(relative_position, particle_force)
-    end
-
-    return total_force, total_torque
-end
-
-function resultant_force_and_torque(particle_system::RigidSPHSystem, force_per_particle,
-                                    relative_coordinates, ::Val{3})
-    total_force = zero(SVector{3, eltype(particle_system)})
-    total_torque = zero(SVector{3, eltype(particle_system)})
-
-    for particle in each_integrated_particle(particle_system)
-        particle_force = extract_svector(force_per_particle, particle_system, particle)
-        relative_position = extract_svector(relative_coordinates, particle_system, particle)
-        total_force += particle_force
-        total_torque += cross(relative_position, particle_force)
+        particle_torque = cross(relative_position, particle_force)
+        return (particle_force, particle_torque)
     end
 
     return total_force, total_torque
