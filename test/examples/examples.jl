@@ -134,16 +134,18 @@
             split_integration = SplitIntegrationCallback(CarpenterKennedy2N54(williamson_condition=false),
                                                          dt=5e-5)
             callbacks = CallbackSet(info_callback, saving_callback, split_integration)
-            sol = @trixi_test_nowarn solve(ode, RDPK3SpFSAL49(), maxiters=400,
-                                           save_everystep=false, callback=callbacks)
+            # Don't use `sol` here, as this local variable would shadow the global `sol`
+            # from the `trixi_include` above and break the `sol.retcode` above.
+            sol2 = @trixi_test_nowarn solve(ode, RDPK3SpFSAL49(), maxiters=400,
+                                            save_everystep=false, callback=callbacks)
 
-            @test sol.retcode == ReturnCode.Success
+            @test sol2.retcode == ReturnCode.Success
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
                 # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol) < 200
+                @test count_rhs_allocations(sol2) < 200
             else
-                @test count_rhs_allocations(sol) == 0
+                @test count_rhs_allocations(sol2) == 0
             end
 
             # Use stage-level coupling and verify that it is not compatible with
@@ -162,10 +164,19 @@
             stepsize_callback = StepsizeCallback(cfl=1.2)
             callbacks = CallbackSet(info_callback, saving_callback, split_integration,
                                     stepsize_callback)
-            sol = @trixi_test_nowarn solve(ode,
-                                           CarpenterKennedy2N54(williamson_condition=false),
-                                           maxiters=400, dt=1.0,
-                                           save_everystep=false, callback=callbacks)
+            sol2 = @trixi_test_nowarn solve(ode,
+                                            CarpenterKennedy2N54(williamson_condition=false),
+                                            maxiters=400, dt=1.0,
+                                            save_everystep=false, callback=callbacks)
+
+            @test sol2.retcode == ReturnCode.Success
+            if VERSION < v"1.12"
+                # Older Julia versions produce allocations because `get_neighborhood_search`
+                # is not type-stable with TLSPH.
+                @test count_rhs_allocations(sol2) < 200
+            else
+                @test count_rhs_allocations(sol2) == 0
+            end
 
             # Use split integration and verify that it is actually used for TLSPH
             # by using a time step that is too large and verifying that it is crashing.

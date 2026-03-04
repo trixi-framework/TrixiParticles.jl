@@ -625,7 +625,7 @@ end
                                     stepsize_callback)
 
             # Run the simulation
-            @trixi_test_nowarn sol = solve(ode,
+            sol = @trixi_test_nowarn solve(ode,
                                            CarpenterKennedy2N54(williamson_condition=false),
                                            maxiters=400, dt=1.0f0,
                                            save_everystep=false, callback=callbacks)
