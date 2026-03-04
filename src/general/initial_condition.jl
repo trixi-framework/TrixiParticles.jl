@@ -217,40 +217,35 @@ function InitialCondition{NDIMS}(coordinates, velocity, mass, density,
                             angular_velocity_)
 end
 
-@inline function default_angular_velocity(::Val{3}, ELTYPE)
-    return zero(SVector{3, ELTYPE})
-end
-
-@inline function default_angular_velocity(::Val{2}, ELTYPE)
-    return zero(ELTYPE)
-end
-
-@inline function default_angular_velocity(::Val{NDIMS}, ELTYPE) where {NDIMS}
-    return zero(ELTYPE)
-end
-
-function convert_initial_angular_velocity(::Nothing, ::Val{NDIMS},
-                                          ELTYPE) where {NDIMS}
-    return default_angular_velocity(Val(NDIMS), ELTYPE)
-end
-
-function convert_initial_angular_velocity(angular_velocity, ::Val{2}, ELTYPE)
-    if angular_velocity isa Number
-        return convert(ELTYPE, angular_velocity)
+@inline function convert_initial_angular_velocity(::Nothing, ::Val{NDIMS},
+                                                  ELTYPE) where {NDIMS}
+    if NDIMS == 3
+        return zero(SVector{3, ELTYPE})
     end
 
-    if angular_velocity isa Union{Tuple, AbstractArray} && length(angular_velocity) == 1
+    return zero(ELTYPE)
+end
+
+@inline function convert_initial_angular_velocity(angular_velocity::Number, ::Val{2},
+                                                  ELTYPE)
+    return convert(ELTYPE, angular_velocity)
+end
+
+function convert_initial_angular_velocity(angular_velocity::Union{Tuple, AbstractArray},
+                                          ::Val{2}, ELTYPE)
+    if length(angular_velocity) == 1
         return convert(ELTYPE, first(angular_velocity))
     end
 
     throw(ArgumentError("`angular_velocity` must be a scalar for a 2D problem"))
 end
 
-function convert_initial_angular_velocity(angular_velocity, ::Val{3}, ELTYPE)
-    if !(angular_velocity isa Union{Tuple, AbstractArray})
-        throw(ArgumentError("`angular_velocity` must be of length 3 for a 3D problem"))
-    end
+function convert_initial_angular_velocity(::Number, ::Val{3}, ELTYPE)
+    throw(ArgumentError("`angular_velocity` must be of length 3 for a 3D problem"))
+end
 
+function convert_initial_angular_velocity(angular_velocity::Union{Tuple, AbstractArray},
+                                          ::Val{3}, ELTYPE)
     angular_velocity_ = SVector(angular_velocity...)
     if length(angular_velocity_) != 3
         throw(ArgumentError("`angular_velocity` must be of length 3 for a 3D problem"))
@@ -259,12 +254,14 @@ function convert_initial_angular_velocity(angular_velocity, ::Val{3}, ELTYPE)
     return SVector{3, ELTYPE}(angular_velocity_)
 end
 
+@inline function convert_initial_angular_velocity(angular_velocity::Number,
+                                                  ::Val{NDIMS},
+                                                  ELTYPE) where {NDIMS}
+    return convert(ELTYPE, angular_velocity)
+end
+
 function convert_initial_angular_velocity(angular_velocity, ::Val{NDIMS},
                                           ELTYPE) where {NDIMS}
-    if angular_velocity isa Number
-        return convert(ELTYPE, angular_velocity)
-    end
-
     throw(ArgumentError("`angular_velocity` must be a scalar for a $(NDIMS)D problem"))
 end
 

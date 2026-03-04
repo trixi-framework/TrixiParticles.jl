@@ -107,6 +107,10 @@
         @test v0_3d ≈ [0.0 0.0
                        -1.0 1.0
                        0.0 0.0]
+
+        ic_3d_default = InitialCondition(; coordinates=coordinates_3d, mass=mass_3d,
+                                         density=density_3d)
+        @test iszero(ic_3d_default.angular_velocity)
         @test_throws ArgumentError InitialCondition(; coordinates=coordinates_3d,
                                                     mass=mass_3d,
                                                     density=density_3d,
@@ -129,8 +133,8 @@
         u = copy(coordinates)
         TrixiParticles.update_final!(rigid_system, v, u, nothing, nothing, nothing, 0.0)
 
-        @test rigid_system.cache.angular_velocity[] ≈ 1.0
-        @test rigid_system.cache.inertia[] ≈ 2.0
+        @test rigid_system.angular_velocity[] ≈ 1.0
+        @test rigid_system.inertia[] ≈ 2.0
 
         dv = zeros(size(v))
         for particle in TrixiParticles.each_integrated_particle(rigid_system)
@@ -184,7 +188,38 @@
         @test data.angular_acceleration_force ≈ 0.0
         @test data.gyroscopic_acceleration ≈ 0.0
         @test data.local_coordinates ≈ rigid_system.local_coordinates
-        @test data.relative_coordinates ≈ rigid_system.cache.relative_coordinates
+        @test data.relative_coordinates ≈ rigid_system.relative_coordinates
+    end
+
+    @trixi_testset "Restart" begin
+        coordinates = [0.0 1.0 2.0
+                       0.0 0.0 0.0]
+        velocity = [0.0 0.0 0.0
+                    0.0 0.0 0.0]
+        mass = [1.0, 1.0, 1.0]
+        density = [1000.0, 1000.0, 1000.0]
+
+        initial_condition = InitialCondition(; coordinates, velocity, mass, density)
+        rigid_system = RigidSPHSystem(initial_condition; acceleration=(0.0, 0.0))
+
+        u_new = [2.0 4.0 6.0
+                 3.0 3.0 3.0]
+        v_new = [1.0 2.0 3.0
+                 4.0 5.0 6.0]
+
+        restarted_system = TrixiParticles.restart_with!(rigid_system, v_new, u_new)
+
+        @test restarted_system === rigid_system
+        @test rigid_system.initial_condition.coordinates ≈ u_new
+        @test rigid_system.initial_condition.velocity ≈ v_new
+        @test rigid_system.initial_velocity ≈ v_new
+
+        expected_center_of_mass = [4.0, 3.0]
+        expected_relative_coordinates = u_new .- expected_center_of_mass
+
+        @test rigid_system.center_of_mass[] ≈ expected_center_of_mass
+        @test rigid_system.local_coordinates ≈ expected_relative_coordinates
+        @test rigid_system.relative_coordinates ≈ expected_relative_coordinates
     end
 
     @trixi_testset "Velocity Components with ContinuityDensity" begin
