@@ -29,7 +29,7 @@
         @test system.material_density == material_densities
         @test system.initial_velocity == initial_condition.velocity
         @test system.acceleration == [0.0, -9.81]
-        @test iszero(system.initial_angular_velocity)
+        @test iszero(system.initial_condition.angular_velocity)
         @test system.particle_spacing == 0.1
         @test system.boundary_model == boundary_model
         @test TrixiParticles.v_nvariables(system) == 2
@@ -76,16 +76,19 @@
         mass_2d = [1.0, 1.0]
         density_2d = [1000.0, 1000.0]
         ic_2d = InitialCondition(; coordinates=coordinates_2d, mass=mass_2d,
-                                 density=density_2d)
+                                 density=density_2d, angular_velocity=2.0)
 
-        system_2d = RigidSPHSystem(ic_2d; angular_velocity=2.0)
+        system_2d = RigidSPHSystem(ic_2d)
         v0_2d = zeros(2, 2)
         TrixiParticles.write_v0!(v0_2d, system_2d)
 
-        @test system_2d.initial_angular_velocity ≈ 2.0
+        @test system_2d.initial_condition.angular_velocity ≈ 2.0
         @test v0_2d ≈ [0.0 0.0
                        -1.0 1.0]
-        @test_throws ArgumentError RigidSPHSystem(ic_2d; angular_velocity=(0.0, 1.0))
+        @test_throws ArgumentError InitialCondition(; coordinates=coordinates_2d,
+                                                    mass=mass_2d,
+                                                    density=density_2d,
+                                                    angular_velocity=(0.0, 1.0))
 
         coordinates_3d = [0.0 1.0
                           0.0 0.0
@@ -93,17 +96,21 @@
         mass_3d = [1.0, 1.0]
         density_3d = [1000.0, 1000.0]
         ic_3d = InitialCondition(; coordinates=coordinates_3d, mass=mass_3d,
-                                 density=density_3d)
+                                 density=density_3d,
+                                 angular_velocity=(0.0, 0.0, 2.0))
 
-        system_3d = RigidSPHSystem(ic_3d; angular_velocity=(0.0, 0.0, 2.0))
+        system_3d = RigidSPHSystem(ic_3d)
         v0_3d = zeros(3, 2)
         TrixiParticles.write_v0!(v0_3d, system_3d)
 
-        @test system_3d.initial_angular_velocity ≈ [0.0, 0.0, 2.0]
+        @test system_3d.initial_condition.angular_velocity ≈ [0.0, 0.0, 2.0]
         @test v0_3d ≈ [0.0 0.0
                        -1.0 1.0
                        0.0 0.0]
-        @test_throws ArgumentError RigidSPHSystem(ic_3d; angular_velocity=2.0)
+        @test_throws ArgumentError InitialCondition(; coordinates=coordinates_3d,
+                                                    mass=mass_3d,
+                                                    density=density_3d,
+                                                    angular_velocity=2.0)
     end
 
     @trixi_testset "Rotational Kinematics" begin

@@ -2,7 +2,6 @@
     RigidSPHSystem(initial_condition;
                    boundary_model=nothing,
                    acceleration=ntuple(_ -> 0.0, ndims(initial_condition)),
-                   angular_velocity=zero(eltype(initial_condition)),
                    particle_spacing=initial_condition.particle_spacing,
                    source_terms=nothing, color_value=0)
 
@@ -19,22 +18,23 @@ torque and applied consistently to all rigid particles.
 - `boundary_model`: Boundary model for fluid-structure interaction
                     (see [Boundary Models](@ref boundary_models)).
 - `acceleration`: Global acceleration vector applied to all rigid particles.
-- `angular_velocity`: Initial angular velocity of the rigid body.
-  For 2D, pass a scalar. For 3D, pass a vector of length 3.
+- `initial_condition.angular_velocity`: Initial angular velocity `ω` of the rigid body
+  (not angular momentum). In 2D, pass a scalar angular speed in rad/s.
+  In 3D, pass a vector of length 3: direction gives the rotation axis
+  (right-hand rule), and `|ω|` gives angular speed in rad/s.
 - `particle_spacing`: Reference particle spacing used for time-step estimation.
 - `source_terms`: Optional source terms of the form
                   `(coords, velocity, density, pressure, t) -> source`.
 - `color_value`: The value used to initialize the color of particles in the system.
 """
 struct RigidSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
-                      AV, ST, C} <: AbstractStructureSystem{NDIMS}
+                      ST, C} <: AbstractStructureSystem{NDIMS}
     initial_condition        ::IC
     initial_velocity         ::ARRAY2D # [dimension, particle]
     local_coordinates        ::ARRAY2D # [dimension, particle]
     mass                     ::ARRAY1D # [particle]
     material_density         ::ARRAY1D # [particle]
     acceleration             ::SVector{NDIMS, ELTYPE}
-    initial_angular_velocity ::AV
     particle_spacing         ::ELTYPE
     boundary_model           ::BM
     source_terms             ::ST
@@ -46,7 +46,6 @@ end
 function RigidSPHSystem(initial_condition; boundary_model=nothing,
                         acceleration=ntuple(_ -> zero(eltype(initial_condition)),
                                             ndims(initial_condition)),
-                        angular_velocity=zero(eltype(initial_condition)),
                         particle_spacing=initial_condition.particle_spacing,
                         source_terms=nothing, color_value=0)
     NDIMS = ndims(initial_condition)
@@ -61,7 +60,8 @@ function RigidSPHSystem(initial_condition; boundary_model=nothing,
         throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
     end
 
-    initial_angular_velocity = convert_angular_velocity(angular_velocity, Val(NDIMS),
+    initial_angular_velocity = convert_angular_velocity(initial_condition.angular_velocity,
+                                                        Val(NDIMS),
                                                         ELTYPE)
 
     particle_spacing_ = convert(ELTYPE, particle_spacing)
@@ -85,8 +85,7 @@ function RigidSPHSystem(initial_condition; boundary_model=nothing,
                                initial_angular_velocity, color_value)
 
     return RigidSPHSystem(initial_condition, initial_velocity, local_coordinates,
-                          mass, material_density, acceleration_,
-                          initial_angular_velocity, particle_spacing_,
+                          mass, material_density, acceleration_, particle_spacing_,
                           boundary_model, source_terms, cache)
 end
 
@@ -591,7 +590,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::RigidSPHSystem)
         summary_header(io, "RigidSPHSystem{$(ndims(system))}")
         summary_line(io, "#particles", nparticles(system))
         summary_line(io, "acceleration", system.acceleration)
-        summary_line(io, "initial angular velocity", system.initial_angular_velocity)
+        summary_line(io, "initial angular velocity", system.initial_condition.angular_velocity)
         summary_line(io, "boundary model", system.boundary_model)
         summary_footer(io)
     end

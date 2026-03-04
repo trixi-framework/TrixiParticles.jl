@@ -50,18 +50,20 @@ square2_nparticles_side = round(Int, square2_side_length / structure_particle_sp
 square1_bottom_left = (0.4, 1.5)
 square2_bottom_left = (1.25, 1.55)
 
-square1 = RectangularShape(structure_particle_spacing,
-                           (square1_nparticles_side, square1_nparticles_side),
-                           square1_bottom_left,
-                           density=square1_density)
-square2 = RectangularShape(structure_particle_spacing,
-                           (square2_nparticles_side, square2_nparticles_side),
-                           square2_bottom_left,
-                           density=square2_density)
-
 # Initial rigid-body angular velocities [rad/s]
 square1_angular_velocity = 5.0
 square2_angular_velocity = -7.5
+
+square1 = RectangularShape(structure_particle_spacing,
+                           (square1_nparticles_side, square1_nparticles_side),
+                           square1_bottom_left,
+                           density=square1_density,
+                           angular_velocity=square1_angular_velocity)
+square2 = RectangularShape(structure_particle_spacing,
+                           (square2_nparticles_side, square2_nparticles_side),
+                           square2_bottom_left,
+                           density=square2_density,
+                           angular_velocity=square2_angular_velocity)
 
 # ==========================================================================================
 # ==== Fluid
@@ -116,12 +118,10 @@ boundary_model_structure_2 = BoundaryModelDummyParticles(hydrodynamic_densities_
 structure_system_1 = RigidSPHSystem(square1;
                                     boundary_model=boundary_model_structure_1,
                                     acceleration=(0.0, -gravity),
-                                    angular_velocity=square1_angular_velocity,
                                     particle_spacing=structure_particle_spacing)
 structure_system_2 = RigidSPHSystem(square2;
                                     boundary_model=boundary_model_structure_2,
                                     acceleration=(0.0, -gravity),
-                                    angular_velocity=square2_angular_velocity,
                                     particle_spacing=structure_particle_spacing)
 
 # ==========================================================================================

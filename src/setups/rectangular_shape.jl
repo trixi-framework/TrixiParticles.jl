@@ -4,7 +4,7 @@
                      mass=nothing, density=nothing, pressure=0.0,
                      acceleration=nothing, state_equation=nothing,
                      place_on_shell=false, coordinates_eltype=Float64,
-                     coordinates_perturbation=nothing)
+                     coordinates_perturbation=nothing, angular_velocity=nothing)
 
 Rectangular shape filled with particles. Returns an [`InitialCondition`](@ref).
 
@@ -50,6 +50,10 @@ Rectangular shape filled with particles. Returns an [`InitialCondition`](@ref).
                     See [the docs on GPU support](@ref gpu_support) for more information.
 - `coordinates_perturbation`: Add a small random displacement to the particle positions,
                     where the amplitude is `coordinates_perturbation * particle_spacing`.
+- `angular_velocity`: Initial angular velocity `ω` (not angular momentum),
+                    currently only used by [`RigidSPHSystem`](@ref).
+                    Semantics match [`InitialCondition`](@ref): in 3D, axis from direction
+                    and angular speed from `|ω|`.
 
 # Examples
 ```jldoctest; output = false, setup = :(particle_spacing = 0.1)
@@ -82,7 +86,8 @@ function RectangularShape(particle_spacing, n_particles_per_dimension, min_coord
                           mass=nothing, density=nothing, pressure=0.0,
                           acceleration=nothing, state_equation=nothing,
                           place_on_shell=false, coordinates_eltype=Float64,
-                          loop_order=nothing, coordinates_perturbation=nothing)
+                          loop_order=nothing, coordinates_perturbation=nothing,
+                          angular_velocity=nothing)
     if particle_spacing < eps()
         throw(ArgumentError("`particle_spacing` needs to be positive and larger than $(eps())"))
     end
@@ -152,7 +157,7 @@ function RectangularShape(particle_spacing, n_particles_per_dimension, min_coord
     end
 
     return InitialCondition(; coordinates, velocity, density, mass, pressure,
-                            particle_spacing)
+                            particle_spacing, angular_velocity)
 end
 
 # 1D

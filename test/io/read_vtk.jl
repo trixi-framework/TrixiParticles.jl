@@ -83,6 +83,29 @@
 
                 @test isapprox(expected_ic.velocity, test_ic.velocity, rtol=1e-5)
             end
+
+            @testset verbose=true "Angular Velocity Metadata" begin
+                expected_ic_2d = InitialCondition(; coordinates=coordinates, velocity=velocity,
+                                                  density=1000.0, pressure=900.0, mass=50.0,
+                                                  angular_velocity=3.0)
+                trixi2vtk(expected_ic_2d; filename="tmp_initial_condition_angular_velocity_2d",
+                          output_directory=tmp_dir)
+                file_2d = joinpath(tmp_dir, "tmp_initial_condition_angular_velocity_2d.vtu")
+                test_ic_2d = vtk2trixi(file_2d)
+                @test test_ic_2d.angular_velocity ≈ 3.0
+
+                coordinates_3d = vcat(coordinates, zeros(1, size(coordinates, 2)))
+                velocity_3d = vcat(velocity, zeros(1, size(velocity, 2)))
+                expected_ic_3d = InitialCondition(; coordinates=coordinates_3d,
+                                                  velocity=velocity_3d,
+                                                  density=1000.0, pressure=900.0, mass=50.0,
+                                                  angular_velocity=(0.0, 0.0, 2.0))
+                trixi2vtk(expected_ic_3d; filename="tmp_initial_condition_angular_velocity_3d",
+                          output_directory=tmp_dir)
+                file_3d = joinpath(tmp_dir, "tmp_initial_condition_angular_velocity_3d.vtu")
+                test_ic_3d = vtk2trixi(file_3d)
+                @test test_ic_3d.angular_velocity ≈ [0.0, 0.0, 2.0]
+            end
         end
 
         @testset verbose=true "`AbstractFluidSystem`" begin
