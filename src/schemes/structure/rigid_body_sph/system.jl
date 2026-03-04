@@ -421,12 +421,18 @@ end
 
 function update_boundary_interpolation!(system::RigidSPHSystem, v, u, v_ode, u_ode,
                                         semi, t)
-    (; boundary_model) = system
+    return update_boundary_interpolation!(system.boundary_model, system, v, u, v_ode,
+                                          u_ode, semi, t)
+end
 
-    isnothing(boundary_model) && return system
+function update_boundary_interpolation!(::Nothing, system::RigidSPHSystem, v, u, v_ode,
+                                        u_ode, semi, t)
+    return system
+end
 
+function update_boundary_interpolation!(boundary_model, system::RigidSPHSystem, v, u,
+                                        v_ode, u_ode, semi, t)
     update_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi)
-
     return system
 end
 
@@ -462,48 +468,23 @@ function update_final!(system::RigidSPHSystem, v, u, v_ode, u_ode, semi, t)
 end
 
 function update_rotational_kinematics!(system::RigidSPHSystem, system_velocity,
-                                       center_of_mass_velocity, ::Val{2})
-    inertia = zero(eltype(system))
-    angular_momentum = zero(eltype(system))
+                                       center_of_mass_velocity, ::Val{NDIMS}) where {NDIMS}
+    inertia = zero(system.inertia[])
+    angular_momentum = zero(system.angular_velocity[])
 
     for particle in each_integrated_particle(system)
         particle_mass = system.mass[particle]
         relative_position = extract_svector(system.relative_coordinates, system, particle)
         relative_velocity = extract_svector(system_velocity, system, particle) -
                             center_of_mass_velocity
-        inertia += particle_mass * dot(relative_position, relative_position)
-        angular_momentum += particle_mass * cross(relative_position, relative_velocity)
-    end
-
-    inverse_inertia = inertia > eps(eltype(system)) ? inv(inertia) : zero(inertia)
-    angular_velocity = inverse_inertia * angular_momentum
-
-    system.inertia[] = inertia
-    system.inverse_inertia[] = inverse_inertia
-    system.angular_velocity[] = angular_velocity
-    system.gyroscopic_acceleration[] = zero(eltype(system))
-
-    return system
-end
-
-function update_rotational_kinematics!(system::RigidSPHSystem, system_velocity,
-                                       center_of_mass_velocity, ::Val{3})
-    inertia = zero(SMatrix{3, 3, eltype(system), 9})
-    angular_momentum = zero(SVector{3, eltype(system)})
-
-    for particle in each_integrated_particle(system)
-        particle_mass = system.mass[particle]
-        relative_position = extract_svector(system.relative_coordinates, system, particle)
-        relative_velocity = extract_svector(system_velocity, system, particle) -
-                            center_of_mass_velocity
-        inertia += particle_mass * inertia_tensor(relative_position)
+        inertia += particle_mass * inertia_contribution(relative_position)
         angular_momentum += particle_mass * cross(relative_position, relative_velocity)
     end
 
     inverse_inertia = inverse_inertia_tensor(inertia)
     angular_velocity = inverse_inertia * angular_momentum
-    gyroscopic_acceleration = inverse_inertia * cross(angular_velocity,
-                                    inertia * angular_velocity)
+    gyroscopic_acceleration = gyroscopic_acceleration_term(inertia, inverse_inertia,
+                                                           angular_velocity)
 
     system.inertia[] = inertia
     system.inverse_inertia[] = inverse_inertia
@@ -513,10 +494,23 @@ function update_rotational_kinematics!(system::RigidSPHSystem, system_velocity,
     return system
 end
 
+@inline function inertia_contribution(relative_position::SVector{NDIMS, ELTYPE}) where {NDIMS,
+                                                                                          ELTYPE}
+    return dot(relative_position, relative_position)
+end
+
+@inline function inertia_contribution(relative_position::SVector{3, ELTYPE}) where {ELTYPE}
+    return inertia_tensor(relative_position)
+end
+
 @inline function inertia_tensor(relative_position)
     # Built-in expression of r^2 * I - r*r^T for improved readability.
     return dot(relative_position, relative_position) * I -
            relative_position * transpose(relative_position)
+end
+
+@inline function inverse_inertia_tensor(inertia::ELTYPE) where {ELTYPE <: Real}
+    return inertia > eps(ELTYPE) ? inv(inertia) : zero(inertia)
 end
 
 function inverse_inertia_tensor(inertia::SMatrix{3, 3, ELTYPE, 9}) where {ELTYPE}
@@ -529,6 +523,17 @@ function inverse_inertia_tensor(inertia::SMatrix{3, 3, ELTYPE, 9}) where {ELTYPE
     end
 
     return inv(inertia)
+end
+
+@inline function gyroscopic_acceleration_term(inertia::ELTYPE, inverse_inertia::ELTYPE,
+                                              angular_velocity::ELTYPE) where {ELTYPE}
+    return zero(angular_velocity)
+end
+
+@inline function gyroscopic_acceleration_term(inertia::SMatrix{3, 3, ELTYPE, 9},
+                                              inverse_inertia::SMatrix{3, 3, ELTYPE, 9},
+                                              angular_velocity::SVector{3, ELTYPE}) where {ELTYPE}
+    return inverse_inertia * cross(angular_velocity, inertia * angular_velocity)
 end
 
 function calculate_dt(v_ode, u_ode, cfl_number, system::RigidSPHSystem, semi)
