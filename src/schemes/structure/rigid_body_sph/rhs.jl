@@ -8,7 +8,7 @@ function interact!(dv, v_particle_system, u_particle_system,
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-    force_per_particle = particle_system.cache.force_per_particle
+    force_per_particle = particle_system.force_per_particle
     set_zero!(force_per_particle)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
@@ -68,37 +68,37 @@ function interact!(dv, v_particle_system, u_particle_system,
                              particle_system, neighbor_system, grad_kernel)
     end
 
-    apply_resultant_force_and_torque!(dv, particle_system)
+    apply_resultant_force_and_torque!(dv, particle_system, semi)
 
     return dv
 end
 
-function apply_resultant_force_and_torque!(dv, particle_system::RigidSPHSystem)
-    (; cache) = particle_system
-    total_mass = cache.total_mass
+function apply_resultant_force_and_torque!(dv, particle_system::RigidSPHSystem, semi)
+    total_mass = particle_system.total_mass
 
     if total_mass <= eps(eltype(particle_system))
-        cache.resultant_force[] = zero(cache.resultant_force[])
-        cache.resultant_torque[] = zero(cache.resultant_torque[])
-        cache.angular_acceleration_force[] = zero(cache.angular_acceleration_force[])
+        particle_system.resultant_force[] = zero(particle_system.resultant_force[])
+        particle_system.resultant_torque[] = zero(particle_system.resultant_torque[])
+        particle_system.angular_acceleration_force[] = zero(particle_system.angular_acceleration_force[])
         return dv
     end
 
     total_force,
     total_torque = resultant_force_and_torque(particle_system,
-                                              cache.force_per_particle,
-                                              cache.relative_coordinates,
+                                              particle_system.force_per_particle,
+                                              particle_system.relative_coordinates,
                                               Val(ndims(particle_system)))
 
     translational_acceleration = total_force / total_mass
     angular_acceleration_force = angular_acceleration_from_torque(particle_system,
                                                                   total_torque)
-    cache.resultant_force[] = total_force
-    cache.resultant_torque[] = total_torque
-    cache.angular_acceleration_force[] = angular_acceleration_force
+    particle_system.resultant_force[] = total_force
+    particle_system.resultant_torque[] = total_torque
+    particle_system.angular_acceleration_force[] = angular_acceleration_force
 
-    @threaded for particle in each_integrated_particle(particle_system)
-        relative_position = extract_svector(cache.relative_coordinates, particle_system,
+    @threaded semi for particle in each_integrated_particle(particle_system)
+        relative_position = extract_svector(particle_system.relative_coordinates,
+                                            particle_system,
                                             particle)
         rotational_acceleration = angular_acceleration_cross_position(angular_acceleration_force,
                                                                       relative_position,
@@ -127,7 +127,7 @@ function resultant_force_and_torque(particle_system::RigidSPHSystem, force_per_p
 end
 
 @inline function angular_acceleration_from_torque(particle_system::RigidSPHSystem, torque)
-    inverse_inertia = particle_system.cache.inverse_inertia[]
+    inverse_inertia = particle_system.inverse_inertia[]
 
     return inverse_inertia * torque
 end

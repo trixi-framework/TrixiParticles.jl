@@ -427,16 +427,16 @@ function write2vtk!(vtk, v, u, t, system::RigidSPHSystem)
     vtk["material_density"] = system.material_density
     vtk["mass"] = system.mass
     vtk["local_coordinates"] = system.local_coordinates
-    vtk["relative_coordinates"] = system.cache.relative_coordinates
-    vtk["center_of_mass"] = [system.cache.center_of_mass[] for _ in 1:n_particles]
-    vtk["center_of_mass_velocity"] = [system.cache.center_of_mass_velocity[]
+    vtk["relative_coordinates"] = system.relative_coordinates
+    vtk["center_of_mass"] = [system.center_of_mass[] for _ in 1:n_particles]
+    vtk["center_of_mass_velocity"] = [system.center_of_mass_velocity[]
                                       for _ in 1:n_particles]
-    vtk["resultant_force"] = [system.cache.resultant_force[] for _ in 1:n_particles]
+    vtk["resultant_force"] = [system.resultant_force[] for _ in 1:n_particles]
 
-    vtk["angular_velocity"] = system.cache.angular_velocity[]
-    vtk["resultant_torque"] = system.cache.resultant_torque[]
-    vtk["angular_acceleration_force"] = system.cache.angular_acceleration_force[]
-    vtk["gyroscopic_acceleration"] = system.cache.gyroscopic_acceleration[]
+    vtk["angular_velocity"] = system.angular_velocity[]
+    vtk["resultant_torque"] = system.resultant_torque[]
+    vtk["angular_acceleration_force"] = system.angular_acceleration_force[]
+    vtk["gyroscopic_acceleration"] = system.gyroscopic_acceleration[]
 
     write2vtk!(vtk, v, u, t, system.boundary_model, system)
 end

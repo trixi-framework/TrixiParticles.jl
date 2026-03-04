@@ -28,17 +28,30 @@ torque and applied consistently to all rigid particles.
 - `color_value`: The value used to initialize the color of particles in the system.
 """
 struct RigidSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
-                      ST, C} <: AbstractStructureSystem{NDIMS}
-    initial_condition :: IC
-    initial_velocity  :: ARRAY2D # [dimension, particle]
-    local_coordinates :: ARRAY2D # [dimension, particle]
-    mass              :: ARRAY1D # [particle]
-    material_density  :: ARRAY1D # [particle]
-    acceleration      :: SVector{NDIMS, ELTYPE}
-    particle_spacing  :: ELTYPE
-    boundary_model    :: BM
-    source_terms      :: ST
-    cache             :: C
+                      ST, CM, CMV, I, II, AV, RF, RT, AAF, GA, C} <:
+       AbstractStructureSystem{NDIMS}
+    initial_condition          :: IC
+    initial_velocity           :: ARRAY2D # [dimension, particle]
+    local_coordinates          :: ARRAY2D # [dimension, particle]
+    mass                       :: ARRAY1D # [particle]
+    material_density           :: ARRAY1D # [particle]
+    acceleration               :: SVector{NDIMS, ELTYPE}
+    particle_spacing           :: ELTYPE
+    total_mass                 :: ELTYPE
+    force_per_particle         :: ARRAY2D
+    relative_coordinates       :: ARRAY2D
+    center_of_mass             :: CM
+    center_of_mass_velocity    :: CMV
+    inertia                    :: I
+    inverse_inertia            :: II
+    angular_velocity           :: AV
+    resultant_force            :: RF
+    resultant_torque           :: RT
+    angular_acceleration_force :: AAF
+    gyroscopic_acceleration    :: GA
+    boundary_model             :: BM
+    source_terms               :: ST
+    cache                      :: C
 end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
@@ -49,23 +62,96 @@ function RigidSPHSystem(initial_condition; boundary_model=nothing,
                         particle_spacing=initial_condition.particle_spacing,
                         source_terms=nothing, color_value=0)
     NDIMS = ndims(initial_condition)
-    ELTYPE = eltype(initial_condition)
 
-    if NDIMS != 2 && NDIMS != 3
-        throw(ArgumentError("`RigidSPHSystem` currently supports only 2D and 3D, got $(NDIMS)D"))
+    if NDIMS == 2
+        return RigidSPHSystem(initial_condition, Val(2);
+                              boundary_model=boundary_model,
+                              acceleration=acceleration,
+                              particle_spacing=particle_spacing,
+                              source_terms=source_terms,
+                              color_value=color_value)
+    elseif NDIMS == 3
+        return RigidSPHSystem(initial_condition, Val(3);
+                              boundary_model=boundary_model,
+                              acceleration=acceleration,
+                              particle_spacing=particle_spacing,
+                              source_terms=source_terms,
+                              color_value=color_value)
     end
 
+    throw(ArgumentError("`RigidSPHSystem` currently supports only 2D and 3D, got $(NDIMS)D"))
+end
+
+function RigidSPHSystem(initial_condition, ::Val{2}; boundary_model=nothing,
+                        acceleration=ntuple(_ -> zero(eltype(initial_condition)),
+                                            ndims(initial_condition)),
+                        particle_spacing=initial_condition.particle_spacing,
+                        source_terms=nothing, color_value=0)
+    ELTYPE = eltype(initial_condition)
+    init = init_rigid_system(initial_condition, acceleration, particle_spacing, Val(2))
+    initial_angular_velocity = convert_angular_velocity(initial_condition.angular_velocity,
+                                                        Val(2), ELTYPE)
+
+    add_initial_rotation!(init.initial_velocity, init.local_coordinates,
+                          initial_angular_velocity, Val(2))
+
+    force_per_particle = zeros(ELTYPE, 2, nparticles(initial_condition))
+    relative_coordinates = copy(init.local_coordinates)
+
+    return RigidSPHSystem(initial_condition, init.initial_velocity, init.local_coordinates,
+                          init.mass, init.material_density, init.acceleration,
+                          init.particle_spacing, init.total_mass, force_per_particle,
+                          relative_coordinates, Ref(init.center_of_mass),
+                          Ref(zero(SVector{2, ELTYPE})),
+                          Ref(zero(ELTYPE)), Ref(zero(ELTYPE)),
+                          Ref(initial_angular_velocity), Ref(zero(SVector{2, ELTYPE})),
+                          Ref(zero(ELTYPE)), Ref(zero(ELTYPE)), Ref(zero(ELTYPE)),
+                          boundary_model, source_terms, create_cache_rigid(color_value))
+end
+
+function RigidSPHSystem(initial_condition, ::Val{3}; boundary_model=nothing,
+                        acceleration=ntuple(_ -> zero(eltype(initial_condition)),
+                                            ndims(initial_condition)),
+                        particle_spacing=initial_condition.particle_spacing,
+                        source_terms=nothing, color_value=0)
+    ELTYPE = eltype(initial_condition)
+    init = init_rigid_system(initial_condition, acceleration, particle_spacing, Val(3))
+    initial_angular_velocity = convert_angular_velocity(initial_condition.angular_velocity,
+                                                        Val(3), ELTYPE)
+
+    add_initial_rotation!(init.initial_velocity, init.local_coordinates,
+                          initial_angular_velocity, Val(3))
+
+    force_per_particle = zeros(ELTYPE, 3, nparticles(initial_condition))
+    relative_coordinates = copy(init.local_coordinates)
+
+    return RigidSPHSystem(initial_condition, init.initial_velocity, init.local_coordinates,
+                          init.mass, init.material_density, init.acceleration,
+                          init.particle_spacing, init.total_mass, force_per_particle,
+                          relative_coordinates, Ref(init.center_of_mass),
+                          Ref(zero(SVector{3, ELTYPE})),
+                          Ref(zero(SMatrix{3, 3, ELTYPE, 9})),
+                          Ref(zero(SMatrix{3, 3, ELTYPE, 9})),
+                          Ref(initial_angular_velocity), Ref(zero(SVector{3, ELTYPE})),
+                          Ref(zero(SVector{3, ELTYPE})),
+                          Ref(zero(SVector{3, ELTYPE})),
+                          Ref(zero(SVector{3, ELTYPE})),
+                          boundary_model, source_terms, create_cache_rigid(color_value))
+end
+
+function init_rigid_system(initial_condition, acceleration, particle_spacing,
+                           ::Val{NDIMS}) where {NDIMS}
+    if ndims(initial_condition) != NDIMS
+        throw(ArgumentError("`initial_condition` dimensionality must be $NDIMS for this constructor"))
+    end
+
+    ELTYPE = eltype(initial_condition)
     acceleration_ = SVector(acceleration...)
     if length(acceleration_) != NDIMS
         throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
     end
 
-    initial_angular_velocity = convert_angular_velocity(initial_condition.angular_velocity,
-                                                        Val(NDIMS),
-                                                        ELTYPE)
-
     particle_spacing_ = convert(ELTYPE, particle_spacing)
-
     initial_velocity = copy(initial_condition.velocity)
     local_coordinates = copy(initial_condition.coordinates)
     mass = copy(initial_condition.mass)
@@ -77,16 +163,10 @@ function RigidSPHSystem(initial_condition; boundary_model=nothing,
     update_relative_coordinates!(local_coordinates, local_coordinates,
                                  center_of_mass, Val(NDIMS))
 
-    add_initial_rotation!(initial_velocity, local_coordinates,
-                          initial_angular_velocity, Val(NDIMS))
-
-    cache = create_cache_rigid(Val(NDIMS), ELTYPE, nparticles(initial_condition),
-                               total_mass, center_of_mass, local_coordinates,
-                               initial_angular_velocity, color_value)
-
-    return RigidSPHSystem(initial_condition, initial_velocity, local_coordinates,
-                          mass, material_density, acceleration_, particle_spacing_,
-                          boundary_model, source_terms, cache)
+    return (; acceleration=acceleration_,
+            particle_spacing=particle_spacing_,
+            initial_velocity, local_coordinates, mass, material_density,
+            center_of_mass, total_mass)
 end
 
 function convert_angular_velocity(angular_velocity, ::Val{2}, ELTYPE)
@@ -132,40 +212,7 @@ function center_of_mass_and_total_mass(coordinates, mass, ::Val{NDIMS},
     return center_of_mass / total_mass, total_mass
 end
 
-function create_cache_rigid(::Val{2}, ELTYPE, n_particles, total_mass,
-                            center_of_mass, local_coordinates,
-                            initial_angular_velocity, color_value)
-    force_per_particle = zeros(ELTYPE, 2, n_particles)
-    relative_coordinates = copy(local_coordinates)
-
-    return (; color=Int(color_value), total_mass, force_per_particle,
-            relative_coordinates, center_of_mass=Ref(center_of_mass),
-            center_of_mass_velocity=Ref(zero(SVector{2, ELTYPE})),
-            inertia=Ref(zero(ELTYPE)), inverse_inertia=Ref(zero(ELTYPE)),
-            angular_velocity=Ref(initial_angular_velocity),
-            resultant_force=Ref(zero(SVector{2, ELTYPE})),
-            resultant_torque=Ref(zero(ELTYPE)),
-            angular_acceleration_force=Ref(zero(ELTYPE)),
-            gyroscopic_acceleration=Ref(zero(ELTYPE)))
-end
-
-function create_cache_rigid(::Val{3}, ELTYPE, n_particles, total_mass,
-                            center_of_mass, local_coordinates,
-                            initial_angular_velocity, color_value)
-    force_per_particle = zeros(ELTYPE, 3, n_particles)
-    relative_coordinates = copy(local_coordinates)
-
-    return (; color=Int(color_value), total_mass, force_per_particle,
-            relative_coordinates, center_of_mass=Ref(center_of_mass),
-            center_of_mass_velocity=Ref(zero(SVector{3, ELTYPE})),
-            inertia=Ref(zero(SMatrix{3, 3, ELTYPE, 9})),
-            inverse_inertia=Ref(zero(SMatrix{3, 3, ELTYPE, 9})),
-            angular_velocity=Ref(initial_angular_velocity),
-            resultant_force=Ref(zero(SVector{3, ELTYPE})),
-            resultant_torque=Ref(zero(SVector{3, ELTYPE})),
-            angular_acceleration_force=Ref(zero(SVector{3, ELTYPE})),
-            gyroscopic_acceleration=Ref(zero(SVector{3, ELTYPE})))
-end
+create_cache_rigid(color_value) = (; color=Int(color_value))
 
 function update_relative_coordinates!(relative_coordinates, coordinates, center_of_mass,
                                       ::Val{NDIMS}) where {NDIMS}
@@ -354,8 +401,8 @@ function restart_with!(system::RigidSPHSystem, v, u)
     update_relative_coordinates!(system.local_coordinates,
                                  system.initial_condition.coordinates,
                                  center_of_mass, Val(ndims(system)))
-    copyto!(system.cache.relative_coordinates, system.local_coordinates)
-    system.cache.center_of_mass[] = center_of_mass
+    copyto!(system.relative_coordinates, system.local_coordinates)
+    system.center_of_mass[] = center_of_mass
 
     return system
 end
@@ -372,8 +419,7 @@ function update_boundary_interpolation!(system::RigidSPHSystem, v, u, v_ode, u_o
 end
 
 function update_final!(system::RigidSPHSystem, v, u, v_ode, u_ode, semi, t)
-    (; cache) = system
-    total_mass = cache.total_mass
+    total_mass = system.total_mass
     total_mass <= eps(eltype(system)) && return system
 
     system_coords = current_coordinates(u, system)
@@ -392,10 +438,10 @@ function update_final!(system::RigidSPHSystem, v, u, v_ode, u_ode, semi, t)
     center_of_mass /= total_mass
     center_of_mass_velocity /= total_mass
 
-    cache.center_of_mass[] = center_of_mass
-    cache.center_of_mass_velocity[] = center_of_mass_velocity
+    system.center_of_mass[] = center_of_mass
+    system.center_of_mass_velocity[] = center_of_mass_velocity
 
-    update_relative_coordinates!(cache.relative_coordinates, system_coords,
+    update_relative_coordinates!(system.relative_coordinates, system_coords,
                                  center_of_mass, Val(ndims(system)))
     update_rotational_kinematics!(system, system_velocity, center_of_mass_velocity,
                                   Val(ndims(system)))
@@ -405,13 +451,12 @@ end
 
 function update_rotational_kinematics!(system::RigidSPHSystem, system_velocity,
                                        center_of_mass_velocity, ::Val{2})
-    (; cache) = system
     inertia = zero(eltype(system))
     angular_momentum = zero(eltype(system))
 
     for particle in each_integrated_particle(system)
         particle_mass = system.mass[particle]
-        relative_position = extract_svector(cache.relative_coordinates, system, particle)
+        relative_position = extract_svector(system.relative_coordinates, system, particle)
         relative_velocity = extract_svector(system_velocity, system, particle) -
                             center_of_mass_velocity
         inertia += particle_mass * dot(relative_position, relative_position)
@@ -421,23 +466,22 @@ function update_rotational_kinematics!(system::RigidSPHSystem, system_velocity,
     inverse_inertia = inertia > eps(eltype(system)) ? inv(inertia) : zero(inertia)
     angular_velocity = inverse_inertia * angular_momentum
 
-    cache.inertia[] = inertia
-    cache.inverse_inertia[] = inverse_inertia
-    cache.angular_velocity[] = angular_velocity
-    cache.gyroscopic_acceleration[] = zero(eltype(system))
+    system.inertia[] = inertia
+    system.inverse_inertia[] = inverse_inertia
+    system.angular_velocity[] = angular_velocity
+    system.gyroscopic_acceleration[] = zero(eltype(system))
 
     return system
 end
 
 function update_rotational_kinematics!(system::RigidSPHSystem, system_velocity,
                                        center_of_mass_velocity, ::Val{3})
-    (; cache) = system
     inertia = zero(SMatrix{3, 3, eltype(system), 9})
     angular_momentum = zero(SVector{3, eltype(system)})
 
     for particle in each_integrated_particle(system)
         particle_mass = system.mass[particle]
-        relative_position = extract_svector(cache.relative_coordinates, system, particle)
+        relative_position = extract_svector(system.relative_coordinates, system, particle)
         relative_velocity = extract_svector(system_velocity, system, particle) -
                             center_of_mass_velocity
         inertia += particle_mass * inertia_tensor(relative_position)
@@ -449,10 +493,10 @@ function update_rotational_kinematics!(system::RigidSPHSystem, system_velocity,
     gyroscopic_acceleration = inverse_inertia * cross(angular_velocity,
                                     inertia * angular_velocity)
 
-    cache.inertia[] = inertia
-    cache.inverse_inertia[] = inverse_inertia
-    cache.angular_velocity[] = angular_velocity
-    cache.gyroscopic_acceleration[] = gyroscopic_acceleration
+    system.inertia[] = inertia
+    system.inverse_inertia[] = inverse_inertia
+    system.angular_velocity[] = angular_velocity
+    system.gyroscopic_acceleration[] = gyroscopic_acceleration
 
     return system
 end
@@ -505,8 +549,8 @@ end
 @inline acceleration_source(system::RigidSPHSystem) = system.acceleration
 
 @inline function add_acceleration!(dv, particle, system::RigidSPHSystem)
-    relative_position = extract_svector(system.cache.relative_coordinates, system, particle)
-    rotational_acceleration = rigid_kinematic_acceleration(system.cache, relative_position,
+    relative_position = extract_svector(system.relative_coordinates, system, particle)
+    rotational_acceleration = rigid_kinematic_acceleration(system, relative_position,
                                                            Val(ndims(system)))
 
     for i in 1:ndims(system)
@@ -516,15 +560,17 @@ end
     return dv
 end
 
-@inline function rigid_kinematic_acceleration(cache, relative_position, ::Val{2})
-    angular_velocity = cache.angular_velocity[]
+@inline function rigid_kinematic_acceleration(system::RigidSPHSystem, relative_position,
+                                              ::Val{2})
+    angular_velocity = system.angular_velocity[]
 
     return -(angular_velocity^2) * relative_position
 end
 
-@inline function rigid_kinematic_acceleration(cache, relative_position, ::Val{3})
-    angular_velocity = cache.angular_velocity[]
-    gyroscopic_acceleration = cache.gyroscopic_acceleration[]
+@inline function rigid_kinematic_acceleration(system::RigidSPHSystem, relative_position,
+                                              ::Val{3})
+    angular_velocity = system.angular_velocity[]
+    gyroscopic_acceleration = system.gyroscopic_acceleration[]
 
     centripetal_acceleration = cross(angular_velocity,
                                      cross(angular_velocity, relative_position))
@@ -543,14 +589,14 @@ function system_data(system::RigidSPHSystem, dv_ode, du_ode, v_ode, u_ode, semi)
     acceleration = current_velocity(dv, system)
     density = current_density(v, system)
     pressure = current_pressure(v, system)
-    center_of_mass = system.cache.center_of_mass[]
-    center_of_mass_velocity = system.cache.center_of_mass_velocity[]
-    angular_velocity = system.cache.angular_velocity[]
-    resultant_force = system.cache.resultant_force[]
-    resultant_torque = system.cache.resultant_torque[]
-    angular_acceleration_force = system.cache.angular_acceleration_force[]
-    gyroscopic_acceleration = system.cache.gyroscopic_acceleration[]
-    relative_coordinates = system.cache.relative_coordinates
+    center_of_mass = system.center_of_mass[]
+    center_of_mass_velocity = system.center_of_mass_velocity[]
+    angular_velocity = system.angular_velocity[]
+    resultant_force = system.resultant_force[]
+    resultant_torque = system.resultant_torque[]
+    angular_acceleration_force = system.angular_acceleration_force[]
+    gyroscopic_acceleration = system.gyroscopic_acceleration[]
+    relative_coordinates = system.relative_coordinates
 
     return (; coordinates, velocity, mass=system.mass,
             material_density=system.material_density,
