@@ -495,7 +495,7 @@ function update_rotational_kinematics!(system::RigidSPHSystem, system_velocity,
 end
 
 @inline function inertia_contribution(relative_position::SVector{NDIMS, ELTYPE}) where {NDIMS,
-                                                                                          ELTYPE}
+                                                                                        ELTYPE}
     return dot(relative_position, relative_position)
 end
 
