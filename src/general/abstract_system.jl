@@ -26,13 +26,20 @@ vtkname(system::AbstractBoundarySystem) = "boundary"
 # Number of particles in the system
 @inline nparticles(system) = length(system.mass)
 
-# Number of particles in the system whose positions are to be integrated (corresponds to the size of u and du)
+# Number of particles in the system whose positions are to be integrated
+# (corresponds to the size of u and du).
+# See comment below for `each_integrated_particle` for more details.
 @inline n_integrated_particles(system) = nparticles(system)
 
+# Iterator over all particle indices in the system
 @inline eachparticle(system::AbstractSystem) = each_active_particle(system)
 @inline eachparticle(initial_condition) = Base.OneTo(nparticles(initial_condition))
 
-# Wrapper for systems with `SystemBuffer`
+# Iterator over all particle indices in the system whose positions are to be integrated
+# (corresponds to the size of u and du).
+# For most systems, this is the same as `eachparticle`, but for the
+# `TotalLagrangianSPHSystem`, the clamped particles are included in `eachparticle`
+# but not in `each_integrated_particle`.
 @inline each_integrated_particle(system) = each_integrated_particle(system, buffer(system))
 @inline function each_integrated_particle(system, ::Nothing)
     return Base.OneTo(n_integrated_particles(system))

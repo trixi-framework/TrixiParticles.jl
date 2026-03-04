@@ -2,7 +2,8 @@
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::TotalLagrangianSPHSystem,
-                   neighbor_system::TotalLagrangianSPHSystem, semi;
+                   neighbor_system::TotalLagrangianSPHSystem,
+                   semi, nhs, particle;
                    integrate_tlsph=semi.integrate_tlsph[])
     # Different structures do not interact with each other (yet)
     particle_system === neighbor_system || return dv
@@ -10,22 +11,25 @@ function interact!(dv, v_particle_system, u_particle_system,
     # Skip interaction if TLSPH systems are integrated separately
     integrate_tlsph || return dv
 
-    interact_structure_structure!(dv, v_particle_system, particle_system, semi)
+    interact_structure_structure!(dv, v_particle_system, particle_system, semi, particle)
 end
 
 # Function barrier without dispatch for unit testing
-@inline function interact_structure_structure!(dv, v_system, system, semi)
+@inline function interact_structure_structure!(dv, v_system, system, semi, particle)
     (; penalty_force) = system
 
     # Everything here is done in the initial coordinates
     system_coords = initial_coordinates(system)
 
+    # Specialized neighborhood search for structure-structure interaction that is
+    # optimized for finding neighbors in the initial configuration.
+    nhs = system.self_interaction_nhs
+
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     # For structure-structure interaction, this has to happen in the initial coordinates.
-    foreach_point_neighbor(system, system, system_coords, system_coords, semi;
-                           points=each_integrated_particle(system)) do particle, neighbor,
-                                                                       initial_pos_diff,
-                                                                       initial_distance
+    foreach_neighbor(system_coords, system_coords, nhs,
+                     particle) do particle, neighbor,
+                                  initial_pos_diff, initial_distance
         # Only consider particles with a distance > 0.
         # See `src/general/smoothing_kernels.jl` for more details.
         initial_distance^2 < eps(initial_smoothing_length(system)^2) && return
@@ -76,7 +80,7 @@ end
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::TotalLagrangianSPHSystem,
-                   neighbor_system::AbstractFluidSystem, semi;
+                   neighbor_system::AbstractFluidSystem, semi, nhs, particle;
                    integrate_tlsph=semi.integrate_tlsph[])
     # Skip interaction if TLSPH systems are integrated separately
     integrate_tlsph || return dv
@@ -87,12 +91,8 @@ function interact!(dv, v_particle_system, u_particle_system,
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
-    foreach_point_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
-                           semi;
-                           points=each_integrated_particle(particle_system)) do particle,
-                                                                                neighbor,
-                                                                                pos_diff,
-                                                                                distance
+    foreach_neighbor(system_coords, neighbor_coords,
+                     nhs, particle) do particle, neighbor, pos_diff, distance
         # Only consider particles with a distance > 0.
         # See `src/general/smoothing_kernels.jl` for more details.
         distance^2 < eps(initial_smoothing_length(particle_system)^2) && return
@@ -183,7 +183,8 @@ end
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::TotalLagrangianSPHSystem,
-                   neighbor_system::Union{WallBoundarySystem, OpenBoundarySystem}, semi;
+                   neighbor_system::Union{WallBoundarySystem, OpenBoundarySystem},
+                   semi, nhs, particle;
                    integrate_tlsph=semi.integrate_tlsph[])
     # TODO continuity equation?
     return dv
