@@ -47,11 +47,11 @@
 
             pk1_rho2 = 2000 * ones(2, 2, 10) # Just something that's not zero to catch errors
             pk1_rho2[:, :,
-                     particle[i]] = pk1_particle_corrected[i] /
-                                    material_density[particle[i]]^2
+            particle[i]] = pk1_particle_corrected[i] /
+                                          material_density[particle[i]]^2
             pk1_rho2[:, :,
-                     neighbor[i]] = pk1_neighbor_corrected[i] /
-                                    material_density[neighbor[i]]^2
+            neighbor[i]] = pk1_neighbor_corrected[i] /
+                                          material_density[neighbor[i]]^2
 
             # Use the same setup as in the unit test above for calc_dv!
             mass = ones(Float64, 10)

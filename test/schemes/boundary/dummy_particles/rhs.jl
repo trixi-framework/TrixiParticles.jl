@@ -139,9 +139,9 @@
                                                     ic.angular_velocity)
 
                 boundary = InitialCondition{ndims(ic)}(ic.coordinates[:,
-                                                                      (center_particle + 1):end],
+                                                       (center_particle + 1):end],
                                                        ic.velocity[:,
-                                                                   (center_particle + 1):end],
+                                                       (center_particle + 1):end],
                                                        ic.mass[(center_particle + 1):end],
                                                        ic.density[(center_particle + 1):end],
                                                        ic.pressure[(center_particle + 1):end],

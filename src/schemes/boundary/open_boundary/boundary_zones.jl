@@ -531,7 +531,8 @@ function current_boundary_zone(system, particle)
 end
 
 function remove_outside_particles(initial_condition, spanning_set, zone_origin)
-    (; coordinates, velocity, density, particle_spacing, angular_velocity) = initial_condition
+    (; coordinates, velocity, density, particle_spacing,
+     angular_velocity) = initial_condition
 
     in_zone = fill(true, nparticles(initial_condition))
 

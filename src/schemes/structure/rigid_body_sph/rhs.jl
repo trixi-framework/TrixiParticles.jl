@@ -115,7 +115,8 @@ end
 function resultant_force_and_torque(particle_system::RigidSPHSystem, force_per_particle,
                                     relative_coordinates)
     particles = each_integrated_particle(particle_system)
-    total_force, total_torque = mapreduce((x, y) -> x .+ y, particles) do particle
+    total_force,
+    total_torque = mapreduce((x, y) -> x .+ y, particles) do particle
         particle_force = extract_svector(force_per_particle, particle_system, particle)
         relative_position = extract_svector(relative_coordinates, particle_system, particle)
         particle_torque = cross(relative_position, particle_force)

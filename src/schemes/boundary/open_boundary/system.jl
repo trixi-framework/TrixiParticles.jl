@@ -657,8 +657,8 @@ function interpolate_velocity!(system::OpenBoundarySystem, boundary_zone,
                                                            neighbor)
             for i in axes(velocity_neighbor, 1)
                 @inbounds sample_velocity[i,
-                                          point] += velocity_neighbor[i] * volume_b *
-                                                    W_ab
+                point] += velocity_neighbor[i] * volume_b *
+                                                       W_ab
             end
         end
     end

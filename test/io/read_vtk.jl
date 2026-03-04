@@ -85,10 +85,12 @@
             end
 
             @testset verbose=true "Angular Velocity Metadata" begin
-                expected_ic_2d = InitialCondition(; coordinates=coordinates, velocity=velocity,
+                expected_ic_2d = InitialCondition(; coordinates=coordinates,
+                                                  velocity=velocity,
                                                   density=1000.0, pressure=900.0, mass=50.0,
                                                   angular_velocity=3.0)
-                trixi2vtk(expected_ic_2d; filename="tmp_initial_condition_angular_velocity_2d",
+                trixi2vtk(expected_ic_2d;
+                          filename="tmp_initial_condition_angular_velocity_2d",
                           output_directory=tmp_dir)
                 file_2d = joinpath(tmp_dir, "tmp_initial_condition_angular_velocity_2d.vtu")
                 test_ic_2d = vtk2trixi(file_2d)
@@ -100,7 +102,8 @@
                                                   velocity=velocity_3d,
                                                   density=1000.0, pressure=900.0, mass=50.0,
                                                   angular_velocity=(0.0, 0.0, 2.0))
-                trixi2vtk(expected_ic_3d; filename="tmp_initial_condition_angular_velocity_3d",
+                trixi2vtk(expected_ic_3d;
+                          filename="tmp_initial_condition_angular_velocity_3d",
                           output_directory=tmp_dir)
                 file_3d = joinpath(tmp_dir, "tmp_initial_condition_angular_velocity_3d.vtu")
                 test_ic_3d = vtk2trixi(file_3d)
