@@ -24,18 +24,15 @@ Adapt.@adapt_structure DEMSystem
 Adapt.@adapt_structure BoundaryDEMSystem
 Adapt.@adapt_structure RCRWindkesselModel
 
-KernelAbstractions.get_backend(::PtrArray) = KernelAbstractions.CPU()
-function KernelAbstractions.get_backend(system::AbstractSystem)
-    KernelAbstractions.get_backend(system.mass)
-end
-
-function KernelAbstractions.get_backend(system::WallBoundarySystem)
-    KernelAbstractions.get_backend(system.coordinates)
-end
-
 # This makes `@threaded semi for ...` use `semi.parallelization_backend` for parallelization
 @inline function PointNeighbors.parallel_foreach(f, iterator, semi::Semidiscretization)
     PointNeighbors.parallel_foreach(f, iterator, semi.parallelization_backend)
+end
+
+# Same with `@threaded_nosync`
+@inline function PointNeighbors.parallel_foreach_nosync(f, iterator,
+                                                        semi::Semidiscretization)
+    PointNeighbors.parallel_foreach_nosync(f, iterator, semi.parallelization_backend)
 end
 
 function allocate(backend::KernelAbstractions.GPU, ELTYPE, size)
@@ -44,4 +41,12 @@ end
 
 function allocate(backend, ELTYPE, size)
     return Array{ELTYPE, length(size)}(undef, size)
+end
+
+@inline function synchronize_backend(backend::KernelAbstractions.GPU)
+    return KernelAbstractions.synchronize(backend)
+end
+
+@inline function synchronize_backend(backend)
+    return nothing
 end

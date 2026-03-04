@@ -128,6 +128,11 @@ end
 
 struct IndividualTimers end
 struct CombinedTimers end
+struct NoTimers end
+
+# Individual timers are usually not worth the overhead on GPUs
+default_timers(parallelization_backend) = IndividualTimers()
+default_timers(::KernelAbstractions.GPU) = CombinedTimers()
 
 # Inline show function e.g. Semidiscretization(neighborhood_search=...)
 function Base.show(io::IO, semi::Semidiscretization)
@@ -702,6 +707,21 @@ function system_interaction!(dv_ode, v_ode, u_ode,
     return dv_ode
 end
 
+function system_interaction!(dv_ode, v_ode, u_ode,
+                             semi::Semidiscretization{NoTimers})
+    foreach_system(semi) do system
+        # Call a combined `interact!` for all interactions of this system with other systems.
+        # Since no timers are used, we can avoid synchronization, as each combined
+        # interaction will only write to the part of `dv_ode` corresponding its system.
+        interact_combined!(dv_ode, v_ode, u_ode, system, semi; synchronize=false)
+    end
+
+    # Now manually synchronize, since we disabled synchronization above
+    synchronize_backend(semi.parallelization_backend)
+
+    return dv_ode
+end
+
 # Function barrier to make benchmarking interactions easier.
 # One can benchmark, e.g. the fluid-fluid interaction, with:
 # dv_ode, du_ode = copy(sol.u[end]).x; v_ode, u_ode = copy(sol.u[end]).x;
@@ -746,7 +766,9 @@ function interact_combined!(dv_ode, v_ode, u_ode, system, semi; synchronize=true
 
     # Loop over all particles that are integrated for this system, i.e., all particles
     # for which `dv` has entries.
-    @threaded semi for particle in each_integrated_particle(system)
+    # `@threaded_nosync` is the same as `@threaded` but without synchronization on GPUs.
+    # Manual synchronization is done below.
+    @threaded_nosync semi for particle in each_integrated_particle(system)
         # Now loop over all neighbor systems to avoid separate loops/kernels
         # for each pair of systems.
         foreach_noalloc(iterator) do (neighbor, v_neighbor, u_neighbor, nhs)
@@ -754,6 +776,8 @@ function interact_combined!(dv_ode, v_ode, u_ode, system, semi; synchronize=true
                       system, neighbor, semi, nhs, particle)
         end
     end
+
+    synchronize && synchronize_backend(semi.parallelization_backend)
 end
 
 function check_update_callback(semi)
