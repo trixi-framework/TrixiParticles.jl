@@ -249,7 +249,7 @@ function add_initial_rotation!(initial_velocity, local_coordinates, angular_velo
         relative_position = extract_svector(local_coordinates, Val(3), particle)
         rotational_velocity = cross(angular_velocity, relative_position)
 
-        for i in 1:3
+        for i in eachindex(rotational_velocity)
             initial_velocity[i, particle] += rotational_velocity[i]
         end
     end
@@ -298,7 +298,7 @@ end
 end
 
 @inline function current_pressure(v, ::Nothing, system::RigidSPHSystem)
-    return zero(system.material_density)
+    return zero(eltype(system))
 end
 
 @inline function hydrodynamic_mass(system::RigidSPHSystem, particle)
@@ -318,12 +318,24 @@ end
 end
 
 @inline function viscous_velocity(v, system::RigidSPHSystem, particle)
-    boundary_model = system.boundary_model
+    return viscous_velocity(v, system.boundary_model, system, particle)
+end
 
-    if isnothing(boundary_model) || isnothing(boundary_model.viscosity)
-        return current_velocity(v, system, particle)
-    end
+@inline function viscous_velocity(v, ::Nothing, system::RigidSPHSystem, particle)
+    return current_velocity(v, system, particle)
+end
 
+@inline function viscous_velocity(v, boundary_model, system::RigidSPHSystem, particle)
+    return viscous_velocity(v, boundary_model.viscosity, boundary_model, system, particle)
+end
+
+@inline function viscous_velocity(v, ::Nothing, boundary_model,
+                                  system::RigidSPHSystem, particle)
+    return current_velocity(v, system, particle)
+end
+
+@inline function viscous_velocity(v, viscosity, boundary_model,
+                                  system::RigidSPHSystem, particle)
     return extract_svector(boundary_model.cache.wall_velocity, system, particle)
 end
 
