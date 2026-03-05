@@ -621,7 +621,7 @@
       0.4975,
       0.5
     ],
-    "system_name": "solid",
+    "system_name": "structure",
     "values": [
       0.0,
       0.16507869944149234,
@@ -1044,7 +1044,7 @@
       0.4975,
       0.5
     ],
-    "system_name": "solid",
+    "system_name": "structure",
     "values": [
       0.0,
       -7.843034386614475e-5,

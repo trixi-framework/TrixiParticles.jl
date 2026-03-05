@@ -18,12 +18,12 @@ using JSON
 # ==== Resolution
 # Reference data is available for n_particles_plate_y = 3, 5, 11, and 13.
 # Computational time on a single core:
-# n_particles_plate_y = 3: ~0.25h
-# n_particles_plate_y = 5: ~1.5h
-# n_particles_plate_y = 11: ~10h
-# n_particles_plate_y = 13: ~15h
+# n_particles_plate_y = 3: ~5m
+# n_particles_plate_y = 5: ~10m
+# n_particles_plate_y = 11: ~2h
+# n_particles_plate_y = 13: ~3h
 
-n_particles_plate_y = 5
+n_particles_plate_y = 11
 
 # ==========================================================================================
 # ==== Experiment Setup
