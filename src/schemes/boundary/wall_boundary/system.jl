@@ -183,7 +183,9 @@ function apply_prescribed_motion!(system::WallBoundarySystem,
     (; ismoving, coordinates, cache) = system
     (; acceleration, velocity) = cache
 
-    prescribed_motion(coordinates, velocity, acceleration, ismoving, system, semi, t)
+    @trixi_timeit timer() "apply prescribed motion" begin
+        prescribed_motion(coordinates, velocity, acceleration, ismoving, system, semi, t)
+    end
 
     return system
 end
@@ -337,5 +339,25 @@ function Base.show(io::IO, ::MIME"text/plain", system::WallBoundarySystem)
         summary_line(io, "adhesion coefficient", system.adhesion_coefficient)
         summary_line(io, "color", system.cache.color)
         summary_footer(io)
+    end
+end
+
+function check_configuration(system::WallBoundarySystem, systems, nhs)
+    (; boundary_model) = system
+
+    n_particles_model = length(system.boundary_model.hydrodynamic_mass)
+    if n_particles_model != nparticles(system)
+        throw(ArgumentError("the boundary model was initialized with $n_particles_model " *
+                            "particles, but the `WallBoundarySystem` has " *
+                            "$(nparticles(system)) particles."))
+    end
+
+    foreach_system(systems) do neighbor
+        if neighbor isa WeaklyCompressibleSPHSystem &&
+           boundary_model isa BoundaryModelDummyParticles &&
+           isnothing(boundary_model.state_equation)
+            throw(ArgumentError("`WeaklyCompressibleSPHSystem` cannot be used without " *
+                                "setting a `state_equation` for all boundary models"))
+        end
     end
 end

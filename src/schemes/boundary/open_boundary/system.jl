@@ -114,20 +114,7 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
     # in the `BoundaryZone`, but they are not used in the actual simulation.
     # The reference values are extracted above in the "create cache" function
     # and then stored in `system.cache` as a `Tuple`.
-    boundary_zones_new = map(zone -> BoundaryZone(zone.initial_condition,
-                                                  zone.spanning_set,
-                                                  zone.zone_origin,
-                                                  zone.zone_width,
-                                                  zone.flow_direction,
-                                                  zone.face_normal,
-                                                  zone.rest_pressure,
-                                                  nothing,
-                                                  zone.cache,
-                                                  zone.average_inflow_velocity,
-                                                  zone.prescribed_density,
-                                                  zone.prescribed_pressure,
-                                                  zone.prescribed_velocity),
-                             boundary_zones_)
+    boundary_zones_new = map(zone -> @set(zone.reference_values = nothing), boundary_zones_)
 
     return OpenBoundarySystem(boundary_model, initial_conditions, fluid_system,
                               fluid_system_index, smoothing_kernel, smoothing_length, mass,
@@ -295,6 +282,11 @@ end
     current_density(v, system)[particle] = density
 
     return v
+end
+
+function calculate_dt(v_ode, u_ode, cfl_number, system::OpenBoundarySystem, semi)
+    # Open boundaries don't affect the timestep calculation
+    return Inf
 end
 
 @inline function add_velocity!(du, v, u, particle, system::OpenBoundarySystem, t)
@@ -672,4 +664,26 @@ function interpolate_velocity!(system::OpenBoundarySystem, boundary_zone,
     end
 
     return system
+end
+
+function check_configuration(system::OpenBoundarySystem, systems,
+                             neighborhood_search::PointNeighbors.AbstractNeighborhoodSearch)
+    (; boundary_model, boundary_zones) = system
+
+    # Store index of the fluid system. This is necessary for re-linking
+    # in case we use Adapt.jl to create a new semidiscretization.
+    fluid_system_index = findfirst(==(system.fluid_system), systems)
+    system.fluid_system_index[] = fluid_system_index
+
+    if boundary_model isa BoundaryModelCharacteristicsLastiwka &&
+       any(zone -> isnothing(zone.flow_direction), boundary_zones)
+        throw(ArgumentError("`BoundaryModelCharacteristicsLastiwka` needs a specific flow direction. " *
+                            "Please specify `InFlow()` and `OutFlow()`."))
+    end
+
+    if first(PointNeighbors.requires_update(neighborhood_search))
+        throw(ArgumentError("`OpenBoundarySystem` requires a neighborhood search " *
+                            "that does not require an update for the first set of coordinates (e.g. `GridNeighborhoodSearch`). " *
+                            "See the PointNeighbors.jl documentation for more details."))
+    end
 end

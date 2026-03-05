@@ -218,6 +218,17 @@ function add_system_data!(system_data, state_equation::StateEquationCole)
     system_data["state_equation"]["exponent"] = state_equation.exponent
 end
 
+function add_system_data!(system_data, state_equation::StateEquationAdaptiveCole)
+    system_data["state_equation"] = Dict{String, Any}()
+    system_data["state_equation"]["model"] = type2string(state_equation)
+    system_data["state_equation"]["reference_density"] = state_equation.reference_density
+    system_data["state_equation"]["background_pressure"] = state_equation.background_pressure
+    system_data["state_equation"]["exponent"] = state_equation.exponent
+    system_data["state_equation"]["mach_number_target"] = state_equation.mach_number_target
+    system_data["state_equation"]["min_sound_speed"] = state_equation.min_sound_speed
+    system_data["state_equation"]["max_sound_speed"] = state_equation.max_sound_speed
+end
+
 function add_system_data!(system_data, state_equation::StateEquationIdealGas)
     system_data["state_equation"] = Dict{String, Any}()
     system_data["state_equation"]["model"] = type2string(state_equation)
@@ -329,4 +340,15 @@ end
 function add_system_data!(system_data, shifting_technique::ParticleShiftingTechnique)
     system_data["shifting_technique"] = Dict{String, Any}()
     system_data["shifting_technique"]["model"] = type2string(shifting_technique)
+end
+
+function add_system_data!(system_data, viscosity::ViscosityCarreauYasuda)
+    system_data["viscosity_model"] = Dict{String, Any}()
+    system_data["viscosity_model"]["model"] = type2string(viscosity)
+    system_data["viscosity_model"]["nu0"] = viscosity.nu0
+    system_data["viscosity_model"]["nu_inf"] = viscosity.nu_inf
+    system_data["viscosity_model"]["lambda"] = viscosity.lambda
+    system_data["viscosity_model"]["a"] = viscosity.a
+    system_data["viscosity_model"]["n"] = viscosity.n
+    system_data["viscosity_model"]["epsilon"] = viscosity.epsilon
 end
