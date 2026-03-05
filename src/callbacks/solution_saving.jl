@@ -127,6 +127,9 @@ function initialize_save_cb!(cb, u, t, integrator)
 end
 
 function initialize_save_cb!(solution_callback::SolutionSavingCallback, u, t, integrator)
+    semi = integrator.p
+    set_callbacks_used!(semi, integrator)
+
     # Reset `latest_saved_iter`
     solution_callback.latest_saved_iter = -1
     solution_callback.git_hash[] = compute_git_hash()
@@ -135,7 +138,7 @@ function initialize_save_cb!(solution_callback::SolutionSavingCallback, u, t, in
 
     # Save initial solution
     if solution_callback.save_initial_solution
-        solution_callback(integrator; from_initialize=true)
+        solution_callback(integrator)
     end
 
     return nothing
@@ -150,30 +153,21 @@ function (solution_callback::SolutionSavingCallback)(u, t, integrator)
 end
 
 # `affect!`
-function (solution_callback::SolutionSavingCallback)(integrator; from_initialize=false)
+function (solution_callback::SolutionSavingCallback)(integrator)
     (; interval, output_directory, custom_quantities, git_hash, verbose,
-     prefix, latest_saved_iter, max_coordinates) = solution_callback
+     prefix, max_coordinates) = solution_callback
 
     @trixi_timeit timer() "save solution" begin
-        vu_ode = integrator.u
-        if from_initialize
-            # Avoid calling `get_du` here, since it will call the RHS function
-            # if it is called before the first time step.
-            # This would cause problems with `semi.update_callback_used`,
-            # which might not yet be set to `true` at this point if the `UpdateCallback`
-            # comes AFTER the `SolutionSavingCallback` in the `CallbackSet`.
-            dvdu_ode = zero(vu_ode)
-        else
-            # Depending on the time integration scheme, this might call the RHS function
-            @trixi_timeit timer() "update du" begin
-                # Don't create sub-timers here to avoid cluttering the timer output
-                @notimeit timer() dvdu_ode = get_du(integrator)
-            end
+        @trixi_timeit timer() "update dvdu" begin
+            # Don't create sub-timers here to avoid cluttering the timer output
+            @notimeit timer() dvdu_ode = get_dvdu(integrator)
         end
+
+        vu_ode = integrator.u
         semi = integrator.p
         iter = get_iter(interval, integrator)
 
-        if iter == latest_saved_iter
+        if iter == solution_callback.latest_saved_iter
             # This should only happen at the end of the simulation when using `dt` and the
             # final time is not a multiple of the saving interval.
             @assert isfinished(integrator)
@@ -182,7 +176,7 @@ function (solution_callback::SolutionSavingCallback)(integrator; from_initialize
             iter += 1
         end
 
-        latest_saved_iter = iter
+        solution_callback.latest_saved_iter = iter
 
         if verbose
             println("Writing solution to $output_directory at t = $(integrator.t)")
