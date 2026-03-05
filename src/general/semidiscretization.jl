@@ -49,7 +49,7 @@ semi = Semidiscretization(fluid_system, boundary_system,
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-struct Semidiscretization{BACKEND, S, RU, RV, NS, UCU, IT}
+struct Semidiscretization{TIMERS, S, RU, RV, NS, BACKEND, UCU, IT}
     systems                 :: S
     ranges_u                :: RU
     ranges_v                :: RV

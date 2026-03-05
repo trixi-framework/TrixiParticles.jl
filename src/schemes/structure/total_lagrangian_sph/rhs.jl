@@ -1,10 +1,10 @@
 # Structure-structure interaction
-function interact!(dv, v_particle_system, u_particle_system,
-                   v_neighbor_system, u_neighbor_system,
-                   particle_system::TotalLagrangianSPHSystem,
-                   neighbor_system::TotalLagrangianSPHSystem,
-                   semi, nhs, particle;
-                   integrate_tlsph=semi.integrate_tlsph[])
+@inline function interact!(dv, v_particle_system, u_particle_system,
+                           v_neighbor_system, u_neighbor_system,
+                           particle_system::TotalLagrangianSPHSystem,
+                           neighbor_system::TotalLagrangianSPHSystem,
+                           semi, nhs, particle;
+                           integrate_tlsph=semi.integrate_tlsph[])
     # Different structures do not interact with each other (yet)
     particle_system === neighbor_system || return dv
 
@@ -77,11 +77,12 @@ end
 end
 
 # Structure-fluid interaction
-function interact!(dv, v_particle_system, u_particle_system,
-                   v_neighbor_system, u_neighbor_system,
-                   particle_system::TotalLagrangianSPHSystem,
-                   neighbor_system::AbstractFluidSystem, semi, nhs, particle;
-                   integrate_tlsph=semi.integrate_tlsph[])
+@inline function interact!(dv, v_particle_system, u_particle_system,
+                           v_neighbor_system, u_neighbor_system,
+                           particle_system::TotalLagrangianSPHSystem,
+                           neighbor_system::AbstractFluidSystem,
+                           semi, nhs, particle;
+                           integrate_tlsph=semi.integrate_tlsph[])
     # Skip interaction if TLSPH systems are integrated separately
     integrate_tlsph || return dv
 
@@ -180,12 +181,12 @@ end
 end
 
 # Structure-boundary interaction
-function interact!(dv, v_particle_system, u_particle_system,
-                   v_neighbor_system, u_neighbor_system,
-                   particle_system::TotalLagrangianSPHSystem,
-                   neighbor_system::Union{WallBoundarySystem, OpenBoundarySystem},
-                   semi, nhs, particle;
-                   integrate_tlsph=semi.integrate_tlsph[])
+@inline function interact!(dv, v_particle_system, u_particle_system,
+                           v_neighbor_system, u_neighbor_system,
+                           particle_system::TotalLagrangianSPHSystem,
+                           neighbor_system::Union{WallBoundarySystem, OpenBoundarySystem},
+                           semi, nhs, particle;
+                           integrate_tlsph=semi.integrate_tlsph[])
     # TODO continuity equation?
     return dv
 end
