@@ -38,7 +38,7 @@ For more information about the method see [`WindingNumberJacobson`](@ref) or [`W
                     that is too small for the scale of the geometry.
 - `pad_initial_particle_grid`: Padding of the initial particle grid.
 - `angular_velocity`: Initial angular velocity `ω` (not angular momentum),
-                    currently only used by [`RigidSPHSystem`](@ref).
+                    added to the initial `velocity` as a rotational contribution.
                     Semantics match [`InitialCondition`](@ref): in 3D, axis from direction
                     and angular speed from `|ω|`.
 

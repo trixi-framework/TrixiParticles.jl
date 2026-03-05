@@ -114,5 +114,6 @@ function vtk2trixi(file; element_type=nothing, coordinates_eltype=nothing)
                             mass=results["mass"],
                             density=results["density"],
                             pressure=results["pressure"],
-                            angular_velocity)
+                            angular_velocity,
+                            apply_angular_velocity=false)
 end

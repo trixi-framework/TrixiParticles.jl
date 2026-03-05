@@ -89,11 +89,6 @@ function RigidSPHSystem(initial_condition, ::Val{2}; boundary_model=nothing,
                         source_terms=nothing, color_value=0)
     ELTYPE = eltype(initial_condition)
     init = init_rigid_system(initial_condition, acceleration, particle_spacing, Val(2))
-    initial_angular_velocity = convert_angular_velocity(initial_condition.angular_velocity,
-                                                        Val(2), ELTYPE)
-
-    add_initial_rotation!(init.initial_velocity, init.local_coordinates,
-                          initial_angular_velocity, Val(2))
 
     force_per_particle = zeros(ELTYPE, 2, nparticles(initial_condition))
     relative_coordinates = copy(init.local_coordinates)
@@ -104,7 +99,8 @@ function RigidSPHSystem(initial_condition, ::Val{2}; boundary_model=nothing,
                           relative_coordinates, Ref(init.center_of_mass),
                           Ref(zero(SVector{2, ELTYPE})),
                           Ref(zero(ELTYPE)), Ref(zero(ELTYPE)),
-                          Ref(initial_angular_velocity), Ref(zero(SVector{2, ELTYPE})),
+                          Ref(initial_condition.angular_velocity),
+                          Ref(zero(SVector{2, ELTYPE})),
                           Ref(zero(ELTYPE)), Ref(zero(ELTYPE)), Ref(zero(ELTYPE)),
                           boundary_model, source_terms, create_cache_rigid(color_value))
 end
@@ -116,11 +112,6 @@ function RigidSPHSystem(initial_condition, ::Val{3}; boundary_model=nothing,
                         source_terms=nothing, color_value=0)
     ELTYPE = eltype(initial_condition)
     init = init_rigid_system(initial_condition, acceleration, particle_spacing, Val(3))
-    initial_angular_velocity = convert_angular_velocity(initial_condition.angular_velocity,
-                                                        Val(3), ELTYPE)
-
-    add_initial_rotation!(init.initial_velocity, init.local_coordinates,
-                          initial_angular_velocity, Val(3))
 
     force_per_particle = zeros(ELTYPE, 3, nparticles(initial_condition))
     relative_coordinates = copy(init.local_coordinates)
@@ -132,7 +123,8 @@ function RigidSPHSystem(initial_condition, ::Val{3}; boundary_model=nothing,
                           Ref(zero(SVector{3, ELTYPE})),
                           Ref(zero(SMatrix{3, 3, ELTYPE, 9})),
                           Ref(zero(SMatrix{3, 3, ELTYPE, 9})),
-                          Ref(initial_angular_velocity), Ref(zero(SVector{3, ELTYPE})),
+                          Ref(initial_condition.angular_velocity),
+                          Ref(zero(SVector{3, ELTYPE})),
                           Ref(zero(SVector{3, ELTYPE})),
                           Ref(zero(SVector{3, ELTYPE})),
                           Ref(zero(SVector{3, ELTYPE})),
@@ -169,31 +161,6 @@ function init_rigid_system(initial_condition, acceleration, particle_spacing,
             center_of_mass, total_mass)
 end
 
-function convert_angular_velocity(angular_velocity, ::Val{2}, ELTYPE)
-    if angular_velocity isa Number
-        return convert(ELTYPE, angular_velocity)
-    end
-
-    if angular_velocity isa Union{Tuple, AbstractArray} && length(angular_velocity) == 1
-        return convert(ELTYPE, first(angular_velocity))
-    end
-
-    throw(ArgumentError("`angular_velocity` must be a scalar for a 2D problem"))
-end
-
-function convert_angular_velocity(angular_velocity, ::Val{3}, ELTYPE)
-    if !(angular_velocity isa Union{Tuple, AbstractArray})
-        throw(ArgumentError("`angular_velocity` must be of length 3 for a 3D problem"))
-    end
-
-    angular_velocity_ = SVector(angular_velocity...)
-    if length(angular_velocity_) != 3
-        throw(ArgumentError("`angular_velocity` must be of length 3 for a 3D problem"))
-    end
-
-    return SVector{3, ELTYPE}(angular_velocity_)
-end
-
 function center_of_mass_and_total_mass(coordinates, mass, ::Val{NDIMS},
                                        ELTYPE) where {NDIMS}
     center_of_mass = zero(SVector{NDIMS, ELTYPE})
@@ -225,36 +192,6 @@ function update_relative_coordinates!(relative_coordinates, coordinates, center_
     end
 
     return relative_coordinates
-end
-
-function add_initial_rotation!(initial_velocity, local_coordinates, angular_velocity,
-                               ::Val{2})
-    iszero(angular_velocity) && return initial_velocity
-
-    for particle in axes(initial_velocity, 2)
-        x = local_coordinates[1, particle]
-        y = local_coordinates[2, particle]
-        initial_velocity[1, particle] += -angular_velocity * y
-        initial_velocity[2, particle] += angular_velocity * x
-    end
-
-    return initial_velocity
-end
-
-function add_initial_rotation!(initial_velocity, local_coordinates, angular_velocity,
-                               ::Val{3})
-    iszero(angular_velocity) && return initial_velocity
-
-    for particle in axes(initial_velocity, 2)
-        relative_position = extract_svector(local_coordinates, Val(3), particle)
-        rotational_velocity = cross(angular_velocity, relative_position)
-
-        for i in eachindex(rotational_velocity)
-            initial_velocity[i, particle] += rotational_velocity[i]
-        end
-    end
-
-    return initial_velocity
 end
 
 @inline function Base.eltype(::RigidSPHSystem{<:Any, <:Any, ELTYPE}) where {ELTYPE}

@@ -40,7 +40,8 @@ with `TrixiParticles.TriangleMesh` and `TrixiParticles.Polygon` returned by [`lo
                       is assumed to be uniform. This is only needed when using
                       set operations on the `InitialCondition` or for automatic mass calculation.
 - `angular_velocity`: Initial angular velocity `ω` of the shape (not angular momentum).
-                      This is currently only used by [`RigidSPHSystem`](@ref).
+                      It adds a rotational contribution to `velocity` around the center of mass of the shape.
+                      If both `velocity` and `angular_velocity` are set, they are added.
                       In 2D, pass a scalar angular speed in rad/s.
                       In 3D, pass a vector of length 3: its direction is the rotation axis
                       (right-hand rule), its norm `|ω|` is the angular speed in rad/s.
@@ -114,17 +115,19 @@ end
 # See the comments in general/gpu.jl for more details.
 function InitialCondition(; coordinates, density, velocity=zeros(size(coordinates, 1)),
                           mass=nothing, pressure=0.0, particle_spacing=-1.0,
-                          angular_velocity=nothing)
+                          angular_velocity=nothing, apply_angular_velocity=true)
     NDIMS = size(coordinates, 1)
 
     return InitialCondition{NDIMS}(coordinates, velocity, mass, density,
-                                   pressure, particle_spacing, angular_velocity)
+                                   pressure, particle_spacing, angular_velocity;
+                                   apply_angular_velocity)
 end
 
 # Function barrier to make `NDIMS` static and therefore SVectors type-stable
 function InitialCondition{NDIMS}(coordinates, velocity, mass, density,
                                  pressure, particle_spacing,
-                                 angular_velocity) where {NDIMS}
+                                 angular_velocity;
+                                 apply_angular_velocity=true) where {NDIMS}
     if !(particle_spacing isa AbstractFloat)
         throw(ArgumentError("particle spacing must be a floating point number. " *
                             "The type of the particle spacing determines the eltype " *
@@ -212,7 +215,13 @@ function InitialCondition{NDIMS}(coordinates, velocity, mass, density,
         masses = mass_fun.(coordinates_svector)
     end
 
-    return InitialCondition(particle_spacing, coordinates, ELTYPE.(velocities),
+    velocities_ = ELTYPE.(velocities)
+    if apply_angular_velocity
+        add_initial_angular_velocity!(velocities_, coordinates, masses, angular_velocity_,
+                                      Val(NDIMS), ELTYPE)
+    end
+
+    return InitialCondition(particle_spacing, coordinates, velocities_,
                             ELTYPE.(masses), ELTYPE.(densities), ELTYPE.(pressures),
                             angular_velocity_)
 end
@@ -263,6 +272,75 @@ end
 function convert_initial_angular_velocity(angular_velocity, ::Val{NDIMS},
                                           ELTYPE) where {NDIMS}
     throw(ArgumentError("`angular_velocity` must be a scalar for a $(NDIMS)D problem"))
+end
+
+function center_of_mass_from_mass(coordinates, mass, ::Val{NDIMS}, ELTYPE) where {NDIMS}
+    weighted_center_of_mass = zero(SVector{NDIMS, ELTYPE})
+    total_mass = zero(ELTYPE)
+
+    for particle in eachindex(mass)
+        particle_mass = convert(ELTYPE, mass[particle])
+        total_mass += particle_mass
+        weighted_center_of_mass += particle_mass *
+                                   extract_svector(coordinates, Val(NDIMS), particle)
+    end
+
+    if total_mass > eps(ELTYPE)
+        return weighted_center_of_mass / total_mass
+    end
+
+    center_of_mass = zero(SVector{NDIMS, ELTYPE})
+    n_particles = size(coordinates, 2)
+    n_particles == 0 && return center_of_mass
+
+    for particle in axes(coordinates, 2)
+        center_of_mass += extract_svector(coordinates, Val(NDIMS), particle)
+    end
+
+    return center_of_mass / n_particles
+end
+
+@inline function add_initial_angular_velocity!(velocities, coordinates, mass,
+                                               angular_velocity, ::Val{NDIMS},
+                                               ELTYPE) where {NDIMS}
+    return velocities
+end
+
+function add_initial_angular_velocity!(velocities, coordinates, mass,
+                                       angular_velocity, ::Val{2}, ELTYPE)
+    iszero(angular_velocity) && return velocities
+    center_of_mass = center_of_mass_from_mass(coordinates, mass, Val(2), ELTYPE)
+
+    for particle in axes(velocities, 2)
+        x = coordinates[1, particle] - center_of_mass[1]
+        y = coordinates[2, particle] - center_of_mass[2]
+        velocities[1, particle] += -angular_velocity * y
+        velocities[2, particle] += angular_velocity * x
+    end
+
+    return velocities
+end
+
+function add_initial_angular_velocity!(velocities, coordinates, mass,
+                                       angular_velocity, ::Val{3}, ELTYPE)
+    iszero(angular_velocity) && return velocities
+    center_of_mass = center_of_mass_from_mass(coordinates, mass, Val(3), ELTYPE)
+
+    wx = angular_velocity[1]
+    wy = angular_velocity[2]
+    wz = angular_velocity[3]
+
+    for particle in axes(velocities, 2)
+        x = coordinates[1, particle] - center_of_mass[1]
+        y = coordinates[2, particle] - center_of_mass[2]
+        z = coordinates[3, particle] - center_of_mass[3]
+
+        velocities[1, particle] += wy * z - wz * y
+        velocities[2, particle] += wz * x - wx * z
+        velocities[3, particle] += wx * y - wy * x
+    end
+
+    return velocities
 end
 
 function Base.show(io::IO, ic::InitialCondition)
@@ -346,7 +424,8 @@ function Base.union(initial_condition::InitialCondition, initial_conditions...)
 
     result = InitialCondition{ndims(ic)}(coordinates, velocity, mass, density, pressure,
                                          particle_spacing,
-                                         initial_condition.angular_velocity)
+                                         initial_condition.angular_velocity;
+                                         apply_angular_velocity=false)
 
     return union(result, Base.tail(initial_conditions)...)
 end
@@ -382,7 +461,8 @@ function Base.setdiff(initial_condition::InitialCondition, initial_conditions...
 
     result = InitialCondition{ndims(ic)}(coordinates, velocity, mass, density, pressure,
                                          particle_spacing,
-                                         initial_condition.angular_velocity)
+                                         initial_condition.angular_velocity;
+                                         apply_angular_velocity=false)
 
     return setdiff(result, Base.tail(initial_conditions)...)
 end
@@ -417,7 +497,8 @@ function Base.intersect(initial_condition::InitialCondition, initial_conditions.
 
     result = InitialCondition{ndims(ic)}(coordinates, velocity, mass, density, pressure,
                                          particle_spacing,
-                                         initial_condition.angular_velocity)
+                                         initial_condition.angular_velocity;
+                                         apply_angular_velocity=false)
 
     return intersect(result, Base.tail(initial_conditions)...)
 end
@@ -452,7 +533,8 @@ function InitialCondition(sol::ODESolution, system, semi; use_final_velocity=fal
     end
 
     return InitialCondition{ndims(ic)}(coordinates, velocity, mass, density, pressure,
-                                       ic.particle_spacing, ic.angular_velocity)
+                                       ic.particle_spacing, ic.angular_velocity;
+                                       apply_angular_velocity=false)
 end
 
 # Find particles in `coords1` that are closer than `max_distance` to any particle in `coords2`

@@ -53,7 +53,7 @@ coordinate directions as `cutout_min` and `cutout_max`.
 - `coordinates_eltype = Float64`: The eltype of the particle coordinates.
                     See [the docs on GPU support](@ref gpu_support) for more information.
 - `angular_velocity`: Initial angular velocity `ω` (not angular momentum),
-                    currently only used by [`RigidSPHSystem`](@ref).
+                    added to the initial `velocity` as a rotational contribution.
                     Semantics match [`InitialCondition`](@ref): in 3D, axis from direction
                     and angular speed from `|ω|`.
 

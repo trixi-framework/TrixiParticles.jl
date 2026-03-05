@@ -108,6 +108,22 @@
                 file_3d = joinpath(tmp_dir, "tmp_initial_condition_angular_velocity_3d.vtu")
                 test_ic_3d = vtk2trixi(file_3d)
                 @test test_ic_3d.angular_velocity ≈ [0.0, 0.0, 2.0]
+
+                # Ensure angular velocity metadata is not applied a second time at import.
+                coordinates_rot = [0.0 2.0
+                                   0.0 0.0]
+                expected_ic_rot = InitialCondition(; coordinates=coordinates_rot,
+                                                   velocity=zeros(2, 2),
+                                                   density=1000.0, pressure=900.0,
+                                                   mass=[1.0, 1.0], angular_velocity=1.0)
+                trixi2vtk(expected_ic_rot;
+                          filename="tmp_initial_condition_angular_velocity_roundtrip",
+                          output_directory=tmp_dir)
+                file_rot = joinpath(tmp_dir,
+                                    "tmp_initial_condition_angular_velocity_roundtrip.vtu")
+                test_ic_rot = vtk2trixi(file_rot)
+                @test test_ic_rot.angular_velocity ≈ 1.0
+                @test test_ic_rot.velocity ≈ expected_ic_rot.velocity
             end
         end
 

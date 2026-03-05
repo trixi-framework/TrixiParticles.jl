@@ -37,7 +37,7 @@ Returns an [`InitialCondition`](@ref).
                         on the shell of the geometry and not half a particle spacing away,
                         as for fluids.
 - `angular_velocity`:   Initial angular velocity `ω` (not angular momentum),
-                        currently only used by [`RigidSPHSystem`](@ref).
+                        added to the initial `velocity` as a rotational contribution.
                         Semantics match [`InitialCondition`](@ref): in 3D, axis from
                         direction and angular speed from `|ω|`.
 

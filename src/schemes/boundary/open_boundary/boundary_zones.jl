@@ -545,7 +545,7 @@ function remove_outside_particles(initial_condition, spanning_set, zone_origin)
 
     return InitialCondition(; coordinates=coordinates[:, in_zone], density=first(density),
                             velocity=velocity[:, in_zone], particle_spacing,
-                            angular_velocity)
+                            angular_velocity, apply_angular_velocity=false)
 end
 
 function wrap_reference_function(function_::Nothing, ref_dummy)

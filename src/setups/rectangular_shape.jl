@@ -51,7 +51,7 @@ Rectangular shape filled with particles. Returns an [`InitialCondition`](@ref).
 - `coordinates_perturbation`: Add a small random displacement to the particle positions,
                     where the amplitude is `coordinates_perturbation * particle_spacing`.
 - `angular_velocity`: Initial angular velocity `ω` (not angular momentum),
-                    currently only used by [`RigidSPHSystem`](@ref).
+                    added to the initial `velocity` as a rotational contribution.
                     Semantics match [`InitialCondition`](@ref): in 3D, axis from direction
                     and angular speed from `|ω|`.
 
