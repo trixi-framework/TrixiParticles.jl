@@ -44,7 +44,8 @@ function allocate(backend, ELTYPE, size)
 end
 
 @inline function synchronize_backend(backend::KernelAbstractions.GPU)
-    return KernelAbstractions.synchronize(backend)
+    KernelAbstractions.synchronize(backend)
+    return nothing
 end
 
 @inline function synchronize_backend(backend)
