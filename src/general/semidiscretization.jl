@@ -705,7 +705,8 @@ end
 # Function barrier to make benchmarking interactions easier.
 # One can benchmark, e.g. the fluid-fluid interaction, with:
 # dv_ode, du_ode = copy(sol.u[end]).x; v_ode, u_ode = copy(sol.u[end]).x;
-# @btime TrixiParticles.interact!($dv_ode, $v_ode, $u_ode, $fluid_system, $fluid_system, $semi);
+# semi = ode.p; system = semi.systems[1];
+# @btime TrixiParticles.interact!($dv_ode, $v_ode, $u_ode, $system, $system, $semi);
 function interact!(dv_ode, v_ode, u_ode, system, neighbor, semi)
     dv = wrap_v(dv_ode, system, semi)
     v_system = wrap_v(v_ode, system, semi)
@@ -726,6 +727,7 @@ end
 
 # Benchmark the combined interaction for a system with:
 # dv_ode, du_ode = copy(sol.u[end]).x; v_ode, u_ode = copy(sol.u[end]).x;
+# semi = ode.p; system = semi.systems[1];
 # @btime TrixiParticles.interact_combined!($dv_ode, $v_ode, $u_ode, $system, $semi);
 function interact_combined!(dv_ode, v_ode, u_ode, system, semi; synchronize=true)
     dv = wrap_v(dv_ode, system, semi)

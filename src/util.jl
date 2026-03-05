@@ -3,7 +3,7 @@
     element = first(collection)
     remaining_collection = Base.tail(collection)
 
-    func(element)
+    @inline func(element)
 
     # Process remaining collection
     foreach_noalloc(func, remaining_collection)
