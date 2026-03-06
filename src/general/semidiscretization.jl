@@ -425,7 +425,7 @@ function drift!(du_ode, v_ode, u_ode, semi, t)
 
         @trixi_timeit timer() "velocity" begin
             # Set velocity and add acceleration for each system
-              foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
+            foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
                 du = wrap_u(du_ode, system, semi)
 
                 @threaded semi for particle in each_integrated_particle(system)
