@@ -456,14 +456,16 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::RigidSPHSystem, semi)
     angular_acceleration = norm(system.angular_acceleration_force[] -
                                 system.gyroscopic_acceleration[])
 
-    total_mass = system.total_mass
-    translational_acceleration = system.acceleration
-    if total_mass > eps(eltype(system))
-        translational_acceleration += system.resultant_force[] / total_mass
+    # Use only interaction-induced translational acceleration for the time-step
+    # estimate. Uniform source acceleration (e.g. gravity applied to all systems)
+    # is a frame shift and does not change relative rigid-body dynamics.
+    translational_acceleration = zero(SVector{ndims(system), eltype(system)})
+    if system.total_mass > eps(eltype(system))
+        translational_acceleration += system.resultant_force[] / system.total_mass
     end
 
     # Rigid-body scales:
-    # acceleration ~ a_trans + r*(ω² + |α|), velocity ~ v_com + r*ω.
+    # acceleration ~ a_trans,relative + r*(ω² + |α|), velocity ~ v_com + r*ω.
     acceleration_scale = norm(translational_acceleration) +
                          radius * (angular_speed^2 + angular_acceleration)
     dt_acceleration = acceleration_scale <= eps(eltype(system)) ? Inf :

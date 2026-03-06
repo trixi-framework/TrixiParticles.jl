@@ -36,11 +36,7 @@
 
         dt = TrixiParticles.calculate_dt(zeros(2, 3), zeros(2, 3), 0.25, system,
                                          nothing)
-        @test dt ≈ 0.25 * sqrt(0.1 / 9.81)
-
-        dt_larger_cfl = TrixiParticles.calculate_dt(zeros(2, 3), zeros(2, 3), 0.5, system,
-                                                    nothing)
-        @test dt_larger_cfl ≈ 0.5 * sqrt(0.1 / 9.81)
+        @test isinf(dt)
     end
 
     @trixi_testset "Show" begin
@@ -167,6 +163,28 @@
 
         dt = TrixiParticles.calculate_dt(zeros(2, 2), zeros(2, 2), 0.25, system, nothing)
         @test dt ≈ 0.25 * 0.1 / 1.0
+    end
+
+    @trixi_testset "Time Step Invariance under Uniform Acceleration" begin
+        coordinates = [-1.0 1.0
+                       0.0 0.0]
+        velocity = [1.0 1.0
+                    0.0 0.0]
+        mass = [1.0, 1.0]
+        density = [1000.0, 1000.0]
+        initial_condition = InitialCondition(; coordinates, velocity, mass, density,
+                                             particle_spacing=0.1)
+
+        system_ref = RigidSPHSystem(initial_condition; acceleration=(0.0, -9.81))
+        system_shifted = RigidSPHSystem(initial_condition; acceleration=(0.0, -1000.0))
+
+        dt_ref = TrixiParticles.calculate_dt(zeros(2, 2), zeros(2, 2), 0.25, system_ref,
+                                             nothing)
+        dt_shifted = TrixiParticles.calculate_dt(zeros(2, 2), zeros(2, 2), 0.25,
+                                                 system_shifted, nothing)
+
+        @test dt_ref ≈ 0.25 * 0.1 / 1.0
+        @test dt_shifted ≈ dt_ref
     end
 
     @trixi_testset "Rotational Kinematics" begin
