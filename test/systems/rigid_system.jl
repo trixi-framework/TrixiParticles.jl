@@ -74,6 +74,37 @@
         @test repr("text/plain", system) == show_box
     end
 
+    @trixi_testset "Hydrodynamic Density" begin
+        coordinates = [1.0 2.0
+                       1.0 2.0]
+        mass = [1.25, 1.5]
+        material_densities = [990.0, 1000.0]
+        hydrodynamic_densities = [1001.0, 1002.0]
+
+        initial_condition = InitialCondition(; coordinates, mass,
+                                             density=material_densities)
+
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        smoothing_length = 0.12
+        boundary_model = BoundaryModelDummyParticles(hydrodynamic_densities, mass,
+                                                     SummationDensity(),
+                                                     smoothing_kernel,
+                                                     smoothing_length)
+
+        system = RigidSPHSystem(initial_condition; boundary_model=boundary_model)
+        v = zeros(TrixiParticles.v_nvariables(system),
+                  TrixiParticles.n_integrated_particles(system))
+
+        @test TrixiParticles.current_density(v, system) == hydrodynamic_densities
+        @test TrixiParticles.hydrodynamic_density(v, system) == hydrodynamic_densities
+        @test system.material_density == material_densities
+
+        system_no_model = RigidSPHSystem(initial_condition)
+        v_no_model = zeros(TrixiParticles.v_nvariables(system_no_model),
+                           TrixiParticles.n_integrated_particles(system_no_model))
+        @test TrixiParticles.current_density(v_no_model, system_no_model) == material_densities
+    end
+
     @trixi_testset "Initial Angular Velocity" begin
         coordinates_2d = [0.0 1.0
                           0.0 0.0]

@@ -181,11 +181,27 @@ end
     return view(v, 1:ndims(system), :)
 end
 
+@inline function hydrodynamic_density(v, system::RigidSPHSystem)
+    return hydrodynamic_density(v, system.boundary_model, system)
+end
+
+@inline function hydrodynamic_density(v, boundary_model, system::RigidSPHSystem)
+    return current_density(v, boundary_model, system)
+end
+
+@inline function hydrodynamic_density(v, ::Nothing, system::RigidSPHSystem)
+    return system.material_density
+end
+
 @inline function current_density(v, system::RigidSPHSystem)
-    return current_density(v, system.boundary_model, system)
+    # `current_density` for rigid systems means hydrodynamic density (FSI coupling density),
+    # not necessarily the physical solid material density.
+    return hydrodynamic_density(v, system)
 end
 
 @inline function current_density(v, ::Nothing, system::RigidSPHSystem)
+    # Kept for consistency with boundary-model dispatch;
+    # explicitly use physical material density when no boundary model is present.
     return system.material_density
 end
 
