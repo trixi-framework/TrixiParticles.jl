@@ -203,9 +203,8 @@ function kick_split!(dv_ode_split, v_ode_split, u_ode_split, p, t)
                                   v_ode_split, u_ode_split, semi_split)
     end
 
-    @trixi_timeit timer() "source terms" add_source_terms!(dv_ode_split, v_ode_split,
-                                                           u_ode_split, semi, t;
-                                                           semi_wrap=semi_split)
+    add_source_terms!(dv_ode_split, v_ode_split, u_ode_split, semi, t;
+                      semi_wrap=semi_split)
 end
 
 function drift_split!(du_ode, v_ode, u_ode, p, t)
