@@ -478,8 +478,7 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
         @trixi_timeit timer() "system interaction" system_interaction!(dv_ode, v_ode, u_ode,
                                                                        semi)
 
-        @trixi_timeit timer() "source terms" add_source_terms!(dv_ode, v_ode, u_ode,
-                                                               semi, t)
+        add_source_terms!(dv_ode, v_ode, u_ode, semi, t)
     end
 
     return dv_ode
@@ -570,13 +569,6 @@ function add_source_terms!(dv, v, u,
     add_source_terms_inner!(dv, v, u, system, semi, t)
 end
 
-# Special case for `ParticlePackingSystem`, which is an `AbstractFluidSystem`s,
-# but doesn't have source terms or gravity/acceleration.
-function add_source_terms!(dv, v, u, system::ParticlePackingSystem,
-                           semi, t, integrate_tlsph)
-    return dv
-end
-
 function add_source_terms!(dv, v, u, system::TotalLagrangianSPHSystem,
                            semi, t, integrate_tlsph)
     if integrate_tlsph
@@ -594,9 +586,11 @@ function add_source_terms_inner!(dv, v, u,
         return dv
     end
 
-    @threaded semi for particle in each_integrated_particle(system)
-        add_acceleration!(dv, system, particle)
-        add_source_terms_inner!(dv, v, u, particle, system, source_terms(system), t)
+    @trixi_timeit timer() "source terms" begin
+        @threaded semi for particle in each_integrated_particle(system)
+            add_acceleration!(dv, system, particle)
+            add_source_terms_inner!(dv, v, u, particle, system, source_terms(system), t)
+        end
     end
 end
 

@@ -260,6 +260,13 @@ end
 
 @inline source_terms(system::ParticlePackingSystem) = nothing
 
+# Special case for `ParticlePackingSystem`, which is an `AbstractFluidSystem`s,
+# but doesn't have source terms or gravity/acceleration.
+function add_source_terms!(dv, v, u, system::ParticlePackingSystem,
+                           semi, t, integrate_tlsph)
+    return dv
+end
+
 # Update from `UpdateCallback` (between time steps)
 update_particle_packing(system, v_ode, u_ode, semi, integrator) = system
 
