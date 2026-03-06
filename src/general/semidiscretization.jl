@@ -424,10 +424,12 @@ function set_velocity!(du, v, u, system, semi, t)
     set_velocity_default!(du, v, u, system, semi, t)
 end
 
-# Only add velocity for TLSPH systems if they are integrated
+# Only set velocity for TLSPH systems if they are integrated
 function set_velocity!(du, v, u, system::TotalLagrangianSPHSystem, semi, t)
     if semi.integrate_tlsph[]
         set_velocity_default!(du, v, u, system, semi, t)
+    else
+        set_zero!(du)
     end
 
     return du
@@ -435,6 +437,7 @@ end
 
 # Solid wall boundary system doesn't integrate the particle positions
 function set_velocity!(du, v, u, system::WallBoundarySystem, semi, t)
+    # Note that `du` is of length zero, so we don't have to set it to zero
     return du
 end
 

@@ -260,7 +260,7 @@ end
 
 @inline source_terms(system::ParticlePackingSystem) = nothing
 
-# Special case for `ParticlePackingSystem`, which is an `AbstractFluidSystem`s,
+# Special case for `ParticlePackingSystem`, which is an `AbstractFluidSystem`
 # but doesn't have source terms or gravity/acceleration.
 function add_source_terms!(dv, v, u, system::ParticlePackingSystem,
                            semi, t, integrate_tlsph)
@@ -399,6 +399,7 @@ end
 @inline function set_velocity!(du, v, u,
                                system::ParticlePackingSystem{<:Any, true},
                                semi, t)
+    # Note that `du` is of size `(0, n_particles)`, so we don't have to set it to zero
     return du
 end
 

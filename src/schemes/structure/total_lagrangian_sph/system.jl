@@ -425,6 +425,8 @@ function update_tlsph_positions!(system::TotalLagrangianSPHSystem,
 
     indices = CartesianIndices(u)
     copyto!(current_coordinates, indices, u, indices)
+
+    return system
 end
 
 function apply_prescribed_motion!(system::TotalLagrangianSPHSystem,
