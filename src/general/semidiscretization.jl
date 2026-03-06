@@ -450,6 +450,8 @@ function set_velocity!(du, v, u, system::AbstractFluidSystem, semi, t)
             @inbounds du[i, particle] = v[i, particle] + delta_v_[i]
         end
     end
+
+    return du
 end
 
 function set_velocity_default!(du, v, u, system, semi, t)
@@ -596,6 +598,8 @@ function add_source_terms_inner!(dv, v, u,
             add_source_terms_inner!(dv, v, u, particle, system, source_terms(system), t)
         end
     end
+
+    return dv
 end
 
 @inline source_terms(system) = nothing
