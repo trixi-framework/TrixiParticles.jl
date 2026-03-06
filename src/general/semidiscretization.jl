@@ -97,8 +97,6 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
                for system in systems]
     ranges_u = Tuple((sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])
                      for i in eachindex(sizes_u))
-
-
     sizes_v = [v_nvariables(system) * n_integrated_particles(system)
                for system in systems]
     ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
