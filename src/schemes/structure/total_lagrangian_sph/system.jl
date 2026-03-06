@@ -418,6 +418,15 @@ function update_tlsph_positions!(system::TotalLagrangianSPHSystem, u, semi)
     return system
 end
 
+# This defaults to optimized GPU copy that is about 4x faster than the threaded version above
+function update_tlsph_positions!(system::TotalLagrangianSPHSystem,
+                                 u::AbstractGPUArray, semi)
+    (; current_coordinates) = system
+
+    indices = CartesianIndices(u)
+    copyto!(current_coordinates, indices, u, indices)
+end
+
 function apply_prescribed_motion!(system::TotalLagrangianSPHSystem,
                                   prescribed_motion::PrescribedMotion, semi, t)
     (; clamped_particles_moving, current_coordinates, cache) = system
