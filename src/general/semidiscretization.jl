@@ -579,7 +579,8 @@ function add_source_terms!(dv, v, u, system::TotalLagrangianSPHSystem,
 end
 
 function add_source_terms_inner!(dv, v, u,
-                                 system::Union{AbstractFluidSystem, AbstractStructureSystem},
+                                 system::Union{AbstractFluidSystem,
+                                               AbstractStructureSystem},
                                  semi, t)
     if iszero(system.acceleration) && isnothing(source_terms(system))
         # Nothing to do
