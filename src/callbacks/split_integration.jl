@@ -277,11 +277,9 @@ end
 
 # Copy the solution from the large integrator to the split integrator
 @inline function copy_to_split!(v_ode, u_ode, v_ode_split, u_ode_split, semi, semi_split)
-    foreach_system(semi_split) do system
+    foreach_system_wrapped(semi_split, v_ode_split, u_ode_split) do system, v_split, u_split
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
-        v_split = wrap_v(v_ode_split, system, semi_split)
-        u_split = wrap_u(u_ode_split, system, semi_split)
 
         @threaded semi for particle in each_integrated_particle(system)
             for i in axes(v, 1)
@@ -297,11 +295,9 @@ end
 
 # Copy the solution from the split integrator to the large integrator
 @inline function copy_from_split!(v_ode, u_ode, v_ode_split, u_ode_split, semi, semi_split)
-    foreach_system(semi_split) do system
+    foreach_system_wrapped(semi_split, v_ode_split, u_ode_split) do system, v_split, u_split
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
-        v_split = wrap_v(v_ode_split, system, semi_split)
-        u_split = wrap_u(u_ode_split, system, semi_split)
 
         @threaded semi for particle in each_integrated_particle(system)
             for i in axes(v, 1)
