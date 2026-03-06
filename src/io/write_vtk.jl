@@ -291,13 +291,22 @@ Convert [`InitialCondition`](@ref) data to VTK format.
 """
 function trixi2vtk(initial_condition::InitialCondition; output_directory="out",
                    prefix="", filename="initial_condition", custom_quantities...)
-    (; coordinates, velocity, density, mass, pressure) = initial_condition
+    (; coordinates, velocity, density, mass, pressure, angular_velocity) = initial_condition
+
+    if haskey(custom_quantities, :angular_velocity)
+        return trixi2vtk(coordinates; output_directory, prefix, filename,
+                         density=density, initial_velocity=velocity, mass=mass,
+                         particle_spacing=(initial_condition.particle_spacing .*
+                                           ones(nparticles(initial_condition))),
+                         pressure=pressure, custom_quantities...)
+    end
 
     return trixi2vtk(coordinates; output_directory, prefix, filename,
                      density=density, initial_velocity=velocity, mass=mass,
                      particle_spacing=(initial_condition.particle_spacing .*
                                        ones(nparticles(initial_condition))),
-                     pressure=pressure, custom_quantities...)
+                     pressure=pressure, angular_velocity=angular_velocity,
+                     custom_quantities...)
 end
 
 function write2vtk!(vtk, v, u, t, system)
@@ -420,7 +429,6 @@ function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem)
 end
 
 function write2vtk!(vtk, v, u, t, system::RigidSPHSystem)
-    n_particles = nparticles(system)
     center_of_mass = system.cache.center_of_mass[]
     center_of_mass_velocity = system.cache.center_of_mass_velocity[]
     angular_velocity = system.cache.angular_velocity[]
@@ -437,15 +445,15 @@ function write2vtk!(vtk, v, u, t, system::RigidSPHSystem)
     vtk["mass"] = system.mass
     vtk["local_coordinates"] = system.local_coordinates
     vtk["relative_coordinates"] = system.cache.relative_coordinates
-    vtk["center_of_mass"] = [center_of_mass for _ in 1:n_particles]
-    vtk["center_of_mass_velocity"] = [center_of_mass_velocity for _ in 1:n_particles]
-    vtk["angular_velocity"] = fill(angular_velocity, n_particles)
-    vtk["resultant_force"] = [resultant_force for _ in 1:n_particles]
-    vtk["resultant_torque"] = fill(resultant_torque, n_particles)
-    vtk["angular_acceleration_force"] = fill(angular_acceleration_force, n_particles)
-    vtk["gyroscopic_acceleration"] = fill(gyroscopic_acceleration, n_particles)
-    vtk["boundary_contact_count"] = fill(boundary_contact_count, n_particles)
-    vtk["max_boundary_penetration"] = fill(max_boundary_penetration, n_particles)
+    vtk["center_of_mass", VTKFieldData()] = center_of_mass
+    vtk["center_of_mass_velocity", VTKFieldData()] = center_of_mass_velocity
+    vtk["resultant_force", VTKFieldData()] = resultant_force
+    vtk["angular_velocity", VTKFieldData()] = angular_velocity
+    vtk["resultant_torque", VTKFieldData()] = resultant_torque
+    vtk["angular_acceleration_force", VTKFieldData()] = angular_acceleration_force
+    vtk["gyroscopic_acceleration", VTKFieldData()] = gyroscopic_acceleration
+    vtk["boundary_contact_count", VTKFieldData()] = boundary_contact_count
+    vtk["max_boundary_penetration", VTKFieldData()] = max_boundary_penetration
 
     write2vtk!(vtk, v, u, t, system.boundary_model, system)
 end

@@ -5,7 +5,8 @@
                                                                    hierarchical_winding=false,
                                                                    winding_number_factor=sqrt(eps())),
                  grid_offset::Real=0.0, max_nparticles=10^7,
-                 pad_initial_particle_grid=2particle_spacing)
+                 pad_initial_particle_grid=2particle_spacing,
+                 angular_velocity=nothing)
 
 Sample a complex geometry with particles. Returns an [`InitialCondition`](@ref).
 Note that an initial particle grid is generated inside the bounding box of the geometry.
@@ -36,6 +37,10 @@ For more information about the method see [`WindingNumberJacobson`](@ref) or [`W
                     This is only used to avoid accidentally choosing a `particle_spacing`
                     that is too small for the scale of the geometry.
 - `pad_initial_particle_grid`: Padding of the initial particle grid.
+- `angular_velocity`: Initial angular velocity `ω` (not angular momentum),
+                    added to the initial `velocity` as a rotational contribution.
+                    Semantics match [`InitialCondition`](@ref): in 3D, axis from direction
+                    and angular speed from `|ω|`.
 
 
 !!! warning "Experimental Implementation"
@@ -47,7 +52,8 @@ function ComplexShape(geometry; particle_spacing, density,
                                                                         hierarchical_winding=true,
                                                                         winding_number_factor=sqrt(eps())),
                       store_winding_number=false, grid_offset::Real=0.0,
-                      max_nparticles=10^7, pad_initial_particle_grid=2particle_spacing)
+                      max_nparticles=10^7, pad_initial_particle_grid=2particle_spacing,
+                      angular_velocity=nothing)
     if ndims(geometry) == 3 && point_in_geometry_algorithm isa WindingNumberHormann
         throw(ArgumentError("`WindingNumberHormann` only supports 2D geometries"))
     end
@@ -66,7 +72,7 @@ function ComplexShape(geometry; particle_spacing, density,
     coordinates = stack(grid[inpoly])
 
     initial_condition = InitialCondition(; coordinates, density, mass, velocity, pressure,
-                                         particle_spacing)
+                                         particle_spacing, angular_velocity)
 
     # This is most likely only useful for debugging. Note that this is not public API.
     if store_winding_number

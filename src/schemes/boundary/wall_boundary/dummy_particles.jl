@@ -39,7 +39,8 @@ boundary_model = BoundaryModelDummyParticles(densities, masses, AdamiPressureExt
 BoundaryModelDummyParticles(AdamiPressureExtrapolation, ViscosityAdami)
 ```
 """
-struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, VECTOR, SE, K, V, COR, C}
+struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, VECTOR, SE, K, V, COR, C} <:
+       AbstractWallBoundaryModel
     pressure           :: VECTOR # Vector{ELTYPE}
     hydrodynamic_mass  :: VECTOR # Vector{ELTYPE}
     state_equation     :: SE

@@ -26,7 +26,9 @@ function Base.setdiff(initial_condition::InitialCondition,
 
     result = InitialCondition{ndims(initial_condition)}(coordinates, velocity, mass,
                                                         density, pressure,
-                                                        initial_condition.particle_spacing)
+                                                        initial_condition.particle_spacing,
+                                                        initial_condition.angular_velocity;
+                                                        apply_angular_velocity=false)
 
     return setdiff(result, Base.tail(geometries)...)
 end
@@ -53,7 +55,9 @@ function Base.intersect(initial_condition::InitialCondition,
 
     result = InitialCondition{ndims(initial_condition)}(coordinates, velocity, mass,
                                                         density, pressure,
-                                                        initial_condition.particle_spacing)
+                                                        initial_condition.particle_spacing,
+                                                        initial_condition.angular_velocity;
+                                                        apply_angular_velocity=false)
 
     return intersect(result, Base.tail(geometries)...)
 end

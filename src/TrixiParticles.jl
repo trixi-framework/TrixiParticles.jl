@@ -25,7 +25,7 @@ using RecipesBase: RecipesBase, @series
 using Random: seed!
 using SciMLBase: SciMLBase, CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
                  get_tmp_cache, set_proposed_dt!, ODESolution, ODEProblem, terminate!,
-                 add_tstop!, get_du
+                 add_tstop!
 @reexport using StaticArrays: SVector
 using StaticArrays: @SMatrix, SMatrix, setindex
 using Statistics: Statistics
@@ -43,7 +43,8 @@ using TrixiBase: @trixi_timeit, timer, timeit_debug_enabled,
                                 ThreadsDynamicBackend, default_backend
 using PointNeighbors: PointNeighbors, foreach_point_neighbor, copy_neighborhood_search,
                       @threaded
-using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, paraview_collection, vtk_save
+using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, VTKFieldData, paraview_collection,
+                vtk_save
 
 # `util.jl` needs to be first because of the macros `@trixi_timeit` and `@threaded`
 include("util.jl")
@@ -113,5 +114,6 @@ export SurfaceTensionAkinci, CohesionForceAkinci, SurfaceTensionMorris,
        SurfaceTensionMomentumMorris
 export ColorfieldSurfaceNormal
 export SymplecticPositionVerlet
+export coordinates_eltype
 
 end # module

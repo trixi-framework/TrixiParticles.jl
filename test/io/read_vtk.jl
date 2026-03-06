@@ -83,6 +83,48 @@
 
                 @test isapprox(expected_ic.velocity, test_ic.velocity, rtol=1e-5)
             end
+
+            @testset verbose=true "Angular Velocity Metadata" begin
+                expected_ic_2d = InitialCondition(; coordinates=coordinates,
+                                                  velocity=velocity,
+                                                  density=1000.0, pressure=900.0, mass=50.0,
+                                                  angular_velocity=3.0)
+                trixi2vtk(expected_ic_2d;
+                          filename="tmp_initial_condition_angular_velocity_2d",
+                          output_directory=tmp_dir)
+                file_2d = joinpath(tmp_dir, "tmp_initial_condition_angular_velocity_2d.vtu")
+                test_ic_2d = vtk2trixi(file_2d)
+                @test test_ic_2d.angular_velocity ≈ 3.0
+
+                coordinates_3d = vcat(coordinates, zeros(1, size(coordinates, 2)))
+                velocity_3d = vcat(velocity, zeros(1, size(velocity, 2)))
+                expected_ic_3d = InitialCondition(; coordinates=coordinates_3d,
+                                                  velocity=velocity_3d,
+                                                  density=1000.0, pressure=900.0, mass=50.0,
+                                                  angular_velocity=(0.0, 0.0, 2.0))
+                trixi2vtk(expected_ic_3d;
+                          filename="tmp_initial_condition_angular_velocity_3d",
+                          output_directory=tmp_dir)
+                file_3d = joinpath(tmp_dir, "tmp_initial_condition_angular_velocity_3d.vtu")
+                test_ic_3d = vtk2trixi(file_3d)
+                @test test_ic_3d.angular_velocity ≈ [0.0, 0.0, 2.0]
+
+                # Ensure angular velocity metadata is not applied a second time at import.
+                coordinates_rot = [0.0 2.0
+                                   0.0 0.0]
+                expected_ic_rot = InitialCondition(; coordinates=coordinates_rot,
+                                                   velocity=zeros(2, 2),
+                                                   density=1000.0, pressure=900.0,
+                                                   mass=[1.0, 1.0], angular_velocity=1.0)
+                trixi2vtk(expected_ic_rot;
+                          filename="tmp_initial_condition_angular_velocity_roundtrip",
+                          output_directory=tmp_dir)
+                file_rot = joinpath(tmp_dir,
+                                    "tmp_initial_condition_angular_velocity_roundtrip.vtu")
+                test_ic_rot = vtk2trixi(file_rot)
+                @test test_ic_rot.angular_velocity ≈ 1.0
+                @test test_ic_rot.velocity ≈ expected_ic_rot.velocity
+            end
         end
 
         @testset verbose=true "`AbstractFluidSystem`" begin
@@ -181,17 +223,19 @@
             vtk_file = TrixiParticles.ReadVTK.VTKFile(joinpath(tmp_dir,
                                                                "tmp_file_rigid_1.vtu"))
             point_data = TrixiParticles.ReadVTK.get_point_data(vtk_file)
-            fields = collect(keys(point_data))
+            field_data = TrixiParticles.ReadVTK.get_field_data(vtk_file)
+            point_fields = collect(keys(point_data))
+            scalar_fields = collect(keys(field_data))
 
-            @test "local_coordinates" in fields
-            @test "relative_coordinates" in fields
-            @test "center_of_mass" in fields
-            @test "center_of_mass_velocity" in fields
-            @test "angular_velocity" in fields
-            @test "resultant_force" in fields
-            @test "resultant_torque" in fields
-            @test "angular_acceleration_force" in fields
-            @test "gyroscopic_acceleration" in fields
+            @test "local_coordinates" in point_fields
+            @test "relative_coordinates" in point_fields
+            @test "center_of_mass" in scalar_fields
+            @test "center_of_mass_velocity" in scalar_fields
+            @test "resultant_force" in scalar_fields
+            @test "angular_velocity" in scalar_fields
+            @test "resultant_torque" in scalar_fields
+            @test "angular_acceleration_force" in scalar_fields
+            @test "gyroscopic_acceleration" in scalar_fields
         end
     end
 end

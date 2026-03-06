@@ -291,23 +291,16 @@ end
 end
 
 @inline function current_pressure(v, ::Nothing, system::RigidSPHSystem)
-    return zero(system.material_density)
+    return zero(eltype(system))
 end
 
 @inline function hydrodynamic_mass(system::RigidSPHSystem, particle)
-    return hydrodynamic_mass(system, system.boundary_model, particle)
-end
-
-@inline function hydrodynamic_mass(system::RigidSPHSystem, ::Nothing, particle)
     return system.mass[particle]
 end
 
-@inline function hydrodynamic_mass(system::RigidSPHSystem, boundary_model, particle)
-    if hasproperty(boundary_model, :hydrodynamic_mass)
-        return boundary_model.hydrodynamic_mass[particle]
-    end
-
-    return system.mass[particle]
+@inline function hydrodynamic_mass(system::RigidSPHSystem{<:AbstractWallBoundaryModel},
+                                   particle)
+    return system.boundary_model.hydrodynamic_mass[particle]
 end
 
 @inline function viscous_velocity(v, system::RigidSPHSystem, particle)
@@ -648,5 +641,25 @@ function Base.show(io::IO, ::MIME"text/plain", system::RigidSPHSystem)
         summary_line(io, "boundary model", system.boundary_model)
         summary_line(io, "boundary contact model", system.boundary_contact_model)
         summary_footer(io)
+    end
+end
+
+function check_configuration(system::RigidSPHSystem, systems, nhs)
+    (; boundary_model) = system
+
+    if !isnothing(boundary_model)
+        n_particles_model = length(boundary_model.hydrodynamic_mass)
+        if n_particles_model != nparticles(system)
+            throw(ArgumentError("the boundary model was initialized with $n_particles_model " *
+                                "particles, but the `RigidSPHSystem` has " *
+                                "$(nparticles(system)) particles."))
+        end
+    end
+
+    foreach_system(systems) do neighbor
+        if neighbor isa AbstractFluidSystem && boundary_model === nothing
+            throw(ArgumentError("a boundary model for `RigidSPHSystem` must be specified " *
+                                "when simulating a fluid-structure interaction."))
+        end
     end
 end
