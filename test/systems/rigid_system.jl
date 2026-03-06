@@ -24,7 +24,7 @@
         @test ndims(system) == 2
         @test system.initial_condition == initial_condition
         center_of_mass = [9.5 / 4.5, 9.5 / 4.5]
-        @test system.local_coordinates ≈ coordinates .- center_of_mass
+        @test isapprox(system.local_coordinates, coordinates .- center_of_mass)
         @test system.mass == mass
         @test system.material_density == material_densities
         @test system.initial_velocity == initial_condition.velocity
@@ -86,15 +86,15 @@
         v0_2d = zeros(2, 2)
         TrixiParticles.write_v0!(v0_2d, system_2d)
 
-        @test system_2d.initial_condition.angular_velocity ≈ 2.0
-        @test v0_2d ≈ [0.0 0.0
-                       -1.0 1.0]
+        @test system_2d.initial_condition.angular_velocity == 2.0
+        @test v0_2d == [0.0 0.0
+                        -1.0 1.0]
         dt_2d = TrixiParticles.calculate_dt(v0_2d, zeros(size(v0_2d)), 0.25, system_2d,
                                             nothing)
-        @test dt_2d ≈ 0.25 * 0.1 / 1.0
+        @test isapprox(dt_2d, 0.25 * 0.1 / 1.0)
         dt_2d_larger_cfl = TrixiParticles.calculate_dt(v0_2d, zeros(size(v0_2d)), 0.5,
                                                        system_2d, nothing)
-        @test dt_2d_larger_cfl ≈ 0.5 * 0.1 / 1.0
+        @test isapprox(dt_2d_larger_cfl, 0.5 * 0.1 / 1.0)
         @test_throws ArgumentError InitialCondition(; coordinates=coordinates_2d,
                                                     mass=mass_2d,
                                                     density=density_2d,
@@ -113,10 +113,10 @@
         v0_3d = zeros(3, 2)
         TrixiParticles.write_v0!(v0_3d, system_3d)
 
-        @test system_3d.initial_condition.angular_velocity ≈ [0.0, 0.0, 2.0]
-        @test v0_3d ≈ [0.0 0.0
-                       -1.0 1.0
-                       0.0 0.0]
+        @test system_3d.initial_condition.angular_velocity == [0.0, 0.0, 2.0]
+        @test v0_3d == [0.0 0.0
+                        -1.0 1.0
+                        0.0 0.0]
 
         ic_3d_default = InitialCondition(; coordinates=coordinates_3d, mass=mass_3d,
                                          density=density_3d)
@@ -142,7 +142,7 @@
         system.center_of_mass_velocity[] = SVector(0.0, 0.0, 0.0)
 
         dt = TrixiParticles.calculate_dt(zeros(3, 2), zeros(3, 2), 0.25, system, nothing)
-        @test dt ≈ 0.25 * sqrt(0.1 / 1.0)
+        @test isapprox(dt, 0.25 * sqrt(0.1 / 1.0))
     end
 
     @trixi_testset "Time Step Estimate from Initial Velocity" begin
@@ -159,10 +159,10 @@
         # No angular_velocity kwarg was set, so this must be reconstructed from the
         # initial velocity field.
         @test iszero(initial_condition.angular_velocity)
-        @test system.angular_velocity[] ≈ 1.0
+        @test isapprox(system.angular_velocity[], 1.0)
 
         dt = TrixiParticles.calculate_dt(zeros(2, 2), zeros(2, 2), 0.25, system, nothing)
-        @test dt ≈ 0.25 * 0.1 / 1.0
+        @test isapprox(dt, 0.25 * 0.1 / 1.0)
     end
 
     @trixi_testset "Time Step Invariance under Uniform Acceleration" begin
@@ -183,8 +183,8 @@
         dt_shifted = TrixiParticles.calculate_dt(zeros(2, 2), zeros(2, 2), 0.25,
                                                  system_shifted, nothing)
 
-        @test dt_ref ≈ 0.25 * 0.1 / 1.0
-        @test dt_shifted ≈ dt_ref
+        @test isapprox(dt_ref, 0.25 * 0.1 / 1.0)
+        @test dt_shifted == dt_ref
     end
 
     @trixi_testset "Rotational Kinematics" begin
@@ -203,16 +203,16 @@
         u = copy(coordinates)
         TrixiParticles.update_final!(rigid_system, v, u, nothing, nothing, nothing, 0.0)
 
-        @test rigid_system.angular_velocity[] ≈ 1.0
-        @test rigid_system.inertia[] ≈ 2.0
+        @test isapprox(rigid_system.angular_velocity[], 1.0)
+        @test isapprox(rigid_system.inertia[], 2.0)
 
         dv = zeros(size(v))
         for particle in TrixiParticles.each_integrated_particle(rigid_system)
             TrixiParticles.add_acceleration!(dv, particle, rigid_system)
         end
 
-        @test dv ≈ [1.0 -1.0
-                    0.0 0.0]
+        @test isapprox(dv, [1.0 -1.0
+                            0.0 0.0])
     end
 
     @trixi_testset "IO Data" begin
@@ -240,15 +240,15 @@
                                           v_ode, u_ode, semi)
         fields = TrixiParticles.available_data(rigid_system)
 
-        @test data.center_of_mass ≈ [0.0, 0.0]
-        @test data.center_of_mass_velocity ≈ [0.0, 0.0]
-        @test data.angular_velocity ≈ 1.0
-        @test data.resultant_force ≈ [0.0, 0.0]
-        @test data.resultant_torque ≈ 0.0
-        @test data.angular_acceleration_force ≈ 0.0
-        @test data.gyroscopic_acceleration ≈ 0.0
-        @test data.local_coordinates ≈ rigid_system.local_coordinates
-        @test data.relative_coordinates ≈ rigid_system.relative_coordinates
+        @test isapprox(data.center_of_mass, [0.0, 0.0])
+        @test isapprox(data.center_of_mass_velocity, [0.0, 0.0])
+        @test isapprox(data.angular_velocity, 1.0)
+        @test isapprox(data.resultant_force, [0.0, 0.0])
+        @test data.resultant_torque == 0.0
+        @test data.angular_acceleration_force == 0.0
+        @test data.gyroscopic_acceleration == 0.0
+        @test data.local_coordinates == rigid_system.local_coordinates
+        @test data.relative_coordinates == rigid_system.relative_coordinates
     end
 
     @trixi_testset "Restart" begin
@@ -270,18 +270,18 @@
         restarted_system = TrixiParticles.restart_with!(rigid_system, v_new, u_new)
 
         @test restarted_system === rigid_system
-        @test rigid_system.initial_condition.coordinates ≈ u_new
-        @test rigid_system.initial_condition.velocity ≈ v_new
-        @test rigid_system.initial_velocity ≈ v_new
+        @test rigid_system.initial_condition.coordinates == u_new
+        @test rigid_system.initial_condition.velocity == v_new
+        @test rigid_system.initial_velocity == v_new
 
         expected_center_of_mass = [4.0, 3.0]
         expected_relative_coordinates = u_new .- expected_center_of_mass
 
-        @test rigid_system.center_of_mass[] ≈ expected_center_of_mass
-        @test rigid_system.local_coordinates ≈ expected_relative_coordinates
-        @test rigid_system.relative_coordinates ≈ expected_relative_coordinates
-        @test rigid_system.center_of_mass_velocity[] ≈ [2.0, 5.0]
-        @test rigid_system.angular_velocity[] ≈ 0.5
+        @test isapprox(rigid_system.center_of_mass[], expected_center_of_mass)
+        @test isapprox(rigid_system.local_coordinates, expected_relative_coordinates)
+        @test isapprox(rigid_system.relative_coordinates, expected_relative_coordinates)
+        @test isapprox(rigid_system.center_of_mass_velocity[], [2.0, 5.0])
+        @test isapprox(rigid_system.angular_velocity[], 0.5)
     end
 
     @trixi_testset "Velocity Components with ContinuityDensity" begin

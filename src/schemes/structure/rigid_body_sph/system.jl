@@ -479,6 +479,9 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::RigidSPHSystem, semi)
 end
 
 function maximum_particle_radius(system::RigidSPHSystem)
+    # `relative_coordinates` are particle positions relative to the center of mass.
+    # Their norm is the particle's radial distance `r`; the maximum is the rigid body's
+    # characteristic radius used as lever arm in the `calculate_dt` estimates (`r*ω`, `r*α`).
     max_radius = zero(eltype(system))
 
     for particle in each_integrated_particle(system)
