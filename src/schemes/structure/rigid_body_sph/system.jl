@@ -88,19 +88,33 @@ function RigidSPHSystem(initial_condition; boundary_model=nothing,
     relative_coordinates = copy(local_coordinates)
     zero_rotational_quantity = zero(initial_condition.angular_velocity)
 
-    return RigidSPHSystem(initial_condition, initial_velocity, local_coordinates,
-                          mass, material_density, acceleration_,
-                          particle_spacing_, total_mass, force_per_particle,
-                          relative_coordinates, Ref(center_of_mass),
-                          Ref(zero(SVector{NDIMS, ELTYPE})),
-                          zero_scalar_or_matrix_ref(Val(NDIMS), ELTYPE),
-                          zero_scalar_or_matrix_ref(Val(NDIMS), ELTYPE),
-                          Ref(initial_condition.angular_velocity),
-                          Ref(zero(SVector{NDIMS, ELTYPE})),
-                          Ref(zero_rotational_quantity),
-                          Ref(zero_rotational_quantity),
-                          Ref(zero_rotational_quantity),
-                          boundary_model, source_terms, create_cache_rigid(color_value))
+    center_of_mass_velocity = zero(SVector{NDIMS, ELTYPE})
+    for particle in eachindex(mass)
+        particle_mass = convert(ELTYPE, mass[particle])
+        center_of_mass_velocity += particle_mass *
+                                   extract_svector(initial_velocity, Val(NDIMS), particle)
+    end
+    center_of_mass_velocity /= total_mass
+
+    system = RigidSPHSystem(initial_condition, initial_velocity, local_coordinates,
+                            mass, material_density, acceleration_,
+                            particle_spacing_, total_mass, force_per_particle,
+                            relative_coordinates, Ref(center_of_mass),
+                            Ref(center_of_mass_velocity),
+                            zero_scalar_or_matrix_ref(Val(NDIMS), ELTYPE),
+                            zero_scalar_or_matrix_ref(Val(NDIMS), ELTYPE),
+                            Ref(initial_condition.angular_velocity),
+                            Ref(zero(SVector{NDIMS, ELTYPE})),
+                            Ref(zero_rotational_quantity),
+                            Ref(zero_rotational_quantity),
+                            Ref(zero_rotational_quantity),
+                            boundary_model, source_terms, create_cache_rigid(color_value))
+
+    # Initialize rotational kinematics consistently with the initial velocity field.
+    update_rotational_kinematics!(system, initial_velocity, center_of_mass_velocity,
+                                  Val(NDIMS))
+
+    return system
 end
 
 @inline zero_scalar_or_matrix_ref(::Val{2}, ::Type{ELTYPE}) where {ELTYPE} = Ref(zero(ELTYPE))
@@ -300,6 +314,18 @@ function restart_with!(system::RigidSPHSystem, v, u)
     copyto!(system.relative_coordinates, system.local_coordinates)
     system.center_of_mass[] = center_of_mass
 
+    center_of_mass_velocity = zero(SVector{ndims(system), eltype(system)})
+    for particle in each_integrated_particle(system)
+        particle_mass = system.mass[particle]
+        center_of_mass_velocity += particle_mass *
+                                   extract_svector(system.initial_velocity, system, particle)
+    end
+    center_of_mass_velocity /= system.total_mass
+
+    system.center_of_mass_velocity[] = center_of_mass_velocity
+    update_rotational_kinematics!(system, system.initial_velocity, center_of_mass_velocity,
+                                  Val(ndims(system)))
+
     return system
 end
 
@@ -425,7 +451,10 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::RigidSPHSystem, semi)
 
     radius = maximum_particle_radius(system)
     angular_speed = norm(system.angular_velocity[])
-    angular_acceleration = norm(system.angular_acceleration_force[])
+    # In 3D, the total angular acceleration contains both external torque and
+    # gyroscopic contributions.
+    angular_acceleration = norm(system.angular_acceleration_force[] -
+                                system.gyroscopic_acceleration[])
 
     total_mass = system.total_mass
     translational_acceleration = system.acceleration
@@ -433,12 +462,12 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::RigidSPHSystem, semi)
         translational_acceleration += system.resultant_force[] / total_mass
     end
 
-    # Simple rigid-body scales:
-    # acceleration ~ a_trans + r*(ω² + α), velocity ~ v_com + r*ω.
+    # Rigid-body scales:
+    # acceleration ~ a_trans + r*(ω² + |α|), velocity ~ v_com + r*ω.
     acceleration_scale = norm(translational_acceleration) +
                          radius * (angular_speed^2 + angular_acceleration)
     dt_acceleration = acceleration_scale <= eps(eltype(system)) ? Inf :
-                      0.25 * sqrt(spacing / acceleration_scale)
+                      cfl_number * sqrt(spacing / acceleration_scale)
 
     speed_scale = norm(system.center_of_mass_velocity[]) + radius * angular_speed
     dt_velocity = speed_scale <= eps(eltype(system)) ? Inf :
