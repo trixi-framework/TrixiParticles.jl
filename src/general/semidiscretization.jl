@@ -239,14 +239,16 @@ function semidiscretize(semi, tspan; reset_threads=true)
     # Check that all systems have the same eltype
     first_system = first(systems)
     if !all(system -> eltype(system) === eltype(first_system), systems)
-        throw(ArgumentError("all systems must use the same eltype"))
+        throw(ArgumentError("`eltype(system)` must be the same for all systems in the " *
+                            "`Semidiscretization`"))
     end
     ELTYPE = eltype(first_system)
 
     # Check that all systems have the same coordinates eltype
     if !all(system -> coordinates_eltype(system) === coordinates_eltype(first_system),
             systems)
-        throw(ArgumentError("all systems must use the same coordinates eltype"))
+        throw(ArgumentError("`coordinates_eltype(system)` must be the same " *
+                            "for all systems in the `Semidiscretization`"))
     end
     cELTYPE = coordinates_eltype(first_system)
 
@@ -363,8 +365,10 @@ end
     @boundscheck begin
         expected = v_nvariables(system) * n_integrated_particles(system)
         range_length = length(range)
-        range_length == expected ||
-            throw(DimensionMismatch("v range length $range_length does not match expected $expected"))
+        if range_length != expected
+            throw(DimensionMismatch("`v_ode` range length $range_length does not match " *
+                                    "expected number of entries $expected"))
+        end
     end
 
     return wrap_array(v_ode, range,
@@ -408,14 +412,10 @@ end
 end
 
 function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization)
-    calculate_dt(v_ode, u_ode, cfl_number, semi, semi.integrate_tlsph[])
-end
-
-function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization, integrate_tlsph)
     (; systems) = semi
 
     return minimum(systems) do system
-        if system isa TotalLagrangianSPHSystem && !integrate_tlsph
+        if system isa TotalLagrangianSPHSystem && !semi.integrate_tlsph[]
             # Skip TLSPH systems if they are not integrated
             return Inf
         end
@@ -720,7 +720,6 @@ function check_system_color(systems)
         end
     end
 end
-
 
 # After `adapt`, the system type information may change.
 # This means that systems linking to other systems still point to old systems.
