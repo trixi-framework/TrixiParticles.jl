@@ -93,18 +93,16 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     # Other checks might be added here later.
     check_configuration(systems, neighborhood_search)
 
-    @inline function ranges_from_sizes(sizes)
-        ends = cumsum(sizes)
-        starts = ends .- sizes .+ 1
-        return Tuple(starts[i]:ends[i] for i in eachindex(sizes))
-    end
-
     sizes_u = [u_nvariables(system) * n_integrated_particles(system)
                for system in systems]
-    ranges_u = ranges_from_sizes(sizes_u)
+    ranges_u = Tuple((sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])
+                     for i in eachindex(sizes_u))
+
+
     sizes_v = [v_nvariables(system) * n_integrated_particles(system)
                for system in systems]
-    ranges_v = ranges_from_sizes(sizes_v)
+    ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
+                     for i in eachindex(sizes_v))
 
     # Create a tuple of n neighborhood searches for each of the n systems.
     # We will need one neighborhood search for each pair of systems.
