@@ -83,9 +83,10 @@ function initialize_prescribed_motion!(::Nothing, initial_condition,
 end
 
 function (prescribed_motion::PrescribedMotion)(coordinates, velocity, acceleration,
-                                               ismoving, system, semi, t)
+                                               ismoving, system, semi, t_)
     (; movement_function, is_moving, moving_particles) = prescribed_motion
 
+    t = convert(Float64, t_)
     ismoving[] = is_moving(t)
 
     is_moving(t) || return nothing
@@ -160,19 +161,22 @@ PrescribedMotion{...}
 function OscillatingMotion2D(; frequency, translation_vector, rotation_angle,
                              rotation_center, rotation_phase_offset=0, tspan=(-Inf, Inf),
                              ramp_up_tspan=(0.0, 0.0), moving_particles=nothing)
-    translation_vector_ = SVector{2}(translation_vector)
-    rotation_center_ = SVector{2}(rotation_center)
+    translation_vector_ = SVector{2, Float64}(translation_vector)
+    rotation_center_ = SVector{2, Float64}(rotation_center)
+    frequency_ = convert(Float64, frequency)
+    rotation_angle_ = convert(Float64, rotation_angle)
+    rotation_phase_offset_ = convert(Float64, rotation_phase_offset)
 
     @inline function movement_function(x, t)
         if isfinite(tspan[1])
             t = t - tspan[1]
         end
 
-        sin_scaled = sin(frequency * 2pi * t)
+        sin_scaled = sin(frequency_ * 2pi * t)
         translation = sin_scaled * translation_vector_
         x_centered = x .- rotation_center_
-        sin_scaled_offset = sin(2pi * (frequency * t - rotation_phase_offset))
-        angle = rotation_angle * sin_scaled_offset
+        sin_scaled_offset = sin(2pi * (frequency_ * t - rotation_phase_offset_))
+        angle = rotation_angle_ * sin_scaled_offset
         rotated = SVector(x_centered[1] * cos(angle) - x_centered[2] * sin(angle),
                           x_centered[1] * sin(angle) + x_centered[2] * cos(angle))
 

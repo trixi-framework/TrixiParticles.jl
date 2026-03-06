@@ -244,7 +244,7 @@ end
 @inline buffer(system::OpenBoundarySystem) = system.buffer
 
 # The `UpdateCallback` is required to update particle positions between time steps
-@inline requires_update_callback(system::OpenBoundarySystem) = true
+@inline requires_update_callback(system::OpenBoundarySystem, semi) = true
 
 function smoothing_length(system::OpenBoundarySystem, particle)
     return system.smoothing_length
@@ -289,17 +289,20 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::OpenBoundarySystem, semi
     return Inf
 end
 
-@inline function add_velocity!(du, v, u, particle, system::OpenBoundarySystem, t)
-    boundary_zone = current_boundary_zone(system, particle)
+@inline function set_velocity!(du, v, u, system::OpenBoundarySystem, semi, t)
+    @threaded semi for particle in each_integrated_particle(system)
+        boundary_zone = current_boundary_zone(system, particle)
 
-    pos = current_coords(u, system, particle)
-    v_particle = reference_velocity(boundary_zone, v, system, particle, pos, t)
+        pos = @inbounds current_coords(u, system, particle)
+        v_particle = @inbounds reference_velocity(boundary_zone, v, system,
+                                                  particle, pos, t)
 
-    # This is zero unless a shifting technique is used
-    delta_v_ = delta_v(system, particle)
+        # This is zero unless a shifting technique is used
+        delta_v_ = @inbounds delta_v(system, particle)
 
-    for i in 1:ndims(system)
-        @inbounds du[i, particle] = v_particle[i] + delta_v_[i]
+        for i in 1:ndims(system)
+            @inbounds du[i, particle] = v_particle[i] + delta_v_[i]
+        end
     end
 
     return du

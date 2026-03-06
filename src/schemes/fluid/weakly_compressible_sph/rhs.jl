@@ -7,6 +7,11 @@ function interact!(dv, v_particle_system, u_particle_system,
                    particle_system::WeaklyCompressibleSPHSystem, neighbor_system, semi)
     (; density_calculator, correction) = particle_system
 
+    # Artificial density diffusion should only be applied to systems representing a fluid
+    # with the same physical properties i.e. density and viscosity.
+    # TODO: shouldn't be applied to particles on the interface (depends on PR #539)
+    apply_density_diffusion = Val(particle_system === neighbor_system)
+
     sound_speed = system_sound_speed(particle_system)
 
     surface_tension_a = surface_tension_model(particle_system)
@@ -100,7 +105,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         @inbounds continuity_equation!(dv, density_calculator, particle_system,
                                        neighbor_system, v_particle_system,
                                        v_neighbor_system, particle, neighbor,
-                                       pos_diff, distance, m_b, rho_a, rho_b, grad_kernel)
+                                       pos_diff, distance, m_b, rho_a, rho_b, grad_kernel;
+                                       apply_density_diffusion)
     end
     # Debug example
     # periodic_box = neighborhood_search.periodic_box
@@ -110,6 +116,146 @@ function interact!(dv, v_particle_system, u_particle_system,
     # trixi2vtk(v_particle_system, u_particle_system, -1.0, particle_system, periodic_box, debug=debug_array, prefix="debug", iter=iter += 1)
 
     return dv
+end
+
+function interact_all!(dv_ode, v_ode, u_ode,
+                   particle_system::WeaklyCompressibleSPHSystem, semi)
+    (; density_calculator, correction) = particle_system
+
+    dv = wrap_v(dv_ode, particle_system, semi)
+    v_particle_system = wrap_v(v_ode, particle_system, semi)
+    u_particle_system = wrap_u(u_ode, particle_system, semi)
+
+    vs = Tuple(wrap_v(v_ode, system, semi) for system in semi.systems)
+    us = Tuple(wrap_u(u_ode, system, semi) for system in semi.systems)
+
+    neighborhood_seaches = semi.neighborhood_searches[system_indices(particle_system, semi)]
+
+    @threaded semi for particle in each_integrated_particle(particle_system)
+        foreach_noalloc(semi.systems, neighborhood_seaches, vs, us) do (neighbor_system, nhs, v_neighbor_system, u_neighbor_system)
+            sound_speed = system_sound_speed(particle_system)
+
+            surface_tension_a = surface_tension_model(particle_system)
+            surface_tension_b = surface_tension_model(neighbor_system)
+
+            system_coords = current_coordinates(u_particle_system, particle_system)
+            neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
+
+            # Loop over all pairs of particles and neighbors within the kernel cutoff
+            PointNeighbors.foreach_neighbor(system_coords, neighbor_system_coords,
+                            nhs, particle) do particle, neighbor, pos_diff, distance
+                # `foreach_point_neighbor` makes sure that `particle` and `neighbor` are
+                # in bounds of the respective system. For performance reasons, we use `@inbounds`
+                # in this hot loop to avoid bounds checking when extracting particle quantities.
+                rho_a = @inbounds current_density(v_particle_system, particle_system, particle)
+                rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
+                rho_mean = (rho_a + rho_b) / 2
+
+                # Determine correction factors.
+                # This can be ignored, as these are all 1 when no correction is used.
+                (viscosity_correction, pressure_correction,
+                surface_tension_correction) = free_surface_correction(correction, particle_system,
+                                                                    rho_mean)
+
+                grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance, particle)
+
+                m_a = @inbounds hydrodynamic_mass(particle_system, particle)
+                m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
+
+                # The following call is equivalent to
+                #     `p_a = current_pressure(v_particle_system, particle_system, particle)`
+                #     `p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)`
+                # Only when the neighbor system is a `WallBoundarySystem` or a `TotalLagrangianSPHSystem`
+                # with the boundary model `PressureMirroring`, this will return `p_b = p_a`, which is
+                # the pressure of the fluid particle.
+                p_a,
+                p_b = @inbounds particle_neighbor_pressure(v_particle_system,
+                                                        v_neighbor_system,
+                                                        particle_system, neighbor_system,
+                                                        particle, neighbor)
+
+                dv_pressure = pressure_correction *
+                            pressure_acceleration(particle_system, neighbor_system,
+                                                    particle, neighbor,
+                                                    m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
+                                                    distance, grad_kernel, correction)
+
+                # Propagate `@inbounds` to the viscosity function, which accesses particle data
+                dv_viscosity_ = viscosity_correction *
+                                @inbounds dv_viscosity(particle_system, neighbor_system,
+                                                    v_particle_system, v_neighbor_system,
+                                                    particle, neighbor, pos_diff, distance,
+                                                    sound_speed, m_a, m_b, rho_a, rho_b,
+                                                    grad_kernel)
+
+                # Extra terms in the momentum equation when using a shifting technique
+                dv_tvf = @inbounds dv_shifting(shifting_technique(particle_system),
+                                            particle_system, neighbor_system,
+                                            v_particle_system, v_neighbor_system,
+                                            particle, neighbor, m_a, m_b, rho_a, rho_b,
+                                            pos_diff, distance, grad_kernel, correction)
+
+                dv_surface_tension = surface_tension_correction *
+                                    surface_tension_force(surface_tension_a, surface_tension_b,
+                                                        particle_system, neighbor_system,
+                                                        particle, neighbor, pos_diff, distance,
+                                                        rho_a, rho_b, grad_kernel)
+
+                dv_adhesion = adhesion_force(surface_tension_a, particle_system, neighbor_system,
+                                            particle, neighbor, pos_diff, distance)
+
+                dv_particle = dv_pressure + dv_viscosity_ + dv_tvf + dv_surface_tension +
+                            dv_adhesion
+
+                for i in 1:ndims(particle_system)
+                    @inbounds dv[i, particle] += dv_particle[i]
+                    # Debug example
+                    # debug_array[i, particle] += dv_pressure[i]
+                end
+
+                # TODO If variable smoothing_length is used, this should use the neighbor smoothing length
+                # Propagate `@inbounds` to the continuity equation, which accesses particle data
+                @inbounds continuity_equation2!(dv, density_calculator, particle_system,
+                                            neighbor_system, v_particle_system,
+                                            v_neighbor_system, particle, neighbor,
+                                            pos_diff, distance, m_b, rho_a, rho_b, grad_kernel)
+            end
+        end
+    end
+    # Debug example
+    # periodic_box = neighborhood_search.periodic_box
+    # Note: this saves a file in every stage of the integrator
+    # if !@isdefined iter; iter = 0; end
+    # TODO: This call should use public API. This requires some additional changes to simplify the calls.
+    # trixi2vtk(v_particle_system, u_particle_system, -1.0, particle_system, periodic_box, debug=debug_array, prefix="debug", iter=iter += 1)
+
+    return dv
+end
+
+@inline function continuity_equation2!(dv, density_calculator,
+                                      particle_system,
+                                      neighbor_system,
+                                      v_particle_system, v_neighbor_system,
+                                      particle, neighbor, pos_diff, distance,
+                                      m_b, rho_a, rho_b, grad_kernel)
+    continuity_equation!(dv, density_calculator, particle_system, neighbor_system,
+                         v_particle_system, v_neighbor_system,
+                         particle, neighbor, pos_diff, distance,
+                         m_b, rho_a, rho_b, grad_kernel;
+                         apply_density_diffusion=Val(false))
+end
+
+@inline function continuity_equation2!(dv, density_calculator,
+                                      particle_system::WeaklyCompressibleSPHSystem,
+                                      neighbor_system::WeaklyCompressibleSPHSystem,
+                                      v_particle_system, v_neighbor_system,
+                                      particle, neighbor, pos_diff, distance,
+                                      m_b, rho_a, rho_b, grad_kernel)
+    continuity_equation!(dv, density_calculator, particle_system, neighbor_system,
+                         v_particle_system, v_neighbor_system,
+                         particle, neighbor, pos_diff, distance,
+                         m_b, rho_a, rho_b, grad_kernel;
+                         apply_density_diffusion=Val(true))
 end
 
 @propagate_inbounds function particle_neighbor_pressure(v_particle_system,

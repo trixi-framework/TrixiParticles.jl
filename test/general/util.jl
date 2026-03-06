@@ -19,6 +19,16 @@
     @test typeof(A .+ B) == typeof(A)
     @test typeof(B .+ A) == typeof(A)
 
+    # Test that the resulting type of `similar` is correct
+    C = similar(A, Float64, (2, 2))
+    @test typeof(C) == typeof(A)
+    @test size(C) == (2, 2)
+    @test typeof(similar(A, Float64)) == typeof(A)
+    C = similar(A, (2, 2))
+    @test typeof(C) == typeof(A)
+    @test size(C) == (2, 2)
+    @test typeof(similar(A)) == typeof(A)
+
     # Test that these operations all use the correct backend
     struct FailingBackend end
 

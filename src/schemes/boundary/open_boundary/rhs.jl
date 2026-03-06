@@ -65,7 +65,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         density_diffusion!(dv, density_diffusion(particle_system),
                            v_particle_system, particle, neighbor,
                            pos_diff, distance, m_b, rho_a, rho_b,
-                           particle_system, grad_kernel)
+                           particle_system, grad_kernel, Val(true))
 
         # Open boundary pressure evolution matches the corresponding fluid system:
         # - EDAC: Compute pressure evolution like the fluid system

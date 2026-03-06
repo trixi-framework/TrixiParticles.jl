@@ -25,6 +25,24 @@ end
 
 @inline foreach_noalloc(func, collection1::Tuple{}, collection2::Tuple{}) = nothing
 
+@inline function foreach_noalloc(func, collection1, collection2, collection3, collection4)
+    element1 = first(collection1)
+    remaining_collection1 = Base.tail(collection1)
+    element2 = first(collection2)
+    remaining_collection2 = Base.tail(collection2)
+    element3 = first(collection3)
+    remaining_collection3 = Base.tail(collection3)
+    element4 = first(collection4)
+    remaining_collection4 = Base.tail(collection4)
+
+    func((element1, element2, element3, element4))
+
+    # Process remaining collection
+    foreach_noalloc(func, remaining_collection1, remaining_collection2, remaining_collection3, remaining_collection4)
+end
+
+@inline foreach_noalloc(func, collection1::Tuple{}, collection2::Tuple{}, collection3::Tuple{}, collection4::Tuple{}) = nothing
+
 # Returns `functions[index](args...)`, but in a type-stable way for a heterogeneous tuple `functions`
 @inline function apply_ith_function(functions, index, args...)
     if index == 1
@@ -181,8 +199,8 @@ Base.pointer(A::ThreadedBroadcastArray) = pointer(parent(A))
 Base.size(A::ThreadedBroadcastArray) = size(parent(A))
 Base.IndexStyle(::Type{<:ThreadedBroadcastArray}) = IndexLinear()
 
-function Base.similar(A::ThreadedBroadcastArray, ::Type{T}) where {T}
-    return ThreadedBroadcastArray(similar(A.array, T);
+function Base.similar(A::ThreadedBroadcastArray, ::Type{T}, dims::Base.Dims) where {T}
+    return ThreadedBroadcastArray(similar(A.array, T, dims);
                                   parallelization_backend=A.parallelization_backend)
 end
 
