@@ -420,18 +420,15 @@ function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem)
 end
 
 function write2vtk!(vtk, v, u, t, system::RigidSPHSystem)
-    n_particles = nparticles(system)
-
     vtk["velocity"] = [current_velocity(v, system, particle)
                        for particle in eachparticle(system)]
     vtk["material_density"] = system.material_density
     vtk["mass"] = system.mass
     vtk["local_coordinates"] = system.local_coordinates
     vtk["relative_coordinates"] = system.relative_coordinates
-    vtk["center_of_mass"] = [system.center_of_mass[] for _ in 1:n_particles]
-    vtk["center_of_mass_velocity"] = [system.center_of_mass_velocity[]
-                                      for _ in 1:n_particles]
-    vtk["resultant_force"] = [system.resultant_force[] for _ in 1:n_particles]
+    vtk["center_of_mass"] = system.center_of_mass[]
+    vtk["center_of_mass_velocity"] = system.center_of_mass_velocity[]
+    vtk["resultant_force"] = system.resultant_force[]
 
     vtk["angular_velocity"] = system.angular_velocity[]
     vtk["resultant_torque"] = system.resultant_torque[]

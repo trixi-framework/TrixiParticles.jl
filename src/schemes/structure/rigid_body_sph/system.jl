@@ -62,24 +62,14 @@ function RigidSPHSystem(initial_condition; boundary_model=nothing,
                         particle_spacing=initial_condition.particle_spacing,
                         source_terms=nothing, color_value=0)
     NDIMS = ndims(initial_condition)
-
-    if NDIMS == 2
-        return RigidSPHSystem(initial_condition, Val(2);
-                              boundary_model=boundary_model,
-                              acceleration=acceleration,
-                              particle_spacing=particle_spacing,
-                              source_terms=source_terms,
-                              color_value=color_value)
-    elseif NDIMS == 3
-        return RigidSPHSystem(initial_condition, Val(3);
-                              boundary_model=boundary_model,
-                              acceleration=acceleration,
-                              particle_spacing=particle_spacing,
-                              source_terms=source_terms,
-                              color_value=color_value)
-    end
-
     throw(ArgumentError("`RigidSPHSystem` currently supports only 2D and 3D, got $(NDIMS)D"))
+
+    return RigidSPHSystem(initial_condition, Val(NDIMS);
+                            boundary_model=boundary_model,
+                            acceleration=acceleration,
+                            particle_spacing=particle_spacing,
+                            source_terms=source_terms,
+                            color_value=color_value)
 end
 
 function RigidSPHSystem(initial_condition, ::Val{2}; boundary_model=nothing,

@@ -229,9 +229,9 @@
 
             @test "local_coordinates" in point_fields
             @test "relative_coordinates" in point_fields
-            @test "center_of_mass" in point_fields
-            @test "center_of_mass_velocity" in point_fields
-            @test "resultant_force" in point_fields
+            @test "center_of_mass" in scalar_fields
+            @test "center_of_mass_velocity" in scalar_fields
+            @test "resultant_force" in scalar_fields
             @test "angular_velocity" in scalar_fields
             @test "resultant_torque" in scalar_fields
             @test "angular_acceleration_force" in scalar_fields
