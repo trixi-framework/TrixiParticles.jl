@@ -24,10 +24,10 @@ tspan = (0.0, 2.0)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (2.0, 1.0)
-tank_size = (2.0, 2.0)
+tank_size = (2.0, 3.0)
 
 fluid_density = 1000.0
-sound_speed = 10 * sqrt(gravity * initial_fluid_size[2])
+sound_speed = 120.0
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1)
 
@@ -40,7 +40,7 @@ square1_side_length = 0.4
 square2_side_length = 0.3
 
 # Material properties [SI units]
-wall_material = (; youngs_modulus=3.0e10, poisson_ratio=0.2)
+wall_material = (; youngs_modulus=3.0e11, poisson_ratio=0.3)
 material_properties = (
     wood=(; density=650.0, youngs_modulus=1.0e10, poisson_ratio=0.35,
           restitution=0.35, friction_coefficient=0.5),
@@ -55,22 +55,24 @@ square2_nparticles_side = round(Int, square2_side_length / structure_particle_sp
 square1_bottom_left = (0.4, 1.5)
 square2_bottom_left = (1.25, 1.55)
 
-square1 = RectangularShape(structure_particle_spacing,
-                           (square1_nparticles_side, square1_nparticles_side),
-                           square1_bottom_left,
-                           density=material_properties.wood.density)
-square2 = RectangularShape(structure_particle_spacing,
-                           (square2_nparticles_side, square2_nparticles_side),
-                           square2_bottom_left,
-                           density=material_properties.steel.density)
-
 # Initial rigid-body angular velocities [rad/s]
 square1_angular_velocity = 5.0
 square2_angular_velocity = -7.5
 
+square1 = RectangularShape(structure_particle_spacing,
+                           (square1_nparticles_side, square1_nparticles_side),
+                           square1_bottom_left,
+                           density=material_properties.wood.density,
+                           angular_velocity=square1_angular_velocity)
+square2 = RectangularShape(structure_particle_spacing,
+                           (square2_nparticles_side, square2_nparticles_side),
+                           square2_bottom_left,
+                           density=material_properties.steel.density,
+                           angular_velocity=square2_angular_velocity)
+
 # ==========================================================================================
 # ==== Fluid
-fluid_smoothing_length = 1.5 * fluid_particle_spacing
+fluid_smoothing_length = 1.75 * fluid_particle_spacing
 fluid_smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
@@ -156,13 +158,11 @@ structure_system_1 = RigidSPHSystem(square1;
                                     boundary_model=boundary_model_structure_1,
                                     boundary_contact_model=boundary_contact_model_spec_1,
                                     acceleration=(0.0, -gravity),
-                                    angular_velocity=square1_angular_velocity,
                                     particle_spacing=structure_particle_spacing)
 structure_system_2 = RigidSPHSystem(square2;
                                     boundary_model=boundary_model_structure_2,
                                     boundary_contact_model=boundary_contact_model_spec_2,
                                     acceleration=(0.0, -gravity),
-                                    angular_velocity=square2_angular_velocity,
                                     particle_spacing=structure_particle_spacing)
 
 # ==========================================================================================
@@ -182,5 +182,5 @@ callbacks = CallbackSet(info_callback, saving_callback, update_callback)
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-6, # Default abstol is 1e-6
-            reltol=1e-3, # Default reltol is 1e-3
+            reltol=1e-5, # Default reltol is 1e-3
             save_everystep=false, callback=callbacks);

@@ -29,14 +29,14 @@
         @test system.material_density == material_densities
         @test system.initial_velocity == initial_condition.velocity
         @test system.acceleration == [0.0, -9.81]
-        @test iszero(system.initial_angular_velocity)
+        @test iszero(system.initial_condition.angular_velocity)
         @test system.particle_spacing == 0.1
         @test system.boundary_model == boundary_model
         @test TrixiParticles.v_nvariables(system) == 2
 
         dt = TrixiParticles.calculate_dt(zeros(2, 3), zeros(2, 3), 0.25, system,
                                          nothing)
-        @test dt ≈ 0.25 * 0.1 / 9.81
+        @test isinf(dt)
     end
 
     @trixi_testset "Show" begin
@@ -59,15 +59,61 @@
                                 boundary_model=boundary_model,
                                 acceleration=(0.0, -9.81))
 
-        compact_repr = repr(system)
-        @test occursin("RigidSPHSystem{2}", compact_repr)
-        @test occursin("with 2 particles", compact_repr)
+        show_compact = "RigidSPHSystem{2}([0.0, -9.81], BoundaryModelDummyParticles(SummationDensity, Nothing), nothing) with 2 particles"
+        @test repr(system) == show_compact
 
-        full_repr = repr("text/plain", system)
-        @test occursin("RigidSPHSystem{2}", full_repr)
-        @test occursin("#particles", full_repr)
-        @test occursin("initial angular velocity", full_repr)
-        @test occursin("boundary model", full_repr)
+        show_box = """
+        ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+        │ RigidSPHSystem{2}                                                                                │
+        │ ═════════════════                                                                                │
+        │ #particles: ………………………………………………… 2                                                                │
+        │ acceleration: …………………………………………… [0.0, -9.81]                                                     │
+        │ initial angular velocity: …………… 0.0                                                              │
+        │ boundary model: ……………………………………… BoundaryModelDummyParticles(SummationDensity, Nothing)           │
+        │ boundary contact model: ………………… nothing                                                          │
+        └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
+        @test repr("text/plain", system) == show_box
+    end
+
+    @trixi_testset "Hydrodynamic Density" begin
+        coordinates = [1.0 2.0
+                       1.0 2.0]
+        mass = [1.25, 1.5]
+        material_densities = [990.0, 1000.0]
+        hydrodynamic_densities = [1001.0, 1002.0]
+        hydrodynamic_masses = [2.5, 3.0]
+
+        initial_condition = InitialCondition(; coordinates, mass,
+                                             density=material_densities)
+
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        smoothing_length = 0.12
+        boundary_model = BoundaryModelDummyParticles(hydrodynamic_densities,
+                                                     hydrodynamic_masses,
+                                                     SummationDensity(),
+                                                     smoothing_kernel,
+                                                     smoothing_length)
+
+        system = RigidSPHSystem(initial_condition; boundary_model=boundary_model)
+        v = zeros(TrixiParticles.v_nvariables(system),
+                  TrixiParticles.n_integrated_particles(system))
+
+        @test TrixiParticles.current_density(v, system) == hydrodynamic_densities
+        @test TrixiParticles.hydrodynamic_mass(system, 1) == hydrodynamic_masses[1]
+        @test TrixiParticles.smoothing_length(system, 1) == smoothing_length
+        @test system.material_density == material_densities
+
+        system_no_model = RigidSPHSystem(initial_condition)
+        v_no_model = zeros(TrixiParticles.v_nvariables(system_no_model),
+                           TrixiParticles.n_integrated_particles(system_no_model))
+        @test TrixiParticles.current_density(v_no_model, system_no_model) ==
+              material_densities
+        @test TrixiParticles.hydrodynamic_mass(system_no_model, 1) == mass[1]
+
+        monaghan_model = BoundaryModelMonaghanKajtar(10.0, 1.0, smoothing_length,
+                                                     hydrodynamic_masses)
+        system_monaghan = RigidSPHSystem(initial_condition; boundary_model=monaghan_model)
+        @test TrixiParticles.hydrodynamic_mass(system_monaghan, 1) == hydrodynamic_masses[1]
     end
 
     @trixi_testset "Initial Angular Velocity" begin
@@ -76,16 +122,19 @@
         mass_2d = [1.0, 1.0]
         density_2d = [1000.0, 1000.0]
         ic_2d = InitialCondition(; coordinates=coordinates_2d, mass=mass_2d,
-                                 density=density_2d)
+                                 density=density_2d, angular_velocity=2.0)
 
-        system_2d = RigidSPHSystem(ic_2d; angular_velocity=2.0)
+        system_2d = RigidSPHSystem(ic_2d; particle_spacing=0.1)
         v0_2d = zeros(2, 2)
         TrixiParticles.write_v0!(v0_2d, system_2d)
 
-        @test system_2d.initial_angular_velocity ≈ 2.0
+        @test system_2d.initial_condition.angular_velocity ≈ 2.0
         @test v0_2d ≈ [0.0 0.0
                        -1.0 1.0]
-        @test_throws ArgumentError RigidSPHSystem(ic_2d; angular_velocity=(0.0, 1.0))
+        @test_throws ArgumentError InitialCondition(; coordinates=coordinates_2d,
+                                                    mass=mass_2d,
+                                                    density=density_2d,
+                                                    angular_velocity=(0.0, 1.0))
 
         coordinates_3d = [0.0 1.0
                           0.0 0.0
@@ -93,17 +142,82 @@
         mass_3d = [1.0, 1.0]
         density_3d = [1000.0, 1000.0]
         ic_3d = InitialCondition(; coordinates=coordinates_3d, mass=mass_3d,
-                                 density=density_3d)
+                                 density=density_3d,
+                                 angular_velocity=(0.0, 0.0, 2.0))
 
-        system_3d = RigidSPHSystem(ic_3d; angular_velocity=(0.0, 0.0, 2.0))
+        system_3d = RigidSPHSystem(ic_3d)
         v0_3d = zeros(3, 2)
         TrixiParticles.write_v0!(v0_3d, system_3d)
 
-        @test system_3d.initial_angular_velocity ≈ [0.0, 0.0, 2.0]
+        @test system_3d.initial_condition.angular_velocity ≈ [0.0, 0.0, 2.0]
         @test v0_3d ≈ [0.0 0.0
                        -1.0 1.0
                        0.0 0.0]
-        @test_throws ArgumentError RigidSPHSystem(ic_3d; angular_velocity=2.0)
+        @test_throws ArgumentError InitialCondition(; coordinates=coordinates_3d,
+                                                    mass=mass_3d,
+                                                    density=density_3d,
+                                                    angular_velocity=2.0)
+    end
+
+    @trixi_testset "Time Step Estimate 3D Gyroscopic" begin
+        coordinates = [-0.5 0.5
+                       0.0 0.0
+                       0.0 0.0]
+        mass = [1.0, 1.0]
+        density = [1000.0, 1000.0]
+        initial_condition = InitialCondition(; coordinates, mass, density,
+                                             particle_spacing=0.1)
+        system = RigidSPHSystem(initial_condition; acceleration=(0.0, 0.0, 0.0))
+
+        system.cache.angular_velocity[] = SVector(0.0, 0.0, 0.0)
+        system.cache.angular_acceleration_force[] = SVector(0.0, 0.0, 0.0)
+        system.cache.gyroscopic_acceleration[] = SVector(0.0, 0.0, 2.0)
+        system.cache.center_of_mass_velocity[] = SVector(0.0, 0.0, 0.0)
+
+        dt = TrixiParticles.calculate_dt(zeros(3, 2), zeros(3, 2), 0.25, system, nothing)
+        @test isapprox(dt, 0.25 * sqrt(0.1 / 1.0))
+    end
+
+    @trixi_testset "Time Step Estimate from Initial Velocity" begin
+        coordinates = [-1.0 1.0
+                       0.0 0.0]
+        velocity = [0.0 0.0
+                    -1.0 1.0]
+        mass = [1.0, 1.0]
+        density = [1000.0, 1000.0]
+        initial_condition = InitialCondition(; coordinates, velocity, mass, density,
+                                             particle_spacing=0.1)
+        system = RigidSPHSystem(initial_condition; acceleration=(0.0, 0.0))
+
+        # No angular velocity was set directly, so this is reconstructed from the
+        # initial velocity field.
+        @test iszero(initial_condition.angular_velocity)
+        @test isapprox(system.cache.angular_velocity[], 1.0)
+
+        dt = TrixiParticles.calculate_dt(zeros(2, 2), zeros(2, 2), 0.25, system, nothing)
+        @test isapprox(dt, 0.25 * 0.1 / 1.0)
+    end
+
+    @trixi_testset "Time Step Invariance under Uniform Acceleration" begin
+        coordinates = [-1.0 1.0
+                       0.0 0.0]
+        velocity = [1.0 1.0
+                    0.0 0.0]
+        mass = [1.0, 1.0]
+        density = [1000.0, 1000.0]
+        initial_condition = InitialCondition(; coordinates, velocity, mass, density,
+                                             particle_spacing=0.1)
+
+        system_ref = RigidSPHSystem(initial_condition; acceleration=(0.0, -9.81))
+        system_shifted = RigidSPHSystem(initial_condition; acceleration=(0.0, -1000.0))
+
+        dt_ref = TrixiParticles.calculate_dt(zeros(2, 2), zeros(2, 2), 0.25, system_ref,
+                                             nothing)
+        dt_shifted = TrixiParticles.calculate_dt(zeros(2, 2), zeros(2, 2), 0.25,
+                                                 system_shifted, nothing)
+
+        @test isapprox(dt_ref, 0.25 * 0.1 / 1.0)
+        @test dt_shifted == dt_ref
     end
 
     @trixi_testset "Rotational Kinematics" begin
@@ -182,6 +296,44 @@
         @test data.max_boundary_penetration == 0.0
         @test data.local_coordinates ≈ rigid_system.local_coordinates
         @test data.relative_coordinates ≈ rigid_system.cache.relative_coordinates
+    end
+
+    @trixi_testset "Restart" begin
+        coordinates = [0.0 1.0 2.0
+                       0.0 0.0 0.0]
+        velocity = [0.0 0.0 0.0
+                    0.0 0.0 0.0]
+        mass = [1.0, 1.0, 1.0]
+        density = [1000.0, 1000.0, 1000.0]
+
+        initial_condition = InitialCondition(; coordinates, velocity, mass, density)
+        rigid_system = RigidSPHSystem(initial_condition; acceleration=(0.0, 0.0))
+
+        u_new = [2.0 4.0 6.0
+                 3.0 3.0 3.0]
+        v_new = [1.0 2.0 3.0
+                 4.0 5.0 6.0]
+
+        restarted_system = TrixiParticles.restart_with!(rigid_system, v_new, u_new)
+
+        @test restarted_system === rigid_system
+        @test rigid_system.initial_condition.coordinates == u_new
+        @test rigid_system.initial_condition.velocity == v_new
+        @test rigid_system.initial_velocity == v_new
+
+        expected_center_of_mass = [4.0, 3.0]
+        expected_relative_coordinates = u_new .- expected_center_of_mass
+
+        @test isapprox(rigid_system.cache.center_of_mass[], expected_center_of_mass)
+        @test isapprox(rigid_system.local_coordinates, expected_relative_coordinates)
+        @test isapprox(rigid_system.cache.relative_coordinates, expected_relative_coordinates)
+        @test isapprox(rigid_system.cache.center_of_mass_velocity[], [2.0, 5.0])
+        @test isapprox(rigid_system.cache.angular_velocity[], 0.5)
+        @test iszero(rigid_system.cache.resultant_force[])
+        @test iszero(rigid_system.cache.resultant_torque[])
+        @test iszero(rigid_system.cache.angular_acceleration_force[])
+        @test rigid_system.cache.boundary_contact_count[] == 0
+        @test iszero(rigid_system.cache.max_boundary_penetration[])
     end
 
     @trixi_testset "Velocity Components with ContinuityDensity" begin

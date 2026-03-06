@@ -64,12 +64,12 @@ function interact!(dv, v_particle_system, u_particle_system,
                              particle_system, neighbor_system, grad_kernel)
     end
 
-    apply_resultant_force_and_torque!(dv, particle_system)
+    apply_resultant_force_and_torque!(dv, particle_system, semi)
 
     return dv
 end
 
-function apply_resultant_force_and_torque!(dv, particle_system::RigidSPHSystem)
+function apply_resultant_force_and_torque!(dv, particle_system::RigidSPHSystem, semi)
     (; cache) = particle_system
     total_mass = cache.total_mass
 
@@ -93,7 +93,7 @@ function apply_resultant_force_and_torque!(dv, particle_system::RigidSPHSystem)
     cache.resultant_torque[] = total_torque
     cache.angular_acceleration_force[] = angular_acceleration_force
 
-    for particle in each_integrated_particle(particle_system)
+    @threaded semi for particle in each_integrated_particle(particle_system)
         relative_position = extract_svector(cache.relative_coordinates, particle_system,
                                             particle)
         rotational_acceleration = angular_acceleration_cross_position(angular_acceleration_force,
@@ -362,7 +362,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         remove_resultant_contact_torque!(force_per_particle, particle_system)
     end
 
-    apply_resultant_force_and_torque!(dv, particle_system)
+    apply_resultant_force_and_torque!(dv, particle_system, semi)
 
     return dv
 end
