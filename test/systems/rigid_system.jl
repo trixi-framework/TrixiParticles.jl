@@ -106,7 +106,8 @@
         system_no_model = RigidSPHSystem(initial_condition)
         v_no_model = zeros(TrixiParticles.v_nvariables(system_no_model),
                            TrixiParticles.n_integrated_particles(system_no_model))
-        @test TrixiParticles.current_density(v_no_model, system_no_model) == material_densities
+        @test TrixiParticles.current_density(v_no_model, system_no_model) ==
+              material_densities
         @test TrixiParticles.hydrodynamic_mass(system_no_model, 1) == mass[1]
 
         monaghan_model = BoundaryModelMonaghanKajtar(10.0, 1.0, smoothing_length,
@@ -174,7 +175,8 @@
                        0.0 0.0]
         mass = [1.0, 1.0]
         density = [1000.0, 1000.0]
-        initial_condition = InitialCondition(; coordinates, mass, density, particle_spacing=0.1)
+        initial_condition = InitialCondition(; coordinates, mass, density,
+                                             particle_spacing=0.1)
         system = RigidSPHSystem(initial_condition; acceleration=(0.0, 0.0, 0.0))
 
         system.angular_velocity[] = SVector(0.0, 0.0, 0.0)

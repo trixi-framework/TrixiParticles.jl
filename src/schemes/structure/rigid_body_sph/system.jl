@@ -117,10 +117,13 @@ function RigidSPHSystem(initial_condition; boundary_model=nothing,
     return system
 end
 
-@inline zero_scalar_or_matrix_ref(::Val{2}, ::Type{ELTYPE}) where {ELTYPE} = Ref(zero(ELTYPE))
+@inline zero_scalar_or_matrix_ref(::Val{2},
+                                  ::Type{ELTYPE}) where {ELTYPE} = Ref(zero(ELTYPE))
 
-@inline zero_scalar_or_matrix_ref(::Val{3}, ::Type{ELTYPE}) where {ELTYPE} =
-    Ref(zero(SMatrix{3, 3, ELTYPE, 9}))
+@inline zero_scalar_or_matrix_ref(::Val{3},
+                                  ::Type{ELTYPE}) where {ELTYPE} = Ref(zero(SMatrix{3, 3,
+                                                                                    ELTYPE,
+                                                                                    9}))
 
 function center_of_mass_and_total_mass(coordinates, mass, ::Val{NDIMS},
                                        ELTYPE) where {NDIMS}
@@ -324,7 +327,8 @@ function restart_with!(system::RigidSPHSystem, v, u)
     for particle in each_integrated_particle(system)
         particle_mass = system.mass[particle]
         center_of_mass_velocity += particle_mass *
-                                   extract_svector(system.initial_velocity, system, particle)
+                                   extract_svector(system.initial_velocity, system,
+                                                   particle)
     end
     center_of_mass_velocity /= system.total_mass
 

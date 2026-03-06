@@ -115,7 +115,8 @@
                                 2.0 2.0]
             mass_2d = [1.0, 3.0]
             density_2d = [1000.0, 1000.0]
-            ic_2d = InitialCondition(; coordinates=coordinates_2d, velocity=base_velocity_2d,
+            ic_2d = InitialCondition(; coordinates=coordinates_2d,
+                                     velocity=base_velocity_2d,
                                      mass=mass_2d, density=density_2d, angular_velocity=2.0)
 
             @test ic_2d.velocity ≈ [1.0 1.0
@@ -130,7 +131,8 @@
                                 0.0 0.0]
             mass_3d = [1.0, 1.0]
             density_3d = [1000.0, 1000.0]
-            ic_3d = InitialCondition(; coordinates=coordinates_3d, velocity=base_velocity_3d,
+            ic_3d = InitialCondition(; coordinates=coordinates_3d,
+                                     velocity=base_velocity_3d,
                                      mass=mass_3d, density=density_3d,
                                      angular_velocity=(0.0, 0.0, 2.0))
 
