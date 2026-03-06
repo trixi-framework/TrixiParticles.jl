@@ -246,12 +246,9 @@ end
     return extract_svector(boundary_model.cache.wall_velocity, system, particle)
 end
 
-@inline function smoothing_length(system::RigidSPHSystem, particle)
+@inline function smoothing_length(system::RigidSPHSystem{<:BoundaryModelDummyParticles},
+                                  particle)
     return smoothing_length(system.boundary_model, particle)
-end
-
-@inline function smoothing_length(system::RigidSPHSystem{Nothing}, particle)
-    return system.particle_spacing
 end
 
 @inline function system_smoothing_kernel(system::RigidSPHSystem{<:BoundaryModelDummyParticles})

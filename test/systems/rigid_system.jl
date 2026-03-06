@@ -100,6 +100,7 @@
         @test TrixiParticles.current_density(v, system) == hydrodynamic_densities
         @test TrixiParticles.hydrodynamic_density(v, system) == hydrodynamic_densities
         @test TrixiParticles.hydrodynamic_mass(system, 1) == hydrodynamic_masses[1]
+        @test TrixiParticles.smoothing_length(system, 1) == smoothing_length
         @test system.material_density == material_densities
 
         system_no_model = RigidSPHSystem(initial_condition)

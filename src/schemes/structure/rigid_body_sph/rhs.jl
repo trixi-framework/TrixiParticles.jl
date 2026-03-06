@@ -18,10 +18,6 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                                                 neighbor,
                                                                                 pos_diff,
                                                                                 distance
-        # Only consider particles with a distance > 0.
-        # See `src/general/smoothing_kernels.jl` for more details.
-        distance^2 < eps(initial_smoothing_length(particle_system)^2) && return
-
         # Apply the same force to the structure particle that the fluid particle
         # experiences due to the structure particle.
         # In fluid-structure interaction, use the "hydrodynamic mass" of the structure
