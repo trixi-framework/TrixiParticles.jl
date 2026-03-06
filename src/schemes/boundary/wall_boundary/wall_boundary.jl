@@ -1,3 +1,5 @@
+abstract type AbstractWallBoundaryModel end
+
 include("dummy_particles.jl")
 include("system.jl")
 # Monaghan-Kajtar repulsive boundary particles require the `WallBoundarySystem`

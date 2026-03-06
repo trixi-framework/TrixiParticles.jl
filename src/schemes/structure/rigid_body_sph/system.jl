@@ -215,20 +215,13 @@ end
     return zero(eltype(system))
 end
 
-@inline function hydrodynamic_mass(system::RigidSPHSystem, particle)
-    return hydrodynamic_mass(system, system.boundary_model, particle)
-end
-
-@inline function hydrodynamic_mass(system::RigidSPHSystem, ::Nothing, particle)
+@inline function hydrodynamic_mass(system::RigidSPHSystem{Nothing}, particle)
     return system.mass[particle]
 end
 
-@inline function hydrodynamic_mass(system::RigidSPHSystem, boundary_model, particle)
-    if hasproperty(boundary_model, :hydrodynamic_mass)
-        return boundary_model.hydrodynamic_mass[particle]
-    end
-
-    return system.mass[particle]
+@inline function hydrodynamic_mass(system::RigidSPHSystem{<:AbstractWallBoundaryModel},
+                                   particle)
+    return system.boundary_model.hydrodynamic_mass[particle]
 end
 
 @inline function viscous_velocity(v, system::RigidSPHSystem, particle)
