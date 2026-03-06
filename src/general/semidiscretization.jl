@@ -359,9 +359,7 @@ end
     range = ranges_v[system_indices(system, semi)]
 
     @boundscheck begin
-        expected = v_nvariables(system) * n_integrated_particles(system)
-        range_length = length(range)
-        if range_length != expected
+        if length(range) != v_nvariables(system) * n_integrated_particles(system)
             throw(DimensionMismatch("`v_ode` range length $range_length does not match " *
                                     "expected number of entries $expected"))
         end
