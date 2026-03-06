@@ -62,69 +62,8 @@ function RigidSPHSystem(initial_condition; boundary_model=nothing,
                         particle_spacing=initial_condition.particle_spacing,
                         source_terms=nothing, color_value=0)
     NDIMS = ndims(initial_condition)
-    throw(ArgumentError("`RigidSPHSystem` currently supports only 2D and 3D, got $(NDIMS)D"))
-
-    return RigidSPHSystem(initial_condition, Val(NDIMS);
-                            boundary_model=boundary_model,
-                            acceleration=acceleration,
-                            particle_spacing=particle_spacing,
-                            source_terms=source_terms,
-                            color_value=color_value)
-end
-
-function RigidSPHSystem(initial_condition, ::Val{2}; boundary_model=nothing,
-                        acceleration=ntuple(_ -> zero(eltype(initial_condition)),
-                                            ndims(initial_condition)),
-                        particle_spacing=initial_condition.particle_spacing,
-                        source_terms=nothing, color_value=0)
-    ELTYPE = eltype(initial_condition)
-    init = init_rigid_system(initial_condition, acceleration, particle_spacing, Val(2))
-
-    force_per_particle = zeros(ELTYPE, 2, nparticles(initial_condition))
-    relative_coordinates = copy(init.local_coordinates)
-
-    return RigidSPHSystem(initial_condition, init.initial_velocity, init.local_coordinates,
-                          init.mass, init.material_density, init.acceleration,
-                          init.particle_spacing, init.total_mass, force_per_particle,
-                          relative_coordinates, Ref(init.center_of_mass),
-                          Ref(zero(SVector{2, ELTYPE})),
-                          Ref(zero(ELTYPE)), Ref(zero(ELTYPE)),
-                          Ref(initial_condition.angular_velocity),
-                          Ref(zero(SVector{2, ELTYPE})),
-                          Ref(zero(ELTYPE)), Ref(zero(ELTYPE)), Ref(zero(ELTYPE)),
-                          boundary_model, source_terms, create_cache_rigid(color_value))
-end
-
-function RigidSPHSystem(initial_condition, ::Val{3}; boundary_model=nothing,
-                        acceleration=ntuple(_ -> zero(eltype(initial_condition)),
-                                            ndims(initial_condition)),
-                        particle_spacing=initial_condition.particle_spacing,
-                        source_terms=nothing, color_value=0)
-    ELTYPE = eltype(initial_condition)
-    init = init_rigid_system(initial_condition, acceleration, particle_spacing, Val(3))
-
-    force_per_particle = zeros(ELTYPE, 3, nparticles(initial_condition))
-    relative_coordinates = copy(init.local_coordinates)
-
-    return RigidSPHSystem(initial_condition, init.initial_velocity, init.local_coordinates,
-                          init.mass, init.material_density, init.acceleration,
-                          init.particle_spacing, init.total_mass, force_per_particle,
-                          relative_coordinates, Ref(init.center_of_mass),
-                          Ref(zero(SVector{3, ELTYPE})),
-                          Ref(zero(SMatrix{3, 3, ELTYPE, 9})),
-                          Ref(zero(SMatrix{3, 3, ELTYPE, 9})),
-                          Ref(initial_condition.angular_velocity),
-                          Ref(zero(SVector{3, ELTYPE})),
-                          Ref(zero(SVector{3, ELTYPE})),
-                          Ref(zero(SVector{3, ELTYPE})),
-                          Ref(zero(SVector{3, ELTYPE})),
-                          boundary_model, source_terms, create_cache_rigid(color_value))
-end
-
-function init_rigid_system(initial_condition, acceleration, particle_spacing,
-                           ::Val{NDIMS}) where {NDIMS}
-    if ndims(initial_condition) != NDIMS
-        throw(ArgumentError("`initial_condition` dimensionality must be $NDIMS for this constructor"))
+    if NDIMS != 2 && NDIMS != 3
+        throw(ArgumentError("`RigidSPHSystem` currently supports only 2D and 3D, got $(NDIMS)D"))
     end
 
     ELTYPE = eltype(initial_condition)
@@ -145,11 +84,29 @@ function init_rigid_system(initial_condition, acceleration, particle_spacing,
     update_relative_coordinates!(local_coordinates, local_coordinates,
                                  center_of_mass, Val(NDIMS))
 
-    return (; acceleration=acceleration_,
-            particle_spacing=particle_spacing_,
-            initial_velocity, local_coordinates, mass, material_density,
-            center_of_mass, total_mass)
+    force_per_particle = zeros(ELTYPE, NDIMS, nparticles(initial_condition))
+    relative_coordinates = copy(local_coordinates)
+    zero_rotational_quantity = zero(initial_condition.angular_velocity)
+
+    return RigidSPHSystem(initial_condition, initial_velocity, local_coordinates,
+                          mass, material_density, acceleration_,
+                          particle_spacing_, total_mass, force_per_particle,
+                          relative_coordinates, Ref(center_of_mass),
+                          Ref(zero(SVector{NDIMS, ELTYPE})),
+                          zero_scalar_or_matrix_ref(Val(NDIMS), ELTYPE),
+                          zero_scalar_or_matrix_ref(Val(NDIMS), ELTYPE),
+                          Ref(initial_condition.angular_velocity),
+                          Ref(zero(SVector{NDIMS, ELTYPE})),
+                          Ref(zero_rotational_quantity),
+                          Ref(zero_rotational_quantity),
+                          Ref(zero_rotational_quantity),
+                          boundary_model, source_terms, create_cache_rigid(color_value))
 end
+
+@inline zero_scalar_or_matrix_ref(::Val{2}, ::Type{ELTYPE}) where {ELTYPE} = Ref(zero(ELTYPE))
+
+@inline zero_scalar_or_matrix_ref(::Val{3}, ::Type{ELTYPE}) where {ELTYPE} =
+    Ref(zero(SMatrix{3, 3, ELTYPE, 9}))
 
 function center_of_mass_and_total_mass(coordinates, mass, ::Val{NDIMS},
                                        ELTYPE) where {NDIMS}
