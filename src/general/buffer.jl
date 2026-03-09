@@ -78,7 +78,7 @@ end
     # Additionally, this enables map-reduce operations for `v_max` computation
     # without having to distinguish inactive particles.
     for dim in 1:ndims(system)
-        v[dim, particle] = zero(eltype(system))
+        v[dim, particle] = 0
     end
 
     # `deactivate_particle!` and `active_particle[particle] = true`
