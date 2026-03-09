@@ -106,14 +106,38 @@
         system_no_model = RigidSPHSystem(initial_condition)
         v_no_model = zeros(TrixiParticles.v_nvariables(system_no_model),
                            TrixiParticles.n_integrated_particles(system_no_model))
-        @test TrixiParticles.current_density(v_no_model, system_no_model) ==
-              material_densities
         @test TrixiParticles.hydrodynamic_mass(system_no_model, 1) == mass[1]
 
         monaghan_model = BoundaryModelMonaghanKajtar(10.0, 1.0, smoothing_length,
                                                      hydrodynamic_masses)
         system_monaghan = RigidSPHSystem(initial_condition; boundary_model=monaghan_model)
         @test TrixiParticles.hydrodynamic_mass(system_monaghan, 1) == hydrodynamic_masses[1]
+    end
+
+    @trixi_testset "Source Terms without Boundary Model" begin
+        coordinates = [1.0 2.0
+                       1.0 2.0]
+        mass = [1.25, 1.5]
+        material_densities = [990.0, 1000.0]
+        initial_condition = InitialCondition(; coordinates, mass,
+                                             density=material_densities)
+
+        source_terms = (coords, velocity, density, pressure, t) -> SVector(density, pressure)
+        system = RigidSPHSystem(initial_condition; source_terms=source_terms)
+        semi = Semidiscretization(system, neighborhood_search=nothing)
+        system = semi.systems[1]
+        ode = semidiscretize(semi, (0.0, 0.0); reset_threads=false)
+
+        v_ode = ode.u0.x[1]
+        u_ode = ode.u0.x[2]
+        dv_ode = similar(v_ode)
+        fill!(dv_ode, 0.0)
+
+        TrixiParticles.add_source_terms!(dv_ode, v_ode, u_ode, semi, 0.0)
+
+        dv = TrixiParticles.wrap_v(dv_ode, system, semi)
+        @test dv[1, :] == material_densities
+        @test dv[2, :] == zeros(2)
     end
 
     @trixi_testset "Initial Angular Velocity" begin

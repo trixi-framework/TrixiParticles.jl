@@ -595,6 +595,22 @@ end
     integrate_tlsph && add_source_terms_inner!(dv, v, u, particle, system, source_terms_, t)
 end
 
+@inline function add_source_terms_inner!(dv, v, u, particle, system::RigidSPHSystem{Nothing},
+                                         source_terms_, t)
+    coords = current_coords(u, system, particle)
+    velocity = current_velocity(v, system, particle)
+    density = @inbounds system.material_density[particle]
+    pressure = current_pressure(v, nothing, system)
+
+    source = source_terms_(coords, velocity, density, pressure, t)
+
+    for i in eachindex(source)
+        dv[i, particle] += source[i]
+    end
+
+    return dv
+end
+
 @inline function add_source_terms_inner!(dv, v, u, particle, system, source_terms_, t)
     coords = current_coords(u, system, particle)
     velocity = current_velocity(v, system, particle)

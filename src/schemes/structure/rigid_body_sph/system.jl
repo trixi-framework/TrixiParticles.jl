@@ -195,14 +195,8 @@ end
 
 @inline function current_density(v, system::RigidSPHSystem)
     # `current_density` for rigid systems means hydrodynamic density (FSI coupling density),
-    # not necessarily the physical solid material density.
+    # not the physical solid material density.
     return current_density(v, system.boundary_model, system)
-end
-
-@inline function current_density(v, ::Nothing, system::RigidSPHSystem)
-    # Kept for consistency with boundary-model dispatch;
-    # explicitly use physical material density when no boundary model is present.
-    return system.material_density
 end
 
 # In fluid-structure interaction, use the hydrodynamic pressure corresponding to the
@@ -593,7 +587,7 @@ function system_data(system::RigidSPHSystem, dv_ode, du_ode, v_ode, u_ode, semi)
     coordinates = current_coordinates(u, system)
     velocity = current_velocity(v, system)
     acceleration = current_velocity(dv, system)
-    density = current_density(v, system)
+    density = system.material_density
     pressure = current_pressure(v, system)
     center_of_mass = system.center_of_mass[]
     center_of_mass_velocity = system.center_of_mass_velocity[]
