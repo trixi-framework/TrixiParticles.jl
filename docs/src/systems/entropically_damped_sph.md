@@ -49,11 +49,11 @@ It is found in the numerical experiments of [Ramachandran (2019)](@cite Ramachan
 is a good choice for a wide range of Reynolds numbers (0.0125 to 10000).
 
 !!! note
-    > The EDAC formulation keeps the density constant and this eliminates the need for the continuity equation
-    > or the use of a summation density to find the pressure. However, in SPH discretizations, ``m/\rho``
-    > is typically used as a proxy for the particle volume. The density of the fluids can
-    > therefore be computed using the summation density approach. [Ramachandran2019](@cite)
-
+    The EDAC formulation keeps the density constant and therefore eliminates the need for
+    the continuity equation or the use of a summation density to find the pressure.
+    However, in SPH discretizations, ``m/\rho`` is typically used as a proxy for the
+    particle volume. The density of the fluids can therefore still be computed using the
+    summation-density approach [Ramachandran2019](@cite).
 
 ```@autodocs
 Modules = [TrixiParticles]

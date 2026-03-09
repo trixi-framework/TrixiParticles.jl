@@ -139,8 +139,8 @@ pressure force,
 ```math
 \bm{F}_a^{p} = -m_a \sum_b m_b \left( \frac{p_a}{\rho_a^2} + \frac{p_b}{\rho_b^2} \right) \nabla_a W_{ab},
 ```
-to replace the unknown density $\rho_b$ if $b$ is a boundary particle by the reference density
-and the unknown pressure $p_b$ if $b$ is a boundary particle by the pressure $p_a$ of the
+to replace the unknown density ``\rho_b`` if ``b`` is a boundary particle by the reference density
+and the unknown pressure ``p_b`` if ``b`` is a boundary particle by the pressure ``p_a`` of the
 interacting fluid particle. The force therefore becomes
 ```math
 \bm{F}_a^{p} = -m_a \sum_f m_f \left( \frac{p_a}{\rho_a^2} + \frac{p_f}{\rho_f^2} \right) \nabla_a W_{af}
@@ -197,7 +197,7 @@ where ``m_a`` and ``m_b`` are the masses of fluid particle ``a`` and boundary pa
 respectively, ``\bm{r}_{ab} = \bm{r}_a - \bm{r}_b`` is the difference of the coordinates of particles
 ``a`` and ``b``, ``d`` denotes the boundary particle spacing and ``n`` denotes the number of
 dimensions (see [Monaghan & Kajtar, 2009](@cite Monaghan2009), Equation (3.1) and [Valizadeh & Monaghan, 2015](@cite Valizadeh2015)).
-Note that the repulsive acceleration $\tilde{f}_{ab}$ does not depend on the masses of
+Note that the repulsive acceleration ``\tilde{\bm{f}}_{ab}`` does not depend on the masses of
 the boundary particles.
 Here, ``\Phi`` denotes the 1D Wendland C4 kernel, normalized to ``1.77`` for ``q=0``
 ([Monaghan & Kajtar, 2009](@cite Monaghan2009), Section 4), with ``\Phi(r, h) = w(r/h)`` and

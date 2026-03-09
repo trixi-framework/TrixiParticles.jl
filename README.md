@@ -44,23 +44,23 @@ We provide several example simulation setups in the `examples` folder (which can
 
 <table align="center" border="0">
   <tr>
+    <td align="center">
+      <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/683e9363-5705-49cc-9a5c-3b47d73ea4b8" style="width: 80% !important;"/><br />
+      <figcaption>2D Dam Break</figcaption>
+    </td>
+    <td align="center">
+      <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/c10faddf-0400-47c9-b225-f5d286a8ecb8" style="width: 80% !important;"/><br />
+      <figcaption>Moving Wall</figcaption>
+    </td>
   </tr>
   <tr>
     <td align="center">
-      <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/683e9363-5705-49cc-9a5c-3b47d73ea4b8" style="width: 80% !important;"/><br><figcaption>2D Dam Break</figcaption>
+      <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/e05ace63-e330-441a-a391-eda3d2764074" style="width: 80% !important;"/><br />
+      <figcaption>Oscillating Beam</figcaption>
     </td>
     <td align="center">
-      <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/c10faddf-0400-47c9-b225-f5d286a8ecb8" style="width: 80% !important;"/><br><figcaption>Moving Wall</figcaption>
-    </td>
-  </tr>
-  <tr>
-  </tr>
-  <tr>
-    <td align="center">
-      <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/e05ace63-e330-441a-a391-eda3d2764074" style="width: 80% !important;"/><br><figcaption>Oscillating Beam</figcaption>
-    </td>
-    <td align="center">
-      <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/ada0d554-e0ba-44ed-923d-2b77ef252258" style="width: 80% !important;"/><br><figcaption>Dam Break with Elastic Plate</figcaption>
+      <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/ada0d554-e0ba-44ed-923d-2b77ef252258" style="width: 80% !important;"/><br />
+      <figcaption>Dam Break with Elastic Plate</figcaption>
     </td>
   </tr>
 </table>
