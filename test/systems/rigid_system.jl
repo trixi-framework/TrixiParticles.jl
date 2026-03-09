@@ -29,7 +29,7 @@
         @test system.material_density == material_densities
         @test system.initial_velocity == initial_condition.velocity
         @test system.acceleration == [0.0, -9.81]
-        @test iszero(system.initial_condition.angular_velocity)
+        @test iszero(system.angular_velocity[])
         @test system.particle_spacing == 0.1
         @test system.boundary_model == boundary_model
         @test TrixiParticles.v_nvariables(system) == 2
@@ -120,14 +120,16 @@
                           0.0 0.0]
         mass_2d = [1.0, 1.0]
         density_2d = [1000.0, 1000.0]
-        ic_2d = InitialCondition(; coordinates=coordinates_2d, mass=mass_2d,
-                                 density=density_2d, angular_velocity=2.0)
+        ic_2d = apply_angular_velocity(InitialCondition(; coordinates=coordinates_2d,
+                                                        mass=mass_2d,
+                                                        density=density_2d),
+                                       2.0)
 
         system_2d = RigidSPHSystem(ic_2d; particle_spacing=0.1)
         v0_2d = zeros(2, 2)
         TrixiParticles.write_v0!(v0_2d, system_2d)
 
-        @test system_2d.initial_condition.angular_velocity == 2.0
+        @test system_2d.angular_velocity[] == 2.0
         @test v0_2d == [0.0 0.0
                         -1.0 1.0]
         dt_2d = TrixiParticles.calculate_dt(v0_2d, zeros(size(v0_2d)), 0.25, system_2d,
@@ -136,36 +138,39 @@
         dt_2d_larger_cfl = TrixiParticles.calculate_dt(v0_2d, zeros(size(v0_2d)), 0.5,
                                                        system_2d, nothing)
         @test isapprox(dt_2d_larger_cfl, 0.5 * 0.1 / 1.0)
-        @test_throws ArgumentError InitialCondition(; coordinates=coordinates_2d,
-                                                    mass=mass_2d,
-                                                    density=density_2d,
-                                                    angular_velocity=(0.0, 1.0))
+        @test_throws ArgumentError apply_angular_velocity(InitialCondition(;
+                                                                           coordinates=coordinates_2d,
+                                                                           mass=mass_2d,
+                                                                           density=density_2d),
+                                                          (0.0, 1.0))
 
         coordinates_3d = [0.0 1.0
                           0.0 0.0
                           0.0 0.0]
         mass_3d = [1.0, 1.0]
         density_3d = [1000.0, 1000.0]
-        ic_3d = InitialCondition(; coordinates=coordinates_3d, mass=mass_3d,
-                                 density=density_3d,
-                                 angular_velocity=(0.0, 0.0, 2.0))
+        ic_3d = apply_angular_velocity(InitialCondition(; coordinates=coordinates_3d,
+                                                        mass=mass_3d,
+                                                        density=density_3d),
+                                       (0.0, 0.0, 2.0))
 
         system_3d = RigidSPHSystem(ic_3d)
         v0_3d = zeros(3, 2)
         TrixiParticles.write_v0!(v0_3d, system_3d)
 
-        @test system_3d.initial_condition.angular_velocity == [0.0, 0.0, 2.0]
+        @test system_3d.angular_velocity[] == [0.0, 0.0, 2.0]
         @test v0_3d == [0.0 0.0
                         -1.0 1.0
                         0.0 0.0]
 
         ic_3d_default = InitialCondition(; coordinates=coordinates_3d, mass=mass_3d,
                                          density=density_3d)
-        @test iszero(ic_3d_default.angular_velocity)
-        @test_throws ArgumentError InitialCondition(; coordinates=coordinates_3d,
-                                                    mass=mass_3d,
-                                                    density=density_3d,
-                                                    angular_velocity=2.0)
+        @test iszero(ic_3d_default.velocity)
+        @test_throws ArgumentError apply_angular_velocity(InitialCondition(;
+                                                                           coordinates=coordinates_3d,
+                                                                           mass=mass_3d,
+                                                                           density=density_3d),
+                                                          2.0)
     end
 
     @trixi_testset "Time Step Estimate 3D Gyroscopic" begin
@@ -198,9 +203,8 @@
                                              particle_spacing=0.1)
         system = RigidSPHSystem(initial_condition; acceleration=(0.0, 0.0))
 
-        # No angular_velocity kwarg was set, so this must be reconstructed from the
-        # initial velocity field.
-        @test iszero(initial_condition.angular_velocity)
+        # No angular velocity was applied explicitly, so this must be reconstructed
+        # from the initial velocity field.
         @test isapprox(system.angular_velocity[], 1.0)
 
         dt = TrixiParticles.calculate_dt(zeros(2, 2), zeros(2, 2), 0.25, system, nothing)

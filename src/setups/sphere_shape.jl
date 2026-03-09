@@ -3,7 +3,7 @@
                 sphere_type=VoxelSphere(), n_layers=-1, layer_outwards=false,
                 cutout_min=(0.0, 0.0), cutout_max=(0.0, 0.0), place_on_shell=false,
                 velocity=zeros(length(center_position)), mass=nothing, pressure=0,
-                coordinates_eltype=Float64, angular_velocity=nothing)
+                coordinates_eltype=Float64)
 
 Generate a sphere that is either completely filled (by default)
 or hollow (by passing `n_layers`).
@@ -52,10 +52,6 @@ coordinate directions as `cutout_min` and `cutout_max`.
                     only needed when using the [`EntropicallyDampedSPHSystem`](@ref).
 - `coordinates_eltype = Float64`: The eltype of the particle coordinates.
                     See [the docs on GPU support](@ref gpu_support) for more information.
-- `angular_velocity`: Initial angular velocity `ω` (not angular momentum),
-                    added to the initial `velocity` as a rotational contribution.
-                    Semantics match [`InitialCondition`](@ref): in 3D, axis from direction
-                    and angular speed from `|ω|`.
 
 # Examples
 ```jldoctest; output = false
@@ -102,7 +98,7 @@ function SphereShape(particle_spacing, radius, center_position, density;
                      sphere_type=VoxelSphere(), n_layers=-1, layer_outwards=false,
                      cutout_min=(0.0, 0.0), cutout_max=(0.0, 0.0), place_on_shell=false,
                      velocity=zeros(length(center_position)), mass=nothing, pressure=0,
-                     coordinates_eltype=Float64, angular_velocity=nothing)
+                     coordinates_eltype=Float64)
     if particle_spacing < eps()
         throw(ArgumentError("`particle_spacing` needs to be positive and larger than $(eps())"))
     end
@@ -130,7 +126,7 @@ function SphereShape(particle_spacing, radius, center_position, density;
     coordinates = coordinates[:, particles_not_in_cutout]
 
     return InitialCondition(; coordinates, velocity, mass, density, pressure,
-                            particle_spacing, angular_velocity)
+                            particle_spacing)
 end
 
 """

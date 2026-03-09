@@ -291,13 +291,13 @@ Convert [`InitialCondition`](@ref) data to VTK format.
 """
 function trixi2vtk(initial_condition::InitialCondition; output_directory="out",
                    prefix="", filename="initial_condition", custom_quantities...)
-    (; coordinates, velocity, density, mass, pressure, angular_velocity) = initial_condition
+    (; coordinates, velocity, density, mass, pressure) = initial_condition
 
     return trixi2vtk(coordinates; output_directory, prefix, filename,
                      density=density, initial_velocity=velocity, mass=mass,
                      particle_spacing=(initial_condition.particle_spacing .*
                                        ones(nparticles(initial_condition))),
-                     pressure=pressure, angular_velocity, custom_quantities...)
+                     pressure=pressure, custom_quantities...)
 end
 
 function write2vtk!(vtk, v, u, t, system)

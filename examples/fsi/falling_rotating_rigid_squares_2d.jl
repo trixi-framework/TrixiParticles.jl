@@ -57,13 +57,13 @@ square2_angular_velocity = -7.5
 square1 = RectangularShape(structure_particle_spacing,
                            (square1_nparticles_side, square1_nparticles_side),
                            square1_bottom_left,
-                           density=square1_density,
-                           angular_velocity=square1_angular_velocity)
+                           density=square1_density)
 square2 = RectangularShape(structure_particle_spacing,
                            (square2_nparticles_side, square2_nparticles_side),
                            square2_bottom_left,
-                           density=square2_density,
-                           angular_velocity=square2_angular_velocity)
+                           density=square2_density)
+square1 = apply_angular_velocity(square1, square1_angular_velocity)
+square2 = apply_angular_velocity(square2, square2_angular_velocity)
 
 # ==========================================================================================
 # ==== Fluid

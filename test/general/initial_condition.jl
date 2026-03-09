@@ -108,7 +108,7 @@
             @test ic_actual1.pressure == ic_actual2.pressure == ic_expected.pressure
         end
 
-        @testset "Angular Velocity Superposition" begin
+        @testset "Apply Angular Velocity" begin
             coordinates_2d = [0.0 2.0
                               0.0 0.0]
             base_velocity_2d = [1.0 1.0
@@ -117,11 +117,12 @@
             density_2d = [1000.0, 1000.0]
             ic_2d = InitialCondition(; coordinates=coordinates_2d,
                                      velocity=base_velocity_2d,
-                                     mass=mass_2d, density=density_2d, angular_velocity=2.0)
+                                     mass=mass_2d, density=density_2d)
+            rotated_ic_2d = apply_angular_velocity(ic_2d, 2.0)
 
-            @test ic_2d.velocity ≈ [1.0 1.0
-                                    -1.0 3.0]
-            @test ic_2d.angular_velocity ≈ 2.0
+            @test rotated_ic_2d.velocity ≈ [1.0 1.0
+                                            -1.0 3.0]
+            @test ic_2d.velocity == base_velocity_2d
 
             coordinates_3d = [0.0 2.0
                               0.0 0.0
@@ -133,13 +134,13 @@
             density_3d = [1000.0, 1000.0]
             ic_3d = InitialCondition(; coordinates=coordinates_3d,
                                      velocity=base_velocity_3d,
-                                     mass=mass_3d, density=density_3d,
-                                     angular_velocity=(0.0, 0.0, 2.0))
+                                     mass=mass_3d, density=density_3d)
+            rotated_ic_3d = apply_angular_velocity(ic_3d, (0.0, 0.0, 2.0))
 
-            @test ic_3d.velocity ≈ [1.0 1.0
-                                    -2.0 2.0
-                                    0.0 0.0]
-            @test ic_3d.angular_velocity ≈ [0.0, 0.0, 2.0]
+            @test rotated_ic_3d.velocity ≈ [1.0 1.0
+                                            -2.0 2.0
+                                            0.0 0.0]
+            @test ic_3d.velocity == base_velocity_3d
         end
 
         @testset "Automatic Mass Calculation" begin

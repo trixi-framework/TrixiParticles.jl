@@ -75,15 +75,17 @@ end
         end
     end
 
-    @testset verbose=true "Initial Angular Velocity" begin
+    @testset verbose=true "Apply Angular Velocity" begin
         geometry = InitialCondition(; coordinates=[-1.0 1.0
                                                    0.0 0.0],
                                     density=[1.0, 1.0], mass=[1.0, 1.0],
-                                    particle_spacing=1.0, angular_velocity=2.0)
+                                    particle_spacing=1.0)
 
-        shape = extrude_geometry(geometry; direction=[0.0, 0.0, 1.0], n_extrude=1)
+        shape = apply_angular_velocity(extrude_geometry(geometry;
+                                                        direction=[0.0, 0.0, 1.0],
+                                                        n_extrude=1),
+                                       (0.0, 0.0, 2.0))
 
-        @test shape.angular_velocity ≈ [0.0, 0.0, 2.0]
         @test shape.velocity ≈ [0.0 0.0
                                 -2.0 2.0
                                 0.0 0.0]

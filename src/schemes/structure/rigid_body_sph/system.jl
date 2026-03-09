@@ -18,10 +18,6 @@ torque and applied consistently to all rigid particles.
 - `boundary_model`: Boundary model for fluid-structure interaction
                     (see [Boundary Models](@ref boundary_models)).
 - `acceleration`: Global acceleration vector applied to all rigid particles.
-- `initial_condition.angular_velocity`: Initial angular velocity `ω` of the rigid body
-  (not angular momentum). In 2D, pass a scalar angular speed in rad/s.
-  In 3D, pass a vector of length 3: direction gives the rotation axis
-  (right-hand rule), and `|ω|` gives angular speed in rad/s.
 - `particle_spacing`: Reference particle spacing used for time-step estimation.
 - `source_terms`: Optional source terms of the form
                   `(coords, velocity, density, pressure, t) -> source`.
@@ -86,7 +82,7 @@ function RigidSPHSystem(initial_condition; boundary_model=nothing,
 
     force_per_particle = zeros(ELTYPE, NDIMS, nparticles(initial_condition))
     relative_coordinates = copy(local_coordinates)
-    zero_rotational_quantity = zero(initial_condition.angular_velocity)
+    zero_rotational_quantity = NDIMS == 2 ? zero(ELTYPE) : zero(SVector{3, ELTYPE})
     if NDIMS == 2
         inertia = Ref(zero(ELTYPE))
         inverse_inertia = Ref(zero(ELTYPE))
@@ -109,7 +105,7 @@ function RigidSPHSystem(initial_condition; boundary_model=nothing,
                             relative_coordinates, Ref(center_of_mass),
                             Ref(center_of_mass_velocity),
                             inertia, inverse_inertia,
-                            Ref(initial_condition.angular_velocity),
+                            Ref(zero_rotational_quantity),
                             Ref(zero(SVector{NDIMS, ELTYPE})),
                             Ref(zero_rotational_quantity),
                             Ref(zero_rotational_quantity),
@@ -425,7 +421,10 @@ function inverse_inertia_tensor(inertia::SMatrix{3, 3, ELTYPE, 9}) where {ELTYPE
     determinant_tolerance = eps(inertia_scale^3)
 
     if !isfinite(inertia_determinant) || abs(inertia_determinant) <= determinant_tolerance
-        return zero(inertia)
+        # Embedded 1D/2D particle layouts in 3D lead to singular inertia tensors.
+        # Use the Moore-Penrose pseudoinverse so angular velocity can still be
+        # reconstructed in the resolvable rotational subspace.
+        return SMatrix{3, 3, ELTYPE, 9}(pinv(Matrix(inertia)))
     end
 
     return inv(inertia)
@@ -595,8 +594,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::RigidSPHSystem)
         summary_header(io, "RigidSPHSystem{$(ndims(system))}")
         summary_line(io, "#particles", nparticles(system))
         summary_line(io, "acceleration", system.acceleration)
-        summary_line(io, "initial angular velocity",
-                     system.initial_condition.angular_velocity)
+        summary_line(io, "initial angular velocity", system.angular_velocity[])
         summary_line(io, "boundary model", system.boundary_model)
         summary_footer(io)
     end
