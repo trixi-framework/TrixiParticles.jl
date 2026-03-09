@@ -15,60 +15,59 @@
   <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/479ff0c6-3c65-44fe-b3e0-2ed653e7e3a5" alt="TrixiP_logo" width="40%"/>
 </p>
 
-**TrixiParticles.jl** is a high-performance numerical simulation framework for particle-based methods, focused on the simulation of complex multiphysics problems, and written in [Julia](https://julialang.org).
+**TrixiParticles.jl** is a high-performance simulation framework for particle-based methods for complex multiphysics applications, written in [Julia](https://julialang.org).
 
 TrixiParticles.jl focuses on the following use cases:
-- Accurate and efficient physics-based modelling of complex multiphysics problems.
+- Accurate and efficient physics-based modeling of complex multiphysics problems.
 - Development of new particle-based methods and models.
-- Easy setup of accessible simulations for educational purposes, including student projects, coursework, and thesis work.
+- Accessible simulation setup for educational purposes, including student projects, coursework, and thesis work.
 
-It offers intuitive configuration, robust pre- and post-processing, and vendor-agnostic GPU-support based on the Julia package [KernelAbstractions.jl](https://github.com/JuliaGPU/KernelAbstractions.jl).
+It offers intuitive configuration, robust pre- and post-processing, and vendor-agnostic GPU support based on the Julia package [KernelAbstractions.jl](https://github.com/JuliaGPU/KernelAbstractions.jl).
 
 [![YouTube](https://github.com/user-attachments/assets/dc2be627-a799-4bfd-9226-2077f737c4b0)](https://www.youtube.com/watch?v=V7FWl4YumcA&t=4667s)
 
 ## Features
-- Incompressible Navier-Stokes
-  - Methods: Weakly Compressible Smoothed Particle Hydrodynamics (WCSPH),
-    Entropically Damped Artificial Compressibility (EDAC),
-    Implicit Incompressible SPH (IISPH)
+- Incompressible Navier-Stokes flows
+  - Methods: Weakly Compressible Smoothed Particle Hydrodynamics (WCSPH), Entropically Damped Artificial Compressibility (EDAC),
+    Implicit Incompressible Smoothed Particle Hydrodynamics (IISPH)
   - Models: Surface Tension, Open Boundaries
-- Solid-body mechanics
-  - Methods:  Total Lagrangian SPH (TLSPH), Discrete Element Method (DEM)
+- Structural mechanics
+  - Methods: Total Lagrangian SPH (TLSPH), Discrete Element Method (DEM)
 - Fluid-Structure Interaction
-- Particle sampling of complex geometries from `.stl` and `.asc` files.
+- Particle sampling of complex geometries from `.stl`, `.asc`, and `.dxf` files.
 - Output formats:
   - VTK
-- Support for GPUs by Nvidia, AMD and Apple (experimental)
+- GPU support for NVIDIA, AMD, and Apple devices
 
 ## Examples
 We provide several example simulation setups in the `examples` folder (which can be accessed from Julia via `examples_dir()`).
 
 <table align="center" border="0">
   <tr>
+    <td align="center">
+      <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/683e9363-5705-49cc-9a5c-3b47d73ea4b8" style="width: 80% !important;"/><br />
+      <figcaption>2D Dam Break</figcaption>
+    </td>
+    <td align="center">
+      <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/c10faddf-0400-47c9-b225-f5d286a8ecb8" style="width: 80% !important;"/><br />
+      <figcaption>Moving Wall</figcaption>
+    </td>
   </tr>
   <tr>
     <td align="center">
-      <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/683e9363-5705-49cc-9a5c-3b47d73ea4b8" style="width: 80% !important;"/><br><figcaption>2D Dam Break</figcaption>
+      <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/e05ace63-e330-441a-a391-eda3d2764074" style="width: 80% !important;"/><br />
+      <figcaption>Oscillating Beam</figcaption>
     </td>
     <td align="center">
-      <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/c10faddf-0400-47c9-b225-f5d286a8ecb8" style="width: 80% !important;"/><br><figcaption>Moving Wall</figcaption>
-    </td>
-  </tr>
-  <tr>
-  </tr>
-  <tr>
-    <td align="center">
-      <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/e05ace63-e330-441a-a391-eda3d2764074" style="width: 80% !important;"/><br><figcaption>Oscillating Beam</figcaption>
-    </td>
-    <td align="center">
-      <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/ada0d554-e0ba-44ed-923d-2b77ef252258" style="width: 80% !important;"/><br><figcaption>Dam Break with Elastic Plate</figcaption>
+      <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/ada0d554-e0ba-44ed-923d-2b77ef252258" style="width: 80% !important;"/><br />
+      <figcaption>Dam Break with Elastic Plate</figcaption>
     </td>
   </tr>
 </table>
 
 
 ## Installation
-If you have not yet installed Julia, please [follow the instructions for your
+If you have not installed Julia yet, please [follow the instructions for your
 operating system](https://julialang.org/downloads/platform/). TrixiParticles.jl works
 with Julia v1.10 and newer. We recommend using the latest stable release of Julia.
 
@@ -115,7 +114,12 @@ Then start the simulation by executing
 julia> trixi_include(joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"))
 ```
 
-This will open a new window with a 2D visualization of the final solution:
+To visualize the result quickly, use Plots.jl:
+```julia
+julia> using Plots; plot(sol)
+```
+
+This opens a new window with a 2D visualization of the final solution:
 <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/44124897/95821154-577d-4323-ba57-16ef02ea24e0" width="400">
 
 Further details can be found in the [documentation](https://trixi-framework.github.io/TrixiParticles.jl/stable).
@@ -160,7 +164,7 @@ and
 
 ## Authors
 Erik Faulhaber (University of Cologne) and Niklas Neher (HLRS) implemented the foundations
-for TrixiParticles.jl and are principal developers along with Sven Berger (hereon).
+for TrixiParticles.jl and are principal developers along with Sven Berger (Hereon).
 The project was started by Michael Schlottke-Lakemper (University of Augsburg)
 and Gregor Gassner (University of Cologne), who provide scientific direction and technical advice.
 The full list of contributors can be found in [AUTHORS.md](AUTHORS.md).
@@ -183,4 +187,3 @@ or [create an issue](https://github.com/trixi-framework/TrixiParticles.jl/issues
 </p>
 
 The project has benefited from funding from [hereon](https://www.hereon.de/), [HiRSE](https://www.helmholtz-hirse.de/), and through [ScienceServe](https://www.helmholtz.de/en/research/current-calls-for-applications/article/scienceserve-boosting-research-software-at-helmholtz/) for the MATRIX project.
-
