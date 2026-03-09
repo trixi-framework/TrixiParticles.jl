@@ -715,7 +715,8 @@ function check_system_color(systems)
         system_ids = findall(system -> (system isa AbstractFluidSystem &&
                                         !(system isa ParticlePackingSystem)) ||
                                        system isa WallBoundarySystem ||
-                                       system isa RigidSPHSystem{<:BoundaryModelDummyParticles},
+                                       system isa
+                                       RigidSPHSystem{<:BoundaryModelDummyParticles},
                              systems)
 
         if length(system_ids) > 1 && sum(i -> systems[i].cache.color, system_ids) == 0

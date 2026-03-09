@@ -428,7 +428,7 @@ function update_rotational_kinematics!(system::RigidSPHSystem, system_velocity,
                             center_of_mass_velocity
         inertia += particle_mass * inertia_contribution(relative_position)
         angular_momentum += particle_mass * cross_product(relative_position,
-                                                          relative_velocity)
+                                          relative_velocity)
     end
 
     inverse_inertia = inverse_inertia_tensor(inertia)
