@@ -1,7 +1,7 @@
 name = "TrixiParticles"
 uuid = "66699cd8-9c01-4e9d-a059-b96c86d16b3a"
-version = "0.4.4-dev"
 authors = ["erik.faulhaber <44124897+efaulhaber@users.noreply.github.com>"]
+version = "0.4.4-dev"
 
 [deps]
 Accessors = "7d9f7c33-5ae7-4f3b-8dc6-eff91059b697"
