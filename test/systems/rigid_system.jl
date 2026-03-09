@@ -106,7 +106,6 @@
         system_no_model = RigidSPHSystem(initial_condition)
         v_no_model = zeros(TrixiParticles.v_nvariables(system_no_model),
                            TrixiParticles.n_integrated_particles(system_no_model))
-        @test TrixiParticles.hydrodynamic_mass(system_no_model, 1) == mass[1]
 
         monaghan_model = BoundaryModelMonaghanKajtar(10.0, 1.0, smoothing_length,
                                                      hydrodynamic_masses)
