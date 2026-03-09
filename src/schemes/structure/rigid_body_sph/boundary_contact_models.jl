@@ -152,6 +152,93 @@ end
     return -log_restitution / sqrt(pi^2 + log_restitution^2)
 end
 
+# Restitution of the clamped Kelvin-Voigt contact used in `normal_contact_force_components`.
+# This solves a dimensionless 1D impact problem where the spring-dashpot force is clamped
+# to avoid attraction during decompression.
+function clamped_restitution_from_damping_ratio(damping_ratio;
+                                                dt=5.0e-4,
+                                                max_time=60.0)
+    zeta = max(Float64(damping_ratio), 0.0)
+    zeta <= eps(zeta) && return 1.0
+
+    penetration = 0.0
+    penetration_rate = 1.0
+    started = false
+    time = 0.0
+
+    while time < max_time
+        function rhs(penetration_local, penetration_rate_local)
+            force = penetration_local > 0 ? max(penetration_local +
+                                                2.0 * zeta * penetration_rate_local,
+                                                0.0) : 0.0
+            return penetration_rate_local, -force
+        end
+
+        k1_p, k1_v = rhs(penetration, penetration_rate)
+        k2_p, k2_v = rhs(penetration + 0.5 * dt * k1_p,
+                         penetration_rate + 0.5 * dt * k1_v)
+        k3_p, k3_v = rhs(penetration + 0.5 * dt * k2_p,
+                         penetration_rate + 0.5 * dt * k2_v)
+        k4_p, k4_v = rhs(penetration + dt * k3_p,
+                         penetration_rate + dt * k3_v)
+
+        penetration_next = penetration + (dt / 6.0) * (k1_p + 2.0 * k2_p + 2.0 * k3_p +
+                                                       k4_p)
+        penetration_rate_next = penetration_rate + (dt / 6.0) * (k1_v + 2.0 * k2_v +
+                                                                  2.0 * k3_v + k4_v)
+
+        started |= penetration > 0.0
+        if started && penetration > 0.0 && penetration_next <= 0.0 &&
+           penetration_rate_next < 0.0
+            theta = penetration / (penetration - penetration_next)
+            rebound_rate = penetration_rate +
+                           theta * (penetration_rate_next - penetration_rate)
+
+            return max(0.0, -rebound_rate)
+        end
+
+        penetration = penetration_next
+        penetration_rate = penetration_rate_next
+        time += dt
+    end
+
+    return 0.0
+end
+
+# Invert `clamped_restitution_from_damping_ratio` via bisection.
+function damping_ratio_from_restitution_clamped(restitution; tolerance=1.0e-8)
+    target_restitution = clamp(Float64(restitution), 0.0, 1.0)
+    target_restitution >= 1.0 && return 0.0
+    target_restitution <= eps(target_restitution) && return 100.0
+
+    lower = 0.0
+    upper = 1.0
+    restitution_upper = clamped_restitution_from_damping_ratio(upper)
+
+    while restitution_upper > target_restitution && upper < 100.0
+        lower = upper
+        upper *= 2.0
+        restitution_upper = clamped_restitution_from_damping_ratio(upper)
+    end
+
+    restitution_upper > target_restitution && return upper
+
+    for _ in 1:70
+        mid = 0.5 * (lower + upper)
+        restitution_mid = clamped_restitution_from_damping_ratio(mid)
+
+        if restitution_mid > target_restitution
+            lower = mid
+        else
+            upper = mid
+        end
+
+        (upper - lower) <= tolerance * max(1.0, upper) && break
+    end
+
+    return 0.5 * (lower + upper)
+end
+
 @inline function default_body_mass(::Val{2}, density, radius)
     return density * pi * radius^2
 end
@@ -451,7 +538,8 @@ function RigidBoundaryContactModel(model::LinearizedHertzMindlinBoundaryContactM
     tangential_stiffness = convert(ELTYPE, 8.0) * effective_shear_modulus *
                            contact_radius
 
-    damping_ratio = damping_ratio_from_restitution(convert(ELTYPE, model.restitution))
+    damping_ratio = convert(ELTYPE,
+                            damping_ratio_from_restitution_clamped(model.restitution))
     normal_damping = convert(ELTYPE, 2.0) * damping_ratio *
                      sqrt(normal_stiffness * body_mass)
     tangential_damping = convert(ELTYPE, 2.0) * damping_ratio *
