@@ -106,7 +106,7 @@ half step for ``v``, yielding
 u^{1/2} &= u^0 + \frac{1}{2} \Delta t\, \operatorname{drift}(v^0, u^0, t^0), \\
 v^{1/2} &= v^0 + \frac{1}{2} \Delta t\, \operatorname{kick}(v^0, u^0, t^0), \\
 v^1 &= v^0 + \Delta t\, \operatorname{kick} \left( v^{1/2}, u^{1/2}, t^0 + \frac{1}{2} \Delta t \right), \\
-u^1 &= u^{1/2} + \frac{1}{2} \Delta t\, \operatorname{drift}(v^{1}, u^{1}, t^0 + \Delta t).
+u^1 &= u^{1/2} + \frac{1}{2} \Delta t\, \operatorname{drift}(v^{1}, u^{1/2}, t^0 + \Delta t).
 \end{align*}
 ```
 This scheme is implemented in OrdinaryDiffEq.jl as `LeapfrogDriftKickDrift` and yields
@@ -132,7 +132,7 @@ v^{1/2} &= v^0 + \frac{1}{2} \Delta t\, \operatorname{kick}(v^0, u^0, t^0), \\
 \rho^{1/2} &= \rho^0 + \frac{1}{2} \Delta t\, R(v^0, u^0, t^0), \\
 v^1 &= v^0 + \Delta t\, \operatorname{kick} \left( v^{1/2}, u^{1/2}, t^0 + \frac{1}{2} \Delta t \right), \\
 \rho^1 &= \rho^0 \frac{2 - \varepsilon^{1/2}}{2 + \varepsilon^{1/2}}, \\
-u^1 &= u^{1/2} + \frac{1}{2} \Delta t\, \operatorname{drift}(v^{1}, u^{1}, t^0 + \Delta t),
+u^1 &= u^{1/2} + \frac{1}{2} \Delta t\, \operatorname{drift}(v^{1}, u^{1/2}, t^0 + \Delta t),
 \end{align*}
 ```
 where

@@ -1,7 +1,7 @@
 # [Installation](@id installation)
 
 ## Setting up Julia
-If you have not yet installed Julia, please [follow the instructions on the
+If you have not installed Julia yet, please [follow the instructions on the
 official website](https://julialang.org/downloads/). TrixiParticles.jl works
 with Julia v1.10 and newer. We recommend using the latest stable release of Julia.
 
@@ -35,26 +35,25 @@ julia --project=run
 ```
 from the TrixiParticles.jl root directory.
 
-The advantage of using a separate `run` directory is that you can also add other
-related packages (e.g., OrdinaryDiffEq.jl, see above) to the project in the `run` folder
-and always have a reproducible environment at hand to share with others.
+The advantage of using a separate `run` directory is that you can add other related
+packages (e.g., OrdinaryDiffEq.jl, see above) to the project in that folder while
+keeping a reproducible environment that is easy to share with others.
 
 ## Optional software/packages
-- [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl) -- A Julia package of ordinary differential equation solvers that is used in the examples
-- [Plots.jl](https://github.com/JuliaPlots/Plots.jl) -- Julia Plotting library that is used in some examples
+- [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl) -- Julia package of ordinary differential equation solvers used in the examples
+- [Plots.jl](https://github.com/JuliaPlots/Plots.jl) -- Julia plotting library used in some examples
 - [PythonPlot.jl](https://github.com/JuliaPy/PythonPlot.jl) -- Plotting library that can be used instead of Plots.jl
-- [ParaView](https://www.paraview.org/) -- Software that can be used for visualization of results
+- [ParaView](https://www.paraview.org/) -- Visualization software for simulation results
 
 ## [Common issues](@id installation-issues)
 
-If you followed the [installation instructions for developers](@ref for-developers) and you
-run into any problems with packages when pulling the latest version of TrixiParticles.jl,
-start Julia with the project in the `run` folder,
+If you followed the [installation instructions for developers](@ref for-developers) and run
+into package issues after pulling the latest version of TrixiParticles.jl, start Julia with
+the project in the `run` folder,
 ```bash
    julia --project=run
 ```
-update all packages in that project, resolve all conflicts in the project, and install all
-new dependencies:
+then update packages, resolve dependency conflicts, and install new dependencies:
 ```julia
 julia> using Pkg
 
