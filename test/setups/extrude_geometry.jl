@@ -75,6 +75,20 @@ end
         end
     end
 
+    @testset verbose=true "Initial Angular Velocity" begin
+        geometry = InitialCondition(; coordinates=[-1.0 1.0
+                                                   0.0 0.0],
+                                    density=[1.0, 1.0], mass=[1.0, 1.0],
+                                    particle_spacing=1.0, angular_velocity=2.0)
+
+        shape = extrude_geometry(geometry; direction=[0.0, 0.0, 1.0], n_extrude=1)
+
+        @test shape.angular_velocity ≈ [0.0, 0.0, 2.0]
+        @test shape.velocity ≈ [0.0 0.0
+                                -2.0 2.0
+                                0.0 0.0]
+    end
+
     @testset verbose=true "Extrude 3D Plane" begin
         p1 = [0.0, 0.0, 0.0]
         p2 = [0.5, 1.0, 1.0]

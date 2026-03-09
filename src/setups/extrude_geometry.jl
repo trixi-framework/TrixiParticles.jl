@@ -123,8 +123,16 @@ function extrude_geometry(geometry; particle_spacing=-1, direction, n_extrude::I
         end
     end
 
+    angular_velocity = extruded_angular_velocity(angular_velocity, direction_, Val(NDIMS))
+
     return InitialCondition(; coordinates, velocity, density, mass, pressure,
                             particle_spacing=particle_spacing, angular_velocity)
+end
+
+@inline extruded_angular_velocity(angular_velocity, direction, ::Val{NDIMS}) where {NDIMS} = angular_velocity
+
+@inline function extruded_angular_velocity(angular_velocity::Number, direction, ::Val{3})
+    return angular_velocity .* direction
 end
 
 # For corners/endpoints of a plane/line, sample the plane/line with particles.
