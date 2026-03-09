@@ -91,15 +91,14 @@ end
 # TODO: Sort also masses and particle spacings for variable smoothing lengths.
 function sort_particles!(system::AbstractFluidSystem, v, u, nhs,
                          cell_list::FullGridCellList, semi)
-    cell_ids = zero(allocate(semi.parallelization_backend, Int, nparticles(system)))
+    cell_coords = allocate(semi.parallelization_backend, SVector{ndims(system), Int},
+                           nparticles(system))
     @threaded semi for particle in each_active_particle(system)
         point_coords = current_coords(u, system, particle)
-        cell_ids[particle] = PointNeighbors.cell_index(cell_list,
-                                                       PointNeighbors.cell_coords(point_coords,
-                                                                                  nhs))
+        cell_coords[particle] = PointNeighbors.cell_coords(point_coords, nhs)
     end
 
-    perm = sortperm(transfer2cpu(cell_ids))
+    perm = sortperm(transfer2cpu(cell_coords))
 
     sort_system!(system, v, u, perm, system.buffer)
 
