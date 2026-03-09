@@ -121,7 +121,8 @@
         initial_condition = InitialCondition(; coordinates, mass,
                                              density=material_densities)
 
-        source_terms = (coords, velocity, density, pressure, t) -> SVector(density, pressure)
+        source_terms = (coords, velocity, density, pressure,
+                        t) -> SVector(density, pressure)
         system = RigidSPHSystem(initial_condition; source_terms=source_terms)
         semi = Semidiscretization(system, neighborhood_search=nothing)
         system = semi.systems[1]

@@ -595,7 +595,8 @@ end
     integrate_tlsph && add_source_terms_inner!(dv, v, u, particle, system, source_terms_, t)
 end
 
-@inline function add_source_terms_inner!(dv, v, u, particle, system::RigidSPHSystem{Nothing},
+@inline function add_source_terms_inner!(dv, v, u, particle,
+                                         system::RigidSPHSystem{Nothing},
                                          source_terms_, t)
     coords = current_coords(u, system, particle)
     velocity = current_velocity(v, system, particle)

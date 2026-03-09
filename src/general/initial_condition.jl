@@ -204,8 +204,6 @@ function InitialCondition{NDIMS}(coordinates, velocity, mass, density,
                             ELTYPE.(masses), ELTYPE.(densities), ELTYPE.(pressures))
 end
 
-
-
 function Base.show(io::IO, ic::InitialCondition)
     @nospecialize ic # reduce precompilation time
 
