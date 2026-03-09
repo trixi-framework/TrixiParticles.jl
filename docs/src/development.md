@@ -3,24 +3,25 @@
 
 ## Preview of the documentation
 
-To generate the Documentation, first instantiate the `docs` environment
-by executing the following command from the TrixiParticles.jl root directory:
+To build the documentation, first instantiate the `docs` environment by running the
+following command from the TrixiParticles.jl root directory:
 ```bash
 julia --project=docs -e "using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()"
 ```
-This command only has to be run once. After that, maintain the `docs` environment
+You only need to run this command once. After that, maintain the `docs` environment
 as described under [Installation](@ref installation-issues).
 
-With an instantiated `docs` environment, generate the docs with the following command (again from the TrixiParticles.jl root directory):
+Once the `docs` environment is instantiated, build the documentation with the following
+command (again from the TrixiParticles.jl root directory):
 ```bash
 julia --project=docs --color=yes docs/make.jl
 ```
-You can then open the generated files in `docs/build` with your webbrowser.
+You can then open the generated files in `docs/build` in your web browser.
 Alternatively, run
 ```bash
 python3 -m http.server -d docs/build
 ```
-and open `localhost:8000` in your webbrowser.
+and open `localhost:8000` in your web browser.
 
 
 ## Release management
@@ -65,4 +66,3 @@ To create a new release for TrixiParticles.jl, perform the following steps:
    `-dev` suffix added. For example, if you just released `v0.3.0`, the new development
    version should be `v0.3.1-dev`. If you just released `v0.2.4`, the new development
    version should be `v0.2.5-dev`.
-

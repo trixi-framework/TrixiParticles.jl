@@ -1,13 +1,14 @@
 # Neighborhood Search
 
-The neighborhood search is the most essential component for performance.
+The neighborhood search is one of the most performance-critical components.
 We provide several implementations in the package
 [PointNeighbors.jl](https://github.com/trixi-framework/PointNeighbors.jl).
-See the docs of this package for an overview and a comparison of different implementations.
+See the PointNeighbors.jl documentation for an overview and a comparison of the
+different implementations.
 
 !!! note "Usage"
-    To run a simulation with a neighborhood search implementation, pass a template of the
-    neighborhood search to the constructor of the [`Semidiscretization`](@ref).
+    To run a simulation with a neighborhood search implementation, pass a neighborhood
+    search template to the constructor of the [`Semidiscretization`](@ref).
     A template is just an empty neighborhood search with search radius `0.0`.
     See [`copy_neighborhood_search`](@ref) and the examples below for more details.
     ```jldoctest semi_example; output=false, setup = :(using TrixiParticles; trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing); system1 = fluid_system; system2 = boundary_system)
