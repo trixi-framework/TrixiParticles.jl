@@ -89,7 +89,8 @@
                                    0.0 0.0]
                 expected_ic_rot = apply_angular_velocity(InitialCondition(;
                                                                           coordinates=coordinates_rot,
-                                                                          velocity=zeros(2, 2),
+                                                                          velocity=zeros(2,
+                                                                                         2),
                                                                           density=1000.0,
                                                                           pressure=900.0,
                                                                           mass=[1.0, 1.0]),
