@@ -87,6 +87,13 @@ function RigidSPHSystem(initial_condition; boundary_model=nothing,
     force_per_particle = zeros(ELTYPE, NDIMS, nparticles(initial_condition))
     relative_coordinates = copy(local_coordinates)
     zero_rotational_quantity = zero(initial_condition.angular_velocity)
+    if NDIMS == 2
+        inertia = Ref(zero(ELTYPE))
+        inverse_inertia = Ref(zero(ELTYPE))
+    else # NDIMS == 3
+        inertia = Ref(zero(SMatrix{3, 3, ELTYPE, 9}))
+        inverse_inertia = Ref(zero(SMatrix{3, 3, ELTYPE, 9}))
+    end
 
     center_of_mass_velocity = zero(SVector{NDIMS, ELTYPE})
     for particle in eachindex(mass)
@@ -101,8 +108,7 @@ function RigidSPHSystem(initial_condition; boundary_model=nothing,
                             particle_spacing_, total_mass, force_per_particle,
                             relative_coordinates, Ref(center_of_mass),
                             Ref(center_of_mass_velocity),
-                            zero_scalar_or_matrix_ref(Val(NDIMS), ELTYPE),
-                            zero_scalar_or_matrix_ref(Val(NDIMS), ELTYPE),
+                            inertia, inverse_inertia,
                             Ref(initial_condition.angular_velocity),
                             Ref(zero(SVector{NDIMS, ELTYPE})),
                             Ref(zero_rotational_quantity),
@@ -116,14 +122,6 @@ function RigidSPHSystem(initial_condition; boundary_model=nothing,
 
     return system
 end
-
-@inline zero_scalar_or_matrix_ref(::Val{2},
-                                  ::Type{ELTYPE}) where {ELTYPE} = Ref(zero(ELTYPE))
-
-@inline zero_scalar_or_matrix_ref(::Val{3},
-                                  ::Type{ELTYPE}) where {ELTYPE} = Ref(zero(SMatrix{3, 3,
-                                                                                    ELTYPE,
-                                                                                    9}))
 
 function center_of_mass_and_total_mass(coordinates, mass, ::Val{NDIMS},
                                        ELTYPE) where {NDIMS}
@@ -184,22 +182,10 @@ end
     return view(v, 1:ndims(system), :)
 end
 
-@inline function hydrodynamic_density(v, system::RigidSPHSystem)
-    return hydrodynamic_density(v, system.boundary_model, system)
-end
-
-@inline function hydrodynamic_density(v, boundary_model, system::RigidSPHSystem)
-    return current_density(v, boundary_model, system)
-end
-
-@inline function hydrodynamic_density(v, ::Nothing, system::RigidSPHSystem)
-    return system.material_density
-end
-
 @inline function current_density(v, system::RigidSPHSystem)
     # `current_density` for rigid systems means hydrodynamic density (FSI coupling density),
     # not necessarily the physical solid material density.
-    return hydrodynamic_density(v, system)
+    return current_density(v, system.boundary_model, system)
 end
 
 @inline function current_density(v, ::Nothing, system::RigidSPHSystem)
