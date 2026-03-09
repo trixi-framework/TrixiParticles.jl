@@ -14,7 +14,7 @@ Boundary model for [`WallBoundarySystem`](@ref).
 - `viscosity`:  Free-slip (default) or no-slip condition. See description above for further
                 information.
 """
-struct BoundaryModelMonaghanKajtar{ELTYPE <: Real, VECTOR, V} <: AbstractWallBoundaryModel
+struct BoundaryModelMonaghanKajtar{ELTYPE <: Real, VECTOR, V}
     K                         :: ELTYPE
     beta                      :: ELTYPE
     boundary_particle_spacing :: ELTYPE

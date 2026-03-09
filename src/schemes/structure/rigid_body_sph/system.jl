@@ -209,8 +209,7 @@ end
     return zero(eltype(system))
 end
 
-@inline function hydrodynamic_mass(system::RigidSPHSystem{<:AbstractWallBoundaryModel},
-                                   particle)
+@inline function hydrodynamic_mass(system::RigidSPHSystem, particle)
     return system.boundary_model.hydrodynamic_mass[particle]
 end
 
