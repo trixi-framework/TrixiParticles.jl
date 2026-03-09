@@ -422,6 +422,7 @@ end
 function write2vtk!(vtk, v, u, t, system::RigidSPHSystem)
     vtk["velocity"] = [current_velocity(v, system, particle)
                        for particle in eachparticle(system)]
+    vtk["color"] = system.cache.color
     vtk["material_density"] = system.material_density
     vtk["mass"] = system.mass
     vtk["local_coordinates"] = system.local_coordinates

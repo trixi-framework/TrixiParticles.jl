@@ -4,6 +4,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                    particle_system::RigidSPHSystem,
                    neighbor_system::AbstractFluidSystem, semi)
     sound_speed = system_sound_speed(neighbor_system)
+    surface_tension = surface_tension_model(neighbor_system)
 
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -59,7 +60,10 @@ function interact!(dv, v_particle_system, u_particle_system,
                                      sound_speed, m_b, m_a, rho_b, rho_a,
                                      grad_kernel)
 
-        dv_particle = dv_boundary + dv_viscosity_
+        dv_adhesion = adhesion_force(surface_tension, neighbor_system, particle_system,
+                                     neighbor, particle, pos_diff, distance)
+
+        dv_particle = dv_boundary + dv_viscosity_ + dv_adhesion
 
         for i in 1:ndims(particle_system)
             # `pressure_acceleration`/`dv_viscosity` return acceleration-like pair contributions.
@@ -95,8 +99,7 @@ function apply_resultant_force_and_torque!(dv, particle_system::RigidSPHSystem, 
     total_force,
     total_torque = resultant_force_and_torque(particle_system,
                                               particle_system.force_per_particle,
-                                              particle_system.relative_coordinates,
-                                              Val(ndims(particle_system)))
+                                              particle_system.relative_coordinates)
 
     # Convert the rigid-body resultants into translational and angular accelerations.
     translational_acceleration = total_force / total_mass
@@ -111,9 +114,8 @@ function apply_resultant_force_and_torque!(dv, particle_system::RigidSPHSystem, 
                                             particle)
         # For rigid bodies, the instantaneous acceleration of a material point is
         # `a_com + alpha x r` in this force-driven part of the RHS.
-        rotational_acceleration = angular_acceleration_cross_position(angular_acceleration_force,
-                                                                      relative_position,
-                                                                      Val(ndims(particle_system)))
+        rotational_acceleration = cross_product(angular_acceleration_force,
+                                                relative_position)
 
         for i in 1:ndims(particle_system)
             dv[i, particle] += translational_acceleration[i] + rotational_acceleration[i]
@@ -125,37 +127,23 @@ end
 
 # Sum pairwise particle forces into a single net force and torque about the current
 # center of mass of the rigid body.
-function resultant_force_and_torque(particle_system::RigidSPHSystem, force_per_particle,
-                                    relative_coordinates)
-    particles = each_integrated_particle(particle_system)
-    total_force,
-    total_torque = mapreduce((x, y) -> x .+ y, particles) do particle
+function resultant_force_and_torque(particle_system::RigidSPHSystem{<:Any, NDIMS},
+                                    force_per_particle,
+                                    relative_coordinates) where {NDIMS}
+    total_force = zero(SVector{NDIMS, eltype(particle_system)})
+    total_torque = zero(particle_system.resultant_torque[])
+
+    for particle in each_integrated_particle(particle_system)
         particle_force = extract_svector(force_per_particle, particle_system, particle)
         relative_position = extract_svector(relative_coordinates, particle_system, particle)
+        total_force += particle_force
+
         # Torque is taken about the current center of mass, using the particle's current
         # relative position inside the rigid body.
-        particle_torque = cross(relative_position, particle_force)
-        return (particle_force, particle_torque)
+        total_torque += cross_product(relative_position, particle_force)
     end
 
     return total_force, total_torque
-end
-
-# Compute `alpha x r` for 2D rigid-body motion, where `alpha` is the scalar out-of-plane
-# angular acceleration and `r` the in-plane particle position relative to the center of mass.
-@inline function angular_acceleration_cross_position(angular_acceleration,
-                                                     relative_position,
-                                                     ::Val{2})
-    # In 2D, angular acceleration is a scalar in the out-of-plane direction.
-    return SVector(-angular_acceleration * relative_position[2],
-                   angular_acceleration * relative_position[1])
-end
-
-# Compute `alpha x r` for 3D rigid-body motion.
-@inline function angular_acceleration_cross_position(angular_acceleration,
-                                                     relative_position,
-                                                     ::Val{3})
-    return cross(angular_acceleration, relative_position)
 end
 
 # Default rigid boundary models keep density fixed, so structure-fluid coupling does not

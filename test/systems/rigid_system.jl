@@ -32,6 +32,7 @@
         @test iszero(system.angular_velocity[])
         @test system.particle_spacing == 0.1
         @test system.boundary_model == boundary_model
+        @test system.adhesion_coefficient == 0.0
         @test TrixiParticles.v_nvariables(system) == 2
 
         dt = TrixiParticles.calculate_dt(zeros(2, 3), zeros(2, 3), 0.25, system,
@@ -377,5 +378,100 @@
                                                    smoothing_length)
 
         @test_throws ArgumentError Semidiscretization(fluid_system, rigid_system)
+
+        rigid_boundary_model = BoundaryModelDummyParticles(density, mass,
+                                                           SummationDensity(),
+                                                           smoothing_kernel,
+                                                           smoothing_length)
+        rigid_system_with_dummy = RigidSPHSystem(rigid_ic;
+                                                 boundary_model=rigid_boundary_model)
+        fluid_with_surface_tension = WeaklyCompressibleSPHSystem(rigid_ic,
+                                                                 SummationDensity(),
+                                                                 state_equation,
+                                                                 smoothing_kernel,
+                                                                 smoothing_length;
+                                                                 surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.072),
+                                                                 reference_particle_spacing=0.1)
+
+        @test_throws ArgumentError Semidiscretization(fluid_with_surface_tension,
+                                                      rigid_system_with_dummy)
+    end
+
+    @trixi_testset "Akinci Adhesion Matches Wall Boundary" begin
+        particle_spacing = 1.0
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        smoothing_length = 1.0
+        fluid_density = 1000.0
+        rigid_density = 2000.0
+        particle_volume = particle_spacing^2
+        adhesion_coefficient = 0.25
+
+        state_equation = StateEquationCole(sound_speed=10.0,
+                                           reference_density=fluid_density,
+                                           exponent=1.0)
+
+        function run_setup(boundary_kind)
+            fluid_ic = InitialCondition(coordinates=reshape([0.0, 0.0], 2, 1),
+                                        velocity=zeros(2, 1),
+                                        mass=[particle_volume * fluid_density],
+                                        density=[fluid_density],
+                                        particle_spacing=particle_spacing)
+
+            fluid_system = WeaklyCompressibleSPHSystem(fluid_ic, SummationDensity(),
+                                                       state_equation,
+                                                       smoothing_kernel,
+                                                       smoothing_length;
+                                                       surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.05),
+                                                       reference_particle_spacing=particle_spacing)
+
+            boundary_coordinates = reshape([1.5, 0.0], 2, 1)
+            boundary_model = BoundaryModelDummyParticles([fluid_density],
+                                                         [particle_volume * fluid_density],
+                                                         AdamiPressureExtrapolation(),
+                                                         smoothing_kernel,
+                                                         smoothing_length,
+                                                         state_equation=state_equation,
+                                                         reference_particle_spacing=particle_spacing)
+
+            boundary_system = if boundary_kind == :wall
+                wall_ic = InitialCondition(coordinates=boundary_coordinates,
+                                           velocity=zeros(2, 1),
+                                           mass=[particle_volume * fluid_density],
+                                           density=[fluid_density],
+                                           particle_spacing=particle_spacing)
+                WallBoundarySystem(wall_ic, boundary_model,
+                                   adhesion_coefficient=adhesion_coefficient)
+            else
+                rigid_ic = InitialCondition(coordinates=boundary_coordinates,
+                                            velocity=zeros(2, 1),
+                                            mass=[particle_volume * rigid_density],
+                                            density=[rigid_density],
+                                            particle_spacing=particle_spacing)
+                RigidSPHSystem(rigid_ic;
+                               boundary_model=boundary_model,
+                               adhesion_coefficient=adhesion_coefficient)
+            end
+
+            semi = Semidiscretization(fluid_system, boundary_system)
+            ode = semidiscretize(semi, (0.0, 0.01))
+
+            v_ode, u_ode = ode.u0.x
+            dv_ode = zero(v_ode)
+            TrixiParticles.kick!(dv_ode, v_ode, u_ode, ode.p, 0.0)
+
+            fluid = ode.p.systems[1]
+            boundary = ode.p.systems[2]
+            dv_fluid = TrixiParticles.wrap_v(dv_ode, fluid, ode.p)
+
+            return fluid, boundary, dv_fluid[:, 1]
+        end
+
+        fluid_wall, wall_system, dv_wall = run_setup(:wall)
+        fluid_rigid, rigid_system, dv_rigid = run_setup(:rigid)
+
+        @test isapprox(dv_rigid, dv_wall; rtol=sqrt(eps()), atol=sqrt(eps()))
+        @test isapprox(rigid_system.resultant_force[],
+                       -fluid_rigid.mass[1] * dv_rigid;
+                       rtol=sqrt(eps()), atol=sqrt(eps()))
     end
 end

@@ -3,7 +3,8 @@
                    boundary_model=nothing,
                    acceleration=ntuple(_ -> 0.0, ndims(initial_condition)),
                    particle_spacing=initial_condition.particle_spacing,
-                   source_terms=nothing, color_value=0)
+                   source_terms=nothing, adhesion_coefficient=0.0,
+                   color_value=0)
 
 System for particles of a rigid structure.
 
@@ -21,7 +22,16 @@ torque and applied consistently to all rigid particles.
 - `particle_spacing`: Reference particle spacing used for time-step estimation.
 - `source_terms`: Optional source terms of the form
                   `(coords, velocity, density, pressure, t) -> source`.
-- `color_value`: The value used to initialize the color of particles in the system.
+- `adhesion_coefficient`: Wall-adhesion strength used by Akinci-type surface tension
+                          models when fluids interact with this rigid body. This is
+                          only evaluated for fluid-structure interaction with
+                          surface-tension-enabled fluid systems.
+- `color_value`: Integer label stored as `system.cache.color`.
+                 Currently this is used with `BoundaryModelDummyParticles` during
+                 colorfield initialization so fluids using
+                 [`ColorfieldSurfaceNormal`](@ref) can detect contact with rigid
+                 bodies, it participates in the multi-system color sanity check for
+                 surface-tension setups, and it is written to VTK output as `"color"`.
 """
 struct RigidSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
                       ST, CM, CMV, I, II, AV, RF, RT, AAF, GA, C} <:
@@ -47,6 +57,7 @@ struct RigidSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
     gyroscopic_acceleration    :: GA
     boundary_model             :: BM
     source_terms               :: ST
+    adhesion_coefficient       :: ELTYPE
     cache                      :: C
 end
 
@@ -56,7 +67,8 @@ function RigidSPHSystem(initial_condition; boundary_model=nothing,
                         acceleration=ntuple(_ -> zero(eltype(initial_condition)),
                                             ndims(initial_condition)),
                         particle_spacing=initial_condition.particle_spacing,
-                        source_terms=nothing, color_value=0)
+                        source_terms=nothing, adhesion_coefficient=0.0,
+                        color_value=0)
     NDIMS = ndims(initial_condition)
     if NDIMS != 2 && NDIMS != 3
         throw(ArgumentError("`RigidSPHSystem` currently supports only 2D and 3D, got $(NDIMS)D"))
@@ -110,7 +122,9 @@ function RigidSPHSystem(initial_condition; boundary_model=nothing,
                             Ref(zero_rotational_quantity),
                             Ref(zero_rotational_quantity),
                             Ref(zero_rotational_quantity),
-                            boundary_model, source_terms, create_cache_rigid(color_value))
+                            boundary_model, source_terms,
+                            convert(ELTYPE, adhesion_coefficient),
+                            create_cache_rigid(color_value))
 
     # Initialize rotational kinematics consistently with the initial velocity field.
     update_rotational_kinematics!(system, initial_velocity, center_of_mass_velocity,
@@ -137,6 +151,7 @@ function center_of_mass_and_total_mass(coordinates, mass, ::Val{NDIMS},
     return center_of_mass / total_mass, total_mass
 end
 
+# Per-system color tag for colorfield surface-normal logic and VTK output.
 create_cache_rigid(color_value) = (; color=Int(color_value))
 
 function update_relative_coordinates!(relative_coordinates, coordinates, center_of_mass,
@@ -244,7 +259,39 @@ end
     return system.boundary_model.correction
 end
 
-initialize!(system::RigidSPHSystem, semi) = system
+function initialize!(system::RigidSPHSystem, semi)
+    initialize_colorfield!(system, system.boundary_model, semi)
+    return system
+end
+
+function calc_normal!(system::AbstractFluidSystem,
+                      neighbor_system::RigidSPHSystem{<:BoundaryModelDummyParticles},
+                      u_system, v, v_neighbor_system, u_neighbor_system, semi,
+                      surface_normal_method, neighbor_surface_normal_method)
+    haskey(neighbor_system.boundary_model.cache, :initial_colorfield) || return system
+
+    return calc_boundary_normal!(system, neighbor_system, u_system, v, u_neighbor_system,
+                                 semi, surface_normal_method)
+end
+
+@inline function adhesion_force(surface_tension::AkinciTypeSurfaceTension,
+                                particle_system::AbstractFluidSystem,
+                                neighbor_system::RigidSPHSystem,
+                                particle, neighbor, pos_diff, distance)
+    (; adhesion_coefficient) = neighbor_system
+
+    # No adhesion with oneself. See `src/general/smoothing_kernels.jl` for more details.
+    distance^2 < eps(initial_smoothing_length(particle_system)^2) && return zero(pos_diff)
+
+    abs(adhesion_coefficient) < eps() && return zero(pos_diff)
+
+    m_b = hydrodynamic_mass(neighbor_system, neighbor)
+    support_radius = compact_support(system_smoothing_kernel(particle_system),
+                                     smoothing_length(particle_system, particle))
+
+    return adhesion_force_akinci(surface_tension, support_radius, m_b, pos_diff, distance,
+                                 adhesion_coefficient)
+end
 
 function write_u0!(u0, system::RigidSPHSystem)
     (; initial_condition) = system
@@ -380,7 +427,8 @@ function update_rotational_kinematics!(system::RigidSPHSystem, system_velocity,
         relative_velocity = extract_svector(system_velocity, system, particle) -
                             center_of_mass_velocity
         inertia += particle_mass * inertia_contribution(relative_position)
-        angular_momentum += particle_mass * cross(relative_position, relative_velocity)
+        angular_momentum += particle_mass * cross_product(relative_position,
+                                                          relative_velocity)
     end
 
     inverse_inertia = inverse_inertia_tensor(inertia)
@@ -616,6 +664,22 @@ function check_configuration(system::RigidSPHSystem, systems, nhs)
         if neighbor isa AbstractFluidSystem && boundary_model === nothing
             throw(ArgumentError("a boundary model for `RigidSPHSystem` must be specified " *
                                 "when simulating a fluid-structure interaction."))
+        end
+
+        if neighbor isa AbstractFluidSystem &&
+           neighbor.surface_normal_method isa ColorfieldSurfaceNormal
+            if !(boundary_model isa BoundaryModelDummyParticles)
+                throw(ArgumentError("`RigidSPHSystem` is only compatible with " *
+                                    "`ColorfieldSurfaceNormal` when using " *
+                                    "`BoundaryModelDummyParticles`."))
+            end
+
+            if !haskey(boundary_model.cache, :initial_colorfield)
+                throw(ArgumentError("`RigidSPHSystem` with `BoundaryModelDummyParticles` " *
+                                    "requires `reference_particle_spacing` to be set on " *
+                                    "the boundary model when used together with " *
+                                    "`ColorfieldSurfaceNormal` or a surface tension model."))
+            end
         end
     end
 end

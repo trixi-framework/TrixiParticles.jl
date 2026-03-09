@@ -709,18 +709,27 @@ end
 check_configuration(system::AbstractSystem, systems, nhs) = nothing
 
 function check_system_color(systems)
-    if any(system isa AbstractFluidSystem && !(system isa ParticlePackingSystem) &&
-           !isnothing(system.surface_tension)
-           for system in systems)
+    if any(requires_system_color(system) for system in systems)
 
-        # System indices of all systems that are either a fluid or a boundary system
-        system_ids = findall(system isa Union{AbstractFluidSystem, WallBoundarySystem}
-                             for system in systems)
+        # Systems that contribute to the colorfield/contact logic.
+        system_ids = findall(system -> (system isa AbstractFluidSystem &&
+                                        !(system isa ParticlePackingSystem)) ||
+                                       system isa WallBoundarySystem ||
+                                       system isa RigidSPHSystem{<:BoundaryModelDummyParticles},
+                             systems)
 
         if length(system_ids) > 1 && sum(i -> systems[i].cache.color, system_ids) == 0
-            throw(ArgumentError("If a surface tension model is used the values of at least one system needs to have a color different than 0."))
+            throw(ArgumentError("If `ColorfieldSurfaceNormal` or a surface tension model is used, at least one participating system must have a color different from 0."))
         end
     end
+end
+
+@inline requires_system_color(system) = false
+
+@inline function requires_system_color(system::AbstractFluidSystem)
+    return !(system isa ParticlePackingSystem) &&
+           (!isnothing(system.surface_tension) ||
+            system.surface_normal_method isa ColorfieldSurfaceNormal)
 end
 
 # After `adapt`, the system type information may change.
