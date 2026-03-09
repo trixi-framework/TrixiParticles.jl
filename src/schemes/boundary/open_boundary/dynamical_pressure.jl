@@ -98,9 +98,9 @@ function write_v0!(v0, system::OpenBoundarySystem, ::BoundaryModelDynamicalPress
     return v0
 end
 
-function reference_pressure(boundary_zone, v,
-                            system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
-                            particle, pos, t)
+@inline function reference_pressure(boundary_zone, v,
+                                    system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
+                                    particle, pos, t)
     (; prescribed_pressure, rest_pressure) = boundary_zone
     (; pressure_reference_values) = system.cache
 
