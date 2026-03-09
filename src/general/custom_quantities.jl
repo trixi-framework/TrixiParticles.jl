@@ -18,6 +18,18 @@ function kinetic_energy(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
     end
 end
 
+function kinetic_energy(system::AbstractStructureSystem,
+                        dv_ode, du_ode, v_ode, u_ode, semi, t)
+    v = wrap_v(v_ode, system, semi)
+    mass = system.mass
+    energy = zero(eltype(system))
+
+    return sum(each_active_particle(system)) do particle
+        v_i = current_velocity(v, system, particle)
+        energy += mass[particle] * dot(v_i, v_i) / 2
+    end
+end
+
 function kinetic_energy(system::AbstractBoundarySystem,
                         dv_ode, du_ode, v_ode, u_ode, semi, t)
     return zero(eltype(system))
