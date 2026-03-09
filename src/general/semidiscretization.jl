@@ -709,7 +709,15 @@ end
 check_configuration(system::AbstractSystem, systems, nhs) = nothing
 
 function check_system_color(systems)
-    if any(requires_system_color(system) for system in systems)
+    requires_color_check = any(systems) do system
+        system isa AbstractFluidSystem || return false
+        system isa ParticlePackingSystem && return false
+
+        return !isnothing(system.surface_tension) ||
+               system.surface_normal_method isa ColorfieldSurfaceNormal
+    end
+
+    if requires_color_check
 
         # Systems that contribute to the colorfield/contact logic.
         system_ids = findall(system -> (system isa AbstractFluidSystem &&
@@ -723,14 +731,6 @@ function check_system_color(systems)
             throw(ArgumentError("If `ColorfieldSurfaceNormal` or a surface tension model is used, at least one participating system must have a color different from 0."))
         end
     end
-end
-
-@inline requires_system_color(system) = false
-
-@inline function requires_system_color(system::AbstractFluidSystem)
-    return !(system isa ParticlePackingSystem) &&
-           (!isnothing(system.surface_tension) ||
-            system.surface_normal_method isa ColorfieldSurfaceNormal)
 end
 
 # After `adapt`, the system type information may change.
