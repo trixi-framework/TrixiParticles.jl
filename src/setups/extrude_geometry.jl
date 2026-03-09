@@ -1,8 +1,7 @@
 @doc raw"""
     extrude_geometry(geometry; particle_spacing, direction, n_extrude::Integer,
                      velocity=zeros(length(direction)),
-                     mass=nothing, density=nothing, pressure=0.0,
-                     angular_velocity=nothing)
+                     mass=nothing, density=nothing, pressure=0.0)
 
 Extrude either a line, a plane or a shape along a specific direction.
 Returns an [`InitialCondition`](@ref).
@@ -36,10 +35,6 @@ Returns an [`InitialCondition`](@ref).
                         the [`TotalLagrangianSPHSystem`](@ref) requires particles to be placed
                         on the shell of the geometry and not half a particle spacing away,
                         as for fluids.
-- `angular_velocity`:   Initial angular velocity `ω` (not angular momentum),
-                        added to the initial `velocity` as a rotational contribution.
-                        Semantics match [`InitialCondition`](@ref): in 3D, axis from
-                        direction and angular speed from `|ω|`.
 
 # Examples
 ```jldoctest; output = false
@@ -91,8 +86,7 @@ shape = extrude_geometry(shape; direction, particle_spacing=0.1, n_extrude=4, de
 """
 function extrude_geometry(geometry; particle_spacing=-1, direction, n_extrude::Integer,
                           velocity=zeros(length(direction)), place_on_shell=false,
-                          mass=nothing, density=nothing, pressure=0.0,
-                          angular_velocity=nothing)
+                          mass=nothing, density=nothing, pressure=0.0)
     direction_ = normalize(direction)
     NDIMS = length(direction_)
 
@@ -118,13 +112,10 @@ function extrude_geometry(geometry; particle_spacing=-1, direction, n_extrude::I
 
     if geometry isa InitialCondition
         density = vcat(geometry.density, (geometry.density for i in 1:(n_extrude - 1))...)
-        if angular_velocity === nothing
-            angular_velocity = geometry.angular_velocity
-        end
     end
 
     return InitialCondition(; coordinates, velocity, density, mass, pressure,
-                            particle_spacing=particle_spacing, angular_velocity)
+                            particle_spacing=particle_spacing)
 end
 
 # For corners/endpoints of a plane/line, sample the plane/line with particles.

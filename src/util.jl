@@ -25,6 +25,12 @@ end
 
 @inline foreach_noalloc(func, collection1::Tuple{}, collection2::Tuple{}) = nothing
 
+@inline cross_product(a, b) = cross(a, b)
+
+@inline function cross_product(a::Number, b::SVector{2})
+    return SVector(-a * b[2], a * b[1])
+end
+
 # Returns `functions[index](args...)`, but in a type-stable way for a heterogeneous tuple `functions`
 @inline function apply_ith_function(functions, index, args...)
     if index == 1

@@ -4,7 +4,8 @@
                    boundary_contact_model=nothing,
                    acceleration=ntuple(_ -> 0.0, ndims(initial_condition)),
                    particle_spacing=initial_condition.particle_spacing,
-                   source_terms=nothing, color_value=0)
+                   source_terms=nothing, adhesion_coefficient=0.0,
+                   color_value=0)
 
 System for particles of a rigid structure.
 
@@ -21,12 +22,19 @@ torque and applied consistently to all rigid particles.
 - `boundary_contact_model`: Optional rigid-wall contact model.
                             If specified, rigid-wall collisions with Coulomb friction are enabled.
 - `acceleration`: Global acceleration vector applied to all rigid particles.
-- `initial_condition.angular_velocity`: Initial angular velocity of the rigid body.
-  For 2D, use a scalar. For 3D, use a vector of length 3.
 - `particle_spacing`: Reference particle spacing used for time-step estimation.
 - `source_terms`: Optional source terms of the form
                   `(coords, velocity, density, pressure, t) -> source`.
-- `color_value`: The value used to initialize the color of particles in the system.
+- `adhesion_coefficient`: Wall-adhesion strength used by Akinci-type surface tension
+                          models when fluids interact with this rigid body. This is
+                          only evaluated for fluid-structure interaction with
+                          surface-tension-enabled fluid systems.
+- `color_value`: Integer label stored as `system.cache.color`.
+                 Currently this is used with `BoundaryModelDummyParticles` during
+                 colorfield initialization so fluids using
+                 [`ColorfieldSurfaceNormal`](@ref) can detect contact with rigid
+                 bodies, it participates in the multi-system color sanity check for
+                 surface-tension setups, and it is written to VTK output as `"color"`.
 """
 struct RigidSPHSystem{BM, BCM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
                       ST, C} <: AbstractStructureSystem{NDIMS}
@@ -40,7 +48,8 @@ struct RigidSPHSystem{BM, BCM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
     boundary_model::BM
     boundary_contact_model::BCM
     source_terms::ST
-    cache::C
+    adhesion_coefficient       :: ELTYPE
+    cache                      :: C
 end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
@@ -50,7 +59,8 @@ function RigidSPHSystem(initial_condition; boundary_model=nothing,
                         acceleration=ntuple(_ -> zero(eltype(initial_condition)),
                                             ndims(initial_condition)),
                         particle_spacing=initial_condition.particle_spacing,
-                        source_terms=nothing, color_value=0)
+                        source_terms=nothing, adhesion_coefficient=0.0,
+                        color_value=0)
     NDIMS = ndims(initial_condition)
     ELTYPE = eltype(initial_condition)
 
@@ -78,7 +88,6 @@ function RigidSPHSystem(initial_condition; boundary_model=nothing,
                                                Val(NDIMS), ELTYPE)
     update_relative_coordinates!(local_coordinates, local_coordinates,
                                  center_of_mass, Val(NDIMS))
-
     center_of_mass_velocity = zero(SVector{NDIMS, ELTYPE})
     for particle in eachindex(mass)
         particle_mass = convert(ELTYPE, mass[particle])
@@ -89,14 +98,14 @@ function RigidSPHSystem(initial_condition; boundary_model=nothing,
 
     cache = create_cache_rigid(Val(NDIMS), ELTYPE, nparticles(initial_condition),
                                total_mass, center_of_mass, local_coordinates,
-                               center_of_mass_velocity,
-                               initial_condition.angular_velocity, boundary_contact_model_,
+                               center_of_mass_velocity, boundary_contact_model_,
                                color_value)
 
     system = RigidSPHSystem(initial_condition, initial_velocity, local_coordinates,
                             mass, material_density, acceleration_,
                             particle_spacing_, boundary_model,
-                            boundary_contact_model_, source_terms, cache)
+                            boundary_contact_model_, source_terms,
+                            convert(ELTYPE, adhesion_coefficient), cache)
 
     # Initialize rotational kinematics consistently with the initial velocity field.
     update_rotational_kinematics!(system, initial_velocity, center_of_mass_velocity,
@@ -125,8 +134,7 @@ end
 
 function create_cache_rigid(::Val{2}, ELTYPE, n_particles, total_mass,
                             center_of_mass, local_coordinates,
-                            center_of_mass_velocity, initial_angular_velocity,
-                            boundary_contact_model, color_value)
+                            center_of_mass_velocity, boundary_contact_model, color_value)
     force_per_particle = zeros(ELTYPE, 2, n_particles)
     relative_coordinates = copy(local_coordinates)
     tangential_displacement = create_contact_tangential_displacement(boundary_contact_model,
@@ -137,7 +145,7 @@ function create_cache_rigid(::Val{2}, ELTYPE, n_particles, total_mass,
             relative_coordinates, center_of_mass=Ref(center_of_mass),
             center_of_mass_velocity=Ref(center_of_mass_velocity),
             inertia=Ref(zero(ELTYPE)), inverse_inertia=Ref(zero(ELTYPE)),
-            angular_velocity=Ref(initial_angular_velocity),
+            angular_velocity=Ref(zero(ELTYPE)),
             resultant_force=Ref(zero(SVector{2, ELTYPE})),
             resultant_torque=Ref(zero(ELTYPE)),
             angular_acceleration_force=Ref(zero(ELTYPE)),
@@ -151,8 +159,7 @@ end
 
 function create_cache_rigid(::Val{3}, ELTYPE, n_particles, total_mass,
                             center_of_mass, local_coordinates,
-                            center_of_mass_velocity, initial_angular_velocity,
-                            boundary_contact_model, color_value)
+                            center_of_mass_velocity, boundary_contact_model, color_value)
     force_per_particle = zeros(ELTYPE, 3, n_particles)
     relative_coordinates = copy(local_coordinates)
     tangential_displacement = create_contact_tangential_displacement(boundary_contact_model,
@@ -164,7 +171,7 @@ function create_cache_rigid(::Val{3}, ELTYPE, n_particles, total_mass,
             center_of_mass_velocity=Ref(center_of_mass_velocity),
             inertia=Ref(zero(SMatrix{3, 3, ELTYPE, 9})),
             inverse_inertia=Ref(zero(SMatrix{3, 3, ELTYPE, 9})),
-            angular_velocity=Ref(initial_angular_velocity),
+            angular_velocity=Ref(zero(SVector{3, ELTYPE})),
             resultant_force=Ref(zero(SVector{3, ELTYPE})),
             resultant_torque=Ref(zero(SVector{3, ELTYPE})),
             angular_acceleration_force=Ref(zero(SVector{3, ELTYPE})),
@@ -230,6 +237,8 @@ end
 end
 
 @inline function current_density(v, system::RigidSPHSystem)
+    # `current_density` for rigid systems means hydrodynamic density (FSI coupling density),
+    # not necessarily the physical solid material density.
     return current_density(v, system.boundary_model, system)
 end
 
@@ -279,7 +288,39 @@ end
     return system.boundary_model.correction
 end
 
-initialize!(system::RigidSPHSystem, semi) = system
+function initialize!(system::RigidSPHSystem, semi)
+    initialize_colorfield!(system, system.boundary_model, semi)
+    return system
+end
+
+function calc_normal!(system::AbstractFluidSystem,
+                      neighbor_system::RigidSPHSystem{<:BoundaryModelDummyParticles},
+                      u_system, v, v_neighbor_system, u_neighbor_system, semi,
+                      surface_normal_method, neighbor_surface_normal_method)
+    haskey(neighbor_system.boundary_model.cache, :initial_colorfield) || return system
+
+    return calc_boundary_normal!(system, neighbor_system, u_system, v, u_neighbor_system,
+                                 semi, surface_normal_method)
+end
+
+@inline function adhesion_force(surface_tension::AkinciTypeSurfaceTension,
+                                particle_system::AbstractFluidSystem,
+                                neighbor_system::RigidSPHSystem,
+                                particle, neighbor, pos_diff, distance)
+    (; adhesion_coefficient) = neighbor_system
+
+    # No adhesion with oneself. See `src/general/smoothing_kernels.jl` for more details.
+    distance^2 < eps(initial_smoothing_length(particle_system)^2) && return zero(pos_diff)
+
+    abs(adhesion_coefficient) < eps() && return zero(pos_diff)
+
+    m_b = hydrodynamic_mass(neighbor_system, neighbor)
+    support_radius = compact_support(system_smoothing_kernel(particle_system),
+                                     smoothing_length(particle_system, particle))
+
+    return adhesion_force_akinci(surface_tension, support_radius, m_b, pos_diff, distance,
+                                 adhesion_coefficient)
+end
 
 function write_u0!(u0, system::RigidSPHSystem)
     (; initial_condition) = system
@@ -408,50 +449,25 @@ function update_final!(system::RigidSPHSystem, v, u, v_ode, u_ode, semi, t)
 end
 
 function update_rotational_kinematics!(system::RigidSPHSystem, system_velocity,
-                                       center_of_mass_velocity, ::Val{2})
+                                       center_of_mass_velocity, ::Val{NDIMS}) where {NDIMS}
     (; cache) = system
-    inertia = zero(eltype(system))
-    angular_momentum = zero(eltype(system))
+    inertia = zero(cache.inertia[])
+    angular_momentum = zero(cache.angular_velocity[])
 
     for particle in each_integrated_particle(system)
         particle_mass = system.mass[particle]
         relative_position = extract_svector(cache.relative_coordinates, system, particle)
         relative_velocity = extract_svector(system_velocity, system, particle) -
                             center_of_mass_velocity
-        inertia += particle_mass * dot(relative_position, relative_position)
-        angular_momentum += particle_mass * cross(relative_position, relative_velocity)
-    end
-
-    inverse_inertia = inertia > eps(eltype(system)) ? inv(inertia) : zero(inertia)
-    angular_velocity = inverse_inertia * angular_momentum
-
-    cache.inertia[] = inertia
-    cache.inverse_inertia[] = inverse_inertia
-    cache.angular_velocity[] = angular_velocity
-    cache.gyroscopic_acceleration[] = zero(eltype(system))
-
-    return system
-end
-
-function update_rotational_kinematics!(system::RigidSPHSystem, system_velocity,
-                                       center_of_mass_velocity, ::Val{3})
-    (; cache) = system
-    inertia = zero(SMatrix{3, 3, eltype(system), 9})
-    angular_momentum = zero(SVector{3, eltype(system)})
-
-    for particle in each_integrated_particle(system)
-        particle_mass = system.mass[particle]
-        relative_position = extract_svector(cache.relative_coordinates, system, particle)
-        relative_velocity = extract_svector(system_velocity, system, particle) -
-                            center_of_mass_velocity
-        inertia += particle_mass * inertia_tensor(relative_position)
-        angular_momentum += particle_mass * cross(relative_position, relative_velocity)
+        inertia += particle_mass * inertia_contribution(relative_position)
+        angular_momentum += particle_mass * cross_product(relative_position,
+                                          relative_velocity)
     end
 
     inverse_inertia = inverse_inertia_tensor(inertia)
     angular_velocity = inverse_inertia * angular_momentum
-    gyroscopic_acceleration = inverse_inertia * cross(angular_velocity,
-                                    inertia * angular_velocity)
+    gyroscopic_acceleration = gyroscopic_acceleration_term(inertia, inverse_inertia,
+                                                           angular_velocity)
 
     cache.inertia[] = inertia
     cache.inverse_inertia[] = inverse_inertia
@@ -461,10 +477,23 @@ function update_rotational_kinematics!(system::RigidSPHSystem, system_velocity,
     return system
 end
 
+@inline function inertia_contribution(relative_position::SVector{NDIMS, ELTYPE}) where {NDIMS,
+                                                                                        ELTYPE}
+    return dot(relative_position, relative_position)
+end
+
+@inline function inertia_contribution(relative_position::SVector{3, ELTYPE}) where {ELTYPE}
+    return inertia_tensor(relative_position)
+end
+
 @inline function inertia_tensor(relative_position)
     # Built-in expression of r^2 * I - r*r^T for improved readability.
     return dot(relative_position, relative_position) * I -
            relative_position * transpose(relative_position)
+end
+
+@inline function inverse_inertia_tensor(inertia::ELTYPE) where {ELTYPE <: Real}
+    return inertia > eps(ELTYPE) ? inv(inertia) : zero(inertia)
 end
 
 function inverse_inertia_tensor(inertia::SMatrix{3, 3, ELTYPE, 9}) where {ELTYPE}
@@ -473,10 +502,24 @@ function inverse_inertia_tensor(inertia::SMatrix{3, 3, ELTYPE, 9}) where {ELTYPE
     determinant_tolerance = eps(ELTYPE) * inertia_scale^3
 
     if !isfinite(inertia_determinant) || abs(inertia_determinant) <= determinant_tolerance
-        return zero(inertia)
+        # Embedded 1D/2D particle layouts in 3D lead to singular inertia tensors.
+        # Use the Moore-Penrose pseudoinverse so angular velocity can still be
+        # reconstructed in the resolvable rotational subspace.
+        return SMatrix{3, 3, ELTYPE, 9}(pinv(Matrix(inertia)))
     end
 
     return inv(inertia)
+end
+
+@inline function gyroscopic_acceleration_term(inertia::ELTYPE, inverse_inertia::ELTYPE,
+                                              angular_velocity::ELTYPE) where {ELTYPE}
+    return zero(angular_velocity)
+end
+
+@inline function gyroscopic_acceleration_term(inertia::SMatrix{3, 3, ELTYPE, 9},
+                                              inverse_inertia::SMatrix{3, 3, ELTYPE, 9},
+                                              angular_velocity::SVector{3, ELTYPE}) where {ELTYPE}
+    return inverse_inertia * cross(angular_velocity, inertia * angular_velocity)
 end
 
 function calculate_dt(v_ode, u_ode, cfl_number, system::RigidSPHSystem, semi)
@@ -640,8 +683,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::RigidSPHSystem)
         summary_header(io, "RigidSPHSystem{$(ndims(system))}")
         summary_line(io, "#particles", nparticles(system))
         summary_line(io, "acceleration", system.acceleration)
-        summary_line(io, "initial angular velocity",
-                     system.initial_condition.angular_velocity)
+        summary_line(io, "initial angular velocity", system.cache.angular_velocity[])
         summary_line(io, "boundary model", system.boundary_model)
         summary_line(io, "boundary contact model", system.boundary_contact_model)
         summary_footer(io)
@@ -664,6 +706,22 @@ function check_configuration(system::RigidSPHSystem, systems, nhs)
         if neighbor isa AbstractFluidSystem && boundary_model === nothing
             throw(ArgumentError("a boundary model for `RigidSPHSystem` must be specified " *
                                 "when simulating a fluid-structure interaction."))
+        end
+
+        if neighbor isa AbstractFluidSystem &&
+           neighbor.surface_normal_method isa ColorfieldSurfaceNormal
+            if !(boundary_model isa BoundaryModelDummyParticles)
+                throw(ArgumentError("`RigidSPHSystem` is only compatible with " *
+                                    "`ColorfieldSurfaceNormal` when using " *
+                                    "`BoundaryModelDummyParticles`."))
+            end
+
+            if !haskey(boundary_model.cache, :initial_colorfield)
+                throw(ArgumentError("`RigidSPHSystem` with `BoundaryModelDummyParticles` " *
+                                    "requires `reference_particle_spacing` to be set on " *
+                                    "the boundary model when used together with " *
+                                    "`ColorfieldSurfaceNormal` or a surface tension model."))
+            end
         end
     end
 end

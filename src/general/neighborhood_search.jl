@@ -285,7 +285,7 @@ function update_nhs!(neighborhood_search,
 end
 
 function update_nhs!(neighborhood_search,
-                     system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
+                     system::OpenBoundarySystem,
                      neighbor::RigidSPHSystem,
                      u_system, u_neighbor, semi)
     update!(neighborhood_search,
@@ -306,7 +306,7 @@ end
 
 function update_nhs!(neighborhood_search,
                      system::RigidSPHSystem,
-                     neighbor::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
+                     neighbor::OpenBoundarySystem,
                      u_system, u_neighbor, semi)
     update!(neighborhood_search,
             current_coordinates(u_system, system),
@@ -317,14 +317,14 @@ end
 # -- Open boundary combinations that are never used
 function update_nhs!(neighborhood_search,
                      system::OpenBoundarySystem,
-                     neighbor::Union{TotalLagrangianSPHSystem, RigidSPHSystem},
+                     neighbor::TotalLagrangianSPHSystem,
                      u_system, u_neighbor, semi)
     # Don't update. This NHS is never used.
     return neighborhood_search
 end
 
 function update_nhs!(neighborhood_search,
-                     system::Union{TotalLagrangianSPHSystem, RigidSPHSystem},
+                     system::TotalLagrangianSPHSystem,
                      neighbor::OpenBoundarySystem,
                      u_system, u_neighbor, semi)
     # Don't update. This NHS is never used.

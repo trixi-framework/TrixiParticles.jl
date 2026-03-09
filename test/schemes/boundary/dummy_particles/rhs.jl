@@ -135,8 +135,7 @@
                                                     ic.mass[1:center_particle],
                                                     ic.density[1:center_particle],
                                                     ic.pressure[1:center_particle],
-                                                    ic.particle_spacing,
-                                                    ic.angular_velocity)
+                                                    ic.particle_spacing)
 
                 boundary = InitialCondition{ndims(ic)}(ic.coordinates[:,
                                                                       (center_particle + 1):end],
@@ -145,8 +144,7 @@
                                                        ic.mass[(center_particle + 1):end],
                                                        ic.density[(center_particle + 1):end],
                                                        ic.pressure[(center_particle + 1):end],
-                                                       ic.particle_spacing,
-                                                       ic.angular_velocity)
+                                                       ic.particle_spacing)
 
                 fluid_system = WeaklyCompressibleSPHSystem(fluid,
                                                            density_calculator,

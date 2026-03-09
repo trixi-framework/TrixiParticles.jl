@@ -2,12 +2,15 @@
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::RigidSPHSystem,
-                   neighbor_system::AbstractFluidSystem, semi)
+                   neighbor_system::Union{AbstractFluidSystem, OpenBoundarySystem}, semi)
     sound_speed = system_sound_speed(neighbor_system)
+    surface_tension = surface_tension_model(neighbor_system)
 
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
+    # Accumulate pairwise fluid forces per rigid particle first, then reduce them to a
+    # single resultant force/torque for the rigid-body update below.
     force_per_particle = particle_system.cache.force_per_particle
     set_zero!(force_per_particle)
 
@@ -18,6 +21,11 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                                                 neighbor,
                                                                                 pos_diff,
                                                                                 distance
+
+        # Only consider particles with a distance > 0.
+        # See `src/general/smoothing_kernels.jl` for more details.
+        distance^2 < eps(initial_smoothing_length(particle_system)^2) && return
+
         # Apply the same force to the structure particle that the fluid particle
         # experiences due to the structure particle.
         # In fluid-structure interaction, use the "hydrodynamic mass" of the structure
@@ -44,7 +52,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                                             neighbor, particle,
                                             m_b, m_a, p_b, p_a, rho_b, rho_a,
                                             pos_diff, distance, grad_kernel,
-                                            neighbor_system.correction)
+                                            system_correction(neighbor_system))
 
         dv_viscosity_ = dv_viscosity(neighbor_system, particle_system,
                                      v_neighbor_system, v_particle_system,
@@ -52,9 +60,14 @@ function interact!(dv, v_particle_system, u_particle_system,
                                      sound_speed, m_b, m_a, rho_b, rho_a,
                                      grad_kernel)
 
-        dv_particle = dv_boundary + dv_viscosity_
+        dv_adhesion = adhesion_force(surface_tension, neighbor_system, particle_system,
+                                     neighbor, particle, pos_diff, distance)
+
+        dv_particle = dv_boundary + dv_viscosity_ + dv_adhesion
 
         for i in 1:ndims(particle_system)
+            # `pressure_acceleration`/`dv_viscosity` return acceleration-like pair contributions.
+            # Multiply by the interacting fluid mass to recover the force on this rigid particle.
             force_per_particle[i, particle] += dv_particle[i] * m_b
         end
 
@@ -69,10 +82,13 @@ function interact!(dv, v_particle_system, u_particle_system,
     return dv
 end
 
+# Reduce the accumulated fluid forces to rigid-body resultants and apply the corresponding
+# translational and rotational acceleration to every rigid particle.
 function apply_resultant_force_and_torque!(dv, particle_system::RigidSPHSystem, semi)
     (; cache) = particle_system
     total_mass = cache.total_mass
 
+    # Guard against degenerate systems and clear the cached rigid-body quantities as well.
     if total_mass <= eps(eltype(particle_system))
         cache.resultant_force[] = zero(cache.resultant_force[])
         cache.resultant_torque[] = zero(cache.resultant_torque[])
@@ -80,15 +96,15 @@ function apply_resultant_force_and_torque!(dv, particle_system::RigidSPHSystem, 
         return dv
     end
 
+    # Reduce all pairwise forces to one net force and one net torque around the center of mass.
     total_force,
     total_torque = resultant_force_and_torque(particle_system,
                                               cache.force_per_particle,
-                                              cache.relative_coordinates,
-                                              Val(ndims(particle_system)))
+                                              cache.relative_coordinates)
 
+    # Convert the rigid-body resultants into translational and angular accelerations.
     translational_acceleration = total_force / total_mass
-    angular_acceleration_force = angular_acceleration_from_torque(particle_system,
-                                                                  total_torque)
+    angular_acceleration_force = cache.inverse_inertia[] * total_torque
     cache.resultant_force[] = total_force
     cache.resultant_torque[] = total_torque
     cache.angular_acceleration_force[] = angular_acceleration_force
@@ -96,9 +112,10 @@ function apply_resultant_force_and_torque!(dv, particle_system::RigidSPHSystem, 
     @threaded semi for particle in each_integrated_particle(particle_system)
         relative_position = extract_svector(cache.relative_coordinates, particle_system,
                                             particle)
-        rotational_acceleration = angular_acceleration_cross_position(angular_acceleration_force,
-                                                                      relative_position,
-                                                                      Val(ndims(particle_system)))
+        # For rigid bodies, the instantaneous acceleration of a material point is
+        # `a_com + alpha x r` in this force-driven part of the RHS.
+        rotational_acceleration = cross_product(angular_acceleration_force,
+                                                relative_position)
 
         for i in 1:ndims(particle_system)
             dv[i, particle] += translational_acceleration[i] + rotational_acceleration[i]
@@ -108,77 +125,54 @@ function apply_resultant_force_and_torque!(dv, particle_system::RigidSPHSystem, 
     return dv
 end
 
-function resultant_force_and_torque(particle_system::RigidSPHSystem, force_per_particle,
-                                    relative_coordinates, ::Val{2})
-    total_force = zero(SVector{2, eltype(particle_system)})
-    total_torque = zero(eltype(particle_system))
+# Sum pairwise particle forces into a single net force and torque about the current
+# center of mass of the rigid body.
+function resultant_force_and_torque(particle_system::RigidSPHSystem{<:Any, <:Any, NDIMS},
+                                    force_per_particle,
+                                    relative_coordinates) where {NDIMS}
+    total_force = zero(SVector{NDIMS, eltype(particle_system)})
+    total_torque = zero(particle_system.cache.resultant_torque[])
 
     for particle in each_integrated_particle(particle_system)
         particle_force = extract_svector(force_per_particle, particle_system, particle)
         relative_position = extract_svector(relative_coordinates, particle_system, particle)
         total_force += particle_force
-        total_torque += cross(relative_position, particle_force)
+
+        # Torque is taken about the current center of mass, using the particle's current
+        # relative position inside the rigid body.
+        total_torque += cross_product(relative_position, particle_force)
     end
 
     return total_force, total_torque
 end
 
-function resultant_force_and_torque(particle_system::RigidSPHSystem, force_per_particle,
-                                    relative_coordinates, ::Val{3})
-    total_force = zero(SVector{3, eltype(particle_system)})
-    total_torque = zero(SVector{3, eltype(particle_system)})
-
-    for particle in each_integrated_particle(particle_system)
-        particle_force = extract_svector(force_per_particle, particle_system, particle)
-        relative_position = extract_svector(relative_coordinates, particle_system, particle)
-        total_force += particle_force
-        total_torque += cross(relative_position, particle_force)
-    end
-
-    return total_force, total_torque
-end
-
-@inline function angular_acceleration_from_torque(particle_system::RigidSPHSystem, torque)
-    inverse_inertia = particle_system.cache.inverse_inertia[]
-
-    return inverse_inertia * torque
-end
-
-@inline function angular_acceleration_cross_position(angular_acceleration,
-                                                     relative_position,
-                                                     ::Val{2})
-    return SVector(-angular_acceleration * relative_position[2],
-                   angular_acceleration * relative_position[1])
-end
-
-@inline function angular_acceleration_cross_position(angular_acceleration,
-                                                     relative_position,
-                                                     ::Val{3})
-    return cross(angular_acceleration, relative_position)
-end
-
+# Default rigid boundary models keep density fixed, so structure-fluid coupling does not
+# contribute to a density RHS entry.
 @inline function continuity_equation!(dv, v_particle_system, v_neighbor_system,
                                       particle, neighbor, pos_diff, distance,
                                       m_b, rho_a, rho_b,
                                       particle_system::RigidSPHSystem,
-                                      neighbor_system::AbstractFluidSystem,
+                                      neighbor_system::Union{AbstractFluidSystem,
+                                                             OpenBoundarySystem},
                                       grad_kernel)
+    # Most rigid boundary models keep their density fixed, so no continuity update is needed.
     return dv
 end
 
+# Dummy-particle rigid boundaries with `ContinuityDensity` reuse the fluid-compatible
+# density update for the rigid particle.
 @inline function continuity_equation!(dv, v_particle_system, v_neighbor_system,
                                       particle, neighbor, pos_diff, distance,
                                       m_b, rho_a, rho_b,
                                       particle_system::RigidSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
-                                      neighbor_system::AbstractFluidSystem,
+                                      neighbor_system::Union{AbstractFluidSystem,
+                                                             OpenBoundarySystem},
                                       grad_kernel)
-    fluid_density_calculator = neighbor_system.density_calculator
-
     v_diff = current_velocity(v_particle_system, particle_system, particle) -
              current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
-    # Call the dummy boundary condition version of the continuity equation
-    continuity_equation!(dv, fluid_density_calculator, m_b, rho_a, rho_b, v_diff,
+    # Dummy rigid particles reuse the fluid-compatible density update of the neighbor system.
+    continuity_equation!(dv, density_calculator(neighbor_system), m_b, rho_a, rho_b, v_diff,
                          grad_kernel, particle)
 end
 
@@ -478,7 +472,6 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::RigidSPHSystem,
                    neighbor_system::Union{AbstractStructureSystem,
-                                          AbstractBoundarySystem,
-                                          OpenBoundarySystem}, semi)
+                                          AbstractBoundarySystem}, semi)
     return dv
 end

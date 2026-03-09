@@ -259,6 +259,8 @@
                                              tspan=(0.0, 0.5))
             @test sol.retcode == ReturnCode.Success
             if VERSION < v"1.12"
+                # Older Julia versions produce allocations because `get_neighborhood_search`
+                # is not type-stable with TLSPH.
                 @test count_rhs_allocations(sol, semi) < 500
             else
                 @test count_rhs_allocations(sol, semi) == 0
@@ -272,6 +274,8 @@
                                              tspan=(0.0, 0.5))
             @test sol.retcode == ReturnCode.Success
             if VERSION < v"1.12"
+                # Older Julia versions produce allocations because `get_neighborhood_search`
+                # is not type-stable with TLSPH.
                 @test count_rhs_allocations(sol, semi) < 500
             else
                 @test count_rhs_allocations(sol, semi) == 0

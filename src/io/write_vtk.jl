@@ -291,22 +291,13 @@ Convert [`InitialCondition`](@ref) data to VTK format.
 """
 function trixi2vtk(initial_condition::InitialCondition; output_directory="out",
                    prefix="", filename="initial_condition", custom_quantities...)
-    (; coordinates, velocity, density, mass, pressure, angular_velocity) = initial_condition
-
-    if haskey(custom_quantities, :angular_velocity)
-        return trixi2vtk(coordinates; output_directory, prefix, filename,
-                         density=density, initial_velocity=velocity, mass=mass,
-                         particle_spacing=(initial_condition.particle_spacing .*
-                                           ones(nparticles(initial_condition))),
-                         pressure=pressure, custom_quantities...)
-    end
+    (; coordinates, velocity, density, mass, pressure) = initial_condition
 
     return trixi2vtk(coordinates; output_directory, prefix, filename,
                      density=density, initial_velocity=velocity, mass=mass,
                      particle_spacing=(initial_condition.particle_spacing .*
                                        ones(nparticles(initial_condition))),
-                     pressure=pressure, angular_velocity=angular_velocity,
-                     custom_quantities...)
+                     pressure=pressure, custom_quantities...)
 end
 
 function write2vtk!(vtk, v, u, t, system)
@@ -441,6 +432,7 @@ function write2vtk!(vtk, v, u, t, system::RigidSPHSystem)
 
     vtk["velocity"] = [current_velocity(v, system, particle)
                        for particle in eachparticle(system)]
+    vtk["color"] = system.cache.color
     vtk["material_density"] = system.material_density
     vtk["mass"] = system.mass
     vtk["local_coordinates"] = system.local_coordinates

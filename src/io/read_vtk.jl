@@ -81,39 +81,10 @@ function vtk2trixi(file; element_type=nothing, coordinates_eltype=nothing)
                        first(results["particle_spacing"]) :
                        results["particle_spacing"]
 
-    angular_velocity = nothing
-    scalar_keys = keys(field_data)
-    idx = findfirst(k -> k == "angular_velocity", scalar_keys)
-    if idx === nothing
-        idx = findfirst(k -> occursin("angular_velocity", k), scalar_keys)
-    end
-
-    if idx !== nothing
-        data = vec(ReadVTK.get_data(field_data[scalar_keys[idx]]))
-        angular_velocity = length(data) == 1 ?
-                           convert(ELTYPE, first(data)) :
-                           convert.(ELTYPE, data)
-    else
-        point_keys = keys(point_data)
-        idx = findfirst(k -> k == "angular_velocity", point_keys)
-        if idx === nothing
-            idx = findfirst(k -> occursin("angular_velocity", k), point_keys)
-        end
-
-        if idx !== nothing
-            data = vec(ReadVTK.get_data(point_data[point_keys[idx]]))
-            angular_velocity = length(data) == 1 ?
-                               convert(ELTYPE, first(data)) :
-                               convert.(ELTYPE, data)
-        end
-    end
-
     return InitialCondition(; coordinates,
                             particle_spacing=convert(ELTYPE, particle_spacing),
                             velocity=results["velocity"],
                             mass=results["mass"],
                             density=results["density"],
-                            pressure=results["pressure"],
-                            angular_velocity,
-                            apply_angular_velocity=false)
+                            pressure=results["pressure"])
 end

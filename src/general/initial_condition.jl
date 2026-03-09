@@ -1,7 +1,6 @@
 @doc raw"""
     InitialCondition(; coordinates, density, velocity=zeros(size(coordinates, 1)),
-                     mass=nothing, pressure=0.0, particle_spacing=-1.0,
-                     angular_velocity=nothing)
+                     mass=nothing, pressure=0.0, particle_spacing=-1.0)
 
 Struct to hold the initial configuration of the particles.
 
@@ -39,15 +38,9 @@ with `TrixiParticles.TriangleMesh` and `TrixiParticles.Polygon` returned by [`lo
 - `particle_spacing`: The spacing between the particles. This is a scalar, as the spacing
                       is assumed to be uniform. This is only needed when using
                       set operations on the `InitialCondition` or for automatic mass calculation.
-- `angular_velocity`: Initial angular velocity `ω` of the shape (not angular momentum).
-                      It adds a rotational contribution to `velocity` around the center of mass of the shape.
-                      If both `velocity` and `angular_velocity` are set, they are added.
-                      In 2D, pass a scalar angular speed in rad/s.
-                      In 3D, pass a vector of length 3: its direction is the rotation axis
-                      (right-hand rule), its norm `|ω|` is the angular speed in rad/s.
-                      The resulting local rotational velocity is `v = ω × r`, i.e., motion in
-                      planes normal to the rotation axis.
-                      By default, angular velocity is zero.
+
+To add a rotational contribution to an existing initial condition, use
+[`apply_angular_velocity`](@ref).
 
 # Examples
 ```jldoctest; output = false
@@ -101,33 +94,28 @@ initial_condition = InitialCondition(; coordinates, velocity=x -> 2x, mass=1.0, 
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-struct InitialCondition{ELTYPE, C, MATRIX, VECTOR, AV}
+struct InitialCondition{ELTYPE, C, MATRIX, VECTOR}
     particle_spacing :: ELTYPE
     coordinates      :: C      # Array{coordinates_eltype, 2}
     velocity         :: MATRIX # Array{ELTYPE, 2}
     mass             :: VECTOR # Array{ELTYPE, 1}
     density          :: VECTOR # Array{ELTYPE, 1}
     pressure         :: VECTOR # Array{ELTYPE, 1}
-    angular_velocity :: AV
 end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
 function InitialCondition(; coordinates, density, velocity=zeros(size(coordinates, 1)),
-                          mass=nothing, pressure=0.0, particle_spacing=-1.0,
-                          angular_velocity=nothing, apply_angular_velocity=true)
+                          mass=nothing, pressure=0.0, particle_spacing=-1.0)
     NDIMS = size(coordinates, 1)
 
     return InitialCondition{NDIMS}(coordinates, velocity, mass, density,
-                                   pressure, particle_spacing, angular_velocity;
-                                   apply_angular_velocity)
+                                   pressure, particle_spacing)
 end
 
 # Function barrier to make `NDIMS` static and therefore SVectors type-stable
 function InitialCondition{NDIMS}(coordinates, velocity, mass, density,
-                                 pressure, particle_spacing,
-                                 angular_velocity;
-                                 apply_angular_velocity=true) where {NDIMS}
+                                 pressure, particle_spacing) where {NDIMS}
     if !(particle_spacing isa AbstractFloat)
         throw(ArgumentError("particle spacing must be a floating point number. " *
                             "The type of the particle spacing determines the eltype " *
@@ -137,13 +125,10 @@ function InitialCondition{NDIMS}(coordinates, velocity, mass, density,
     # The arguments can all be functions, so use `particle_spacing` for the eltype
     ELTYPE = typeof(particle_spacing)
     n_particles = size(coordinates, 2)
-    angular_velocity_ = convert_initial_angular_velocity(angular_velocity, Val(NDIMS),
-                                                         ELTYPE)
 
     if n_particles == 0
         return InitialCondition(particle_spacing, coordinates, zeros(ELTYPE, NDIMS, 0),
-                                zeros(ELTYPE, 0), zeros(ELTYPE, 0), zeros(ELTYPE, 0),
-                                angular_velocity_)
+                                zeros(ELTYPE, 0), zeros(ELTYPE, 0), zeros(ELTYPE, 0))
     end
 
     # SVector of coordinates to pass to functions.
@@ -216,14 +201,9 @@ function InitialCondition{NDIMS}(coordinates, velocity, mass, density,
     end
 
     velocities_ = ELTYPE.(velocities)
-    if apply_angular_velocity
-        add_initial_angular_velocity!(velocities_, coordinates, masses, angular_velocity_,
-                                      Val(NDIMS), ELTYPE)
-    end
 
     return InitialCondition(particle_spacing, coordinates, velocities_,
-                            ELTYPE.(masses), ELTYPE.(densities), ELTYPE.(pressures),
-                            angular_velocity_)
+                            ELTYPE.(masses), ELTYPE.(densities), ELTYPE.(pressures))
 end
 
 @inline function convert_initial_angular_velocity(::Nothing, ::Val{NDIMS},
@@ -343,6 +323,33 @@ function add_initial_angular_velocity!(velocities, coordinates, mass,
     return velocities
 end
 
+@doc raw"""
+    apply_angular_velocity(initial_condition::InitialCondition, angular_velocity)
+
+Return a new [`InitialCondition`](@ref) whose velocity includes the rotational
+contribution `v = ω × r` around the center of mass of `initial_condition`.
+
+In 2D, pass a scalar angular speed in rad/s.
+In 3D, pass a vector of length 3 whose direction gives the rotation axis
+(right-hand rule) and whose norm `|ω|` gives the angular speed in rad/s.
+"""
+function apply_angular_velocity(initial_condition::InitialCondition, angular_velocity)
+    NDIMS = ndims(initial_condition)
+    ELTYPE = eltype(initial_condition)
+    angular_velocity_ = convert_initial_angular_velocity(angular_velocity, Val(NDIMS),
+                                                         ELTYPE)
+    velocity = copy(initial_condition.velocity)
+
+    add_initial_angular_velocity!(velocity, initial_condition.coordinates,
+                                  initial_condition.mass, angular_velocity_,
+                                  Val(NDIMS), ELTYPE)
+
+    return InitialCondition(initial_condition.particle_spacing,
+                            initial_condition.coordinates, velocity,
+                            initial_condition.mass, initial_condition.density,
+                            initial_condition.pressure)
+end
+
 function Base.show(io::IO, ic::InitialCondition)
     @nospecialize ic # reduce precompilation time
 
@@ -423,9 +430,7 @@ function Base.union(initial_condition::InitialCondition, initial_conditions...)
     pressure = vcat(initial_condition.pressure, ic.pressure[valid_particles])
 
     result = InitialCondition{ndims(ic)}(coordinates, velocity, mass, density, pressure,
-                                         particle_spacing,
-                                         initial_condition.angular_velocity;
-                                         apply_angular_velocity=false)
+                                         particle_spacing)
 
     return union(result, Base.tail(initial_conditions)...)
 end
@@ -460,9 +465,7 @@ function Base.setdiff(initial_condition::InitialCondition, initial_conditions...
     pressure = initial_condition.pressure[valid_particles]
 
     result = InitialCondition{ndims(ic)}(coordinates, velocity, mass, density, pressure,
-                                         particle_spacing,
-                                         initial_condition.angular_velocity;
-                                         apply_angular_velocity=false)
+                                         particle_spacing)
 
     return setdiff(result, Base.tail(initial_conditions)...)
 end
@@ -496,9 +499,7 @@ function Base.intersect(initial_condition::InitialCondition, initial_conditions.
     pressure = initial_condition.pressure[too_close]
 
     result = InitialCondition{ndims(ic)}(coordinates, velocity, mass, density, pressure,
-                                         particle_spacing,
-                                         initial_condition.angular_velocity;
-                                         apply_angular_velocity=false)
+                                         particle_spacing)
 
     return intersect(result, Base.tail(initial_conditions)...)
 end
@@ -533,8 +534,7 @@ function InitialCondition(sol::ODESolution, system, semi; use_final_velocity=fal
     end
 
     return InitialCondition{ndims(ic)}(coordinates, velocity, mass, density, pressure,
-                                       ic.particle_spacing, ic.angular_velocity;
-                                       apply_angular_velocity=false)
+                                       ic.particle_spacing)
 end
 
 # Find particles in `coords1` that are closer than `max_distance` to any particle in `coords2`
