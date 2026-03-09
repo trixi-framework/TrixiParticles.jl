@@ -2,7 +2,7 @@
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::RigidSPHSystem,
-                   neighbor_system::AbstractFluidSystem, semi)
+                   neighbor_system::Union{AbstractFluidSystem, OpenBoundarySystem}, semi)
     sound_speed = system_sound_speed(neighbor_system)
     surface_tension = surface_tension_model(neighbor_system)
 
@@ -52,7 +52,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                                             neighbor, particle,
                                             m_b, m_a, p_b, p_a, rho_b, rho_a,
                                             pos_diff, distance, grad_kernel,
-                                            neighbor_system.correction)
+                                            system_correction(neighbor_system))
 
         dv_viscosity_ = dv_viscosity(neighbor_system, particle_system,
                                      v_neighbor_system, v_particle_system,
@@ -152,7 +152,8 @@ end
                                       particle, neighbor, pos_diff, distance,
                                       m_b, rho_a, rho_b,
                                       particle_system::RigidSPHSystem,
-                                      neighbor_system::AbstractFluidSystem,
+                                      neighbor_system::Union{AbstractFluidSystem,
+                                                             OpenBoundarySystem},
                                       grad_kernel)
     # Most rigid boundary models keep their density fixed, so no continuity update is needed.
     return dv
@@ -164,16 +165,14 @@ end
                                       particle, neighbor, pos_diff, distance,
                                       m_b, rho_a, rho_b,
                                       particle_system::RigidSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
-                                      neighbor_system::AbstractFluidSystem,
+                                      neighbor_system::Union{AbstractFluidSystem,
+                                                             OpenBoundarySystem},
                                       grad_kernel)
-    # Dummy rigid particles with `ContinuityDensity` reuse the fluid-side density update.
-    fluid_density_calculator = neighbor_system.density_calculator
-
     v_diff = current_velocity(v_particle_system, particle_system, particle) -
              current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
-    # Call the dummy boundary condition version of the continuity equation
-    continuity_equation!(dv, fluid_density_calculator, m_b, rho_a, rho_b, v_diff,
+    # Dummy rigid particles reuse the fluid-compatible density update of the neighbor system.
+    continuity_equation!(dv, density_calculator(neighbor_system), m_b, rho_a, rho_b, v_diff,
                          grad_kernel, particle)
 end
 
@@ -182,7 +181,6 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::RigidSPHSystem,
                    neighbor_system::Union{AbstractStructureSystem,
-                                          AbstractBoundarySystem,
-                                          OpenBoundarySystem}, semi)
+                                          AbstractBoundarySystem}, semi)
     return dv
 end

@@ -57,6 +57,10 @@ end
     return system.cache.density_calculator
 end
 
+@inline function pressure_acceleration_formulation(system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang})
+    return system.pressure_acceleration_formulation
+end
+
 @inline impose_rest_density!(v, system, particle, boundary_model) = v
 
 @inline function impose_rest_density!(v, system, particle,

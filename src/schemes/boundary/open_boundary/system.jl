@@ -263,6 +263,9 @@ end
 system_sound_speed(system::OpenBoundarySystem) = system_sound_speed(system.fluid_system)
 
 @inline hydrodynamic_mass(system::OpenBoundarySystem, particle) = system.mass[particle]
+@inline density_calculator(system::OpenBoundarySystem) = density_calculator(system.fluid_system)
+
+@inline pressure_acceleration_formulation(system::OpenBoundarySystem) = pressure_acceleration_formulation(system.fluid_system)
 
 @inline function current_density(v, system::OpenBoundarySystem)
     return system.cache.density
