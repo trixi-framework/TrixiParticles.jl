@@ -277,12 +277,13 @@ function create_cache_model(viscosity, n_particles, n_dims)
     return (; wall_velocity)
 end
 
-@inline reset_cache!(cache, viscosity) = set_zero!(cache.volume)
+@inline reset_cache!(cache, viscosity::Nothing) = set_zero!(cache.volume)
 
-function reset_cache!(cache, viscosity::ViscosityAdami)
+function reset_cache!(cache, viscosity)
     (; volume, wall_velocity) = cache
 
     set_zero!(volume)
+    # Reset the accumulated fluid velocity interpolation used in `interpolate_fluid_velocity!`
     set_zero!(wall_velocity)
 
     return cache
@@ -450,7 +451,7 @@ function compute_pressure!(boundary_model,
 
     set_zero!(pressure)
 
-    # Set `volume` to zero. For `ViscosityAdami` the `wall_velocity` is also set to zero.
+    # Set `volume` to zero. When using a viscosity model, the `wall_velocity` is also set to zero.
     reset_cache!(cache, viscosity)
 
     system_coords = current_coordinates(u, system)
@@ -614,7 +615,7 @@ end
     pressure[particle] += sum_pressures * kernel_weight
     cache.volume[particle] += kernel_weight
 
-    compute_smoothed_velocity!(cache, viscosity, neighbor_system, v_neighbor_system,
+    interpolate_fluid_velocity!(cache, viscosity, neighbor_system, v_neighbor_system,
                                kernel_weight, particle, neighbor)
 end
 
@@ -653,15 +654,22 @@ end
            dot(normal_velocity, normal_velocity) / 2
 end
 
-@inline function compute_smoothed_velocity!(cache, viscosity, neighbor_system,
-                                            v_neighbor_system, kernel_weight,
-                                            particle, neighbor)
+# No-op when no viscosity model is set
+@inline function interpolate_fluid_velocity!(cache, viscosity::Nothing, neighbor_system,
+                                             v_neighbor_system, kernel_weight,
+                                             particle, neighbor)
     return cache
 end
 
-@propagate_inbounds function compute_smoothed_velocity!(cache, viscosity::ViscosityAdami,
-                                                        neighbor_system, v_neighbor_system,
-                                                        kernel_weight, particle, neighbor)
+# For any viscosity model, interpolate the fluid velocity to the boundary particle location.
+# This is used later in `compute_wall_velocity!` to impose a no-slip boundary condition
+# by computing the wall velocity as v_w = 2 * v_boundary - ṽ_fluid, where ṽ_fluid is the
+# kernel-weighted interpolation of the surrounding fluid velocities:
+#   ṽ_fluid = (Σ_b v_b W_ab) / (Σ_b W_ab)
+# The denominator Σ_b W_ab is stored as `volume` and accumulated elsewhere.
+@propagate_inbounds function interpolate_fluid_velocity!(cache, viscosity,
+                                                         neighbor_system, v_neighbor_system,
+                                                         kernel_weight, particle, neighbor)
     v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
     for dim in eachindex(v_b)
@@ -685,7 +693,9 @@ end
     v_boundary = current_velocity(v, system, particle)
 
     for dim in eachindex(v_boundary)
-        # The second term is the precalculated smoothed velocity field of the fluid
+        # Compute the no-slip wall velocity using the formula v_w = 2 * v_a - ṽ_fluid,
+        # where ṽ_fluid = wall_velocity / volume is the kernel-weighted fluid velocity
+        # interpolated to the boundary particle location by `interpolate_fluid_velocity!`.
         new_velocity = @inbounds 2 * v_boundary[dim] -
                                  wall_velocity[dim, particle] / volume[particle]
         @inbounds wall_velocity[dim, particle] = new_velocity
