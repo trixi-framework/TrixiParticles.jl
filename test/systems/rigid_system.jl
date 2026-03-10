@@ -163,11 +163,6 @@
         dt_2d_larger_cfl = TrixiParticles.calculate_dt(v0_2d, zeros(size(v0_2d)), 0.5,
                                                        system_2d, nothing)
         @test isapprox(dt_2d_larger_cfl, 0.5 * 0.1 / 1.0)
-        @test_throws ArgumentError apply_angular_velocity(InitialCondition(;
-                                                                           coordinates=coordinates_2d,
-                                                                           mass=mass_2d,
-                                                                           density=density_2d),
-                                                          (0.0, 1.0))
 
         coordinates_3d = [0.0 1.0
                           0.0 0.0
@@ -191,11 +186,6 @@
         ic_3d_default = InitialCondition(; coordinates=coordinates_3d, mass=mass_3d,
                                          density=density_3d)
         @test iszero(ic_3d_default.velocity)
-        @test_throws ArgumentError apply_angular_velocity(InitialCondition(;
-                                                                           coordinates=coordinates_3d,
-                                                                           mass=mass_3d,
-                                                                           density=density_3d),
-                                                          2.0)
     end
 
     @trixi_testset "Time Step Estimate 3D Gyroscopic" begin

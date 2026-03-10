@@ -123,6 +123,10 @@
             @test rotated_ic_2d.velocity ≈ [1.0 1.0
                                             -1.0 3.0]
             @test ic_2d.velocity == base_velocity_2d
+            error_str = "`angular_velocity` must be a scalar for a 2D problem"
+            @test_throws ArgumentError(error_str) apply_angular_velocity(ic_2d, (2.0,))
+            @test_throws ArgumentError(error_str) apply_angular_velocity(ic_2d, (0.0, 1.0))
+            @test_throws ArgumentError(error_str) apply_angular_velocity(ic_2d, nothing)
 
             coordinates_3d = [0.0 2.0
                               0.0 0.0
@@ -141,6 +145,14 @@
                                             -2.0 2.0
                                             0.0 0.0]
             @test ic_3d.velocity == base_velocity_3d
+            error_str = "`angular_velocity` must be of length 3 for a 3D problem"
+            @test_throws ArgumentError(error_str) apply_angular_velocity(ic_3d, 2.0)
+            @test_throws ArgumentError(error_str) apply_angular_velocity(ic_3d, nothing)
+
+            ic_1d = InitialCondition(; coordinates=zeros(1, 2), velocity=zeros(1, 2),
+                                     mass=ones(2), density=ones(2))
+            error_str = "`apply_angular_velocity` currently supports only 2D and 3D, got 1D"
+            @test_throws ArgumentError(error_str) apply_angular_velocity(ic_1d, 2.0)
         end
 
         @testset "Automatic Mass Calculation" begin
