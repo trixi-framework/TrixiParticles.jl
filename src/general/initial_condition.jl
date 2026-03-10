@@ -586,11 +586,11 @@ end
     apply_angular_velocity(initial_condition::InitialCondition, angular_velocity)
 
 Return a new [`InitialCondition`](@ref) whose velocity includes the rotational
-contribution `v = ω × r` around the center of mass of `initial_condition`.
+contribution ``v = \omega \times r`` around the center of mass of `initial_condition`.
 
 In 2D, pass a scalar angular speed in rad/s.
 In 3D, pass a vector of length 3 whose direction gives the rotation axis
-(right-hand rule) and whose norm `|ω|` gives the angular speed in rad/s.
+(right-hand rule) and whose norm ``|\omega|`` gives the angular speed in rad/s.
 """
 function apply_angular_velocity(initial_condition::InitialCondition, angular_velocity)
     NDIMS = ndims(initial_condition)
