@@ -72,7 +72,7 @@ end
 function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                             fluid_system::AbstractFluidSystem, buffer_size::Integer,
                             boundary_model, calculate_flow_rate=false,
-                            pressure_acceleration= fluid_system.pressure_acceleration_formulation,
+                            pressure_acceleration=fluid_system.pressure_acceleration_formulation,
                             shifting_technique=boundary_model isa
                                                BoundaryModelDynamicalPressureZhang ?
                                                shifting_technique(fluid_system) : nothing)
