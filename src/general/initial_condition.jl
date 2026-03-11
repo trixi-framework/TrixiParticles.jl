@@ -512,7 +512,7 @@ function apply_angular_velocity(initial_condition::InitialCondition, angular_vel
              length(angular_velocity) == 3)
             throw(ArgumentError("`angular_velocity` must be of length 3 for a 3D problem"))
         end
-        angular_velocity_ = SVector{3, ELTYPE}(angular_velocity...)
+        angular_velocity_ = SVector{3, ELTYPE}(Tuple(angular_velocity))
     else
         throw(ArgumentError("`apply_angular_velocity` currently supports only 2D and 3D, got $(NDIMS)D"))
     end
