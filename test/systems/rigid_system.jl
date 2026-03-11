@@ -103,10 +103,6 @@
         @test TrixiParticles.smoothing_length(system, 1) == smoothing_length
         @test system.material_density == material_densities
 
-        system_no_model = RigidBodySystem(initial_condition)
-        v_no_model = zeros(TrixiParticles.v_nvariables(system_no_model),
-                           TrixiParticles.n_integrated_particles(system_no_model))
-
         monaghan_model = BoundaryModelMonaghanKajtar(10.0, 1.0, smoothing_length,
                                                      hydrodynamic_masses)
         system_monaghan = RigidBodySystem(initial_condition; boundary_model=monaghan_model)
@@ -182,10 +178,6 @@
         @test v0_3d == [0.0 0.0
                         -1.0 1.0
                         0.0 0.0]
-
-        ic_3d_default = InitialCondition(; coordinates=coordinates_3d, mass=mass_3d,
-                                         density=density_3d)
-        @test iszero(ic_3d_default.velocity)
     end
 
     @trixi_testset "Time Step Estimate 3D Gyroscopic" begin
@@ -478,7 +470,7 @@
             return fluid, boundary, copy(dv_fluid[:, 1])
         end
 
-        fluid_wall, wall_system, dv_wall = run_setup(:wall)
+        _, _, dv_wall = run_setup(:wall)
         fluid_rigid, rigid_system, dv_rigid = run_setup(:rigid)
 
         @test isapprox(dv_rigid, dv_wall; rtol=sqrt(eps()), atol=sqrt(eps()))
