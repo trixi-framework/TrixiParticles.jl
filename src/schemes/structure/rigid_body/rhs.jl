@@ -1,8 +1,9 @@
 # Structure-fluid interaction
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
-                   particle_system::RigidBodySystem,
-                   neighbor_system::Union{AbstractFluidSystem, OpenBoundarySystem}, semi)
+                   particle_system::RigidBodySystem{<:Any, NDIMS},
+                   neighbor_system::Union{AbstractFluidSystem, OpenBoundarySystem},
+                   semi) where {NDIMS}
     sound_speed = system_sound_speed(neighbor_system)
     surface_tension = surface_tension_model(neighbor_system)
 
@@ -30,11 +31,11 @@ function interact!(dv, v_particle_system, u_particle_system,
         # experiences due to the structure particle.
         # In fluid-structure interaction, use the "hydrodynamic mass" of the structure
         # particles corresponding to the rest density of the fluid.
-        m_a = hydrodynamic_mass(particle_system, particle)
-        m_b = hydrodynamic_mass(neighbor_system, neighbor)
+        m_a = @inbounds hydrodynamic_mass(particle_system, particle)
+        m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
 
-        rho_a = current_density(v_particle_system, particle_system, particle)
-        rho_b = current_density(v_neighbor_system, neighbor_system, neighbor)
+        rho_a = @inbounds current_density(v_particle_system, particle_system, particle)
+        rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
 
         # Use the fluid kernel in order to get the same force as in
         # fluid-structure interaction.
@@ -42,8 +43,8 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         # In fluid-structure interaction, use the "hydrodynamic pressure" of the
         # structure particles corresponding to the chosen boundary model.
-        p_a = current_pressure(v_particle_system, particle_system, particle)
-        p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)
+        p_a = @inbounds current_pressure(v_particle_system, particle_system, particle)
+        p_b = @inbounds current_pressure(v_neighbor_system, neighbor_system, neighbor)
 
         # Particle and neighbor are switched in the following two calls.
         # This yields the opposite force of the fluid-structure interaction,
@@ -65,7 +66,7 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         dv_particle = dv_boundary + dv_viscosity_ + dv_adhesion
 
-        for i in 1:ndims(particle_system)
+        @inbounds for i in 1:NDIMS
             # `pressure_acceleration`/`dv_viscosity` return acceleration-like pair contributions.
             # Multiply by the interacting fluid mass to recover the force on this rigid particle.
             force_per_particle[i, particle] += dv_particle[i] * m_b
@@ -109,14 +110,14 @@ function apply_resultant_force_and_torque!(dv, particle_system::RigidBodySystem,
     particle_system.angular_acceleration_force[] = angular_acceleration_force
 
     @threaded semi for particle in each_integrated_particle(particle_system)
-        relative_position = extract_svector(particle_system.relative_coordinates,
-                                            particle_system, particle)
+        relative_position = @inbounds extract_svector(particle_system.relative_coordinates,
+                                                      particle_system, particle)
         # For rigid bodies, the instantaneous acceleration of a material point is
         # `a_com + alpha x r` in this force-driven part of the RHS.
         rotational_acceleration = cross_product(angular_acceleration_force,
                                                 relative_position)
 
-        for i in 1:ndims(particle_system)
+        @inbounds for i in 1:ndims(particle_system)
             dv[i, particle] += translational_acceleration[i] + rotational_acceleration[i]
         end
     end
@@ -132,7 +133,7 @@ function resultant_force_and_torque(particle_system::RigidBodySystem{<:Any, NDIM
     total_torque = zero(particle_system.resultant_torque[])
 
     # This is a reduction and cannot be `@threaded`
-    for particle in each_integrated_particle(particle_system)
+    @inbounds for particle in each_integrated_particle(particle_system)
         particle_force = extract_svector(force_per_particle, particle_system, particle)
         relative_position = extract_svector(relative_coordinates, particle_system, particle)
         total_force += particle_force
@@ -180,13 +181,13 @@ function interact!(dv, v_particle_system, u_particle_system,
     particle_system === neighbor_system || return dv
 
     @threaded semi for particle in each_integrated_particle(particle_system)
-        relative_position = extract_svector(particle_system.relative_coordinates,
-                                            particle_system, particle)
+        relative_position = @inbounds extract_svector(particle_system.relative_coordinates,
+                                                      particle_system, particle)
         rotational_acceleration = rigid_kinematic_acceleration(particle_system,
                                                                relative_position,
                                                                Val(ndims(particle_system)))
 
-        for i in 1:ndims(particle_system)
+        @inbounds for i in 1:ndims(particle_system)
             dv[i, particle] += rotational_acceleration[i]
         end
     end

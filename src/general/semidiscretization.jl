@@ -577,7 +577,7 @@ end
                                                  AbstractStructureSystem})
     (; acceleration) = system
 
-    for i in 1:ndims(system)
+    @inbounds for i in 1:ndims(system)
         dv[i, particle] += acceleration[i]
     end
 
@@ -597,14 +597,14 @@ end
 
 @inline function add_source_terms_inner!(dv, v, u, particle, system::RigidBodySystem,
                                          source_terms_, t)
-    coords = current_coords(u, system, particle)
-    velocity = current_velocity(v, system, particle)
+    coords = @inbounds current_coords(u, system, particle)
+    velocity = @inbounds current_velocity(v, system, particle)
     density = @inbounds system.material_density[particle]
     pressure = 0 # Rigid body systems don't have a pressure, but some source terms might depend on it
 
     source = source_terms_(coords, velocity, density, pressure, t)
 
-    for i in eachindex(source)
+    @inbounds for i in eachindex(source)
         dv[i, particle] += source[i]
     end
 
@@ -616,16 +616,16 @@ end
                                 source_terms_::Nothing, t) = dv
 
 @inline function add_source_terms_inner!(dv, v, u, particle, system, source_terms_, t)
-    coords = current_coords(u, system, particle)
-    velocity = current_velocity(v, system, particle)
-    density = current_density(v, system, particle)
-    pressure = current_pressure(v, system, particle)
+    coords = @inbounds current_coords(u, system, particle)
+    velocity = @inbounds current_velocity(v, system, particle)
+    density = @inbounds current_density(v, system, particle)
+    pressure = @inbounds current_pressure(v, system, particle)
 
     source = source_terms_(coords, velocity, density, pressure, t)
 
     # Loop over `eachindex(source)`, so that users could also pass source terms for
     # the density when using `ContinuityDensity`.
-    for i in eachindex(source)
+    @inbounds for i in eachindex(source)
         dv[i, particle] += source[i]
     end
 

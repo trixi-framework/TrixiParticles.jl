@@ -84,14 +84,15 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
     relative_coordinates = copy(initial_condition.coordinates)
     mass = copy(initial_condition.mass)
     material_density = copy(initial_condition.density)
+    val_ndims = Val(NDIMS)
 
     center_of_mass = zero(SVector{NDIMS, ELTYPE})
     total_mass = zero(ELTYPE)
-    for particle in eachindex(mass)
+    @inbounds for particle in eachindex(mass)
         particle_mass = convert(ELTYPE, mass[particle])
         total_mass += particle_mass
         center_of_mass += particle_mass *
-                          extract_svector(relative_coordinates, Val(NDIMS), particle)
+                          extract_svector(relative_coordinates, val_ndims, particle)
     end
 
     if total_mass <= eps(ELTYPE)
@@ -100,7 +101,7 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
 
     center_of_mass /= total_mass
     update_relative_coordinates!(relative_coordinates, relative_coordinates,
-                                 center_of_mass, Val(NDIMS))
+                                 center_of_mass, val_ndims)
 
     force_per_particle = zeros(ELTYPE, NDIMS, nparticles(initial_condition))
     zero_rotational_quantity = NDIMS == 2 ? zero(ELTYPE) : zero(SVector{3, ELTYPE})
@@ -113,10 +114,10 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
     end
 
     center_of_mass_velocity = zero(SVector{NDIMS, ELTYPE})
-    for particle in eachindex(mass)
+    @inbounds for particle in eachindex(mass)
         particle_mass = convert(ELTYPE, mass[particle])
         center_of_mass_velocity += particle_mass *
-                                   extract_svector(initial_velocity, Val(NDIMS), particle)
+                                   extract_svector(initial_velocity, val_ndims, particle)
     end
     center_of_mass_velocity /= total_mass
 
@@ -143,13 +144,15 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
 end
 
 # Per-system color tag for colorfield surface-normal logic and VTK output.
-create_cache_rigid(color_value) = (; color=Int(color_value))
+    create_cache_rigid(color_value) = (; color=Int(color_value))
 
 function update_relative_coordinates!(relative_coordinates, coordinates, center_of_mass,
                                       ::Val{NDIMS}) where {NDIMS}
-    for particle in axes(relative_coordinates, 2)
+    val_ndims = Val(NDIMS)
+
+    @inbounds for particle in axes(relative_coordinates, 2)
         update_relative_coordinate!(relative_coordinates, coordinates, center_of_mass,
-                                    particle, Val(NDIMS))
+                                    particle, val_ndims)
     end
 
     return relative_coordinates
@@ -157,20 +160,25 @@ end
 
 function update_relative_coordinates!(relative_coordinates, coordinates, center_of_mass,
                                       ::Val{NDIMS}, semi) where {NDIMS}
+    val_ndims = Val(NDIMS)
+
     @threaded semi for particle in axes(relative_coordinates, 2)
-        update_relative_coordinate!(relative_coordinates, coordinates, center_of_mass,
-                                    particle, Val(NDIMS))
+        @inbounds update_relative_coordinate!(relative_coordinates, coordinates,
+                                             center_of_mass, particle, val_ndims)
     end
 
     return relative_coordinates
 end
 
-@inline function update_relative_coordinate!(relative_coordinates, coordinates,
-                                             center_of_mass, particle,
-                                             ::Val{NDIMS}) where {NDIMS}
+@propagate_inbounds @inline function update_relative_coordinate!(relative_coordinates,
+                                                                 coordinates,
+                                                                 center_of_mass,
+                                                                 particle,
+                                                                 ::Val{NDIMS}) where {NDIMS}
     relative_position = extract_svector(coordinates, Val(NDIMS), particle) -
                         center_of_mass
-    for i in 1:NDIMS
+
+    @inbounds for i in 1:NDIMS
         relative_coordinates[i, particle] = relative_position[i]
     end
 
@@ -187,7 +195,7 @@ function update_kinematic_cache!(system::RigidBodySystem, coordinates, velocity,
     center_of_mass = zero(SVector{ndims(system), eltype(system)})
     center_of_mass_velocity = zero(SVector{ndims(system), eltype(system)})
 
-    for particle in each_integrated_particle(system)
+    @inbounds for particle in each_integrated_particle(system)
         particle_mass = system.mass[particle]
         center_of_mass += particle_mass * extract_svector(coordinates, system, particle)
         center_of_mass_velocity += particle_mass *
@@ -251,7 +259,7 @@ end
     return zero(eltype(system))
 end
 
-@inline function hydrodynamic_mass(system::RigidBodySystem, particle)
+@propagate_inbounds function hydrodynamic_mass(system::RigidBodySystem, particle)
     return system.boundary_model.hydrodynamic_mass[particle]
 end
 
@@ -332,10 +340,11 @@ function write_v0!(v0, ::BoundaryModelDummyParticles{ContinuityDensity},
                    system::RigidBodySystem)
     (; cache) = system.boundary_model
     (; initial_density) = cache
+    density_variable = ndims(system) + 1
 
-    for particle in each_integrated_particle(system)
+    @inbounds for particle in each_integrated_particle(system)
         # Set particle densities
-        v0[ndims(system) + 1, particle] = initial_density[particle]
+        v0[density_variable, particle] = initial_density[particle]
     end
 
     return v0
@@ -383,11 +392,12 @@ function update_rotational_kinematics!(system::RigidBodySystem, system_velocity,
                                        center_of_mass_velocity, ::Val{NDIMS}) where {NDIMS}
     inertia = zero(system.inertia[])
     angular_momentum = zero(system.angular_velocity[])
+    val_ndims = Val(NDIMS)
 
-    for particle in each_integrated_particle(system)
+    @inbounds for particle in each_integrated_particle(system)
         particle_mass = system.mass[particle]
-        relative_position = extract_svector(system.relative_coordinates, system, particle)
-        relative_velocity = extract_svector(system_velocity, system, particle) -
+        relative_position = extract_svector(system.relative_coordinates, val_ndims, particle)
+        relative_velocity = extract_svector(system_velocity, val_ndims, particle) -
                             center_of_mass_velocity
         inertia += particle_mass * inertia_contribution(relative_position)
         angular_momentum += particle_mass * cross_product(relative_position,
@@ -490,7 +500,7 @@ function maximum_particle_radius(system::RigidBodySystem)
     # characteristic radius used as lever arm in the `calculate_dt` estimates (`r*ω`, `r*α`).
     max_radius = zero(eltype(system))
 
-    for particle in each_integrated_particle(system)
+    @inbounds for particle in each_integrated_particle(system)
         relative_position = extract_svector(system.relative_coordinates, system, particle)
         max_radius = max(max_radius, norm(relative_position))
     end
