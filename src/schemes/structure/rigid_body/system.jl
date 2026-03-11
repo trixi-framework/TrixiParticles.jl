@@ -85,9 +85,20 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
     mass = copy(initial_condition.mass)
     material_density = copy(initial_condition.density)
 
-    center_of_mass,
-    total_mass = center_of_mass_and_total_mass(relative_coordinates, mass,
-                                               Val(NDIMS), ELTYPE)
+    center_of_mass = zero(SVector{NDIMS, ELTYPE})
+    total_mass = zero(ELTYPE)
+    for particle in eachindex(mass)
+        particle_mass = convert(ELTYPE, mass[particle])
+        total_mass += particle_mass
+        center_of_mass += particle_mass *
+                          extract_svector(relative_coordinates, Val(NDIMS), particle)
+    end
+
+    if total_mass <= eps(ELTYPE)
+        throw(ArgumentError("`RigidBodySystem` requires a positive total mass"))
+    end
+
+    center_of_mass /= total_mass
     update_relative_coordinates!(relative_coordinates, relative_coordinates,
                                  center_of_mass, Val(NDIMS))
 
@@ -129,24 +140,6 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
                                   Val(NDIMS))
 
     return system
-end
-
-function center_of_mass_and_total_mass(coordinates, mass, ::Val{NDIMS},
-                                       ELTYPE) where {NDIMS}
-    center_of_mass = zero(SVector{NDIMS, ELTYPE})
-    total_mass = zero(ELTYPE)
-
-    for particle in eachindex(mass)
-        particle_mass = convert(ELTYPE, mass[particle])
-        total_mass += particle_mass
-        center_of_mass += particle_mass * extract_svector(coordinates, Val(NDIMS), particle)
-    end
-
-    if total_mass <= eps(ELTYPE)
-        throw(ArgumentError("`RigidBodySystem` requires a positive total mass"))
-    end
-
-    return center_of_mass / total_mass, total_mass
 end
 
 # Per-system color tag for colorfield surface-normal logic and VTK output.

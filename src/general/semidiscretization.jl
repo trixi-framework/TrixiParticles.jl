@@ -595,13 +595,12 @@ end
     integrate_tlsph && add_source_terms_inner!(dv, v, u, particle, system, source_terms_, t)
 end
 
-@inline function add_source_terms_inner!(dv, v, u, particle,
-                                         system::RigidBodySystem,
+@inline function add_source_terms_inner!(dv, v, u, particle, system::RigidBodySystem,
                                          source_terms_, t)
     coords = current_coords(u, system, particle)
     velocity = current_velocity(v, system, particle)
     density = @inbounds system.material_density[particle]
-    pressure = current_pressure(v, nothing, system)
+    pressure = 0 # Rigid body systems don't have a pressure, but some source terms might depend on it
 
     source = source_terms_(coords, velocity, density, pressure, t)
 
