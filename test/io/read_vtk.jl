@@ -183,17 +183,23 @@
                                                                "tmp_file_rigid_1.vtu"))
             point_data = TrixiParticles.ReadVTK.get_point_data(vtk_file)
             field_data = TrixiParticles.ReadVTK.get_field_data(vtk_file)
-            point_fields = collect(keys(point_data))
-            scalar_fields = collect(keys(field_data))
 
-            @test "relative_coordinates" in point_fields
-            @test "center_of_mass" in scalar_fields
-            @test "center_of_mass_velocity" in scalar_fields
-            @test "resultant_force" in scalar_fields
-            @test "angular_velocity" in scalar_fields
-            @test "resultant_torque" in scalar_fields
-            @test "angular_acceleration_force" in scalar_fields
-            @test "gyroscopic_acceleration" in scalar_fields
+            @test Array(TrixiParticles.ReadVTK.get_data(point_data["relative_coordinates"])) ==
+                  rigid_system.relative_coordinates
+            @test vec(Array(TrixiParticles.ReadVTK.get_data(field_data["center_of_mass"]))) ==
+                  collect(rigid_system.center_of_mass[])
+            @test vec(Array(TrixiParticles.ReadVTK.get_data(field_data["center_of_mass_velocity"]))) ==
+                  collect(rigid_system.center_of_mass_velocity[])
+            @test vec(Array(TrixiParticles.ReadVTK.get_data(field_data["resultant_force"]))) ==
+                  collect(rigid_system.resultant_force[])
+            @test only(Array(TrixiParticles.ReadVTK.get_data(field_data["angular_velocity"]))) ==
+                  rigid_system.angular_velocity[]
+            @test only(Array(TrixiParticles.ReadVTK.get_data(field_data["resultant_torque"]))) ==
+                  rigid_system.resultant_torque[]
+            @test only(Array(TrixiParticles.ReadVTK.get_data(field_data["angular_acceleration_force"]))) ==
+                  rigid_system.angular_acceleration_force[]
+            @test only(Array(TrixiParticles.ReadVTK.get_data(field_data["gyroscopic_acceleration"]))) ==
+                  rigid_system.gyroscopic_acceleration[]
         end
     end
 end

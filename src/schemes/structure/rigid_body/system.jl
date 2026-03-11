@@ -432,10 +432,10 @@ function inverse_inertia_tensor(inertia::SMatrix{3, 3, ELTYPE, 9}) where {ELTYPE
     determinant_tolerance = eps(inertia_scale^3)
 
     if !isfinite(inertia_determinant) || abs(inertia_determinant) <= determinant_tolerance
-        # Embedded 1D/2D particle layouts in 3D lead to singular inertia tensors.
+        # Rank-deficient embedded particle layouts in 3D lead to singular inertia tensors.
         # Use the Moore-Penrose pseudoinverse so angular velocity can still be
         # reconstructed in the resolvable rotational subspace.
-        return SMatrix{3, 3, ELTYPE, 9}(pinv(Matrix(inertia)))
+        return pinv(inertia)
     end
 
     return inv(inertia)
