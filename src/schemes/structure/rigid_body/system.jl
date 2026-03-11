@@ -394,7 +394,7 @@ function update_rotational_kinematics!(system::RigidBodySystem, system_velocity,
     angular_momentum = zero(system.angular_velocity[])
     val_ndims = Val(NDIMS)
 
-    @inbounds for particle in each_integrated_particle(system)
+    for particle in each_integrated_particle(system)
         particle_mass = system.mass[particle]
         relative_position = extract_svector(system.relative_coordinates, val_ndims,
                                             particle)
