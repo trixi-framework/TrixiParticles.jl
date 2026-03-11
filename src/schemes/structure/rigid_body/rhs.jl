@@ -66,7 +66,7 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         dv_particle = dv_boundary + dv_viscosity_ + dv_adhesion
 
-        @inbounds for i in 1:NDIMS
+        @inbounds for i in 1:ndims(particle_system)
             # `pressure_acceleration`/`dv_viscosity` return acceleration-like pair contributions.
             # Multiply by the interacting fluid mass to recover the force on this rigid particle.
             force_per_particle[i, particle] += dv_particle[i] * m_b
@@ -133,7 +133,7 @@ function resultant_force_and_torque(particle_system::RigidBodySystem{<:Any, NDIM
     total_torque = zero(particle_system.resultant_torque[])
 
     # This is a reduction and cannot be `@threaded`
-    @inbounds for particle in each_integrated_particle(particle_system)
+    for particle in each_integrated_particle(particle_system)
         particle_force = extract_svector(force_per_particle, particle_system, particle)
         relative_position = extract_svector(relative_coordinates, particle_system, particle)
         total_force += particle_force

@@ -572,12 +572,12 @@ end
 
 @inline add_acceleration!(dv, particle, system) = dv
 
-@inline function add_acceleration!(dv, particle,
+@propagate_inbounds function add_acceleration!(dv, particle,
                                    system::Union{AbstractFluidSystem,
                                                  AbstractStructureSystem})
     (; acceleration) = system
 
-    @inbounds for i in 1:ndims(system)
+    for i in 1:ndims(system)
         dv[i, particle] += acceleration[i]
     end
 
