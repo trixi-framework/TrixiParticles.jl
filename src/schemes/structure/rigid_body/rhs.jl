@@ -127,9 +127,9 @@ end
 
 # Sum pairwise particle forces into a single net force and torque about the current
 # center of mass of the rigid body.
-function resultant_force_and_torque(particle_system::RigidBodySystem{<:Any, NDIMS},
-                                    force_per_particle, relative_coordinates) where {NDIMS}
-    total_force = zero(SVector{NDIMS, eltype(particle_system)})
+function resultant_force_and_torque(particle_system::RigidBodySystem,
+                                    force_per_particle, relative_coordinates)
+    total_force = zero(SVector{ndims(particle_system), eltype(particle_system)})
     total_torque = zero(particle_system.resultant_torque[])
 
     # This is a reduction and cannot be `@threaded`

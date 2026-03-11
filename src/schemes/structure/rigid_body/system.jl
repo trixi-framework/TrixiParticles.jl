@@ -88,7 +88,7 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
 
     center_of_mass = zero(SVector{NDIMS, ELTYPE})
     total_mass = zero(ELTYPE)
-    @inbounds for particle in eachindex(mass)
+    for particle in eachindex(mass)
         particle_mass = convert(ELTYPE, mass[particle])
         total_mass += particle_mass
         center_of_mass += particle_mass *
@@ -114,7 +114,7 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
     end
 
     center_of_mass_velocity = zero(SVector{NDIMS, ELTYPE})
-    @inbounds for particle in eachindex(mass)
+    for particle in eachindex(mass)
         particle_mass = convert(ELTYPE, mass[particle])
         center_of_mass_velocity += particle_mass *
                                    extract_svector(initial_velocity, val_ndims, particle)
@@ -150,8 +150,8 @@ function update_relative_coordinates!(relative_coordinates, coordinates, center_
                                       ::Val{NDIMS}) where {NDIMS}
     val_ndims = Val(NDIMS)
 
-    @inbounds for particle in axes(relative_coordinates, 2)
-        update_relative_coordinate!(relative_coordinates, coordinates, center_of_mass,
+    for particle in axes(relative_coordinates, 2)
+        @inbounds update_relative_coordinate!(relative_coordinates, coordinates, center_of_mass,
                                     particle, val_ndims)
     end
 
@@ -170,15 +170,14 @@ function update_relative_coordinates!(relative_coordinates, coordinates, center_
     return relative_coordinates
 end
 
-@propagate_inbounds @inline function update_relative_coordinate!(relative_coordinates,
+@propagate_inbounds function update_relative_coordinate!(relative_coordinates,
                                                                  coordinates,
                                                                  center_of_mass,
-                                                                 particle,
-                                                                 ::Val{NDIMS}) where {NDIMS}
-    relative_position = extract_svector(coordinates, Val(NDIMS), particle) -
+                                                                 particle)
+    relative_position = extract_svector(coordinates, ndims(center_of_mass), particle) -
                         center_of_mass
 
-    @inbounds for i in 1:NDIMS
+    for i in eachindex(relative_position)
         relative_coordinates[i, particle] = relative_position[i]
     end
 
@@ -195,7 +194,7 @@ function update_kinematic_cache!(system::RigidBodySystem, coordinates, velocity,
     center_of_mass = zero(SVector{ndims(system), eltype(system)})
     center_of_mass_velocity = zero(SVector{ndims(system), eltype(system)})
 
-    @inbounds for particle in each_integrated_particle(system)
+    for particle in each_integrated_particle(system)
         particle_mass = system.mass[particle]
         center_of_mass += particle_mass * extract_svector(coordinates, system, particle)
         center_of_mass_velocity += particle_mass *
