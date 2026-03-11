@@ -34,7 +34,7 @@ torque and applied consistently to all rigid particles.
                  surface-tension setups, and it is written to VTK output as `"color"`.
 """
 struct RigidBodySystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
-                      ST, CM, CMV, I, II, AV, RF, RT, AAF, GA, C} <:
+                       ST, CM, CMV, I, II, AV, RF, RT, AAF, GA, C} <:
        AbstractStructureSystem{NDIMS}
     initial_condition          :: IC
     initial_velocity           :: ARRAY2D # [dimension, particle]
@@ -63,11 +63,11 @@ end
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
 function RigidBodySystem(initial_condition; boundary_model=nothing,
-                        acceleration=ntuple(_ -> zero(eltype(initial_condition)),
-                                            ndims(initial_condition)),
-                        particle_spacing=initial_condition.particle_spacing,
-                        source_terms=nothing, adhesion_coefficient=0.0,
-                        color_value=0)
+                         acceleration=ntuple(_ -> zero(eltype(initial_condition)),
+                                             ndims(initial_condition)),
+                         particle_spacing=initial_condition.particle_spacing,
+                         source_terms=nothing, adhesion_coefficient=0.0,
+                         color_value=0)
     NDIMS = ndims(initial_condition)
     if NDIMS != 2 && NDIMS != 3
         throw(ArgumentError("`RigidBodySystem` currently supports only 2D and 3D, got $(NDIMS)D"))
@@ -121,19 +121,19 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
     center_of_mass_velocity /= total_mass
 
     system = RigidBodySystem(initial_condition, initial_velocity, mass,
-                            material_density, acceleration_,
-                            particle_spacing_, total_mass, force_per_particle,
-                            relative_coordinates, Ref(center_of_mass),
-                            Ref(center_of_mass_velocity),
-                            inertia, inverse_inertia,
-                            Ref(zero_rotational_quantity),
-                            Ref(zero(SVector{NDIMS, ELTYPE})),
-                            Ref(zero_rotational_quantity),
-                            Ref(zero_rotational_quantity),
-                            Ref(zero_rotational_quantity),
-                            boundary_model, source_terms,
-                            convert(ELTYPE, adhesion_coefficient),
-                            create_cache_rigid(color_value))
+                             material_density, acceleration_,
+                             particle_spacing_, total_mass, force_per_particle,
+                             relative_coordinates, Ref(center_of_mass),
+                             Ref(center_of_mass_velocity),
+                             inertia, inverse_inertia,
+                             Ref(zero_rotational_quantity),
+                             Ref(zero(SVector{NDIMS, ELTYPE})),
+                             Ref(zero_rotational_quantity),
+                             Ref(zero_rotational_quantity),
+                             Ref(zero_rotational_quantity),
+                             boundary_model, source_terms,
+                             convert(ELTYPE, adhesion_coefficient),
+                             create_cache_rigid(color_value))
 
     # Initialize rotational kinematics consistently with the initial velocity field.
     update_rotational_kinematics!(system, initial_velocity, center_of_mass_velocity,
@@ -254,8 +254,6 @@ end
 @inline function hydrodynamic_mass(system::RigidBodySystem, particle)
     return system.boundary_model.hydrodynamic_mass[particle]
 end
-
-
 
 @inline function smoothing_length(system::RigidBodySystem{<:BoundaryModelDummyParticles},
                                   particle)
@@ -443,14 +441,14 @@ function inverse_inertia_tensor(inertia::SMatrix{3, 3, ELTYPE, 9}) where {ELTYPE
     return inv(inertia)
 end
 
-@inline function gyroscopic_acceleration_term(inertia::ELTYPE, inverse_inertia::ELTYPE,
-                                              angular_velocity::ELTYPE) where {ELTYPE}
+# 2D version
+@inline function gyroscopic_acceleration_term(inertia, inverse_inertia,
+                                              angular_velocity)
     return zero(angular_velocity)
 end
-
-@inline function gyroscopic_acceleration_term(inertia::SMatrix{3, 3, ELTYPE, 9},
-                                              inverse_inertia::SMatrix{3, 3, ELTYPE, 9},
-                                              angular_velocity::SVector{3, ELTYPE}) where {ELTYPE}
+# 3D version
+@inline function gyroscopic_acceleration_term(inertia::SMatrix{3, 3},
+                                              inverse_inertia, angular_velocity)
     return inverse_inertia * cross(angular_velocity, inertia * angular_velocity)
 end
 

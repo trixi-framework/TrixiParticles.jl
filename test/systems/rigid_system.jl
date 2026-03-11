@@ -16,9 +16,9 @@
                                                      smoothing_length)
 
         system = RigidBodySystem(initial_condition;
-                                boundary_model=boundary_model,
-                                acceleration=(0.0, -9.81),
-                                particle_spacing=0.1)
+                                 boundary_model=boundary_model,
+                                 acceleration=(0.0, -9.81),
+                                 particle_spacing=0.1)
 
         @test system isa RigidBodySystem
         @test ndims(system) == 2
@@ -57,8 +57,8 @@
                                                      smoothing_length)
 
         system = RigidBodySystem(initial_condition;
-                                boundary_model=boundary_model,
-                                acceleration=(0.0, -9.81))
+                                 boundary_model=boundary_model,
+                                 acceleration=(0.0, -9.81))
 
         show_compact = "RigidBodySystem{2}([0.0, -9.81], BoundaryModelDummyParticles(SummationDensity, Nothing)) with 2 particles"
         @test repr(system) == show_compact
@@ -258,7 +258,7 @@
 
         initial_condition = InitialCondition(; coordinates, velocity, mass, density)
         rigid_system = RigidBodySystem(initial_condition;
-                                      acceleration=(0.0, 0.0))
+                                       acceleration=(0.0, 0.0))
 
         v = copy(velocity)
         u = copy(coordinates)
@@ -359,7 +359,7 @@
                                                      smoothing_length)
 
         rigid_system = RigidBodySystem(initial_condition;
-                                      boundary_model=boundary_model)
+                                       boundary_model=boundary_model)
         semi = Semidiscretization(rigid_system)
         ode = semidiscretize(semi, (0.0, 0.01))
         v_ode, u_ode = ode.u0.x
@@ -397,7 +397,7 @@
                                                            smoothing_kernel,
                                                            smoothing_length)
         rigid_system_with_dummy = RigidBodySystem(rigid_ic;
-                                                 boundary_model=rigid_boundary_model)
+                                                  boundary_model=rigid_boundary_model)
         fluid_with_surface_tension = WeaklyCompressibleSPHSystem(rigid_ic,
                                                                  SummationDensity(),
                                                                  state_equation,
@@ -461,8 +461,8 @@
                                             density=[rigid_density],
                                             particle_spacing=particle_spacing)
                 RigidBodySystem(rigid_ic;
-                               boundary_model=boundary_model,
-                               adhesion_coefficient=adhesion_coefficient)
+                                boundary_model=boundary_model,
+                                adhesion_coefficient=adhesion_coefficient)
             end
 
             semi = Semidiscretization(fluid_system, boundary_system)
@@ -516,8 +516,8 @@
                                         density=[rigid_density],
                                         particle_spacing=particle_spacing)
             rigid_system = RigidBodySystem(rigid_ic;
-                                          boundary_model=boundary_model,
-                                          acceleration=(0.0, 0.0))
+                                           boundary_model=boundary_model,
+                                           acceleration=(0.0, 0.0))
 
             neighbor_ic = InitialCondition(coordinates=reshape([1.5, 0.0], 2, 1),
                                            velocity=zeros(2, 1),

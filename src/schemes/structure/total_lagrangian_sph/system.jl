@@ -329,7 +329,6 @@ end
     error("`current_velocity(v, system)` is not implemented for `TotalLagrangianSPHSystem`")
 end
 
-
 @propagate_inbounds function current_density(v, system::TotalLagrangianSPHSystem)
     return current_density(v, system.boundary_model, system)
 end

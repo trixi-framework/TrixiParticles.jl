@@ -485,7 +485,6 @@ function center_of_mass_from_mass(coordinates, mass, ::Val{NDIMS}, ELTYPE) where
         return weighted_center_of_mass / total_mass
     end
 
-
     return center_of_mass / n_particles
 end
 
@@ -508,7 +507,8 @@ function apply_angular_velocity(initial_condition::InitialCondition, angular_vel
         end
         angular_velocity_ = convert(ELTYPE, angular_velocity)
     elseif NDIMS == 3
-        if !(angular_velocity isa Union{Tuple, AbstractArray} && length(angular_velocity) == 3)
+        if !(angular_velocity isa Union{Tuple, AbstractArray} &&
+             length(angular_velocity) == 3)
             throw(ArgumentError("`angular_velocity` must be of length 3 for a 3D problem"))
         end
         angular_velocity_ = SVector{3, ELTYPE}(angular_velocity...)
