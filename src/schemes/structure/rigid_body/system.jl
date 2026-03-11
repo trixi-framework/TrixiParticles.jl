@@ -88,7 +88,7 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
 
     center_of_mass = zero(SVector{NDIMS, ELTYPE})
     total_mass = zero(ELTYPE)
-    @inbounds for particle in eachindex(mass)
+    for particle in eachindex(mass)
         particle_mass = convert(ELTYPE, mass[particle])
         total_mass += particle_mass
         center_of_mass += particle_mass *
