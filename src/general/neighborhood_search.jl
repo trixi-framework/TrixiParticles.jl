@@ -32,6 +32,11 @@ end
     return compact_support(system.fluid_system, neighbor.fluid_system)
 end
 
+@inline function compact_support(system::OpenBoundarySystem, neighbor::RigidBodySystem)
+    # Rigid/open-boundary interactions are currently not modeled.
+    return zero(eltype(system))
+end
+
 # -- DEM boundaries
 @inline function compact_support(system::BoundaryDEMSystem, neighbor::BoundaryDEMSystem)
     # This NHS is never used
@@ -80,6 +85,11 @@ end
 @inline function compact_support(system::RigidBodySystem, model::Nothing, neighbor)
     # Rigid interactions without a boundary model are currently not modeled.
     # This neighborhood search exists only to keep the semidiscretization structure uniform.
+    return zero(eltype(system))
+end
+
+@inline function compact_support(system::RigidBodySystem, neighbor::OpenBoundarySystem)
+    # Rigid/open-boundary interactions are currently not modeled.
     return zero(eltype(system))
 end
 
@@ -277,16 +287,6 @@ function update_nhs!(neighborhood_search,
 end
 
 function update_nhs!(neighborhood_search,
-                     system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
-                     neighbor::RigidBodySystem,
-                     u_system, u_neighbor, semi)
-    update!(neighborhood_search,
-            current_coordinates(u_system, system),
-            current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, true), eachindex_y=each_active_particle(neighbor))
-end
-
-function update_nhs!(neighborhood_search,
                      system::TotalLagrangianSPHSystem,
                      neighbor::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
                      u_system, u_neighbor, semi)
@@ -300,10 +300,8 @@ function update_nhs!(neighborhood_search,
                      system::RigidBodySystem,
                      neighbor::OpenBoundarySystem,
                      u_system, u_neighbor, semi)
-    update!(neighborhood_search,
-            current_coordinates(u_system, system),
-            current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, true), eachindex_y=each_active_particle(neighbor))
+    # Don't update. This NHS is never used.
+    return neighborhood_search
 end
 
 # -- Open boundary combinations that are never used
@@ -518,7 +516,7 @@ function update_nhs!(neighborhood_search,
                      system::OpenBoundarySystem,
                      neighbor::RigidBodySystem,
                      u_system, u_neighbor, semi)
-    # Don't update. This NHS is never used for non-dynamical open boundaries.
+    # Don't update. This NHS is never used.
     return neighborhood_search
 end
 

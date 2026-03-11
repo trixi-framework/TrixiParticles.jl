@@ -479,14 +479,13 @@
                        rtol=sqrt(eps()), atol=sqrt(eps()))
     end
 
-    @trixi_testset "Open Boundary Interaction Matches Fluid Interaction" begin
+    @trixi_testset "Rigid Bodies Ignore Open Boundary Interactions" begin
         particle_spacing = 1.0
         smoothing_kernel = SchoenbergCubicSplineKernel{2}()
         smoothing_length = 1.0
         fluid_density = 1000.0
         rigid_density = 2000.0
         particle_volume = particle_spacing^2
-        boundary_pressure = 2.5
 
         state_equation = StateEquationCole(sound_speed=10.0,
                                            reference_density=fluid_density,
@@ -500,75 +499,64 @@
                                                      state_equation=state_equation,
                                                      reference_particle_spacing=particle_spacing)
 
-        function run_setup(neighbor_kind)
-            rigid_ic = InitialCondition(coordinates=reshape([0.0, 0.0], 2, 1),
-                                        velocity=zeros(2, 1),
-                                        mass=[particle_volume * rigid_density],
-                                        density=[rigid_density],
-                                        particle_spacing=particle_spacing)
-            rigid_system = RigidBodySystem(rigid_ic;
-                                           boundary_model=boundary_model,
-                                           acceleration=(0.0, 0.0))
+        rigid_ic = InitialCondition(coordinates=reshape([0.0, 0.0], 2, 1),
+                                    velocity=zeros(2, 1),
+                                    mass=[particle_volume * rigid_density],
+                                    density=[rigid_density],
+                                    particle_spacing=particle_spacing)
+        rigid_system = RigidBodySystem(rigid_ic;
+                                       boundary_model=boundary_model,
+                                       acceleration=(0.0, 0.0))
 
-            neighbor_ic = InitialCondition(coordinates=reshape([1.5, 0.0], 2, 1),
-                                           velocity=zeros(2, 1),
-                                           mass=[particle_volume * fluid_density],
-                                           density=[fluid_density],
-                                           particle_spacing=particle_spacing)
+        open_boundary_ic = InitialCondition(coordinates=reshape([1.5, 0.0], 2, 1),
+                                            velocity=zeros(2, 1),
+                                            mass=[particle_volume * fluid_density],
+                                            density=[fluid_density],
+                                            particle_spacing=particle_spacing)
 
-            fluid_support_ic = InitialCondition(coordinates=reshape([10.0, 10.0], 2, 1),
-                                                velocity=zeros(2, 1),
-                                                mass=[particle_volume * fluid_density],
-                                                density=[fluid_density],
-                                                particle_spacing=particle_spacing)
-            fluid_system = WeaklyCompressibleSPHSystem(fluid_support_ic, SummationDensity(),
-                                                       state_equation,
-                                                       smoothing_kernel,
-                                                       smoothing_length)
+        fluid_support_ic = InitialCondition(coordinates=reshape([10.0, 10.0], 2, 1),
+                                            velocity=zeros(2, 1),
+                                            mass=[particle_volume * fluid_density],
+                                            density=[fluid_density],
+                                            particle_spacing=particle_spacing)
+        fluid_system = WeaklyCompressibleSPHSystem(fluid_support_ic, SummationDensity(),
+                                                   state_equation,
+                                                   smoothing_kernel,
+                                                   smoothing_length)
 
-            neighbor_system = if neighbor_kind == :fluid
-                WeaklyCompressibleSPHSystem(neighbor_ic, SummationDensity(),
-                                            state_equation,
-                                            smoothing_kernel,
-                                            smoothing_length)
-            else
-                boundary_face = ([2.0, -0.5], [2.0, 0.5])
-                zone = BoundaryZone(; boundary_face, face_normal=(1.0, 0.0),
-                                    density=fluid_density,
-                                    particle_spacing=particle_spacing,
-                                    initial_condition=neighbor_ic,
-                                    open_boundary_layers=1,
-                                    boundary_type=InFlow())
+        boundary_face = ([2.0, -0.5], [2.0, 0.5])
+        zone = BoundaryZone(; boundary_face, face_normal=(1.0, 0.0),
+                            density=fluid_density,
+                            particle_spacing=particle_spacing,
+                            initial_condition=open_boundary_ic,
+                            open_boundary_layers=1,
+                            boundary_type=InFlow())
 
-                OpenBoundarySystem(zone; fluid_system,
-                                   boundary_model=BoundaryModelMirroringTafuni(),
-                                   buffer_size=0)
-            end
+        open_boundary_system = OpenBoundarySystem(zone; fluid_system,
+                                                  boundary_model=BoundaryModelDynamicalPressureZhang(),
+                                                  buffer_size=0)
 
-            semi = Semidiscretization(fluid_system, rigid_system, neighbor_system)
-            ode = semidiscretize(semi, (0.0, 0.01))
+        semi = Semidiscretization(fluid_system, rigid_system, open_boundary_system)
+        ode = semidiscretize(semi, (0.0, 0.01))
 
-            rigid = ode.p.systems[2]
-            neighbor = ode.p.systems[3]
+        rigid = ode.p.systems[2]
+        open_boundary = ode.p.systems[3]
 
-            v_ode, u_ode = ode.u0.x
-            TrixiParticles.current_density(v_ode, neighbor) .= fluid_density
-            TrixiParticles.current_pressure(v_ode, neighbor) .= boundary_pressure
+        @test iszero(TrixiParticles.compact_support(rigid, open_boundary))
+        @test iszero(TrixiParticles.compact_support(open_boundary, rigid))
 
-            dv_ode = zero(v_ode)
-            TrixiParticles.interact!(dv_ode, v_ode, u_ode, rigid, neighbor, ode.p)
+        v_ode, u_ode = ode.u0.x
+        dv_ode = zero(v_ode)
 
-            dv_rigid = TrixiParticles.wrap_v(dv_ode, rigid, ode.p)
+        TrixiParticles.interact!(dv_ode, v_ode, u_ode, rigid, open_boundary, ode.p)
+        TrixiParticles.interact!(dv_ode, v_ode, u_ode, open_boundary, rigid, ode.p)
 
-            return rigid, copy(dv_rigid[:, 1])
-        end
+        dv_rigid = TrixiParticles.wrap_v(dv_ode, rigid, ode.p)
+        dv_open_boundary = TrixiParticles.wrap_v(dv_ode, open_boundary, ode.p)
 
-        rigid_fluid, dv_fluid = run_setup(:fluid)
-        rigid_open_boundary, dv_open_boundary = run_setup(:open_boundary)
-
-        @test isapprox(dv_open_boundary, dv_fluid; rtol=sqrt(eps()), atol=sqrt(eps()))
-        @test isapprox(rigid_open_boundary.resultant_force[],
-                       rigid_fluid.resultant_force[];
-                       rtol=sqrt(eps()), atol=sqrt(eps()))
+        @test all(iszero, dv_rigid[:, 1])
+        @test all(iszero, dv_open_boundary[:, 1])
+        @test iszero(rigid.resultant_force[])
+        @test iszero(rigid.resultant_torque[])
     end
 end

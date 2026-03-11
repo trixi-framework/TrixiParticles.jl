@@ -2,7 +2,7 @@
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::RigidBodySystem,
-                   neighbor_system::Union{AbstractFluidSystem, OpenBoundarySystem}, semi)
+                   neighbor_system::AbstractFluidSystem, semi)
     sound_speed = system_sound_speed(neighbor_system)
     surface_tension = surface_tension_model(neighbor_system)
 
@@ -181,11 +181,20 @@ function interact!(dv, v_particle_system, u_particle_system,
     return dv
 end
 
-# Structure-structure and structure-boundary interactions are currently not modeled.
+# Rigid bodies passing through open boundaries are currently not modeled.
+function interact!(dv, v_particle_system, u_particle_system,
+                   v_neighbor_system, u_neighbor_system,
+                   particle_system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
+                   neighbor_system::RigidBodySystem, semi)
+    return dv
+end
+
+# Structure-structure and structure-boundary/open-boundary interactions are currently not modeled.
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::RigidBodySystem,
                    neighbor_system::Union{AbstractStructureSystem,
-                                          AbstractBoundarySystem}, semi)
+                                          AbstractBoundarySystem,
+                                          OpenBoundarySystem}, semi)
     return dv
 end
