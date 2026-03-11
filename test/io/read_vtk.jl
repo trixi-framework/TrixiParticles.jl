@@ -83,7 +83,6 @@
 
                 @test isapprox(expected_ic.velocity, test_ic.velocity, rtol=1e-5)
             end
-
         end
 
         @testset verbose=true "`AbstractFluidSystem`" begin
