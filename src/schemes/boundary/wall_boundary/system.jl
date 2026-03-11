@@ -145,16 +145,16 @@ end
     return zero(SVector{ndims(system), eltype(system)})
 end
 
-@inline function viscous_velocity(v, system::WallBoundarySystem, particle)
+@inline function viscous_velocity(v, system, particle)
     return viscous_velocity(v, system.boundary_model.viscosity, system, particle)
 end
 
-@inline function viscous_velocity(v, viscosity, system::WallBoundarySystem, particle)
-    return extract_svector(system.boundary_model.cache.wall_velocity, system, particle)
+@inline function viscous_velocity(v, ::Nothing, system, particle)
+    return current_velocity(v, system, particle)
 end
 
-@inline function viscous_velocity(v, ::Nothing, system::WallBoundarySystem, particle)
-    return current_velocity(v, system, particle)
+@inline function viscous_velocity(v, viscosity, system, particle)
+    return extract_svector(system.boundary_model.cache.wall_velocity, system, particle)
 end
 
 @inline function current_density(v, system::WallBoundarySystem)

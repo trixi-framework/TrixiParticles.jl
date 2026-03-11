@@ -262,22 +262,7 @@ end
     return system.boundary_model.hydrodynamic_mass[particle]
 end
 
-@inline function viscous_velocity(v, system::RigidBodySystem, particle)
-    return viscous_velocity(v, system.boundary_model, system, particle)
-end
 
-@inline function viscous_velocity(v, ::Nothing, system::RigidBodySystem, particle)
-    return current_velocity(v, system, particle)
-end
-
-@inline function viscous_velocity(v, boundary_model, system::RigidBodySystem, particle)
-    return viscous_velocity(v, boundary_model.viscosity, boundary_model, system, particle)
-end
-
-@inline function viscous_velocity(v, viscosity, boundary_model,
-                                  system::RigidBodySystem, particle)
-    return extract_svector(boundary_model.cache.wall_velocity, system, particle)
-end
 
 @inline function smoothing_length(system::RigidBodySystem{<:BoundaryModelDummyParticles},
                                   particle)
