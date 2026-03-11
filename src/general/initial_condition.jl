@@ -16,6 +16,9 @@ to build more complex geometries.
 `InitialCondition`s also support the set operations `setdiff` and `intersect` together
 with `TrixiParticles.TriangleMesh` and `TrixiParticles.Polygon` returned by [`load_geometry`](@ref).
 
+To add a rotational contribution to an existing initial condition, use
+[`apply_angular_velocity`](@ref).
+
 # Arguments
 - `coordinates`: An array where the $i$-th column holds the coordinates of particle $i$.
 - `density`:     Either a vector holding the density of each particle,
@@ -39,8 +42,6 @@ with `TrixiParticles.TriangleMesh` and `TrixiParticles.Polygon` returned by [`lo
                       is assumed to be uniform. This is only needed when using
                       set operations on the `InitialCondition` or for automatic mass calculation.
 
-To add a rotational contribution to an existing initial condition, use
-[`apply_angular_velocity`](@ref).
 
 # Examples
 ```jldoctest; output = false
