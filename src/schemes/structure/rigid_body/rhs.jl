@@ -12,7 +12,7 @@ function interact!(dv, v_particle_system, u_particle_system,
 
     # Accumulate pairwise fluid forces per rigid particle first, then reduce them to a
     # single resultant force/torque for the rigid-body update below.
-    force_per_particle = particle_system.force_per_particle
+    (; force_per_particle) = particle_system
     set_zero!(force_per_particle)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
