@@ -425,7 +425,6 @@ function write2vtk!(vtk, v, u, t, system::RigidSPHSystem)
     vtk["color"] = system.cache.color
     vtk["material_density"] = system.material_density
     vtk["mass"] = system.mass
-    vtk["local_coordinates"] = system.local_coordinates
     vtk["relative_coordinates"] = system.relative_coordinates
     vtk["center_of_mass"] = [system.center_of_mass[]]
     vtk["center_of_mass_velocity"] = [system.center_of_mass_velocity[]]

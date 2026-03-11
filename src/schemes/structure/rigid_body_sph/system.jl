@@ -38,7 +38,6 @@ struct RigidSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
        AbstractStructureSystem{NDIMS}
     initial_condition          :: IC
     initial_velocity           :: ARRAY2D # [dimension, particle]
-    local_coordinates          :: ARRAY2D # [dimension, particle]
     mass                       :: ARRAY1D # [particle]
     material_density           :: ARRAY1D # [particle]
     acceleration               :: SVector{NDIMS, ELTYPE}
@@ -82,18 +81,17 @@ function RigidSPHSystem(initial_condition; boundary_model=nothing,
 
     particle_spacing_ = convert(ELTYPE, particle_spacing)
     initial_velocity = copy(initial_condition.velocity)
-    local_coordinates = copy(initial_condition.coordinates)
+    relative_coordinates = copy(initial_condition.coordinates)
     mass = copy(initial_condition.mass)
     material_density = copy(initial_condition.density)
 
     center_of_mass,
-    total_mass = center_of_mass_and_total_mass(local_coordinates, mass,
+    total_mass = center_of_mass_and_total_mass(relative_coordinates, mass,
                                                Val(NDIMS), ELTYPE)
-    update_relative_coordinates!(local_coordinates, local_coordinates,
+    update_relative_coordinates!(relative_coordinates, relative_coordinates,
                                  center_of_mass, Val(NDIMS))
 
     force_per_particle = zeros(ELTYPE, NDIMS, nparticles(initial_condition))
-    relative_coordinates = copy(local_coordinates)
     zero_rotational_quantity = NDIMS == 2 ? zero(ELTYPE) : zero(SVector{3, ELTYPE})
     if NDIMS == 2
         inertia = Ref(zero(ELTYPE))
@@ -111,8 +109,8 @@ function RigidSPHSystem(initial_condition; boundary_model=nothing,
     end
     center_of_mass_velocity /= total_mass
 
-    system = RigidSPHSystem(initial_condition, initial_velocity, local_coordinates,
-                            mass, material_density, acceleration_,
+    system = RigidSPHSystem(initial_condition, initial_velocity, mass,
+                            material_density, acceleration_,
                             particle_spacing_, total_mass, force_per_particle,
                             relative_coordinates, Ref(center_of_mass),
                             Ref(center_of_mass_velocity),
@@ -177,10 +175,6 @@ end
 
 @inline function v_nvariables(system::RigidSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}})
     return ndims(system) + 1
-end
-
-@inline function local_coordinates(system::RigidSPHSystem)
-    return system.local_coordinates
 end
 
 @inline function particle_spacing(system::RigidSPHSystem, particle)
@@ -335,10 +329,9 @@ function restart_with!(system::RigidSPHSystem, v, u)
     _ = center_of_mass_and_total_mass(system.initial_condition.coordinates,
                                       system.mass, Val(ndims(system)),
                                       eltype(system))
-    update_relative_coordinates!(system.local_coordinates,
+    update_relative_coordinates!(system.relative_coordinates,
                                  system.initial_condition.coordinates,
                                  center_of_mass, Val(ndims(system)))
-    copyto!(system.relative_coordinates, system.local_coordinates)
     system.center_of_mass[] = center_of_mass
 
     center_of_mass_velocity = zero(SVector{ndims(system), eltype(system)})
@@ -595,7 +588,6 @@ function system_data(system::RigidSPHSystem, dv_ode, du_ode, v_ode, u_ode, semi)
 
     return (; coordinates, velocity, mass=system.mass,
             material_density=system.material_density,
-            local_coordinates=system.local_coordinates,
             relative_coordinates,
             center_of_mass, center_of_mass_velocity,
             angular_velocity,
@@ -606,7 +598,7 @@ end
 
 function available_data(::RigidSPHSystem)
     return (:coordinates, :velocity, :mass, :material_density,
-            :local_coordinates, :relative_coordinates,
+            :relative_coordinates,
             :center_of_mass, :center_of_mass_velocity,
             :angular_velocity, :resultant_force, :resultant_torque,
             :angular_acceleration_force, :gyroscopic_acceleration,

@@ -24,7 +24,7 @@
         @test ndims(system) == 2
         @test system.initial_condition == initial_condition
         center_of_mass = [9.5 / 4.5, 9.5 / 4.5]
-        @test isapprox(system.local_coordinates, coordinates .- center_of_mass)
+        @test isapprox(system.relative_coordinates, coordinates .- center_of_mass)
         @test system.mass == mass
         @test system.material_density == material_densities
         @test system.initial_velocity == initial_condition.velocity
@@ -308,8 +308,8 @@
         @test data.resultant_torque == 0.0
         @test data.angular_acceleration_force == 0.0
         @test data.gyroscopic_acceleration == 0.0
-        @test data.local_coordinates == rigid_system.local_coordinates
         @test data.relative_coordinates == rigid_system.relative_coordinates
+        @test :local_coordinates ∉ fields
     end
 
     @trixi_testset "Restart" begin
@@ -339,7 +339,6 @@
         expected_relative_coordinates = u_new .- expected_center_of_mass
 
         @test isapprox(rigid_system.center_of_mass[], expected_center_of_mass)
-        @test isapprox(rigid_system.local_coordinates, expected_relative_coordinates)
         @test isapprox(rigid_system.relative_coordinates, expected_relative_coordinates)
         @test isapprox(rigid_system.center_of_mass_velocity[], [2.0, 5.0])
         @test isapprox(rigid_system.angular_velocity[], 0.5)

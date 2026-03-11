@@ -205,7 +205,6 @@
             point_fields = collect(keys(point_data))
             scalar_fields = collect(keys(field_data))
 
-            @test "local_coordinates" in point_fields
             @test "relative_coordinates" in point_fields
             @test "center_of_mass" in scalar_fields
             @test "center_of_mass_velocity" in scalar_fields
