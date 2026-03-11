@@ -110,8 +110,7 @@ function apply_resultant_force_and_torque!(dv, particle_system::RigidBodySystem,
 
     @threaded semi for particle in each_integrated_particle(particle_system)
         relative_position = extract_svector(particle_system.relative_coordinates,
-                                            particle_system,
-                                            particle)
+                                            particle_system, particle)
         # For rigid bodies, the instantaneous acceleration of a material point is
         # `a_com + alpha x r` in this force-driven part of the RHS.
         rotational_acceleration = cross_product(angular_acceleration_force,
@@ -128,11 +127,11 @@ end
 # Sum pairwise particle forces into a single net force and torque about the current
 # center of mass of the rigid body.
 function resultant_force_and_torque(particle_system::RigidBodySystem{<:Any, NDIMS},
-                                    force_per_particle,
-                                    relative_coordinates) where {NDIMS}
+                                    force_per_particle, relative_coordinates) where {NDIMS}
     total_force = zero(SVector{NDIMS, eltype(particle_system)})
     total_torque = zero(particle_system.resultant_torque[])
 
+    # This is a reduction and cannot be `@threaded`
     for particle in each_integrated_particle(particle_system)
         particle_force = extract_svector(force_per_particle, particle_system, particle)
         relative_position = extract_svector(relative_coordinates, particle_system, particle)
@@ -152,9 +151,7 @@ end
                                       particle, neighbor, pos_diff, distance,
                                       m_b, rho_a, rho_b,
                                       particle_system::RigidBodySystem,
-                                      neighbor_system::Union{AbstractFluidSystem,
-                                                             OpenBoundarySystem},
-                                      grad_kernel)
+                                      neighbor_system, grad_kernel)
     # Most rigid boundary models keep their density fixed, so no continuity update is needed.
     return dv
 end
@@ -165,9 +162,7 @@ end
                                       particle, neighbor, pos_diff, distance,
                                       m_b, rho_a, rho_b,
                                       particle_system::RigidBodySystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
-                                      neighbor_system::Union{AbstractFluidSystem,
-                                                             OpenBoundarySystem},
-                                      grad_kernel)
+                                      neighbor_system, grad_kernel)
     v_diff = current_velocity(v_particle_system, particle_system, particle) -
              current_velocity(v_neighbor_system, neighbor_system, neighbor)
 

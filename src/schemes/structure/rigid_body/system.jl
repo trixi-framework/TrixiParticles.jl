@@ -155,14 +155,69 @@ create_cache_rigid(color_value) = (; color=Int(color_value))
 function update_relative_coordinates!(relative_coordinates, coordinates, center_of_mass,
                                       ::Val{NDIMS}) where {NDIMS}
     for particle in axes(relative_coordinates, 2)
-        relative_position = extract_svector(coordinates, Val(NDIMS), particle) -
-                            center_of_mass
-        for i in 1:NDIMS
-            relative_coordinates[i, particle] = relative_position[i]
-        end
+        update_relative_coordinate!(relative_coordinates, coordinates, center_of_mass,
+                                    particle, Val(NDIMS))
     end
 
     return relative_coordinates
+end
+
+function update_relative_coordinates!(relative_coordinates, coordinates, center_of_mass,
+                                      ::Val{NDIMS}, semi) where {NDIMS}
+    @threaded semi for particle in axes(relative_coordinates, 2)
+        update_relative_coordinate!(relative_coordinates, coordinates, center_of_mass,
+                                    particle, Val(NDIMS))
+    end
+
+    return relative_coordinates
+end
+
+@inline function update_relative_coordinate!(relative_coordinates, coordinates,
+                                             center_of_mass, particle,
+                                             ::Val{NDIMS}) where {NDIMS}
+    relative_position = extract_svector(coordinates, Val(NDIMS), particle) -
+                        center_of_mass
+    for i in 1:NDIMS
+        relative_coordinates[i, particle] = relative_position[i]
+    end
+
+    return relative_coordinates
+end
+
+# Refresh the rigid-body kinematic cache from a consistent particle state after the
+# ODE state has changed. Force/torque resultants are updated separately during RHS assembly.
+function update_kinematic_cache!(system::RigidBodySystem, coordinates, velocity,
+                                 semi=nothing)
+    total_mass = system.total_mass
+    total_mass <= eps(eltype(system)) && return system
+
+    center_of_mass = zero(SVector{ndims(system), eltype(system)})
+    center_of_mass_velocity = zero(SVector{ndims(system), eltype(system)})
+
+    for particle in each_integrated_particle(system)
+        particle_mass = system.mass[particle]
+        center_of_mass += particle_mass * extract_svector(coordinates, system, particle)
+        center_of_mass_velocity += particle_mass *
+                                   extract_svector(velocity, system, particle)
+    end
+
+    center_of_mass /= total_mass
+    center_of_mass_velocity /= total_mass
+
+    system.center_of_mass[] = center_of_mass
+    system.center_of_mass_velocity[] = center_of_mass_velocity
+
+    if isnothing(semi)
+        update_relative_coordinates!(system.relative_coordinates, coordinates,
+                                     center_of_mass, Val(ndims(system)))
+    else
+        update_relative_coordinates!(system.relative_coordinates, coordinates,
+                                     center_of_mass, Val(ndims(system)), semi)
+    end
+    update_rotational_kinematics!(system, velocity, center_of_mass_velocity,
+                                  Val(ndims(system)))
+
+    return system
 end
 
 @inline function Base.eltype(::RigidBodySystem{<:Any, <:Any, ELTYPE}) where {ELTYPE}
@@ -217,11 +272,6 @@ end
 
 @inline function viscous_velocity(v, boundary_model, system::RigidBodySystem, particle)
     return viscous_velocity(v, boundary_model.viscosity, boundary_model, system, particle)
-end
-
-@inline function viscous_velocity(v, ::Nothing, boundary_model,
-                                  system::RigidBodySystem, particle)
-    return current_velocity(v, system, particle)
 end
 
 @inline function viscous_velocity(v, viscosity, boundary_model,
@@ -325,29 +375,8 @@ function restart_with!(system::RigidBodySystem, v, u)
     copyto!(system.initial_velocity, indices_v,
             view(v, 1:ndims(system), :), indices_v)
 
-    center_of_mass,
-    _ = center_of_mass_and_total_mass(system.initial_condition.coordinates,
-                                      system.mass, Val(ndims(system)),
-                                      eltype(system))
-    update_relative_coordinates!(system.relative_coordinates,
-                                 system.initial_condition.coordinates,
-                                 center_of_mass, Val(ndims(system)))
-    system.center_of_mass[] = center_of_mass
-
-    center_of_mass_velocity = zero(SVector{ndims(system), eltype(system)})
-    for particle in each_integrated_particle(system)
-        particle_mass = system.mass[particle]
-        center_of_mass_velocity += particle_mass *
-                                   extract_svector(system.initial_velocity, system,
-                                                   particle)
-    end
-    center_of_mass_velocity /= system.total_mass
-
-    system.center_of_mass_velocity[] = center_of_mass_velocity
-    update_rotational_kinematics!(system, system.initial_velocity, center_of_mass_velocity,
-                                  Val(ndims(system)))
-
-    return system
+    return update_kinematic_cache!(system, system.initial_condition.coordinates,
+                                   system.initial_velocity)
 end
 
 function update_boundary_interpolation!(system::RigidBodySystem, v, u, v_ode, u_ode,
@@ -368,34 +397,10 @@ function update_boundary_interpolation!(boundary_model, system::RigidBodySystem,
 end
 
 function update_final!(system::RigidBodySystem, v, u, v_ode, u_ode, semi, t)
-    total_mass = system.total_mass
-    total_mass <= eps(eltype(system)) && return system
-
     system_coords = current_coordinates(u, system)
     system_velocity = current_velocity(v, system)
 
-    center_of_mass = zero(SVector{ndims(system), eltype(system)})
-    center_of_mass_velocity = zero(SVector{ndims(system), eltype(system)})
-
-    for particle in each_integrated_particle(system)
-        particle_mass = system.mass[particle]
-        center_of_mass += particle_mass * extract_svector(system_coords, system, particle)
-        center_of_mass_velocity += particle_mass *
-                                   extract_svector(system_velocity, system, particle)
-    end
-
-    center_of_mass /= total_mass
-    center_of_mass_velocity /= total_mass
-
-    system.center_of_mass[] = center_of_mass
-    system.center_of_mass_velocity[] = center_of_mass_velocity
-
-    update_relative_coordinates!(system.relative_coordinates, system_coords,
-                                 center_of_mass, Val(ndims(system)))
-    update_rotational_kinematics!(system, system_velocity, center_of_mass_velocity,
-                                  Val(ndims(system)))
-
-    return system
+    return update_kinematic_cache!(system, system_coords, system_velocity, semi)
 end
 
 function update_rotational_kinematics!(system::RigidBodySystem, system_velocity,
