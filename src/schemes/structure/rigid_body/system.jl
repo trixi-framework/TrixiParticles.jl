@@ -170,15 +170,14 @@ function update_relative_coordinates!(relative_coordinates, coordinates, center_
     return relative_coordinates
 end
 
-@propagate_inbounds @inline function update_relative_coordinate!(relative_coordinates,
+@propagate_inbounds function update_relative_coordinate!(relative_coordinates,
                                                                  coordinates,
                                                                  center_of_mass,
-                                                                 particle,
-                                                                 ::Val{NDIMS}) where {NDIMS}
-    relative_position = extract_svector(coordinates, Val(NDIMS), particle) -
+                                                                 particle)
+    relative_position = extract_svector(coordinates, ndims(center_of_mass), particle) -
                         center_of_mass
 
-    @inbounds for i in 1:NDIMS
+    for i in eachindex(relative_position)
         relative_coordinates[i, particle] = relative_position[i]
     end
 
