@@ -505,29 +505,15 @@ end
     return neighbor_system.viscosity
 end
 
-@inline function viscosity_model(system::Union{AbstractFluidSystem, OpenBoundarySystem},
-                                 neighbor_system::RigidBodySystem{Nothing})
+@inline function viscosity_model(system, neighbor_system::RigidBodySystem{Nothing})
     return nothing
 end
 
-@inline function viscosity_model(system::Union{AbstractFluidSystem, OpenBoundarySystem},
-                                 neighbor_system::RigidBodySystem)
+@inline function viscosity_model(system, neighbor_system::RigidBodySystem)
     return neighbor_system.boundary_model.viscosity
 end
 
 @inline acceleration_source(system::RigidBodySystem) = system.acceleration
-
-@inline function add_acceleration!(dv, particle, system::RigidBodySystem)
-    relative_position = extract_svector(system.relative_coordinates, system, particle)
-    rotational_acceleration = rigid_kinematic_acceleration(system, relative_position,
-                                                           Val(ndims(system)))
-
-    for i in 1:ndims(system)
-        dv[i, particle] += system.acceleration[i] + rotational_acceleration[i]
-    end
-
-    return dv
-end
 
 @inline function rigid_kinematic_acceleration(system::RigidBodySystem, relative_position,
                                               ::Val{2})

@@ -171,6 +171,29 @@ end
                          grad_kernel, particle)
 end
 
+# Rigid-body self-interaction contributes the kinematic point acceleration that comes
+# from the current angular velocity, independent of fluid coupling.
+function interact!(dv, v_particle_system, u_particle_system,
+                   v_neighbor_system, u_neighbor_system,
+                   particle_system::RigidBodySystem,
+                   neighbor_system::RigidBodySystem, semi)
+    particle_system === neighbor_system || return dv
+
+    @threaded semi for particle in each_integrated_particle(particle_system)
+        relative_position = extract_svector(particle_system.relative_coordinates,
+                                            particle_system, particle)
+        rotational_acceleration = rigid_kinematic_acceleration(particle_system,
+                                                               relative_position,
+                                                               Val(ndims(particle_system)))
+
+        for i in 1:ndims(particle_system)
+            dv[i, particle] += rotational_acceleration[i]
+        end
+    end
+
+    return dv
+end
+
 # Structure-structure and structure-boundary interactions are currently not modeled.
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,

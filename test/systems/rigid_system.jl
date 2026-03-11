@@ -268,9 +268,8 @@
         @test isapprox(rigid_system.inertia[], 2.0)
 
         dv = zeros(size(v))
-        for particle in TrixiParticles.each_integrated_particle(rigid_system)
-            TrixiParticles.add_acceleration!(dv, particle, rigid_system)
-        end
+        TrixiParticles.interact!(dv, v, u, v, u, rigid_system, rigid_system,
+                                 DummySemidiscretization())
 
         @test isapprox(dv, [1.0 -1.0
                             0.0 0.0])
