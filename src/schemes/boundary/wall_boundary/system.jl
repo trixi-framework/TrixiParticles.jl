@@ -145,7 +145,7 @@ end
     return zero(SVector{ndims(system), eltype(system)})
 end
 
-@inline function viscous_velocity(v, system, particle)
+@inline function viscous_velocity(v, system::WallBoundarySystem, particle)
     return viscous_velocity(v, system.boundary_model.viscosity, system, particle)
 end
 
