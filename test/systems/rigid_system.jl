@@ -300,7 +300,7 @@
         @test data.angular_acceleration_force == 0.0
         @test data.gyroscopic_acceleration == 0.0
         @test data.relative_coordinates == rigid_system.relative_coordinates
-        @test :local_coordinates ∉ fields
+        @test !(:local_coordinates in fields)
     end
 
     @trixi_testset "Restart" begin
