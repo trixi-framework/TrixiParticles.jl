@@ -1,3 +1,20 @@
+function prepare_interaction!(particle_system::RigidBodySystem,
+                              dv, v, u, dv_ode, v_ode, u_ode, semi)
+    set_zero!(particle_system.force_per_particle)
+    particle_system.resultant_force[] = zero(particle_system.resultant_force[])
+    particle_system.resultant_torque[] = zero(particle_system.resultant_torque[])
+    particle_system.angular_acceleration_force[] = zero(particle_system.angular_acceleration_force[])
+
+    return particle_system
+end
+
+function finalize_interaction!(particle_system::RigidBodySystem,
+                               dv, v, u, dv_ode, v_ode, u_ode, semi)
+    apply_resultant_force_and_torque!(dv, particle_system, semi)
+
+    return particle_system
+end
+
 # Structure-fluid interaction
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
@@ -10,9 +27,8 @@ function interact!(dv, v_particle_system, u_particle_system,
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
     # Accumulate pairwise fluid forces per rigid particle first, then reduce them to a
-    # single resultant force/torque for the rigid-body update below.
+    # single resultant force/torque after all rigid-fluid interactions have been processed.
     (; force_per_particle) = particle_system
-    set_zero!(force_per_particle)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     foreach_point_neighbor(particle_system, neighbor_system,
@@ -77,8 +93,6 @@ function interact!(dv, v_particle_system, u_particle_system,
                              particle_system, neighbor_system, grad_kernel)
     end
 
-    apply_resultant_force_and_torque!(dv, particle_system, semi)
-
     return dv
 end
 
@@ -100,9 +114,11 @@ function apply_resultant_force_and_torque!(dv, particle_system::RigidBodySystem,
     total_torque = zero(particle_system.resultant_torque[])
 
     @inbounds for particle in each_integrated_particle(particle_system)
-        particle_force = extract_svector(particle_system.force_per_particle, particle_system,
+        particle_force = extract_svector(particle_system.force_per_particle,
+                                         particle_system,
                                          particle)
-        relative_position = extract_svector(particle_system.relative_coordinates, particle_system,
+        relative_position = extract_svector(particle_system.relative_coordinates,
+                                            particle_system,
                                             particle)
         total_force += particle_force
 
@@ -126,7 +142,8 @@ function apply_resultant_force_and_torque!(dv, particle_system::RigidBodySystem,
                                                       relative_position)
 
         @inbounds for i in 1:ndims(particle_system)
-            dv[i, particle] += translational_acceleration[i] + rotational_acceleration_force[i]
+            dv[i,
+               particle] += translational_acceleration[i] + rotational_acceleration_force[i]
         end
     end
 

@@ -84,7 +84,6 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
     relative_coordinates = copy(initial_condition.coordinates)
     mass = copy(initial_condition.mass)
     material_density = copy(initial_condition.density)
-    val_ndims = Val(NDIMS)
 
     center_of_mass = zero(SVector{NDIMS, ELTYPE})
     total_mass = zero(ELTYPE)
@@ -92,7 +91,7 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
         particle_mass = convert(ELTYPE, mass[particle])
         total_mass += particle_mass
         center_of_mass += particle_mass *
-                          extract_svector(relative_coordinates, val_ndims, particle)
+                          extract_svector(relative_coordinates, initial_condition, particle)
     end
 
     if total_mass <= eps(ELTYPE)
@@ -115,7 +114,8 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
     for particle in eachindex(mass)
         particle_mass = convert(ELTYPE, mass[particle])
         center_of_mass_velocity += particle_mass *
-                                   extract_svector(initial_velocity, val_ndims, particle)
+                                   extract_svector(initial_velocity, initial_condition,
+                                                   particle)
     end
     center_of_mass_velocity /= total_mass
 

@@ -479,6 +479,105 @@
                        rtol=sqrt(eps()), atol=sqrt(eps()))
     end
 
+    @trixi_testset "Rigid Interaction Caches Stay Zero without Fluid Neighbors" begin
+        rigid_ic = InitialCondition(coordinates=reshape([0.0, 0.0], 2, 1),
+                                    velocity=zeros(2, 1),
+                                    mass=[1.0],
+                                    density=[1.0],
+                                    particle_spacing=1.0)
+        rigid_system = RigidBodySystem(rigid_ic; acceleration=(0.0, 0.0))
+
+        semi = Semidiscretization(rigid_system)
+        ode = semidiscretize(semi, (0.0, 0.01))
+
+        v_ode, u_ode = ode.u0.x
+        dv_ode = zero(v_ode)
+        TrixiParticles.kick!(dv_ode, v_ode, u_ode, ode.p, 0.0)
+
+        rigid = only(ode.p.systems)
+        dv_rigid = TrixiParticles.wrap_v(dv_ode, rigid, ode.p)
+
+        @test all(iszero, dv_rigid)
+        @test iszero(rigid.resultant_force[])
+        @test iszero(rigid.resultant_torque[])
+        @test iszero(rigid.angular_acceleration_force[])
+    end
+
+    @trixi_testset "Rigid Resultants Accumulate over Multiple Fluid Systems" begin
+        particle_spacing = 1.0
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        smoothing_length = 1.0
+        fluid_density = 1000.0
+        rigid_density = 2000.0
+        particle_volume = particle_spacing^2
+
+        state_equation = StateEquationCole(sound_speed=10.0,
+                                           reference_density=fluid_density,
+                                           exponent=1.0)
+
+        boundary_model = BoundaryModelDummyParticles(fill(fluid_density, 2),
+                                                     fill(particle_volume * fluid_density,
+                                                          2),
+                                                     AdamiPressureExtrapolation(),
+                                                     smoothing_kernel,
+                                                     smoothing_length,
+                                                     state_equation=state_equation,
+                                                     reference_particle_spacing=particle_spacing)
+
+        function run_setup(fluid_positions)
+            rigid_ic = InitialCondition(coordinates=[-0.5 0.5
+                                                     0.0 0.0],
+                                        velocity=zeros(2, 2),
+                                        mass=fill(particle_volume * rigid_density, 2),
+                                        density=fill(rigid_density, 2),
+                                        particle_spacing=particle_spacing)
+            rigid_system = RigidBodySystem(rigid_ic;
+                                           boundary_model=boundary_model,
+                                           acceleration=(0.0, 0.0))
+
+            fluid_systems = map(fluid_positions) do position
+                fluid_ic = InitialCondition(coordinates=reshape(collect(position), 2, 1),
+                                            velocity=zeros(2, 1),
+                                            mass=[particle_volume * fluid_density],
+                                            density=[fluid_density],
+                                            particle_spacing=particle_spacing)
+
+                WeaklyCompressibleSPHSystem(fluid_ic, SummationDensity(), state_equation,
+                                            smoothing_kernel, smoothing_length)
+            end
+
+            semi = Semidiscretization(fluid_systems..., rigid_system)
+            ode = semidiscretize(semi, (0.0, 0.01))
+
+            v_ode, u_ode = ode.u0.x
+            dv_ode = zero(v_ode)
+            TrixiParticles.kick!(dv_ode, v_ode, u_ode, ode.p, 0.0)
+
+            rigid = last(ode.p.systems)
+            dv_rigid = TrixiParticles.wrap_v(dv_ode, rigid, ode.p)
+
+            return rigid, copy(dv_rigid)
+        end
+
+        fluid_positions = ((1.5, 0.0), (-1.5, 1.0))
+
+        rigid_1, dv_1 = run_setup((fluid_positions[1],))
+        rigid_2, dv_2 = run_setup((fluid_positions[2],))
+        rigid_both, dv_both = run_setup(fluid_positions)
+
+        @test isapprox(dv_both, dv_1 .+ dv_2; rtol=sqrt(eps()), atol=sqrt(eps()))
+        @test isapprox(rigid_both.resultant_force[],
+                       rigid_1.resultant_force[] + rigid_2.resultant_force[];
+                       rtol=sqrt(eps()), atol=sqrt(eps()))
+        @test isapprox(rigid_both.resultant_torque[],
+                       rigid_1.resultant_torque[] + rigid_2.resultant_torque[];
+                       rtol=sqrt(eps()), atol=sqrt(eps()))
+        @test isapprox(rigid_both.angular_acceleration_force[],
+                       rigid_1.angular_acceleration_force[] +
+                       rigid_2.angular_acceleration_force[];
+                       rtol=sqrt(eps()), atol=sqrt(eps()))
+    end
+
     @trixi_testset "Rigid Bodies Ignore Open Boundary Interactions" begin
         particle_spacing = 1.0
         smoothing_kernel = SchoenbergCubicSplineKernel{2}()

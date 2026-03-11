@@ -573,8 +573,8 @@ end
 @inline add_acceleration!(dv, particle, system) = dv
 
 @propagate_inbounds function add_acceleration!(dv, particle,
-                                   system::Union{AbstractFluidSystem,
-                                                 AbstractStructureSystem})
+                                               system::Union{AbstractFluidSystem,
+                                                             AbstractStructureSystem})
     (; acceleration) = system
 
     for i in 1:ndims(system)
@@ -595,8 +595,9 @@ end
     integrate_tlsph && add_source_terms_inner!(dv, v, u, particle, system, source_terms_, t)
 end
 
-@propagate_inbounds function add_source_terms_inner!(dv, v, u, particle, system::RigidBodySystem,
-                                         source_terms_, t)
+@propagate_inbounds function add_source_terms_inner!(dv, v, u, particle,
+                                                     system::RigidBodySystem,
+                                                     source_terms_, t)
     coords = current_coords(u, system, particle)
     velocity = @inbounds current_velocity(v, system, particle)
     density = @inbounds system.material_density[particle]
@@ -670,6 +671,15 @@ end
 end
 
 function system_interaction!(dv_ode, v_ode, u_ode, semi)
+    # Prepare systems that need setup before the pairwise interaction sweep.
+    foreach_system(semi) do system
+        dv = wrap_v(dv_ode, system, semi)
+        v = wrap_v(v_ode, system, semi)
+        u = wrap_u(u_ode, system, semi)
+
+        prepare_interaction!(system, dv, v, u, dv_ode, v_ode, u_ode, semi)
+    end
+
     # Call `interact!` for each pair of systems
     foreach_system(semi) do system
         foreach_system(semi) do neighbor
@@ -685,6 +695,15 @@ function system_interaction!(dv_ode, v_ode, u_ode, semi)
 
             interact!(dv_ode, v_ode, u_ode, system, neighbor, semi, timer_str=timer_str)
         end
+    end
+
+    # Finalize systems that need to reduce accumulated interaction data afterward.
+    foreach_system(semi) do system
+        dv = wrap_v(dv_ode, system, semi)
+        v = wrap_v(v_ode, system, semi)
+        u = wrap_u(u_ode, system, semi)
+
+        finalize_interaction!(system, dv, v, u, dv_ode, v_ode, u_ode, semi)
     end
 
     return dv_ode
