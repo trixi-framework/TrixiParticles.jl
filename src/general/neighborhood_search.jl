@@ -277,7 +277,7 @@ function update_nhs!(neighborhood_search,
 end
 
 function update_nhs!(neighborhood_search,
-                     system::OpenBoundarySystem,
+                     system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
                      neighbor::RigidBodySystem,
                      u_system, u_neighbor, semi)
     update!(neighborhood_search,
@@ -337,11 +337,8 @@ end
 function update_nhs!(neighborhood_search,
                      system::TotalLagrangianSPHSystem, neighbor::RigidBodySystem,
                      u_system, u_neighbor, semi)
-    # The current coordinates of both systems change over time.
-    update!(neighborhood_search,
-            current_coordinates(u_system, system),
-            current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, true), eachindex_y=each_active_particle(neighbor))
+    # Don't update. This NHS is never used.
+    return neighborhood_search
 end
 
 function update_nhs!(neighborhood_search,
@@ -365,14 +362,20 @@ end
 
 function update_nhs!(neighborhood_search,
                      system::RigidBodySystem,
-                     neighbor::Union{AbstractFluidSystem, TotalLagrangianSPHSystem,
-                                     RigidBodySystem},
+                     neighbor::Union{AbstractFluidSystem, RigidBodySystem},
                      u_system, u_neighbor, semi)
     # The current coordinates of fluids and structures change over time.
     update!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
             semi, points_moving=(true, true), eachindex_y=each_active_particle(neighbor))
+end
+
+function update_nhs!(neighborhood_search,
+                     system::RigidBodySystem, neighbor::TotalLagrangianSPHSystem,
+                     u_system, u_neighbor, semi)
+    # Don't update. This NHS is never used.
+    return neighborhood_search
 end
 
 function update_nhs!(neighborhood_search,
@@ -508,6 +511,14 @@ function update_nhs!(neighborhood_search,
                      neighbor::Union{WallBoundarySystem, OpenBoundarySystem},
                      u_system, u_neighbor, semi)
     # Don't update. This NHS is never used.
+    return neighborhood_search
+end
+
+function update_nhs!(neighborhood_search,
+                     system::OpenBoundarySystem,
+                     neighbor::RigidBodySystem,
+                     u_system, u_neighbor, semi)
+    # Don't update. This NHS is never used for non-dynamical open boundaries.
     return neighborhood_search
 end
 
