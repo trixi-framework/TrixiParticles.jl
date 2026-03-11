@@ -512,7 +512,7 @@ function apply_angular_velocity(initial_condition::InitialCondition, angular_vel
              length(angular_velocity) == 3)
             throw(ArgumentError("`angular_velocity` must be of length 3 for a 3D problem"))
         end
-        angular_velocity_ = SVector{3, ELTYPE}(angular_velocity...)
+        angular_velocity_ = SVector{3, ELTYPE}(Tuple(angular_velocity))
     else
         throw(ArgumentError("`apply_angular_velocity` currently supports only 2D and 3D, got $(NDIMS)D"))
     end
@@ -533,8 +533,6 @@ function apply_angular_velocity(initial_condition::InitialCondition, angular_vel
         end
     end
 
-    return InitialCondition(initial_condition.particle_spacing,
-                            initial_condition.coordinates, velocity,
-                            initial_condition.mass, initial_condition.density,
-                            initial_condition.pressure)
+    # Return a copy of `initial_condition` with the correct velocity set
+    return @set initial_condition.velocity = velocity
 end

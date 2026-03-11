@@ -117,8 +117,8 @@ function apply_resultant_force_and_torque!(dv, particle_system::RigidBodySystem,
         rotational_acceleration = cross_product(angular_acceleration_force,
                                                 relative_position)
 
-        @inbounds for i in 1:ndims(particle_system)
-            dv[i, particle] += translational_acceleration[i] + rotational_acceleration[i]
+        for i in 1:ndims(particle_system)
+            @inbounds dv[i, particle] += translational_acceleration[i] + rotational_acceleration[i]
         end
     end
 

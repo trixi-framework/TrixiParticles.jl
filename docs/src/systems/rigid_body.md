@@ -1,4 +1,4 @@
-# [Rigid Body SPH](@id rigid_body)
+# [Rigid Bodies](@id rigid_body)
 
 Rigid bodies in TrixiParticles.jl are represented by particles whose motion is evolved
 with rigid-body translation and rotation. This allows fluid-structure interaction while
