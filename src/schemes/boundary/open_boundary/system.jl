@@ -664,6 +664,9 @@ function interpolate_velocity!(system::OpenBoundarySystem, boundary_zone,
     return system
 end
 
+# Open-boundary interpolation should reconstruct the surrounding fluid-like velocity field.
+# Therefore, only actual fluid systems and other open-boundary particles contribute;
+# rigid bodies, walls, and other non-fluid systems are intentionally excluded.
 @inline use_open_boundary_interpolation_neighbor(::AbstractFluidSystem) = true
 
 @inline use_open_boundary_interpolation_neighbor(::OpenBoundarySystem) = true
