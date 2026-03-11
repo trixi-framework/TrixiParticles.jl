@@ -9,7 +9,7 @@ using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-fluid_particle_spacing = 0.01
+fluid_particle_spacing = 0.02
 structure_particle_spacing = fluid_particle_spacing
 
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
@@ -19,7 +19,7 @@ spacing_ratio = 1
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 9.81
-tspan = (0.0, 2.0)
+tspan = (0.0, 0.5)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (2.0, 0.5)
@@ -125,14 +125,14 @@ boundary_contact_model_spec_2 = LinearizedHertzMindlinBoundaryContactModel(;
                                                                             torque_free=false,
                                                                             resting_contact_projection=true)
 
-# RigidSPHSystem converts each typed contact specification to runtime
+# RigidBodySystem converts each typed contact specification to runtime
 # `RigidBoundaryContactModel` coefficients internally.
-structure_system_1 = RigidSPHSystem(sphere1;
+structure_system_1 = RigidBodySystem(sphere1;
                                     boundary_model=boundary_model_structure_1,
                                     boundary_contact_model=boundary_contact_model_spec_1,
                                     acceleration=(0.0, -gravity),
                                     particle_spacing=structure_particle_spacing)
-structure_system_2 = RigidSPHSystem(sphere2;
+structure_system_2 = RigidBodySystem(sphere2;
                                     boundary_model=boundary_model_structure_2,
                                     boundary_contact_model=boundary_contact_model_spec_2,
                                     acceleration=(0.0, -gravity),

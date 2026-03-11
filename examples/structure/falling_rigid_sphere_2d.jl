@@ -128,9 +128,9 @@ rubber_contact_model_spec = LinearizedHertzMindlinBoundaryContactModel(; materia
                                                                        resting_contact_projection=true)
 
 function make_rigid_structure_system(shape, boundary_contact_model_spec)
-    # RigidSPHSystem converts the typed contact specification to the runtime
+    # RigidBodySystem converts the typed contact specification to the runtime
     # `RigidBoundaryContactModel` coefficients internally.
-    return RigidSPHSystem(shape;
+    return RigidBodySystem(shape;
                           acceleration=(0.0, -gravity),
                           boundary_contact_model=boundary_contact_model_spec,
                           particle_spacing=structure_particle_spacing)

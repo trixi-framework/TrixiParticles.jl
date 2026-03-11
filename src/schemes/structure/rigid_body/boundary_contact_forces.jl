@@ -1,17 +1,17 @@
-@inline function requires_update_callback(system::RigidSPHSystem)
+@inline function requires_update_callback(system::RigidBodySystem)
     return !isnothing(system.boundary_contact_model)
 end
 
-@inline function contact_time_step(system::RigidSPHSystem)
+@inline function contact_time_step(system::RigidBodySystem)
     return contact_time_step(system.boundary_contact_model, system)
 end
 
-@inline function contact_time_step(::Nothing, system::RigidSPHSystem)
+@inline function contact_time_step(::Nothing, system::RigidBodySystem)
     return Inf
 end
 
 function contact_time_step(contact_model::RigidBoundaryContactModel,
-                           system::RigidSPHSystem)
+                           system::RigidBodySystem)
     min_mass = minimum(system.mass)
     normal_stiffness = contact_model.normal_stiffness
 
@@ -24,7 +24,7 @@ end
 
 update_rigid_contact_eachstep!(system, v_ode, u_ode, semi, t, integrator) = system
 
-function update_contact_manifold_step!(system::RigidSPHSystem, v_ode, u_ode, semi, dt,
+function update_contact_manifold_step!(system::RigidBodySystem, v_ode, u_ode, semi, dt,
                                        v_system, u_system, active_contact_keys)
     foreach_system(semi) do neighbor_system
         neighbor_system isa WallBoundarySystem || return
@@ -42,14 +42,14 @@ function update_contact_manifold_step!(system::RigidSPHSystem, v_ode, u_ode, sem
     return active_contact_keys
 end
 
-function update_contact_history_step!(system::RigidSPHSystem, active_contact_keys)
+function update_contact_history_step!(system::RigidBodySystem, active_contact_keys)
     remove_inactive_contact_pairs!(system.cache.contact_tangential_displacement,
                                    active_contact_keys)
 
     return active_contact_keys
 end
 
-function apply_optional_resting_projection_step!(system::RigidSPHSystem,
+function apply_optional_resting_projection_step!(system::RigidBodySystem,
                                                  v_system, u_system,
                                                  v_ode, u_ode, semi, integrator)
     state_modified = project_resting_contact_velocity!(system, v_system, u_system,
@@ -59,7 +59,7 @@ function apply_optional_resting_projection_step!(system::RigidSPHSystem,
     return state_modified
 end
 
-function update_rigid_contact_eachstep!(system::RigidSPHSystem, v_ode, u_ode, semi, t,
+function update_rigid_contact_eachstep!(system::RigidBodySystem, v_ode, u_ode, semi, t,
                                         integrator)
     contact_model = system.boundary_contact_model
     isnothing(contact_model) && return system
@@ -91,7 +91,7 @@ function update_rigid_contact_eachstep!(system::RigidSPHSystem, v_ode, u_ode, se
     return system
 end
 
-function update_contact_manifold_cache!(system::RigidSPHSystem{<:Any, <:Any, NDIMS},
+function update_contact_manifold_cache!(system::RigidBodySystem{<:Any, <:Any, NDIMS},
                                         neighbor_system::WallBoundarySystem,
                                         u_system,
                                         v_neighbor, u_neighbor,
@@ -127,7 +127,7 @@ function update_contact_manifold_cache!(system::RigidSPHSystem{<:Any, <:Any, NDI
     return system.cache
 end
 
-function update_contact_history_from_manifolds!(system::RigidSPHSystem{<:Any, <:Any, NDIMS},
+function update_contact_history_from_manifolds!(system::RigidBodySystem{<:Any, <:Any, NDIMS},
                                                 neighbor_system_index,
                                                 v_system, dt,
                                                 active_contact_keys,
@@ -178,7 +178,7 @@ function update_contact_history_from_manifolds!(system::RigidSPHSystem{<:Any, <:
     return contact_count, max_penetration
 end
 
-function apply_boundary_contact_correction!(system::RigidSPHSystem{<:Any, <:Any, NDIMS},
+function apply_boundary_contact_correction!(system::RigidBodySystem{<:Any, <:Any, NDIMS},
                                             neighbor_system::WallBoundarySystem,
                                             v_system, u_system,
                                             v_neighbor, u_neighbor,
@@ -214,7 +214,7 @@ function apply_boundary_contact_correction!(system::RigidSPHSystem{<:Any, <:Any,
     return false
 end
 
-function update_contact_tangential_history!(system::RigidSPHSystem, contact_key,
+function update_contact_tangential_history!(system::RigidBodySystem, contact_key,
                                             tangential_velocity, normal,
                                             penetration_effective, normal_velocity, dt,
                                             contact_model::RigidBoundaryContactModel)

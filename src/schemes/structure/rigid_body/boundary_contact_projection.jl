@@ -44,13 +44,13 @@ function reset_projected_contact_history!(contact_tangential_displacement, conta
     return contact_tangential_displacement
 end
 
-@inline function reset_resting_contact_counter!(system::RigidSPHSystem)
+@inline function reset_resting_contact_counter!(system::RigidBodySystem)
     system.cache.resting_contact_counter[] = 0
 
     return system
 end
 
-@inline function update_resting_contact_counter!(system::RigidSPHSystem, in_resting_contact)
+@inline function update_resting_contact_counter!(system::RigidBodySystem, in_resting_contact)
     if in_resting_contact
         system.cache.resting_contact_counter[] += 1
     else
@@ -75,7 +75,7 @@ end
 Validate time-step inputs for resting-contact projection and reset persistence
 state when inputs are invalid.
 """
-@inline function valid_resting_projection_timestep!(system::RigidSPHSystem, dt, dt_contact)
+@inline function valid_resting_projection_timestep!(system::RigidBodySystem, dt, dt_contact)
     if !isfinite(dt) || dt <= 0 || !isfinite(dt_contact) || dt_contact <= 0
         reset_resting_contact_counter!(system)
         return false
@@ -97,7 +97,7 @@ when a resting regime persists for multiple callback updates.
     return dt <= dt_projection_trigger || resting_counter >= projection_persistence_steps
 end
 
-function should_project_resting_contact!(system::RigidSPHSystem,
+function should_project_resting_contact!(system::RigidBodySystem,
                                          contact_model::RigidBoundaryContactModel,
                                          dt, dt_contact,
                                          velocity_floor,
@@ -114,7 +114,7 @@ function should_project_resting_contact!(system::RigidSPHSystem,
     return resting_projection_triggered(dt, dt_contact, resting_counter, ELTYPE)
 end
 
-function collect_resting_contact_constraints!(system::RigidSPHSystem{<:Any, <:Any, 2},
+function collect_resting_contact_constraints!(system::RigidBodySystem{<:Any, <:Any, 2},
                                               u_system, v_ode, u_ode, semi,
                                               center_of_mass_velocity,
                                               angular_velocity,
@@ -148,7 +148,7 @@ function collect_resting_contact_constraints!(system::RigidSPHSystem{<:Any, <:An
             n_manifolds = system.cache.contact_manifold_count[particle]
             n_manifolds == 0 && continue
 
-            relative_position = extract_svector(system.cache.relative_coordinates, system,
+            relative_position = extract_svector(system.relative_coordinates, system,
                                                 particle)
             particle_velocity = center_of_mass_velocity +
                                 rotational_velocity_2d(angular_velocity, relative_position)
@@ -191,11 +191,11 @@ function collect_resting_contact_constraints!(system::RigidSPHSystem{<:Any, <:An
     return max_normal_speed, max_tangential_speed
 end
 
-function project_resting_contact_position!(system::RigidSPHSystem{<:Any, <:Any, 2},
+function project_resting_contact_position!(system::RigidBodySystem{<:Any, <:Any, 2},
                                            u_system, constraints,
                                            penetration_tolerance,
                                            inv_inertia)
-    total_mass = system.cache.total_mass
+    total_mass = system.total_mass
     total_mass <= eps(eltype(system)) && return false
 
     inv_total_mass = inv(total_mass)
@@ -239,7 +239,7 @@ function project_resting_contact_position!(system::RigidSPHSystem{<:Any, <:Any, 
 
     system_coords = current_coordinates(u_system, system)
     for particle in each_integrated_particle(system)
-        relative_position = extract_svector(system.cache.relative_coordinates, system, particle)
+        relative_position = extract_svector(system.relative_coordinates, system, particle)
         position_correction = center_of_mass_correction +
                               rotational_velocity_2d(angular_correction,
                                                      relative_position)
@@ -252,7 +252,7 @@ function project_resting_contact_position!(system::RigidSPHSystem{<:Any, <:Any, 
     return true
 end
 
-function project_resting_contact_velocity!(system::RigidSPHSystem{<:Any, <:Any, 2},
+function project_resting_contact_velocity!(system::RigidBodySystem{<:Any, <:Any, 2},
                                            v_system, u_system, v_ode, u_ode, semi,
                                            integrator)
     contact_model = system.boundary_contact_model
@@ -267,8 +267,8 @@ function project_resting_contact_velocity!(system::RigidSPHSystem{<:Any, <:Any, 
     dt_contact = contact_time_step(contact_model, system)
     valid_resting_projection_timestep!(system, dt, dt_contact) || return false
 
-    center_of_mass_velocity = system.cache.center_of_mass_velocity[]
-    angular_velocity = system.cache.angular_velocity[]
+    center_of_mass_velocity = system.center_of_mass_velocity[]
+    angular_velocity = system.angular_velocity[]
     ELTYPE = eltype(system)
     velocity_floor = max(convert(ELTYPE, 0.1) *
                          contact_model.stick_velocity_tolerance,
@@ -303,11 +303,11 @@ function project_resting_contact_velocity!(system::RigidSPHSystem{<:Any, <:Any, 
                                     max_tangential_speed,
                                     ELTYPE) || return false
 
-    total_mass = system.cache.total_mass
+    total_mass = system.total_mass
     total_mass <= eps(eltype(system)) && return false
 
     inv_total_mass = inv(total_mass)
-    inertia = system.cache.inertia[]
+    inertia = system.inertia[]
     inv_inertia = (!contact_model.torque_free && inertia > eps(ELTYPE)) ? inv(inertia) :
                   zero(ELTYPE)
 
@@ -362,7 +362,7 @@ function project_resting_contact_velocity!(system::RigidSPHSystem{<:Any, <:Any, 
     if velocity_modified
         system_velocity = current_velocity(v_system, system)
         for particle in each_integrated_particle(system)
-            relative_position = extract_svector(system.cache.relative_coordinates, system, particle)
+            relative_position = extract_svector(system.relative_coordinates, system, particle)
             particle_velocity = projected_center_of_mass_velocity +
                                 rotational_velocity_2d(projected_angular_velocity,
                                                        relative_position)

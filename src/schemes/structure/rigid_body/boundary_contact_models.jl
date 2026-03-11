@@ -84,7 +84,7 @@ end
 
 Specification model for idealized rigid-wall elastic impacts.
 It is converted to a [`RigidBoundaryContactModel`](@ref) inside
-`RigidSPHSystem` via constructor-based adaptation
+`RigidBodySystem` via constructor-based adaptation
 `RigidBoundaryContactModel(model, particle_spacing, ELTYPE)`.
 """
 struct PerfectElasticBoundaryContactModel{ELTYPE <: Real} <: AbstractRigidBoundaryContactModel
@@ -330,7 +330,7 @@ end
 
 Specification model for linearized Hertz-Mindlin rigid-wall contact.
 It is converted to a [`RigidBoundaryContactModel`](@ref) inside
-`RigidSPHSystem` via constructor-based adaptation
+`RigidBodySystem` via constructor-based adaptation
 `RigidBoundaryContactModel(model, particle_spacing, ELTYPE)`.
 
 A convenience constructor is also provided:

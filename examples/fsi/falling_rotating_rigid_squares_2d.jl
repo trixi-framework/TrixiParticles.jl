@@ -10,7 +10,7 @@ using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-fluid_particle_spacing = 0.01
+fluid_particle_spacing = 0.02
 structure_particle_spacing = fluid_particle_spacing
 
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
@@ -20,14 +20,14 @@ spacing_ratio = 1
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 9.81
-tspan = (0.0, 2.0)
+tspan = (0.0, 1.0)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (2.0, 1.0)
-tank_size = (2.0, 3.0)
+tank_size = (2.0, 2.0)
 
 fluid_density = 1000.0
-sound_speed = 120.0
+sound_speed = 10 * sqrt(gravity * initial_fluid_size[2])
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1)
 
@@ -72,7 +72,7 @@ square2 = apply_angular_velocity(square2, square2_angular_velocity)
 
 # ==========================================================================================
 # ==== Fluid
-fluid_smoothing_length = 1.75 * fluid_particle_spacing
+fluid_smoothing_length = 1.5 * fluid_particle_spacing
 fluid_smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
@@ -152,14 +152,14 @@ boundary_contact_model_spec_2 = LinearizedHertzMindlinBoundaryContactModel(;
                                                                             torque_free=false,
                                                                             resting_contact_projection=true)
 
-# RigidSPHSystem converts each typed contact specification to runtime
+# RigidBodySystem converts each typed contact specification to runtime
 # `RigidBoundaryContactModel` coefficients internally.
-structure_system_1 = RigidSPHSystem(square1;
+structure_system_1 = RigidBodySystem(square1;
                                     boundary_model=boundary_model_structure_1,
                                     boundary_contact_model=boundary_contact_model_spec_1,
                                     acceleration=(0.0, -gravity),
                                     particle_spacing=structure_particle_spacing)
-structure_system_2 = RigidSPHSystem(square2;
+structure_system_2 = RigidBodySystem(square2;
                                     boundary_model=boundary_model_structure_2,
                                     boundary_contact_model=boundary_contact_model_spec_2,
                                     acceleration=(0.0, -gravity),
@@ -182,5 +182,5 @@ callbacks = CallbackSet(info_callback, saving_callback, update_callback)
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-6, # Default abstol is 1e-6
-            reltol=1e-5, # Default reltol is 1e-3
+            reltol=1e-3, # Default reltol is 1e-3
             save_everystep=false, callback=callbacks);

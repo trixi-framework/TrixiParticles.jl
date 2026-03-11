@@ -121,7 +121,7 @@ makedocs(sitename="TrixiParticles.jl",
                      ],
                      "Discrete Element Method (Solid)" => joinpath("systems", "dem.md"),
                      "Rigid Body SPH (Rigid Structure)" => joinpath("systems",
-                                                                    "rigid_body_sph.md"),
+                                                                    "rigid_body.md"),
                      "Total Lagrangian SPH (Elastic Structure)" => joinpath("systems",
                                                                             "total_lagrangian_sph.md"),
                      "Boundary" => joinpath("systems", "boundary.md")

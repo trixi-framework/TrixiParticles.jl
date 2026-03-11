@@ -14,13 +14,10 @@ The interaction between fluid and boundary particles is specified by the boundar
 - `prescribed_motion`: For moving boundaries, a [`PrescribedMotion`](@ref) can be passed.
 - `adhesion_coefficient`: Coefficient specifying the adhesion of a fluid to the surface.
    Note: currently it is assumed that all fluids have the same adhesion coefficient.
-- `color_value`: Integer label stored as `system.cache.color`.
+- `color_value`: Integer label used for calculation of surface normals.
    Currently this is only used together with [`BoundaryModelDummyParticles`](@ref) and
-   [`ColorfieldSurfaceNormal`](@ref): `initialize_colorfield!` multiplies the boundary's
-   smoothed `initial_colorfield` by this value, and later fluid-boundary normal evaluation
-   reads the resulting boundary colorfield to detect wall contact. In multi-system runs
-   with surface tension, wall-boundary colors also participate in the `check_system_color`
-   sanity check.
+   [`ColorfieldSurfaceNormal`](@ref): fluid-boundary normal evaluation
+   reads the resulting boundary colorfield to detect wall contact.
 """
 struct WallBoundarySystem{BM, ELTYPE <: Real, NDIMS, IC, CO, M, IM,
                           CA} <: AbstractBoundarySystem{NDIMS}
@@ -152,12 +149,12 @@ end
     return viscous_velocity(v, system.boundary_model.viscosity, system, particle)
 end
 
-@inline function viscous_velocity(v, viscosity, system::WallBoundarySystem, particle)
-    return extract_svector(system.boundary_model.cache.wall_velocity, system, particle)
+@inline function viscous_velocity(v, ::Nothing, system, particle)
+    return current_velocity(v, system, particle)
 end
 
-@inline function viscous_velocity(v, ::Nothing, system::WallBoundarySystem, particle)
-    return current_velocity(v, system, particle)
+@inline function viscous_velocity(v, viscosity, system, particle)
+    return extract_svector(system.boundary_model.cache.wall_velocity, system, particle)
 end
 
 @inline function current_density(v, system::WallBoundarySystem)

@@ -56,9 +56,9 @@ function create_rigid_boundary_system(coordinates, particle_spacing, state_equat
                                               correction=nothing,
                                               reference_particle_spacing=particle_spacing)
 
-    return RigidSPHSystem(wall_system.initial_condition;
-                          boundary_model=rigid_model,
-                          acceleration=ntuple(_ -> 0.0, NDIMS))
+    return RigidBodySystem(wall_system.initial_condition;
+                           boundary_model=rigid_model,
+                           acceleration=ntuple(_ -> 0.0, NDIMS))
 end
 
 function create_fluid_system(coordinates, velocity, mass, density, particle_spacing,

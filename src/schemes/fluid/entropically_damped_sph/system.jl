@@ -54,14 +54,10 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
                                 (default: no surface normal method or `ColorfieldSurfaceNormal()` if a surface_tension model is used)
 - `reference_particle_spacing`: The reference particle spacing used for weighting values at the boundary,
                                 which currently is only needed when using surface tension.
-- `color_value`:                Integer phase/interface label stored as `system.cache.color`.
-                                Currently this is used by [`ColorfieldSurfaceNormal`](@ref)
-                                and surface-tension-related boundary contact detection to
-                                distinguish systems, by the multi-system surface tension
-                                configuration check in `check_system_color`, and it is
-                                written to the VTK output as the scalar field `"color"`
-                                when surface normals are exported. It is not otherwise
-                                used by the EDAC equations at the moment.
+- `color_value`:                Integer label used for calculation of surface normals.
+                                Currently this is only used together with [`BoundaryModelDummyParticles`](@ref) and
+                                [`ColorfieldSurfaceNormal`](@ref): fluid-boundary normal evaluation
+                                reads the resulting boundary colorfield to detect wall contact.
 
 """
 struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, COR, PF, TV,

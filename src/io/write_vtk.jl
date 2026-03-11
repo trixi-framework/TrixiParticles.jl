@@ -419,33 +419,22 @@ function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem)
     write2vtk!(vtk, v, u, t, system.boundary_model, system)
 end
 
-function write2vtk!(vtk, v, u, t, system::RigidSPHSystem)
-    center_of_mass = system.cache.center_of_mass[]
-    center_of_mass_velocity = system.cache.center_of_mass_velocity[]
-    angular_velocity = system.cache.angular_velocity[]
-    resultant_force = system.cache.resultant_force[]
-    resultant_torque = system.cache.resultant_torque[]
-    angular_acceleration_force = system.cache.angular_acceleration_force[]
-    gyroscopic_acceleration = system.cache.gyroscopic_acceleration[]
-    boundary_contact_count = system.cache.boundary_contact_count[]
-    max_boundary_penetration = system.cache.max_boundary_penetration[]
-
+function write2vtk!(vtk, v, u, t, system::RigidBodySystem)
     vtk["velocity"] = [current_velocity(v, system, particle)
                        for particle in eachparticle(system)]
     vtk["color"] = system.cache.color
     vtk["material_density"] = system.material_density
     vtk["mass"] = system.mass
-    vtk["local_coordinates"] = system.local_coordinates
-    vtk["relative_coordinates"] = system.cache.relative_coordinates
-    vtk["center_of_mass", VTKFieldData()] = center_of_mass
-    vtk["center_of_mass_velocity", VTKFieldData()] = center_of_mass_velocity
-    vtk["resultant_force", VTKFieldData()] = resultant_force
-    vtk["angular_velocity", VTKFieldData()] = angular_velocity
-    vtk["resultant_torque", VTKFieldData()] = resultant_torque
-    vtk["angular_acceleration_force", VTKFieldData()] = angular_acceleration_force
-    vtk["gyroscopic_acceleration", VTKFieldData()] = gyroscopic_acceleration
-    vtk["boundary_contact_count", VTKFieldData()] = boundary_contact_count
-    vtk["max_boundary_penetration", VTKFieldData()] = max_boundary_penetration
+    vtk["relative_coordinates"] = system.relative_coordinates
+    vtk["center_of_mass"] = [system.center_of_mass[]]
+    vtk["center_of_mass_velocity"] = [system.center_of_mass_velocity[]]
+    vtk["resultant_force"] = [system.resultant_force[]]
+    vtk["angular_velocity"] = [system.angular_velocity[]]
+    vtk["resultant_torque"] = [system.resultant_torque[]]
+    vtk["angular_acceleration_force"] = [system.angular_acceleration_force[]]
+    vtk["gyroscopic_acceleration"] = [system.gyroscopic_acceleration[]]
+    vtk["boundary_contact_count"] = [system.cache.boundary_contact_count[]]
+    vtk["max_boundary_penetration"] = [system.cache.max_boundary_penetration[]]
 
     write2vtk!(vtk, v, u, t, system.boundary_model, system)
 end

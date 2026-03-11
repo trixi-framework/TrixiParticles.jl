@@ -59,9 +59,9 @@ boundary_contact_model_spec = PerfectElasticBoundaryContactModel(; normal_stiffn
                                                                  torque_free=true,
                                                                  stick_velocity_tolerance=1e-8)
 
-# RigidSPHSystem converts the typed contact specification to the runtime
+# RigidBodySystem converts the typed contact specification to the runtime
 # `RigidBoundaryContactModel` coefficients internally.
-rigid_system = RigidSPHSystem(sphere;
+rigid_system = RigidBodySystem(sphere;
                               acceleration=(0.0, -gravity),
                               boundary_contact_model=boundary_contact_model_spec,
                               particle_spacing=structure_particle_spacing)

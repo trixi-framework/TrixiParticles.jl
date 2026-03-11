@@ -200,154 +200,8 @@ function InitialCondition{NDIMS}(coordinates, velocity, mass, density,
         masses = mass_fun.(coordinates_svector)
     end
 
-    velocities_ = ELTYPE.(velocities)
-
-    return InitialCondition(particle_spacing, coordinates, velocities_,
+    return InitialCondition(particle_spacing, coordinates, ELTYPE.(velocities),
                             ELTYPE.(masses), ELTYPE.(densities), ELTYPE.(pressures))
-end
-
-@inline function convert_initial_angular_velocity(::Nothing, ::Val{NDIMS},
-                                                  ELTYPE) where {NDIMS}
-    if NDIMS == 3
-        return zero(SVector{3, ELTYPE})
-    end
-
-    return zero(ELTYPE)
-end
-
-@inline function convert_initial_angular_velocity(angular_velocity::Number, ::Val{2},
-                                                  ELTYPE)
-    return convert(ELTYPE, angular_velocity)
-end
-
-function convert_initial_angular_velocity(angular_velocity::Union{Tuple, AbstractArray},
-                                          ::Val{2}, ELTYPE)
-    if length(angular_velocity) == 1
-        return convert(ELTYPE, first(angular_velocity))
-    end
-
-    throw(ArgumentError("`angular_velocity` must be a scalar for a 2D problem"))
-end
-
-function convert_initial_angular_velocity(::Number, ::Val{3}, ELTYPE)
-    throw(ArgumentError("`angular_velocity` must be of length 3 for a 3D problem"))
-end
-
-function convert_initial_angular_velocity(angular_velocity::Union{Tuple, AbstractArray},
-                                          ::Val{3}, ELTYPE)
-    angular_velocity_ = SVector(angular_velocity...)
-    if length(angular_velocity_) != 3
-        throw(ArgumentError("`angular_velocity` must be of length 3 for a 3D problem"))
-    end
-
-    return SVector{3, ELTYPE}(angular_velocity_)
-end
-
-@inline function convert_initial_angular_velocity(angular_velocity::Number,
-                                                  ::Val{NDIMS},
-                                                  ELTYPE) where {NDIMS}
-    return convert(ELTYPE, angular_velocity)
-end
-
-function convert_initial_angular_velocity(angular_velocity, ::Val{NDIMS},
-                                          ELTYPE) where {NDIMS}
-    throw(ArgumentError("`angular_velocity` must be a scalar for a $(NDIMS)D problem"))
-end
-
-function center_of_mass_from_mass(coordinates, mass, ::Val{NDIMS}, ELTYPE) where {NDIMS}
-    weighted_center_of_mass = zero(SVector{NDIMS, ELTYPE})
-    total_mass = zero(ELTYPE)
-
-    for particle in eachindex(mass)
-        particle_mass = convert(ELTYPE, mass[particle])
-        total_mass += particle_mass
-        weighted_center_of_mass += particle_mass *
-                                   extract_svector(coordinates, Val(NDIMS), particle)
-    end
-
-    if total_mass > eps(ELTYPE)
-        return weighted_center_of_mass / total_mass
-    end
-
-    center_of_mass = zero(SVector{NDIMS, ELTYPE})
-    n_particles = size(coordinates, 2)
-    n_particles == 0 && return center_of_mass
-
-    for particle in axes(coordinates, 2)
-        center_of_mass += extract_svector(coordinates, Val(NDIMS), particle)
-    end
-
-    return center_of_mass / n_particles
-end
-
-@inline function add_initial_angular_velocity!(velocities, coordinates, mass,
-                                               angular_velocity, ::Val{NDIMS},
-                                               ELTYPE) where {NDIMS}
-    return velocities
-end
-
-function add_initial_angular_velocity!(velocities, coordinates, mass,
-                                       angular_velocity, ::Val{2}, ELTYPE)
-    iszero(angular_velocity) && return velocities
-    center_of_mass = center_of_mass_from_mass(coordinates, mass, Val(2), ELTYPE)
-
-    for particle in axes(velocities, 2)
-        x = coordinates[1, particle] - center_of_mass[1]
-        y = coordinates[2, particle] - center_of_mass[2]
-        velocities[1, particle] += -angular_velocity * y
-        velocities[2, particle] += angular_velocity * x
-    end
-
-    return velocities
-end
-
-function add_initial_angular_velocity!(velocities, coordinates, mass,
-                                       angular_velocity, ::Val{3}, ELTYPE)
-    iszero(angular_velocity) && return velocities
-    center_of_mass = center_of_mass_from_mass(coordinates, mass, Val(3), ELTYPE)
-
-    wx = angular_velocity[1]
-    wy = angular_velocity[2]
-    wz = angular_velocity[3]
-
-    for particle in axes(velocities, 2)
-        x = coordinates[1, particle] - center_of_mass[1]
-        y = coordinates[2, particle] - center_of_mass[2]
-        z = coordinates[3, particle] - center_of_mass[3]
-
-        velocities[1, particle] += wy * z - wz * y
-        velocities[2, particle] += wz * x - wx * z
-        velocities[3, particle] += wx * y - wy * x
-    end
-
-    return velocities
-end
-
-@doc raw"""
-    apply_angular_velocity(initial_condition::InitialCondition, angular_velocity)
-
-Return a new [`InitialCondition`](@ref) whose velocity includes the rotational
-contribution `v = ω × r` around the center of mass of `initial_condition`.
-
-In 2D, pass a scalar angular speed in rad/s.
-In 3D, pass a vector of length 3 whose direction gives the rotation axis
-(right-hand rule) and whose norm `|ω|` gives the angular speed in rad/s.
-"""
-function apply_angular_velocity(initial_condition::InitialCondition, angular_velocity)
-    NDIMS = ndims(initial_condition)
-    ELTYPE = eltype(initial_condition)
-    angular_velocity_ = convert_initial_angular_velocity(angular_velocity, Val(NDIMS),
-                                                         ELTYPE)
-    velocity = copy(initial_condition.velocity)
-
-    add_initial_angular_velocity!(velocity, initial_condition.coordinates,
-                                  initial_condition.mass, angular_velocity_,
-                                  Val(NDIMS), ELTYPE)
-
-    return InitialCondition(initial_condition.particle_spacing,
-                            initial_condition.coordinates, velocity,
-                            initial_condition.mass, initial_condition.density,
-                            initial_condition.pressure)
 end
 
 function Base.show(io::IO, ic::InitialCondition)
@@ -610,3 +464,76 @@ function move_particles_to_end!(a::AbstractVector, particle_ids_to_move)
 end
 
 move_particles_to_end!(a::Real, particle_ids_to_move) = a
+
+function center_of_mass_from_mass(coordinates, mass, ::Val{NDIMS}, ELTYPE) where {NDIMS}
+    weighted_center_of_mass = zero(SVector{NDIMS, ELTYPE})
+    center_of_mass = zero(SVector{NDIMS, ELTYPE})
+    total_mass = zero(ELTYPE)
+    n_particles = length(mass)
+
+    n_particles == 0 && return center_of_mass
+
+    for particle in eachindex(mass)
+        particle_coordinates = extract_svector(coordinates, Val(NDIMS), particle)
+        particle_mass = convert(ELTYPE, mass[particle])
+        total_mass += particle_mass
+        weighted_center_of_mass += particle_mass * particle_coordinates
+        center_of_mass += particle_coordinates
+    end
+
+    if total_mass > eps(ELTYPE)
+        return weighted_center_of_mass / total_mass
+    end
+
+    return center_of_mass / n_particles
+end
+
+@doc raw"""
+    apply_angular_velocity(initial_condition::InitialCondition, angular_velocity)
+
+Return a new [`InitialCondition`](@ref) whose velocity includes the rotational
+contribution ``v = \omega \times r`` around the center of mass of `initial_condition`.
+
+In 2D, pass a scalar angular speed in rad/s.
+In 3D, pass a vector of length 3 whose direction gives the rotation axis
+(right-hand rule) and whose norm ``|\omega|`` gives the angular speed in rad/s.
+"""
+function apply_angular_velocity(initial_condition::InitialCondition, angular_velocity)
+    NDIMS = ndims(initial_condition)
+    ELTYPE = eltype(initial_condition)
+    if NDIMS == 2
+        if !(angular_velocity isa Number)
+            throw(ArgumentError("`angular_velocity` must be a scalar for a 2D problem"))
+        end
+        angular_velocity_ = convert(ELTYPE, angular_velocity)
+    elseif NDIMS == 3
+        if !(angular_velocity isa Union{Tuple, AbstractArray} &&
+             length(angular_velocity) == 3)
+            throw(ArgumentError("`angular_velocity` must be of length 3 for a 3D problem"))
+        end
+        angular_velocity_ = SVector{3, ELTYPE}(angular_velocity...)
+    else
+        throw(ArgumentError("`apply_angular_velocity` currently supports only 2D and 3D, got $(NDIMS)D"))
+    end
+    velocity = copy(initial_condition.velocity)
+    if !iszero(angular_velocity_)
+        center_of_mass = center_of_mass_from_mass(initial_condition.coordinates,
+                                                  initial_condition.mass, Val(NDIMS),
+                                                  ELTYPE)
+
+        for particle in axes(velocity, 2)
+            relative_position = extract_svector(initial_condition.coordinates, Val(NDIMS),
+                                                particle) - center_of_mass
+            rotational_velocity = cross_product(angular_velocity_, relative_position)
+
+            for dim in 1:NDIMS
+                velocity[dim, particle] += rotational_velocity[dim]
+            end
+        end
+    end
+
+    return InitialCondition(initial_condition.particle_spacing,
+                            initial_condition.coordinates, velocity,
+                            initial_condition.mass, initial_condition.density,
+                            initial_condition.pressure)
+end

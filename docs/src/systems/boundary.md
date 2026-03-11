@@ -30,12 +30,12 @@ All rigid/FSI examples follow the same construction pattern:
 ```julia
 contact_model_spec = LinearizedHertzMindlinBoundaryContactModel(; ...)
 
-rigid_system = RigidSPHSystem(shape;
+rigid_system = RigidBodySystem(shape;
                               boundary_contact_model=contact_model_spec,
                               ...)
 ```
 
-`RigidSPHSystem` converts the typed specification model to the runtime
+`RigidBodySystem` converts the typed specification model to the runtime
 [`RigidBoundaryContactModel`](@ref) internally.
 
 ```@autodocs

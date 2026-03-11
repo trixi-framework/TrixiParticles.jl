@@ -1,4 +1,4 @@
-@testset verbose=true "RigidSPHSystem" begin
+@testset verbose=true "RigidBodySystem" begin
     @trixi_testset "Constructor" begin
         coordinates = [1.0 2.0 3.0
                        1.0 2.0 3.0]
@@ -15,21 +15,21 @@
                                                      smoothing_kernel,
                                                      smoothing_length)
 
-        system = RigidSPHSystem(initial_condition;
+        system = RigidBodySystem(initial_condition;
                                 boundary_model=boundary_model,
                                 acceleration=(0.0, -9.81),
                                 particle_spacing=0.1)
 
-        @test system isa RigidSPHSystem
+        @test system isa RigidBodySystem
         @test ndims(system) == 2
         @test system.initial_condition == initial_condition
         center_of_mass = [9.5 / 4.5, 9.5 / 4.5]
-        @test system.local_coordinates ≈ coordinates .- center_of_mass
+        @test system.relative_coordinates ≈ coordinates .- center_of_mass
         @test system.mass == mass
         @test system.material_density == material_densities
         @test system.initial_velocity == initial_condition.velocity
         @test system.acceleration == [0.0, -9.81]
-        @test iszero(system.cache.angular_velocity[])
+        @test iszero(system.angular_velocity[])
         @test system.particle_spacing == 0.1
         @test system.boundary_model == boundary_model
         @test system.adhesion_coefficient == 0.0
@@ -56,17 +56,17 @@
                                                      smoothing_kernel,
                                                      smoothing_length)
 
-        system = RigidSPHSystem(initial_condition;
+        system = RigidBodySystem(initial_condition;
                                 boundary_model=boundary_model,
                                 acceleration=(0.0, -9.81))
 
-        show_compact = "RigidSPHSystem{2}([0.0, -9.81], BoundaryModelDummyParticles(SummationDensity, Nothing), nothing) with 2 particles"
+        show_compact = "RigidBodySystem{2}([0.0, -9.81], BoundaryModelDummyParticles(SummationDensity, Nothing), nothing) with 2 particles"
         @test repr(system) == show_compact
 
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-        │ RigidSPHSystem{2}                                                                                │
-        │ ═════════════════                                                                                │
+        │ RigidBodySystem{2}                                                                               │
+        │ ══════════════════                                                                               │
         │ #particles: ………………………………………………… 2                                                                │
         │ acceleration: …………………………………………… [0.0, -9.81]                                                     │
         │ initial angular velocity: …………… 0.0                                                              │
@@ -95,7 +95,7 @@
                                                      smoothing_kernel,
                                                      smoothing_length)
 
-        system = RigidSPHSystem(initial_condition; boundary_model=boundary_model)
+        system = RigidBodySystem(initial_condition; boundary_model=boundary_model)
         v = zeros(TrixiParticles.v_nvariables(system),
                   TrixiParticles.n_integrated_particles(system))
 
@@ -104,7 +104,7 @@
         @test TrixiParticles.smoothing_length(system, 1) == smoothing_length
         @test system.material_density == material_densities
 
-        system_no_model = RigidSPHSystem(initial_condition)
+        system_no_model = RigidBodySystem(initial_condition)
         v_no_model = zeros(TrixiParticles.v_nvariables(system_no_model),
                            TrixiParticles.n_integrated_particles(system_no_model))
         @test TrixiParticles.current_density(v_no_model, system_no_model) ==
@@ -113,7 +113,7 @@
 
         monaghan_model = BoundaryModelMonaghanKajtar(10.0, 1.0, smoothing_length,
                                                      hydrodynamic_masses)
-        system_monaghan = RigidSPHSystem(initial_condition; boundary_model=monaghan_model)
+        system_monaghan = RigidBodySystem(initial_condition; boundary_model=monaghan_model)
         @test TrixiParticles.hydrodynamic_mass(system_monaghan, 1) == hydrodynamic_masses[1]
     end
 
@@ -127,11 +127,11 @@
                                                         density=density_2d),
                                        2.0)
 
-        system_2d = RigidSPHSystem(ic_2d; particle_spacing=0.1)
+        system_2d = RigidBodySystem(ic_2d; particle_spacing=0.1)
         v0_2d = zeros(2, 2)
         TrixiParticles.write_v0!(v0_2d, system_2d)
 
-        @test system_2d.cache.angular_velocity[] == 2.0
+        @test system_2d.angular_velocity[] == 2.0
         @test v0_2d == [0.0 0.0
                         -1.0 1.0]
         dt_2d = TrixiParticles.calculate_dt(v0_2d, zeros(size(v0_2d)), 0.25, system_2d,
@@ -156,11 +156,11 @@
                                                         density=density_3d),
                                        (0.0, 0.0, 2.0))
 
-        system_3d = RigidSPHSystem(ic_3d)
+        system_3d = RigidBodySystem(ic_3d)
         v0_3d = zeros(3, 2)
         TrixiParticles.write_v0!(v0_3d, system_3d)
 
-        @test system_3d.cache.angular_velocity[] == [0.0, 0.0, 2.0]
+        @test system_3d.angular_velocity[] == [0.0, 0.0, 2.0]
         @test v0_3d == [0.0 0.0
                         -1.0 1.0
                         0.0 0.0]
@@ -183,12 +183,12 @@
         density = [1000.0, 1000.0]
         initial_condition = InitialCondition(; coordinates, mass, density,
                                              particle_spacing=0.1)
-        system = RigidSPHSystem(initial_condition; acceleration=(0.0, 0.0, 0.0))
+        system = RigidBodySystem(initial_condition; acceleration=(0.0, 0.0, 0.0))
 
-        system.cache.angular_velocity[] = SVector(0.0, 0.0, 0.0)
-        system.cache.angular_acceleration_force[] = SVector(0.0, 0.0, 0.0)
-        system.cache.gyroscopic_acceleration[] = SVector(0.0, 0.0, 2.0)
-        system.cache.center_of_mass_velocity[] = SVector(0.0, 0.0, 0.0)
+        system.angular_velocity[] = SVector(0.0, 0.0, 0.0)
+        system.angular_acceleration_force[] = SVector(0.0, 0.0, 0.0)
+        system.gyroscopic_acceleration[] = SVector(0.0, 0.0, 2.0)
+        system.center_of_mass_velocity[] = SVector(0.0, 0.0, 0.0)
 
         dt = TrixiParticles.calculate_dt(zeros(3, 2), zeros(3, 2), 0.25, system, nothing)
         @test isapprox(dt, 0.25 * sqrt(0.1 / 1.0))
@@ -203,11 +203,11 @@
         density = [1000.0, 1000.0]
         initial_condition = InitialCondition(; coordinates, velocity, mass, density,
                                              particle_spacing=0.1)
-        system = RigidSPHSystem(initial_condition; acceleration=(0.0, 0.0))
+        system = RigidBodySystem(initial_condition; acceleration=(0.0, 0.0))
 
         # No angular velocity was applied explicitly, so this must be reconstructed
         # from the initial velocity field.
-        @test isapprox(system.cache.angular_velocity[], 1.0)
+        @test isapprox(system.angular_velocity[], 1.0)
 
         dt = TrixiParticles.calculate_dt(zeros(2, 2), zeros(2, 2), 0.25, system, nothing)
         @test isapprox(dt, 0.25 * 0.1 / 1.0)
@@ -223,8 +223,8 @@
         initial_condition = InitialCondition(; coordinates, velocity, mass, density,
                                              particle_spacing=0.1)
 
-        system_ref = RigidSPHSystem(initial_condition; acceleration=(0.0, -9.81))
-        system_shifted = RigidSPHSystem(initial_condition; acceleration=(0.0, -1000.0))
+        system_ref = RigidBodySystem(initial_condition; acceleration=(0.0, -9.81))
+        system_shifted = RigidBodySystem(initial_condition; acceleration=(0.0, -1000.0))
 
         dt_ref = TrixiParticles.calculate_dt(zeros(2, 2), zeros(2, 2), 0.25, system_ref,
                                              nothing)
@@ -244,20 +244,19 @@
         density = [1000.0, 1000.0]
 
         initial_condition = InitialCondition(; coordinates, velocity, mass, density)
-        rigid_system = RigidSPHSystem(initial_condition;
+        rigid_system = RigidBodySystem(initial_condition;
                                       acceleration=(0.0, 0.0))
 
         v = copy(velocity)
         u = copy(coordinates)
         TrixiParticles.update_final!(rigid_system, v, u, nothing, nothing, nothing, 0.0)
 
-        @test rigid_system.cache.angular_velocity[] ≈ 1.0
-        @test rigid_system.cache.inertia[] ≈ 2.0
+        @test rigid_system.angular_velocity[] ≈ 1.0
+        @test rigid_system.inertia[] ≈ 2.0
 
         dv = zeros(size(v))
-        for particle in TrixiParticles.each_integrated_particle(rigid_system)
-            TrixiParticles.add_acceleration!(dv, particle, rigid_system)
-        end
+        TrixiParticles.interact!(dv, v, u, v, u, rigid_system, rigid_system,
+                                 DummySemidiscretization())
 
         @test dv ≈ [1.0 -1.0
                     0.0 0.0]
@@ -272,7 +271,7 @@
         density = [1000.0, 1000.0]
 
         initial_condition = InitialCondition(; coordinates, velocity, mass, density)
-        rigid_system = RigidSPHSystem(initial_condition; acceleration=(0.0, 0.0))
+        rigid_system = RigidBodySystem(initial_condition; acceleration=(0.0, 0.0))
 
         semi = Semidiscretization(rigid_system)
         ode = semidiscretize(semi, (0.0, 0.01))
@@ -288,7 +287,6 @@
                                           v_ode, u_ode, semi)
         fields = TrixiParticles.available_data(rigid_system)
 
-        @test :local_coordinates in fields
         @test :relative_coordinates in fields
         @test :center_of_mass in fields
         @test :center_of_mass_velocity in fields
@@ -309,8 +307,8 @@
         @test data.gyroscopic_acceleration ≈ 0.0
         @test data.boundary_contact_count == 0
         @test data.max_boundary_penetration == 0.0
-        @test data.local_coordinates ≈ rigid_system.local_coordinates
-        @test data.relative_coordinates ≈ rigid_system.cache.relative_coordinates
+        @test data.relative_coordinates ≈ rigid_system.relative_coordinates
+        @test :local_coordinates ∉ fields
     end
 
     @trixi_testset "Restart" begin
@@ -322,7 +320,7 @@
         density = [1000.0, 1000.0, 1000.0]
 
         initial_condition = InitialCondition(; coordinates, velocity, mass, density)
-        rigid_system = RigidSPHSystem(initial_condition; acceleration=(0.0, 0.0))
+        rigid_system = RigidBodySystem(initial_condition; acceleration=(0.0, 0.0))
 
         u_new = [2.0 4.0 6.0
                  3.0 3.0 3.0]
@@ -339,14 +337,13 @@
         expected_center_of_mass = [4.0, 3.0]
         expected_relative_coordinates = u_new .- expected_center_of_mass
 
-        @test isapprox(rigid_system.cache.center_of_mass[], expected_center_of_mass)
-        @test isapprox(rigid_system.local_coordinates, expected_relative_coordinates)
-        @test isapprox(rigid_system.cache.relative_coordinates, expected_relative_coordinates)
-        @test isapprox(rigid_system.cache.center_of_mass_velocity[], [2.0, 5.0])
-        @test isapprox(rigid_system.cache.angular_velocity[], 0.5)
-        @test iszero(rigid_system.cache.resultant_force[])
-        @test iszero(rigid_system.cache.resultant_torque[])
-        @test iszero(rigid_system.cache.angular_acceleration_force[])
+        @test isapprox(rigid_system.center_of_mass[], expected_center_of_mass)
+        @test isapprox(rigid_system.relative_coordinates, expected_relative_coordinates)
+        @test isapprox(rigid_system.center_of_mass_velocity[], [2.0, 5.0])
+        @test isapprox(rigid_system.angular_velocity[], 0.5)
+        @test iszero(rigid_system.resultant_force[])
+        @test iszero(rigid_system.resultant_torque[])
+        @test iszero(rigid_system.angular_acceleration_force[])
         @test rigid_system.cache.boundary_contact_count[] == 0
         @test iszero(rigid_system.cache.max_boundary_penetration[])
     end
@@ -365,7 +362,7 @@
                                                      smoothing_kernel,
                                                      smoothing_length)
 
-        rigid_system = RigidSPHSystem(initial_condition;
+        rigid_system = RigidBodySystem(initial_condition;
                                       boundary_model=boundary_model)
         semi = Semidiscretization(rigid_system)
         ode = semidiscretize(semi, (0.0, 0.01))
@@ -716,7 +713,7 @@
         end
         @test issorted(measured_restitution)
 
-        rigid_system = RigidSPHSystem(rigid_ic;
+        rigid_system = RigidBodySystem(rigid_ic;
                                       acceleration=(0.0, 0.0),
                                       boundary_contact_model=boundary_contact_model)
 
@@ -769,7 +766,7 @@
                                                                 contact_distance=0.1,
                                                                 penetration_slop=0.04,
                                                                 stick_velocity_tolerance=1e-8)
-        rigid_system_slop = RigidSPHSystem(rigid_ic;
+        rigid_system_slop = RigidBodySystem(rigid_ic;
                                            acceleration=(0.0, 0.0),
                                            boundary_contact_model=boundary_contact_model_slop)
         semi_slop = Semidiscretization(rigid_system_slop, boundary_system)
@@ -832,7 +829,7 @@
                                                                   contact_distance=0.1,
                                                                   penetration_slop=0.0,
                                                                   stick_velocity_tolerance=1e-8)
-        rigid_system_damped = RigidSPHSystem(rigid_ic_damped;
+        rigid_system_damped = RigidBodySystem(rigid_ic_damped;
                                              acceleration=(0.0, 0.0),
                                              boundary_contact_model=boundary_contact_model_damped)
         semi_damped = Semidiscretization(rigid_system_damped, boundary_system)
@@ -1235,7 +1232,7 @@
                                                   tangential_damping=2.0e3,
                                                   contact_distance=0.1,
                                                   stick_velocity_tolerance=1.0e-6)
-        history_system = RigidSPHSystem(ic; acceleration=(0.0, 0.0),
+        history_system = RigidBodySystem(ic; acceleration=(0.0, 0.0),
                                         boundary_contact_model=history_model)
 
         contact_key = (1, 1, 1)
@@ -1307,7 +1304,7 @@
                                                            tangential_damping=5.0,
                                                            contact_distance=0.1,
                                                            stick_velocity_tolerance=1e-2)
-        rigid_system = RigidSPHSystem(rigid_ic;
+        rigid_system = RigidBodySystem(rigid_ic;
                                       acceleration=(0.0, 0.0),
                                       boundary_contact_model=boundary_contact_model)
         semi = Semidiscretization(rigid_system, boundary_system)
@@ -1360,7 +1357,7 @@
             @test !haskey(rigid_system.cache.contact_tangential_displacement, key)
         end
 
-        rigid_system_no_projection = RigidSPHSystem(rigid_ic;
+        rigid_system_no_projection = RigidBodySystem(rigid_ic;
                                                     acceleration=(0.0, 0.0),
                                                     boundary_contact_model=boundary_contact_model)
         semi_no_projection = Semidiscretization(rigid_system_no_projection, boundary_system)
@@ -1451,7 +1448,7 @@
                                             mass=rigid_mass_angular,
                                             density=rigid_density_angular,
                                             particle_spacing=0.1)
-        rigid_system_angular = RigidSPHSystem(rigid_ic_angular;
+        rigid_system_angular = RigidBodySystem(rigid_ic_angular;
                                               acceleration=(0.0, 0.0),
                                               boundary_contact_model=boundary_contact_model)
         semi_angular = Semidiscretization(rigid_system_angular, boundary_system)
@@ -1473,7 +1470,7 @@
         @test rigid_system_angular.cache.boundary_contact_count[] > 0
 
         dt_contact_angular = TrixiParticles.contact_time_step(rigid_system_angular)
-        angular_before = rigid_system_angular.cache.angular_velocity[]
+        angular_before = rigid_system_angular.angular_velocity[]
         modified_angular = TrixiParticles.project_resting_contact_velocity!(rigid_system_angular,
                                                                             v_rigid_angular,
                                                                             u_rigid_angular,
@@ -1482,7 +1479,7 @@
                                                                             semi_angular,
                                                                             (; dt=0.01 *
                                                                                    dt_contact_angular))
-        angular_after = rigid_system_angular.cache.angular_velocity[]
+        angular_after = rigid_system_angular.angular_velocity[]
         @test modified_angular
         @test abs(angular_after) > abs(angular_before) + 100 * eps(abs(angular_before))
 
@@ -1538,12 +1535,12 @@
                                                            penetration_slop=0.2 *
                                                                             particle_spacing)
 
-        rigid_system = RigidSPHSystem(sphere;
+        rigid_system = RigidBodySystem(sphere;
                                       acceleration=(0.0, -9.81),
                                       boundary_contact_model=boundary_contact_model,
                                       particle_spacing=particle_spacing)
 
-        initial_relative_coordinates = copy(rigid_system.local_coordinates)
+        initial_relative_coordinates = copy(rigid_system.relative_coordinates)
 
         semi = Semidiscretization(rigid_system, wall_system)
         ode = semidiscretize(semi, (0.0, 0.2))
@@ -1631,7 +1628,7 @@
                                                                     torque_free=true,
                                                                     stick_velocity_tolerance=1e-8)
 
-        rigid_system = RigidSPHSystem(sphere;
+        rigid_system = RigidBodySystem(sphere;
                                       acceleration=(0.0, 0.0),
                                       boundary_contact_model=boundary_contact_model,
                                       particle_spacing=particle_spacing)
@@ -1774,7 +1771,7 @@
                                                                penetration_slop=0.0,
                                                                stick_velocity_tolerance=1e-6)
 
-            rigid_system = RigidSPHSystem(sphere;
+            rigid_system = RigidBodySystem(sphere;
                                           acceleration=(0.0, -gravity),
                                           boundary_contact_model=boundary_contact_model,
                                           particle_spacing=structure_spacing)
@@ -1925,7 +1922,7 @@
                                                                penetration_slop=0.0,
                                                                stick_velocity_tolerance=1e-6)
 
-            rigid_system = RigidSPHSystem(sphere;
+            rigid_system = RigidBodySystem(sphere;
                                           acceleration=(0.0, -9.81),
                                           boundary_contact_model=boundary_contact_model,
                                           particle_spacing=structure_spacing)
@@ -2024,7 +2021,7 @@
         density = [1000.0, 1000.0]
 
         rigid_ic = InitialCondition(; coordinates, mass, density)
-        rigid_system = RigidSPHSystem(rigid_ic)
+        rigid_system = RigidBodySystem(rigid_ic)
 
         smoothing_kernel = SchoenbergCubicSplineKernel{2}()
         smoothing_length = 0.12
@@ -2040,7 +2037,7 @@
                                                            SummationDensity(),
                                                            smoothing_kernel,
                                                            smoothing_length)
-        rigid_system_with_dummy = RigidSPHSystem(rigid_ic;
+        rigid_system_with_dummy = RigidBodySystem(rigid_ic;
                                                  boundary_model=rigid_boundary_model)
         fluid_with_surface_tension = WeaklyCompressibleSPHSystem(rigid_ic,
                                                                  SummationDensity(),
@@ -2104,7 +2101,7 @@
                                             mass=[particle_volume * rigid_density],
                                             density=[rigid_density],
                                             particle_spacing=particle_spacing)
-                RigidSPHSystem(rigid_ic;
+                RigidBodySystem(rigid_ic;
                                boundary_model=boundary_model,
                                adhesion_coefficient=adhesion_coefficient)
             end
@@ -2127,7 +2124,7 @@
         fluid_rigid, rigid_system, dv_rigid = run_setup(:rigid)
 
         @test isapprox(dv_rigid, dv_wall; rtol=sqrt(eps()), atol=sqrt(eps()))
-        @test isapprox(rigid_system.cache.resultant_force[],
+        @test isapprox(rigid_system.resultant_force[],
                        -fluid_rigid.mass[1] * dv_rigid;
                        rtol=sqrt(eps()), atol=sqrt(eps()))
     end
@@ -2159,7 +2156,7 @@
                                         mass=[particle_volume * rigid_density],
                                         density=[rigid_density],
                                         particle_spacing=particle_spacing)
-            rigid_system = RigidSPHSystem(rigid_ic;
+            rigid_system = RigidBodySystem(rigid_ic;
                                           boundary_model=boundary_model,
                                           acceleration=(0.0, 0.0))
 
@@ -2220,8 +2217,8 @@
         rigid_open_boundary, dv_open_boundary = run_setup(:open_boundary)
 
         @test isapprox(dv_open_boundary, dv_fluid; rtol=sqrt(eps()), atol=sqrt(eps()))
-        @test isapprox(rigid_open_boundary.cache.resultant_force[],
-                       rigid_fluid.cache.resultant_force[];
+        @test isapprox(rigid_open_boundary.resultant_force[],
+                       rigid_fluid.resultant_force[];
                        rtol=sqrt(eps()), atol=sqrt(eps()))
     end
 end
