@@ -114,7 +114,7 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
     end
 
     center_of_mass_velocity = zero(SVector{NDIMS, ELTYPE})
-    @inbounds for particle in eachindex(mass)
+    for particle in eachindex(mass)
         particle_mass = convert(ELTYPE, mass[particle])
         center_of_mass_velocity += particle_mass *
                                    extract_svector(initial_velocity, val_ndims, particle)
