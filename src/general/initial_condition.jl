@@ -533,8 +533,6 @@ function apply_angular_velocity(initial_condition::InitialCondition, angular_vel
         end
     end
 
-    return InitialCondition(initial_condition.particle_spacing,
-                            initial_condition.coordinates, velocity,
-                            initial_condition.mass, initial_condition.density,
-                            initial_condition.pressure)
+    # Return a copy of `initial_condition` with the correct velocity set
+    return @set initial_condition.velocity = velocity
 end
