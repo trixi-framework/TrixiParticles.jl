@@ -596,7 +596,7 @@ end
 end
 
 @inline function add_source_terms_inner!(dv, v, u, particle,
-                                         system::RigidSPHSystem,
+                                         system::RigidBodySystem,
                                          source_terms_, t)
     coords = current_coords(u, system, particle)
     velocity = current_velocity(v, system, particle)
@@ -611,6 +611,10 @@ end
 
     return dv
 end
+
+@inline add_source_terms_inner!(dv, v, u, particle,
+                                system::RigidBodySystem,
+                                source_terms_::Nothing, t) = dv
 
 @inline function add_source_terms_inner!(dv, v, u, particle, system, source_terms_, t)
     coords = current_coords(u, system, particle)
@@ -741,7 +745,7 @@ function check_system_color(systems)
                                         !(system isa ParticlePackingSystem)) ||
                                        system isa WallBoundarySystem ||
                                        system isa
-                                       RigidSPHSystem{<:BoundaryModelDummyParticles},
+                                       RigidBodySystem{<:BoundaryModelDummyParticles},
                              systems)
 
         if length(system_ids) > 1 && sum(i -> systems[i].cache.color, system_ids) == 0

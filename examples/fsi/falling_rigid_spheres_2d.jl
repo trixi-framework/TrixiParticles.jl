@@ -99,11 +99,11 @@ boundary_model_structure_2 = BoundaryModelDummyParticles(hydrodynamic_densities_
                                                          fluid_smoothing_kernel,
                                                          fluid_smoothing_length)
 
-structure_system_1 = RigidSPHSystem(sphere1;
+structure_system_1 = RigidBodySystem(sphere1;
                                     boundary_model=boundary_model_structure_1,
                                     acceleration=(0.0, -gravity),
                                     particle_spacing=structure_particle_spacing)
-structure_system_2 = RigidSPHSystem(sphere2;
+structure_system_2 = RigidBodySystem(sphere2;
                                     boundary_model=boundary_model_structure_2,
                                     acceleration=(0.0, -gravity),
                                     particle_spacing=structure_particle_spacing)

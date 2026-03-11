@@ -175,7 +175,7 @@
             @test isapprox(boundary_model.cache.density, test.density, rtol=1e-5)
         end
 
-        @testset verbose=true "`RigidSPHSystem`" begin
+        @testset verbose=true "`RigidBodySystem`" begin
             coordinates_rigid = [-1.0 1.0
                                  0.0 0.0]
             velocity_rigid = [0.0 0.0
@@ -185,7 +185,7 @@
                                         density=[1000.0, 1000.0],
                                         mass=[1.0, 1.0])
 
-            rigid_system = RigidSPHSystem(rigid_ic; acceleration=(0.0, 0.0))
+            rigid_system = RigidBodySystem(rigid_ic; acceleration=(0.0, 0.0))
             semi = Semidiscretization(rigid_system)
             ode = semidiscretize(semi, (0.0, 0.01))
             v_ode, u_ode = ode.u0.x

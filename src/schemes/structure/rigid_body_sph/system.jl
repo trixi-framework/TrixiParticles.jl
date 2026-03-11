@@ -1,5 +1,5 @@
 @doc raw"""
-    RigidSPHSystem(initial_condition;
+    RigidBodySystem(initial_condition;
                    boundary_model=nothing,
                    acceleration=ntuple(_ -> 0.0, ndims(initial_condition)),
                    particle_spacing=initial_condition.particle_spacing,
@@ -33,7 +33,7 @@ torque and applied consistently to all rigid particles.
                  bodies, it participates in the multi-system color sanity check for
                  surface-tension setups, and it is written to VTK output as `"color"`.
 """
-struct RigidSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
+struct RigidBodySystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
                       ST, CM, CMV, I, II, AV, RF, RT, AAF, GA, C} <:
        AbstractStructureSystem{NDIMS}
     initial_condition          :: IC
@@ -62,7 +62,7 @@ end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
-function RigidSPHSystem(initial_condition; boundary_model=nothing,
+function RigidBodySystem(initial_condition; boundary_model=nothing,
                         acceleration=ntuple(_ -> zero(eltype(initial_condition)),
                                             ndims(initial_condition)),
                         particle_spacing=initial_condition.particle_spacing,
@@ -70,7 +70,7 @@ function RigidSPHSystem(initial_condition; boundary_model=nothing,
                         color_value=0)
     NDIMS = ndims(initial_condition)
     if NDIMS != 2 && NDIMS != 3
-        throw(ArgumentError("`RigidSPHSystem` currently supports only 2D and 3D, got $(NDIMS)D"))
+        throw(ArgumentError("`RigidBodySystem` currently supports only 2D and 3D, got $(NDIMS)D"))
     end
 
     ELTYPE = eltype(initial_condition)
@@ -109,7 +109,7 @@ function RigidSPHSystem(initial_condition; boundary_model=nothing,
     end
     center_of_mass_velocity /= total_mass
 
-    system = RigidSPHSystem(initial_condition, initial_velocity, mass,
+    system = RigidBodySystem(initial_condition, initial_velocity, mass,
                             material_density, acceleration_,
                             particle_spacing_, total_mass, force_per_particle,
                             relative_coordinates, Ref(center_of_mass),
@@ -143,7 +143,7 @@ function center_of_mass_and_total_mass(coordinates, mass, ::Val{NDIMS},
     end
 
     if total_mass <= eps(ELTYPE)
-        throw(ArgumentError("`RigidSPHSystem` requires a positive total mass"))
+        throw(ArgumentError("`RigidBodySystem` requires a positive total mass"))
     end
 
     return center_of_mass / total_mass, total_mass
@@ -165,29 +165,29 @@ function update_relative_coordinates!(relative_coordinates, coordinates, center_
     return relative_coordinates
 end
 
-@inline function Base.eltype(::RigidSPHSystem{<:Any, <:Any, ELTYPE}) where {ELTYPE}
+@inline function Base.eltype(::RigidBodySystem{<:Any, <:Any, ELTYPE}) where {ELTYPE}
     return ELTYPE
 end
 
-@inline function v_nvariables(system::RigidSPHSystem)
+@inline function v_nvariables(system::RigidBodySystem)
     return ndims(system)
 end
 
-@inline function v_nvariables(system::RigidSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}})
+@inline function v_nvariables(system::RigidBodySystem{<:BoundaryModelDummyParticles{ContinuityDensity}})
     return ndims(system) + 1
 end
 
-@inline function particle_spacing(system::RigidSPHSystem, particle)
+@inline function particle_spacing(system::RigidBodySystem, particle)
     return system.particle_spacing
 end
 
-@propagate_inbounds function current_velocity(v, system::RigidSPHSystem)
+@propagate_inbounds function current_velocity(v, system::RigidBodySystem)
     # For `ContinuityDensity`, the density is stored in the last row of `v`.
     # Return only the velocity components for rigid systems.
     return view(v, 1:ndims(system), :)
 end
 
-@inline function current_density(v, system::RigidSPHSystem)
+@inline function current_density(v, system::RigidBodySystem)
     # `current_density` for rigid systems means hydrodynamic density (FSI coupling density),
     # not the physical solid material density.
     return current_density(v, system.boundary_model, system)
@@ -195,60 +195,60 @@ end
 
 # In fluid-structure interaction, use the hydrodynamic pressure corresponding to the
 # configured boundary model.
-@inline function current_pressure(v, system::RigidSPHSystem)
+@inline function current_pressure(v, system::RigidBodySystem)
     return current_pressure(v, system.boundary_model, system)
 end
 
-@inline function current_pressure(v, ::Nothing, system::RigidSPHSystem)
+@inline function current_pressure(v, ::Nothing, system::RigidBodySystem)
     return zero(eltype(system))
 end
 
-@inline function hydrodynamic_mass(system::RigidSPHSystem, particle)
+@inline function hydrodynamic_mass(system::RigidBodySystem, particle)
     return system.boundary_model.hydrodynamic_mass[particle]
 end
 
-@inline function viscous_velocity(v, system::RigidSPHSystem, particle)
+@inline function viscous_velocity(v, system::RigidBodySystem, particle)
     return viscous_velocity(v, system.boundary_model, system, particle)
 end
 
-@inline function viscous_velocity(v, ::Nothing, system::RigidSPHSystem, particle)
+@inline function viscous_velocity(v, ::Nothing, system::RigidBodySystem, particle)
     return current_velocity(v, system, particle)
 end
 
-@inline function viscous_velocity(v, boundary_model, system::RigidSPHSystem, particle)
+@inline function viscous_velocity(v, boundary_model, system::RigidBodySystem, particle)
     return viscous_velocity(v, boundary_model.viscosity, boundary_model, system, particle)
 end
 
 @inline function viscous_velocity(v, ::Nothing, boundary_model,
-                                  system::RigidSPHSystem, particle)
+                                  system::RigidBodySystem, particle)
     return current_velocity(v, system, particle)
 end
 
 @inline function viscous_velocity(v, viscosity, boundary_model,
-                                  system::RigidSPHSystem, particle)
+                                  system::RigidBodySystem, particle)
     return extract_svector(boundary_model.cache.wall_velocity, system, particle)
 end
 
-@inline function smoothing_length(system::RigidSPHSystem{<:BoundaryModelDummyParticles},
+@inline function smoothing_length(system::RigidBodySystem{<:BoundaryModelDummyParticles},
                                   particle)
     return smoothing_length(system.boundary_model, particle)
 end
 
-@inline function system_smoothing_kernel(system::RigidSPHSystem{<:BoundaryModelDummyParticles})
+@inline function system_smoothing_kernel(system::RigidBodySystem{<:BoundaryModelDummyParticles})
     return system.boundary_model.smoothing_kernel
 end
 
-@inline function system_correction(system::RigidSPHSystem{<:BoundaryModelDummyParticles})
+@inline function system_correction(system::RigidBodySystem{<:BoundaryModelDummyParticles})
     return system.boundary_model.correction
 end
 
-function initialize!(system::RigidSPHSystem, semi)
+function initialize!(system::RigidBodySystem, semi)
     initialize_colorfield!(system, system.boundary_model, semi)
     return system
 end
 
 function calc_normal!(system::AbstractFluidSystem,
-                      neighbor_system::RigidSPHSystem{<:BoundaryModelDummyParticles},
+                      neighbor_system::RigidBodySystem{<:BoundaryModelDummyParticles},
                       u_system, v, v_neighbor_system, u_neighbor_system, semi,
                       surface_normal_method, neighbor_surface_normal_method)
     haskey(neighbor_system.boundary_model.cache, :initial_colorfield) || return system
@@ -259,7 +259,7 @@ end
 
 @inline function adhesion_force(surface_tension::AkinciTypeSurfaceTension,
                                 particle_system::AbstractFluidSystem,
-                                neighbor_system::RigidSPHSystem,
+                                neighbor_system::RigidBodySystem,
                                 particle, neighbor, pos_diff, distance)
     (; adhesion_coefficient) = neighbor_system
 
@@ -276,7 +276,7 @@ end
                                  adhesion_coefficient)
 end
 
-function write_u0!(u0, system::RigidSPHSystem)
+function write_u0!(u0, system::RigidBodySystem)
     (; initial_condition) = system
 
     # This is as fast as a loop with `@inbounds`, but it's GPU-compatible
@@ -286,7 +286,7 @@ function write_u0!(u0, system::RigidSPHSystem)
     return u0
 end
 
-function write_v0!(v0, system::RigidSPHSystem)
+function write_v0!(v0, system::RigidBodySystem)
     (; initial_velocity, boundary_model) = system
 
     # This is as fast as a loop with `@inbounds`, but it's GPU-compatible
@@ -298,12 +298,12 @@ function write_v0!(v0, system::RigidSPHSystem)
     return v0
 end
 
-function write_v0!(v0, model, system::RigidSPHSystem)
+function write_v0!(v0, model, system::RigidBodySystem)
     return v0
 end
 
 function write_v0!(v0, ::BoundaryModelDummyParticles{ContinuityDensity},
-                   system::RigidSPHSystem)
+                   system::RigidBodySystem)
     (; cache) = system.boundary_model
     (; initial_density) = cache
 
@@ -315,7 +315,7 @@ function write_v0!(v0, ::BoundaryModelDummyParticles{ContinuityDensity},
     return v0
 end
 
-function restart_with!(system::RigidSPHSystem, v, u)
+function restart_with!(system::RigidBodySystem, v, u)
     indices_u = CartesianIndices(system.initial_condition.coordinates)
     copyto!(system.initial_condition.coordinates, indices_u, u, indices_u)
 
@@ -350,24 +350,24 @@ function restart_with!(system::RigidSPHSystem, v, u)
     return system
 end
 
-function update_boundary_interpolation!(system::RigidSPHSystem, v, u, v_ode, u_ode,
+function update_boundary_interpolation!(system::RigidBodySystem, v, u, v_ode, u_ode,
                                         semi, t)
     return update_boundary_interpolation!(system.boundary_model, system, v, u, v_ode,
                                           u_ode, semi, t)
 end
 
-function update_boundary_interpolation!(::Nothing, system::RigidSPHSystem, v, u, v_ode,
+function update_boundary_interpolation!(::Nothing, system::RigidBodySystem, v, u, v_ode,
                                         u_ode, semi, t)
     return system
 end
 
-function update_boundary_interpolation!(boundary_model, system::RigidSPHSystem, v, u,
+function update_boundary_interpolation!(boundary_model, system::RigidBodySystem, v, u,
                                         v_ode, u_ode, semi, t)
     update_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi)
     return system
 end
 
-function update_final!(system::RigidSPHSystem, v, u, v_ode, u_ode, semi, t)
+function update_final!(system::RigidBodySystem, v, u, v_ode, u_ode, semi, t)
     total_mass = system.total_mass
     total_mass <= eps(eltype(system)) && return system
 
@@ -398,7 +398,7 @@ function update_final!(system::RigidSPHSystem, v, u, v_ode, u_ode, semi, t)
     return system
 end
 
-function update_rotational_kinematics!(system::RigidSPHSystem, system_velocity,
+function update_rotational_kinematics!(system::RigidBodySystem, system_velocity,
                                        center_of_mass_velocity, ::Val{NDIMS}) where {NDIMS}
     inertia = zero(system.inertia[])
     angular_momentum = zero(system.angular_velocity[])
@@ -471,7 +471,7 @@ end
     return inverse_inertia * cross(angular_velocity, inertia * angular_velocity)
 end
 
-function calculate_dt(v_ode, u_ode, cfl_number, system::RigidSPHSystem, semi)
+function calculate_dt(v_ode, u_ode, cfl_number, system::RigidBodySystem, semi)
     spacing = particle_spacing(system, first(eachparticle(system)))
 
     radius = maximum_particle_radius(system)
@@ -503,7 +503,7 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::RigidSPHSystem, semi)
     return min(dt_acceleration, dt_velocity)
 end
 
-function maximum_particle_radius(system::RigidSPHSystem)
+function maximum_particle_radius(system::RigidBodySystem)
     # `relative_coordinates` are particle positions relative to the center of mass.
     # Their norm is the particle's radial distance `r`; the maximum is the rigid body's
     # characteristic radius used as lever arm in the `calculate_dt` estimates (`r*ω`, `r*α`).
@@ -519,24 +519,24 @@ end
 
 # To account for boundary effects in the viscosity term of fluid-structure interactions,
 # use the viscosity model of the neighboring system.
-@inline function viscosity_model(system::RigidSPHSystem,
+@inline function viscosity_model(system::RigidBodySystem,
                                  neighbor_system::AbstractFluidSystem)
     return neighbor_system.viscosity
 end
 
 @inline function viscosity_model(system::Union{AbstractFluidSystem, OpenBoundarySystem},
-                                 neighbor_system::RigidSPHSystem{Nothing})
+                                 neighbor_system::RigidBodySystem{Nothing})
     return nothing
 end
 
 @inline function viscosity_model(system::Union{AbstractFluidSystem, OpenBoundarySystem},
-                                 neighbor_system::RigidSPHSystem)
+                                 neighbor_system::RigidBodySystem)
     return neighbor_system.boundary_model.viscosity
 end
 
-@inline acceleration_source(system::RigidSPHSystem) = system.acceleration
+@inline acceleration_source(system::RigidBodySystem) = system.acceleration
 
-@inline function add_acceleration!(dv, particle, system::RigidSPHSystem)
+@inline function add_acceleration!(dv, particle, system::RigidBodySystem)
     relative_position = extract_svector(system.relative_coordinates, system, particle)
     rotational_acceleration = rigid_kinematic_acceleration(system, relative_position,
                                                            Val(ndims(system)))
@@ -548,14 +548,14 @@ end
     return dv
 end
 
-@inline function rigid_kinematic_acceleration(system::RigidSPHSystem, relative_position,
+@inline function rigid_kinematic_acceleration(system::RigidBodySystem, relative_position,
                                               ::Val{2})
     angular_velocity = system.angular_velocity[]
 
     return -(angular_velocity^2) * relative_position
 end
 
-@inline function rigid_kinematic_acceleration(system::RigidSPHSystem, relative_position,
+@inline function rigid_kinematic_acceleration(system::RigidBodySystem, relative_position,
                                               ::Val{3})
     angular_velocity = system.angular_velocity[]
     gyroscopic_acceleration = system.gyroscopic_acceleration[]
@@ -567,7 +567,7 @@ end
     return centripetal_acceleration - gyroscopic_correction
 end
 
-function system_data(system::RigidSPHSystem, dv_ode, du_ode, v_ode, u_ode, semi)
+function system_data(system::RigidBodySystem, dv_ode, du_ode, v_ode, u_ode, semi)
     dv = wrap_v(dv_ode, system, semi)
     v = wrap_v(v_ode, system, semi)
     u = wrap_u(u_ode, system, semi)
@@ -596,7 +596,7 @@ function system_data(system::RigidSPHSystem, dv_ode, du_ode, v_ode, u_ode, semi)
             density, pressure, acceleration)
 end
 
-function available_data(::RigidSPHSystem)
+function available_data(::RigidBodySystem)
     return (:coordinates, :velocity, :mass, :material_density,
             :relative_coordinates,
             :center_of_mass, :center_of_mass_velocity,
@@ -605,22 +605,22 @@ function available_data(::RigidSPHSystem)
             :density, :pressure, :acceleration)
 end
 
-function Base.show(io::IO, system::RigidSPHSystem)
+function Base.show(io::IO, system::RigidBodySystem)
     @nospecialize system # reduce precompilation time
 
-    print(io, "RigidSPHSystem{", ndims(system), "}(")
+    print(io, "RigidBodySystem{", ndims(system), "}(")
     print(io, system.acceleration)
     print(io, ", ", system.boundary_model)
     print(io, ") with ", nparticles(system), " particles")
 end
 
-function Base.show(io::IO, ::MIME"text/plain", system::RigidSPHSystem)
+function Base.show(io::IO, ::MIME"text/plain", system::RigidBodySystem)
     @nospecialize system # reduce precompilation time
 
     if get(io, :compact, false)
         show(io, system)
     else
-        summary_header(io, "RigidSPHSystem{$(ndims(system))}")
+        summary_header(io, "RigidBodySystem{$(ndims(system))}")
         summary_line(io, "#particles", nparticles(system))
         summary_line(io, "acceleration", system.acceleration)
         summary_line(io, "initial angular velocity", system.angular_velocity[])
@@ -629,34 +629,34 @@ function Base.show(io::IO, ::MIME"text/plain", system::RigidSPHSystem)
     end
 end
 
-function check_configuration(system::RigidSPHSystem, systems, nhs)
+function check_configuration(system::RigidBodySystem, systems, nhs)
     (; boundary_model) = system
 
     if !isnothing(boundary_model)
         n_particles_model = length(boundary_model.hydrodynamic_mass)
         if n_particles_model != nparticles(system)
             throw(ArgumentError("the boundary model was initialized with $n_particles_model " *
-                                "particles, but the `RigidSPHSystem` has " *
+                                "particles, but the `RigidBodySystem` has " *
                                 "$(nparticles(system)) particles."))
         end
     end
 
     foreach_system(systems) do neighbor
         if neighbor isa AbstractFluidSystem && boundary_model === nothing
-            throw(ArgumentError("a boundary model for `RigidSPHSystem` must be specified " *
+            throw(ArgumentError("a boundary model for `RigidBodySystem` must be specified " *
                                 "when simulating a fluid-structure interaction."))
         end
 
         if neighbor isa AbstractFluidSystem &&
            neighbor.surface_normal_method isa ColorfieldSurfaceNormal
             if !(boundary_model isa BoundaryModelDummyParticles)
-                throw(ArgumentError("`RigidSPHSystem` is only compatible with " *
+                throw(ArgumentError("`RigidBodySystem` is only compatible with " *
                                     "`ColorfieldSurfaceNormal` when using " *
                                     "`BoundaryModelDummyParticles`."))
             end
 
             if !haskey(boundary_model.cache, :initial_colorfield)
-                throw(ArgumentError("`RigidSPHSystem` with `BoundaryModelDummyParticles` " *
+                throw(ArgumentError("`RigidBodySystem` with `BoundaryModelDummyParticles` " *
                                     "requires `reference_particle_spacing` to be set on " *
                                     "the boundary model when used together with " *
                                     "`ColorfieldSurfaceNormal` or a surface tension model."))

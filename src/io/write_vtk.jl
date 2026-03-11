@@ -419,7 +419,7 @@ function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem)
     write2vtk!(vtk, v, u, t, system.boundary_model, system)
 end
 
-function write2vtk!(vtk, v, u, t, system::RigidSPHSystem)
+function write2vtk!(vtk, v, u, t, system::RigidBodySystem)
     vtk["velocity"] = [current_velocity(v, system, particle)
                        for particle in eachparticle(system)]
     vtk["color"] = system.cache.color

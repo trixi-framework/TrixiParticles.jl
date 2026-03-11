@@ -68,10 +68,10 @@
         boundary_systems = [
             WallBoundarySystem(boundary, boundary_model_adami),
             WallBoundarySystem(boundary, boundary_model_bernoulli),
-            RigidSPHSystem(boundary;
+            RigidBodySystem(boundary;
                            boundary_model=boundary_model_adami,
                            particle_spacing=particle_spacing),
-            RigidSPHSystem(boundary;
+            RigidBodySystem(boundary;
                            boundary_model=boundary_model_bernoulli,
                            particle_spacing=particle_spacing),
             TotalLagrangianSPHSystem(boundary, smoothing_kernel,

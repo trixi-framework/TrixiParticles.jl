@@ -1,7 +1,7 @@
 # Structure-fluid interaction
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
-                   particle_system::RigidSPHSystem,
+                   particle_system::RigidBodySystem,
                    neighbor_system::Union{AbstractFluidSystem, OpenBoundarySystem}, semi)
     sound_speed = system_sound_speed(neighbor_system)
     surface_tension = surface_tension_model(neighbor_system)
@@ -84,7 +84,7 @@ end
 
 # Reduce the accumulated fluid forces to rigid-body resultants and apply the corresponding
 # translational and rotational acceleration to every rigid particle.
-function apply_resultant_force_and_torque!(dv, particle_system::RigidSPHSystem, semi)
+function apply_resultant_force_and_torque!(dv, particle_system::RigidBodySystem, semi)
     total_mass = particle_system.total_mass
 
     # Guard against degenerate systems and clear the cached rigid-body quantities as well.
@@ -127,7 +127,7 @@ end
 
 # Sum pairwise particle forces into a single net force and torque about the current
 # center of mass of the rigid body.
-function resultant_force_and_torque(particle_system::RigidSPHSystem{<:Any, NDIMS},
+function resultant_force_and_torque(particle_system::RigidBodySystem{<:Any, NDIMS},
                                     force_per_particle,
                                     relative_coordinates) where {NDIMS}
     total_force = zero(SVector{NDIMS, eltype(particle_system)})
@@ -151,7 +151,7 @@ end
 @inline function continuity_equation!(dv, v_particle_system, v_neighbor_system,
                                       particle, neighbor, pos_diff, distance,
                                       m_b, rho_a, rho_b,
-                                      particle_system::RigidSPHSystem,
+                                      particle_system::RigidBodySystem,
                                       neighbor_system::Union{AbstractFluidSystem,
                                                              OpenBoundarySystem},
                                       grad_kernel)
@@ -164,7 +164,7 @@ end
 @inline function continuity_equation!(dv, v_particle_system, v_neighbor_system,
                                       particle, neighbor, pos_diff, distance,
                                       m_b, rho_a, rho_b,
-                                      particle_system::RigidSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
+                                      particle_system::RigidBodySystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
                                       neighbor_system::Union{AbstractFluidSystem,
                                                              OpenBoundarySystem},
                                       grad_kernel)
@@ -179,7 +179,7 @@ end
 # Structure-structure and structure-boundary interactions are currently not modeled.
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
-                   particle_system::RigidSPHSystem,
+                   particle_system::RigidBodySystem,
                    neighbor_system::Union{AbstractStructureSystem,
                                           AbstractBoundarySystem}, semi)
     return dv
