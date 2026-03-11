@@ -144,7 +144,7 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
 end
 
 # Per-system color tag for colorfield surface-normal logic and VTK output.
-    create_cache_rigid(color_value) = (; color=Int(color_value))
+create_cache_rigid(color_value) = (; color=Int(color_value))
 
 function update_relative_coordinates!(relative_coordinates, coordinates, center_of_mass,
                                       ::Val{NDIMS}) where {NDIMS}
@@ -164,7 +164,7 @@ function update_relative_coordinates!(relative_coordinates, coordinates, center_
 
     @threaded semi for particle in axes(relative_coordinates, 2)
         @inbounds update_relative_coordinate!(relative_coordinates, coordinates,
-                                             center_of_mass, particle, val_ndims)
+                                              center_of_mass, particle, val_ndims)
     end
 
     return relative_coordinates
@@ -396,7 +396,8 @@ function update_rotational_kinematics!(system::RigidBodySystem, system_velocity,
 
     @inbounds for particle in each_integrated_particle(system)
         particle_mass = system.mass[particle]
-        relative_position = extract_svector(system.relative_coordinates, val_ndims, particle)
+        relative_position = extract_svector(system.relative_coordinates, val_ndims,
+                                            particle)
         relative_velocity = extract_svector(system_velocity, val_ndims, particle) -
                             center_of_mass_velocity
         inertia += particle_mass * inertia_contribution(relative_position)
