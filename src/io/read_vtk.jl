@@ -61,7 +61,7 @@ function vtk2trixi(file; element_type=nothing, coordinates_eltype=nothing)
     results = Dict{String, Array{Float64}}()
 
     for field in fields
-        # First look for an exact key match, then fallback to substring matching.
+        # First look for an exact key match, then fall back to substring matching.
         all_keys = keys(point_data)
         idx = findfirst(k -> k == field, all_keys)
         if idx === nothing
