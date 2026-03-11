@@ -150,8 +150,8 @@ function update_relative_coordinates!(relative_coordinates, coordinates, center_
                                       ::Val{NDIMS}) where {NDIMS}
     val_ndims = Val(NDIMS)
 
-    @inbounds for particle in axes(relative_coordinates, 2)
-        update_relative_coordinate!(relative_coordinates, coordinates, center_of_mass,
+    for particle in axes(relative_coordinates, 2)
+        @inbounds update_relative_coordinate!(relative_coordinates, coordinates, center_of_mass,
                                     particle, val_ndims)
     end
 
