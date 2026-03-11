@@ -72,10 +72,7 @@ end
 function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                             fluid_system::AbstractFluidSystem, buffer_size::Integer,
                             boundary_model, calculate_flow_rate=false,
-                            pressure_acceleration=boundary_model isa
-                                                  BoundaryModelDynamicalPressureZhang ?
-                                                  fluid_system.pressure_acceleration_formulation :
-                                                  nothing,
+                            pressure_acceleration= fluid_system.pressure_acceleration_formulation,
                             shifting_technique=boundary_model isa
                                                BoundaryModelDynamicalPressureZhang ?
                                                shifting_technique(fluid_system) : nothing)
@@ -263,9 +260,6 @@ end
 system_sound_speed(system::OpenBoundarySystem) = system_sound_speed(system.fluid_system)
 
 @inline hydrodynamic_mass(system::OpenBoundarySystem, particle) = system.mass[particle]
-@inline density_calculator(system::OpenBoundarySystem) = density_calculator(system.fluid_system)
-
-@inline pressure_acceleration_formulation(system::OpenBoundarySystem) = pressure_acceleration_formulation(system.fluid_system)
 
 @inline function current_density(v, system::OpenBoundarySystem)
     return system.cache.density
