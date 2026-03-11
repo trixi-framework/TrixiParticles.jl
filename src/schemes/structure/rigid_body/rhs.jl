@@ -1,9 +1,8 @@
 # Structure-fluid interaction
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
-                   particle_system::RigidBodySystem{<:Any, NDIMS},
-                   neighbor_system::Union{AbstractFluidSystem, OpenBoundarySystem},
-                   semi) where {NDIMS}
+                   particle_system::RigidBodySystem,
+                   neighbor_system::Union{AbstractFluidSystem, OpenBoundarySystem}, semi)
     sound_speed = system_sound_speed(neighbor_system)
     surface_tension = surface_tension_model(neighbor_system)
 
@@ -97,12 +96,21 @@ function apply_resultant_force_and_torque!(dv, particle_system::RigidBodySystem,
     end
 
     # Reduce all pairwise forces to one net force and one net torque around the center of mass.
-    total_force,
-    total_torque = resultant_force_and_torque(particle_system,
-                                              particle_system.force_per_particle,
-                                              particle_system.relative_coordinates)
+    total_force = zero(SVector{ndims(particle_system), eltype(particle_system)})
+    total_torque = zero(particle_system.resultant_torque[])
 
-    # Convert the rigid-body resultants into translational and angular accelerations.
+    @inbounds for particle in each_integrated_particle(particle_system)
+        particle_force = extract_svector(particle_system.force_per_particle, particle_system,
+                                         particle)
+        relative_position = extract_svector(particle_system.relative_coordinates, particle_system,
+                                            particle)
+        total_force += particle_force
+
+        # Torque is taken about the current center of mass, using the particle's current
+        # relative position inside the rigid body.
+        total_torque += cross_product(relative_position, particle_force)
+    end
+
     translational_acceleration = total_force / total_mass
     angular_acceleration_force = particle_system.inverse_inertia[] * total_torque
     particle_system.resultant_force[] = total_force
@@ -114,36 +122,15 @@ function apply_resultant_force_and_torque!(dv, particle_system::RigidBodySystem,
                                                       particle_system, particle)
         # For rigid bodies, the instantaneous acceleration of a material point is
         # `a_com + alpha x r` in this force-driven part of the RHS.
-        rotational_acceleration = cross_product(angular_acceleration_force,
-                                                relative_position)
+        rotational_acceleration_force = cross_product(angular_acceleration_force,
+                                                      relative_position)
 
-        for i in 1:ndims(particle_system)
-            @inbounds dv[i, particle] += translational_acceleration[i] + rotational_acceleration[i]
+        @inbounds for i in 1:ndims(particle_system)
+            dv[i, particle] += translational_acceleration[i] + rotational_acceleration_force[i]
         end
     end
 
     return dv
-end
-
-# Sum pairwise particle forces into a single net force and torque about the current
-# center of mass of the rigid body.
-function resultant_force_and_torque(particle_system::RigidBodySystem,
-                                    force_per_particle, relative_coordinates)
-    total_force = zero(SVector{ndims(particle_system), eltype(particle_system)})
-    total_torque = zero(particle_system.resultant_torque[])
-
-    # This is a reduction and cannot be `@threaded`
-    for particle in each_integrated_particle(particle_system)
-        particle_force = extract_svector(force_per_particle, particle_system, particle)
-        relative_position = extract_svector(relative_coordinates, particle_system, particle)
-        total_force += particle_force
-
-        # Torque is taken about the current center of mass, using the particle's current
-        # relative position inside the rigid body.
-        total_torque += cross_product(relative_position, particle_force)
-    end
-
-    return total_force, total_torque
 end
 
 # Default rigid boundary models keep density fixed, so structure-fluid coupling does not
@@ -184,8 +171,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         relative_position = @inbounds extract_svector(particle_system.relative_coordinates,
                                                       particle_system, particle)
         rotational_acceleration = rigid_kinematic_acceleration(particle_system,
-                                                               relative_position,
-                                                               Val(ndims(particle_system)))
+                                                               relative_position)
 
         @inbounds for i in 1:ndims(particle_system)
             dv[i, particle] += rotational_acceleration[i]
