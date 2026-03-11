@@ -333,6 +333,10 @@ end
     return current_density(v, system.boundary_model, system)
 end
 
+@inline function viscous_velocity(v, system::RigidBodySystem, particle)
+    return viscous_velocity(v, system.boundary_model.viscosity, system, particle)
+end
+
 # In fluid-structure interaction, use the "hydrodynamic pressure" of the structure particles
 # corresponding to the chosen boundary model.
 @propagate_inbounds function current_pressure(v, system::TotalLagrangianSPHSystem)

@@ -524,6 +524,10 @@ end
     return neighbor_system.boundary_model.viscosity
 end
 
+@inline function viscous_velocity(v, system::RigidBodySystem, particle)
+    return viscous_velocity(v, system.boundary_model.viscosity, system, particle)
+end
+
 @inline acceleration_source(system::RigidBodySystem) = system.acceleration
 
 @inline function rigid_kinematic_acceleration(system::RigidBodySystem, relative_position,
