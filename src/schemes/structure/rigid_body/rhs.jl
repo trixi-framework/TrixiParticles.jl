@@ -379,7 +379,7 @@ end
     return max(elastic_force + damping_force, zero(ELTYPE))
 end
 
-@inline function normal_contact_force(contact_model::RigidBoundaryContactModel,
+@inline function normal_contact_force(contact_model::RigidContactModel,
                                       penetration, normal_velocity, ELTYPE)
     return normal_contact_force(contact_model.normal_stiffness,
                                 contact_model.normal_damping,

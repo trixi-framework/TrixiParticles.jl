@@ -92,7 +92,7 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
     end
     contact_model = isnothing(contact_model) ? boundary_contact_model : contact_model
     contact_model_ = isnothing(contact_model) ? nothing :
-                     RigidBoundaryContactModel(contact_model, particle_spacing_, ELTYPE)
+                     RigidContactModel(contact_model, particle_spacing_, ELTYPE)
     initial_velocity = copy(initial_condition.velocity)
     relative_coordinates = zeros(ELTYPE, NDIMS, nparticles(initial_condition))
     mass = copy(initial_condition.mass)

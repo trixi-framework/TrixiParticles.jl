@@ -32,9 +32,9 @@ sphere_2 = SphereShape(particle_spacing, sphere_radius, sphere_2_center, sphere_
 
 # ==========================================================================================
 # ==== Rigid Structures
-contact_model = RigidBoundaryContactModel(; normal_stiffness=2.0e4,
-                                          normal_damping=120.0,
-                                          contact_distance=2.0 * particle_spacing)
+contact_model = RigidContactModel(; normal_stiffness=2.0e4,
+                                  normal_damping=120.0,
+                                  contact_distance=2.0 * particle_spacing)
 
 structure_system_1 = RigidBodySystem(sphere_1;
                                      contact_model=contact_model,

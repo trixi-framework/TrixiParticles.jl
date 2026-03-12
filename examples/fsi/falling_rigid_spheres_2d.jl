@@ -100,10 +100,10 @@ boundary_model_structure_2 = BoundaryModelDummyParticles(hydrodynamic_densities_
                                                          fluid_smoothing_length)
 
 # Basic rigid contact model used for both rigid bodies.
-contact_model = RigidBoundaryContactModel(; normal_stiffness=2.0e5,
-                                          normal_damping=200.0,
-                                          contact_distance=2.0 *
-                                                           structure_particle_spacing)
+contact_model = RigidContactModel(; normal_stiffness=2.0e5,
+                                  normal_damping=200.0,
+                                  contact_distance=2.0 *
+                                                   structure_particle_spacing)
 
 structure_system_1 = RigidBodySystem(sphere1;
                                      boundary_model=boundary_model_structure_1,
