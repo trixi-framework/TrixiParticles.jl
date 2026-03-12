@@ -381,7 +381,8 @@ end
 
 @inline function normal_contact_force(contact_model::RigidBoundaryContactModel,
                                       penetration, normal_velocity, ELTYPE)
-    return normal_contact_force(contact_model.normal_stiffness, contact_model.normal_damping,
+    return normal_contact_force(contact_model.normal_stiffness,
+                                contact_model.normal_damping,
                                 penetration, normal_velocity, ELTYPE)
 end
 

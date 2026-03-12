@@ -803,8 +803,9 @@
         @test TrixiParticles.contact_time_step(rigid_system_2, semi_rigid) ≈ pair_contact_dt
         zero_velocity_ode = zero(v_ode_rigid)
         @test TrixiParticles.calculate_dt(zero_velocity_ode, u_ode_rigid, 0.25,
-                                          rigid_system_1, semi_rigid) ≈ 0.25 *
-                                                                         pair_contact_dt
+                                          rigid_system_1, semi_rigid) ≈
+              0.25 *
+              pair_contact_dt
         @test TrixiParticles.calculate_dt(zero_velocity_ode, u_ode_rigid, 0.25,
                                           semi_rigid) ≈ 0.25 * pair_contact_dt
 
@@ -886,7 +887,8 @@
         @test rigid_system.contact_model.normal_stiffness ≈ contact_model.normal_stiffness
         @test rigid_system.contact_model.normal_damping ≈ contact_model.normal_damping
         @test rigid_system.contact_model.contact_distance ≈ contact_model.contact_distance
-        @test rigid_system_alias.contact_model.contact_distance ≈ contact_model.contact_distance
+        @test rigid_system_alias.contact_model.contact_distance ≈
+              contact_model.contact_distance
         @test_throws ArgumentError RigidBodySystem(rigid_ic;
                                                    contact_model=contact_model,
                                                    boundary_contact_model=contact_model)

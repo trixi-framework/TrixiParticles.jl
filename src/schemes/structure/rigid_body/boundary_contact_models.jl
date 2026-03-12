@@ -84,8 +84,9 @@ function contact_time_step(system::RigidBodySystem, semi)
 
     foreach_system(semi) do neighbor
         if neighbor isa RigidBodySystem && neighbor !== system
-            dt = min(dt, contact_time_step(system.contact_model, system,
-                                           neighbor.contact_model, neighbor))
+            dt = min(dt,
+                     contact_time_step(system.contact_model, system,
+                                       neighbor.contact_model, neighbor))
         end
     end
 
@@ -114,7 +115,8 @@ end
 end
 
 @inline function contact_time_step(::Nothing, system::RigidBodySystem,
-                                   ::RigidBoundaryContactModel, neighbor_system::RigidBodySystem)
+                                   ::RigidBoundaryContactModel,
+                                   neighbor_system::RigidBodySystem)
     return Inf
 end
 
