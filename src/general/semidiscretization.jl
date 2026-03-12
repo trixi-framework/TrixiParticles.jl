@@ -672,8 +672,6 @@ end
 end
 
 function system_interaction!(dv_ode, v_ode, u_ode, semi)
-    # Note: Preparation steps for interact! are performed in update_final!
-
     # Call `interact!` for each pair of systems
     foreach_system(semi) do system
         foreach_system(semi) do neighbor

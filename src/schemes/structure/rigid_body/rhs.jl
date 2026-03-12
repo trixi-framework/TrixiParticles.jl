@@ -185,7 +185,7 @@ end
                          grad_kernel, particle)
 end
 
-# Own interactions of rigid bodies are applied in finalize_interaction! instead of interact!, so this method is a no-op.
+# Collisions between rigid bodies are not yet implemented
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::RigidBodySystem,

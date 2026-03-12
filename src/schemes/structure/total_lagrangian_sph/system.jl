@@ -334,6 +334,7 @@ end
 end
 
 @inline function viscous_velocity(v, system::TotalLagrangianSPHSystem, particle)
+    # This function is only used in fluid-structure interaction, so it is never called when `boundary_model` is `nothing`
     return viscous_velocity(v, system.boundary_model.viscosity, system, particle)
 end
 
