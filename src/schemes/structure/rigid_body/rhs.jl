@@ -109,23 +109,18 @@ end
 function apply_resultant_force_and_torque!(dv, particle_system::RigidBodySystem, semi)
     total_mass = particle_system.total_mass
 
-    # Reduce all pairwise forces to one net force and one net torque around the center of mass.
-    total_force = zero(SVector{ndims(particle_system), eltype(particle_system)})
-    total_torque = zero(particle_system.resultant_torque[])
-
-    for particle in each_integrated_particle(particle_system)
-        particle_force = extract_svector(particle_system.force_per_particle,
-                                         particle_system,
-                                         particle)
-        relative_position = extract_svector(particle_system.relative_coordinates,
-                                            particle_system,
-                                            particle)
-        total_force += particle_force
-
-        # Torque is taken about the current center of mass, using the particle's current
-        # relative position inside the rigid body.
-        total_torque += cross_product(relative_position, particle_force)
+    if total_mass <= eps(eltype(particle_system))
+        particle_system.resultant_force[] = zero(particle_system.resultant_force[])
+        particle_system.resultant_torque[] = zero(particle_system.resultant_torque[])
+        particle_system.angular_acceleration_force[] = zero(particle_system.angular_acceleration_force[])
+        return dv
     end
+
+    # Reduce all pairwise forces to one net force and one net torque around the center of mass.
+    total_force,
+    total_torque = resultant_force_and_torque(particle_system,
+                                              particle_system.force_per_particle,
+                                              particle_system.relative_coordinates)
 
     translational_acceleration = total_force / total_mass
     angular_acceleration_force = particle_system.inverse_inertia[] * total_torque
@@ -149,6 +144,27 @@ function apply_resultant_force_and_torque!(dv, particle_system::RigidBodySystem,
     end
 
     return dv
+end
+
+# Sum pairwise particle forces into a single net force and torque about the current
+# center of mass of the rigid body.
+function resultant_force_and_torque(particle_system::RigidBodySystem{<:Any, <:Any, NDIMS},
+                                    force_per_particle, relative_coordinates) where {NDIMS}
+    total_force = zero(SVector{NDIMS, eltype(particle_system)})
+    total_torque = zero(particle_system.resultant_torque[])
+
+    # This is a reduction and cannot be `@threaded`
+    @inbounds for particle in each_integrated_particle(particle_system)
+        particle_force = extract_svector(force_per_particle, particle_system, particle)
+        relative_position = extract_svector(relative_coordinates, particle_system, particle)
+        total_force += particle_force
+
+        # Torque is taken about the current center of mass, using the particle's current
+        # relative position inside the rigid body.
+        total_torque += cross_product(relative_position, particle_force)
+    end
+
+    return total_force, total_torque
 end
 
 # Default rigid boundary models keep density fixed, so structure-fluid coupling does not
@@ -175,6 +191,206 @@ end
     # Dummy rigid particles reuse the fluid-compatible density update of the neighbor system.
     continuity_equation!(dv, density_calculator(neighbor_system), m_b, rho_a, rho_b, v_diff,
                          grad_kernel, particle)
+end
+
+function reset_contact_manifold_cache!(cache)
+    set_zero!(cache.contact_manifold_count)
+    set_zero!(cache.contact_manifold_weight_sum)
+    set_zero!(cache.contact_manifold_penetration_sum)
+    set_zero!(cache.contact_manifold_normal_sum)
+    set_zero!(cache.contact_manifold_wall_velocity_sum)
+
+    return cache
+end
+
+@inline function wall_contact_pair_weight(neighbor_system::WallBoundarySystem,
+                                          distance, neighbor, ELTYPE)
+    density = convert(ELTYPE, neighbor_system.initial_condition.density[neighbor])
+    density <= eps(ELTYPE) && return zero(ELTYPE)
+
+    volume = convert(ELTYPE, neighbor_system.initial_condition.mass[neighbor]) / density
+    kernel_weight = convert(ELTYPE, smoothing_kernel(neighbor_system, distance, neighbor))
+
+    return max(kernel_weight * volume, zero(ELTYPE))
+end
+
+function find_or_add_contact_manifold!(cache, particle, normal, normal_merge_cos, ELTYPE)
+    manifold_count = cache.contact_manifold_count[particle]
+    normal_sum = cache.contact_manifold_normal_sum
+
+    best_index = 1
+    best_dot = -one(ELTYPE)
+
+    for manifold in 1:manifold_count
+        normal_norm_squared = zero(ELTYPE)
+        dot_value = zero(ELTYPE)
+        for dim in eachindex(normal)
+            normal_value = normal_sum[dim, manifold, particle]
+            normal_norm_squared += normal_value^2
+            dot_value += normal_value * normal[dim]
+        end
+
+        if normal_norm_squared > eps(ELTYPE)
+            dot_value /= sqrt(normal_norm_squared)
+        else
+            dot_value = one(ELTYPE)
+        end
+
+        if dot_value >= normal_merge_cos
+            return manifold
+        end
+
+        if dot_value > best_dot
+            best_dot = dot_value
+            best_index = manifold
+        end
+    end
+
+    max_manifolds = size(cache.contact_manifold_weight_sum, 1)
+    if manifold_count < max_manifolds
+        manifold_count += 1
+        cache.contact_manifold_count[particle] = manifold_count
+        return manifold_count
+    end
+
+    return best_index
+end
+
+function accumulate_contact_manifold!(cache, particle, manifold, contact_weight, normal,
+                                      wall_velocity, penetration_effective)
+    cache.contact_manifold_weight_sum[manifold, particle] += contact_weight
+    cache.contact_manifold_penetration_sum[manifold, particle] +=
+        contact_weight * penetration_effective
+
+    for dim in eachindex(normal)
+        cache.contact_manifold_normal_sum[dim, manifold, particle] +=
+            contact_weight * normal[dim]
+        cache.contact_manifold_wall_velocity_sum[dim, manifold, particle] +=
+            contact_weight * wall_velocity[dim]
+    end
+
+    return cache
+end
+
+@inline function weighted_manifold_vector(cache_array, manifold, particle, weight_sum,
+                                          ::Val{NDIMS}, ELTYPE) where {NDIMS}
+    return SVector{NDIMS, ELTYPE}(ntuple(@inline(dim->cache_array[dim, manifold, particle] /
+                                                    weight_sum),
+                                         Val(NDIMS)))
+end
+
+function update_contact_manifold_cache!(system::RigidBodySystem{<:Any, <:Any, NDIMS},
+                                        neighbor_system::WallBoundarySystem,
+                                        u_system,
+                                        v_neighbor, u_neighbor,
+                                        semi,
+                                        contact_model::RigidBoundaryContactModel,
+                                        normal_merge_cos,
+                                        ELTYPE) where {NDIMS}
+    system_coords = current_coordinates(u_system, system)
+    neighbor_coords = current_coordinates(u_neighbor, neighbor_system)
+
+    foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords, semi;
+                           points=each_integrated_particle(system),
+                           parallelization_backend=SerialBackend()) do particle, neighbor,
+                                                                       pos_diff, distance
+        distance <= eps(ELTYPE) && return
+
+        penetration = contact_model.contact_distance - distance
+        penetration <= 0 && return
+
+        normal = pos_diff / distance
+        wall_velocity = current_velocity(v_neighbor, neighbor_system, neighbor)
+        contact_weight = wall_contact_pair_weight(neighbor_system, distance, neighbor, ELTYPE)
+        contact_weight <= eps(ELTYPE) && return
+
+        manifold = find_or_add_contact_manifold!(system.cache, particle, normal,
+                                                 normal_merge_cos, ELTYPE)
+        accumulate_contact_manifold!(system.cache, particle, manifold, contact_weight,
+                                     normal, wall_velocity, penetration)
+    end
+
+    return system.cache
+end
+
+function interact!(dv, v_particle_system, u_particle_system,
+                   v_neighbor_system, u_neighbor_system,
+                   particle_system::RigidBodySystem{<:Any, <:Any, NDIMS},
+                   neighbor_system::WallBoundarySystem, semi) where {NDIMS}
+    contact_model = particle_system.boundary_contact_model
+    isnothing(contact_model) && return dv
+
+    reset_contact_manifold_cache!(particle_system.cache)
+
+    ELTYPE = eltype(particle_system)
+    normal_merge_cos = convert(ELTYPE, 0.995)
+    boundary_contact_count = 0
+    max_boundary_penetration = zero(ELTYPE)
+
+    update_contact_manifold_cache!(particle_system, neighbor_system,
+                                   u_particle_system,
+                                   v_neighbor_system, u_neighbor_system,
+                                   semi,
+                                   contact_model,
+                                   normal_merge_cos,
+                                   ELTYPE)
+
+    for particle in each_integrated_particle(particle_system)
+        n_manifolds = particle_system.cache.contact_manifold_count[particle]
+        n_manifolds == 0 && continue
+
+        v_particle = current_velocity(v_particle_system, particle_system, particle)
+
+        for manifold in 1:n_manifolds
+            weight_sum = particle_system.cache.contact_manifold_weight_sum[manifold, particle]
+            weight_sum <= eps(ELTYPE) && continue
+
+            normal = weighted_manifold_vector(particle_system.cache.contact_manifold_normal_sum,
+                                              manifold, particle, weight_sum, Val(NDIMS),
+                                              ELTYPE)
+            normal_norm = norm(normal)
+            normal_norm <= eps(ELTYPE) && continue
+            normal /= normal_norm
+
+            v_boundary = weighted_manifold_vector(particle_system.cache.contact_manifold_wall_velocity_sum,
+                                                  manifold, particle, weight_sum,
+                                                  Val(NDIMS), ELTYPE)
+            penetration_effective = particle_system.cache.contact_manifold_penetration_sum[manifold,
+                                                                                            particle] /
+                                    weight_sum
+
+            relative_velocity = v_particle - v_boundary
+            normal_velocity = dot(relative_velocity, normal)
+
+            normal_force_magnitude = normal_contact_force(contact_model,
+                                                          penetration_effective,
+                                                          normal_velocity,
+                                                          ELTYPE)
+            normal_force_magnitude <= 0 && continue
+
+            interaction_force = normal_force_magnitude * normal
+
+            for dim in 1:NDIMS
+                particle_system.force_per_particle[dim, particle] += interaction_force[dim]
+            end
+
+            boundary_contact_count += 1
+            max_boundary_penetration = max(max_boundary_penetration, penetration_effective)
+        end
+    end
+
+    particle_system.cache.boundary_contact_count[] += boundary_contact_count
+    particle_system.cache.max_boundary_penetration[] = max(particle_system.cache.max_boundary_penetration[],
+                                                           max_boundary_penetration)
+
+    return dv
+end
+
+@inline function normal_contact_force(contact_model::RigidBoundaryContactModel,
+                                      penetration, normal_velocity, ELTYPE)
+    elastic_force = contact_model.normal_stiffness * penetration
+    damping_force = -contact_model.normal_damping * normal_velocity
+    return max(elastic_force + damping_force, zero(ELTYPE))
 end
 
 # Collisions between rigid bodies are not yet implemented

@@ -88,6 +88,14 @@ end
     return zero(eltype(system))
 end
 
+@inline function compact_support(system::RigidBodySystem, model::Nothing,
+                                 neighbor::WallBoundarySystem)
+    contact_model = system.boundary_contact_model
+    isnothing(contact_model) && return zero(eltype(system))
+
+    return contact_model.contact_distance
+end
+
 @inline function compact_support(system::RigidBodySystem, neighbor::OpenBoundarySystem)
     # Rigid/open-boundary interactions are currently not modeled.
     return zero(eltype(system))

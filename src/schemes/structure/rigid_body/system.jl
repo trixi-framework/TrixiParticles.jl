@@ -1,6 +1,7 @@
 @doc raw"""
     RigidBodySystem(initial_condition;
                    boundary_model=nothing,
+                   boundary_contact_model=nothing,
                    acceleration=ntuple(_ -> 0.0, ndims(initial_condition)),
                    particle_spacing=initial_condition.particle_spacing,
                    source_terms=nothing, adhesion_coefficient=0.0,
@@ -18,6 +19,8 @@ torque and applied consistently to all rigid particles.
 # Keywords
 - `boundary_model`: Boundary model for fluid-structure interaction
                     (see [Boundary Models](@ref boundary_models)).
+- `boundary_contact_model`: Optional rigid-wall contact model.
+                            If specified, rigid-wall collisions are enabled.
 - `acceleration`: Global acceleration vector applied to all rigid particles.
 - `particle_spacing`: Reference particle spacing used for time-step estimation.
 - `source_terms`: Optional source terms of the form
@@ -33,7 +36,7 @@ torque and applied consistently to all rigid particles.
                  bodies, it participates in the multi-system color sanity check for
                  surface-tension setups, and it is written to VTK output as `"color"`.
 """
-struct RigidBodySystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
+struct RigidBodySystem{BM, BCM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
                        ST, CM, CMV, I, II, AV, RF, RT, AAF, GA, C} <:
        AbstractStructureSystem{NDIMS}
     initial_condition          :: IC
@@ -55,6 +58,7 @@ struct RigidBodySystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
     angular_acceleration_force :: AAF
     gyroscopic_acceleration    :: GA
     boundary_model             :: BM
+    boundary_contact_model     :: BCM
     source_terms               :: ST
     adhesion_coefficient       :: ELTYPE
     cache                      :: C
@@ -63,6 +67,7 @@ end
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
 function RigidBodySystem(initial_condition; boundary_model=nothing,
+                         boundary_contact_model=nothing,
                          acceleration=ntuple(_ -> zero(eltype(initial_condition)),
                                              ndims(initial_condition)),
                          particle_spacing=initial_condition.particle_spacing,
@@ -80,6 +85,9 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
     end
 
     particle_spacing_ = convert(ELTYPE, particle_spacing)
+    boundary_contact_model_ = isnothing(boundary_contact_model) ? nothing :
+                              RigidBoundaryContactModel(boundary_contact_model,
+                                                        particle_spacing_, ELTYPE)
     initial_velocity = copy(initial_condition.velocity)
     relative_coordinates = zeros(ELTYPE, NDIMS, nparticles(initial_condition))
     mass = copy(initial_condition.mass)
@@ -117,15 +125,57 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
                              Ref(zero_rotational_quantity),
                              Ref(zero_rotational_quantity),
                              Ref(zero_rotational_quantity),
-                             boundary_model, source_terms,
+                             boundary_model, boundary_contact_model_, source_terms,
                              convert(ELTYPE, adhesion_coefficient),
-                             create_cache_rigid(color_value))
+                             create_cache_rigid(Val(NDIMS), ELTYPE,
+                                                nparticles(initial_condition),
+                                                color_value))
 
     return system
 end
 
-# Per-system color tag for colorfield surface-normal logic and VTK output.
-create_cache_rigid(color_value) = (; color=Int(color_value))
+function create_cache_rigid(::Val{NDIMS}, ELTYPE, n_particles,
+                            color_value) where {NDIMS}
+    manifold_cache = create_contact_manifold_cache(Val(NDIMS), ELTYPE, n_particles)
+
+    return (; color=Int(color_value),
+            boundary_contact_count=Ref(0),
+            max_boundary_penetration=Ref(zero(ELTYPE)),
+            manifold_cache...)
+end
+
+function create_contact_manifold_cache(::Val{NDIMS}, ELTYPE,
+                                       n_particles) where {NDIMS}
+    max_manifolds = 8
+
+    return (; contact_manifold_count=zeros(Int, n_particles),
+            contact_manifold_weight_sum=zeros(ELTYPE, max_manifolds, n_particles),
+            contact_manifold_penetration_sum=zeros(ELTYPE, max_manifolds, n_particles),
+            contact_manifold_normal_sum=zeros(ELTYPE, NDIMS, max_manifolds, n_particles),
+            contact_manifold_wall_velocity_sum=zeros(ELTYPE, NDIMS, max_manifolds,
+                                                     n_particles))
+end
+
+function reset_interaction_accumulators!(system::RigidBodySystem)
+    system.resultant_force[] = zero(system.resultant_force[])
+    system.resultant_torque[] = zero(system.resultant_torque[])
+    system.angular_acceleration_force[] = zero(system.angular_acceleration_force[])
+    set_zero!(system.force_per_particle)
+    system.cache.boundary_contact_count[] = 0
+    system.cache.max_boundary_penetration[] = zero(eltype(system))
+    reset_contact_manifold_cache!(system.cache)
+
+    return system
+end
+
+function reset_resultants_and_contact_state!(system::RigidBodySystem)
+    reset_interaction_accumulators!(system)
+
+    system.cache.boundary_contact_count[] = 0
+    system.cache.max_boundary_penetration[] = zero(eltype(system))
+
+    return system
+end
 
 function rigid_center_of_mass_kinematics(system::RigidBodySystem, coordinates, velocity)
     total_mass = system.total_mass
@@ -178,7 +228,7 @@ function rigid_rotational_kinematics(system::RigidBodySystem, coordinates, syste
             max_radius)
 end
 
-@inline function Base.eltype(::RigidBodySystem{<:Any, <:Any, ELTYPE}) where {ELTYPE}
+@inline function Base.eltype(::RigidBodySystem{<:Any, <:Any, <:Any, ELTYPE}) where {ELTYPE}
     return ELTYPE
 end
 
@@ -206,14 +256,40 @@ end
     return current_density(v, system.boundary_model, system)
 end
 
+@inline function current_density(v, ::Nothing, system::RigidBodySystem)
+    return system.material_density
+end
+
 # In fluid-structure interaction, use the hydrodynamic pressure corresponding to the
 # configured boundary model.
 @inline function current_pressure(v, system::RigidBodySystem)
     return current_pressure(v, system.boundary_model, system)
 end
 
+@inline function current_pressure(v, ::Nothing, system::RigidBodySystem)
+    return zero(eltype(system))
+end
+
+@propagate_inbounds function current_pressure(v, system::RigidBodySystem{Nothing}, particle)
+    return zero(eltype(system))
+end
+
+@propagate_inbounds function hydrodynamic_mass(system::RigidBodySystem{Nothing}, particle)
+    return system.mass[particle]
+end
+
 @propagate_inbounds function hydrodynamic_mass(system::RigidBodySystem, particle)
     return system.boundary_model.hydrodynamic_mass[particle]
+end
+
+@inline function viscous_velocity(v, system::RigidBodySystem, particle)
+    boundary_model = system.boundary_model
+
+    if isnothing(boundary_model) || isnothing(boundary_model.viscosity)
+        return current_velocity(v, system, particle)
+    end
+
+    return extract_svector(boundary_model.cache.wall_velocity, system, particle)
 end
 
 @inline function smoothing_length(system::RigidBodySystem{<:BoundaryModelDummyParticles},
@@ -346,9 +422,8 @@ function update_final!(system::RigidBodySystem, v, u, v_ode, u_ode, semi, t)
                                                         center_of_mass_velocity;
                                                         relative_coordinates=system.relative_coordinates)
 
-    # Reset interaction caches before RHS assembly so pairwise rigid-fluid forces can
-    # accumulate from scratch and non-RHS update paths do not expose stale resultants.
-    set_zero!(system.force_per_particle)
+    # Reset per-step interaction accumulators before the next RHS assembly.
+    reset_interaction_accumulators!(system)
 
     system.center_of_mass[] = center_of_mass
     system.center_of_mass_velocity[] = center_of_mass_velocity
@@ -407,6 +482,12 @@ end
 
 function calculate_dt(v_ode, u_ode, cfl_number, system::RigidBodySystem, semi)
     spacing = particle_spacing(system, first(eachparticle(system)))
+    contact_dt = cfl_number * contact_time_step(system)
+
+    if !isfinite(spacing) || spacing <= 0
+        return contact_dt
+    end
+
     if isnothing(semi)
         system_velocity = current_velocity(v_ode, system)
         system_coords = current_coordinates(u_ode, system)
@@ -444,7 +525,7 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::RigidBodySystem, semi)
     dt_velocity = speed_scale <= eps(eltype(system)) ? Inf :
                   cfl_number * spacing / speed_scale
 
-    return min(dt_acceleration, dt_velocity)
+    return min(dt_acceleration, dt_velocity, contact_dt)
 end
 
 # To account for boundary effects in the viscosity term of fluid-structure interactions,
@@ -460,11 +541,6 @@ end
 
 @inline function viscosity_model(system, neighbor_system::RigidBodySystem)
     return neighbor_system.boundary_model.viscosity
-end
-
-@inline function viscous_velocity(v, system::RigidBodySystem, particle)
-    # This function is only used in fluid-structure interaction, so it is never called when `boundary_model` is `nothing`
-    return viscous_velocity(v, system.boundary_model.viscosity, system, particle)
 end
 
 @inline acceleration_source(system::RigidBodySystem) = system.acceleration
@@ -505,6 +581,8 @@ function system_data(system::RigidBodySystem, dv_ode, du_ode, v_ode, u_ode, semi
     resultant_torque = system.resultant_torque[]
     angular_acceleration_force = system.angular_acceleration_force[]
     gyroscopic_acceleration = system.gyroscopic_acceleration[]
+    boundary_contact_count = system.cache.boundary_contact_count[]
+    max_boundary_penetration = system.cache.max_boundary_penetration[]
     relative_coordinates = system.relative_coordinates
 
     return (; coordinates, velocity, mass=system.mass,
@@ -514,6 +592,7 @@ function system_data(system::RigidBodySystem, dv_ode, du_ode, v_ode, u_ode, semi
             angular_velocity,
             resultant_force, resultant_torque,
             angular_acceleration_force, gyroscopic_acceleration,
+            boundary_contact_count, max_boundary_penetration,
             density, pressure, acceleration)
 end
 
@@ -523,6 +602,7 @@ function available_data(::RigidBodySystem)
             :center_of_mass, :center_of_mass_velocity,
             :angular_velocity, :resultant_force, :resultant_torque,
             :angular_acceleration_force, :gyroscopic_acceleration,
+            :boundary_contact_count, :max_boundary_penetration,
             :density, :pressure, :acceleration)
 end
 
@@ -532,6 +612,7 @@ function Base.show(io::IO, system::RigidBodySystem)
     print(io, "RigidBodySystem{", ndims(system), "}(")
     print(io, system.acceleration)
     print(io, ", ", system.boundary_model)
+    print(io, ", ", system.boundary_contact_model)
     print(io, ") with ", nparticles(system), " particles")
 end
 
@@ -545,6 +626,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::RigidBodySystem)
         summary_line(io, "#particles", nparticles(system))
         summary_line(io, "acceleration", system.acceleration)
         summary_line(io, "boundary model", system.boundary_model)
+        summary_line(io, "boundary contact model", system.boundary_contact_model)
         summary_footer(io)
     end
 end

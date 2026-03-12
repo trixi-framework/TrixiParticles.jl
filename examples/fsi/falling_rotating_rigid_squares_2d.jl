@@ -115,12 +115,20 @@ boundary_model_structure_2 = BoundaryModelDummyParticles(hydrodynamic_densities_
                                                          fluid_smoothing_kernel,
                                                          fluid_smoothing_length)
 
+# Basic rigid-wall collision model used for both rigid bodies.
+boundary_contact_model = RigidBoundaryContactModel(; normal_stiffness=2.0e5,
+                                                   normal_damping=200.0,
+                                                   contact_distance=2.0 *
+                                                                    structure_particle_spacing)
+
 structure_system_1 = RigidBodySystem(square1;
                                      boundary_model=boundary_model_structure_1,
+                                     boundary_contact_model=boundary_contact_model,
                                      acceleration=(0.0, -gravity),
                                      particle_spacing=structure_particle_spacing)
 structure_system_2 = RigidBodySystem(square2;
                                      boundary_model=boundary_model_structure_2,
+                                     boundary_contact_model=boundary_contact_model,
                                      acceleration=(0.0, -gravity),
                                      particle_spacing=structure_particle_spacing)
 
