@@ -179,9 +179,9 @@ end
 
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
-                   particle_system::RigidBodySystem{<:Any, BCM, NDIMS},
-                   neighbor_system::WallBoundarySystem, semi) where {BCM, NDIMS}
-    contact_model = particle_system.boundary_contact_model
+                   particle_system::RigidBodySystem{<:Any, CM, NDIMS},
+                   neighbor_system::WallBoundarySystem, semi) where {CM, NDIMS}
+    contact_model = particle_system.contact_model
 
     # Here a "contact manifold" means one cluster of wall neighbors for one rigid particle
     # that appears to belong to the same local wall patch. A flat wall contact usually
@@ -371,19 +371,73 @@ end
                                          Val(NDIMS)))
 end
 
-@inline function normal_contact_force(contact_model::RigidBoundaryContactModel,
+@inline function normal_contact_force(normal_stiffness, normal_damping,
                                       penetration, normal_velocity, ELTYPE)
-    # Basic wall contact uses a linear penalty in the normal direction plus viscous damping.
-    elastic_force = contact_model.normal_stiffness * penetration
-    damping_force = -contact_model.normal_damping * normal_velocity
+    # Basic rigid contact uses a linear penalty in the normal direction plus viscous damping.
+    elastic_force = normal_stiffness * penetration
+    damping_force = -normal_damping * normal_velocity
     return max(elastic_force + damping_force, zero(ELTYPE))
 end
 
-# Collisions between rigid bodies are not yet implemented
+@inline function normal_contact_force(contact_model::RigidBoundaryContactModel,
+                                      penetration, normal_velocity, ELTYPE)
+    return normal_contact_force(contact_model.normal_stiffness, contact_model.normal_damping,
+                                penetration, normal_velocity, ELTYPE)
+end
+
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::RigidBodySystem,
                    neighbor_system::RigidBodySystem, semi)
+    particle_system === neighbor_system && return dv
+
+    contact_model = particle_system.contact_model
+    neighbor_contact_model = neighbor_system.contact_model
+    if isnothing(contact_model) || isnothing(neighbor_contact_model)
+        return dv
+    end
+
+    if semi isa Semidiscretization &&
+       system_indices(particle_system, semi) >= system_indices(neighbor_system, semi)
+        return dv
+    end
+
+    ELTYPE = eltype(particle_system)
+    pair_parameters = rigid_contact_pair_parameters(contact_model, neighbor_contact_model,
+                                                    ELTYPE)
+    system_coords = current_coordinates(u_particle_system, particle_system)
+    neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
+
+    foreach_point_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
+                           semi; points=each_integrated_particle(particle_system),
+                           parallelization_backend=SerialBackend()) do particle, neighbor,
+                                                                       pos_diff, distance
+        # This loop updates both rigid systems with one equal-and-opposite force pair, so
+        # keep the traversal serial.
+        distance <= eps(ELTYPE) && return
+
+        penetration = pair_parameters.contact_distance - distance
+        penetration <= 0 && return
+
+        normal = pos_diff / distance
+        particle_velocity = current_velocity(v_particle_system, particle_system, particle)
+        neighbor_velocity = current_velocity(v_neighbor_system, neighbor_system, neighbor)
+        relative_velocity = particle_velocity - neighbor_velocity
+        normal_velocity = dot(relative_velocity, normal)
+
+        normal_force_magnitude = normal_contact_force(pair_parameters.normal_stiffness,
+                                                      pair_parameters.normal_damping,
+                                                      penetration, normal_velocity, ELTYPE)
+        normal_force_magnitude <= 0 && return
+
+        interaction_force = normal_force_magnitude * normal
+
+        for dim in 1:ndims(particle_system)
+            particle_system.force_per_particle[dim, particle] += interaction_force[dim]
+            neighbor_system.force_per_particle[dim, neighbor] -= interaction_force[dim]
+        end
+    end
+
     return dv
 end
 
@@ -395,7 +449,8 @@ function interact!(dv, v_particle_system, u_particle_system,
     return dv
 end
 
-# Structure-structure and structure-boundary/open-boundary interactions are currently not modeled.
+# Other rigid interactions, such as rigid-flexible contact or rigid-boundary coupling beyond
+# the dedicated methods above, are currently not modeled.
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::RigidBodySystem,
@@ -405,7 +460,7 @@ function interact!(dv, v_particle_system, u_particle_system,
     return dv
 end
 
-# Rigid systems without an explicit wall-contact model ignore wall neighbors.
+# Rigid systems without an explicit contact model ignore wall neighbors.
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::RigidBodySystem{<:Any, Nothing, NDIMS},

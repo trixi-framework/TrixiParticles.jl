@@ -726,7 +726,104 @@
         @test iszero(rigid.resultant_torque[])
     end
 
-    @trixi_testset "Boundary Contact Model" begin
+    @trixi_testset "Rigid Contact Model" begin
+        rigid_coordinates_1 = reshape([0.0, 0.0], 2, 1)
+        rigid_coordinates_2 = reshape([0.08, 0.0], 2, 1)
+        rigid_velocity_1 = reshape([1.0, 0.0], 2, 1)
+        rigid_velocity_2 = reshape([-0.5, 0.0], 2, 1)
+        rigid_mass_1 = [2.0]
+        rigid_mass_2 = [1.0]
+        rigid_density_pair = [1000.0]
+
+        rigid_ic_1 = InitialCondition(; coordinates=rigid_coordinates_1,
+                                      velocity=rigid_velocity_1,
+                                      mass=rigid_mass_1,
+                                      density=rigid_density_pair,
+                                      particle_spacing=0.1)
+        rigid_ic_2 = InitialCondition(; coordinates=rigid_coordinates_2,
+                                      velocity=rigid_velocity_2,
+                                      mass=rigid_mass_2,
+                                      density=rigid_density_pair,
+                                      particle_spacing=0.1)
+
+        contact_model_1 = RigidBoundaryContactModel(; normal_stiffness=20.0,
+                                                    normal_damping=4.0,
+                                                    contact_distance=0.1)
+        contact_model_2 = RigidBoundaryContactModel(; normal_stiffness=30.0,
+                                                    normal_damping=8.0,
+                                                    contact_distance=0.12)
+
+        rigid_system_1 = RigidBodySystem(rigid_ic_1;
+                                         acceleration=(0.0, 0.0),
+                                         contact_model=contact_model_1)
+        rigid_system_2 = RigidBodySystem(rigid_ic_2;
+                                         acceleration=(0.0, 0.0),
+                                         contact_model=contact_model_2)
+
+        semi_rigid = Semidiscretization(rigid_system_1, rigid_system_2)
+        ode_rigid = semidiscretize(semi_rigid, (0.0, 0.01))
+        v_ode_rigid, u_ode_rigid = ode_rigid.u0.x
+        dv_ode_rigid = zero(v_ode_rigid)
+
+        v_rigid_1 = TrixiParticles.wrap_v(v_ode_rigid, rigid_system_1, semi_rigid)
+        u_rigid_1 = TrixiParticles.wrap_u(u_ode_rigid, rigid_system_1, semi_rigid)
+        v_rigid_2 = TrixiParticles.wrap_v(v_ode_rigid, rigid_system_2, semi_rigid)
+        u_rigid_2 = TrixiParticles.wrap_u(u_ode_rigid, rigid_system_2, semi_rigid)
+        TrixiParticles.update_final!(rigid_system_1, v_rigid_1, u_rigid_1,
+                                     v_ode_rigid, u_ode_rigid, semi_rigid, 0.0)
+        TrixiParticles.update_final!(rigid_system_2, v_rigid_2, u_rigid_2,
+                                     v_ode_rigid, u_ode_rigid, semi_rigid, 0.0)
+
+        TrixiParticles.interact!(dv_ode_rigid, v_ode_rigid, u_ode_rigid,
+                                 rigid_system_1, rigid_system_2, semi_rigid)
+        force_after_forward_1 = copy(rigid_system_1.force_per_particle)
+        force_after_forward_2 = copy(rigid_system_2.force_per_particle)
+
+        TrixiParticles.interact!(dv_ode_rigid, v_ode_rigid, u_ode_rigid,
+                                 rigid_system_2, rigid_system_1, semi_rigid)
+        @test rigid_system_1.force_per_particle == force_after_forward_1
+        @test rigid_system_2.force_per_particle == force_after_forward_2
+
+        pair_contact_distance = max(contact_model_1.contact_distance,
+                                    contact_model_2.contact_distance)
+        pair_normal_stiffness = (contact_model_1.normal_stiffness +
+                                 contact_model_2.normal_stiffness) / 2
+        pair_normal_damping = (contact_model_1.normal_damping +
+                               contact_model_2.normal_damping) / 2
+        pair_penetration = pair_contact_distance - 0.08
+        normal_velocity = -1.5
+        pair_contact_dt = sqrt((rigid_mass_1[1] * rigid_mass_2[1] /
+                                (rigid_mass_1[1] + rigid_mass_2[1])) /
+                               pair_normal_stiffness)
+        expected_force_magnitude = pair_normal_stiffness * pair_penetration -
+                                   pair_normal_damping * normal_velocity
+        expected_force = SVector(-expected_force_magnitude, 0.0)
+
+        @test TrixiParticles.contact_time_step(rigid_system_1, semi_rigid) ≈ pair_contact_dt
+        @test TrixiParticles.contact_time_step(rigid_system_2, semi_rigid) ≈ pair_contact_dt
+        zero_velocity_ode = zero(v_ode_rigid)
+        @test TrixiParticles.calculate_dt(zero_velocity_ode, u_ode_rigid, 0.25,
+                                          rigid_system_1, semi_rigid) ≈ 0.25 *
+                                                                         pair_contact_dt
+        @test TrixiParticles.calculate_dt(zero_velocity_ode, u_ode_rigid, 0.25,
+                                          semi_rigid) ≈ 0.25 * pair_contact_dt
+
+        dv_rigid_1 = TrixiParticles.wrap_v(dv_ode_rigid, rigid_system_1, semi_rigid)
+        dv_rigid_2 = TrixiParticles.wrap_v(dv_ode_rigid, rigid_system_2, semi_rigid)
+        TrixiParticles.finalize_interaction!(rigid_system_1, dv_rigid_1, v_rigid_1,
+                                             u_rigid_1, dv_ode_rigid, v_ode_rigid,
+                                             u_ode_rigid, semi_rigid)
+        TrixiParticles.finalize_interaction!(rigid_system_2, dv_rigid_2, v_rigid_2,
+                                             u_rigid_2, dv_ode_rigid, v_ode_rigid,
+                                             u_ode_rigid, semi_rigid)
+
+        @test rigid_system_1.resultant_force[] ≈ expected_force
+        @test rigid_system_2.resultant_force[] ≈ -expected_force
+        @test dv_rigid_1[1, 1] ≈ expected_force[1] / rigid_mass_1[1]
+        @test dv_rigid_2[1, 1] ≈ -expected_force[1] / rigid_mass_2[1]
+        @test dv_rigid_1[2, 1] ≈ 0.0
+        @test dv_rigid_2[2, 1] ≈ 0.0
+
         rigid_coordinates = reshape([0.0, 0.05], 2, 1)
         rigid_velocity = reshape([0.0, -1.0], 2, 1)
         rigid_mass = [1.0]
@@ -753,11 +850,11 @@
                                                      smoothing_length)
         boundary_system = WallBoundarySystem(boundary_ic, boundary_model)
 
-        boundary_contact_model = RigidBoundaryContactModel(; normal_stiffness=2.0e4,
-                                                           normal_damping=20.0,
-                                                           contact_distance=0.1)
+        contact_model = RigidBoundaryContactModel(; normal_stiffness=2.0e4,
+                                                  normal_damping=20.0,
+                                                  contact_distance=0.1)
 
-        runtime_model = TrixiParticles.RigidBoundaryContactModel(boundary_contact_model,
+        runtime_model = TrixiParticles.RigidBoundaryContactModel(contact_model,
                                                                  0.1, Float64)
         @test runtime_model isa RigidBoundaryContactModel
         @test runtime_model.normal_stiffness ≈ 2.0e4
@@ -778,10 +875,21 @@
 
         rigid_system = RigidBodySystem(rigid_ic;
                                        acceleration=(0.0, 0.0),
-                                       boundary_contact_model=boundary_contact_model)
+                                       contact_model=contact_model)
+        rigid_system_alias = RigidBodySystem(rigid_ic;
+                                             acceleration=(0.0, 0.0),
+                                             boundary_contact_model=contact_model)
         @test haskey(rigid_system.cache, :contact_manifold_count)
         @test TrixiParticles.contact_time_step(rigid_system) ≈ sqrt(rigid_mass[1] /
-                   boundary_contact_model.normal_stiffness)
+                   contact_model.normal_stiffness)
+        @test rigid_system.contact_model isa RigidBoundaryContactModel
+        @test rigid_system.contact_model.normal_stiffness ≈ contact_model.normal_stiffness
+        @test rigid_system.contact_model.normal_damping ≈ contact_model.normal_damping
+        @test rigid_system.contact_model.contact_distance ≈ contact_model.contact_distance
+        @test rigid_system_alias.contact_model.contact_distance ≈ contact_model.contact_distance
+        @test_throws ArgumentError RigidBodySystem(rigid_ic;
+                                                   contact_model=contact_model,
+                                                   boundary_contact_model=contact_model)
 
         semi = Semidiscretization(rigid_system, boundary_system)
         ode = semidiscretize(semi, (0.0, 0.01))

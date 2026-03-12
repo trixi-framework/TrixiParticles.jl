@@ -90,10 +90,22 @@ end
 
 @inline function compact_support(system::RigidBodySystem, model::Nothing,
                                  neighbor::WallBoundarySystem)
-    contact_model = system.boundary_contact_model
+    contact_model = system.contact_model
     isnothing(contact_model) && return zero(eltype(system))
 
     return contact_model.contact_distance
+end
+
+@inline function compact_support(system::RigidBodySystem, neighbor::RigidBodySystem)
+    contact_model = system.contact_model
+    neighbor_contact_model = neighbor.contact_model
+    if isnothing(contact_model) || isnothing(neighbor_contact_model)
+        return zero(eltype(system))
+    end
+
+    pair_parameters = rigid_contact_pair_parameters(contact_model, neighbor_contact_model,
+                                                    eltype(system))
+    return pair_parameters.contact_distance
 end
 
 @inline function compact_support(system::RigidBodySystem, neighbor::OpenBoundarySystem)
