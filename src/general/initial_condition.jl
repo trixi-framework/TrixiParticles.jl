@@ -16,6 +16,9 @@ to build more complex geometries.
 `InitialCondition`s also support the set operations `setdiff` and `intersect` together
 with `TrixiParticles.TriangleMesh` and `TrixiParticles.Polygon` returned by [`load_geometry`](@ref).
 
+To add a rotational contribution to an existing initial condition, use
+[`apply_angular_velocity`](@ref).
+
 # Arguments
 - `coordinates`: An array where the $i$-th column holds the coordinates of particle $i$.
 - `density`:     Either a vector holding the density of each particle,
@@ -39,8 +42,6 @@ with `TrixiParticles.TriangleMesh` and `TrixiParticles.Polygon` returned by [`lo
                       is assumed to be uniform. This is only needed when using
                       set operations on the `InitialCondition` or for automatic mass calculation.
 
-To add a rotational contribution to an existing initial condition, use
-[`apply_angular_velocity`](@ref).
 
 # Examples
 ```jldoctest; output = false
@@ -511,7 +512,7 @@ function apply_angular_velocity(initial_condition::InitialCondition, angular_vel
              length(angular_velocity) == 3)
             throw(ArgumentError("`angular_velocity` must be of length 3 for a 3D problem"))
         end
-        angular_velocity_ = SVector{3, ELTYPE}(angular_velocity...)
+        angular_velocity_ = SVector{3, ELTYPE}(Tuple(angular_velocity))
     else
         throw(ArgumentError("`apply_angular_velocity` currently supports only 2D and 3D, got $(NDIMS)D"))
     end
@@ -532,8 +533,6 @@ function apply_angular_velocity(initial_condition::InitialCondition, angular_vel
         end
     end
 
-    return InitialCondition(initial_condition.particle_spacing,
-                            initial_condition.coordinates, velocity,
-                            initial_condition.mass, initial_condition.density,
-                            initial_condition.pressure)
+    # Return a copy of `initial_condition` with the correct velocity set
+    return @set initial_condition.velocity = velocity
 end

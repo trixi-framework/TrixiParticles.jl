@@ -1,9 +1,33 @@
+function finalize_interaction!(particle_system::RigidBodySystem,
+                               dv, v, u, dv_ode, v_ode, u_ode, semi)
+    apply_kinematic_acceleration!(dv, particle_system, semi)
+    apply_resultant_force_and_torque!(dv, particle_system, semi)
+
+    return particle_system
+end
+
+# Rigid-body kinematics depend only on the current rigid state, so apply them once
+# after all pairwise interactions instead of revisiting them for every rigid-rigid pair.
+function apply_kinematic_acceleration!(dv, particle_system::RigidBodySystem, semi)
+    @threaded semi for particle in each_integrated_particle(particle_system)
+        relative_position = @inbounds extract_svector(particle_system.relative_coordinates,
+                                                      particle_system, particle)
+        rotational_acceleration = rigid_kinematic_acceleration(particle_system,
+                                                               relative_position)
+
+        for i in 1:ndims(particle_system)
+            @inbounds dv[i, particle] += rotational_acceleration[i]
+        end
+    end
+
+    return dv
+end
+
 # Structure-fluid interaction
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
-                   particle_system::RigidBodySystem{<:Any, <:Any, NDIMS},
-                   neighbor_system::Union{AbstractFluidSystem, OpenBoundarySystem},
-                   semi) where {NDIMS}
+                   particle_system::RigidBodySystem,
+                   neighbor_system::AbstractFluidSystem, semi)
     sound_speed = system_sound_speed(neighbor_system)
     surface_tension = surface_tension_model(neighbor_system)
 
@@ -11,9 +35,8 @@ function interact!(dv, v_particle_system, u_particle_system,
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
     # Accumulate pairwise fluid forces per rigid particle first, then reduce them to a
-    # single resultant force/torque for the rigid-body update below.
-    force_per_particle = particle_system.force_per_particle
-    set_zero!(force_per_particle)
+    # single resultant force/torque after all rigid-fluid interactions have been processed.
+    (; force_per_particle) = particle_system
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     foreach_point_neighbor(particle_system, neighbor_system,
@@ -66,10 +89,10 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         dv_particle = dv_boundary + dv_viscosity_ + dv_adhesion
 
-        @inbounds for i in 1:NDIMS
+        for i in 1:ndims(particle_system)
             # `pressure_acceleration`/`dv_viscosity` return acceleration-like pair contributions.
             # Multiply by the interacting fluid mass to recover the force on this rigid particle.
-            force_per_particle[i, particle] += dv_particle[i] * m_b
+            @inbounds force_per_particle[i, particle] += dv_particle[i] * m_b
         end
 
         continuity_equation!(dv, v_particle_system, v_neighbor_system,
@@ -77,8 +100,6 @@ function interact!(dv, v_particle_system, u_particle_system,
                              m_b, rho_a, rho_b,
                              particle_system, neighbor_system, grad_kernel)
     end
-
-    apply_resultant_force_and_torque!(dv, particle_system, semi)
 
     return dv
 end
@@ -88,7 +109,6 @@ end
 function apply_resultant_force_and_torque!(dv, particle_system::RigidBodySystem, semi)
     total_mass = particle_system.total_mass
 
-    # Guard against degenerate systems and clear the cached rigid-body quantities as well.
     if total_mass <= eps(eltype(particle_system))
         particle_system.resultant_force[] = zero(particle_system.resultant_force[])
         particle_system.resultant_torque[] = zero(particle_system.resultant_torque[])
@@ -102,7 +122,6 @@ function apply_resultant_force_and_torque!(dv, particle_system::RigidBodySystem,
                                               particle_system.force_per_particle,
                                               particle_system.relative_coordinates)
 
-    # Convert the rigid-body resultants into translational and angular accelerations.
     translational_acceleration = total_force / total_mass
     angular_acceleration_force = particle_system.inverse_inertia[] * total_torque
     particle_system.resultant_force[] = total_force
@@ -114,11 +133,13 @@ function apply_resultant_force_and_torque!(dv, particle_system::RigidBodySystem,
                                                       particle_system, particle)
         # For rigid bodies, the instantaneous acceleration of a material point is
         # `a_com + alpha x r` in this force-driven part of the RHS.
-        rotational_acceleration = cross_product(angular_acceleration_force,
-                                                relative_position)
+        rotational_acceleration_force = cross_product(angular_acceleration_force,
+                                                      relative_position)
 
-        @inbounds for i in 1:ndims(particle_system)
-            dv[i, particle] += translational_acceleration[i] + rotational_acceleration[i]
+        for i in eachindex(translational_acceleration)
+            @inbounds dv[i,
+                         particle] += translational_acceleration[i] +
+                                      rotational_acceleration_force[i]
         end
     end
 
@@ -270,16 +291,21 @@ function interact!(dv, v_particle_system, u_particle_system,
     isnothing(contact_model) && return dv
 
     force_per_particle = particle_system.force_per_particle
-    set_zero!(force_per_particle)
+    contact_force_per_particle = force_per_particle
+    if contact_model.torque_free
+        contact_force_per_particle = similar(force_per_particle)
+        set_zero!(contact_force_per_particle)
+    end
+
     reset_contact_manifold_cache!(particle_system.cache)
-    particle_system.cache.boundary_contact_count[] = 0
-    particle_system.cache.max_boundary_penetration[] = zero(eltype(particle_system))
 
     neighbor_system_index = system_indices(neighbor_system, semi)
     ELTYPE = eltype(particle_system)
     zero_tangential = zero(SVector{NDIMS, ELTYPE})
     contact_map = particle_system.cache.contact_tangential_displacement
     normal_merge_cos = convert(ELTYPE, 0.995)
+    boundary_contact_count = 0
+    max_boundary_penetration = zero(ELTYPE)
 
     update_contact_manifold_cache!(particle_system, neighbor_system,
                                    u_particle_system,
@@ -336,20 +362,27 @@ function interact!(dv, v_particle_system, u_particle_system,
             interaction_force = normal_force_magnitude * normal + tangential_force
 
             for dim in 1:NDIMS
-                force_per_particle[dim, particle] += interaction_force[dim]
+                contact_force_per_particle[dim, particle] += interaction_force[dim]
             end
 
-            particle_system.cache.boundary_contact_count[] += 1
-            particle_system.cache.max_boundary_penetration[] = max(particle_system.cache.max_boundary_penetration[],
-                                                                   penetration_effective)
+            boundary_contact_count += 1
+            max_boundary_penetration = max(max_boundary_penetration, penetration_effective)
         end
     end
 
     if contact_model.torque_free
-        remove_resultant_contact_torque!(force_per_particle, particle_system)
+        remove_resultant_contact_torque!(contact_force_per_particle, particle_system)
+
+        for particle in each_integrated_particle(particle_system)
+            for dim in 1:NDIMS
+                force_per_particle[dim, particle] += contact_force_per_particle[dim, particle]
+            end
+        end
     end
 
-    apply_resultant_force_and_torque!(dv, particle_system, semi)
+    particle_system.cache.boundary_contact_count[] += boundary_contact_count
+    particle_system.cache.max_boundary_penetration[] = max(particle_system.cache.max_boundary_penetration[],
+                                                           max_boundary_penetration)
 
     return dv
 end
@@ -453,34 +486,28 @@ function tangential_contact_force(contact_model::RigidBoundaryContactModel,
     return zero(force_trial)
 end
 
-# Rigid-body self-interaction contributes the kinematic point acceleration that comes
-# from the current angular velocity, independent of fluid coupling.
+# Collisions between rigid bodies are not yet implemented
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::RigidBodySystem,
                    neighbor_system::RigidBodySystem, semi)
-    particle_system === neighbor_system || return dv
-
-    @threaded semi for particle in each_integrated_particle(particle_system)
-        relative_position = @inbounds extract_svector(particle_system.relative_coordinates,
-                                                      particle_system, particle)
-        rotational_acceleration = rigid_kinematic_acceleration(particle_system,
-                                                               relative_position,
-                                                               Val(ndims(particle_system)))
-
-        @inbounds for i in 1:ndims(particle_system)
-            dv[i, particle] += rotational_acceleration[i]
-        end
-    end
-
     return dv
 end
 
-# Structure-structure and structure-boundary interactions are currently not modeled.
+# Rigid bodies passing through open boundaries are currently not modeled.
+function interact!(dv, v_particle_system, u_particle_system,
+                   v_neighbor_system, u_neighbor_system,
+                   particle_system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
+                   neighbor_system::RigidBodySystem, semi)
+    return dv
+end
+
+# Structure-structure and structure-boundary/open-boundary interactions are currently not modeled.
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::RigidBodySystem,
                    neighbor_system::Union{AbstractStructureSystem,
-                                          AbstractBoundarySystem}, semi)
+                                          AbstractBoundarySystem,
+                                          OpenBoundarySystem}, semi)
     return dv
 end

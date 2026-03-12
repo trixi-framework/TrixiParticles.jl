@@ -89,27 +89,19 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
                               RigidBoundaryContactModel(boundary_contact_model,
                                                         particle_spacing_, ELTYPE)
     initial_velocity = copy(initial_condition.velocity)
-    relative_coordinates = copy(initial_condition.coordinates)
+    relative_coordinates = zeros(ELTYPE, NDIMS, nparticles(initial_condition))
     mass = copy(initial_condition.mass)
     material_density = copy(initial_condition.density)
-    val_ndims = Val(NDIMS)
 
-    center_of_mass = zero(SVector{NDIMS, ELTYPE})
     total_mass = zero(ELTYPE)
-    @inbounds for particle in eachindex(mass)
+    for particle in eachindex(mass)
         particle_mass = convert(ELTYPE, mass[particle])
         total_mass += particle_mass
-        center_of_mass += particle_mass *
-                          extract_svector(relative_coordinates, val_ndims, particle)
     end
 
     if total_mass <= eps(ELTYPE)
         throw(ArgumentError("`RigidBodySystem` requires a positive total mass"))
     end
-
-    center_of_mass /= total_mass
-    update_relative_coordinates!(relative_coordinates, relative_coordinates,
-                                 center_of_mass, val_ndims)
 
     force_per_particle = zeros(ELTYPE, NDIMS, nparticles(initial_condition))
     zero_rotational_quantity = NDIMS == 2 ? zero(ELTYPE) : zero(SVector{3, ELTYPE})
@@ -121,19 +113,12 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
         inverse_inertia = Ref(zero(SMatrix{3, 3, ELTYPE, 9}))
     end
 
-    center_of_mass_velocity = zero(SVector{NDIMS, ELTYPE})
-    @inbounds for particle in eachindex(mass)
-        particle_mass = convert(ELTYPE, mass[particle])
-        center_of_mass_velocity += particle_mass *
-                                   extract_svector(initial_velocity, val_ndims, particle)
-    end
-    center_of_mass_velocity /= total_mass
-
     system = RigidBodySystem(initial_condition, initial_velocity, mass,
                              material_density, acceleration_,
                              particle_spacing_, total_mass, force_per_particle,
-                             relative_coordinates, Ref(center_of_mass),
-                             Ref(center_of_mass_velocity),
+                             relative_coordinates,
+                             Ref(zero(SVector{NDIMS, ELTYPE})),
+                             Ref(zero(SVector{NDIMS, ELTYPE})),
                              inertia, inverse_inertia,
                              Ref(zero_rotational_quantity),
                              Ref(zero(SVector{NDIMS, ELTYPE})),
@@ -145,10 +130,6 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
                              create_cache_rigid(Val(NDIMS), ELTYPE,
                                                 nparticles(initial_condition),
                                                 boundary_contact_model_, color_value))
-
-    # Initialize rotational kinematics consistently with the initial velocity field.
-    update_rotational_kinematics!(system, initial_velocity, center_of_mass_velocity,
-                                  Val(NDIMS))
 
     return system
 end
@@ -181,11 +162,20 @@ function create_contact_manifold_cache(::Val{NDIMS}, ELTYPE,
                                                                max_manifolds, n_particles))
 end
 
-function reset_resultants_and_contact_state!(system::RigidBodySystem)
+function reset_interaction_accumulators!(system::RigidBodySystem)
     system.resultant_force[] = zero(system.resultant_force[])
     system.resultant_torque[] = zero(system.resultant_torque[])
     system.angular_acceleration_force[] = zero(system.angular_acceleration_force[])
     set_zero!(system.force_per_particle)
+    system.cache.boundary_contact_count[] = 0
+    system.cache.max_boundary_penetration[] = zero(eltype(system))
+    reset_contact_manifold_cache!(system.cache)
+
+    return system
+end
+
+function reset_resultants_and_contact_state!(system::RigidBodySystem)
+    reset_interaction_accumulators!(system)
 
     if !isnothing(system.cache.contact_tangential_displacement)
         empty!(system.cache.contact_tangential_displacement)
@@ -194,57 +184,12 @@ function reset_resultants_and_contact_state!(system::RigidBodySystem)
     system.cache.boundary_contact_count[] = 0
     system.cache.max_boundary_penetration[] = zero(eltype(system))
     system.cache.resting_contact_counter[] = 0
-    reset_contact_manifold_cache!(system.cache)
 
     return system
 end
 
-function update_relative_coordinates!(relative_coordinates, coordinates, center_of_mass,
-                                      ::Val{NDIMS}) where {NDIMS}
-    val_ndims = Val(NDIMS)
-
-    @inbounds for particle in axes(relative_coordinates, 2)
-        update_relative_coordinate!(relative_coordinates, coordinates, center_of_mass,
-                                    particle, val_ndims)
-    end
-
-    return relative_coordinates
-end
-
-function update_relative_coordinates!(relative_coordinates, coordinates, center_of_mass,
-                                      ::Val{NDIMS}, semi) where {NDIMS}
-    val_ndims = Val(NDIMS)
-
-    @threaded semi for particle in axes(relative_coordinates, 2)
-        @inbounds update_relative_coordinate!(relative_coordinates, coordinates,
-                                              center_of_mass, particle, val_ndims)
-    end
-
-    return relative_coordinates
-end
-
-@propagate_inbounds @inline function update_relative_coordinate!(relative_coordinates,
-                                                                 coordinates,
-                                                                 center_of_mass,
-                                                                 particle,
-                                                                 ::Val{NDIMS}) where {NDIMS}
-    relative_position = extract_svector(coordinates, Val(NDIMS), particle) -
-                        center_of_mass
-
-    @inbounds for i in 1:NDIMS
-        relative_coordinates[i, particle] = relative_position[i]
-    end
-
-    return relative_coordinates
-end
-
-# Refresh the rigid-body kinematic cache from a consistent particle state after the
-# ODE state has changed. Force/torque resultants are updated separately during RHS assembly.
-function update_kinematic_cache!(system::RigidBodySystem, coordinates, velocity,
-                                 semi=nothing)
+function rigid_center_of_mass_kinematics(system::RigidBodySystem, coordinates, velocity)
     total_mass = system.total_mass
-    total_mass <= eps(eltype(system)) && return system
-
     center_of_mass = zero(SVector{ndims(system), eltype(system)})
     center_of_mass_velocity = zero(SVector{ndims(system), eltype(system)})
 
@@ -255,23 +200,43 @@ function update_kinematic_cache!(system::RigidBodySystem, coordinates, velocity,
                                    extract_svector(velocity, system, particle)
     end
 
-    center_of_mass /= total_mass
-    center_of_mass_velocity /= total_mass
+    return center_of_mass / total_mass, center_of_mass_velocity / total_mass
+end
 
-    system.center_of_mass[] = center_of_mass
-    system.center_of_mass_velocity[] = center_of_mass_velocity
+function rigid_rotational_kinematics(system::RigidBodySystem, coordinates, system_velocity,
+                                     center_of_mass, center_of_mass_velocity;
+                                     relative_coordinates=nothing)
+    inertia = zero(system.inertia[])
+    angular_momentum = zero(system.angular_velocity[])
+    max_radius = zero(eltype(system))
+    store_relative_coordinates = !isnothing(relative_coordinates)
 
-    if isnothing(semi)
-        update_relative_coordinates!(system.relative_coordinates, coordinates,
-                                     center_of_mass, Val(ndims(system)))
-    else
-        update_relative_coordinates!(system.relative_coordinates, coordinates,
-                                     center_of_mass, Val(ndims(system)), semi)
+    for particle in each_integrated_particle(system)
+        particle_mass = system.mass[particle]
+        relative_position = extract_svector(coordinates, system, particle) -
+                            center_of_mass
+        relative_velocity = extract_svector(system_velocity, system, particle) -
+                            center_of_mass_velocity
+
+        if store_relative_coordinates
+            for i in 1:ndims(system)
+                @inbounds relative_coordinates[i, particle] = relative_position[i]
+            end
+        end
+
+        max_radius = max(max_radius, norm(relative_position))
+        inertia += particle_mass * inertia_contribution(relative_position)
+        angular_momentum += particle_mass * cross_product(relative_position,
+                                          relative_velocity)
     end
-    update_rotational_kinematics!(system, velocity, center_of_mass_velocity,
-                                  Val(ndims(system)))
 
-    return system
+    inverse_inertia = inverse_inertia_tensor(inertia)
+    angular_velocity = inverse_inertia * angular_momentum
+    gyroscopic_acceleration = gyroscopic_acceleration_term(inertia, inverse_inertia,
+                                                           angular_velocity)
+
+    return (; inertia, inverse_inertia, angular_velocity, gyroscopic_acceleration,
+            max_radius)
 end
 
 @inline function Base.eltype(::RigidBodySystem{<:Any, <:Any, <:Any, ELTYPE}) where {ELTYPE}
@@ -313,6 +278,10 @@ end
 end
 
 @inline function current_pressure(v, ::Nothing, system::RigidBodySystem)
+    return zero(eltype(system))
+end
+
+@propagate_inbounds function current_pressure(v, system::RigidBodySystem{Nothing}, particle)
     return zero(eltype(system))
 end
 
@@ -431,9 +400,6 @@ function restart_with!(system::RigidBodySystem, v, u)
     copyto!(system.initial_velocity, indices_v,
             view(v, 1:ndims(system), :), indices_v)
 
-    update_kinematic_cache!(system, system.initial_condition.coordinates,
-                            system.initial_velocity)
-
     return reset_resultants_and_contact_state!(system)
 end
 
@@ -457,36 +423,26 @@ end
 function update_final!(system::RigidBodySystem, v, u, v_ode, u_ode, semi, t)
     system_coords = current_coordinates(u, system)
     system_velocity = current_velocity(v, system)
+    center_of_mass,
+    center_of_mass_velocity = rigid_center_of_mass_kinematics(system,
+                                                              system_coords,
+                                                              system_velocity)
+    rotational_kinematics = rigid_rotational_kinematics(system, system_coords,
+                                                        system_velocity,
+                                                        center_of_mass,
+                                                        center_of_mass_velocity;
+                                                        relative_coordinates=system.relative_coordinates)
 
-    return update_kinematic_cache!(system, system_coords, system_velocity, semi)
-end
+    # Reset only per-step interaction accumulators here. Persistent tangential contact
+    # history is handled by the contact callback and must survive across updates.
+    reset_interaction_accumulators!(system)
 
-function update_rotational_kinematics!(system::RigidBodySystem, system_velocity,
-                                       center_of_mass_velocity, ::Val{NDIMS}) where {NDIMS}
-    inertia = zero(system.inertia[])
-    angular_momentum = zero(system.angular_velocity[])
-    val_ndims = Val(NDIMS)
-
-    @inbounds for particle in each_integrated_particle(system)
-        particle_mass = system.mass[particle]
-        relative_position = extract_svector(system.relative_coordinates, val_ndims,
-                                            particle)
-        relative_velocity = extract_svector(system_velocity, val_ndims, particle) -
-                            center_of_mass_velocity
-        inertia += particle_mass * inertia_contribution(relative_position)
-        angular_momentum += particle_mass * cross_product(relative_position,
-                                          relative_velocity)
-    end
-
-    inverse_inertia = inverse_inertia_tensor(inertia)
-    angular_velocity = inverse_inertia * angular_momentum
-    gyroscopic_acceleration = gyroscopic_acceleration_term(inertia, inverse_inertia,
-                                                           angular_velocity)
-
-    system.inertia[] = inertia
-    system.inverse_inertia[] = inverse_inertia
-    system.angular_velocity[] = angular_velocity
-    system.gyroscopic_acceleration[] = gyroscopic_acceleration
+    system.center_of_mass[] = center_of_mass
+    system.center_of_mass_velocity[] = center_of_mass_velocity
+    system.inertia[] = rotational_kinematics.inertia
+    system.inverse_inertia[] = rotational_kinematics.inverse_inertia
+    system.angular_velocity[] = rotational_kinematics.angular_velocity
+    system.gyroscopic_acceleration[] = rotational_kinematics.gyroscopic_acceleration
 
     return system
 end
@@ -544,20 +500,31 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::RigidBodySystem, semi)
         return contact_dt
     end
 
-    radius = maximum_particle_radius(system)
-    angular_speed = norm(system.angular_velocity[])
-    # In 3D, the total angular acceleration contains both external torque and
-    # gyroscopic contributions.
-    angular_acceleration = norm(system.angular_acceleration_force[] -
-                                system.gyroscopic_acceleration[])
-
-    # Use only interaction-induced translational acceleration for the time-step
-    # estimate. Uniform source acceleration (e.g. gravity applied to all systems)
-    # is a frame shift and does not change relative rigid-body dynamics.
-    translational_acceleration = zero(SVector{ndims(system), eltype(system)})
-    if system.total_mass > eps(eltype(system))
-        translational_acceleration += system.resultant_force[] / system.total_mass
+    if isnothing(semi)
+        system_velocity = current_velocity(v_ode, system)
+        system_coords = current_coordinates(u_ode, system)
+    else
+        v = wrap_v(v_ode, system, semi)
+        u = wrap_u(u_ode, system, semi)
+        system_velocity = current_velocity(v, system)
+        system_coords = current_coordinates(u, system)
     end
+
+    center_of_mass,
+    center_of_mass_velocity = rigid_center_of_mass_kinematics(system,
+                                                              system_coords,
+                                                              system_velocity)
+    rotational_kinematics = rigid_rotational_kinematics(system, system_coords,
+                                                        system_velocity, center_of_mass,
+                                                        center_of_mass_velocity)
+
+    radius = rotational_kinematics.max_radius
+    angular_speed = norm(rotational_kinematics.angular_velocity)
+    # The rigid-body CFL estimate is evaluated from the current state before the
+    # force/torque resultants are refreshed, so use only kinematic contributions
+    # that can be reconstructed directly from `(u, v)`.
+    angular_acceleration = norm(rotational_kinematics.gyroscopic_acceleration)
+    translational_acceleration = zero(center_of_mass_velocity)
 
     # Rigid-body scales:
     # acceleration ~ a_trans,relative + r*(ω² + |α|), velocity ~ v_com + r*ω.
@@ -566,25 +533,11 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::RigidBodySystem, semi)
     dt_acceleration = acceleration_scale <= eps(eltype(system)) ? Inf :
                       cfl_number * sqrt(spacing / acceleration_scale)
 
-    speed_scale = norm(system.center_of_mass_velocity[]) + radius * angular_speed
+    speed_scale = norm(center_of_mass_velocity) + radius * angular_speed
     dt_velocity = speed_scale <= eps(eltype(system)) ? Inf :
                   cfl_number * spacing / speed_scale
 
     return min(dt_acceleration, dt_velocity, contact_dt)
-end
-
-function maximum_particle_radius(system::RigidBodySystem)
-    # `relative_coordinates` are particle positions relative to the center of mass.
-    # Their norm is the particle's radial distance `r`; the maximum is the rigid body's
-    # characteristic radius used as lever arm in the `calculate_dt` estimates (`r*ω`, `r*α`).
-    max_radius = zero(eltype(system))
-
-    @inbounds for particle in each_integrated_particle(system)
-        relative_position = extract_svector(system.relative_coordinates, system, particle)
-        max_radius = max(max_radius, norm(relative_position))
-    end
-
-    return max_radius
 end
 
 # To account for boundary effects in the viscosity term of fluid-structure interactions,
@@ -604,15 +557,15 @@ end
 
 @inline acceleration_source(system::RigidBodySystem) = system.acceleration
 
-@inline function rigid_kinematic_acceleration(system::RigidBodySystem, relative_position,
-                                              ::Val{2})
+@inline function rigid_kinematic_acceleration(system::RigidBodySystem,
+                                              relative_position::SVector{2})
     angular_velocity = system.angular_velocity[]
 
     return -(angular_velocity^2) * relative_position
 end
 
-@inline function rigid_kinematic_acceleration(system::RigidBodySystem, relative_position,
-                                              ::Val{3})
+@inline function rigid_kinematic_acceleration(system::RigidBodySystem,
+                                              relative_position::SVector{3})
     angular_velocity = system.angular_velocity[]
     gyroscopic_acceleration = system.gyroscopic_acceleration[]
 
@@ -632,7 +585,7 @@ function system_data(system::RigidBodySystem, dv_ode, du_ode, v_ode, u_ode, semi
     velocity = current_velocity(v, system)
     acceleration = current_velocity(dv, system)
     density = system.material_density
-    pressure = current_pressure(v, system)
+    pressure = system.boundary_model === nothing ? nothing : current_pressure(v, system)
     center_of_mass = system.center_of_mass[]
     center_of_mass_velocity = system.center_of_mass_velocity[]
     angular_velocity = system.angular_velocity[]
@@ -684,7 +637,6 @@ function Base.show(io::IO, ::MIME"text/plain", system::RigidBodySystem)
         summary_header(io, "RigidBodySystem{$(ndims(system))}")
         summary_line(io, "#particles", nparticles(system))
         summary_line(io, "acceleration", system.acceleration)
-        summary_line(io, "initial angular velocity", system.angular_velocity[])
         summary_line(io, "boundary model", system.boundary_model)
         summary_line(io, "boundary contact model", system.boundary_contact_model)
         summary_footer(io)

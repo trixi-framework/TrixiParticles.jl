@@ -628,7 +628,7 @@ function interpolate_velocity!(system::OpenBoundarySystem, boundary_zone,
     # Shepard-normalized interpolation:
     #   v(p) = (Σ_b v_b V_b W_pb) / (Σ_b V_b W_pb)
     foreach_system(semi) do neighbor_system
-        use_open_boundary_interpolation_neighbor(neighbor_system) || return nothing
+        use_open_boundary_interpolation_neighbor(neighbor_system) || return neighbor_system
 
         v_neighbor = wrap_v(v_ode, neighbor_system, semi)
         u_neighbor = wrap_u(u_ode, neighbor_system, semi)
@@ -664,6 +664,9 @@ function interpolate_velocity!(system::OpenBoundarySystem, boundary_zone,
     return system
 end
 
+# Open-boundary interpolation should reconstruct the surrounding fluid-like velocity field.
+# Therefore, only actual fluid systems and other open-boundary particles contribute;
+# rigid bodies, walls, and other non-fluid systems are intentionally excluded.
 @inline use_open_boundary_interpolation_neighbor(::AbstractFluidSystem) = true
 
 @inline use_open_boundary_interpolation_neighbor(::OpenBoundarySystem) = true
