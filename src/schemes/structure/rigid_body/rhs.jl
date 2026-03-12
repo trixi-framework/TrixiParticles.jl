@@ -109,14 +109,6 @@ end
 function apply_resultant_force_and_torque!(dv, particle_system::RigidBodySystem, semi)
     total_mass = particle_system.total_mass
 
-    # Guard against degenerate systems and clear the cached rigid-body quantities as well.
-    if total_mass <= eps(eltype(particle_system))
-        particle_system.resultant_force[] = zero(particle_system.resultant_force[])
-        particle_system.resultant_torque[] = zero(particle_system.resultant_torque[])
-        particle_system.angular_acceleration_force[] = zero(particle_system.angular_acceleration_force[])
-        return dv
-    end
-
     # Reduce all pairwise forces to one net force and one net torque around the center of mass.
     total_force = zero(SVector{ndims(particle_system), eltype(particle_system)})
     total_torque = zero(particle_system.resultant_torque[])
