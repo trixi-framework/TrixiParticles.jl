@@ -184,18 +184,41 @@ function interact!(dv, v_particle_system, u_particle_system,
     contact_model = particle_system.boundary_contact_model
 
     # Rebuild the manifold cache for this rigid-wall system pair before reducing it to forces.
-    reset_contact_manifold_cache!(particle_system.cache)
+    set_zero!(particle_system.cache.contact_manifold_count)
+    set_zero!(particle_system.cache.contact_manifold_weight_sum)
+    set_zero!(particle_system.cache.contact_manifold_penetration_sum)
+    set_zero!(particle_system.cache.contact_manifold_normal_sum)
+    set_zero!(particle_system.cache.contact_manifold_wall_velocity_sum)
 
     ELTYPE = eltype(particle_system)
     normal_merge_cos = convert(ELTYPE, 0.995)
 
-    update_contact_manifold_cache!(particle_system, neighbor_system,
-                                   u_particle_system,
-                                   v_neighbor_system, u_neighbor_system,
-                                   semi,
-                                   contact_model,
-                                   normal_merge_cos,
-                                   ELTYPE)
+    # First gather all penetrating wall neighbors into a small set of contact manifolds per
+    # rigid particle. This avoids applying one noisy contact force per wall particle.
+    system_coords = current_coordinates(u_particle_system, particle_system)
+    neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
+
+    foreach_point_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
+                           semi; points=each_integrated_particle(particle_system),
+                           parallelization_backend=SerialBackend()) do particle, neighbor,
+                                                                       pos_diff, distance
+        # The manifold cache is shared across all wall neighbors of this system pair, so build
+        # it deterministically with a serial traversal.
+        distance <= eps(ELTYPE) && return
+
+        penetration = contact_model.contact_distance - distance
+        penetration <= 0 && return
+
+        normal = pos_diff / distance
+        wall_velocity = current_velocity(v_neighbor_system, neighbor_system, neighbor)
+        contact_weight = wall_contact_pair_weight(neighbor_system, distance, neighbor, ELTYPE)
+        contact_weight <= eps(ELTYPE) && return
+
+        manifold = find_or_add_contact_manifold!(particle_system.cache, particle, normal,
+                                                 normal_merge_cos, ELTYPE)
+        accumulate_contact_manifold!(particle_system.cache, particle, manifold,
+                                     contact_weight, normal, wall_velocity, penetration)
+    end
 
     # Apply one force contribution per manifold using the averaged normal, penetration, and
     # wall velocity stored in the cache.
@@ -242,18 +265,6 @@ function interact!(dv, v_particle_system, u_particle_system,
     end
 
     return dv
-end
-
-# The wall-contact manifold cache is reused for every rigid-wall interaction, so clear all
-# per-particle aggregates before rebuilding it for the current neighbor system.
-function reset_contact_manifold_cache!(cache)
-    set_zero!(cache.contact_manifold_count)
-    set_zero!(cache.contact_manifold_weight_sum)
-    set_zero!(cache.contact_manifold_penetration_sum)
-    set_zero!(cache.contact_manifold_normal_sum)
-    set_zero!(cache.contact_manifold_wall_velocity_sum)
-
-    return cache
 end
 
 @inline function wall_contact_pair_weight(neighbor_system::WallBoundarySystem,
@@ -337,44 +348,6 @@ end
     return SVector{NDIMS, ELTYPE}(ntuple(@inline(dim->cache_array[dim, manifold, particle] /
                                                     weight_sum),
                                          Val(NDIMS)))
-end
-
-function update_contact_manifold_cache!(system::RigidBodySystem{<:Any, <:Any, NDIMS},
-                                        neighbor_system::WallBoundarySystem,
-                                        u_system,
-                                        v_neighbor, u_neighbor,
-                                        semi,
-                                        contact_model::RigidBoundaryContactModel,
-                                        normal_merge_cos,
-                                        ELTYPE) where {NDIMS}
-    # First gather all penetrating wall neighbors into a small set of contact manifolds per
-    # rigid particle. This avoids applying one noisy contact force per wall particle.
-    system_coords = current_coordinates(u_system, system)
-    neighbor_coords = current_coordinates(u_neighbor, neighbor_system)
-
-    foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords, semi;
-                           points=each_integrated_particle(system),
-                           parallelization_backend=SerialBackend()) do particle, neighbor,
-                                                                       pos_diff, distance
-        # The manifold cache is shared across all wall neighbors of this system pair, so build
-        # it deterministically with a serial traversal.
-        distance <= eps(ELTYPE) && return
-
-        penetration = contact_model.contact_distance - distance
-        penetration <= 0 && return
-
-        normal = pos_diff / distance
-        wall_velocity = current_velocity(v_neighbor, neighbor_system, neighbor)
-        contact_weight = wall_contact_pair_weight(neighbor_system, distance, neighbor, ELTYPE)
-        contact_weight <= eps(ELTYPE) && return
-
-        manifold = find_or_add_contact_manifold!(system.cache, particle, normal,
-                                                 normal_merge_cos, ELTYPE)
-        accumulate_contact_manifold!(system.cache, particle, manifold, contact_weight,
-                                     normal, wall_velocity, penetration)
-    end
-
-    return system.cache
 end
 
 @inline function normal_contact_force(contact_model::RigidBoundaryContactModel,
