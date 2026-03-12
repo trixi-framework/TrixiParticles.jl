@@ -151,7 +151,8 @@ function apply_resultant_force_and_torque!(dv, particle_system::RigidBodySystem,
 
         for i in eachindex(translational_acceleration)
             @inbounds dv[i,
-               particle] += translational_acceleration[i] + rotational_acceleration_force[i]
+                         particle] += translational_acceleration[i] +
+                                      rotational_acceleration_force[i]
         end
     end
 
