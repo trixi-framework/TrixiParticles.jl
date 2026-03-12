@@ -333,7 +333,7 @@ end
     return current_density(v, system.boundary_model, system)
 end
 
-@inline function viscous_velocity(v, system::RigidBodySystem, particle)
+@inline function viscous_velocity(v, system::TotalLagrangianSPHSystem, particle)
     return viscous_velocity(v, system.boundary_model.viscosity, system, particle)
 end
 
