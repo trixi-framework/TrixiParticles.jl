@@ -42,11 +42,13 @@ function RigidBoundaryContactModel(model::RigidBoundaryContactModel, particle_sp
     particle_spacing_ > 0 ||
         throw(ArgumentError("`particle_spacing` must be positive"))
 
-    contact_distance = model.contact_distance > 0 ? convert(ELTYPE, model.contact_distance) :
+    contact_distance = model.contact_distance > 0 ?
+                       convert(ELTYPE, model.contact_distance) :
                        particle_spacing_
 
-    return RigidBoundaryContactModel(; normal_stiffness=convert(ELTYPE,
-                                                                model.normal_stiffness),
+    return RigidBoundaryContactModel(;
+                                     normal_stiffness=convert(ELTYPE,
+                                                              model.normal_stiffness),
                                      normal_damping=convert(ELTYPE, model.normal_damping),
                                      contact_distance)
 end

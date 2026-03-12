@@ -781,7 +781,7 @@
                                        boundary_contact_model=boundary_contact_model)
         @test haskey(rigid_system.cache, :contact_manifold_count)
         @test TrixiParticles.contact_time_step(rigid_system) ≈ sqrt(rigid_mass[1] /
-                                                                    boundary_contact_model.normal_stiffness)
+                   boundary_contact_model.normal_stiffness)
 
         semi = Semidiscretization(rigid_system, boundary_system)
         ode = semidiscretize(semi, (0.0, 0.01))

@@ -211,7 +211,8 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         normal = pos_diff / distance
         wall_velocity = current_velocity(v_neighbor_system, neighbor_system, neighbor)
-        contact_weight = wall_contact_pair_weight(neighbor_system, distance, neighbor, ELTYPE)
+        contact_weight = wall_contact_pair_weight(neighbor_system, distance, neighbor,
+                                                  ELTYPE)
         contact_weight <= eps(ELTYPE) && return
 
         manifold = find_or_add_contact_manifold!(particle_system.cache, particle, normal,
@@ -229,7 +230,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         v_particle = current_velocity(v_particle_system, particle_system, particle)
 
         for manifold in 1:n_manifolds
-            weight_sum = particle_system.cache.contact_manifold_weight_sum[manifold, particle]
+            weight_sum = particle_system.cache.contact_manifold_weight_sum[manifold,
+                                                                           particle]
             weight_sum <= eps(ELTYPE) && continue
 
             normal = weighted_manifold_vector(particle_system.cache.contact_manifold_normal_sum,
@@ -243,7 +245,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                   manifold, particle, weight_sum,
                                                   Val(NDIMS), ELTYPE)
             penetration_effective = particle_system.cache.contact_manifold_penetration_sum[manifold,
-                                                                                            particle] /
+                                                                                           particle] /
                                     weight_sum
 
             relative_velocity = v_particle - v_boundary
@@ -329,14 +331,16 @@ function accumulate_contact_manifold!(cache, particle, manifold, contact_weight,
     # Store weighted sums so the final interaction step can recover one averaged contact
     # state per manifold instead of reacting to every wall particle individually.
     cache.contact_manifold_weight_sum[manifold, particle] += contact_weight
-    cache.contact_manifold_penetration_sum[manifold, particle] +=
-        contact_weight * penetration_effective
+    cache.contact_manifold_penetration_sum[manifold,
+                                           particle] += contact_weight *
+                                                        penetration_effective
 
     for dim in eachindex(normal)
-        cache.contact_manifold_normal_sum[dim, manifold, particle] +=
-            contact_weight * normal[dim]
-        cache.contact_manifold_wall_velocity_sum[dim, manifold, particle] +=
-            contact_weight * wall_velocity[dim]
+        cache.contact_manifold_normal_sum[dim, manifold,
+                                          particle] += contact_weight * normal[dim]
+        cache.contact_manifold_wall_velocity_sum[dim, manifold,
+                                                 particle] += contact_weight *
+                                                              wall_velocity[dim]
     end
 
     return cache
@@ -346,7 +350,7 @@ end
                                           ::Val{NDIMS}, ELTYPE) where {NDIMS}
     # Convert a weighted cache sum back to its averaged vector value for this manifold.
     return SVector{NDIMS, ELTYPE}(ntuple(@inline(dim->cache_array[dim, manifold, particle] /
-                                                    weight_sum),
+                                                      weight_sum),
                                          Val(NDIMS)))
 end
 

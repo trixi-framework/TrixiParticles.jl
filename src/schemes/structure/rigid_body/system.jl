@@ -144,8 +144,10 @@ function create_cache_rigid(::Val{NDIMS}, ELTYPE, n_particles,
     return (; color=Int(color_value), manifold_cache...)
 end
 
-create_contact_manifold_cache(::Nothing, ::Val{NDIMS}, ELTYPE,
-                              n_particles) where {NDIMS} = (;)
+function create_contact_manifold_cache(::Nothing, ::Val{NDIMS}, ELTYPE,
+                                       n_particles) where {NDIMS}
+    (;)
+end
 
 function create_contact_manifold_cache(boundary_contact_model,
                                        ::Val{NDIMS}, ELTYPE,
