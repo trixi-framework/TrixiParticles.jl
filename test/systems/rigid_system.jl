@@ -726,7 +726,7 @@
         @test iszero(rigid.resultant_torque[])
     end
 
-    @trixi_testset "Boundary Contact Model" begin
+    @trixi_testset "Rigid Contact Model" begin
         rigid_coordinates = reshape([0.0, 0.05], 2, 1)
         rigid_velocity = reshape([0.0, -1.0], 2, 1)
         rigid_mass = [1.0]
@@ -753,11 +753,11 @@
                                                      smoothing_length)
         boundary_system = WallBoundarySystem(boundary_ic, boundary_model)
 
-        boundary_contact_model = RigidBoundaryContactModel(; normal_stiffness=2.0e4,
-                                                           normal_damping=20.0,
-                                                           contact_distance=0.1)
+        contact_model = RigidBoundaryContactModel(; normal_stiffness=2.0e4,
+                                                  normal_damping=20.0,
+                                                  contact_distance=0.1)
 
-        runtime_model = TrixiParticles.RigidBoundaryContactModel(boundary_contact_model,
+        runtime_model = TrixiParticles.RigidBoundaryContactModel(contact_model,
                                                                  0.1, Float64)
         @test runtime_model isa RigidBoundaryContactModel
         @test runtime_model.normal_stiffness ≈ 2.0e4
@@ -778,10 +778,22 @@
 
         rigid_system = RigidBodySystem(rigid_ic;
                                        acceleration=(0.0, 0.0),
-                                       boundary_contact_model=boundary_contact_model)
+                                       contact_model=contact_model)
+        rigid_system_alias = RigidBodySystem(rigid_ic;
+                                             acceleration=(0.0, 0.0),
+                                             boundary_contact_model=contact_model)
         @test haskey(rigid_system.cache, :contact_manifold_count)
         @test TrixiParticles.contact_time_step(rigid_system) ≈ sqrt(rigid_mass[1] /
-                   boundary_contact_model.normal_stiffness)
+                   contact_model.normal_stiffness)
+        @test rigid_system.contact_model isa RigidBoundaryContactModel
+        @test rigid_system.contact_model.normal_stiffness ≈ contact_model.normal_stiffness
+        @test rigid_system.contact_model.normal_damping ≈ contact_model.normal_damping
+        @test rigid_system.contact_model.contact_distance ≈ contact_model.contact_distance
+        @test rigid_system_alias.contact_model.contact_distance ≈
+              contact_model.contact_distance
+        @test_throws ArgumentError RigidBodySystem(rigid_ic;
+                                                   contact_model=contact_model,
+                                                   boundary_contact_model=contact_model)
 
         semi = Semidiscretization(rigid_system, boundary_system)
         ode = semidiscretize(semi, (0.0, 0.01))

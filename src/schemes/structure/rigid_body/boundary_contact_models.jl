@@ -1,15 +1,16 @@
-abstract type AbstractRigidBoundaryContactModel end
+abstract type AbstractRigidContactModel end
 
 """
     RigidBoundaryContactModel(; normal_stiffness,
                               normal_damping=0.0,
                               contact_distance=0.0)
 
-Basic rigid-wall contact model for rigid bodies.
-The wall force consists of a linear normal spring-dashpot contribution only.
+Basic rigid contact model stored on a rigid body.
+In this branch it is used for rigid-wall contact only.
+The contact force consists of a linear normal spring-dashpot contribution only.
 If `contact_distance == 0`, `RigidBodySystem` uses its particle spacing.
 """
-struct RigidBoundaryContactModel{ELTYPE <: Real} <: AbstractRigidBoundaryContactModel
+struct RigidBoundaryContactModel{ELTYPE <: Real} <: AbstractRigidContactModel
     normal_stiffness::ELTYPE
     normal_damping::ELTYPE
     contact_distance::ELTYPE
@@ -54,7 +55,7 @@ function RigidBoundaryContactModel(model::RigidBoundaryContactModel, particle_sp
 end
 
 @inline function contact_time_step(system::RigidBodySystem)
-    return contact_time_step(system.boundary_contact_model, system)
+    return contact_time_step(system.contact_model, system)
 end
 
 @inline function contact_time_step(::Nothing, system::RigidBodySystem)

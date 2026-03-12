@@ -179,9 +179,9 @@ end
 
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
-                   particle_system::RigidBodySystem{<:Any, BCM, NDIMS},
-                   neighbor_system::WallBoundarySystem, semi) where {BCM, NDIMS}
-    contact_model = particle_system.boundary_contact_model
+                   particle_system::RigidBodySystem{<:Any, CM, NDIMS},
+                   neighbor_system::WallBoundarySystem, semi) where {CM, NDIMS}
+    contact_model = particle_system.contact_model
 
     # Here a "contact manifold" means one cluster of wall neighbors for one rigid particle
     # that appears to belong to the same local wall patch. A flat wall contact usually
@@ -405,7 +405,7 @@ function interact!(dv, v_particle_system, u_particle_system,
     return dv
 end
 
-# Rigid systems without an explicit wall-contact model ignore wall neighbors.
+# Rigid systems without an explicit contact model ignore wall neighbors.
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::RigidBodySystem{<:Any, Nothing, NDIMS},

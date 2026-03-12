@@ -90,7 +90,7 @@ end
 
 @inline function compact_support(system::RigidBodySystem, model::Nothing,
                                  neighbor::WallBoundarySystem)
-    contact_model = system.boundary_contact_model
+    contact_model = system.contact_model
     isnothing(contact_model) && return zero(eltype(system))
 
     return contact_model.contact_distance
