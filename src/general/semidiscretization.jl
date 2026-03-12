@@ -572,9 +572,9 @@ end
 
 @inline add_acceleration!(dv, particle, system) = dv
 
-@inline function add_acceleration!(dv, particle,
-                                   system::Union{AbstractFluidSystem,
-                                                 AbstractStructureSystem})
+@propagate_inbounds function add_acceleration!(dv, particle,
+                                               system::Union{AbstractFluidSystem,
+                                                             AbstractStructureSystem})
     (; acceleration) = system
 
     for i in 1:ndims(system)
@@ -595,7 +595,29 @@ end
     integrate_tlsph && add_source_terms_inner!(dv, v, u, particle, system, source_terms_, t)
 end
 
-@inline function add_source_terms_inner!(dv, v, u, particle, system, source_terms_, t)
+@propagate_inbounds function add_source_terms_inner!(dv, v, u, particle,
+                                                     system::RigidBodySystem,
+                                                     source_terms_, t)
+    coords = current_coords(u, system, particle)
+    velocity = current_velocity(v, system, particle)
+    density = system.material_density[particle]
+    pressure = 0 # Rigid body systems don't have a pressure, but some source terms might depend on it
+
+    source = source_terms_(coords, velocity, density, pressure, t)
+
+    for i in eachindex(source)
+        dv[i, particle] += source[i]
+    end
+
+    return dv
+end
+
+@inline add_source_terms_inner!(dv, v, u, particle,
+                                system::RigidBodySystem,
+                                source_terms_::Nothing, t) = dv
+
+@propagate_inbounds function add_source_terms_inner!(dv, v, u, particle, system,
+                                                     source_terms_, t)
     coords = current_coords(u, system, particle)
     velocity = current_velocity(v, system, particle)
     density = current_density(v, system, particle)
@@ -667,6 +689,15 @@ function system_interaction!(dv_ode, v_ode, u_ode, semi)
         end
     end
 
+    # Finalize systems that need to reduce accumulated interaction data afterward.
+    foreach_system(semi) do system
+        dv = wrap_v(dv_ode, system, semi)
+        v = wrap_v(v_ode, system, semi)
+        u = wrap_u(u_ode, system, semi)
+
+        finalize_interaction!(system, dv, v, u, dv_ode, v_ode, u_ode, semi)
+    end
+
     return dv_ode
 end
 
@@ -709,16 +740,26 @@ end
 check_configuration(system::AbstractSystem, systems, nhs) = nothing
 
 function check_system_color(systems)
-    if any(system isa AbstractFluidSystem && !(system isa ParticlePackingSystem) &&
-           !isnothing(system.surface_tension)
-           for system in systems)
+    requires_color_check = any(systems) do system
+        system isa AbstractFluidSystem || return false
+        system isa ParticlePackingSystem && return false
 
-        # System indices of all systems that are either a fluid or a boundary system
-        system_ids = findall(system isa Union{AbstractFluidSystem, WallBoundarySystem}
-                             for system in systems)
+        return !isnothing(system.surface_tension) ||
+               system.surface_normal_method isa ColorfieldSurfaceNormal
+    end
+
+    if requires_color_check
+
+        # Systems that contribute to the colorfield/contact logic.
+        system_ids = findall(system -> (system isa AbstractFluidSystem &&
+                                        !(system isa ParticlePackingSystem)) ||
+                                       system isa WallBoundarySystem ||
+                                       system isa
+                                       RigidBodySystem{<:BoundaryModelDummyParticles},
+                             systems)
 
         if length(system_ids) > 1 && sum(i -> systems[i].cache.color, system_ids) == 0
-            throw(ArgumentError("If a surface tension model is used the values of at least one system needs to have a color different than 0."))
+            throw(ArgumentError("If `ColorfieldSurfaceNormal` or a surface tension model is used, at least one participating system must have a color different from 0."))
         end
     end
 end

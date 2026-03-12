@@ -419,6 +419,25 @@ function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem)
     write2vtk!(vtk, v, u, t, system.boundary_model, system)
 end
 
+function write2vtk!(vtk, v, u, t, system::RigidBodySystem)
+    vtk["velocity"] = [current_velocity(v, system, particle)
+                       for particle in eachparticle(system)]
+    vtk["color"] = system.cache.color
+    vtk["material_density"] = system.material_density
+    vtk["mass"] = system.mass
+    vtk["relative_coordinates"] = system.relative_coordinates
+    vtk["center_of_mass"] = [system.center_of_mass[]]
+    vtk["center_of_mass_velocity"] = [system.center_of_mass_velocity[]]
+    vtk["resultant_force"] = [system.resultant_force[]]
+
+    vtk["angular_velocity"] = [system.angular_velocity[]]
+    vtk["resultant_torque"] = [system.resultant_torque[]]
+    vtk["angular_acceleration_force"] = [system.angular_acceleration_force[]]
+    vtk["gyroscopic_acceleration"] = [system.gyroscopic_acceleration[]]
+
+    write2vtk!(vtk, v, u, t, system.boundary_model, system)
+end
+
 function write2vtk!(vtk, v, u, t, system::OpenBoundarySystem)
     vtk["velocity"] = [current_velocity(v, system, particle)
                        for particle in eachparticle(system)]

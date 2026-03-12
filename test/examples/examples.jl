@@ -222,6 +222,21 @@
             end
         end
 
+        @trixi_testset "fsi/falling_rigid_spheres_2d.jl" begin
+            @trixi_test_nowarn trixi_include(@__MODULE__,
+                                             joinpath(examples_dir(), "fsi",
+                                                      "falling_rigid_spheres_2d.jl"),
+                                             tspan=(0.0, 0.5))
+            @test sol.retcode == ReturnCode.Success
+            if VERSION < v"1.12"
+                # Older Julia versions produce allocations because `get_neighborhood_search`
+                # is not type-stable with TLSPH.
+                @test count_rhs_allocations(sol, semi) < 500
+            else
+                @test count_rhs_allocations(sol, semi) == 0
+            end
+        end
+
         @trixi_testset "fsi/hydrostatic_water_column_2d.jl" begin
             @trixi_test_nowarn trixi_include(@__MODULE__,
                                              joinpath(examples_dir(), "fsi",
@@ -241,6 +256,22 @@
                 @test count_rhs_allocations(sol, semi) == 0
             end
         end
+
+        @trixi_testset "fsi/falling_rotating_rigid_squares_2d.jl" begin
+            @trixi_test_nowarn trixi_include(@__MODULE__,
+                                             joinpath(examples_dir(), "fsi",
+                                                      "falling_rotating_rigid_squares_2d.jl"),
+                                             tspan=(0.0, 0.5))
+            @test sol.retcode == ReturnCode.Success
+            if VERSION < v"1.12"
+                # Older Julia versions produce allocations because `get_neighborhood_search`
+                # is not type-stable with TLSPH.
+                @test count_rhs_allocations(sol, semi) < 500
+            else
+                @test count_rhs_allocations(sol, semi) == 0
+            end
+        end
+
         @trixi_testset "fsi/hydrostatic_water_column_2d.jl with EDAC" begin
             @trixi_test_nowarn trixi_include(@__MODULE__,
                                              joinpath(examples_dir(), "fsi",

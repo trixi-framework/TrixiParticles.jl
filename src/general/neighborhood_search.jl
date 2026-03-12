@@ -32,6 +32,11 @@ end
     return compact_support(system.fluid_system, neighbor.fluid_system)
 end
 
+@inline function compact_support(system::OpenBoundarySystem, neighbor::RigidBodySystem)
+    # Rigid/open-boundary interactions are currently not modeled.
+    return zero(eltype(system))
+end
+
 # -- DEM boundaries
 @inline function compact_support(system::BoundaryDEMSystem, neighbor::BoundaryDEMSystem)
     # This NHS is never used
@@ -52,6 +57,7 @@ end
 
 # -- Boundary models
 @inline function compact_support(system::Union{TotalLagrangianSPHSystem,
+                                               RigidBodySystem,
                                                WallBoundarySystem},
                                  neighbor)
     return compact_support(system, system.boundary_model, neighbor)
@@ -74,6 +80,17 @@ end
     # for density summations.
     (; smoothing_kernel, smoothing_length) = model
     return compact_support(smoothing_kernel, smoothing_length)
+end
+
+@inline function compact_support(system::RigidBodySystem, model::Nothing, neighbor)
+    # Rigid interactions without a boundary model are currently not modeled.
+    # This neighborhood search exists only to keep the semidiscretization structure uniform.
+    return zero(eltype(system))
+end
+
+@inline function compact_support(system::RigidBodySystem, neighbor::OpenBoundarySystem)
+    # Rigid/open-boundary interactions are currently not modeled.
+    return zero(eltype(system))
 end
 
 # === Neighborhood search creation ===
@@ -199,7 +216,8 @@ end
 # -- Fluid / structure interactions
 function update_nhs!(neighborhood_search,
                      system::AbstractFluidSystem,
-                     neighbor::Union{AbstractFluidSystem, TotalLagrangianSPHSystem},
+                     neighbor::Union{AbstractFluidSystem, TotalLagrangianSPHSystem,
+                                     RigidBodySystem},
                      u_system, u_neighbor, semi)
     # The current coordinates of fluids and structures change over time
     update!(neighborhood_search,
@@ -278,16 +296,26 @@ function update_nhs!(neighborhood_search,
             semi, points_moving=(true, true), eachindex_y=each_active_particle(neighbor))
 end
 
+function update_nhs!(neighborhood_search,
+                     system::RigidBodySystem,
+                     neighbor::OpenBoundarySystem,
+                     u_system, u_neighbor, semi)
+    # Don't update. This NHS is never used.
+    return neighborhood_search
+end
+
 # -- Open boundary combinations that are never used
 function update_nhs!(neighborhood_search,
-                     system::OpenBoundarySystem, neighbor::TotalLagrangianSPHSystem,
+                     system::OpenBoundarySystem,
+                     neighbor::TotalLagrangianSPHSystem,
                      u_system, u_neighbor, semi)
     # Don't update. This NHS is never used.
     return neighborhood_search
 end
 
 function update_nhs!(neighborhood_search,
-                     system::TotalLagrangianSPHSystem, neighbor::OpenBoundarySystem,
+                     system::TotalLagrangianSPHSystem,
+                     neighbor::OpenBoundarySystem,
                      u_system, u_neighbor, semi)
     # Don't update. This NHS is never used.
     return neighborhood_search
@@ -302,6 +330,13 @@ function update_nhs!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
             semi, points_moving=(true, true), eachindex_y=each_active_particle(neighbor))
+end
+
+function update_nhs!(neighborhood_search,
+                     system::TotalLagrangianSPHSystem, neighbor::RigidBodySystem,
+                     u_system, u_neighbor, semi)
+    # Don't update. This NHS is never used.
+    return neighborhood_search
 end
 
 function update_nhs!(neighborhood_search,
@@ -321,6 +356,35 @@ function update_nhs!(neighborhood_search,
     # Don't update. This NHS is never used.
     # TLSPH systems have their own self-interaction NHS.
     return neighborhood_search
+end
+
+function update_nhs!(neighborhood_search,
+                     system::RigidBodySystem,
+                     neighbor::Union{AbstractFluidSystem, RigidBodySystem},
+                     u_system, u_neighbor, semi)
+    # The current coordinates of fluids and structures change over time.
+    update!(neighborhood_search,
+            current_coordinates(u_system, system),
+            current_coordinates(u_neighbor, neighbor),
+            semi, points_moving=(true, true), eachindex_y=each_active_particle(neighbor))
+end
+
+function update_nhs!(neighborhood_search,
+                     system::RigidBodySystem, neighbor::TotalLagrangianSPHSystem,
+                     u_system, u_neighbor, semi)
+    # Don't update. This NHS is never used.
+    return neighborhood_search
+end
+
+function update_nhs!(neighborhood_search,
+                     system::RigidBodySystem, neighbor::WallBoundarySystem,
+                     u_system, u_neighbor, semi)
+    # The current coordinates of structures change over time.
+    # Boundary coordinates only change over time when `neighbor.ismoving[]`.
+    update!(neighborhood_search,
+            current_coordinates(u_system, system),
+            current_coordinates(u_neighbor, neighbor),
+            semi, points_moving=(true, neighbor.ismoving[]))
 end
 
 # -- Wall dummy particle interactions
@@ -364,7 +428,8 @@ end
 # This function is the same as the one above to avoid ambiguous dispatch when using `Union`
 function update_nhs!(neighborhood_search,
                      system::WallBoundarySystem{<:BoundaryModelDummyParticles},
-                     neighbor::TotalLagrangianSPHSystem, u_system, u_neighbor, semi)
+                     neighbor::TotalLagrangianSPHSystem,
+                     u_system, u_neighbor, semi)
     # Depending on the density calculator of the boundary model, this NHS is used for
     # - kernel summation (`SummationDensity`)
     # - continuity equation (`ContinuityDensity`)
@@ -376,6 +441,16 @@ function update_nhs!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
             semi, points_moving=(system.ismoving[], true))
+end
+
+# `WallBoundarySystem` interactions with rigid systems are currently not modeled.
+# Explicitly define this method to avoid ambiguity with the generic no-op method below.
+function update_nhs!(neighborhood_search,
+                     system::WallBoundarySystem{<:BoundaryModelDummyParticles},
+                     neighbor::RigidBodySystem,
+                     u_system, u_neighbor, semi)
+    # Don't update. This NHS is never used.
+    return neighborhood_search
 end
 
 # -- Wall / wall interactions
@@ -415,7 +490,7 @@ end
 # -- Combinations that are never used
 function update_nhs!(neighborhood_search,
                      system::WallBoundarySystem,
-                     neighbor::AbstractFluidSystem,
+                     neighbor::Union{AbstractFluidSystem, RigidBodySystem},
                      u_system, u_neighbor, semi)
     # Don't update. This NHS is never used.
     return neighborhood_search
@@ -432,6 +507,14 @@ end
 function update_nhs!(neighborhood_search,
                      system::Union{WallBoundarySystem, OpenBoundarySystem},
                      neighbor::Union{WallBoundarySystem, OpenBoundarySystem},
+                     u_system, u_neighbor, semi)
+    # Don't update. This NHS is never used.
+    return neighborhood_search
+end
+
+function update_nhs!(neighborhood_search,
+                     system::OpenBoundarySystem,
+                     neighbor::RigidBodySystem,
                      u_system, u_neighbor, semi)
     # Don't update. This NHS is never used.
     return neighborhood_search

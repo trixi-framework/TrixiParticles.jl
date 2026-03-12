@@ -9,7 +9,10 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 ### Features
 
 - Added `StateEquationAdaptiveCole` an adaptive sound speed version of the Cole state equation (#875)
+- Added `RigidBodySystem` that supports rigid body dynamics for FSI (#1076)
 
+### Validation cases
+- Added new validation case hydrostatic_water_column (#724)
 
 ## Version 0.4.3
 
