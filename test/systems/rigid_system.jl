@@ -501,6 +501,7 @@
         @test iszero(perfect_elastic_model_runtime.penetration_slop)
         @test perfect_elastic_model_runtime.torque_free
         @test !perfect_elastic_model_runtime.resting_contact_projection
+        @test !perfect_elastic_model_runtime.normalize_force_by_contact_patch
 
         wall_material = (; youngs_modulus=3.0e10, poisson_ratio=0.2)
         wood_material = (; density=650.0, youngs_modulus=1.0e10, poisson_ratio=0.35,
@@ -529,6 +530,7 @@
         @test contact_model_2d.contact_distance ≈ 0.02
         @test contact_model_2d.resting_contact_projection
         @test contact_model_2d.torque_free
+        @test contact_model_2d.normalize_force_by_contact_patch
 
         # Keep parity with the previous example-local 2D calibration.
         drop_height = max(1.5 - 0.16, 0.01)
@@ -1394,10 +1396,20 @@
         dt_contact = TrixiParticles.contact_time_step(rigid_system)
         @test !TrixiParticles.resting_projection_triggered(0.2 * dt_contact, dt_contact, 1,
                                                           eltype(rigid_system))
-        @test TrixiParticles.resting_projection_triggered(0.2 * dt_contact, dt_contact, 2,
+        @test !TrixiParticles.resting_projection_triggered(0.2 * dt_contact, dt_contact, 2,
                                                           eltype(rigid_system))
-        @test TrixiParticles.resting_projection_triggered(0.01 * dt_contact, dt_contact, 0,
+        @test TrixiParticles.resting_projection_triggered(0.2 * dt_contact, dt_contact, 3,
                                                           eltype(rigid_system))
+        @test !TrixiParticles.resting_projection_triggered(0.01 * dt_contact, dt_contact, 1,
+                                                           eltype(rigid_system))
+        @test TrixiParticles.resting_projection_triggered(0.01 * dt_contact, dt_contact, 2,
+                                                          eltype(rigid_system))
+        modified_first = TrixiParticles.project_resting_contact_velocity!(rigid_system,
+                                                                          v_rigid, u_rigid,
+                                                                          v_ode, u_ode,
+                                                                          semi,
+                                                                          (; dt=0.01 *
+                                                                                 dt_contact))
         modified = TrixiParticles.project_resting_contact_velocity!(rigid_system,
                                                                     v_rigid, u_rigid,
                                                                     v_ode, u_ode,
@@ -1405,6 +1417,7 @@
                                                                     (; dt=0.01 *
                                                                            dt_contact))
 
+        @test !modified_first
         @test modified
 
         system_coords = TrixiParticles.current_coordinates(u_rigid, rigid_system)
@@ -1481,6 +1494,14 @@
                                                               boundary_system,
                                                               u_wall_no_projection,
                                                               boundary_contact_model)
+        modified_persistent_2 = TrixiParticles.project_resting_contact_velocity!(rigid_system_no_projection,
+                                                                                 v_rigid_no_projection,
+                                                                                 u_rigid_no_projection,
+                                                                                 v_ode_no_projection,
+                                                                                 u_ode_no_projection,
+                                                                                 semi_no_projection,
+                                                                                 (; dt=0.2 *
+                                                                                        dt_contact))
         modified_persistent = TrixiParticles.project_resting_contact_velocity!(rigid_system_no_projection,
                                                                                v_rigid_no_projection,
                                                                                u_rigid_no_projection,
@@ -1495,6 +1516,7 @@
                                                              u_wall_no_projection,
                                                              boundary_contact_model)
 
+        @test !modified_persistent_2
         @test modified_persistent
         @test penetration_after_persistent <= penetration_before_persistent
         @test penetration_after_persistent <=
@@ -1536,6 +1558,14 @@
 
         dt_contact_angular = TrixiParticles.contact_time_step(rigid_system_angular)
         angular_before = rigid_system_angular.angular_velocity[]
+        modified_angular_first = TrixiParticles.project_resting_contact_velocity!(rigid_system_angular,
+                                                                                  v_rigid_angular,
+                                                                                  u_rigid_angular,
+                                                                                  v_ode_angular,
+                                                                                  u_ode_angular,
+                                                                                  semi_angular,
+                                                                                  (; dt=0.01 *
+                                                                                         dt_contact_angular))
         modified_angular = TrixiParticles.project_resting_contact_velocity!(rigid_system_angular,
                                                                             v_rigid_angular,
                                                                             u_rigid_angular,
@@ -1545,6 +1575,7 @@
                                                                             (; dt=0.01 *
                                                                                    dt_contact_angular))
         angular_after = rigid_system_angular.angular_velocity[]
+        @test !modified_angular_first
         @test modified_angular
         @test abs(angular_after) > abs(angular_before) + 100 * eps(abs(angular_before))
 
@@ -1767,6 +1798,368 @@
         @test max_abs_com_x_drift < 1e-6
 
         @test relative_ke_error < 1e-3
+    end
+
+    @trixi_testset "Steel Rigid-Wall Rebound Regression" begin
+        using OrdinaryDiffEq
+
+        structure_particle_spacing = 0.02
+        structure_smoothing_length = 1.5 * structure_particle_spacing
+        structure_smoothing_kernel = WendlandC2Kernel{2}()
+
+        gravity = 9.81
+        sphere_radius = 0.04
+        initial_center = (0.0, 0.26)
+        wall_material = (; youngs_modulus=3.0e11, poisson_ratio=0.2)
+        steel_material = (; density=7850.0, youngs_modulus=2.1e11, poisson_ratio=0.29,
+                          restitution=0.8, friction_coefficient=0.55)
+
+        wall_x = collect(-0.22:structure_particle_spacing:0.22)
+        boundary_layers = 3
+        n_wall_particles = boundary_layers * length(wall_x)
+        wall_coordinates = zeros(2, n_wall_particles)
+        wall_mass = fill(1000.0 * structure_particle_spacing^2, n_wall_particles)
+        wall_density = fill(1000.0, n_wall_particles)
+
+        let index = 1
+            for layer in 0:(boundary_layers - 1), x in wall_x
+                wall_coordinates[1, index] = x
+                wall_coordinates[2, index] = -layer * structure_particle_spacing
+                index += 1
+            end
+        end
+
+        wall_ic = InitialCondition(; coordinates=wall_coordinates,
+                                   mass=wall_mass,
+                                   density=wall_density,
+                                   particle_spacing=structure_particle_spacing)
+        wall_model = BoundaryModelDummyParticles(wall_density, wall_mass,
+                                                 PressureZeroing(),
+                                                 structure_smoothing_kernel,
+                                                 structure_smoothing_length)
+        wall_system = WallBoundarySystem(wall_ic, wall_model)
+
+        sphere = SphereShape(structure_particle_spacing, sphere_radius, initial_center,
+                             steel_material.density, sphere_type=RoundSphere())
+        boundary_contact_model = LinearizedHertzMindlinBoundaryContactModel(;
+                                                                            material=steel_material,
+                                                                            wall_material,
+                                                                            radius=sphere_radius,
+                                                                            center=initial_center,
+                                                                            gravity,
+                                                                            particle_spacing=structure_particle_spacing,
+                                                                            ndims=2,
+                                                                            torque_free=true,
+                                                                            resting_contact_projection=true)
+        rigid_system = RigidBodySystem(sphere;
+                                      acceleration=(0.0, -gravity),
+                                      boundary_contact_model=boundary_contact_model,
+                                      particle_spacing=structure_particle_spacing)
+
+        semi = Semidiscretization(wall_system, rigid_system)
+        ode = semidiscretize(semi, (0.0, 0.45))
+        solution = solve(ode, RDPK3SpFSAL49();
+                         abstol=1e-7, reltol=5e-4,
+                         dt=1e-4, qmax=1.1,
+                         saveat=0.001,
+                         save_everystep=false,
+                         callback=UpdateCallback())
+
+        @test solution.retcode == ReturnCode.Success
+        @test length(solution.t) > 2
+
+        function center_of_mass_y(u_state)
+            u_rigid = TrixiParticles.wrap_u(u_state, rigid_system, semi)
+            coordinates = TrixiParticles.current_coordinates(u_rigid, rigid_system)
+            total_mass = sum(rigid_system.mass)
+            center_y = zero(eltype(coordinates))
+
+            for particle in eachindex(rigid_system.mass)
+                center_y += rigid_system.mass[particle] * coordinates[2, particle]
+            end
+
+            return center_y / total_mass
+        end
+
+        function minimum_y(u_state)
+            u_rigid = TrixiParticles.wrap_u(u_state, rigid_system, semi)
+            coordinates = TrixiParticles.current_coordinates(u_rigid, rigid_system)
+
+            return minimum(coordinates[2, :])
+        end
+
+        function analytical_bounce_positions(times, initial_y, contact_y, gravity, restitution)
+            analytical_y = similar(times)
+            initial_drop_height = max(initial_y - contact_y, zero(eltype(times)))
+
+            if initial_drop_height <= eps(eltype(times))
+                analytical_y .= contact_y
+                return analytical_y
+            end
+
+            impact_speed = sqrt(2 * gravity * initial_drop_height)
+            first_impact_time = impact_speed / gravity
+
+            for i in eachindex(times)
+                t = times[i]
+
+                if t <= first_impact_time
+                    analytical_y[i] = initial_y - 0.5 * gravity * t^2
+                    continue
+                end
+
+                time_since_impact = t - first_impact_time
+                rebound_speed = restitution * impact_speed
+
+                while rebound_speed > sqrt(eps(eltype(times)))
+                    flight_time = 2 * rebound_speed / gravity
+
+                    if time_since_impact <= flight_time
+                        analytical_y[i] = contact_y + rebound_speed * time_since_impact -
+                                          0.5 * gravity * time_since_impact^2
+                        break
+                    end
+
+                    time_since_impact -= flight_time
+                    rebound_speed *= restitution
+                end
+
+                if rebound_speed <= sqrt(eps(eltype(times)))
+                    analytical_y[i] = contact_y
+                end
+            end
+
+            return analytical_y
+        end
+
+        wall_top = maximum(wall_coordinates[2, :])
+        runtime_contact_model = rigid_system.boundary_contact_model
+        contact_distance = runtime_contact_model.contact_distance
+        effective_contact_height = wall_top + sphere_radius + contact_distance
+
+        center_y_history = [center_of_mass_y(state.x[2]) for state in solution.u]
+        minimum_y_history = [minimum_y(state.x[2]) for state in solution.u]
+        analytical_y = analytical_bounce_positions(solution.t, initial_center[2],
+                                                   effective_contact_height,
+                                                   gravity,
+                                                   steel_material.restitution)
+
+        contact_threshold = wall_top + 1.1 * contact_distance
+        free_flight_indices = findall(y -> y > contact_threshold, minimum_y_history)
+        free_flight_rms_y_error = sqrt(sum((center_y_history[i] - analytical_y[i])^2
+                                           for i in free_flight_indices) /
+                                       length(free_flight_indices))
+
+        impact_index = findfirst(y -> y <= wall_top + contact_distance, minimum_y_history)
+        rebound_height_numerical = isnothing(impact_index) ? NaN :
+                                   maximum(center_y_history[impact_index:end])
+        rebound_height_analytical = effective_contact_height +
+                                    steel_material.restitution^2 *
+                                    max(initial_center[2] - effective_contact_height, 0.0)
+        rebound_height_ratio = rebound_height_numerical / rebound_height_analytical
+        separated_after_impact = !isnothing(impact_index) &&
+                                 any(y -> y > wall_top + contact_distance +
+                                          0.25 * structure_particle_spacing,
+                                     minimum_y_history[(impact_index + 1):end])
+
+        @test !isempty(free_flight_indices)
+        @test !isnothing(impact_index)
+        @test separated_after_impact
+        @test 0.9 <= rebound_height_ratio <= 1.05
+        @test free_flight_rms_y_error < 0.02
+    end
+
+    @trixi_testset "Steel Rigid-Body Resolution Invariance" begin
+        using OrdinaryDiffEq
+
+        gravity = 9.81
+        sphere_radius = 0.04
+        initial_center = (0.0, 0.26)
+        wall_material = (; youngs_modulus=3.0e11, poisson_ratio=0.2)
+        steel_material = (; density=7850.0, youngs_modulus=2.1e11, poisson_ratio=0.29,
+                          restitution=0.8, friction_coefficient=0.55)
+
+        function analytical_bounce_positions(times, initial_y, contact_y, gravity, restitution)
+            analytical_y = similar(times)
+            initial_drop_height = max(initial_y - contact_y, zero(eltype(times)))
+
+            if initial_drop_height <= eps(eltype(times))
+                analytical_y .= contact_y
+                return analytical_y
+            end
+
+            impact_speed = sqrt(2 * gravity * initial_drop_height)
+            first_impact_time = impact_speed / gravity
+
+            for i in eachindex(times)
+                t = times[i]
+
+                if t <= first_impact_time
+                    analytical_y[i] = initial_y - 0.5 * gravity * t^2
+                    continue
+                end
+
+                time_since_impact = t - first_impact_time
+                rebound_speed = restitution * impact_speed
+
+                while rebound_speed > sqrt(eps(eltype(times)))
+                    flight_time = 2 * rebound_speed / gravity
+
+                    if time_since_impact <= flight_time
+                        analytical_y[i] = contact_y + rebound_speed * time_since_impact -
+                                          0.5 * gravity * time_since_impact^2
+                        break
+                    end
+
+                    time_since_impact -= flight_time
+                    rebound_speed *= restitution
+                end
+
+                if rebound_speed <= sqrt(eps(eltype(times)))
+                    analytical_y[i] = contact_y
+                end
+            end
+
+            return analytical_y
+        end
+
+        function run_steel_resolution_case(structure_particle_spacing)
+            structure_smoothing_length = 1.5 * structure_particle_spacing
+            structure_smoothing_kernel = WendlandC2Kernel{2}()
+
+            wall_x = collect(-0.22:structure_particle_spacing:0.22)
+            boundary_layers = 3
+            n_wall_particles = boundary_layers * length(wall_x)
+            wall_coordinates = zeros(2, n_wall_particles)
+            wall_mass = fill(1000.0 * structure_particle_spacing^2, n_wall_particles)
+            wall_density = fill(1000.0, n_wall_particles)
+
+            let index = 1
+                for layer in 0:(boundary_layers - 1), x in wall_x
+                    wall_coordinates[1, index] = x
+                    wall_coordinates[2, index] = -layer * structure_particle_spacing
+                    index += 1
+                end
+            end
+
+            wall_ic = InitialCondition(; coordinates=wall_coordinates,
+                                       mass=wall_mass,
+                                       density=wall_density,
+                                       particle_spacing=structure_particle_spacing)
+            wall_model = BoundaryModelDummyParticles(wall_density, wall_mass,
+                                                     PressureZeroing(),
+                                                     structure_smoothing_kernel,
+                                                     structure_smoothing_length)
+            wall_system = WallBoundarySystem(wall_ic, wall_model)
+
+            sphere = SphereShape(structure_particle_spacing, sphere_radius, initial_center,
+                                 steel_material.density, sphere_type=RoundSphere())
+            boundary_contact_model = LinearizedHertzMindlinBoundaryContactModel(;
+                                                                                material=steel_material,
+                                                                                wall_material,
+                                                                                radius=sphere_radius,
+                                                                                center=initial_center,
+                                                                                gravity,
+                                                                                particle_spacing=structure_particle_spacing,
+                                                                                ndims=2,
+                                                                                torque_free=true,
+                                                                                resting_contact_projection=false)
+            rigid_system = RigidBodySystem(sphere;
+                                          acceleration=(0.0, -gravity),
+                                          boundary_contact_model=boundary_contact_model,
+                                          particle_spacing=structure_particle_spacing)
+
+            semi = Semidiscretization(wall_system, rigid_system)
+            ode = semidiscretize(semi, (0.0, 0.45))
+            solution = solve(ode, RDPK3SpFSAL49();
+                             abstol=1e-7, reltol=5e-4,
+                             dt=1e-4, qmax=1.1,
+                             saveat=0.001,
+                             save_everystep=false,
+                             callback=UpdateCallback())
+
+            total_mass = sum(rigid_system.mass)
+            center_x_history = similar(solution.t)
+            center_y_history = similar(solution.t)
+            minimum_y_history = similar(solution.t)
+
+            for i in eachindex(solution.t)
+                u_rigid = TrixiParticles.wrap_u(solution.u[i].x[2], rigid_system, semi)
+                coordinates = TrixiParticles.current_coordinates(u_rigid, rigid_system)
+                center_x = zero(eltype(coordinates))
+                center_y = zero(eltype(coordinates))
+
+                for particle in eachindex(rigid_system.mass)
+                    center_x += rigid_system.mass[particle] * coordinates[1, particle]
+                    center_y += rigid_system.mass[particle] * coordinates[2, particle]
+                end
+
+                center_x_history[i] = center_x / total_mass
+                center_y_history[i] = center_y / total_mass
+                minimum_y_history[i] = minimum(coordinates[2, :])
+            end
+
+            wall_top = maximum(wall_coordinates[2, :])
+            runtime_contact_model = rigid_system.boundary_contact_model
+            contact_distance = runtime_contact_model.contact_distance
+            effective_contact_height = wall_top + sphere_radius + contact_distance
+
+            analytical_y = analytical_bounce_positions(solution.t, initial_center[2],
+                                                       effective_contact_height,
+                                                       gravity,
+                                                       steel_material.restitution)
+            contact_threshold = wall_top + 1.1 * contact_distance
+            free_flight_indices = findall(y -> y > contact_threshold, minimum_y_history)
+            free_flight_rms_y_error = sqrt(sum((center_y_history[i] - analytical_y[i])^2
+                                               for i in free_flight_indices) /
+                                           length(free_flight_indices))
+
+            impact_index = findfirst(y -> y <= wall_top + contact_distance, minimum_y_history)
+            rebound_height_numerical = isnothing(impact_index) ? NaN :
+                                       maximum(center_y_history[impact_index:end])
+            rebound_height_analytical = effective_contact_height +
+                                        steel_material.restitution^2 *
+                                        max(initial_center[2] - effective_contact_height, 0.0)
+            rebound_height_ratio = rebound_height_numerical / rebound_height_analytical
+            separated_after_impact = !isnothing(impact_index) &&
+                                     any(y -> y > wall_top + contact_distance +
+                                              0.25 * structure_particle_spacing,
+                                         minimum_y_history[(impact_index + 1):end])
+            max_horizontal_drift = maximum(abs, center_x_history .- initial_center[1])
+
+            return (; solution,
+                    rebound_height_ratio,
+                    separated_after_impact,
+                    max_horizontal_drift,
+                    free_flight_rms_y_error)
+        end
+
+        coarse = run_steel_resolution_case(0.04)
+        baseline = run_steel_resolution_case(0.02)
+        fine = run_steel_resolution_case(0.01)
+
+        for result in (coarse, baseline, fine)
+            @test result.solution.retcode == ReturnCode.Success
+            @test result.separated_after_impact
+            @test 0.93 <= result.rebound_height_ratio <= 1.02
+            @test result.max_horizontal_drift < 0.004
+            @test result.free_flight_rms_y_error < 0.02
+        end
+
+        coarse_baseline_rebound_delta = abs(coarse.rebound_height_ratio -
+                                            baseline.rebound_height_ratio)
+        fine_baseline_rebound_delta = abs(fine.rebound_height_ratio -
+                                          baseline.rebound_height_ratio)
+        drift_spread = maximum((coarse.max_horizontal_drift,
+                                baseline.max_horizontal_drift,
+                                fine.max_horizontal_drift)) -
+                       minimum((coarse.max_horizontal_drift,
+                                baseline.max_horizontal_drift,
+                                fine.max_horizontal_drift))
+
+        @test coarse_baseline_rebound_delta < 0.03
+        @test fine_baseline_rebound_delta < 0.02
+        @test drift_spread < 0.0035
     end
 
     @trixi_testset "Boundary Contact Timestep Refinement" begin

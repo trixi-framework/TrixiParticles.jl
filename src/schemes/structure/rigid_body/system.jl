@@ -139,18 +139,24 @@ function create_cache_rigid(::Val{NDIMS}, ELTYPE, n_particles,
     tangential_displacement = create_contact_tangential_displacement(boundary_contact_model,
                                                                      ELTYPE, Val(NDIMS))
     manifold_cache = create_contact_manifold_cache(Val(NDIMS), ELTYPE, n_particles)
+    patch_normalization_cache = create_contact_patch_normalization_cache(Val(NDIMS), ELTYPE,
+                                                                         n_particles,
+                                                                         boundary_contact_model)
 
     return (; color=Int(color_value),
             contact_tangential_displacement=tangential_displacement,
             boundary_contact_count=Ref(0),
             max_boundary_penetration=Ref(zero(ELTYPE)),
             resting_contact_counter=Ref(0),
-            manifold_cache...)
+            manifold_cache...,
+            patch_normalization_cache...)
 end
+
+contact_manifold_capacity(::Val{NDIMS}) where {NDIMS} = 8
 
 function create_contact_manifold_cache(::Val{NDIMS}, ELTYPE,
                                        n_particles) where {NDIMS}
-    max_manifolds = 8
+    max_manifolds = contact_manifold_capacity(Val(NDIMS))
 
     return (; contact_manifold_count=zeros(Int, n_particles),
             contact_manifold_weight_sum=zeros(ELTYPE, max_manifolds, n_particles),
@@ -160,6 +166,26 @@ function create_contact_manifold_cache(::Val{NDIMS}, ELTYPE,
                                                      n_particles),
             contact_manifold_tangential_displacement_sum=zeros(ELTYPE, NDIMS,
                                                                max_manifolds, n_particles))
+end
+
+function create_contact_patch_normalization_cache(::Val{NDIMS}, ELTYPE,
+                                                  n_particles,
+                                                  boundary_contact_model) where {NDIMS}
+    use_patch_normalization = !isnothing(boundary_contact_model) &&
+                              boundary_contact_model.normalize_force_by_contact_patch
+    max_manifolds = contact_manifold_capacity(Val(NDIMS))
+
+    if !use_patch_normalization
+        return (; contact_patch_cluster_index=zeros(Int, max_manifolds, n_particles),
+                contact_patch_cluster_count=zeros(Int, 0),
+                contact_patch_cluster_normal_sum=zeros(ELTYPE, NDIMS, 0))
+    end
+
+    max_clusters = max_manifolds * n_particles
+
+    return (; contact_patch_cluster_index=zeros(Int, max_manifolds, n_particles),
+            contact_patch_cluster_count=zeros(Int, max_clusters),
+            contact_patch_cluster_normal_sum=zeros(ELTYPE, NDIMS, max_clusters))
 end
 
 function reset_interaction_accumulators!(system::RigidBodySystem)

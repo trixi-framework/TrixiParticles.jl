@@ -200,6 +200,9 @@ function reset_contact_manifold_cache!(cache)
     set_zero!(cache.contact_manifold_normal_sum)
     set_zero!(cache.contact_manifold_wall_velocity_sum)
     set_zero!(cache.contact_manifold_tangential_displacement_sum)
+    set_zero!(cache.contact_patch_cluster_index)
+    set_zero!(cache.contact_patch_cluster_count)
+    set_zero!(cache.contact_patch_cluster_normal_sum)
 
     return cache
 end
@@ -283,6 +286,83 @@ end
                                          Val(NDIMS)))
 end
 
+function find_or_add_contact_patch_cluster!(cache, cluster_count, normal, normal_merge_cos,
+                                            ELTYPE)
+    best_index = 1
+    best_dot = -one(ELTYPE)
+
+    for cluster in 1:cluster_count
+        normal_norm_squared = zero(ELTYPE)
+        dot_value = zero(ELTYPE)
+        for dim in eachindex(normal)
+            normal_value = cache.contact_patch_cluster_normal_sum[dim, cluster]
+            normal_norm_squared += normal_value^2
+            dot_value += normal_value * normal[dim]
+        end
+
+        if normal_norm_squared > eps(ELTYPE)
+            dot_value /= sqrt(normal_norm_squared)
+        else
+            dot_value = one(ELTYPE)
+        end
+
+        if dot_value >= normal_merge_cos
+            return cluster_count, cluster
+        end
+
+        if dot_value > best_dot
+            best_dot = dot_value
+            best_index = cluster
+        end
+    end
+
+    max_clusters = length(cache.contact_patch_cluster_count)
+    if cluster_count < max_clusters
+        cluster_count += 1
+        return cluster_count, cluster_count
+    end
+
+    return cluster_count, best_index
+end
+
+function update_contact_patch_cluster_cache!(particle_system::RigidBodySystem{<:Any, <:Any, NDIMS},
+                                             normal_merge_cos, ELTYPE) where {NDIMS}
+    cache = particle_system.cache
+    length(cache.contact_patch_cluster_count) == 0 && return cache
+
+    cluster_count = 0
+
+    for particle in each_integrated_particle(particle_system)
+        n_manifolds = cache.contact_manifold_count[particle]
+        n_manifolds == 0 && continue
+
+        for manifold in 1:n_manifolds
+            weight_sum = cache.contact_manifold_weight_sum[manifold, particle]
+            weight_sum <= eps(ELTYPE) && continue
+
+            normal = weighted_manifold_vector(cache.contact_manifold_normal_sum,
+                                              manifold, particle, weight_sum, Val(NDIMS),
+                                              ELTYPE)
+            normal_norm = norm(normal)
+            normal_norm <= eps(ELTYPE) && continue
+            normal /= normal_norm
+
+            cluster_count, cluster = find_or_add_contact_patch_cluster!(cache, cluster_count,
+                                                                        normal,
+                                                                        normal_merge_cos,
+                                                                        ELTYPE)
+            cache.contact_patch_cluster_index[manifold, particle] = cluster
+            cache.contact_patch_cluster_count[cluster] += 1
+
+            for dim in 1:NDIMS
+                cache.contact_patch_cluster_normal_sum[dim, cluster] += normal[dim]
+            end
+        end
+    end
+
+    return cache
+end
+
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::RigidBodySystem{<:Any, <:Any, NDIMS},
@@ -304,6 +384,7 @@ function interact!(dv, v_particle_system, u_particle_system,
     zero_tangential = zero(SVector{NDIMS, ELTYPE})
     contact_map = particle_system.cache.contact_tangential_displacement
     normal_merge_cos = convert(ELTYPE, 0.995)
+    patch_merge_cos = convert(ELTYPE, 0.8)
     boundary_contact_count = 0
     max_boundary_penetration = zero(ELTYPE)
 
@@ -314,6 +395,9 @@ function interact!(dv, v_particle_system, u_particle_system,
                                    contact_model,
                                    normal_merge_cos, zero_tangential,
                                    ELTYPE)
+    if contact_model.normalize_force_by_contact_patch
+        update_contact_patch_cluster_cache!(particle_system, patch_merge_cos, ELTYPE)
+    end
 
     for particle in each_integrated_particle(particle_system)
         n_manifolds = particle_system.cache.contact_manifold_count[particle]
@@ -360,6 +444,12 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                         normal_force_friction_reference,
                                                         ELTYPE)
             interaction_force = normal_force_magnitude * normal + tangential_force
+            if contact_model.normalize_force_by_contact_patch
+                cluster_index = particle_system.cache.contact_patch_cluster_index[manifold,
+                                                                                  particle]
+                cluster_size = particle_system.cache.contact_patch_cluster_count[cluster_index]
+                interaction_force /= convert(ELTYPE, cluster_size)
+            end
 
             for dim in 1:NDIMS
                 contact_force_per_particle[dim, particle] += interaction_force[dim]

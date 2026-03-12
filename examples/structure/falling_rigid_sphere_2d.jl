@@ -41,7 +41,7 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
 sphere_radius = 0.16
 
 # Material properties [SI units]
-wall_material = (; youngs_modulus=3.0e10, poisson_ratio=0.2)
+wall_material = (; youngs_modulus=3.0e11, poisson_ratio=0.2)
 material_properties = (
     elastic=(; density=1200.0, youngs_modulus=2.0e9, poisson_ratio=0.35,
              restitution=1.0, friction_coefficient=0.0),

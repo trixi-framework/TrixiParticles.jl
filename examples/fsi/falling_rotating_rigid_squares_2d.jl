@@ -10,7 +10,7 @@ using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-fluid_particle_spacing = 0.02
+fluid_particle_spacing = 0.01
 structure_particle_spacing = fluid_particle_spacing
 
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
@@ -20,14 +20,14 @@ spacing_ratio = 1
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 9.81
-tspan = (0.0, 1.0)
+tspan = (0.0, 2.0)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (2.0, 1.0)
-tank_size = (2.0, 2.0)
+tank_size = (2.0, 3.0)
 
 fluid_density = 1000.0
-sound_speed = 10 * sqrt(gravity * initial_fluid_size[2])
+sound_speed = 100.0
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1)
 
@@ -182,5 +182,5 @@ callbacks = CallbackSet(info_callback, saving_callback, update_callback)
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-6, # Default abstol is 1e-6
-            reltol=1e-3, # Default reltol is 1e-3
+            reltol=1e-5, # Default reltol is 1e-3
             save_everystep=false, callback=callbacks);

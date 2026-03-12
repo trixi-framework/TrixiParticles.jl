@@ -232,6 +232,7 @@ function add_system_data!(system_data, contact_model::RigidBoundaryContactModel)
     system_data["boundary_contact_model"]["contact_distance"] = contact_model.contact_distance
     system_data["boundary_contact_model"]["stick_velocity_tolerance"] = contact_model.stick_velocity_tolerance
     system_data["boundary_contact_model"]["penetration_slop"] = contact_model.penetration_slop
+    system_data["boundary_contact_model"]["normalize_force_by_contact_patch"] = contact_model.normalize_force_by_contact_patch
 end
 
 function add_system_data!(system_data, state_equation::StateEquationCole)

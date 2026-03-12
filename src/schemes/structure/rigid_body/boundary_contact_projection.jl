@@ -62,11 +62,14 @@ end
 
 @inline function resting_contact_speed_threshold(contact_model::RigidBoundaryContactModel,
                                                  dt_contact, velocity_floor, ELTYPE)
-    characteristic_speed = dt_contact > eps(ELTYPE) ? contact_model.contact_distance / dt_contact :
-                           zero(ELTYPE)
+    # Use the friction stick/slip regularization scale as the upper bound for
+    # "resting" motion. Basing this on `contact_distance / dt_contact` makes the
+    # threshold large enough to classify ordinary impacts as resting contact,
+    # which suppresses rebound when adaptive time stepping collapses near impact.
+    dt_contact > eps(ELTYPE) || return convert(ELTYPE, 5) * velocity_floor
 
     return max(convert(ELTYPE, 5) * velocity_floor,
-               convert(ELTYPE, 0.02) * characteristic_speed)
+               convert(ELTYPE, 0.5) * contact_model.stick_velocity_tolerance)
 end
 
 """
@@ -87,14 +90,18 @@ end
 """
     resting_projection_triggered(dt, dt_contact, resting_counter, ELTYPE)
 
-Trigger projection either when `dt` is already near contact-time collapse or
-when a resting regime persists for multiple callback updates.
+Trigger projection only after low-speed contact has persisted for multiple
+callback updates. A collapsed `dt` may accelerate the trigger, but it must not
+activate projection on the first low-speed impact step by itself.
 """
 @inline function resting_projection_triggered(dt, dt_contact, resting_counter, ELTYPE)
     dt_projection_trigger = convert(ELTYPE, 0.1) * dt_contact
-    projection_persistence_steps = 2
+    collapsed_dt_persistence_steps = 2
+    settled_persistence_steps = 3
 
-    return dt <= dt_projection_trigger || resting_counter >= projection_persistence_steps
+    return resting_counter >= settled_persistence_steps ||
+           (dt <= dt_projection_trigger &&
+            resting_counter >= collapsed_dt_persistence_steps)
 end
 
 function should_project_resting_contact!(system::RigidBodySystem,

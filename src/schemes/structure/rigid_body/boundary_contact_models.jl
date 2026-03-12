@@ -12,6 +12,7 @@ struct RigidBoundaryContactModel{ELTYPE <: Real} <: AbstractRigidBoundaryContact
     penetration_slop::ELTYPE
     torque_free::Bool
     resting_contact_projection::Bool
+    normalize_force_by_contact_patch::Bool
 end
 
 function RigidBoundaryContactModel(; normal_stiffness,
@@ -24,7 +25,8 @@ function RigidBoundaryContactModel(; normal_stiffness,
                                    stick_velocity_tolerance=1e-6,
                                    penetration_slop=0.0,
                                    torque_free=false,
-                                   resting_contact_projection=true)
+                                   resting_contact_projection=true,
+                                   normalize_force_by_contact_patch=false)
     ELTYPE = promote_type(typeof(normal_stiffness),
                           typeof(normal_damping),
                           typeof(static_friction_coefficient),
@@ -72,7 +74,8 @@ function RigidBoundaryContactModel(; normal_stiffness,
                                      tangential_stiffness_, tangential_damping_,
                                      contact_distance_, stick_velocity_tolerance_,
                                      penetration_slop_, Bool(torque_free),
-                                     Bool(resting_contact_projection))
+                                     Bool(resting_contact_projection),
+                                     Bool(normalize_force_by_contact_patch))
 end
 
 """
@@ -510,7 +513,8 @@ function RigidBoundaryContactModel(model::PerfectElasticBoundaryContactModel,
                                                                       model.stick_velocity_tolerance),
                                      penetration_slop=zero(ELTYPE),
                                      torque_free=model.torque_free,
-                                     resting_contact_projection=false)
+                                     resting_contact_projection=false,
+                                     normalize_force_by_contact_patch=false)
 end
 
 function RigidBoundaryContactModel(model::LinearizedHertzMindlinBoundaryContactModel,
@@ -574,7 +578,8 @@ function RigidBoundaryContactModel(model::LinearizedHertzMindlinBoundaryContactM
                                      penetration_slop=convert(ELTYPE,
                                                               model.penetration_slop),
                                      torque_free=model.torque_free,
-                                     resting_contact_projection=model.resting_contact_projection)
+                                     resting_contact_projection=model.resting_contact_projection,
+                                     normalize_force_by_contact_patch=true)
 end
 
 function RigidBoundaryContactModel(model::RigidBoundaryContactModel, particle_spacing,
@@ -599,7 +604,8 @@ function RigidBoundaryContactModel(model::RigidBoundaryContactModel, particle_sp
                                      penetration_slop=convert(ELTYPE,
                                                               model.penetration_slop),
                                      torque_free=model.torque_free,
-                                     resting_contact_projection=model.resting_contact_projection)
+                                     resting_contact_projection=model.resting_contact_projection,
+                                     normalize_force_by_contact_patch=model.normalize_force_by_contact_patch)
 end
 
 create_contact_tangential_displacement(::Nothing, ELTYPE, ::Val{NDIMS}) where {NDIMS} = nothing
@@ -625,6 +631,7 @@ function Base.show(io::IO, model::RigidBoundaryContactModel)
     print(io, ", penetration_slop=", model.penetration_slop)
     print(io, ", torque_free=", model.torque_free)
     print(io, ", resting_contact_projection=", model.resting_contact_projection)
+    print(io, ", normalize_force_by_contact_patch=", model.normalize_force_by_contact_patch)
     print(io, ")")
 end
 
