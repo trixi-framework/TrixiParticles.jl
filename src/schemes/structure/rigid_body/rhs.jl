@@ -371,7 +371,7 @@ end
                                          Val(NDIMS)))
 end
 
-@inline function normal_contact_force(contact_model::RigidBoundaryContactModel,
+@inline function normal_contact_force(contact_model::RigidContactModel,
                                       penetration, normal_velocity, ELTYPE)
     # Basic wall contact uses a linear penalty in the normal direction plus viscous damping.
     elastic_force = contact_model.normal_stiffness * penetration

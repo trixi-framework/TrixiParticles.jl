@@ -753,28 +753,31 @@
                                                      smoothing_length)
         boundary_system = WallBoundarySystem(boundary_ic, boundary_model)
 
-        contact_model = RigidBoundaryContactModel(; normal_stiffness=2.0e4,
-                                                  normal_damping=20.0,
-                                                  contact_distance=0.1)
+        contact_model = RigidContactModel(; normal_stiffness=2.0e4,
+                                          normal_damping=20.0,
+                                          contact_distance=0.1)
 
-        runtime_model = TrixiParticles.RigidBoundaryContactModel(contact_model,
-                                                                 0.1, Float64)
-        @test runtime_model isa RigidBoundaryContactModel
+        runtime_model = TrixiParticles.RigidContactModel(contact_model, 0.1, Float64)
+        runtime_model_alias = TrixiParticles.RigidBoundaryContactModel(contact_model,
+                                                                       0.1, Float64)
+        @test TrixiParticles.RigidBoundaryContactModel === TrixiParticles.RigidContactModel
+        @test runtime_model isa RigidContactModel
+        @test runtime_model_alias isa RigidContactModel
         @test runtime_model.normal_stiffness ≈ 2.0e4
         @test runtime_model.normal_damping ≈ 20.0
         @test runtime_model.contact_distance ≈ 0.1
 
-        spacing_scaled_model = RigidBoundaryContactModel(; normal_stiffness=5.0)
-        spacing_scaled_runtime = TrixiParticles.RigidBoundaryContactModel(spacing_scaled_model,
-                                                                          0.125,
-                                                                          Float64)
+        spacing_scaled_model = RigidContactModel(; normal_stiffness=5.0)
+        spacing_scaled_runtime = TrixiParticles.RigidContactModel(spacing_scaled_model,
+                                                                  0.125,
+                                                                  Float64)
         @test spacing_scaled_runtime.contact_distance ≈ 0.125
 
-        @test_throws ArgumentError RigidBoundaryContactModel(; normal_stiffness=0.0)
-        @test_throws ArgumentError RigidBoundaryContactModel(; normal_stiffness=1.0,
-                                                             normal_damping=-1.0)
-        @test_throws ArgumentError RigidBoundaryContactModel(; normal_stiffness=1.0,
-                                                             contact_distance=-1.0)
+        @test_throws ArgumentError RigidContactModel(; normal_stiffness=0.0)
+        @test_throws ArgumentError RigidContactModel(; normal_stiffness=1.0,
+                                                     normal_damping=-1.0)
+        @test_throws ArgumentError RigidContactModel(; normal_stiffness=1.0,
+                                                     contact_distance=-1.0)
 
         rigid_system = RigidBodySystem(rigid_ic;
                                        acceleration=(0.0, 0.0),
@@ -785,7 +788,7 @@
         @test haskey(rigid_system.cache, :contact_manifold_count)
         @test TrixiParticles.contact_time_step(rigid_system) ≈ sqrt(rigid_mass[1] /
                    contact_model.normal_stiffness)
-        @test rigid_system.contact_model isa RigidBoundaryContactModel
+        @test rigid_system.contact_model isa RigidContactModel
         @test rigid_system.contact_model.normal_stiffness ≈ contact_model.normal_stiffness
         @test rigid_system.contact_model.normal_damping ≈ contact_model.normal_damping
         @test rigid_system.contact_model.contact_distance ≈ contact_model.contact_distance
