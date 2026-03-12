@@ -138,10 +138,7 @@ function create_cache_rigid(::Val{NDIMS}, ELTYPE, n_particles,
                             color_value) where {NDIMS}
     manifold_cache = create_contact_manifold_cache(Val(NDIMS), ELTYPE, n_particles)
 
-    return (; color=Int(color_value),
-            boundary_contact_count=Ref(0),
-            max_boundary_penetration=Ref(zero(ELTYPE)),
-            manifold_cache...)
+    return (; color=Int(color_value), manifold_cache...)
 end
 
 function create_contact_manifold_cache(::Val{NDIMS}, ELTYPE,
@@ -154,27 +151,6 @@ function create_contact_manifold_cache(::Val{NDIMS}, ELTYPE,
             contact_manifold_normal_sum=zeros(ELTYPE, NDIMS, max_manifolds, n_particles),
             contact_manifold_wall_velocity_sum=zeros(ELTYPE, NDIMS, max_manifolds,
                                                      n_particles))
-end
-
-function reset_interaction_accumulators!(system::RigidBodySystem)
-    system.resultant_force[] = zero(system.resultant_force[])
-    system.resultant_torque[] = zero(system.resultant_torque[])
-    system.angular_acceleration_force[] = zero(system.angular_acceleration_force[])
-    set_zero!(system.force_per_particle)
-    system.cache.boundary_contact_count[] = 0
-    system.cache.max_boundary_penetration[] = zero(eltype(system))
-    reset_contact_manifold_cache!(system.cache)
-
-    return system
-end
-
-function reset_resultants_and_contact_state!(system::RigidBodySystem)
-    reset_interaction_accumulators!(system)
-
-    system.cache.boundary_contact_count[] = 0
-    system.cache.max_boundary_penetration[] = zero(eltype(system))
-
-    return system
 end
 
 function rigid_center_of_mass_kinematics(system::RigidBodySystem, coordinates, velocity)
@@ -256,40 +232,14 @@ end
     return current_density(v, system.boundary_model, system)
 end
 
-@inline function current_density(v, ::Nothing, system::RigidBodySystem)
-    return system.material_density
-end
-
 # In fluid-structure interaction, use the hydrodynamic pressure corresponding to the
 # configured boundary model.
 @inline function current_pressure(v, system::RigidBodySystem)
     return current_pressure(v, system.boundary_model, system)
 end
 
-@inline function current_pressure(v, ::Nothing, system::RigidBodySystem)
-    return zero(eltype(system))
-end
-
-@propagate_inbounds function current_pressure(v, system::RigidBodySystem{Nothing}, particle)
-    return zero(eltype(system))
-end
-
-@propagate_inbounds function hydrodynamic_mass(system::RigidBodySystem{Nothing}, particle)
-    return system.mass[particle]
-end
-
 @propagate_inbounds function hydrodynamic_mass(system::RigidBodySystem, particle)
     return system.boundary_model.hydrodynamic_mass[particle]
-end
-
-@inline function viscous_velocity(v, system::RigidBodySystem, particle)
-    boundary_model = system.boundary_model
-
-    if isnothing(boundary_model) || isnothing(boundary_model.viscosity)
-        return current_velocity(v, system, particle)
-    end
-
-    return extract_svector(boundary_model.cache.wall_velocity, system, particle)
 end
 
 @inline function smoothing_length(system::RigidBodySystem{<:BoundaryModelDummyParticles},
@@ -422,8 +372,9 @@ function update_final!(system::RigidBodySystem, v, u, v_ode, u_ode, semi, t)
                                                         center_of_mass_velocity;
                                                         relative_coordinates=system.relative_coordinates)
 
-    # Reset per-step interaction accumulators before the next RHS assembly.
-    reset_interaction_accumulators!(system)
+    # Reset interaction caches before RHS assembly so pairwise rigid-fluid forces can
+    # accumulate from scratch and non-RHS update paths do not expose stale resultants.
+    set_zero!(system.force_per_particle)
 
     system.center_of_mass[] = center_of_mass
     system.center_of_mass_velocity[] = center_of_mass_velocity
@@ -543,6 +494,11 @@ end
     return neighbor_system.boundary_model.viscosity
 end
 
+@inline function viscous_velocity(v, system::RigidBodySystem, particle)
+    # This function is only used in fluid-structure interaction, so it is never called when `boundary_model` is `nothing`
+    return viscous_velocity(v, system.boundary_model.viscosity, system, particle)
+end
+
 @inline acceleration_source(system::RigidBodySystem) = system.acceleration
 
 @inline function rigid_kinematic_acceleration(system::RigidBodySystem,
@@ -581,8 +537,6 @@ function system_data(system::RigidBodySystem, dv_ode, du_ode, v_ode, u_ode, semi
     resultant_torque = system.resultant_torque[]
     angular_acceleration_force = system.angular_acceleration_force[]
     gyroscopic_acceleration = system.gyroscopic_acceleration[]
-    boundary_contact_count = system.cache.boundary_contact_count[]
-    max_boundary_penetration = system.cache.max_boundary_penetration[]
     relative_coordinates = system.relative_coordinates
 
     return (; coordinates, velocity, mass=system.mass,
@@ -592,7 +546,6 @@ function system_data(system::RigidBodySystem, dv_ode, du_ode, v_ode, u_ode, semi
             angular_velocity,
             resultant_force, resultant_torque,
             angular_acceleration_force, gyroscopic_acceleration,
-            boundary_contact_count, max_boundary_penetration,
             density, pressure, acceleration)
 end
 
@@ -602,7 +555,6 @@ function available_data(::RigidBodySystem)
             :center_of_mass, :center_of_mass_velocity,
             :angular_velocity, :resultant_force, :resultant_torque,
             :angular_acceleration_force, :gyroscopic_acceleration,
-            :boundary_contact_count, :max_boundary_penetration,
             :density, :pressure, :acceleration)
 end
 
@@ -612,7 +564,6 @@ function Base.show(io::IO, system::RigidBodySystem)
     print(io, "RigidBodySystem{", ndims(system), "}(")
     print(io, system.acceleration)
     print(io, ", ", system.boundary_model)
-    print(io, ", ", system.boundary_contact_model)
     print(io, ") with ", nparticles(system), " particles")
 end
 
@@ -626,7 +577,6 @@ function Base.show(io::IO, ::MIME"text/plain", system::RigidBodySystem)
         summary_line(io, "#particles", nparticles(system))
         summary_line(io, "acceleration", system.acceleration)
         summary_line(io, "boundary model", system.boundary_model)
-        summary_line(io, "boundary contact model", system.boundary_contact_model)
         summary_footer(io)
     end
 end

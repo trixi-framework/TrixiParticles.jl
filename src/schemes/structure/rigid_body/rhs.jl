@@ -308,8 +308,6 @@ function interact!(dv, v_particle_system, u_particle_system,
 
     ELTYPE = eltype(particle_system)
     normal_merge_cos = convert(ELTYPE, 0.995)
-    boundary_contact_count = 0
-    max_boundary_penetration = zero(ELTYPE)
 
     update_contact_manifold_cache!(particle_system, neighbor_system,
                                    u_particle_system,
@@ -357,15 +355,8 @@ function interact!(dv, v_particle_system, u_particle_system,
             for dim in 1:NDIMS
                 particle_system.force_per_particle[dim, particle] += interaction_force[dim]
             end
-
-            boundary_contact_count += 1
-            max_boundary_penetration = max(max_boundary_penetration, penetration_effective)
         end
     end
-
-    particle_system.cache.boundary_contact_count[] += boundary_contact_count
-    particle_system.cache.max_boundary_penetration[] = max(particle_system.cache.max_boundary_penetration[],
-                                                           max_boundary_penetration)
 
     return dv
 end

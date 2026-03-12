@@ -62,7 +62,7 @@
                                  boundary_model=boundary_model,
                                  acceleration=(0.0, -9.81))
 
-        show_compact = "RigidBodySystem{2}([0.0, -9.81], BoundaryModelDummyParticles(SummationDensity, Nothing), nothing) with 2 particles"
+        show_compact = "RigidBodySystem{2}([0.0, -9.81], BoundaryModelDummyParticles(SummationDensity, Nothing)) with 2 particles"
         @test repr(system) == show_compact
 
         show_box = """
@@ -72,7 +72,6 @@
         │ #particles: ………………………………………………… 2                                                                │
         │ acceleration: …………………………………………… [0.0, -9.81]                                                     │
         │ boundary model: ……………………………………… BoundaryModelDummyParticles(SummationDensity, Nothing)           │
-        │ boundary contact model: ………………… nothing                                                          │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", system) == show_box
     end
@@ -795,7 +794,5 @@
                                              dv_ode, v_ode, u_ode, semi)
 
         @test dv[2, 1] > 0
-        @test rigid_system.cache.boundary_contact_count[] > 0
-        @test rigid_system.cache.max_boundary_penetration[] > 0
     end
 end
