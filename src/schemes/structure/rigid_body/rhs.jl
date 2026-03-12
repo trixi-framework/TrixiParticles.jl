@@ -177,6 +177,73 @@ end
                          grad_kernel, particle)
 end
 
+function interact!(dv, v_particle_system, u_particle_system,
+                   v_neighbor_system, u_neighbor_system,
+                   particle_system::RigidBodySystem{<:Any, BCM, NDIMS},
+                   neighbor_system::WallBoundarySystem, semi) where {BCM, NDIMS}
+    contact_model = particle_system.boundary_contact_model
+
+    # Rebuild the manifold cache for this rigid-wall system pair before reducing it to forces.
+    reset_contact_manifold_cache!(particle_system.cache)
+
+    ELTYPE = eltype(particle_system)
+    normal_merge_cos = convert(ELTYPE, 0.995)
+
+    update_contact_manifold_cache!(particle_system, neighbor_system,
+                                   u_particle_system,
+                                   v_neighbor_system, u_neighbor_system,
+                                   semi,
+                                   contact_model,
+                                   normal_merge_cos,
+                                   ELTYPE)
+
+    # Apply one force contribution per manifold using the averaged normal, penetration, and
+    # wall velocity stored in the cache.
+    for particle in each_integrated_particle(particle_system)
+        n_manifolds = particle_system.cache.contact_manifold_count[particle]
+        n_manifolds == 0 && continue
+
+        v_particle = current_velocity(v_particle_system, particle_system, particle)
+
+        for manifold in 1:n_manifolds
+            weight_sum = particle_system.cache.contact_manifold_weight_sum[manifold, particle]
+            weight_sum <= eps(ELTYPE) && continue
+
+            normal = weighted_manifold_vector(particle_system.cache.contact_manifold_normal_sum,
+                                              manifold, particle, weight_sum, Val(NDIMS),
+                                              ELTYPE)
+            normal_norm = norm(normal)
+            normal_norm <= eps(ELTYPE) && continue
+            normal /= normal_norm
+
+            v_boundary = weighted_manifold_vector(particle_system.cache.contact_manifold_wall_velocity_sum,
+                                                  manifold, particle, weight_sum,
+                                                  Val(NDIMS), ELTYPE)
+            penetration_effective = particle_system.cache.contact_manifold_penetration_sum[manifold,
+                                                                                            particle] /
+                                    weight_sum
+
+            relative_velocity = v_particle - v_boundary
+            normal_velocity = dot(relative_velocity, normal)
+
+            # Only the normal spring-dashpot part is kept in the basic collision.
+            normal_force_magnitude = normal_contact_force(contact_model,
+                                                          penetration_effective,
+                                                          normal_velocity,
+                                                          ELTYPE)
+            normal_force_magnitude <= 0 && continue
+
+            interaction_force = normal_force_magnitude * normal
+
+            for dim in 1:NDIMS
+                particle_system.force_per_particle[dim, particle] += interaction_force[dim]
+            end
+        end
+    end
+
+    return dv
+end
+
 # The wall-contact manifold cache is reused for every rigid-wall interaction, so clear all
 # per-particle aggregates before rebuilding it for the current neighbor system.
 function reset_contact_manifold_cache!(cache)
@@ -310,81 +377,6 @@ function update_contact_manifold_cache!(system::RigidBodySystem{<:Any, <:Any, ND
     return system.cache
 end
 
-function interact!(dv, v_particle_system, u_particle_system,
-                   v_neighbor_system, u_neighbor_system,
-                   particle_system::RigidBodySystem{<:Any, Nothing, NDIMS},
-                   neighbor_system::WallBoundarySystem, semi) where {NDIMS}
-    # Rigid systems without an explicit wall-contact model ignore wall neighbors.
-    return dv
-end
-
-function interact!(dv, v_particle_system, u_particle_system,
-                   v_neighbor_system, u_neighbor_system,
-                   particle_system::RigidBodySystem{<:Any, BCM, NDIMS},
-                   neighbor_system::WallBoundarySystem, semi) where {BCM, NDIMS}
-    contact_model = particle_system.boundary_contact_model
-
-    # Rebuild the manifold cache for this rigid-wall system pair before reducing it to forces.
-    reset_contact_manifold_cache!(particle_system.cache)
-
-    ELTYPE = eltype(particle_system)
-    normal_merge_cos = convert(ELTYPE, 0.995)
-
-    update_contact_manifold_cache!(particle_system, neighbor_system,
-                                   u_particle_system,
-                                   v_neighbor_system, u_neighbor_system,
-                                   semi,
-                                   contact_model,
-                                   normal_merge_cos,
-                                   ELTYPE)
-
-    # Apply one force contribution per manifold using the averaged normal, penetration, and
-    # wall velocity stored in the cache.
-    for particle in each_integrated_particle(particle_system)
-        n_manifolds = particle_system.cache.contact_manifold_count[particle]
-        n_manifolds == 0 && continue
-
-        v_particle = current_velocity(v_particle_system, particle_system, particle)
-
-        for manifold in 1:n_manifolds
-            weight_sum = particle_system.cache.contact_manifold_weight_sum[manifold, particle]
-            weight_sum <= eps(ELTYPE) && continue
-
-            normal = weighted_manifold_vector(particle_system.cache.contact_manifold_normal_sum,
-                                              manifold, particle, weight_sum, Val(NDIMS),
-                                              ELTYPE)
-            normal_norm = norm(normal)
-            normal_norm <= eps(ELTYPE) && continue
-            normal /= normal_norm
-
-            v_boundary = weighted_manifold_vector(particle_system.cache.contact_manifold_wall_velocity_sum,
-                                                  manifold, particle, weight_sum,
-                                                  Val(NDIMS), ELTYPE)
-            penetration_effective = particle_system.cache.contact_manifold_penetration_sum[manifold,
-                                                                                            particle] /
-                                    weight_sum
-
-            relative_velocity = v_particle - v_boundary
-            normal_velocity = dot(relative_velocity, normal)
-
-            # Only the normal spring-dashpot part is kept in the basic collision.
-            normal_force_magnitude = normal_contact_force(contact_model,
-                                                          penetration_effective,
-                                                          normal_velocity,
-                                                          ELTYPE)
-            normal_force_magnitude <= 0 && continue
-
-            interaction_force = normal_force_magnitude * normal
-
-            for dim in 1:NDIMS
-                particle_system.force_per_particle[dim, particle] += interaction_force[dim]
-            end
-        end
-    end
-
-    return dv
-end
-
 @inline function normal_contact_force(contact_model::RigidBoundaryContactModel,
                                       penetration, normal_velocity, ELTYPE)
     # Basic wall contact uses a linear penalty in the normal direction plus viscous damping.
@@ -416,5 +408,13 @@ function interact!(dv, v_particle_system, u_particle_system,
                    neighbor_system::Union{AbstractStructureSystem,
                                           AbstractBoundarySystem,
                                           OpenBoundarySystem}, semi)
+    return dv
+end
+
+# Rigid systems without an explicit wall-contact model ignore wall neighbors.
+function interact!(dv, v_particle_system, u_particle_system,
+                   v_neighbor_system, u_neighbor_system,
+                   particle_system::RigidBodySystem{<:Any, Nothing, NDIMS},
+                   neighbor_system::WallBoundarySystem, semi) where {NDIMS}
     return dv
 end
