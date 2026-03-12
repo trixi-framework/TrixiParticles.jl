@@ -61,6 +61,7 @@
         system = RigidBodySystem(initial_condition;
                                  boundary_model=boundary_model,
                                  acceleration=(0.0, -9.81))
+        @test !haskey(system.cache, :contact_manifold_count)
 
         show_compact = "RigidBodySystem{2}([0.0, -9.81], BoundaryModelDummyParticles(SummationDensity, Nothing)) with 2 particles"
         @test repr(system) == show_compact
@@ -778,6 +779,7 @@
         rigid_system = RigidBodySystem(rigid_ic;
                                        acceleration=(0.0, 0.0),
                                        boundary_contact_model=boundary_contact_model)
+        @test haskey(rigid_system.cache, :contact_manifold_count)
         @test TrixiParticles.contact_time_step(rigid_system) ≈ sqrt(rigid_mass[1] /
                                                                     boundary_contact_model.normal_stiffness)
 

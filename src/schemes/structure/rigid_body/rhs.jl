@@ -299,10 +299,16 @@ end
 
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
-                   particle_system::RigidBodySystem{<:Any, <:Any, NDIMS},
+                   particle_system::RigidBodySystem{<:Any, Nothing, NDIMS},
                    neighbor_system::WallBoundarySystem, semi) where {NDIMS}
+    return dv
+end
+
+function interact!(dv, v_particle_system, u_particle_system,
+                   v_neighbor_system, u_neighbor_system,
+                   particle_system::RigidBodySystem{<:Any, BCM, NDIMS},
+                   neighbor_system::WallBoundarySystem, semi) where {BCM, NDIMS}
     contact_model = particle_system.boundary_contact_model
-    isnothing(contact_model) && return dv
 
     reset_contact_manifold_cache!(particle_system.cache)
 

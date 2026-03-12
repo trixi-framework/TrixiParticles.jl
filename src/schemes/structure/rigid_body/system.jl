@@ -129,19 +129,26 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
                              convert(ELTYPE, adhesion_coefficient),
                              create_cache_rigid(Val(NDIMS), ELTYPE,
                                                 nparticles(initial_condition),
-                                                color_value))
+                                                color_value,
+                                                boundary_contact_model_))
 
     return system
 end
 
 function create_cache_rigid(::Val{NDIMS}, ELTYPE, n_particles,
-                            color_value) where {NDIMS}
-    manifold_cache = create_contact_manifold_cache(Val(NDIMS), ELTYPE, n_particles)
+                            color_value,
+                            boundary_contact_model) where {NDIMS}
+    manifold_cache = create_contact_manifold_cache(boundary_contact_model,
+                                                   Val(NDIMS), ELTYPE, n_particles)
 
     return (; color=Int(color_value), manifold_cache...)
 end
 
-function create_contact_manifold_cache(::Val{NDIMS}, ELTYPE,
+create_contact_manifold_cache(::Nothing, ::Val{NDIMS}, ELTYPE,
+                              n_particles) where {NDIMS} = (;)
+
+function create_contact_manifold_cache(boundary_contact_model,
+                                       ::Val{NDIMS}, ELTYPE,
                                        n_particles) where {NDIMS}
     max_manifolds = 8
 
