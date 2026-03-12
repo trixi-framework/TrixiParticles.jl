@@ -109,18 +109,23 @@ end
 function apply_resultant_force_and_torque!(dv, particle_system::RigidBodySystem, semi)
     total_mass = particle_system.total_mass
 
-    if total_mass <= eps(eltype(particle_system))
-        particle_system.resultant_force[] = zero(particle_system.resultant_force[])
-        particle_system.resultant_torque[] = zero(particle_system.resultant_torque[])
-        particle_system.angular_acceleration_force[] = zero(particle_system.angular_acceleration_force[])
-        return dv
-    end
-
     # Reduce all pairwise forces to one net force and one net torque around the center of mass.
-    total_force,
-    total_torque = resultant_force_and_torque(particle_system,
-                                              particle_system.force_per_particle,
-                                              particle_system.relative_coordinates)
+    total_force = zero(SVector{ndims(particle_system), eltype(particle_system)})
+    total_torque = zero(particle_system.resultant_torque[])
+
+    for particle in each_integrated_particle(particle_system)
+        particle_force = extract_svector(particle_system.force_per_particle,
+                                         particle_system,
+                                         particle)
+        relative_position = extract_svector(particle_system.relative_coordinates,
+                                            particle_system,
+                                            particle)
+        total_force += particle_force
+
+        # Torque is taken about the current center of mass, using the particle's current
+        # relative position inside the rigid body.
+        total_torque += cross_product(relative_position, particle_force)
+    end
 
     translational_acceleration = total_force / total_mass
     angular_acceleration_force = particle_system.inverse_inertia[] * total_torque
@@ -144,27 +149,6 @@ function apply_resultant_force_and_torque!(dv, particle_system::RigidBodySystem,
     end
 
     return dv
-end
-
-# Sum pairwise particle forces into a single net force and torque about the current
-# center of mass of the rigid body.
-function resultant_force_and_torque(particle_system::RigidBodySystem{<:Any, <:Any, NDIMS},
-                                    force_per_particle, relative_coordinates) where {NDIMS}
-    total_force = zero(SVector{NDIMS, eltype(particle_system)})
-    total_torque = zero(particle_system.resultant_torque[])
-
-    # This is a reduction and cannot be `@threaded`
-    @inbounds for particle in each_integrated_particle(particle_system)
-        particle_force = extract_svector(force_per_particle, particle_system, particle)
-        relative_position = extract_svector(relative_coordinates, particle_system, particle)
-        total_force += particle_force
-
-        # Torque is taken about the current center of mass, using the particle's current
-        # relative position inside the rigid body.
-        total_torque += cross_product(relative_position, particle_force)
-    end
-
-    return total_force, total_torque
 end
 
 # Default rigid boundary models keep density fixed, so structure-fluid coupling does not
