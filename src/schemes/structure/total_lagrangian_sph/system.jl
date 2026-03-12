@@ -397,17 +397,25 @@ function initialize!(system::TotalLagrangianSPHSystem, semi)
 end
 
 function update_positions!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
-    (; current_coordinates, clamped_particles_motion) = system
+    (; clamped_particles_motion) = system
 
-    # `current_coordinates` stores the coordinates of both integrated and clamped particles.
-    # Copy the coordinates of the integrated particles from `u`.
+    @trixi_timeit timer() "update TLSPH positions" update_tlsph_positions!(system, u, semi)
+
+    apply_prescribed_motion!(system, clamped_particles_motion, semi, t)
+end
+
+# `current_coordinates` stores the coordinates of both integrated and clamped particles.
+# Copy the coordinates of the integrated particles from `u`.
+function update_tlsph_positions!(system::TotalLagrangianSPHSystem, u, semi)
+    (; current_coordinates) = system
+
     @threaded semi for particle in each_integrated_particle(system)
         for i in 1:ndims(system)
-            current_coordinates[i, particle] = u[i, particle]
+            @inbounds current_coordinates[i, particle] = u[i, particle]
         end
     end
 
-    apply_prescribed_motion!(system, clamped_particles_motion, semi, t)
+    return system
 end
 
 function apply_prescribed_motion!(system::TotalLagrangianSPHSystem,
@@ -415,8 +423,10 @@ function apply_prescribed_motion!(system::TotalLagrangianSPHSystem,
     (; clamped_particles_moving, current_coordinates, cache) = system
     (; acceleration, velocity) = cache
 
-    prescribed_motion(current_coordinates, velocity, acceleration, clamped_particles_moving,
-                      system, semi, t)
+    @trixi_timeit timer() "apply prescribed motion" begin
+        prescribed_motion(current_coordinates, velocity, acceleration,
+                          clamped_particles_moving, system, semi, t)
+    end
 
     return system
 end
@@ -731,5 +741,37 @@ function Base.show(io::IO, ::MIME"text/plain", system::TotalLagrangianSPHSystem)
         summary_line(io, "penalty force", system.penalty_force)
         summary_line(io, "viscosity", system.viscosity)
         summary_footer(io)
+    end
+end
+
+function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
+    (; boundary_model) = system
+
+    if !isnothing(boundary_model)
+        n_particles_model = length(system.boundary_model.hydrodynamic_mass)
+        if n_particles_model != nparticles(system)
+            throw(ArgumentError("the boundary model was initialized with $n_particles_model " *
+                                "particles, but the `TotalLagrangianSPHSystem` has " *
+                                "$(nparticles(system)) particles."))
+        end
+    end
+
+    if system.self_interaction_nhs.periodic_box != extract_periodic_box(nhs)
+        throw(ArgumentError("The `periodic_box` of the `TotalLagrangianSPHSystem`'s " *
+                            "self-interaction neighborhood search must be the same " *
+                            "as of the global neighborhood search."))
+    end
+
+    foreach_system(systems) do neighbor
+        if neighbor isa AbstractFluidSystem && boundary_model === nothing
+            throw(ArgumentError("a boundary model for `TotalLagrangianSPHSystem` must be " *
+                                "specified when simulating a fluid-structure interaction."))
+        end
+    end
+
+    if boundary_model isa BoundaryModelDummyParticles &&
+       boundary_model.density_calculator isa ContinuityDensity
+        throw(ArgumentError("`BoundaryModelDummyParticles` with density calculator " *
+                            "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"))
     end
 end
