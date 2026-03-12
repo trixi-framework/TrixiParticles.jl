@@ -169,7 +169,8 @@
                                                  ode_2d.p)
         @test isapprox(dt_2d_semi, dt_2d)
 
-        TrixiParticles.update_final!(system_2d, v0_2d, u0_2d, nothing, nothing, nothing, 0.0)
+        TrixiParticles.update_final!(system_2d, v0_2d, u0_2d, nothing, nothing, nothing,
+                                     0.0)
         @test system_2d.angular_velocity[] == 2.0
 
         coordinates_3d = [0.0 1.0
@@ -192,7 +193,8 @@
         @test v0_3d == [0.0 0.0
                         -1.0 1.0
                         0.0 0.0]
-        TrixiParticles.update_final!(system_3d, v0_3d, u0_3d, nothing, nothing, nothing, 0.0)
+        TrixiParticles.update_final!(system_3d, v0_3d, u0_3d, nothing, nothing, nothing,
+                                     0.0)
         @test system_3d.angular_velocity[] == [0.0, 0.0, 2.0]
     end
 
@@ -211,7 +213,7 @@
         angular_velocity = SVector(1.0, 2.0, 3.0)
         gyroscopic_acceleration = SVector(-30 / 13, 12 / 5, -6 / 5)
         acceleration_scale = 3.0 * (norm(angular_velocity)^2 +
-                                    norm(gyroscopic_acceleration))
+                              norm(gyroscopic_acceleration))
         dt_acceleration = 0.25 * sqrt(10.0 / acceleration_scale)
         dt_velocity = 0.25 * 10.0 / (3.0 * norm(angular_velocity))
 

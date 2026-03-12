@@ -360,9 +360,10 @@ end
 function update_final!(system::RigidBodySystem, v, u, v_ode, u_ode, semi, t)
     system_coords = current_coordinates(u, system)
     system_velocity = current_velocity(v, system)
-    center_of_mass, center_of_mass_velocity = rigid_center_of_mass_kinematics(system,
-                                                                              system_coords,
-                                                                              system_velocity)
+    center_of_mass,
+    center_of_mass_velocity = rigid_center_of_mass_kinematics(system,
+                                                              system_coords,
+                                                              system_velocity)
     rotational_kinematics = rigid_rotational_kinematics(system, system_coords,
                                                         system_velocity,
                                                         center_of_mass,
@@ -440,9 +441,10 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::RigidBodySystem, semi)
         system_coords = current_coordinates(u, system)
     end
 
-    center_of_mass, center_of_mass_velocity = rigid_center_of_mass_kinematics(system,
-                                                                              system_coords,
-                                                                              system_velocity)
+    center_of_mass,
+    center_of_mass_velocity = rigid_center_of_mass_kinematics(system,
+                                                              system_coords,
+                                                              system_velocity)
     rotational_kinematics = rigid_rotational_kinematics(system, system_coords,
                                                         system_velocity, center_of_mass,
                                                         center_of_mass_velocity)
