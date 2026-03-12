@@ -1,18 +1,26 @@
-function prepare_interaction!(particle_system::RigidBodySystem,
-                              dv, v, u, dv_ode, v_ode, u_ode, semi)
-    set_zero!(particle_system.force_per_particle)
-    particle_system.resultant_force[] = zero(particle_system.resultant_force[])
-    particle_system.resultant_torque[] = zero(particle_system.resultant_torque[])
-    particle_system.angular_acceleration_force[] = zero(particle_system.angular_acceleration_force[])
+function finalize_interaction!(particle_system::RigidBodySystem,
+                               dv, v, u, dv_ode, v_ode, u_ode, semi)
+    apply_kinematic_acceleration!(dv, particle_system, semi)
+    apply_resultant_force_and_torque!(dv, particle_system, semi)
 
     return particle_system
 end
 
-function finalize_interaction!(particle_system::RigidBodySystem,
-                               dv, v, u, dv_ode, v_ode, u_ode, semi)
-    apply_resultant_force_and_torque!(dv, particle_system, semi)
+# Rigid-body kinematics depend only on the current rigid state, so apply them once
+# after all pairwise interactions instead of revisiting them for every rigid-rigid pair.
+function apply_kinematic_acceleration!(dv, particle_system::RigidBodySystem, semi)
+    @threaded semi for particle in each_integrated_particle(particle_system)
+        relative_position = @inbounds extract_svector(particle_system.relative_coordinates,
+                                                      particle_system, particle)
+        rotational_acceleration = rigid_kinematic_acceleration(particle_system,
+                                                               relative_position)
 
-    return particle_system
+        for i in 1:ndims(particle_system)
+            @inbounds dv[i, particle] += rotational_acceleration[i]
+        end
+    end
+
+    return dv
 end
 
 # Structure-fluid interaction
@@ -81,10 +89,10 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         dv_particle = dv_boundary + dv_viscosity_ + dv_adhesion
 
-        @inbounds for i in 1:ndims(particle_system)
+        for i in 1:ndims(particle_system)
             # `pressure_acceleration`/`dv_viscosity` return acceleration-like pair contributions.
             # Multiply by the interacting fluid mass to recover the force on this rigid particle.
-            force_per_particle[i, particle] += dv_particle[i] * m_b
+            @inbounds force_per_particle[i, particle] += dv_particle[i] * m_b
         end
 
         continuity_equation!(dv, v_particle_system, v_neighbor_system,
@@ -113,7 +121,7 @@ function apply_resultant_force_and_torque!(dv, particle_system::RigidBodySystem,
     total_force = zero(SVector{ndims(particle_system), eltype(particle_system)})
     total_torque = zero(particle_system.resultant_torque[])
 
-    @inbounds for particle in each_integrated_particle(particle_system)
+    for particle in each_integrated_particle(particle_system)
         particle_force = extract_svector(particle_system.force_per_particle,
                                          particle_system,
                                          particle)
@@ -141,8 +149,8 @@ function apply_resultant_force_and_torque!(dv, particle_system::RigidBodySystem,
         rotational_acceleration_force = cross_product(angular_acceleration_force,
                                                       relative_position)
 
-        @inbounds for i in 1:ndims(particle_system)
-            dv[i,
+        for i in eachindex(translational_acceleration)
+            @inbounds dv[i,
                particle] += translational_acceleration[i] + rotational_acceleration_force[i]
         end
     end
@@ -176,25 +184,11 @@ end
                          grad_kernel, particle)
 end
 
-# Rigid-body self-interaction contributes the kinematic point acceleration that comes
-# from the current angular velocity, independent of fluid coupling.
+# Own interactions of rigid bodies are applied in finalize_interaction! instead of interact!, so this method is a no-op.
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::RigidBodySystem,
                    neighbor_system::RigidBodySystem, semi)
-    particle_system === neighbor_system || return dv
-
-    @threaded semi for particle in each_integrated_particle(particle_system)
-        relative_position = @inbounds extract_svector(particle_system.relative_coordinates,
-                                                      particle_system, particle)
-        rotational_acceleration = rigid_kinematic_acceleration(particle_system,
-                                                               relative_position)
-
-        @inbounds for i in 1:ndims(particle_system)
-            dv[i, particle] += rotational_acceleration[i]
-        end
-    end
-
     return dv
 end
 

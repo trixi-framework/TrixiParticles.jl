@@ -599,13 +599,13 @@ end
                                                      system::RigidBodySystem,
                                                      source_terms_, t)
     coords = current_coords(u, system, particle)
-    velocity = @inbounds current_velocity(v, system, particle)
-    density = @inbounds system.material_density[particle]
+    velocity = current_velocity(v, system, particle)
+    density = system.material_density[particle]
     pressure = 0 # Rigid body systems don't have a pressure, but some source terms might depend on it
 
     source = source_terms_(coords, velocity, density, pressure, t)
 
-    @inbounds for i in eachindex(source)
+    for i in eachindex(source)
         dv[i, particle] += source[i]
     end
 
@@ -616,17 +616,17 @@ end
                                 system::RigidBodySystem,
                                 source_terms_::Nothing, t) = dv
 
-@inline function add_source_terms_inner!(dv, v, u, particle, system, source_terms_, t)
-    coords = @inbounds current_coords(u, system, particle)
-    velocity = @inbounds current_velocity(v, system, particle)
-    density = @inbounds current_density(v, system, particle)
-    pressure = @inbounds current_pressure(v, system, particle)
+@propagate_inbounds function add_source_terms_inner!(dv, v, u, particle, system, source_terms_, t)
+    coords = current_coords(u, system, particle)
+    velocity = current_velocity(v, system, particle)
+    density = current_density(v, system, particle)
+    pressure = current_pressure(v, system, particle)
 
     source = source_terms_(coords, velocity, density, pressure, t)
 
     # Loop over `eachindex(source)`, so that users could also pass source terms for
     # the density when using `ContinuityDensity`.
-    @inbounds for i in eachindex(source)
+    for i in eachindex(source)
         dv[i, particle] += source[i]
     end
 
@@ -671,14 +671,7 @@ end
 end
 
 function system_interaction!(dv_ode, v_ode, u_ode, semi)
-    # Prepare systems that need setup before the pairwise interaction sweep.
-    foreach_system(semi) do system
-        dv = wrap_v(dv_ode, system, semi)
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
-        prepare_interaction!(system, dv, v, u, dv_ode, v_ode, u_ode, semi)
-    end
+    # Note: Preparation steps for interact! are performed in update_final!
 
     # Call `interact!` for each pair of systems
     foreach_system(semi) do system

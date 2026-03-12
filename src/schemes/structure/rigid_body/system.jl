@@ -146,8 +146,7 @@ create_cache_rigid(color_value) = (; color=Int(color_value))
 
 # Refresh the rigid-body kinematic cache from a consistent particle state after the
 # ODE state has changed. Force/torque resultants are updated separately during RHS assembly.
-function update_kinematic_cache!(system::RigidBodySystem, coordinates, velocity,
-                                 _semi=nothing)
+function update_kinematic_cache!(system::RigidBodySystem, coordinates, velocity)
     total_mass = system.total_mass
     total_mass <= eps(eltype(system)) && return system
 
@@ -205,10 +204,6 @@ end
 # configured boundary model.
 @inline function current_pressure(v, system::RigidBodySystem)
     return current_pressure(v, system.boundary_model, system)
-end
-
-@inline function current_pressure(v, ::Nothing, system::RigidBodySystem)
-    return zero(eltype(system))
 end
 
 @propagate_inbounds function hydrodynamic_mass(system::RigidBodySystem, particle)
@@ -337,7 +332,14 @@ function update_final!(system::RigidBodySystem, v, u, v_ode, u_ode, semi, t)
     system_coords = current_coordinates(u, system)
     system_velocity = current_velocity(v, system)
 
-    return update_kinematic_cache!(system, system_coords, system_velocity, semi)
+    # Reset force/torque caches before RHS assembly so they can be rebuilt from
+    # the current particle interactions and source terms.
+    set_zero!(system.force_per_particle)
+    system.resultant_force[] = zero(system.resultant_force[])
+    system.resultant_torque[] = zero(system.resultant_torque[])
+    system.angular_acceleration_force[] = zero(system.angular_acceleration_force[])
+
+    return update_kinematic_cache!(system, system_coords, system_velocity)
 end
 
 function update_rotational_kinematics!(system::RigidBodySystem, coordinates,
@@ -482,6 +484,7 @@ end
 end
 
 @inline function viscous_velocity(v, system::RigidBodySystem, particle)
+    # This function is only used in fluid-structure interaction, so it is never called when `boundary_model` is `nothing`
     return viscous_velocity(v, system.boundary_model.viscosity, system, particle)
 end
 

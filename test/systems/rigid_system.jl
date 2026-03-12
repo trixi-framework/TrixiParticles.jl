@@ -260,8 +260,12 @@
         @test rigid_system.inertia[] == 2.0
 
         dv = zeros(size(v))
-        TrixiParticles.interact!(dv, v, u, v, u, rigid_system, rigid_system,
-                                 DummySemidiscretization())
+        semi = DummySemidiscretization()
+        TrixiParticles.interact!(dv, v, u, v, u, rigid_system, rigid_system, semi)
+        @test all(iszero, dv)
+
+        TrixiParticles.finalize_interaction!(rigid_system, dv, v, u,
+                                             nothing, nothing, nothing, semi)
 
         @test dv == [1.0 -1.0
                      0.0 0.0]

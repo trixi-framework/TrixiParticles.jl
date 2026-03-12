@@ -156,12 +156,6 @@ function update_final!(system, v, u, v_ode, u_ode, semi, t)
     return system
 end
 
-# Interaction hooks do nothing by default, but can be dispatched if a system needs
-# setup/teardown around the pairwise interaction sweep.
-function prepare_interaction!(system, dv, v, u, dv_ode, v_ode, u_ode, semi)
-    return system
-end
-
 function finalize_interaction!(system, dv, v, u, dv_ode, v_ode, u_ode, semi)
     return system
 end
