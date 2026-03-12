@@ -183,6 +183,11 @@ function interact!(dv, v_particle_system, u_particle_system,
                    neighbor_system::WallBoundarySystem, semi) where {BCM, NDIMS}
     contact_model = particle_system.boundary_contact_model
 
+    # Here a "contact manifold" means one cluster of wall neighbors for one rigid particle
+    # that appears to belong to the same local wall patch. A flat wall contact usually
+    # produces one manifold, while a corner/edge contact may produce several. We reduce each
+    # manifold to one averaged contact state before computing forces.
+    #
     # Rebuild the manifold cache for this rigid-wall system pair before reducing it to forces.
     set_zero!(particle_system.cache.contact_manifold_count)
     set_zero!(particle_system.cache.contact_manifold_weight_sum)
@@ -191,7 +196,6 @@ function interact!(dv, v_particle_system, u_particle_system,
     set_zero!(particle_system.cache.contact_manifold_wall_velocity_sum)
 
     ELTYPE = eltype(particle_system)
-    normal_merge_cos = convert(ELTYPE, 0.995)
 
     # First gather all penetrating wall neighbors into a small set of contact manifolds per
     # rigid particle. This avoids applying one noisy contact force per wall particle.
@@ -214,6 +218,13 @@ function interact!(dv, v_particle_system, u_particle_system,
         contact_weight = wall_contact_pair_weight(neighbor_system, distance, neighbor,
                                                   ELTYPE)
         contact_weight <= eps(ELTYPE) && return
+
+        # For adjacent wall samples on the same locally flat face, the tangential offset is
+        # about one wall particle spacing. Use the corresponding viewing angle from the rigid
+        # particle to decide whether this contact should join an existing manifold.
+        wall_spacing = convert(ELTYPE, particle_spacing(neighbor_system, neighbor))
+        normal_merge_cos = wall_spacing <= eps(ELTYPE) ? one(ELTYPE) :
+                           distance / hypot(distance, wall_spacing)
 
         manifold = find_or_add_contact_manifold!(particle_system.cache, particle, normal,
                                                  normal_merge_cos, ELTYPE)
@@ -286,8 +297,11 @@ function find_or_add_contact_manifold!(cache, particle, normal, normal_merge_cos
     manifold_count = cache.contact_manifold_count[particle]
     normal_sum = cache.contact_manifold_normal_sum
 
-    # Reuse the closest existing manifold whenever the contact normal is aligned enough.
-    # If all slots are already occupied, overwrite the best-matching one.
+    # Try to assign this wall neighbor to an existing manifold of the same rigid particle.
+    # Two contacts belong to the same manifold when their normals are as aligned as expected
+    # for adjacent samples of the same local wall patch at the current contact distance. If
+    # all manifold slots are used, overwrite the best-matching one instead of creating more
+    # state.
     best_index = 1
     best_dot = -one(ELTYPE)
 
@@ -329,7 +343,9 @@ end
 function accumulate_contact_manifold!(cache, particle, manifold, contact_weight, normal,
                                       wall_velocity, penetration_effective)
     # Store weighted sums so the final interaction step can recover one averaged contact
-    # state per manifold instead of reacting to every wall particle individually.
+    # state per manifold instead of reacting to every wall particle individually. The summed
+    # data describes one effective contact patch: averaged normal, wall velocity, and
+    # penetration for that rigid particle/manifold pair.
     cache.contact_manifold_weight_sum[manifold, particle] += contact_weight
     cache.contact_manifold_penetration_sum[manifold,
                                            particle] += contact_weight *
@@ -348,7 +364,8 @@ end
 
 @inline function weighted_manifold_vector(cache_array, manifold, particle, weight_sum,
                                           ::Val{NDIMS}, ELTYPE) where {NDIMS}
-    # Convert a weighted cache sum back to its averaged vector value for this manifold.
+    # Convert a weighted cache sum back to the averaged vector for one effective contact
+    # patch (one manifold of one rigid particle).
     return SVector{NDIMS, ELTYPE}(ntuple(@inline(dim->cache_array[dim, manifold, particle] /
                                                       weight_sum),
                                          Val(NDIMS)))
