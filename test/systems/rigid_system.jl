@@ -357,16 +357,33 @@
         v_new = [1.0 2.0 3.0
                  4.0 5.0 6.0]
 
+        TrixiParticles.update_final!(rigid_system, rigid_system.initial_velocity,
+                                     rigid_system.initial_condition.coordinates,
+                                     nothing, nothing, nothing, 0.0)
+        stale_relative_coordinates = copy(rigid_system.relative_coordinates)
+        stale_center_of_mass = rigid_system.center_of_mass[]
+        stale_center_of_mass_velocity = rigid_system.center_of_mass_velocity[]
+        stale_angular_velocity = rigid_system.angular_velocity[]
+        stale_force = SVector(7.0, -11.0)
+        stale_torque = 5.0
+        stale_angular_acceleration_force = 2.0
+        rigid_system.resultant_force[] = stale_force
+        rigid_system.resultant_torque[] = stale_torque
+        rigid_system.angular_acceleration_force[] = stale_angular_acceleration_force
+
         restarted_system = TrixiParticles.restart_with!(rigid_system, v_new, u_new)
 
         @test restarted_system === rigid_system
         @test rigid_system.initial_condition.coordinates == u_new
         @test rigid_system.initial_condition.velocity == v_new
         @test rigid_system.initial_velocity == v_new
-        @test all(iszero, rigid_system.relative_coordinates)
-        @test iszero(rigid_system.center_of_mass[])
-        @test iszero(rigid_system.center_of_mass_velocity[])
-        @test iszero(rigid_system.angular_velocity[])
+        @test rigid_system.relative_coordinates == stale_relative_coordinates
+        @test rigid_system.center_of_mass[] == stale_center_of_mass
+        @test rigid_system.center_of_mass_velocity[] == stale_center_of_mass_velocity
+        @test rigid_system.angular_velocity[] == stale_angular_velocity
+        @test rigid_system.resultant_force[] == stale_force
+        @test rigid_system.resultant_torque[] == stale_torque
+        @test rigid_system.angular_acceleration_force[] == stale_angular_acceleration_force
 
         expected_center_of_mass = [4.0, 3.0]
         expected_relative_coordinates = u_new .- expected_center_of_mass

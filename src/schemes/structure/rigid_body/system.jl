@@ -127,27 +127,6 @@ end
 # Per-system color tag for colorfield surface-normal logic and VTK output.
 create_cache_rigid(color_value) = (; color=Int(color_value))
 
-function reset_kinematic_values!(system::RigidBodySystem)
-    set_zero!(system.relative_coordinates)
-    system.center_of_mass[] = zero(system.center_of_mass[])
-    system.center_of_mass_velocity[] = zero(system.center_of_mass_velocity[])
-    system.inertia[] = zero(system.inertia[])
-    system.inverse_inertia[] = zero(system.inverse_inertia[])
-    system.angular_velocity[] = zero(system.angular_velocity[])
-    system.gyroscopic_acceleration[] = zero(system.gyroscopic_acceleration[])
-
-    return system
-end
-
-function reset_interaction_values!(system::RigidBodySystem)
-    set_zero!(system.force_per_particle)
-    system.resultant_force[] = zero(system.resultant_force[])
-    system.resultant_torque[] = zero(system.resultant_torque[])
-    system.angular_acceleration_force[] = zero(system.angular_acceleration_force[])
-
-    return system
-end
-
 function rigid_center_of_mass_kinematics(system::RigidBodySystem, coordinates, velocity)
     total_mass = system.total_mass
     center_of_mass = zero(SVector{ndims(system), eltype(system)})
@@ -334,9 +313,6 @@ function restart_with!(system::RigidBodySystem, v, u)
     copyto!(system.initial_velocity, indices_v,
             view(v, 1:ndims(system), :), indices_v)
 
-    reset_kinematic_values!(system)
-    reset_interaction_values!(system)
-
     return system
 end
 
@@ -370,9 +346,9 @@ function update_final!(system::RigidBodySystem, v, u, v_ode, u_ode, semi, t)
                                                         center_of_mass_velocity;
                                                         relative_coordinates=system.relative_coordinates)
 
-    # Reset force/torque caches before RHS assembly so they can be rebuilt from
-    # the current particle interactions and source terms.
-    reset_interaction_values!(system)
+    # Reset interaction caches before RHS assembly so pairwise rigid-fluid forces can
+    # accumulate from scratch and non-RHS update paths do not expose stale resultants.
+    set_zero!(system.force_per_particle)
 
     system.center_of_mass[] = center_of_mass
     system.center_of_mass_velocity[] = center_of_mass_velocity
@@ -451,15 +427,11 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::RigidBodySystem, semi)
 
     radius = rotational_kinematics.max_radius
     angular_speed = norm(rotational_kinematics.angular_velocity)
-    # In 3D, the total angular acceleration contains both external torque and
-    # gyroscopic contributions.
-    angular_acceleration = norm(system.angular_acceleration_force[] -
-                                rotational_kinematics.gyroscopic_acceleration)
-
-    # Use only interaction-induced translational acceleration for the time-step
-    # estimate. Uniform source acceleration (e.g. gravity applied to all systems)
-    # is a frame shift and does not change relative rigid-body dynamics.
-    translational_acceleration = system.resultant_force[] / system.total_mass
+    # The rigid-body CFL estimate is evaluated from the current state before the
+    # force/torque resultants are refreshed, so use only kinematic contributions
+    # that can be reconstructed directly from `(u, v)`.
+    angular_acceleration = norm(rotational_kinematics.gyroscopic_acceleration)
+    translational_acceleration = zero(center_of_mass_velocity)
 
     # Rigid-body scales:
     # acceleration ~ a_trans,relative + r*(ω² + |α|), velocity ~ v_com + r*ω.
