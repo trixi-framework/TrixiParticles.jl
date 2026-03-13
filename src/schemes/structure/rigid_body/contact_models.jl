@@ -95,30 +95,6 @@ function RigidContactModel(; normal_stiffness,
                              Bool(resting_contact_projection))
 end
 
-function RigidBoundaryContactModel(; normal_stiffness,
-                                   normal_damping=0.0,
-                                   static_friction_coefficient=0.5,
-                                   kinetic_friction_coefficient=0.4,
-                                   tangential_stiffness=0.0,
-                                   tangential_damping=0.0,
-                                   contact_distance=0.0,
-                                   stick_velocity_tolerance=1e-6,
-                                   penetration_slop=0.0,
-                                   torque_free=false,
-                                   resting_contact_projection=true)
-    return RigidContactModel(; normal_stiffness,
-                             normal_damping,
-                             static_friction_coefficient,
-                             kinetic_friction_coefficient,
-                             tangential_stiffness,
-                             tangential_damping,
-                             contact_distance,
-                             stick_velocity_tolerance,
-                             penetration_slop,
-                             torque_free,
-                             resting_contact_projection)
-end
-
 """
     PerfectElasticBoundaryContactModel(; normal_stiffness,
                                        contact_distance=0.0,
@@ -644,11 +620,6 @@ function RigidContactModel(model::RigidContactModel, particle_spacing,
                                                               model.penetration_slop),
                                      torque_free=model.torque_free,
                                      resting_contact_projection=model.resting_contact_projection)
-end
-
-function RigidBoundaryContactModel(model, particle_spacing,
-                                   ::Type{ELTYPE}) where {ELTYPE}
-    return RigidContactModel(model, particle_spacing, ELTYPE)
 end
 
 @inline function requires_update_callback(contact_model::RigidContactModel)

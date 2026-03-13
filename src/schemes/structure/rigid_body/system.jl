@@ -21,7 +21,6 @@ torque and applied consistently to all rigid particles.
                     (see [Boundary Models](@ref boundary_models)).
 - `contact_model`: Optional rigid-wall contact model.
                    If specified, rigid-wall collisions are enabled.
-                   `boundary_contact_model` is accepted as a compatibility alias.
 - `acceleration`: Global acceleration vector applied to all rigid particles.
 - `particle_spacing`: Reference particle spacing used for time-step estimation.
 - `source_terms`: Optional source terms of the form
@@ -65,25 +64,10 @@ struct RigidBodySystem{BM, CTM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
     cache                      :: C
 end
 
-@inline function Base.getproperty(system::RigidBodySystem, symbol::Symbol)
-    if symbol === :boundary_contact_model
-        return getfield(system, :contact_model)
-    end
-
-    return getfield(system, symbol)
-end
-
-function Base.propertynames(system::RigidBodySystem, private::Bool=false)
-    names = fieldnames(typeof(system))
-
-    return private ? (names..., :boundary_contact_model) : (names..., :boundary_contact_model)
-end
-
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
 function RigidBodySystem(initial_condition; boundary_model=nothing,
                          contact_model=nothing,
-                         boundary_contact_model=nothing,
                          acceleration=ntuple(_ -> zero(eltype(initial_condition)),
                                              ndims(initial_condition)),
                          particle_spacing=initial_condition.particle_spacing,
@@ -101,11 +85,6 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
     end
 
     particle_spacing_ = convert(ELTYPE, particle_spacing)
-    if !isnothing(contact_model) && !isnothing(boundary_contact_model)
-        throw(ArgumentError("`contact_model` and `boundary_contact_model` cannot both be specified"))
-    end
-
-    contact_model = isnothing(contact_model) ? boundary_contact_model : contact_model
     contact_model_ = isnothing(contact_model) ? nothing :
                      RigidContactModel(contact_model, particle_spacing_, ELTYPE)
     initial_velocity = copy(initial_condition.velocity)
