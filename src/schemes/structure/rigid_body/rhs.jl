@@ -208,28 +208,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                                        pos_diff, distance
         # The manifold cache is shared across all wall neighbors of this system pair, so build
         # it deterministically with a serial traversal.
-        distance <= eps(ELTYPE) && return
-
-        penetration = contact_model.contact_distance - distance
-        penetration <= 0 && return
-
-        normal = pos_diff / distance
-        wall_velocity = current_velocity(v_neighbor_system, neighbor_system, neighbor)
-        contact_weight = wall_contact_pair_weight(neighbor_system, distance, neighbor,
-                                                  ELTYPE)
-        contact_weight <= eps(ELTYPE) && return
-
-        # For adjacent wall samples on the same locally flat face, the tangential offset is
-        # about one wall particle spacing. Use the corresponding viewing angle from the rigid
-        # particle to decide whether this contact should join an existing manifold.
-        wall_spacing = convert(ELTYPE, particle_spacing(neighbor_system, neighbor))
-        normal_merge_cos = wall_spacing <= eps(ELTYPE) ? one(ELTYPE) :
-                           distance / hypot(distance, wall_spacing)
-
-        manifold = find_or_add_contact_manifold!(particle_system.cache, particle, normal,
-                                                 normal_merge_cos, ELTYPE)
-        accumulate_contact_manifold!(particle_system.cache, particle, manifold,
-                                     contact_weight, normal, wall_velocity, penetration)
+        accumulate_wall_contact_pair!(particle_system, v_neighbor_system, neighbor_system,
+                                      particle, neighbor, pos_diff, distance, contact_model)
     end
 
     # Apply one force contribution per manifold using the averaged normal, penetration, and
@@ -240,22 +220,26 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         v_particle = current_velocity(v_particle_system, particle_system, particle)
 
-        for manifold in 1:n_manifolds
-            weight_sum = particle_system.cache.contact_manifold_weight_sum[manifold,
+        for manifold_index in 1:n_manifolds
+            weight_sum = particle_system.cache.contact_manifold_weight_sum[manifold_index,
                                                                            particle]
             weight_sum <= eps(ELTYPE) && continue
 
-            normal = weighted_manifold_vector(particle_system.cache.contact_manifold_normal_sum,
-                                              manifold, particle, weight_sum, Val(NDIMS),
-                                              ELTYPE)
+            normal = SVector{NDIMS, ELTYPE}(ntuple(@inline(dim->particle_system.cache.contact_manifold_normal_sum[dim,
+                                                                                                                     manifold_index,
+                                                                                                                     particle] /
+                                                                weight_sum),
+                                                   Val(NDIMS)))
             normal_norm = norm(normal)
             normal_norm <= eps(ELTYPE) && continue
             normal /= normal_norm
 
-            v_boundary = weighted_manifold_vector(particle_system.cache.contact_manifold_wall_velocity_sum,
-                                                  manifold, particle, weight_sum,
-                                                  Val(NDIMS), ELTYPE)
-            penetration_effective = particle_system.cache.contact_manifold_penetration_sum[manifold,
+            v_boundary = SVector{NDIMS, ELTYPE}(ntuple(@inline(dim->particle_system.cache.contact_manifold_wall_velocity_sum[dim,
+                                                                                                                               manifold_index,
+                                                                                                                               particle] /
+                                                                  weight_sum),
+                                                       Val(NDIMS)))
+            penetration_effective = particle_system.cache.contact_manifold_penetration_sum[manifold_index,
                                                                                            particle] /
                                     weight_sum
 
@@ -263,10 +247,9 @@ function interact!(dv, v_particle_system, u_particle_system,
             normal_velocity = dot(relative_velocity, normal)
 
             # Only the normal spring-dashpot part is kept in the basic collision.
-            normal_force_magnitude = normal_contact_force(contact_model,
-                                                          penetration_effective,
-                                                          normal_velocity,
-                                                          ELTYPE)
+            elastic_force = contact_model.normal_stiffness * penetration_effective
+            damping_force = -contact_model.normal_damping * normal_velocity
+            normal_force_magnitude = max(elastic_force + damping_force, zero(ELTYPE))
             normal_force_magnitude <= 0 && continue
 
             interaction_force = normal_force_magnitude * normal
@@ -279,21 +262,45 @@ function interact!(dv, v_particle_system, u_particle_system,
 
     return dv
 end
+@inline function accumulate_wall_contact_pair!(particle_system::RigidBodySystem,
+                                               v_neighbor_system,
+                                               neighbor_system::WallBoundarySystem,
+                                               particle, neighbor, pos_diff, distance,
+                                               contact_model::RigidContactModel)
+    ELTYPE = eltype(particle_system)
+    distance <= eps(ELTYPE) && return nothing
 
-@inline function wall_contact_pair_weight(neighbor_system::WallBoundarySystem,
-                                          distance, neighbor, ELTYPE)
+    penetration = contact_model.contact_distance - distance
+    penetration <= 0 && return nothing
+
+    normal = pos_diff / distance
+    wall_velocity = current_velocity(v_neighbor_system, neighbor_system, neighbor)
     # Use the wall particle volume times kernel value as a local averaging weight for the
     # contact manifold. This keeps the manifold reduction close to the SPH discretization.
     density = convert(ELTYPE, neighbor_system.initial_condition.density[neighbor])
-    density <= eps(ELTYPE) && return zero(ELTYPE)
+    density <= eps(ELTYPE) && return nothing
 
     volume = convert(ELTYPE, neighbor_system.initial_condition.mass[neighbor]) / density
     kernel_weight = convert(ELTYPE, smoothing_kernel(neighbor_system, distance, neighbor))
+    contact_weight = max(kernel_weight * volume, zero(ELTYPE))
+    contact_weight <= eps(ELTYPE) && return nothing
 
-    return max(kernel_weight * volume, zero(ELTYPE))
+    # For adjacent wall samples on the same locally flat face, the tangential offset is
+    # about one wall particle spacing. Use the corresponding viewing angle from the rigid
+    # particle to decide whether this contact should join an existing manifold.
+    wall_spacing = convert(ELTYPE, particle_spacing(neighbor_system, neighbor))
+    normal_merge_cos = wall_spacing <= eps(ELTYPE) ? one(ELTYPE) :
+                       distance / hypot(distance, wall_spacing)
+
+    manifold_index = find_or_create_contact_manifold!(particle_system.cache, particle, normal,
+                                                      normal_merge_cos)
+    accumulate_contact_manifold_sums!(particle_system.cache, particle, manifold_index,
+                                      contact_weight, normal, wall_velocity, penetration)
+
+    return nothing
 end
-
-function find_or_add_contact_manifold!(cache, particle, normal, normal_merge_cos, ELTYPE)
+function find_or_create_contact_manifold!(cache, particle, normal,
+                                          normal_merge_cos::ELTYPE) where {ELTYPE}
     manifold_count = cache.contact_manifold_count[particle]
     normal_sum = cache.contact_manifold_normal_sum
 
@@ -305,11 +312,11 @@ function find_or_add_contact_manifold!(cache, particle, normal, normal_merge_cos
     best_index = 1
     best_dot = -one(ELTYPE)
 
-    for manifold in 1:manifold_count
+    for manifold_index in 1:manifold_count
         normal_norm_squared = zero(ELTYPE)
         dot_value = zero(ELTYPE)
         for dim in eachindex(normal)
-            normal_value = normal_sum[dim, manifold, particle]
+            normal_value = normal_sum[dim, manifold_index, particle]
             normal_norm_squared += normal_value^2
             dot_value += normal_value * normal[dim]
         end
@@ -321,12 +328,12 @@ function find_or_add_contact_manifold!(cache, particle, normal, normal_merge_cos
         end
 
         if dot_value >= normal_merge_cos
-            return manifold
+            return manifold_index
         end
 
         if dot_value > best_dot
             best_dot = dot_value
-            best_index = manifold
+            best_index = manifold_index
         end
     end
 
@@ -340,43 +347,26 @@ function find_or_add_contact_manifold!(cache, particle, normal, normal_merge_cos
     return best_index
 end
 
-function accumulate_contact_manifold!(cache, particle, manifold, contact_weight, normal,
-                                      wall_velocity, penetration_effective)
+function accumulate_contact_manifold_sums!(cache, particle, manifold_index, contact_weight,
+                                          normal, wall_velocity, penetration_effective)
     # Store weighted sums so the final interaction step can recover one averaged contact
     # state per manifold instead of reacting to every wall particle individually. The summed
     # data describes one effective contact patch: averaged normal, wall velocity, and
     # penetration for that rigid particle/manifold pair.
-    cache.contact_manifold_weight_sum[manifold, particle] += contact_weight
-    cache.contact_manifold_penetration_sum[manifold,
+    cache.contact_manifold_weight_sum[manifold_index, particle] += contact_weight
+    cache.contact_manifold_penetration_sum[manifold_index,
                                            particle] += contact_weight *
                                                         penetration_effective
 
     for dim in eachindex(normal)
-        cache.contact_manifold_normal_sum[dim, manifold,
+        cache.contact_manifold_normal_sum[dim, manifold_index,
                                           particle] += contact_weight * normal[dim]
-        cache.contact_manifold_wall_velocity_sum[dim, manifold,
+        cache.contact_manifold_wall_velocity_sum[dim, manifold_index,
                                                  particle] += contact_weight *
                                                               wall_velocity[dim]
     end
 
     return cache
-end
-
-@inline function weighted_manifold_vector(cache_array, manifold, particle, weight_sum,
-                                          ::Val{NDIMS}, ELTYPE) where {NDIMS}
-    # Convert a weighted cache sum back to the averaged vector for one effective contact
-    # patch (one manifold of one rigid particle).
-    return SVector{NDIMS, ELTYPE}(ntuple(@inline(dim->cache_array[dim, manifold, particle] /
-                                                      weight_sum),
-                                         Val(NDIMS)))
-end
-
-@inline function normal_contact_force(contact_model::RigidContactModel,
-                                      penetration, normal_velocity, ELTYPE)
-    # Basic wall contact uses a linear penalty in the normal direction plus viscous damping.
-    elastic_force = contact_model.normal_stiffness * penetration
-    damping_force = -contact_model.normal_damping * normal_velocity
-    return max(elastic_force + damping_force, zero(ELTYPE))
 end
 
 # Collisions between rigid bodies are not yet implemented
