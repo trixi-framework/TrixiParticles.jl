@@ -18,8 +18,6 @@ Rigid contact is configured through the `contact_model` keyword of
 fluid-structure interaction; see [Boundary Models](@ref boundary_models) for that part of
 the rigid-body setup.
 
-The previous name `RigidBoundaryContactModel` remains available as a compatibility alias.
-
 ```@autodocs
 Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "structure", "rigid_body", "contact_models.jl")]

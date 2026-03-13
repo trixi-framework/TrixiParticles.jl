@@ -758,9 +758,7 @@
                                           contact_distance=0.1)
 
         runtime_model = TrixiParticles.RigidContactModel(contact_model, 0.1, Float64)
-        runtime_model_alias = TrixiParticles.RigidBoundaryContactModel(contact_model,
-                                                                       0.1, Float64)
-        @test TrixiParticles.RigidBoundaryContactModel === TrixiParticles.RigidContactModel
+
         @test runtime_model isa RigidContactModel
         @test runtime_model_alias isa RigidContactModel
         @test runtime_model.normal_stiffness ≈ 2.0e4
