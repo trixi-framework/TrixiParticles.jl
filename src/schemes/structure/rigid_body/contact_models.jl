@@ -62,8 +62,7 @@ const RigidBoundaryContactModel = RigidContactModel
     contact_distance = max(convert(ELTYPE, contact_model.contact_distance),
                            convert(ELTYPE, neighbor_contact_model.contact_distance))
     normal_stiffness = (convert(ELTYPE, contact_model.normal_stiffness) +
-                        convert(ELTYPE, neighbor_contact_model.normal_stiffness)) /
-                       2
+                        convert(ELTYPE, neighbor_contact_model.normal_stiffness)) / 2
     normal_damping = (convert(ELTYPE, contact_model.normal_damping) +
                       convert(ELTYPE, neighbor_contact_model.normal_damping)) / 2
 

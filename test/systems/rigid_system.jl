@@ -824,7 +824,6 @@
         @test dv_rigid_2[1, 1] ≈ -expected_force[1] / rigid_mass_2[1]
         @test dv_rigid_1[2, 1] ≈ 0.0
         @test dv_rigid_2[2, 1] ≈ 0.0
-
         rigid_coordinates = reshape([0.0, 0.05], 2, 1)
         rigid_velocity = reshape([0.0, -1.0], 2, 1)
         rigid_mass = [1.0]

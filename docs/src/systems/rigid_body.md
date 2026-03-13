@@ -22,5 +22,5 @@ The previous name `RigidBoundaryContactModel` remains available as a compatibili
 
 ```@autodocs
 Modules = [TrixiParticles]
-Pages = [joinpath("schemes", "structure", "rigid_body", "boundary_contact_models.jl")]
+Pages = [joinpath("schemes", "structure", "rigid_body", "contact_models.jl")]
 ```
