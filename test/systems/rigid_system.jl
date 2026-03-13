@@ -760,7 +760,6 @@
         runtime_model = TrixiParticles.RigidContactModel(contact_model, 0.1, Float64)
 
         @test runtime_model isa RigidContactModel
-        @test runtime_model_alias isa RigidContactModel
         @test runtime_model.normal_stiffness ≈ 2.0e4
         @test runtime_model.normal_damping ≈ 20.0
         @test runtime_model.contact_distance ≈ 0.1
