@@ -90,10 +90,10 @@
             @test steel_contact_model_spec isa LinearizedHertzMindlinBoundaryContactModel
             @test rubber_contact_model_spec isa LinearizedHertzMindlinBoundaryContactModel
 
-            @test structure_system_elastic.boundary_contact_model isa RigidBoundaryContactModel
-            @test structure_system_wood.boundary_contact_model isa RigidBoundaryContactModel
-            @test structure_system_steel.boundary_contact_model isa RigidBoundaryContactModel
-            @test structure_system_rubber.boundary_contact_model isa RigidBoundaryContactModel
+            @test structure_system_elastic.contact_model isa RigidContactModel
+            @test structure_system_wood.contact_model isa RigidContactModel
+            @test structure_system_steel.contact_model isa RigidContactModel
+            @test structure_system_rubber.contact_model isa RigidContactModel
         end
     end
 
@@ -329,11 +329,9 @@
                                                       "falling_rigid_spheres_2d.jl"),
                                              tspan=(0.0, 0.05))
 
-            @test boundary_contact_model_spec_1 isa LinearizedHertzMindlinBoundaryContactModel
-            @test boundary_contact_model_spec_2 isa LinearizedHertzMindlinBoundaryContactModel
-
-            @test structure_system_1.boundary_contact_model isa RigidBoundaryContactModel
-            @test structure_system_2.boundary_contact_model isa RigidBoundaryContactModel
+            @test contact_model isa RigidContactModel
+            @test structure_system_1.contact_model isa RigidContactModel
+            @test structure_system_2.contact_model isa RigidContactModel
         end
     end
 

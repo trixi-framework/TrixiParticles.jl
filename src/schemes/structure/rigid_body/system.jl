@@ -1,7 +1,7 @@
 @doc raw"""
     RigidBodySystem(initial_condition;
                    boundary_model=nothing,
-                   boundary_contact_model=nothing,
+                   contact_model=nothing,
                    acceleration=ntuple(_ -> 0.0, ndims(initial_condition)),
                    particle_spacing=initial_condition.particle_spacing,
                    source_terms=nothing, adhesion_coefficient=0.0,
@@ -19,8 +19,9 @@ torque and applied consistently to all rigid particles.
 # Keywords
 - `boundary_model`: Boundary model for fluid-structure interaction
                     (see [Boundary Models](@ref boundary_models)).
-- `boundary_contact_model`: Optional rigid-wall contact model.
-                            If specified, rigid-wall collisions with Coulomb friction are enabled.
+- `contact_model`: Optional rigid-wall contact model.
+                   If specified, rigid-wall collisions are enabled.
+                   `boundary_contact_model` is accepted as a compatibility alias.
 - `acceleration`: Global acceleration vector applied to all rigid particles.
 - `particle_spacing`: Reference particle spacing used for time-step estimation.
 - `source_terms`: Optional source terms of the form
@@ -36,7 +37,7 @@ torque and applied consistently to all rigid particles.
                  bodies, it participates in the multi-system color sanity check for
                  surface-tension setups, and it is written to VTK output as `"color"`.
 """
-struct RigidBodySystem{BM, BCM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
+struct RigidBodySystem{BM, CTM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
                        ST, CM, CMV, I, II, AV, RF, RT, AAF, GA, C} <:
        AbstractStructureSystem{NDIMS}
     initial_condition          :: IC
@@ -58,15 +59,30 @@ struct RigidBodySystem{BM, BCM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
     angular_acceleration_force :: AAF
     gyroscopic_acceleration    :: GA
     boundary_model             :: BM
-    boundary_contact_model     :: BCM
+    contact_model              :: CTM
     source_terms               :: ST
     adhesion_coefficient       :: ELTYPE
     cache                      :: C
 end
 
+@inline function Base.getproperty(system::RigidBodySystem, symbol::Symbol)
+    if symbol === :boundary_contact_model
+        return getfield(system, :contact_model)
+    end
+
+    return getfield(system, symbol)
+end
+
+function Base.propertynames(system::RigidBodySystem, private::Bool=false)
+    names = fieldnames(typeof(system))
+
+    return private ? (names..., :boundary_contact_model) : (names..., :boundary_contact_model)
+end
+
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
 function RigidBodySystem(initial_condition; boundary_model=nothing,
+                         contact_model=nothing,
                          boundary_contact_model=nothing,
                          acceleration=ntuple(_ -> zero(eltype(initial_condition)),
                                              ndims(initial_condition)),
@@ -85,9 +101,13 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
     end
 
     particle_spacing_ = convert(ELTYPE, particle_spacing)
-    boundary_contact_model_ = isnothing(boundary_contact_model) ? nothing :
-                              RigidBoundaryContactModel(boundary_contact_model,
-                                                        particle_spacing_, ELTYPE)
+    if !isnothing(contact_model) && !isnothing(boundary_contact_model)
+        throw(ArgumentError("`contact_model` and `boundary_contact_model` cannot both be specified"))
+    end
+
+    contact_model = isnothing(contact_model) ? boundary_contact_model : contact_model
+    contact_model_ = isnothing(contact_model) ? nothing :
+                     RigidContactModel(contact_model, particle_spacing_, ELTYPE)
     initial_velocity = copy(initial_condition.velocity)
     relative_coordinates = zeros(ELTYPE, NDIMS, nparticles(initial_condition))
     mass = copy(initial_condition.mass)
@@ -125,20 +145,21 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
                              Ref(zero_rotational_quantity),
                              Ref(zero_rotational_quantity),
                              Ref(zero_rotational_quantity),
-                             boundary_model, boundary_contact_model_, source_terms,
+                             boundary_model, contact_model_, source_terms,
                              convert(ELTYPE, adhesion_coefficient),
                              create_cache_rigid(Val(NDIMS), ELTYPE,
                                                 nparticles(initial_condition),
-                                                boundary_contact_model_, color_value))
+                                                contact_model_, color_value))
 
     return system
 end
 
 function create_cache_rigid(::Val{NDIMS}, ELTYPE, n_particles,
-                            boundary_contact_model, color_value) where {NDIMS}
-    tangential_displacement = create_contact_tangential_displacement(boundary_contact_model,
+                            contact_model, color_value) where {NDIMS}
+    tangential_displacement = create_contact_tangential_displacement(contact_model,
                                                                      ELTYPE, Val(NDIMS))
-    manifold_cache = create_contact_manifold_cache(Val(NDIMS), ELTYPE, n_particles)
+    manifold_cache = create_contact_manifold_cache(contact_model, Val(NDIMS), ELTYPE,
+                                                   n_particles)
 
     return (; color=Int(color_value),
             contact_tangential_displacement=tangential_displacement,
@@ -148,7 +169,12 @@ function create_cache_rigid(::Val{NDIMS}, ELTYPE, n_particles,
             manifold_cache...)
 end
 
-function create_contact_manifold_cache(::Val{NDIMS}, ELTYPE,
+function create_contact_manifold_cache(::Nothing, ::Val{NDIMS}, ELTYPE,
+                                       n_particles) where {NDIMS}
+    (;)
+end
+
+function create_contact_manifold_cache(contact_model, ::Val{NDIMS}, ELTYPE,
                                        n_particles) where {NDIMS}
     max_manifolds = 8
 
@@ -624,7 +650,7 @@ function Base.show(io::IO, system::RigidBodySystem)
     print(io, "RigidBodySystem{", ndims(system), "}(")
     print(io, system.acceleration)
     print(io, ", ", system.boundary_model)
-    print(io, ", ", system.boundary_contact_model)
+    print(io, ", ", system.contact_model)
     print(io, ") with ", nparticles(system), " particles")
 end
 
@@ -638,7 +664,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::RigidBodySystem)
         summary_line(io, "#particles", nparticles(system))
         summary_line(io, "acceleration", system.acceleration)
         summary_line(io, "boundary model", system.boundary_model)
-        summary_line(io, "boundary contact model", system.boundary_contact_model)
+        summary_line(io, "contact model", system.contact_model)
         summary_footer(io)
     end
 end

@@ -194,6 +194,8 @@ end
 end
 
 function reset_contact_manifold_cache!(cache)
+    haskey(cache, :contact_manifold_count) || return cache
+
     set_zero!(cache.contact_manifold_count)
     set_zero!(cache.contact_manifold_weight_sum)
     set_zero!(cache.contact_manifold_penetration_sum)
@@ -287,7 +289,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::RigidBodySystem{<:Any, <:Any, NDIMS},
                    neighbor_system::WallBoundarySystem, semi) where {NDIMS}
-    contact_model = particle_system.boundary_contact_model
+    contact_model = particle_system.contact_model
     isnothing(contact_model) && return dv
 
     force_per_particle = particle_system.force_per_particle
@@ -425,7 +427,7 @@ function remove_resultant_contact_torque!(force_per_particle,
     return force_per_particle
 end
 
-@inline function normal_contact_force(contact_model::RigidBoundaryContactModel,
+@inline function normal_contact_force(contact_model::RigidContactModel,
                                       penetration, normal_velocity, ELTYPE)
     normal_force, _ = normal_contact_force_components(contact_model, penetration,
                                                       normal_velocity, ELTYPE)
@@ -433,7 +435,7 @@ end
     return normal_force
 end
 
-@inline function normal_friction_reference_force(contact_model::RigidBoundaryContactModel,
+@inline function normal_friction_reference_force(contact_model::RigidContactModel,
                                                  penetration, normal_velocity, ELTYPE)
     _, friction_reference_force = normal_contact_force_components(contact_model, penetration,
                                                                   normal_velocity, ELTYPE)
@@ -441,7 +443,7 @@ end
     return friction_reference_force
 end
 
-@inline function normal_contact_force_components(contact_model::RigidBoundaryContactModel,
+@inline function normal_contact_force_components(contact_model::RigidContactModel,
                                                  penetration, normal_velocity, ELTYPE)
     elastic_force = contact_model.normal_stiffness * penetration
     damping_force = -contact_model.normal_damping * normal_velocity
@@ -451,7 +453,7 @@ end
     return normal_force, friction_reference_force
 end
 
-function tangential_contact_force(contact_model::RigidBoundaryContactModel,
+function tangential_contact_force(contact_model::RigidContactModel,
                                   tangential_displacement,
                                   tangential_velocity,
                                   normal_force_friction_reference, ELTYPE)

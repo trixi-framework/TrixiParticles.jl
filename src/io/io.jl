@@ -128,7 +128,7 @@ function add_system_data!(system_data, system::RigidBodySystem)
     system_data["adhesion_coefficient"] = system.adhesion_coefficient
     system_data["color"] = system.cache.color
     add_system_data!(system_data, system.boundary_model)
-    add_system_data!(system_data, system.boundary_contact_model)
+    add_system_data!(system_data, system.contact_model)
 end
 
 function add_system_data!(system_data, system::WallBoundarySystem)
@@ -220,18 +220,18 @@ function add_system_data!(system_data, contact_model::LinearContactModel)
     system_data["contact_model"]["normal_stiffness"] = contact_model.normal_stiffness
 end
 
-function add_system_data!(system_data, contact_model::RigidBoundaryContactModel)
-    system_data["boundary_contact_model"] = Dict{String, Any}()
-    system_data["boundary_contact_model"]["model"] = type2string(contact_model)
-    system_data["boundary_contact_model"]["normal_stiffness"] = contact_model.normal_stiffness
-    system_data["boundary_contact_model"]["normal_damping"] = contact_model.normal_damping
-    system_data["boundary_contact_model"]["static_friction_coefficient"] = contact_model.static_friction_coefficient
-    system_data["boundary_contact_model"]["kinetic_friction_coefficient"] = contact_model.kinetic_friction_coefficient
-    system_data["boundary_contact_model"]["tangential_stiffness"] = contact_model.tangential_stiffness
-    system_data["boundary_contact_model"]["tangential_damping"] = contact_model.tangential_damping
-    system_data["boundary_contact_model"]["contact_distance"] = contact_model.contact_distance
-    system_data["boundary_contact_model"]["stick_velocity_tolerance"] = contact_model.stick_velocity_tolerance
-    system_data["boundary_contact_model"]["penetration_slop"] = contact_model.penetration_slop
+function add_system_data!(system_data, contact_model::RigidContactModel)
+    system_data["contact_model"] = Dict{String, Any}()
+    system_data["contact_model"]["model"] = type2string(contact_model)
+    system_data["contact_model"]["normal_stiffness"] = contact_model.normal_stiffness
+    system_data["contact_model"]["normal_damping"] = contact_model.normal_damping
+    system_data["contact_model"]["static_friction_coefficient"] = contact_model.static_friction_coefficient
+    system_data["contact_model"]["kinetic_friction_coefficient"] = contact_model.kinetic_friction_coefficient
+    system_data["contact_model"]["tangential_stiffness"] = contact_model.tangential_stiffness
+    system_data["contact_model"]["tangential_damping"] = contact_model.tangential_damping
+    system_data["contact_model"]["contact_distance"] = contact_model.contact_distance
+    system_data["contact_model"]["stick_velocity_tolerance"] = contact_model.stick_velocity_tolerance
+    system_data["contact_model"]["penetration_slop"] = contact_model.penetration_slop
 end
 
 function add_system_data!(system_data, state_equation::StateEquationCole)
