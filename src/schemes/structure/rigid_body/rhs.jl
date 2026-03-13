@@ -226,8 +226,8 @@ function interact!(dv, v_particle_system, u_particle_system,
             weight_sum <= eps(ELTYPE) && continue
 
             normal = SVector{NDIMS, ELTYPE}(ntuple(@inline(dim->particle_system.cache.contact_manifold_normal_sum[dim,
-                                                                                                                     manifold_index,
-                                                                                                                     particle] /
+                                                                                                                  manifold_index,
+                                                                                                                  particle] /
                                                                 weight_sum),
                                                    Val(NDIMS)))
             normal_norm = norm(normal)
@@ -235,9 +235,9 @@ function interact!(dv, v_particle_system, u_particle_system,
             normal /= normal_norm
 
             v_boundary = SVector{NDIMS, ELTYPE}(ntuple(@inline(dim->particle_system.cache.contact_manifold_wall_velocity_sum[dim,
-                                                                                                                               manifold_index,
-                                                                                                                               particle] /
-                                                                  weight_sum),
+                                                                                                                             manifold_index,
+                                                                                                                             particle] /
+                                                                    weight_sum),
                                                        Val(NDIMS)))
             penetration_effective = particle_system.cache.contact_manifold_penetration_sum[manifold_index,
                                                                                            particle] /
@@ -292,7 +292,8 @@ end
     normal_merge_cos = wall_spacing <= eps(ELTYPE) ? one(ELTYPE) :
                        distance / hypot(distance, wall_spacing)
 
-    manifold_index = find_or_create_contact_manifold!(particle_system.cache, particle, normal,
+    manifold_index = find_or_create_contact_manifold!(particle_system.cache, particle,
+                                                      normal,
                                                       normal_merge_cos)
     accumulate_contact_manifold_sums!(particle_system.cache, particle, manifold_index,
                                       contact_weight, normal, wall_velocity, penetration)
@@ -348,7 +349,7 @@ function find_or_create_contact_manifold!(cache, particle, normal,
 end
 
 function accumulate_contact_manifold_sums!(cache, particle, manifold_index, contact_weight,
-                                          normal, wall_velocity, penetration_effective)
+                                           normal, wall_velocity, penetration_effective)
     # Store weighted sums so the final interaction step can recover one averaged contact
     # state per manifold instead of reacting to every wall particle individually. The summed
     # data describes one effective contact patch: averaged normal, wall velocity, and
