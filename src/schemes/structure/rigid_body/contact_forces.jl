@@ -32,7 +32,7 @@ function update_contact_manifold_step!(system::RigidBodySystem, v_ode, u_ode, se
         v_neighbor = wrap_v(v_ode, neighbor_system, semi)
         u_neighbor = wrap_u(u_ode, neighbor_system, semi)
 
-        apply_boundary_contact_correction!(system, neighbor_system,
+        apply_contact_correction!(system, neighbor_system,
                                            v_system, u_system,
                                            v_neighbor, u_neighbor,
                                            semi, dt,
@@ -67,8 +67,8 @@ function update_rigid_contact_eachstep!(system::RigidBodySystem, v_ode, u_ode, s
     v_system = wrap_v(v_ode, system, semi)
     u_system = wrap_u(u_ode, system, semi)
 
-    system.cache.boundary_contact_count[] = 0
-    system.cache.max_boundary_penetration[] = zero(eltype(system))
+    system.cache.contact_count[] = 0
+    system.cache.max_contact_penetration[] = zero(eltype(system))
 
     active_contact_keys = Set{NTuple{3, Int}}()
     @trixi_timeit timer() "contact manifold update" begin
@@ -178,7 +178,7 @@ function update_contact_history_from_manifolds!(system::RigidBodySystem{<:Any, <
     return contact_count, max_penetration
 end
 
-function apply_boundary_contact_correction!(system::RigidBodySystem{<:Any, <:Any, NDIMS},
+function apply_contact_correction!(system::RigidBodySystem{<:Any, <:Any, NDIMS},
                                             neighbor_system::WallBoundarySystem,
                                             v_system, u_system,
                                             v_neighbor, u_neighbor,
@@ -205,8 +205,8 @@ function apply_boundary_contact_correction!(system::RigidBodySystem{<:Any, <:Any
                                                                             contact_model,
                                                                             ELTYPE)
 
-    system.cache.boundary_contact_count[] += contact_count
-    system.cache.max_boundary_penetration[] = max(system.cache.max_boundary_penetration[],
+    system.cache.contact_count[] += contact_count
+    system.cache.max_contact_penetration[] = max(system.cache.max_contact_penetration[],
                                                   max_penetration)
 
     # This callback only updates contact history/diagnostics. It must not modify

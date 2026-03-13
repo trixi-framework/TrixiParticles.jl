@@ -163,8 +163,8 @@ function create_cache_rigid(::Val{NDIMS}, ELTYPE, n_particles,
 
     return (; color=Int(color_value),
             contact_tangential_displacement=tangential_displacement,
-            boundary_contact_count=Ref(0),
-            max_boundary_penetration=Ref(zero(ELTYPE)),
+            contact_count=Ref(0),
+            max_contact_penetration=Ref(zero(ELTYPE)),
             resting_contact_counter=Ref(0),
             manifold_cache...)
 end
@@ -193,8 +193,8 @@ function reset_interaction_accumulators!(system::RigidBodySystem)
     system.resultant_torque[] = zero(system.resultant_torque[])
     system.angular_acceleration_force[] = zero(system.angular_acceleration_force[])
     set_zero!(system.force_per_particle)
-    system.cache.boundary_contact_count[] = 0
-    system.cache.max_boundary_penetration[] = zero(eltype(system))
+    system.cache.contact_count[] = 0
+    system.cache.max_contact_penetration[] = zero(eltype(system))
     reset_contact_manifold_cache!(system.cache)
 
     return system
@@ -207,8 +207,8 @@ function reset_resultants_and_contact_state!(system::RigidBodySystem)
         empty!(system.cache.contact_tangential_displacement)
     end
 
-    system.cache.boundary_contact_count[] = 0
-    system.cache.max_boundary_penetration[] = zero(eltype(system))
+    system.cache.contact_count[] = 0
+    system.cache.max_contact_penetration[] = zero(eltype(system))
     system.cache.resting_contact_counter[] = 0
 
     return system
@@ -619,8 +619,8 @@ function system_data(system::RigidBodySystem, dv_ode, du_ode, v_ode, u_ode, semi
     resultant_torque = system.resultant_torque[]
     angular_acceleration_force = system.angular_acceleration_force[]
     gyroscopic_acceleration = system.gyroscopic_acceleration[]
-    boundary_contact_count = system.cache.boundary_contact_count[]
-    max_boundary_penetration = system.cache.max_boundary_penetration[]
+    contact_count = system.cache.contact_count[]
+    max_contact_penetration = system.cache.max_contact_penetration[]
     relative_coordinates = system.relative_coordinates
 
     return (; coordinates, velocity, mass=system.mass,
@@ -630,7 +630,7 @@ function system_data(system::RigidBodySystem, dv_ode, du_ode, v_ode, u_ode, semi
             angular_velocity,
             resultant_force, resultant_torque,
             angular_acceleration_force, gyroscopic_acceleration,
-            boundary_contact_count, max_boundary_penetration,
+            contact_count, max_contact_penetration,
             density, pressure, acceleration)
 end
 
@@ -640,7 +640,7 @@ function available_data(::RigidBodySystem)
             :center_of_mass, :center_of_mass_velocity,
             :angular_velocity, :resultant_force, :resultant_torque,
             :angular_acceleration_force, :gyroscopic_acceleration,
-            :boundary_contact_count, :max_boundary_penetration,
+            :contact_count, :max_contact_penetration,
             :density, :pressure, :acceleration)
 end
 

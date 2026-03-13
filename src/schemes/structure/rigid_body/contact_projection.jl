@@ -258,7 +258,7 @@ function project_resting_contact_velocity!(system::RigidBodySystem{<:Any, <:Any,
     contact_model = system.contact_model
     isnothing(contact_model) && return false
     contact_model.resting_contact_projection || return false
-    system.cache.boundary_contact_count[] > 0 || begin
+    system.cache.contact_count[] > 0 || begin
         reset_resting_contact_counter!(system)
         return false
     end

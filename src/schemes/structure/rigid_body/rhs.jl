@@ -306,8 +306,8 @@ function interact!(dv, v_particle_system, u_particle_system,
     zero_tangential = zero(SVector{NDIMS, ELTYPE})
     contact_map = particle_system.cache.contact_tangential_displacement
     normal_merge_cos = convert(ELTYPE, 0.995)
-    boundary_contact_count = 0
-    max_boundary_penetration = zero(ELTYPE)
+    contact_count = 0
+    max_contact_penetration = zero(ELTYPE)
 
     update_contact_manifold_cache!(particle_system, neighbor_system,
                                    u_particle_system,
@@ -367,8 +367,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                 contact_force_per_particle[dim, particle] += interaction_force[dim]
             end
 
-            boundary_contact_count += 1
-            max_boundary_penetration = max(max_boundary_penetration, penetration_effective)
+            contact_count += 1
+            max_contact_penetration = max(max_contact_penetration, penetration_effective)
         end
     end
 
@@ -382,9 +382,9 @@ function interact!(dv, v_particle_system, u_particle_system,
         end
     end
 
-    particle_system.cache.boundary_contact_count[] += boundary_contact_count
-    particle_system.cache.max_boundary_penetration[] = max(particle_system.cache.max_boundary_penetration[],
-                                                           max_boundary_penetration)
+    particle_system.cache.contact_count[] += contact_count
+    particle_system.cache.max_contact_penetration[] = max(particle_system.cache.max_contact_penetration[],
+                                                           max_contact_penetration)
 
     return dv
 end

@@ -354,8 +354,8 @@
         @test :resultant_torque in fields
         @test :angular_acceleration_force in fields
         @test :gyroscopic_acceleration in fields
-        @test :boundary_contact_count in fields
-        @test :max_boundary_penetration in fields
+        @test :contact_count in fields
+        @test :max_contact_penetration in fields
 
         @test data.center_of_mass ≈ [0.0, 0.0]
         @test data.center_of_mass_velocity ≈ [0.0, 0.0]
@@ -364,8 +364,8 @@
         @test data.resultant_torque ≈ 0.0
         @test data.angular_acceleration_force ≈ 0.0
         @test data.gyroscopic_acceleration ≈ 0.0
-        @test data.boundary_contact_count == 0
-        @test data.max_boundary_penetration == 0.0
+        @test data.contact_count == 0
+        @test data.max_contact_penetration == 0.0
         @test data.relative_coordinates ≈ rigid_system.relative_coordinates
         @test :local_coordinates ∉ fields
     end
@@ -414,8 +414,8 @@
         @test iszero(rigid_system.resultant_force[])
         @test iszero(rigid_system.resultant_torque[])
         @test iszero(rigid_system.angular_acceleration_force[])
-        @test rigid_system.cache.boundary_contact_count[] == 0
-        @test iszero(rigid_system.cache.max_boundary_penetration[])
+        @test rigid_system.cache.contact_count[] == 0
+        @test iszero(rigid_system.cache.max_contact_penetration[])
 
         expected_center_of_mass = [4.0, 3.0]
         expected_relative_coordinates = u_new .- expected_center_of_mass
@@ -462,7 +462,7 @@
         @test size(data.acceleration, 1) == ndims(rigid_system)
     end
 
-    @trixi_testset "Boundary Contact Model" begin
+    @trixi_testset "Contact Model" begin
         rigid_coordinates = reshape([0.0, 0.05], 2, 1)
         rigid_velocity = reshape([1.0, -1.0], 2, 1)
         rigid_mass = [1.0]
@@ -818,8 +818,8 @@
 
         @test dv[2, 1] > 0
         @test dv[1, 1] < 0
-        @test rigid_system.cache.boundary_contact_count[] > 0
-        @test rigid_system.cache.max_boundary_penetration[] > 0
+        @test rigid_system.cache.contact_count[] > 0
+        @test rigid_system.cache.max_contact_penetration[] > 0
 
         v_wall = TrixiParticles.wrap_v(v_ode, boundary_system, semi)
         u_wall = TrixiParticles.wrap_u(u_ode, boundary_system, semi)
@@ -830,7 +830,7 @@
         v_rigid_before = copy(v_rigid)
         active_keys = Set{NTuple{3, Int}}()
 
-        modified = TrixiParticles.apply_boundary_contact_correction!(rigid_system,
+        modified = TrixiParticles.apply_contact_correction!(rigid_system,
                                                                      boundary_system,
                                                                      v_rigid, u_rigid,
                                                                      v_wall, u_wall,
@@ -865,7 +865,7 @@
         u_wall_slop = TrixiParticles.wrap_u(u_ode_slop, boundary_system, semi_slop)
         active_keys_slop = Set{NTuple{3, Int}}()
 
-        TrixiParticles.apply_boundary_contact_correction!(rigid_system_slop, boundary_system,
+        TrixiParticles.apply_contact_correction!(rigid_system_slop, boundary_system,
                                                           v_rigid_slop, u_rigid_slop,
                                                           v_wall_slop, u_wall_slop,
                                                           semi_slop, 1e-3,
@@ -928,7 +928,7 @@
         u_wall_damped = TrixiParticles.wrap_u(u_ode_damped, boundary_system, semi_damped)
         active_keys_damped = Set{NTuple{3, Int}}()
 
-        TrixiParticles.apply_boundary_contact_correction!(rigid_system_damped, boundary_system,
+        TrixiParticles.apply_contact_correction!(rigid_system_damped, boundary_system,
                                                           v_rigid_damped, u_rigid_damped,
                                                           v_wall_damped, u_wall_damped,
                                                           semi_damped, 1e-3,
@@ -972,7 +972,7 @@
         @test damped_displacement_norm > elastic_only_damped_cap
     end
 
-    @trixi_testset "Boundary Contact Property Sweeps" begin
+    @trixi_testset "Contact Property Sweeps" begin
         rng = Random.MersenneTwister(0xC0111D3)
 
         sample_loguniform(rng, min_exp, max_exp) = 10.0^(min_exp +
@@ -1404,12 +1404,12 @@
         TrixiParticles.update_final!(rigid_system, v_rigid, u_rigid, v_ode, u_ode, semi, 0.0)
 
         active_keys = Set{NTuple{3, Int}}()
-        TrixiParticles.apply_boundary_contact_correction!(rigid_system, boundary_system,
+        TrixiParticles.apply_contact_correction!(rigid_system, boundary_system,
                                                           v_rigid, u_rigid,
                                                           v_wall, u_wall,
                                                           semi, 1e-3, active_keys)
 
-        @test rigid_system.cache.boundary_contact_count[] > 0
+        @test rigid_system.cache.contact_count[] > 0
         @test !isempty(active_keys)
         @test !isempty(rigid_system.cache.contact_tangential_displacement)
 
@@ -1468,7 +1468,7 @@
                                      semi_no_projection, 0.0)
 
         active_keys_no_projection = Set{NTuple{3, Int}}()
-        TrixiParticles.apply_boundary_contact_correction!(rigid_system_no_projection,
+        TrixiParticles.apply_contact_correction!(rigid_system_no_projection,
                                                           boundary_system,
                                                           v_rigid_no_projection,
                                                           u_rigid_no_projection,
@@ -1549,12 +1549,12 @@
                                      v_ode_angular, u_ode_angular, semi_angular, 0.0)
 
         active_keys_angular = Set{NTuple{3, Int}}()
-        TrixiParticles.apply_boundary_contact_correction!(rigid_system_angular, boundary_system,
+        TrixiParticles.apply_contact_correction!(rigid_system_angular, boundary_system,
                                                           v_rigid_angular, u_rigid_angular,
                                                           v_wall_angular, u_wall_angular,
                                                           semi_angular, 1e-3,
                                                           active_keys_angular)
-        @test rigid_system_angular.cache.boundary_contact_count[] > 0
+        @test rigid_system_angular.cache.contact_count[] > 0
 
         dt_contact_angular = TrixiParticles.contact_time_step(rigid_system_angular)
         angular_before = rigid_system_angular.angular_velocity[]
@@ -1791,7 +1791,7 @@
         @test relative_ke_error < 1e-3
     end
 
-    @trixi_testset "Boundary Contact Timestep Refinement" begin
+    @trixi_testset "Contact Timestep Refinement" begin
         using LinearAlgebra: dot
         using OrdinaryDiffEq
 
@@ -1944,7 +1944,7 @@
         @test energy_variation_medium_fine < 0.005
     end
 
-    @trixi_testset "Boundary Contact Resolution Invariance" begin
+    @trixi_testset "Contact Resolution Invariance" begin
         using OrdinaryDiffEq
 
         function make_wall_system(wall_spacing, n_layers)
