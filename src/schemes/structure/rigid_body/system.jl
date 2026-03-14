@@ -124,9 +124,10 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
         inverse_inertia = Ref(zero(SMatrix{3, 3, ELTYPE, 9}))
     end
 
-    cache = (; create_cache_contact_manifold(contact_model_, Val(NDIMS), ELTYPE,
-                                             nparticles(initial_condition),
-                                             max_manifolds_)...,
+    cache = (;
+             create_cache_contact_manifold(contact_model_, Val(NDIMS), ELTYPE,
+                                           nparticles(initial_condition),
+                                           max_manifolds_)...,
              color=Int(color_value))
 
     system = RigidBodySystem(initial_condition, initial_velocity, mass,

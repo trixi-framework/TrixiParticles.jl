@@ -258,7 +258,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                         normal_velocity = dot(relative_velocity, normal)
 
                         # Only the normal spring-dashpot part is kept in the basic collision.
-                        elastic_force = contact_model.normal_stiffness * penetration_effective
+                        elastic_force = contact_model.normal_stiffness *
+                                        penetration_effective
                         damping_force = -contact_model.normal_damping * normal_velocity
                         normal_force_magnitude = max(elastic_force + damping_force,
                                                      zero(ELTYPE))
@@ -268,7 +269,7 @@ function interact!(dv, v_particle_system, u_particle_system,
 
                             for dim in eachindex(interaction_force)
                                 particle_system.force_per_particle[dim,
-                                                                  particle] += interaction_force[dim]
+                                                                   particle] += interaction_force[dim]
                             end
                         end
                     end
