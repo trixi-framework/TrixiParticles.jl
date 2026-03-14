@@ -757,7 +757,7 @@
                                           normal_damping=20.0,
                                           contact_distance=0.1)
 
-        runtime_model = TrixiParticles.RigidContactModel(contact_model, 0.1, Float64)
+        runtime_model = TrixiParticles.copy_contact_model(contact_model, 0.1, Float64)
 
         @test runtime_model isa RigidContactModel
         @test runtime_model.normal_stiffness ≈ 2.0e4
@@ -765,9 +765,9 @@
         @test runtime_model.contact_distance ≈ 0.1
 
         spacing_scaled_model = RigidContactModel(; normal_stiffness=5.0)
-        spacing_scaled_runtime = TrixiParticles.RigidContactModel(spacing_scaled_model,
-                                                                  0.125,
-                                                                  Float64)
+        spacing_scaled_runtime = TrixiParticles.copy_contact_model(spacing_scaled_model,
+                                                                   0.125,
+                                                                   Float64)
         @test spacing_scaled_runtime.contact_distance ≈ 0.125
 
         @test_throws ArgumentError RigidContactModel(; normal_stiffness=0.0)
@@ -779,6 +779,17 @@
         rigid_system = RigidBodySystem(rigid_ic;
                                        acceleration=(0.0, 0.0),
                                        contact_model=contact_model)
+        rigid_system_with_boundary = RigidBodySystem(rigid_ic;
+                                                     acceleration=(0.0, 0.0),
+                                                     boundary_model=boundary_model,
+                                                     contact_model=contact_model)
+        rigid_system_custom_manifolds = RigidBodySystem(rigid_ic;
+                                                        acceleration=(0.0, 0.0),
+                                                        contact_model=contact_model,
+                                                        max_manifolds=3)
+        rigid_system_without_contact = RigidBodySystem(rigid_ic;
+                                                       acceleration=(0.0, 0.0),
+                                                       boundary_model=boundary_model)
         rigid_system_alias = RigidBodySystem(rigid_ic;
                                              acceleration=(0.0, 0.0),
                                              boundary_contact_model=contact_model)
@@ -791,6 +802,17 @@
         @test rigid_system.contact_model.contact_distance ≈ contact_model.contact_distance
         @test rigid_system_alias.contact_model.contact_distance ≈
               contact_model.contact_distance
+        @test size(rigid_system_custom_manifolds.cache.contact_manifold_weight_sum, 1) == 3
+        @test TrixiParticles.compact_support(rigid_system, boundary_system) ≈
+              contact_model.contact_distance
+        @test TrixiParticles.compact_support(rigid_system_with_boundary,
+                                             boundary_system) ≈
+              contact_model.contact_distance
+        @test iszero(TrixiParticles.compact_support(rigid_system_without_contact,
+                                                    boundary_system))
+        @test_throws ArgumentError RigidBodySystem(rigid_ic;
+                                                   contact_model=contact_model,
+                                                   max_manifolds=0)
         @test_throws ArgumentError RigidBodySystem(rigid_ic;
                                                    contact_model=contact_model,
                                                    boundary_contact_model=contact_model)

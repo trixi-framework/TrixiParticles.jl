@@ -5,10 +5,12 @@ abstract type AbstractRigidContactModel end
                       normal_damping=0.0,
                       contact_distance=0.0)
 
-Basic rigid contact model stored on a rigid body.
-In this branch it is used for rigid-wall contact only.
+It is currently only used for rigid-wall contact.
 The contact force consists of a linear normal spring-dashpot contribution only.
-If `contact_distance == 0`, `RigidBodySystem` uses its particle spacing.
+If `contact_distance == 0`, the particle spacing of the `RigidBodySystem` will be used as contact distance.
+
+!!! warning "Experimental implementation"
+    This is an experimental feature and may change in future releases.
 """
 struct RigidContactModel{ELTYPE <: Real} <: AbstractRigidContactModel
     normal_stiffness::ELTYPE
@@ -37,8 +39,8 @@ function RigidContactModel(; normal_stiffness,
     return RigidContactModel(normal_stiffness_, normal_damping_, contact_distance_)
 end
 
-function RigidContactModel(model::RigidContactModel, particle_spacing,
-                           ::Type{ELTYPE}) where {ELTYPE}
+function copy_contact_model(model::RigidContactModel, particle_spacing,
+                            ::Type{ELTYPE}) where {ELTYPE}
     particle_spacing_ = convert(ELTYPE, particle_spacing)
     particle_spacing_ > 0 ||
         throw(ArgumentError("`particle_spacing` must be positive"))
@@ -50,6 +52,11 @@ function RigidContactModel(model::RigidContactModel, particle_spacing,
     return RigidContactModel(; normal_stiffness=convert(ELTYPE, model.normal_stiffness),
                              normal_damping=convert(ELTYPE, model.normal_damping),
                              contact_distance)
+end
+
+@inline function RigidContactModel(model::RigidContactModel, particle_spacing,
+                                   ::Type{ELTYPE}) where {ELTYPE}
+    return copy_contact_model(model, particle_spacing, ELTYPE)
 end
 
 @inline function contact_time_step(system::RigidBodySystem)
