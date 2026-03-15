@@ -874,7 +874,6 @@
         @test runtime_model.normal_damping ≈ 20.0
         @test runtime_model.contact_distance ≈ 0.1
 
-
         spacing_scaled_model = RigidContactModel(; normal_stiffness=5.0)
         spacing_scaled_runtime = TrixiParticles.copy_contact_model(spacing_scaled_model,
                                                                    0.125,
