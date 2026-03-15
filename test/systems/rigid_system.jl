@@ -759,6 +759,8 @@
         rigid_system_2 = RigidBodySystem(rigid_ic_2;
                                          acceleration=(0.0, 0.0),
                                          contact_model=contact_model_2)
+        rigid_system_without_contact = RigidBodySystem(rigid_ic_1;
+                                                       acceleration=(0.0, 0.0))
 
         semi_rigid = Semidiscretization(rigid_system_1, rigid_system_2)
         ode_rigid = semidiscretize(semi_rigid, (0.0, 0.01))
@@ -799,6 +801,12 @@
                                    pair_normal_damping * normal_velocity
         expected_force = SVector(-expected_force_magnitude, 0.0)
 
+        @test TrixiParticles.compact_support(rigid_system_1, rigid_system_2) ≈
+              pair_contact_distance
+        @test iszero(TrixiParticles.compact_support(rigid_system_without_contact,
+                                                    rigid_system_2))
+        @test iszero(TrixiParticles.compact_support(rigid_system_2,
+                                                    rigid_system_without_contact))
         @test TrixiParticles.contact_time_step(rigid_system_1, semi_rigid) ≈ pair_contact_dt
         @test TrixiParticles.contact_time_step(rigid_system_2, semi_rigid) ≈ pair_contact_dt
         zero_velocity_ode = zero(v_ode_rigid)
@@ -855,16 +863,11 @@
                                           contact_distance=0.1)
 
         runtime_model = TrixiParticles.copy_contact_model(contact_model, 0.1, Float64)
-        runtime_model_alias = TrixiParticles.RigidBoundaryContactModel(contact_model,
-                                                                       0.1, Float64)
-        @test TrixiParticles.RigidBoundaryContactModel === TrixiParticles.RigidContactModel
         @test runtime_model isa RigidContactModel
         @test runtime_model.normal_stiffness ≈ 2.0e4
         @test runtime_model.normal_damping ≈ 20.0
         @test runtime_model.contact_distance ≈ 0.1
-        @test runtime_model_alias.normal_stiffness ≈ runtime_model.normal_stiffness
-        @test runtime_model_alias.normal_damping ≈ runtime_model.normal_damping
-        @test runtime_model_alias.contact_distance ≈ runtime_model.contact_distance
+
 
         spacing_scaled_model = RigidContactModel(; normal_stiffness=5.0)
         spacing_scaled_runtime = TrixiParticles.copy_contact_model(spacing_scaled_model,
