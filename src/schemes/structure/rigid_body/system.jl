@@ -70,7 +70,6 @@ end
 # See the comments in general/gpu.jl for more details.
 function RigidBodySystem(initial_condition; boundary_model=nothing,
                          contact_model=nothing,
-                         boundary_contact_model=nothing,
                          acceleration=ntuple(_ -> zero(eltype(initial_condition)),
                                              ndims(initial_condition)),
                          particle_spacing=initial_condition.particle_spacing,
@@ -93,10 +92,6 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
     max_manifolds_ > 0 ||
         throw(ArgumentError("`max_manifolds` must be positive"))
 
-    if !isnothing(contact_model) && !isnothing(boundary_contact_model)
-        throw(ArgumentError("`contact_model` and `boundary_contact_model` cannot both be specified"))
-    end
-    contact_model = isnothing(contact_model) ? boundary_contact_model : contact_model
     contact_model_ = isnothing(contact_model) ? nothing :
                      copy_contact_model(contact_model, particle_spacing_, ELTYPE)
     initial_velocity = copy(initial_condition.velocity)

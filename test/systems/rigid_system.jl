@@ -790,9 +790,6 @@
         rigid_system_without_contact = RigidBodySystem(rigid_ic;
                                                        acceleration=(0.0, 0.0),
                                                        boundary_model=boundary_model)
-        rigid_system_alias = RigidBodySystem(rigid_ic;
-                                             acceleration=(0.0, 0.0),
-                                             boundary_contact_model=contact_model)
         @test haskey(rigid_system.cache, :contact_manifold_count)
         @test TrixiParticles.contact_time_step(rigid_system) ≈ sqrt(rigid_mass[1] /
                    contact_model.normal_stiffness)
@@ -800,8 +797,6 @@
         @test rigid_system.contact_model.normal_stiffness ≈ contact_model.normal_stiffness
         @test rigid_system.contact_model.normal_damping ≈ contact_model.normal_damping
         @test rigid_system.contact_model.contact_distance ≈ contact_model.contact_distance
-        @test rigid_system_alias.contact_model.contact_distance ≈
-              contact_model.contact_distance
         @test size(rigid_system_custom_manifolds.cache.contact_manifold_weight_sum, 1) == 3
         @test TrixiParticles.compact_support(rigid_system, boundary_system) ≈
               contact_model.contact_distance
@@ -813,9 +808,6 @@
         @test_throws ArgumentError RigidBodySystem(rigid_ic;
                                                    contact_model=contact_model,
                                                    max_manifolds=0)
-        @test_throws ArgumentError RigidBodySystem(rigid_ic;
-                                                   contact_model=contact_model,
-                                                   boundary_contact_model=contact_model)
 
         semi = Semidiscretization(rigid_system, boundary_system)
         ode = semidiscretize(semi, (0.0, 0.01))

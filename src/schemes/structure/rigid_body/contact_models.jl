@@ -54,11 +54,6 @@ function copy_contact_model(model::RigidContactModel, particle_spacing,
                              contact_distance)
 end
 
-@inline function RigidContactModel(model::RigidContactModel, particle_spacing,
-                                   ::Type{ELTYPE}) where {ELTYPE}
-    return copy_contact_model(model, particle_spacing, ELTYPE)
-end
-
 @inline function contact_time_step(system::RigidBodySystem)
     return contact_time_step(system.contact_model, system)
 end
