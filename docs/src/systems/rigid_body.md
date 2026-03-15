@@ -10,3 +10,14 @@ keeping the structure kinematics rigid.
 Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "structure", "rigid_body", "system.jl")]
 ```
+
+### Contact Models
+
+Rigid contact is configured through the contact model. This is separate from the
+boundary model used for fluid-structure interaction; see
+[Boundary Models](@ref boundary_models) for that part of the rigid-body setup.
+
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("schemes", "structure", "rigid_body", "contact_models.jl")]
+```
