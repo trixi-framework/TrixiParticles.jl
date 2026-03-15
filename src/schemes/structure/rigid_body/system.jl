@@ -4,6 +4,7 @@
                    contact_model=nothing,
                    acceleration=ntuple(_ -> 0.0, ndims(initial_condition)),
                    particle_spacing=initial_condition.particle_spacing,
+                   max_manifolds=8,
                    source_terms=nothing, adhesion_coefficient=0.0,
                    color_value=0)
 
@@ -19,10 +20,12 @@ torque and applied consistently to all rigid particles.
 # Keywords
 - `boundary_model`: Boundary model for fluid-structure interaction
                     (see [Boundary Models](@ref boundary_models)).
-- `contact_model`: Optional rigid-wall contact model.
+- `contact_model`: Optional rigid contact model.
                    If specified, rigid-wall collisions are enabled.
+                   `boundary_contact_model` is accepted as a compatibility alias.
 - `acceleration`: Global acceleration vector applied to all rigid particles.
 - `particle_spacing`: Reference particle spacing used for time-step estimation.
+- `max_manifolds`: Maximum number of wall-contact manifolds cached per rigid particle.
 - `source_terms`: Optional source terms of the form
                   `(coords, velocity, density, pressure, t) -> source`.
 - `adhesion_coefficient`: Wall-adhesion strength used by Akinci-type surface tension
@@ -68,9 +71,11 @@ end
 # See the comments in general/gpu.jl for more details.
 function RigidBodySystem(initial_condition; boundary_model=nothing,
                          contact_model=nothing,
+                         boundary_contact_model=nothing,
                          acceleration=ntuple(_ -> zero(eltype(initial_condition)),
                                              ndims(initial_condition)),
                          particle_spacing=initial_condition.particle_spacing,
+                         max_manifolds=8,
                          source_terms=nothing, adhesion_coefficient=0.0,
                          color_value=0)
     NDIMS = ndims(initial_condition)
@@ -85,8 +90,16 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
     end
 
     particle_spacing_ = convert(ELTYPE, particle_spacing)
+    max_manifolds_ = Int(max_manifolds)
+    max_manifolds_ > 0 ||
+        throw(ArgumentError("`max_manifolds` must be positive"))
+
+    if !isnothing(contact_model) && !isnothing(boundary_contact_model)
+        throw(ArgumentError("`contact_model` and `boundary_contact_model` cannot both be specified"))
+    end
+    contact_model = isnothing(contact_model) ? boundary_contact_model : contact_model
     contact_model_ = isnothing(contact_model) ? nothing :
-                     RigidContactModel(contact_model, particle_spacing_, ELTYPE)
+                     copy_contact_model(contact_model, particle_spacing_, ELTYPE)
     initial_velocity = copy(initial_condition.velocity)
     relative_coordinates = zeros(ELTYPE, NDIMS, nparticles(initial_condition))
     mass = copy(initial_condition.mass)
@@ -112,6 +125,12 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
         inverse_inertia = Ref(zero(SMatrix{3, 3, ELTYPE, 9}))
     end
 
+    cache = (; create_cache_contact(contact_model_, ELTYPE, Val(NDIMS))...,
+             create_cache_contact_manifold(contact_model_, Val(NDIMS), ELTYPE,
+                                           nparticles(initial_condition),
+                                           max_manifolds_)...,
+             color=Int(color_value))
+
     system = RigidBodySystem(initial_condition, initial_velocity, mass,
                              material_density, acceleration_,
                              particle_spacing_, total_mass, force_per_particle,
@@ -126,37 +145,34 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
                              Ref(zero_rotational_quantity),
                              boundary_model, contact_model_, source_terms,
                              convert(ELTYPE, adhesion_coefficient),
-                             create_cache_rigid(Val(NDIMS), ELTYPE,
-                                                nparticles(initial_condition),
-                                                contact_model_, color_value))
+                             cache)
 
     return system
 end
 
-function create_cache_rigid(::Val{NDIMS}, ELTYPE, n_particles,
-                            contact_model, color_value) where {NDIMS}
+function create_cache_contact(contact_model, ELTYPE, ::Val{NDIMS}) where {NDIMS}
     tangential_displacement = create_contact_tangential_displacement(contact_model,
                                                                      ELTYPE, Val(NDIMS))
-    manifold_cache = create_contact_manifold_cache(contact_model, Val(NDIMS), ELTYPE,
-                                                   n_particles)
 
-    return (; color=Int(color_value),
-            contact_tangential_displacement=tangential_displacement,
+    return (; contact_tangential_displacement=tangential_displacement,
             contact_count=Ref(0),
             max_contact_penetration=Ref(zero(ELTYPE)),
-            resting_contact_counter=Ref(0),
-            manifold_cache...)
+            resting_contact_counter=Ref(0))
 end
 
-function create_contact_manifold_cache(::Nothing, ::Val{NDIMS}, ELTYPE,
-                                       n_particles) where {NDIMS}
-    (;)
+function create_cache_contact_manifold(::Nothing, ::Val{NDIMS}, ELTYPE,
+                                       n_particles, max_manifolds) where {NDIMS}
+    return (;)
 end
 
-function create_contact_manifold_cache(contact_model, ::Val{NDIMS}, ELTYPE,
-                                       n_particles) where {NDIMS}
-    max_manifolds = 8
-
+# Allocate per-particle manifold scratch arrays for rigid-wall contact.
+#
+# The cache shape is `[dimension, manifold, particle]` for vector-valued sums and
+# `[manifold, particle]` for scalar sums. It is rebuilt for each rigid-wall system pair in
+# the RHS and therefore acts purely as transient manifold assembly storage; the persistent
+# collision effect is the force accumulated in `force_per_particle`.
+function create_cache_contact_manifold(contact_model, ::Val{NDIMS}, ELTYPE,
+                                       n_particles, max_manifolds) where {NDIMS}
     return (; contact_manifold_count=zeros(Int, n_particles),
             contact_manifold_weight_sum=zeros(ELTYPE, max_manifolds, n_particles),
             contact_manifold_penetration_sum=zeros(ELTYPE, max_manifolds, n_particles),
@@ -500,10 +516,6 @@ end
 function calculate_dt(v_ode, u_ode, cfl_number, system::RigidBodySystem, semi)
     spacing = particle_spacing(system, first(eachparticle(system)))
     contact_dt = cfl_number * contact_time_step(system)
-
-    if !isfinite(spacing) || spacing <= 0
-        return contact_dt
-    end
 
     if isnothing(semi)
         system_velocity = current_velocity(v_ode, system)

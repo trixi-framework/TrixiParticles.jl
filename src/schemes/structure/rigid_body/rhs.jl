@@ -193,6 +193,9 @@ end
                          grad_kernel, particle)
 end
 
+# Reset the manifold scratch arrays used while assembling one rigid-wall interaction pair.
+# The cache itself lives on the rigid system, but its contents are strictly transient and
+# are rebuilt from zero before each wall-pair traversal.
 function reset_contact_manifold_cache!(cache)
     haskey(cache, :contact_manifold_count) || return cache
 
@@ -213,10 +216,12 @@ end
 
     volume = convert(ELTYPE, neighbor_system.initial_condition.mass[neighbor]) / density
     kernel_weight = convert(ELTYPE, smoothing_kernel(neighbor_system, distance, neighbor))
-
     return max(kernel_weight * volume, zero(ELTYPE))
 end
 
+# Greedily assign a contact sample to one cached manifold of the current rigid particle.
+# Samples with sufficiently aligned normals are merged so the later force evaluation acts
+# on one averaged contact patch instead of on every wall particle independently.
 function find_or_add_contact_manifold!(cache, particle, normal, normal_merge_cos, ELTYPE)
     manifold_count = cache.contact_manifold_count[particle]
     normal_sum = cache.contact_manifold_normal_sum
@@ -259,6 +264,8 @@ function find_or_add_contact_manifold!(cache, particle, normal, normal_merge_cos
     return best_index
 end
 
+# Accumulate weighted manifold statistics for one accepted wall-contact sample.
+# The sums are turned into averaged manifold states only in the later force/history pass.
 function accumulate_contact_manifold!(cache, particle, manifold, contact_weight, normal,
                                       wall_velocity, penetration_effective,
                                       tangential_displacement)
@@ -280,9 +287,7 @@ end
 
 @inline function weighted_manifold_vector(cache_array, manifold, particle, weight_sum,
                                           ::Val{NDIMS}, ELTYPE) where {NDIMS}
-    return SVector{NDIMS, ELTYPE}(ntuple(@inline(dim->cache_array[dim, manifold, particle] /
-                                                    weight_sum),
-                                         Val(NDIMS)))
+    return extract_svector(cache_array, Val(NDIMS), manifold, particle) / weight_sum
 end
 
 function interact!(dv, v_particle_system, u_particle_system,

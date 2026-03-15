@@ -150,6 +150,7 @@ saving_callback = SolutionSavingCallback(dt=0.01,
 callbacks = CallbackSet(info_callback, saving_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
+# To prevent penetration on interaction with the fluid both `reltol` and `dtmax` have been set.
 sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-6, # Default abstol is 1e-6
             reltol=1e-4, # Default reltol is 1e-3

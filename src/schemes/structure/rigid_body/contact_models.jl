@@ -1,6 +1,30 @@
 abstract type AbstractRigidContactModel end
 abstract type AbstractRigidContactModelSpecification end
 
+"""
+    RigidContactModel(; normal_stiffness,
+                      normal_damping=0.0,
+                      static_friction_coefficient=nothing,
+                      kinetic_friction_coefficient=nothing,
+                      tangential_stiffness=nothing,
+                      tangential_damping=nothing,
+                      contact_distance=0.0,
+                      stick_velocity_tolerance=nothing,
+                      penetration_slop=nothing,
+                      torque_free=false,
+                      resting_contact_projection=nothing)
+
+Runtime rigid-contact model used by `RigidBodySystem`.
+It currently drives rigid-wall contact through a linear normal spring-dashpot law,
+with optional tangential spring-dashpot friction, stick-slip regularization, and
+resting-contact controls used by the collision prototype.
+
+If `contact_distance == 0`, the `RigidBodySystem` particle spacing is used when the
+model is adapted via `copy_contact_model(model, particle_spacing, ELTYPE)`.
+
+!!! warning "Experimental implementation"
+    This is an experimental feature and may change in future releases.
+"""
 struct RigidContactModel{ELTYPE <: Real} <: AbstractRigidContactModel
     normal_stiffness::ELTYPE
     normal_damping::ELTYPE
@@ -509,8 +533,13 @@ function LinearizedHertzMindlinBoundaryContactModel(; material, wall_material, r
                                                       resting_contact_projection)
 end
 
+@inline function copy_contact_model(model::AbstractRigidContactModelSpecification,
+                                    particle_spacing, ::Type{ELTYPE}) where {ELTYPE}
+    return RigidContactModel(model, particle_spacing, ELTYPE)
+end
+
 function RigidContactModel(model::PerfectElasticBoundaryContactModel,
-                                   particle_spacing, ::Type{ELTYPE}) where {ELTYPE}
+                           particle_spacing, ::Type{ELTYPE}) where {ELTYPE}
     particle_spacing_ = convert(ELTYPE, particle_spacing)
     particle_spacing_ > 0 ||
         throw(ArgumentError("`particle_spacing` must be positive"))
@@ -534,7 +563,7 @@ function RigidContactModel(model::PerfectElasticBoundaryContactModel,
 end
 
 function RigidContactModel(model::LinearizedHertzMindlinBoundaryContactModel,
-                                   particle_spacing, ::Type{ELTYPE}) where {ELTYPE}
+                           particle_spacing, ::Type{ELTYPE}) where {ELTYPE}
     particle_spacing_ = convert(ELTYPE, particle_spacing)
     particle_spacing_ > 0 ||
         throw(ArgumentError("`particle_spacing` must be positive"))
@@ -597,13 +626,18 @@ function RigidContactModel(model::LinearizedHertzMindlinBoundaryContactModel,
                                      resting_contact_projection=model.resting_contact_projection)
 end
 
-function RigidContactModel(model::RigidContactModel, particle_spacing,
-                                   ::Type{ELTYPE}) where {ELTYPE}
-    contact_distance = model.contact_distance > 0 ? model.contact_distance :
-                       convert(ELTYPE, particle_spacing)
+function copy_contact_model(model::RigidContactModel, particle_spacing,
+                            ::Type{ELTYPE}) where {ELTYPE}
+    particle_spacing_ = convert(ELTYPE, particle_spacing)
+    particle_spacing_ > 0 ||
+        throw(ArgumentError("`particle_spacing` must be positive"))
+
+    contact_distance = model.contact_distance > 0 ?
+                       convert(ELTYPE, model.contact_distance) :
+                       particle_spacing_
 
     return RigidContactModel(; normal_stiffness=convert(ELTYPE,
-                                                                model.normal_stiffness),
+                                                        model.normal_stiffness),
                                      normal_damping=convert(ELTYPE, model.normal_damping),
                                      static_friction_coefficient=convert(ELTYPE,
                                                                          model.static_friction_coefficient),
@@ -620,6 +654,11 @@ function RigidContactModel(model::RigidContactModel, particle_spacing,
                                                               model.penetration_slop),
                                      torque_free=model.torque_free,
                                      resting_contact_projection=model.resting_contact_projection)
+end
+
+@inline function RigidContactModel(model::RigidContactModel, particle_spacing,
+                                   ::Type{ELTYPE}) where {ELTYPE}
+    return copy_contact_model(model, particle_spacing, ELTYPE)
 end
 
 @inline function requires_update_callback(contact_model::RigidContactModel)
