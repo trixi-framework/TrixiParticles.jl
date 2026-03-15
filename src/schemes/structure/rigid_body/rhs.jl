@@ -287,7 +287,9 @@ end
 
 @inline function weighted_manifold_vector(cache_array, manifold, particle, weight_sum,
                                           ::Val{NDIMS}, ELTYPE) where {NDIMS}
-    return extract_svector(cache_array, Val(NDIMS), manifold, particle) / weight_sum
+    return SVector{NDIMS, ELTYPE}(ntuple(@inline(dim->cache_array[dim, manifold, particle] /
+                                                    weight_sum),
+                                         Val(NDIMS)))
 end
 
 function interact!(dv, v_particle_system, u_particle_system,
