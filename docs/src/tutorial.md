@@ -1,7 +1,5 @@
 # Tutorials
 
-Choose a tutorial based on the task in front of you.
-
 > New to TrixiParticles.jl? Start with [Setting up your simulation from scratch](tutorials/tut_setup.md).
 
 ## Recommended Path
@@ -20,10 +18,11 @@ Choose a tutorial based on the task in front of you.
      style="max-width: 360px; width: 100%; border-radius: 12px;" />
 ```
 
-Build a complete weakly compressible SPH dam break setup from particle spacing through semidiscretization, callbacks, and time integration.
+Build a complete Weakly Compressible SPH dam break setup from particle spacing through
+semidiscretization, callbacks, and time integration.
 
 - Focus: initial conditions, systems, semidiscretization, callbacks
-- Choose this if: you want the full workflow from a minimal example
+- Choose this if: you want the full workflow for a minimal example
 
 ### [Modifying or extending components of TrixiParticles.jl within a simulation file](tutorials/tut_custom_kernel.md)
 
@@ -33,10 +32,11 @@ Build a complete weakly compressible SPH dam break setup from particle spacing t
      style="max-width: 360px; width: 100%; border-radius: 12px;" />
 ```
 
-Start from an existing simulation and replace pieces such as the smoothing kernel directly in the file you run.
+Start from an existing simulation and replace pieces such as the smoothing kernel
+directly in the file you run.
 
 - Focus: `trixi_include`, custom kernels, rapid iteration
-- Choose this if: you want to prototype changes without rewriting a full setup
+- Choose this if: you want to prototype changes without cloning and modifying the package
 
 ### [Particle packing tutorial](tutorials/tut_packing.md)
 
@@ -46,9 +46,10 @@ Start from an existing simulation and replace pieces such as the smoothing kerne
      style="max-width: 360px; width: 100%; border-radius: 12px;" />
 ```
 
-Go from a geometry file to a packed particle distribution using signed distance fields together with boundary and interior sampling.
+Go from a geometry file to a packed particle distribution using signed distance fields
+together with boundary and interior sampling.
 
 - Focus: geometry import, signed distance fields, boundary sampling, `ParticlePackingSystem`
-- Choose this if: you need body-fitted particles for complex shapes
+- Choose this if: you need body-fitted particles for complex geometries
 
 See also [Getting started](getting_started.md) and [Examples](examples.md).
