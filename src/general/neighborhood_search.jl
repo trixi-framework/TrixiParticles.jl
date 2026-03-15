@@ -117,7 +117,6 @@ end
                                                     eltype(system))
     return pair_parameters.contact_distance
 end
-
 @inline function compact_support(system::RigidBodySystem, neighbor::OpenBoundarySystem)
     # Rigid/open-boundary interactions are currently not modeled.
     return zero(eltype(system))

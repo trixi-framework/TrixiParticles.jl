@@ -76,6 +76,7 @@ end
                                    ::Type{ELTYPE}) where {ELTYPE}
     return copy_contact_model(model, particle_spacing, ELTYPE)
 end
+
 @inline function contact_time_step(system::RigidBodySystem)
     return contact_time_step(system.contact_model, system)
 end
@@ -98,7 +99,6 @@ function contact_time_step(system::RigidBodySystem, semi)
 
     return dt
 end
-
 @inline function contact_time_step(::Nothing, system::RigidBodySystem)
     return Inf
 end
