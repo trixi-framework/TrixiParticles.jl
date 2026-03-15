@@ -13,10 +13,9 @@ Pages = [joinpath("schemes", "structure", "rigid_body", "system.jl")]
 
 ### Contact Models
 
-Rigid contact is configured through the `contact_model` keyword of
-[`RigidBodySystem`](@ref). This is separate from the `boundary_model` used for
-fluid-structure interaction; see [Boundary Models](@ref boundary_models) for that part of
-the rigid-body setup.
+Rigid contact is configured through the contact model. This is separate from the
+boundary model used for fluid-structure interaction; see
+[Boundary Models](@ref boundary_models) for that part of the rigid-body setup.
 
 ```@autodocs
 Modules = [TrixiParticles]
