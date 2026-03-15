@@ -78,20 +78,24 @@ end
     return contact_time_step(system)
 end
 
+@inline function contact_time_step(system::RigidBodySystem,
+                                   neighbor::RigidBodySystem)
+    return contact_time_step(system.contact_model, system, neighbor.contact_model, neighbor)
+end
+
 function contact_time_step(system::RigidBodySystem, semi)
     dt = contact_time_step(system)
     isnothing(system.contact_model) && return dt
 
     foreach_system(semi) do neighbor
         if neighbor isa RigidBodySystem && neighbor !== system
-            dt = min(dt,
-                     contact_time_step(system.contact_model, system,
-                                       neighbor.contact_model, neighbor))
+            dt = min(dt, contact_time_step(system, neighbor))
         end
     end
 
     return dt
 end
+
 @inline function contact_time_step(::Nothing, system::RigidBodySystem)
     return Inf
 end
@@ -101,22 +105,7 @@ function contact_time_step(contact_model::RigidContactModel,
     min_mass = minimum(system.mass)
     normal_stiffness = contact_model.normal_stiffness
 
-    if min_mass <= eps(eltype(system)) || normal_stiffness <= eps(eltype(system))
-        return Inf
-    end
-
     return sqrt(min_mass / normal_stiffness)
-end
-
-@inline function contact_time_step(::RigidContactModel, system::RigidBodySystem,
-                                   ::Nothing, neighbor_system::RigidBodySystem)
-    return Inf
-end
-
-@inline function contact_time_step(::Nothing, system::RigidBodySystem,
-                                   ::RigidContactModel,
-                                   neighbor_system::RigidBodySystem)
-    return Inf
 end
 
 function contact_time_step(contact_model::RigidContactModel,
@@ -129,13 +118,15 @@ function contact_time_step(contact_model::RigidContactModel,
     min_mass = minimum(system.mass)
     neighbor_min_mass = minimum(neighbor_system.mass)
 
-    if min_mass <= eps(eltype(system)) || neighbor_min_mass <= eps(eltype(system)) ||
-       normal_stiffness <= eps(eltype(system))
-        return Inf
-    end
-
     reduced_mass = min_mass * neighbor_min_mass / (min_mass + neighbor_min_mass)
     return sqrt(reduced_mass / normal_stiffness)
+end
+
+@inline function contact_time_step(contact_model,
+                                   system::RigidBodySystem,
+                                   neighbor_contact_model,
+                                   neighbor_system::RigidBodySystem)
+    return Inf
 end
 
 function Base.show(io::IO, model::RigidContactModel)

@@ -116,20 +116,20 @@ end
 end
 
 @inline function compact_support(::Nothing, system::RigidBodySystem,
-                                 neighbor_contact_model, neighbor::RigidBodySystem)
+                                 ::RigidContactModel, neighbor::RigidBodySystem)
     return zero(eltype(system))
 end
 
-@inline function compact_support(contact_model,
+@inline function compact_support(::RigidContactModel,
                                  system::RigidBodySystem,
                                  ::Nothing,
                                  neighbor::RigidBodySystem)
     return zero(eltype(system))
 end
 
-@inline function compact_support(contact_model::AbstractRigidContactModel,
+@inline function compact_support(contact_model::RigidContactModel,
                                  system::RigidBodySystem,
-                                 neighbor_contact_model::AbstractRigidContactModel,
+                                 neighbor_contact_model::RigidContactModel,
                                  neighbor::RigidBodySystem)
     pair_parameters = rigid_contact_pair_parameters(contact_model, neighbor_contact_model,
                                                     eltype(system))

@@ -807,6 +807,12 @@
                                                     rigid_system_2))
         @test iszero(TrixiParticles.compact_support(rigid_system_2,
                                                     rigid_system_without_contact))
+        @test TrixiParticles.contact_time_step(rigid_system_1, rigid_system_2) ≈
+              pair_contact_dt
+        @test TrixiParticles.contact_time_step(rigid_system_without_contact,
+                                               rigid_system_2) == Inf
+        @test TrixiParticles.contact_time_step(rigid_system_2,
+                                               rigid_system_without_contact) == Inf
         @test TrixiParticles.contact_time_step(rigid_system_1, semi_rigid) ≈ pair_contact_dt
         @test TrixiParticles.contact_time_step(rigid_system_2, semi_rigid) ≈ pair_contact_dt
         zero_velocity_ode = zero(v_ode_rigid)
