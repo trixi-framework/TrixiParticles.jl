@@ -8,7 +8,8 @@ Choose a tutorial based on the task in front of you.
 
 1. [Setting up your simulation from scratch](tutorials/tut_setup.md): learn the structure of a simulation file and run a complete WCSPH example.
 2. [Modifying or extending components of TrixiParticles.jl within a simulation file](tutorials/tut_custom_kernel.md): replace selected parts of an existing setup without cloning the package.
-3. [Particle packing tutorial](tutorials/tut_packing.md): build a body-fitted particle configuration for complex geometries.
+3. [Setting up a 2D simulation from geometry files](tutorials/tut_2d_geometry.md): load 2D geometry files, turn them into filled wall regions, and combine them with standard 2D fluid blocks.
+4. [Particle packing tutorial](tutorials/tut_packing.md): build a body-fitted particle configuration for complex geometries.
 
 ## Tutorials
 
@@ -37,6 +38,19 @@ Start from an existing simulation and replace pieces such as the smoothing kerne
 
 - Focus: `trixi_include`, custom kernels, rapid iteration
 - Choose this if: you want to prototype changes without rewriting a full setup
+
+### [Setting up a 2D simulation from geometry files](tutorials/tut_2d_geometry.md)
+
+```@raw html
+<img src="../tutorials/tut_2d_geometry_plot.png"
+     alt="2D pipe and coastline geometries converted to wall and fluid particles"
+     style="max-width: 360px; width: 100%; border-radius: 12px;" />
+```
+
+Load 2D geometry files, fill them with particles using `ComplexShape`, and build genuine 2D setups such as a curved pipe and a coastline dam break.
+
+- Focus: `load_geometry`, `ComplexShape`, `setdiff`, 2D `Polygon`s
+- Choose this if: you want a true 2D setup from line-based geometry data
 
 ### [Particle packing tutorial](tutorials/tut_packing.md)
 
