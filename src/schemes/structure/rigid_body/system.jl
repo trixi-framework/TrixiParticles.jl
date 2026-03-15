@@ -1,8 +1,10 @@
 @doc raw"""
     RigidBodySystem(initial_condition;
                    boundary_model=nothing,
+                   contact_model=nothing,
                    acceleration=ntuple(_ -> 0.0, ndims(initial_condition)),
                    particle_spacing=initial_condition.particle_spacing,
+                   max_manifolds=8,
                    source_terms=nothing, adhesion_coefficient=0.0,
                    color_value=0)
 
@@ -18,8 +20,11 @@ torque and applied consistently to all rigid particles.
 # Keywords
 - `boundary_model`: Boundary model for fluid-structure interaction
                     (see [Boundary Models](@ref boundary_models)).
+- `contact_model`: Optional rigid contact model.
+                   If specified, rigid-wall collisions are enabled.
 - `acceleration`: Global acceleration vector applied to all rigid particles.
 - `particle_spacing`: Reference particle spacing used for time-step estimation.
+- `max_manifolds`: Maximum number of wall-contact manifolds cached per rigid particle.
 - `source_terms`: Optional source terms of the form
                   `(coords, velocity, density, pressure, t) -> source`.
 - `adhesion_coefficient`: Wall-adhesion strength used by Akinci-type surface tension
@@ -33,7 +38,7 @@ torque and applied consistently to all rigid particles.
                  bodies, it participates in the multi-system color sanity check for
                  surface-tension setups, and it is written to VTK output as `"color"`.
 """
-struct RigidBodySystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
+struct RigidBodySystem{BM, CTM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
                        ST, CM, CMV, I, II, AV, RF, RT, AAF, GA, C} <:
        AbstractStructureSystem{NDIMS}
     initial_condition          :: IC
@@ -55,6 +60,7 @@ struct RigidBodySystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
     angular_acceleration_force :: AAF
     gyroscopic_acceleration    :: GA
     boundary_model             :: BM
+    contact_model              :: CTM
     source_terms               :: ST
     adhesion_coefficient       :: ELTYPE
     cache                      :: C
@@ -63,9 +69,11 @@ end
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
 function RigidBodySystem(initial_condition; boundary_model=nothing,
+                         contact_model=nothing,
                          acceleration=ntuple(_ -> zero(eltype(initial_condition)),
                                              ndims(initial_condition)),
                          particle_spacing=initial_condition.particle_spacing,
+                         max_manifolds=8,
                          source_terms=nothing, adhesion_coefficient=0.0,
                          color_value=0)
     NDIMS = ndims(initial_condition)
@@ -80,6 +88,12 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
     end
 
     particle_spacing_ = convert(ELTYPE, particle_spacing)
+    max_manifolds_ = Int(max_manifolds)
+    max_manifolds_ > 0 ||
+        throw(ArgumentError("`max_manifolds` must be positive"))
+
+    contact_model_ = isnothing(contact_model) ? nothing :
+                     copy_contact_model(contact_model, particle_spacing_, ELTYPE)
     initial_velocity = copy(initial_condition.velocity)
     relative_coordinates = zeros(ELTYPE, NDIMS, nparticles(initial_condition))
     mass = copy(initial_condition.mass)
@@ -105,6 +119,12 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
         inverse_inertia = Ref(zero(SMatrix{3, 3, ELTYPE, 9}))
     end
 
+    cache = (;
+             create_cache_contact_manifold(contact_model_, Val(NDIMS), ELTYPE,
+                                           nparticles(initial_condition),
+                                           max_manifolds_)...,
+             color=Int(color_value))
+
     system = RigidBodySystem(initial_condition, initial_velocity, mass,
                              material_density, acceleration_,
                              particle_spacing_, total_mass, force_per_particle,
@@ -117,15 +137,33 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
                              Ref(zero_rotational_quantity),
                              Ref(zero_rotational_quantity),
                              Ref(zero_rotational_quantity),
-                             boundary_model, source_terms,
+                             boundary_model, contact_model_, source_terms,
                              convert(ELTYPE, adhesion_coefficient),
-                             create_cache_rigid(color_value))
+                             cache)
 
     return system
 end
 
-# Per-system color tag for colorfield surface-normal logic and VTK output.
-create_cache_rigid(color_value) = (; color=Int(color_value))
+function create_cache_contact_manifold(::Nothing, ::Val{NDIMS}, ELTYPE,
+                                       n_particles, max_manifolds) where {NDIMS}
+    return (;)
+end
+
+# Allocate per-particle manifold scratch arrays for rigid-wall contact.
+#
+# The cache shape is `[dimension, manifold, particle]` for vector-valued sums and
+# `[manifold, particle]` for scalar sums. It is rebuilt for each rigid-wall system pair in
+# the RHS and therefore acts purely as transient manifold assembly storage; the persistent
+# collision effect is the force accumulated in `force_per_particle`.
+function create_cache_contact_manifold(contact_model, ::Val{NDIMS}, ELTYPE,
+                                       n_particles, max_manifolds) where {NDIMS}
+    return (; contact_manifold_count=zeros(Int, n_particles),
+            contact_manifold_weight_sum=zeros(ELTYPE, max_manifolds, n_particles),
+            contact_manifold_penetration_sum=zeros(ELTYPE, max_manifolds, n_particles),
+            contact_manifold_normal_sum=zeros(ELTYPE, NDIMS, max_manifolds, n_particles),
+            contact_manifold_wall_velocity_sum=zeros(ELTYPE, NDIMS, max_manifolds,
+                                                     n_particles))
+end
 
 function rigid_center_of_mass_kinematics(system::RigidBodySystem, coordinates, velocity)
     total_mass = system.total_mass
@@ -178,7 +216,7 @@ function rigid_rotational_kinematics(system::RigidBodySystem, coordinates, syste
             max_radius)
 end
 
-@inline function Base.eltype(::RigidBodySystem{<:Any, <:Any, ELTYPE}) where {ELTYPE}
+@inline function Base.eltype(::RigidBodySystem{<:Any, <:Any, <:Any, ELTYPE}) where {ELTYPE}
     return ELTYPE
 end
 
@@ -407,6 +445,8 @@ end
 
 function calculate_dt(v_ode, u_ode, cfl_number, system::RigidBodySystem, semi)
     spacing = particle_spacing(system, first(eachparticle(system)))
+    contact_dt = cfl_number * contact_time_step(system)
+
     if isnothing(semi)
         system_velocity = current_velocity(v_ode, system)
         system_coords = current_coordinates(u_ode, system)
@@ -444,7 +484,7 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::RigidBodySystem, semi)
     dt_velocity = speed_scale <= eps(eltype(system)) ? Inf :
                   cfl_number * spacing / speed_scale
 
-    return min(dt_acceleration, dt_velocity)
+    return min(dt_acceleration, dt_velocity, contact_dt)
 end
 
 # To account for boundary effects in the viscosity term of fluid-structure interactions,

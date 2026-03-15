@@ -61,6 +61,7 @@
         system = RigidBodySystem(initial_condition;
                                  boundary_model=boundary_model,
                                  acceleration=(0.0, -9.81))
+        @test !haskey(system.cache, :contact_manifold_count)
 
         show_compact = "RigidBodySystem{2}([0.0, -9.81], BoundaryModelDummyParticles(SummationDensity, Nothing)) with 2 particles"
         @test repr(system) == show_compact
@@ -723,5 +724,103 @@
         @test all(iszero, dv_open_boundary[:, 1])
         @test iszero(rigid.resultant_force[])
         @test iszero(rigid.resultant_torque[])
+    end
+
+    @trixi_testset "Rigid Contact Model" begin
+        rigid_coordinates = reshape([0.0, 0.05], 2, 1)
+        rigid_velocity = reshape([0.0, -1.0], 2, 1)
+        rigid_mass = [1.0]
+        rigid_density = [1000.0]
+        rigid_ic = InitialCondition(; coordinates=rigid_coordinates,
+                                    velocity=rigid_velocity,
+                                    mass=rigid_mass,
+                                    density=rigid_density,
+                                    particle_spacing=0.1)
+
+        boundary_coordinates = reshape([0.0, 0.0], 2, 1)
+        boundary_mass = [1.0]
+        boundary_density = [1000.0]
+        boundary_ic = InitialCondition(; coordinates=boundary_coordinates,
+                                       mass=boundary_mass,
+                                       density=boundary_density,
+                                       particle_spacing=0.1)
+
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        smoothing_length = 0.15
+        boundary_model = BoundaryModelDummyParticles(boundary_density, boundary_mass,
+                                                     SummationDensity(),
+                                                     smoothing_kernel,
+                                                     smoothing_length)
+        boundary_system = WallBoundarySystem(boundary_ic, boundary_model)
+
+        contact_model = RigidContactModel(; normal_stiffness=2.0e4,
+                                          normal_damping=20.0,
+                                          contact_distance=0.1)
+
+        runtime_model = TrixiParticles.copy_contact_model(contact_model, 0.1, Float64)
+
+        @test runtime_model isa RigidContactModel
+        @test runtime_model.normal_stiffness ≈ 2.0e4
+        @test runtime_model.normal_damping ≈ 20.0
+        @test runtime_model.contact_distance ≈ 0.1
+
+        spacing_scaled_model = RigidContactModel(; normal_stiffness=5.0)
+        spacing_scaled_runtime = TrixiParticles.copy_contact_model(spacing_scaled_model,
+                                                                   0.125,
+                                                                   Float64)
+        @test spacing_scaled_runtime.contact_distance ≈ 0.125
+
+        @test_throws ArgumentError RigidContactModel(; normal_stiffness=0.0)
+        @test_throws ArgumentError RigidContactModel(; normal_stiffness=1.0,
+                                                     normal_damping=-1.0)
+        @test_throws ArgumentError RigidContactModel(; normal_stiffness=1.0,
+                                                     contact_distance=-1.0)
+
+        rigid_system = RigidBodySystem(rigid_ic;
+                                       acceleration=(0.0, 0.0),
+                                       contact_model=contact_model)
+        rigid_system_with_boundary = RigidBodySystem(rigid_ic;
+                                                     acceleration=(0.0, 0.0),
+                                                     boundary_model=boundary_model,
+                                                     contact_model=contact_model)
+        rigid_system_custom_manifolds = RigidBodySystem(rigid_ic;
+                                                        acceleration=(0.0, 0.0),
+                                                        contact_model=contact_model,
+                                                        max_manifolds=3)
+        rigid_system_without_contact = RigidBodySystem(rigid_ic;
+                                                       acceleration=(0.0, 0.0),
+                                                       boundary_model=boundary_model)
+        @test haskey(rigid_system.cache, :contact_manifold_count)
+        @test TrixiParticles.contact_time_step(rigid_system) ≈ sqrt(rigid_mass[1] /
+                   contact_model.normal_stiffness)
+        @test rigid_system.contact_model isa RigidContactModel
+        @test rigid_system.contact_model.normal_stiffness ≈ contact_model.normal_stiffness
+        @test rigid_system.contact_model.normal_damping ≈ contact_model.normal_damping
+        @test rigid_system.contact_model.contact_distance ≈ contact_model.contact_distance
+        @test size(rigid_system_custom_manifolds.cache.contact_manifold_weight_sum, 1) == 3
+        @test TrixiParticles.compact_support(rigid_system, boundary_system) ≈
+              contact_model.contact_distance
+        @test TrixiParticles.compact_support(rigid_system_with_boundary,
+                                             boundary_system) ≈
+              contact_model.contact_distance
+        @test iszero(TrixiParticles.compact_support(rigid_system_without_contact,
+                                                    boundary_system))
+        @test_throws ArgumentError RigidBodySystem(rigid_ic;
+                                                   contact_model=contact_model,
+                                                   max_manifolds=0)
+
+        semi = Semidiscretization(rigid_system, boundary_system)
+        ode = semidiscretize(semi, (0.0, 0.01))
+        v_ode, u_ode = ode.u0.x
+        dv_ode = zero(v_ode)
+
+        TrixiParticles.interact!(dv_ode, v_ode, u_ode, rigid_system, boundary_system, semi)
+        dv = TrixiParticles.wrap_v(dv_ode, rigid_system, semi)
+        v_rigid = TrixiParticles.wrap_v(v_ode, rigid_system, semi)
+        u_rigid = TrixiParticles.wrap_u(u_ode, rigid_system, semi)
+        TrixiParticles.finalize_interaction!(rigid_system, dv, v_rigid, u_rigid,
+                                             dv_ode, v_ode, u_ode, semi)
+
+        @test dv[2, 1] > 0
     end
 end
