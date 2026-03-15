@@ -40,6 +40,8 @@ Literate.markdown(joinpath("docs", "literate", "src", "tut_custom_kernel.jl"),
                   joinpath("docs", "src", "tutorials"))
 Literate.markdown(joinpath("docs", "literate", "src", "tut_packing.jl"),
                   joinpath("docs", "src", "tutorials"))
+Literate.markdown(joinpath("docs", "literate", "src", "tut_2d_geometry.jl"),
+                  joinpath("docs", "src", "tutorials"))
 
 copy_file("AUTHORS.md",
           "in the [LICENSE.md](LICENSE.md) file" => "under [License](@ref)")
@@ -87,6 +89,8 @@ makedocs(sitename="TrixiParticles.jl",
                                                                                                                    "tut_custom_kernel.md")
                  ],
                  "Preprocessing" => [
+                     "Setting up a 2D simulation from geometry files" => joinpath("tutorials",
+                                                                                   "tut_2d_geometry.md"),
                      "Particle packing tutorial" => joinpath("tutorials",
                                                              "tut_packing.md")
                  ]
