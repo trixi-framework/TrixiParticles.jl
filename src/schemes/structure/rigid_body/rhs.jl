@@ -294,22 +294,22 @@ end
                                                particle, neighbor, pos_diff, distance,
                                                contact_model::RigidContactModel)
     ELTYPE = eltype(particle_system)
-    distance <= eps(ELTYPE) && return nothing
+    distance <= eps(ELTYPE) && return particle_system
 
     penetration = contact_model.contact_distance - distance
-    penetration <= 0 && return nothing
+    penetration <= 0 && return particle_system
 
     normal = pos_diff / distance
     wall_velocity = current_velocity(v_neighbor_system, neighbor_system, neighbor)
     # Use the wall particle volume times kernel value as a local averaging weight for the
     # contact manifold. This keeps the manifold reduction close to the SPH discretization.
     density = convert(ELTYPE, neighbor_system.initial_condition.density[neighbor])
-    density <= eps(ELTYPE) && return nothing
+    density <= eps(ELTYPE) && return particle_system
 
     volume = convert(ELTYPE, neighbor_system.initial_condition.mass[neighbor]) / density
     kernel_weight = convert(ELTYPE, smoothing_kernel(neighbor_system, distance, neighbor))
     contact_weight = max(kernel_weight * volume, zero(ELTYPE))
-    contact_weight <= eps(ELTYPE) && return nothing
+    contact_weight <= eps(ELTYPE) && return particle_system
 
     # For adjacent wall samples on the same locally flat face, the tangential offset is about
     # one wall particle spacing. Viewed from the rigid particle, this implies a predictable
