@@ -19,14 +19,14 @@ spacing_ratio = 1
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 9.81
-tspan = (0.0, 0.5)
+tspan = (0.0, 1.0)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (2.0, 0.5)
 tank_size = (2.0, 2.0)
 
 fluid_density = 1000.0
-sound_speed = 10 * sqrt(gravity * initial_fluid_size[2])
+sound_speed = 100.0
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1)
 
@@ -45,9 +45,9 @@ sphere2_density = 3000.0
 sphere1_center = (0.6, 1.2)
 sphere2_center = (1.4, 1.2)
 sphere1 = SphereShape(structure_particle_spacing, sphere1_radius, sphere1_center,
-                      sphere1_density, sphere_type=VoxelSphere())
+                      sphere1_density, sphere_type=RoundSphere())
 sphere2 = SphereShape(structure_particle_spacing, sphere2_radius, sphere2_center,
-                      sphere2_density, sphere_type=VoxelSphere())
+                      sphere2_density, sphere_type=RoundSphere())
 
 # ==========================================================================================
 # ==== Fluid
@@ -66,7 +66,7 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
 
 # ==========================================================================================
 # ==== Boundary
-boundary_density_calculator = BernoulliPressureExtrapolation()
+boundary_density_calculator = AdamiPressureExtrapolation()
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=state_equation,
                                              boundary_density_calculator,
@@ -99,12 +99,20 @@ boundary_model_structure_2 = BoundaryModelDummyParticles(hydrodynamic_densities_
                                                          fluid_smoothing_kernel,
                                                          fluid_smoothing_length)
 
+# Basic rigid contact model used for both rigid bodies.
+contact_model = RigidContactModel(; normal_stiffness=2.0e5,
+                                  normal_damping=200.0,
+                                  contact_distance=2.0 *
+                                                   structure_particle_spacing)
+
 structure_system_1 = RigidBodySystem(sphere1;
                                      boundary_model=boundary_model_structure_1,
+                                     contact_model=contact_model,
                                      acceleration=(0.0, -gravity),
                                      particle_spacing=structure_particle_spacing)
 structure_system_2 = RigidBodySystem(sphere2;
                                      boundary_model=boundary_model_structure_2,
+                                     contact_model=contact_model,
                                      acceleration=(0.0, -gravity),
                                      particle_spacing=structure_particle_spacing)
 
@@ -122,5 +130,5 @@ callbacks = CallbackSet(info_callback, saving_callback)
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-6, # Default abstol is 1e-6
-            reltol=1e-3, # Default reltol is 1e-3
+            reltol=1e-4, # Default reltol is 1e-3
             save_everystep=false, callback=callbacks);

@@ -20,14 +20,14 @@ spacing_ratio = 1
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 9.81
-tspan = (0.0, 1.0)
+tspan = (0.0, 2.0)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (2.0, 1.0)
 tank_size = (2.0, 2.0)
 
 fluid_density = 1000.0
-sound_speed = 10 * sqrt(gravity * initial_fluid_size[2])
+sound_speed = 100.0
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1)
 
@@ -41,7 +41,7 @@ square2_side_length = 0.3
 
 # Approximate densities for a floating and a sinking square
 square1_density = 600.0
-square2_density = 1500.0
+square2_density = 2000.0
 
 square1_nparticles_side = round(Int, square1_side_length / structure_particle_spacing)
 square2_nparticles_side = round(Int, square2_side_length / structure_particle_spacing)
@@ -82,7 +82,7 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
 
 # ==========================================================================================
 # ==== Boundary
-boundary_density_calculator = BernoulliPressureExtrapolation()
+boundary_density_calculator = AdamiPressureExtrapolation()
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=state_equation,
                                              boundary_density_calculator,
@@ -115,12 +115,24 @@ boundary_model_structure_2 = BoundaryModelDummyParticles(hydrodynamic_densities_
                                                          fluid_smoothing_kernel,
                                                          fluid_smoothing_length)
 
+# Use a less dissipative wall contact for the denser square so its rebound is more visible.
+contact_model_1 = RigidContactModel(; normal_stiffness=2.0e5,
+                                    normal_damping=200.0,
+                                    contact_distance=2.0 *
+                                                     structure_particle_spacing)
+contact_model_2 = RigidContactModel(; normal_stiffness=2.0e5,
+                                    normal_damping=80.0,
+                                    contact_distance=2.0 *
+                                                     structure_particle_spacing)
+
 structure_system_1 = RigidBodySystem(square1;
                                      boundary_model=boundary_model_structure_1,
+                                     contact_model=contact_model_1,
                                      acceleration=(0.0, -gravity),
                                      particle_spacing=structure_particle_spacing)
 structure_system_2 = RigidBodySystem(square2;
                                      boundary_model=boundary_model_structure_2,
+                                     contact_model=contact_model_2,
                                      acceleration=(0.0, -gravity),
                                      particle_spacing=structure_particle_spacing)
 
@@ -138,7 +150,9 @@ saving_callback = SolutionSavingCallback(dt=0.01,
 callbacks = CallbackSet(info_callback, saving_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
+# To prevent penetration on interaction with the fluid both `reltol` and `dtmax` have been set.
 sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-6, # Default abstol is 1e-6
-            reltol=1e-3, # Default reltol is 1e-3
+            reltol=1e-4, # Default reltol is 1e-3
+            dtmax=1e-3,
             save_everystep=false, callback=callbacks);

@@ -429,11 +429,12 @@ function write2vtk!(vtk, v, u, t, system::RigidBodySystem)
     vtk["center_of_mass"] = [system.center_of_mass[]]
     vtk["center_of_mass_velocity"] = [system.center_of_mass_velocity[]]
     vtk["resultant_force"] = [system.resultant_force[]]
-
     vtk["angular_velocity"] = [system.angular_velocity[]]
     vtk["resultant_torque"] = [system.resultant_torque[]]
     vtk["angular_acceleration_force"] = [system.angular_acceleration_force[]]
     vtk["gyroscopic_acceleration"] = [system.gyroscopic_acceleration[]]
+    vtk["contact_count"] = [system.cache.contact_count[]]
+    vtk["max_contact_penetration"] = [system.cache.max_contact_penetration[]]
 
     write2vtk!(vtk, v, u, t, system.boundary_model, system)
 end

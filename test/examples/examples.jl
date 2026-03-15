@@ -65,6 +65,36 @@
                 @test count_rhs_allocations(sol, semi) == 0
             end
         end
+
+        @trixi_testset "structure/perfect_elastic_sphere_wall_2d.jl" begin
+            @trixi_test_nowarn trixi_include(@__MODULE__,
+                                             joinpath(examples_dir(), "structure",
+                                                      "perfect_elastic_sphere_wall_2d.jl"),
+                                             tspan=(0.0, 0.6))
+            @test sol.retcode == ReturnCode.Success
+            if VERSION < v"1.12"
+                @test count_rhs_allocations(sol, semi) < 500
+            else
+                @test count_rhs_allocations(sol, semi) == 0
+            end
+        end
+
+        @trixi_testset "structure rigid-contact API consistency" begin
+            @trixi_test_nowarn trixi_include(@__MODULE__,
+                                             joinpath(examples_dir(), "structure",
+                                                      "falling_rigid_sphere_2d.jl"),
+                                             tspan=(0.0, 0.05))
+
+            @test elastic_contact_model_spec isa PerfectElasticBoundaryContactModel
+            @test wood_contact_model_spec isa LinearizedHertzMindlinBoundaryContactModel
+            @test steel_contact_model_spec isa LinearizedHertzMindlinBoundaryContactModel
+            @test rubber_contact_model_spec isa LinearizedHertzMindlinBoundaryContactModel
+
+            @test structure_system_elastic.contact_model isa RigidContactModel
+            @test structure_system_wood.contact_model isa RigidContactModel
+            @test structure_system_steel.contact_model isa RigidContactModel
+            @test structure_system_rubber.contact_model isa RigidContactModel
+        end
     end
 
     @testset verbose=true "FSI" begin
@@ -237,16 +267,11 @@
             end
         end
 
-        @trixi_testset "fsi/hydrostatic_water_column_2d.jl" begin
+        @trixi_testset "fsi/falling_rotating_rigid_squares_2d.jl" begin
             @trixi_test_nowarn trixi_include(@__MODULE__,
                                              joinpath(examples_dir(), "fsi",
-                                                      "hydrostatic_water_column_2d.jl"),
-                                             tspan=(0.0, 0.1), n_particles_plate_y=3) [
-                r"\[ Info: To create the self-interaction neighborhood search.*\n",
-                r"┌ Warning: keyword `n_clamped_particles` is deprecated.*\n",
-                r"│   caller = ip:0x0\n",
-                r"└ @ Core :-1\n"
-            ]
+                                                      "falling_rotating_rigid_squares_2d.jl"),
+                                             tspan=(0.0, 0.5))
             @test sol.retcode == ReturnCode.Success
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
@@ -257,11 +282,16 @@
             end
         end
 
-        @trixi_testset "fsi/falling_rotating_rigid_squares_2d.jl" begin
+        @trixi_testset "fsi/hydrostatic_water_column_2d.jl" begin
             @trixi_test_nowarn trixi_include(@__MODULE__,
                                              joinpath(examples_dir(), "fsi",
-                                                      "falling_rotating_rigid_squares_2d.jl"),
-                                             tspan=(0.0, 0.5))
+                                                      "hydrostatic_water_column_2d.jl"),
+                                             tspan=(0.0, 0.1), n_particles_plate_y=3) [
+                r"\[ Info: To create the self-interaction neighborhood search.*\n",
+                r"┌ Warning: keyword `n_clamped_particles` is deprecated.*\n",
+                r"│   caller = ip:0x0\n",
+                r"└ @ Core :-1\n"
+            ]
             @test sol.retcode == ReturnCode.Success
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
@@ -291,6 +321,17 @@
             else
                 @test count_rhs_allocations(sol, semi) == 0
             end
+        end
+
+        @trixi_testset "fsi rigid-contact API consistency" begin
+            @trixi_test_nowarn trixi_include(@__MODULE__,
+                                             joinpath(examples_dir(), "fsi",
+                                                      "falling_rigid_spheres_2d.jl"),
+                                             tspan=(0.0, 0.05))
+
+            @test contact_model isa RigidContactModel
+            @test structure_system_1.contact_model isa RigidContactModel
+            @test structure_system_2.contact_model isa RigidContactModel
         end
     end
 

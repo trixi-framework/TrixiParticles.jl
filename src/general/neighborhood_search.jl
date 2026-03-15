@@ -83,9 +83,27 @@ end
 end
 
 @inline function compact_support(system::RigidBodySystem, model::Nothing, neighbor)
-    # Rigid interactions without a boundary model are currently not modeled.
-    # This neighborhood search exists only to keep the semidiscretization structure uniform.
+    # Rigid interactions without a boundary model are currently not modeled,
+    # except for optional rigid-wall contact handled below.
     return zero(eltype(system))
+end
+
+@inline function compact_support(system::RigidBodySystem,
+                                 neighbor::WallBoundarySystem)
+    # Rigid-wall contact depends on the rigid contact model, not on the hydrodynamic
+    # boundary model used for fluid-structure interaction.
+    return compact_support(system, system.contact_model, neighbor)
+end
+
+@inline function compact_support(system::RigidBodySystem, contact_model::Nothing,
+                                 neighbor::WallBoundarySystem)
+    return zero(eltype(system))
+end
+
+@inline function compact_support(system::RigidBodySystem,
+                                 contact_model::RigidContactModel,
+                                 neighbor::WallBoundarySystem)
+    return contact_model.contact_distance
 end
 
 @inline function compact_support(system::RigidBodySystem, neighbor::OpenBoundarySystem)
@@ -443,7 +461,8 @@ function update_nhs!(neighborhood_search,
             semi, points_moving=(system.ismoving[], true))
 end
 
-# `WallBoundarySystem` interactions with rigid systems are currently not modeled.
+# Rigid-wall contact is only computed from the rigid system side. `WallBoundarySystem`
+# does not actively initiate rigid interactions, so keep the reverse-direction NHS idle.
 # Explicitly define this method to avoid ambiguity with the generic no-op method below.
 function update_nhs!(neighborhood_search,
                      system::WallBoundarySystem{<:BoundaryModelDummyParticles},
