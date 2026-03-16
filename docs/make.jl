@@ -38,6 +38,8 @@ Literate.markdown(joinpath("docs", "literate", "src", "tut_setup.jl"),
                   joinpath("docs", "src", "tutorials"))
 Literate.markdown(joinpath("docs", "literate", "src", "tut_custom_kernel.jl"),
                   joinpath("docs", "src", "tutorials"))
+Literate.markdown(joinpath("docs", "literate", "src", "tut_rigid_body_fsi.jl"),
+                  joinpath("docs", "src", "tutorials"))
 Literate.markdown(joinpath("docs", "literate", "src", "tut_packing.jl"),
                   joinpath("docs", "src", "tutorials"))
 
@@ -85,6 +87,10 @@ makedocs(sitename="TrixiParticles.jl",
                                                                            "tut_setup.md"),
                      "Modifying or extending components of TrixiParticles.jl within a simulation file" => joinpath("tutorials",
                                                                                                                    "tut_custom_kernel.md")
+                 ],
+                 "Fluid-Structure Interaction" => [
+                     "Fluid-structure interaction with rigid body SPH" => joinpath("tutorials",
+                                                                                   "tut_rigid_body_fsi.md")
                  ],
                  "Preprocessing" => [
                      "Particle packing tutorial" => joinpath("tutorials",
