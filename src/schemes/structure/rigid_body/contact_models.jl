@@ -59,10 +59,6 @@ end
     return contact_time_step(system.contact_model, system)
 end
 
-@inline function contact_time_step(system::RigidBodySystem, ::Nothing)
-    return contact_time_step(system)
-end
-
 @inline function contact_time_step(system::RigidBodySystem,
                                    neighbor::RigidBodySystem)
     return contact_time_step(system.contact_model, system, neighbor.contact_model, neighbor)
@@ -81,12 +77,11 @@ function contact_time_step(system::RigidBodySystem, semi)
     return dt
 end
 
-@inline function contact_time_step(::Nothing, system::RigidBodySystem)
+@inline function contact_time_step(contact_model::Nothing, system::RigidBodySystem)
     return Inf
 end
 
-function contact_time_step(contact_model::RigidContactModel,
-                           system::RigidBodySystem)
+function contact_time_step(contact_model::RigidContactModel, system::RigidBodySystem)
     min_mass = minimum(system.mass)
     normal_stiffness = contact_model.normal_stiffness
 
@@ -97,19 +92,8 @@ function contact_time_step(contact_model::RigidContactModel,
                            system::RigidBodySystem,
                            neighbor_contact_model::RigidContactModel,
                            neighbor_system::RigidBodySystem)
-    normal_stiffness = (contact_model.normal_stiffness + neighbor_contact_model.normal_stiffness) / 2
-    min_mass = minimum(system.mass)
-    neighbor_min_mass = minimum(neighbor_system.mass)
-
-    reduced_mass = min_mass * neighbor_min_mass / (min_mass + neighbor_min_mass)
-    return sqrt(reduced_mass / normal_stiffness)
-end
-
-@inline function contact_time_step(contact_model,
-                                   system::RigidBodySystem,
-                                   neighbor_contact_model,
-                                   neighbor_system::RigidBodySystem)
-    return Inf
+    return min(contact_time_step(neighbor_contact_model, neighbor_system),
+               contact_time_step(contact_model, system))
 end
 
 function Base.show(io::IO, model::RigidContactModel)
