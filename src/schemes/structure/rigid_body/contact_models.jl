@@ -55,26 +55,20 @@ function copy_contact_model(model::RigidContactModel, particle_spacing,
                              contact_distance)
 end
 
-@inline function contact_time_step(system::RigidBodySystem)
-    return contact_time_step(system.contact_model, system)
-end
-
-@inline function contact_time_step(system::RigidBodySystem,
-                                   neighbor::RigidBodySystem)
-    return contact_time_step(system.contact_model, system, neighbor.contact_model, neighbor)
-end
 
 function contact_time_step(system::RigidBodySystem, semi)
     dt = contact_time_step(system)
-    isnothing(system.contact_model) && return Inf
 
+    # TODO this is called for every system, so we compute this twice for every interaction pair
     foreach_system(semi) do neighbor
-        if neighbor isa RigidBodySystem && neighbor !== system
-            dt = min(dt, contact_time_step(system, neighbor))
-        end
+        dt = min(dt, contact_time_step(system, neighbor))
     end
 
     return dt
+end
+
+@inline function contact_time_step(system::RigidBodySystem)
+    return contact_time_step(system.contact_model, system)
 end
 
 @inline function contact_time_step(contact_model::Nothing, system::RigidBodySystem)
@@ -88,12 +82,28 @@ function contact_time_step(contact_model::RigidContactModel, system::RigidBodySy
     return sqrt(min_mass / normal_stiffness)
 end
 
+@inline function contact_time_step(system::RigidBodySystem,
+                                   neighbor::RigidBodySystem)
+    return contact_time_step(system.contact_model, system, neighbor.contact_model, neighbor)
+end
+
+@inline function contact_time_step(system, neighbor)
+    return Inf
+end
+
 function contact_time_step(contact_model::RigidContactModel,
                            system::RigidBodySystem,
                            neighbor_contact_model::RigidContactModel,
                            neighbor_system::RigidBodySystem)
     return min(contact_time_step(neighbor_contact_model, neighbor_system),
                contact_time_step(contact_model, system))
+end
+
+function contact_time_step(contact_model,
+                           system::RigidBodySystem,
+                           neighbor_contact_model,
+                           neighbor_system::RigidBodySystem)
+    return Inf
 end
 
 function Base.show(io::IO, model::RigidContactModel)
