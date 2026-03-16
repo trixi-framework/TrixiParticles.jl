@@ -425,9 +425,7 @@ function interact!(dv, v_particle_system, u_particle_system,
     end
 
     # We don't need to model self collision
-    if system_indices(particle_system, semi) == system_indices(neighbor_system, semi)
-        return dv
-    end
+    particle_system == neighbor_system && return dv
 
     ELTYPE = eltype(particle_system)
     system_coords = current_coordinates(u_particle_system, particle_system)
