@@ -55,7 +55,6 @@ function copy_contact_model(model::RigidContactModel, particle_spacing,
                              contact_distance)
 end
 
-
 function contact_time_step(system::RigidBodySystem, semi)
     dt = contact_time_step(system)
 
