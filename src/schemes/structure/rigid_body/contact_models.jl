@@ -56,7 +56,7 @@ function copy_contact_model(model::RigidContactModel, particle_spacing,
 end
 
 function contact_time_step(system::RigidBodySystem, semi)
-    dt = contact_time_step(system)
+    dt = Inf
 
     # TODO this is called for every system, so we compute this twice for every interaction pair
     foreach_system(semi) do neighbor
@@ -64,10 +64,6 @@ function contact_time_step(system::RigidBodySystem, semi)
     end
 
     return dt
-end
-
-@inline function contact_time_step(system::RigidBodySystem)
-    return contact_time_step(system.contact_model, system)
 end
 
 @inline function contact_time_step(contact_model::Nothing, system::RigidBodySystem)

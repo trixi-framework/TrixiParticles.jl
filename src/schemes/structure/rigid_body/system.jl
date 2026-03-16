@@ -22,7 +22,6 @@ torque and applied consistently to all rigid particles.
                     (see [Boundary Models](@ref boundary_models)).
 - `contact_model`: Optional rigid contact model.
                    If specified, rigid-wall and rigid-rigid collisions are enabled.
-                   `boundary_contact_model` is accepted as a compatibility alias.
 - `acceleration`: Global acceleration vector applied to all rigid particles.
 - `particle_spacing`: Reference particle spacing used for time-step estimation.
 - `max_manifolds`: Maximum number of wall-contact manifolds cached per rigid particle.

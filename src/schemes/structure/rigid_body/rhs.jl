@@ -424,9 +424,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         return dv
     end
 
-    # We only do one collision per system pair so we use the order of systems to exclude it
-    # We also don't need self interaction
-    if system_indices(particle_system, semi) > system_indices(neighbor_system, semi)
+    # We don't need to model self collision
+    if system_indices(particle_system, semi) == system_indices(neighbor_system, semi)
         return dv
     end
 
@@ -435,16 +434,15 @@ function interact!(dv, v_particle_system, u_particle_system,
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
     foreach_point_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
-                           semi; points=each_integrated_particle(particle_system),
-                           parallelization_backend=SerialBackend()) do particle, neighbor,
+                           semi; points=each_integrated_particle(particle_system)) do particle, neighbor,
                                                                        pos_diff, distance
         # This loop updates both rigid systems with one equal-and-opposite force pair, so
         # keep the traversal serial.
-        distance <= eps(ELTYPE) && return
+        distance <= eps(ELTYPE) && return dv
 
         penetration = max(contact_model.contact_distance,
                           neighbor_contact_model.contact_distance) - distance
-        penetration <= 0 && return
+        penetration <= 0 && return dv
 
         normal = pos_diff / distance
         particle_velocity = current_velocity(v_particle_system, particle_system, particle)
@@ -457,13 +455,12 @@ function interact!(dv, v_particle_system, u_particle_system,
         damping_force = -(contact_model.normal_damping +
                           neighbor_contact_model.normal_damping) / 2 * normal_velocity
         normal_force_magnitude = max(elastic_force + damping_force, zero(ELTYPE))
-        normal_force_magnitude <= 0 && return
+        normal_force_magnitude <= 0 && return dv
 
         interaction_force = normal_force_magnitude * normal
 
         for dim in 1:ndims(particle_system)
             particle_system.force_per_particle[dim, particle] += interaction_force[dim]
-            neighbor_system.force_per_particle[dim, neighbor] -= interaction_force[dim]
         end
     end
 
