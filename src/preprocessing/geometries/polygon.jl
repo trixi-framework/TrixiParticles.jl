@@ -107,7 +107,7 @@ function Base.show(io::IO, ::MIME"text/plain", geometry::Polygon)
     @nospecialize geometry # reduce precompilation time
 
     if get(io, :compact, false)
-        show(io, system)
+        show(io, geometry)
     else
         summary_header(io, "Polygon{$(ndims(geometry)), $(eltype(geometry))}")
         summary_line(io, "#edges", "$(nfaces(geometry))")

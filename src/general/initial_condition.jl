@@ -436,7 +436,7 @@ end
 
 function move_particles_to_end!(ic::InitialCondition, particle_ids_to_move)
     invalid_id = findfirst(i -> i <= 0 || i > nparticles(ic), particle_ids_to_move)
-    isnothing(invalid_id) || throw(BoundsError(ic, invalid_id))
+    isnothing(invalid_id) || throw(BoundsError(ic, particle_ids_to_move[invalid_id]))
 
     sort_key = [i in particle_ids_to_move ? 1 : 0 for i in eachparticle(ic)]
     # Determine a permutation that sorts 'sort_key' in ascending order
@@ -453,7 +453,7 @@ end
 
 function move_particles_to_end!(a::AbstractVector, particle_ids_to_move)
     invalid_id = findfirst(i -> i <= 0 || i > length(a), particle_ids_to_move)
-    isnothing(invalid_id) || throw(BoundsError(a, invalid_id))
+    isnothing(invalid_id) || throw(BoundsError(a, particle_ids_to_move[invalid_id]))
 
     sort_key = [i in particle_ids_to_move ? 1 : 0 for i in eachindex(a)]
     # determine a permutation that sorts 'sort_key' in ascending order
