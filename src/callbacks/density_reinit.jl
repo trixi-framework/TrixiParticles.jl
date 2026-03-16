@@ -6,7 +6,9 @@ Callback to reinitialize the density field when using [`ContinuityDensity`](@ref
 # Keywords
 - `interval=0`:              Reinitialize the density every `interval` time steps.
 - `dt`:                      Reinitialize the density in regular intervals of `dt` in terms
-                             of integration time.
+                             of integration time. This callback does not add extra time
+                             steps / `tstops`; instead, reinitialization is triggered at
+                             the first solver step after each `dt` interval has elapsed.
 - `reinit_initial_solution`: Reinitialize the initial solution (default=false)
 """
 mutable struct DensityReinitializationCallback{I}
@@ -102,4 +104,6 @@ function (reinit_callback::DensityReinitializationCallback)(integrator)
     @trixi_timeit timer() "reinit density" reinit_density!(vu_ode, semi)
 
     reinit_callback.last_t = integrator.t
+
+    u_modified!(integrator, true)
 end

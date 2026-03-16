@@ -392,6 +392,13 @@ end
 
 function reinit_density!(system::WeaklyCompressibleSPHSystem, v, u,
                          v_ode, u_ode, semi)
+    (; density_calculator) = system
+
+    reinit_density!(system, density_calculator, v, u, v_ode, u_ode, semi)
+end
+
+function reinit_density!(system::WeaklyCompressibleSPHSystem, ::ContinuityDensity, v, u,
+                         v_ode, u_ode, semi)
     # Compute density with `SummationDensity` and store the result in `v`,
     # overwriting the previous integrated density.
     summation_density!(system, semi, u, u_ode, v[end, :])
@@ -404,6 +411,11 @@ function reinit_density!(system::WeaklyCompressibleSPHSystem, v, u,
 
     compute_pressure!(system, v, semi)
 
+    return system
+end
+
+function reinit_density!(system::WeaklyCompressibleSPHSystem, ::SummationDensity, v, u,
+                         v_ode, u_ode, semi)
     return system
 end
 
