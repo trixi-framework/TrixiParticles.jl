@@ -445,10 +445,10 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                                        pos_diff, distance
         # This loop updates both rigid systems with one equal-and-opposite force pair, so
         # keep the traversal serial.
-        distance <= eps(ELTYPE) && return
+        distance <= eps(ELTYPE) && return dv
 
         penetration = pair_parameters.contact_distance - distance
-        penetration <= 0 && return
+        penetration <= 0 && return dv
 
         normal = pos_diff / distance
         particle_velocity = current_velocity(v_particle_system, particle_system, particle)
@@ -459,7 +459,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         elastic_force = pair_parameters.normal_stiffness * penetration
         damping_force = -pair_parameters.normal_damping * normal_velocity
         normal_force_magnitude = max(elastic_force + damping_force, zero(ELTYPE))
-        normal_force_magnitude <= 0 && return
+        normal_force_magnitude <= 0 && return dv
 
         interaction_force = normal_force_magnitude * normal
 
