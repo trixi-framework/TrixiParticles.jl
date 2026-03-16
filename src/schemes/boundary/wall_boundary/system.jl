@@ -73,6 +73,10 @@ end
     size(system.coordinates, 2)
 end
 
+@inline function Base.:(==)(system1::WallBoundarySystem, system2::WallBoundarySystem)
+    return system1.coordinates == system2.coordinates
+end
+
 # No particle positions are advanced for wall boundary systems,
 # except when using `BoundaryModelDummyParticles` with `ContinuityDensity`.
 @inline function n_integrated_particles(system::WallBoundarySystem)

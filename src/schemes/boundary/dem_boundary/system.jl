@@ -31,7 +31,7 @@ end
 # See the comments in general/gpu.jl for more details.
 function BoundaryDEMSystem(initial_condition, normal_stiffness)
     ELTYPE = eltype(initial_condition)
-    coordinates = initial_condition.coordinates
+    coordinates = copy(initial_condition.coordinates)
     radius = initial_condition.particle_spacing *
              ones(ELTYPE, length(initial_condition.mass)) / 2
 
@@ -43,6 +43,10 @@ end
 
 @inline function nparticles(system::BoundaryDEMSystem)
     size(system.coordinates, 2)
+end
+
+@inline function Base.:(==)(system1::BoundaryDEMSystem, system2::BoundaryDEMSystem)
+    return system1.coordinates == system2.coordinates
 end
 
 # No particle positions are advanced for DEM boundary systems

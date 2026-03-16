@@ -26,6 +26,14 @@ vtkname(system::AbstractBoundarySystem) = "boundary"
 # Number of particles in the system
 @inline nparticles(system) = length(system.mass)
 
+@inline function Base.:(==)(system1::AbstractSystem, system2::AbstractSystem)
+    return false
+end
+
+@inline function Base.:(==)(system1::T, system2::T) where {T <: AbstractSystem}
+    return system1.mass == system2.mass
+end
+
 # Number of particles in the system whose positions are to be integrated (corresponds to the size of u and du)
 @inline n_integrated_particles(system) = nparticles(system)
 
