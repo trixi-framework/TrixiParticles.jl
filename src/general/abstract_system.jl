@@ -31,7 +31,7 @@ vtkname(system::AbstractBoundarySystem) = "boundary"
 end
 
 @inline function Base.:(==)(system1::T, system2::T) where {T <: AbstractSystem}
-    return system1.mass == system2.mass
+    return system1.mass === system2.mass
 end
 
 # Number of particles in the system whose positions are to be integrated (corresponds to the size of u and du)

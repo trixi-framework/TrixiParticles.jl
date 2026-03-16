@@ -46,7 +46,7 @@ end
 end
 
 @inline function Base.:(==)(system1::BoundaryDEMSystem, system2::BoundaryDEMSystem)
-    return system1.coordinates == system2.coordinates
+    return system1.coordinates === system2.coordinates
 end
 
 # No particle positions are advanced for DEM boundary systems

@@ -74,7 +74,7 @@ end
 end
 
 @inline function Base.:(==)(system1::WallBoundarySystem, system2::WallBoundarySystem)
-    return system1.coordinates == system2.coordinates
+    return system1.coordinates === system2.coordinates
 end
 
 # No particle positions are advanced for wall boundary systems,
