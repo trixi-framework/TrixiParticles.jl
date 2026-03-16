@@ -15,6 +15,8 @@
     TrixiParticles.v_nvariables(::System2) = 2
     TrixiParticles.nparticles(::System1) = 2
     TrixiParticles.nparticles(::System2) = 3
+    Base.:(==)(system_a::System1, system_b::System1) = system_a === system_b
+    Base.:(==)(system_a::System2, system_b::System2) = system_a === system_b
     TrixiParticles.n_integrated_particles(::System1) = 2
     TrixiParticles.n_integrated_particles(::System2) = 3
 
