@@ -108,7 +108,7 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
                                            system, neighbor)
                 for system in systems, neighbor in systems]
 
-    @assert !(searches isa Matrix{Any}) "neighborhood searches are not type-stable"
+    @assert isconcretetype(eltype(searches)) "neighborhood searches are not type-stable"
 
     # These will be set to true inside the `UpdateCallback`.
     # Some techniques require the use of this callback, and this flag can be used
