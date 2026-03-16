@@ -66,7 +66,7 @@ end
 
 function contact_time_step(system::RigidBodySystem, semi)
     dt = contact_time_step(system)
-    isnothing(system.contact_model) && return dt
+    isnothing(system.contact_model) && return Inf
 
     foreach_system(semi) do neighbor
         if neighbor isa RigidBodySystem && neighbor !== system
