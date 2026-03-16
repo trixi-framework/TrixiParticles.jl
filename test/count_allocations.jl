@@ -10,8 +10,7 @@ end
 # Copy a `Semidiscretization`, but wrap the neighborhood searches with
 # `NoUpdateNeighborhoodSearch`.
 function copy_semi_with_no_update_nhs(semi)
-    neighborhood_searches = [NoUpdateNeighborhoodSearch(nhs)
-                             for searches in semi.neighborhood_searches, nhs in searches]
+    neighborhood_searches = map(NoUpdateNeighborhoodSearch, semi.neighborhood_searches)
 
     return Semidiscretization(semi.systems, semi.ranges_u, semi.ranges_v,
                               neighborhood_searches, SerialBackend(), Ref(true), Ref(true))
