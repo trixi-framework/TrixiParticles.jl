@@ -110,20 +110,8 @@ end
     return compact_support(system.contact_model, system, neighbor.contact_model, neighbor)
 end
 
-@inline function compact_support(::Nothing, system::RigidBodySystem,
-                                 ::Nothing, neighbor::RigidBodySystem)
-    return zero(eltype(system))
-end
-
-@inline function compact_support(::Nothing, system::RigidBodySystem,
-                                 ::RigidContactModel, neighbor::RigidBodySystem)
-    return zero(eltype(system))
-end
-
-@inline function compact_support(::RigidContactModel,
-                                 system::RigidBodySystem,
-                                 ::Nothing,
-                                 neighbor::RigidBodySystem)
+@inline function compact_support(contact_model, system::RigidBodySystem,
+                                 contact_model_neighbor, neighbor::RigidBodySystem)
     return zero(eltype(system))
 end
 
