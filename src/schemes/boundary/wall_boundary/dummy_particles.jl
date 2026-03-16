@@ -120,7 +120,7 @@ struct AdamiPressureExtrapolation{ELTYPE}
 end
 
 @doc raw"""
-    BernoulliPressureExtrapolation(; pressure_offset=0, factor=1)
+    BernoulliPressureExtrapolation(; pressure_offset=0, factor=1, allow_loop_flipping=true)
 
 `density_calculator` for `BoundaryModelDummyParticles`.
 

@@ -132,13 +132,13 @@ initialize!(system::DEMSystem, semi) = system
 
 function compact_support(system::DEMSystem, neighbor::DEMSystem)
     # we for now assume that the compact support is 3 * radius
-    # todo: needs to be changed for more complex simulations
+    # TODO: needs to be changed for more complex simulations
     return 3 * max(maximum(system.radius), maximum(neighbor.radius))
 end
 
 function compact_support(system::DEMSystem, neighbor)
     # we for now assume that the compact support is 3 * radius
-    # todo: needs to be changed for more complex simulations
+    # TODO: needs to be changed for more complex simulations
     return 3 * maximum(system.radius)
 end
 
