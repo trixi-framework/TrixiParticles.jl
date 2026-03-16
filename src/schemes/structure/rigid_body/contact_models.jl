@@ -55,21 +55,6 @@ function copy_contact_model(model::RigidContactModel, particle_spacing,
                              contact_distance)
 end
 
-@inline function rigid_contact_pair_parameters(contact_model::RigidContactModel,
-                                               neighbor_contact_model::RigidContactModel,
-                                               ::Type{ELTYPE}) where {ELTYPE}
-    # Use a symmetric mixed-contact rule: average the linear spring-dashpot coefficients and
-    # keep the larger contact shell so either body's cutoff can activate the pair.
-    contact_distance = max(convert(ELTYPE, contact_model.contact_distance),
-                           convert(ELTYPE, neighbor_contact_model.contact_distance))
-    normal_stiffness = (convert(ELTYPE, contact_model.normal_stiffness) +
-                        convert(ELTYPE, neighbor_contact_model.normal_stiffness)) / 2
-    normal_damping = (convert(ELTYPE, contact_model.normal_damping) +
-                      convert(ELTYPE, neighbor_contact_model.normal_damping)) / 2
-
-    return (; contact_distance, normal_stiffness, normal_damping)
-end
-
 @inline function contact_time_step(system::RigidBodySystem)
     return contact_time_step(system.contact_model, system)
 end
@@ -112,9 +97,7 @@ function contact_time_step(contact_model::RigidContactModel,
                            system::RigidBodySystem,
                            neighbor_contact_model::RigidContactModel,
                            neighbor_system::RigidBodySystem)
-    pair_parameters = rigid_contact_pair_parameters(contact_model, neighbor_contact_model,
-                                                    eltype(system))
-    normal_stiffness = pair_parameters.normal_stiffness
+    normal_stiffness = (contact_model.normal_stiffness + neighbor_contact_model.normal_stiffness) / 2
     min_mass = minimum(system.mass)
     neighbor_min_mass = minimum(neighbor_system.mass)
 

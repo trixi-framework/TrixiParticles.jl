@@ -131,9 +131,7 @@ end
                                  system::RigidBodySystem,
                                  neighbor_contact_model::RigidContactModel,
                                  neighbor::RigidBodySystem)
-    pair_parameters = rigid_contact_pair_parameters(contact_model, neighbor_contact_model,
-                                                    eltype(system))
-    return pair_parameters.contact_distance
+    return max(contact_model.contact_distance, neighbor_contact_model.contact_distance)
 end
 
 @inline function compact_support(system::RigidBodySystem, neighbor::OpenBoundarySystem)

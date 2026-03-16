@@ -434,8 +434,6 @@ function interact!(dv, v_particle_system, u_particle_system,
     end
 
     ELTYPE = eltype(particle_system)
-    pair_parameters = rigid_contact_pair_parameters(contact_model, neighbor_contact_model,
-                                                    ELTYPE)
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
@@ -447,7 +445,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         # keep the traversal serial.
         distance <= eps(ELTYPE) && return
 
-        penetration = pair_parameters.contact_distance - distance
+        penetration = max(contact_model.contact_distance, neighbor_contact_model.contact_distance) - distance
         penetration <= 0 && return
 
         normal = pos_diff / distance
@@ -456,8 +454,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         relative_velocity = particle_velocity - neighbor_velocity
         normal_velocity = dot(relative_velocity, normal)
 
-        elastic_force = pair_parameters.normal_stiffness * penetration
-        damping_force = -pair_parameters.normal_damping * normal_velocity
+        elastic_force = (contact_model.normal_stiffness + neighbor_contact_model.normal_stiffness) / 2 * penetration
+        damping_force = -(contact_model.normal_damping + neighbor_contact_model.normal_damping) / 2* normal_velocity
         normal_force_magnitude = max(elastic_force + damping_force, zero(ELTYPE))
         normal_force_magnitude <= 0 && return
 
