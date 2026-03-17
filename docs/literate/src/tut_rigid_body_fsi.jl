@@ -118,9 +118,9 @@ semi_step1 = Semidiscretization(rigid_body_system_1_step1, rigid_body_system_2_s
 ode_step1 = semidiscretize(semi_step1, tspan)
 nothing # hide
 
-info_callback = InfoCallback(interval=100) # hide
-saving_callback = SolutionSavingCallback(dt=0.02, prefix="step1") # hide
-callbacks = CallbackSet(info_callback, saving_callback) # hide
+info_callback = InfoCallback(interval=100)
+saving_callback = SolutionSavingCallback(dt=0.02, prefix="step1")
+callbacks = CallbackSet(info_callback, saving_callback)
 
 sol_step1 = solve(ode_step1, RDPK3SpFSAL49(), save_everystep=false, callback=callbacks)
 nothing # hide
