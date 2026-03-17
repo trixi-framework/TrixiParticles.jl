@@ -56,7 +56,9 @@ function copy_contact_model(model::RigidContactModel, particle_spacing,
 end
 
 function contact_time_step(system::RigidBodySystem, semi)
-    dt = Inf
+    # for rigid wall limit timestep to the single body contact time step,
+    # for rigid-rigid interactions we need to check all neighbors
+    dt = contact_time_step(system, system) * sqrt(2)
 
     # TODO this is called for every system, so we compute this twice for every interaction pair
     foreach_system(semi) do neighbor
@@ -69,13 +71,6 @@ end
 
 @inline function contact_time_step(contact_model::Nothing, system::RigidBodySystem)
     return Inf
-end
-
-function contact_time_step(contact_model::RigidContactModel, system::RigidBodySystem)
-    min_mass = minimum(system.mass)
-    normal_stiffness = contact_model.normal_stiffness
-
-    return sqrt(min_mass / normal_stiffness)
 end
 
 @inline function contact_time_step(system::RigidBodySystem,
@@ -96,8 +91,6 @@ function contact_time_step(contact_model::RigidContactModel,
 
     min_mass = minimum(system.mass)
     neighbor_min_mass = minimum(neighbor_system.mass)
-    println("contact_time_step: min_mass = $min_mass, neighbor_min_mass = $neighbor_min_mass, pair_normal_stiffness = $pair_normal_stiffness")
-    println("contact_time_step: calculated dt = $(sqrt((min_mass * neighbor_min_mass / (min_mass + neighbor_min_mass)) / pair_normal_stiffness))")
     return sqrt((min_mass * neighbor_min_mass / (min_mass + neighbor_min_mass)) /
                 pair_normal_stiffness)
 end
