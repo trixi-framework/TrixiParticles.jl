@@ -102,27 +102,6 @@ function contact_time_step(contact_model,
     return Inf
 end
 
-function contact_time_step(contact_model::RigidContactModel,
-                           system::RigidBodySystem,
-                           neighbor_contact_model::RigidContactModel,
-                           neighbor_system::RigidBodySystem)
-    pair_parameters = rigid_contact_pair_parameters(contact_model, neighbor_contact_model,
-                                                    eltype(system))
-    normal_stiffness = pair_parameters.normal_stiffness
-    min_mass = minimum(system.mass)
-    neighbor_min_mass = minimum(neighbor_system.mass)
-
-    reduced_mass = min_mass * neighbor_min_mass / (min_mass + neighbor_min_mass)
-    return sqrt(reduced_mass / normal_stiffness)
-end
-
-@inline function contact_time_step(contact_model,
-                                   system::RigidBodySystem,
-                                   neighbor_contact_model,
-                                   neighbor_system::RigidBodySystem)
-    return Inf
-end
-
 function Base.show(io::IO, model::RigidContactModel)
     @nospecialize model # reduce precompilation time
 
