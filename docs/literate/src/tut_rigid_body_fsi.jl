@@ -1,10 +1,12 @@
-# # [Fluid-structure interaction with rigid body SPH](@id tut_rigid_body_fsi)
+# # [Fluid-structure interaction with rigid bodies](@id tut_rigid_body_fsi)
 
-# This tutorial introduces fluid-structure interaction (FSI) with [`RigidBodySystem`](@ref).
+# This tutorial introduces fluid-structure interaction (FSI) with the [`RigidBodySystem`](@ref).
 # We build a simplified version of
 # [`examples/fsi/falling_rotating_rigid_squares_2d.jl`](https://github.com/trixi-framework/TrixiParticles.jl/blob/main/examples/fsi/falling_rotating_rigid_squares_2d.jl),
 # where two rigid squares with initial angular velocity fall into a water tank.
-# Compared to the example file, we use a coarser resolution to keep the documentation build fast.
+# Compared to the example file, we use a coarser resolution to see results quickly.
+# For more details on the general setup of tank and fluid, see [the tutorial on setting up a simulation](@ref tut_setup).
+# In this tutorial, we will give this setup without further explanation.
 
 using TrixiParticles
 using OrdinaryDiffEq
@@ -16,8 +18,9 @@ using OrdinaryDiffEq
 # operates on the same particle resolution.
 fluid_particle_spacing = 0.04
 structure_particle_spacing = fluid_particle_spacing
+nothing #hide
 
-# We keep three boundary layers for the tank walls.
+# We use three boundary layers for the tank walls.
 boundary_layers = 3
 spacing_ratio = 1
 nothing # hide
@@ -119,8 +122,9 @@ nothing # hide
 #
 # 1. their physical density, which is already stored in `square1` and `square2`
 #    and determines the rigid-body mass and inertia,
-# 2. a boundary model for the fluid coupling, which requires hydrodynamic
-#    masses and densities on the rigid-body surface.
+# 2. a boundary model for the fluid coupling, which requires "hydrodynamic
+#    masses" and "hydrodynamic densities" on the rigid-body surface.
+#    See [the docs on dummy particles](@ref boundary_models) for a definition for these terms.
 #
 # In this tutorial, we initialize the hydrodynamic density from the surrounding fluid density.
 function rigid_body_boundary_model(shape)
@@ -168,7 +172,9 @@ contact_model = RigidContactModel(; normal_stiffness=2.0e5,
                                   normal_damping=150.0,
                                   contact_distance=2.0 *
                                                    structure_particle_spacing)
+nothing #hide
 
+# Now we can assemble the rigid body system.
 # The first argument of [`RigidBodySystem`](@ref) is the sampled rigid-body particle cloud.
 # It provides the initial coordinates, particle masses, material densities, and any initial velocity.
 # In our case, the initial angular velocity was already written into the initial condition
@@ -227,11 +233,11 @@ nothing # hide
 #             dtmax=2e-3,
 #             save_everystep=false, callback=callbacks);
 # ```
-sol = solve(ode, RDPK3SpFSAL49(), #!md
-            abstol=1e-6, #!md
-            reltol=1e-4, #!md
-            dtmax=2e-3, #!md
-            save_everystep=false, callback=callbacks) #!md
+sol = solve(ode, RDPK3SpFSAL49(),
+            abstol=1e-6,
+            reltol=1e-4,
+            dtmax=2e-3,
+            save_everystep=false, callback=callbacks)
 
 # We can inspect the final state with Plots.jl.
 plot(sol)

@@ -89,7 +89,7 @@ makedocs(sitename="TrixiParticles.jl",
                                                                                                                    "tut_custom_kernel.md")
                  ],
                  "Fluid-Structure Interaction" => [
-                     "Fluid-structure interaction with rigid body SPH" => joinpath("tutorials",
+                     "Fluid-structure interaction with rigid bodies" => joinpath("tutorials",
                                                                                    "tut_rigid_body_fsi.md")
                  ],
                  "Preprocessing" => [
