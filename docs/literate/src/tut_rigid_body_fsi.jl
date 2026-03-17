@@ -122,7 +122,8 @@ info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="step1")
 callbacks = CallbackSet(info_callback, saving_callback)
 
-sol_step1 = solve(ode_step1, RDPK3SpFSAL49(), save_everystep=false, callback=callbacks)
+sol_step1 = solve(ode_step1, RDPK3SpFSAL49(), save_everystep=false, callback=callbacks) #!md
+sol_step1 = solve(ode_step1, RDPK3SpFSAL49(), save_everystep=false) # hide
 nothing # hide
 
 # Let's plot the final state of this simulation.
