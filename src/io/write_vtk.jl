@@ -159,12 +159,16 @@ function trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
 end
 
 function transfer2cpu(semi::Semidiscretization)
-    # First move all data to the CPU
-    semi = Adapt.adapt(Array, semi)
+    # First move all systems and neighborhood searches to the CPU
+    systems = Adapt.adapt(Array, semi.systems)
+    neighborhood_searches = Adapt.adapt(Array, semi.neighborhood_searches)
+
+    semi_ = @set semi.systems = systems
+    semi__ = @set semi_.neighborhood_searches = neighborhood_searches
 
     # Now, set the parallelization backend to `PolyesterBackend` to make sure that
     # `@threaded` loops still work as expected with this semidiscretization.
-    return @set semi.parallelization_backend = PolyesterBackend()
+    return @set semi__.parallelization_backend = PolyesterBackend()
 end
 
 function transfer2cpu(v_::AbstractGPUArray, u_, semi_)

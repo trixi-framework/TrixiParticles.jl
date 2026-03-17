@@ -13,9 +13,7 @@ end
 # GPU version
 RecipesBase.@recipe function f(v_ode::AbstractGPUArray, u_ode, semi::Semidiscretization)
     # Move GPU data to the CPU
-    v_ode_ = Array(v_ode)
-    u_ode_ = Array(u_ode)
-    semi_ = Adapt.adapt(Array, semi)
+    v_ode_, u_ode_, semi_ = transfer2cpu(v_ode, u_ode, semi)
 
     # Redirect everything to the next recipe
     return v_ode_, u_ode_, semi_
@@ -43,8 +41,15 @@ RecipesBase.@recipe function f(v_ode, u_ode, semi::Semidiscretization;
             particle_spacing = 0.0
         end
 
-        x_min, y_min = minimum(coordinates, dims=2) .- 0.5particle_spacing
-        x_max, y_max = maximum(coordinates, dims=2) .+ 0.5particle_spacing
+        x_min, x_max = extrema(x)
+        y_min, y_max = extrema(y)
+
+        # Add one particle radius around the center of the particles
+        # to obtain the domain size.
+        x_min -= 0.5particle_spacing
+        x_max += 0.5particle_spacing
+        y_min -= 0.5particle_spacing
+        y_max += 0.5particle_spacing
 
         return (; x, y, x_min, x_max, y_min, y_max, particle_spacing,
                 label=timer_name(system))

@@ -110,20 +110,8 @@ end
     return compact_support(system.contact_model, system, neighbor.contact_model, neighbor)
 end
 
-@inline function compact_support(::Nothing, system::RigidBodySystem,
-                                 ::Nothing, neighbor::RigidBodySystem)
-    return zero(eltype(system))
-end
-
-@inline function compact_support(::Nothing, system::RigidBodySystem,
-                                 ::RigidContactModel, neighbor::RigidBodySystem)
-    return zero(eltype(system))
-end
-
-@inline function compact_support(::RigidContactModel,
-                                 system::RigidBodySystem,
-                                 ::Nothing,
-                                 neighbor::RigidBodySystem)
+@inline function compact_support(contact_model, system::RigidBodySystem,
+                                 contact_model_neighbor, neighbor::RigidBodySystem)
     return zero(eltype(system))
 end
 
@@ -131,9 +119,7 @@ end
                                  system::RigidBodySystem,
                                  neighbor_contact_model::RigidContactModel,
                                  neighbor::RigidBodySystem)
-    pair_parameters = rigid_contact_pair_parameters(contact_model, neighbor_contact_model,
-                                                    eltype(system))
-    return pair_parameters.contact_distance
+    return max(contact_model.contact_distance, neighbor_contact_model.contact_distance)
 end
 
 @inline function compact_support(system::RigidBodySystem, neighbor::OpenBoundarySystem)
@@ -174,7 +160,7 @@ end
 
     system_index = system_indices(system, semi)
 
-    return neighborhood_searches[system_index][system_index]
+    return neighborhood_searches[system_index, system_index]
 end
 
 @inline function get_neighborhood_search(system::TotalLagrangianSPHSystem, semi)
@@ -189,7 +175,7 @@ end
     system_index = system_indices(system, semi)
     neighbor_index = system_indices(neighbor_system, semi)
 
-    return neighborhood_searches[system_index][neighbor_index]
+    return neighborhood_searches[system_index, neighbor_index]
 end
 
 @inline function get_neighborhood_search(system::TotalLagrangianSPHSystem,
@@ -205,7 +191,7 @@ end
         return system.self_interaction_nhs
     end
 
-    return neighborhood_searches[system_index][neighbor_index]
+    return neighborhood_searches[system_index, neighbor_index]
 end
 
 # === Initialization ===
