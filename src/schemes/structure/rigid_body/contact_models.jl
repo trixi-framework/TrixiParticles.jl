@@ -56,7 +56,7 @@ function copy_contact_model(model::RigidContactModel, particle_spacing,
 end
 
 function contact_time_step(system::RigidBodySystem, semi)
-    # for rigid wall limit timestep to the single body contact time step,
+    # for rigid-wall interaction, limit timestep to the single body contact time step,
     # for rigid-rigid interactions we need to check all neighbors
     dt = contact_time_step(system, system) * sqrt(2)
 
