@@ -144,7 +144,7 @@ end
 
     system_index = system_indices(system, semi)
 
-    return neighborhood_searches[system_index][system_index]
+    return neighborhood_searches[system_index, system_index]
 end
 
 @inline function get_neighborhood_search(system::TotalLagrangianSPHSystem, semi)
@@ -159,7 +159,7 @@ end
     system_index = system_indices(system, semi)
     neighbor_index = system_indices(neighbor_system, semi)
 
-    return neighborhood_searches[system_index][neighbor_index]
+    return neighborhood_searches[system_index, neighbor_index]
 end
 
 @inline function get_neighborhood_search(system::TotalLagrangianSPHSystem,
@@ -175,7 +175,7 @@ end
         return system.self_interaction_nhs
     end
 
-    return neighborhood_searches[system_index][neighbor_index]
+    return neighborhood_searches[system_index, neighbor_index]
 end
 
 # === Initialization ===
