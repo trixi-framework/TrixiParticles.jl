@@ -55,6 +55,12 @@ together with boundary and interior sampling.
 
 ### [Fluid-structure interaction with rigid bodies](tutorials/tut_rigid_body_fsi.md)
 
+```@raw html
+<img src="../tutorials/tut_rigid_body_fsi_plot.png"
+     alt="Rotating squares impacting a free surface water surface"
+     style="max-width: 360px; width: 100%; border-radius: 12px;" />
+```
+
 Simulate the interaction between fluids and moving rigid bodies.
 
 - Focus: fluid-structure interaction, rigid bodies, moving boundaries

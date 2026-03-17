@@ -190,11 +190,6 @@ nothing #hide
 # - `particle_spacing`: reference spacing used internally for copying the contact model
 #   and for contact-related time-step estimates.
 #   This should usually match the spacing used to sample the rigid shape.
-#
-# [`RigidBodySystem`](@ref) also offers more advanced keywords such as `max_manifolds`,
-# `source_terms`, `adhesion_coefficient`, and `color_value`.
-# We keep them at their defaults here because the present example only needs
-# basic rigid-body dynamics, FSI coupling, and contact handling.
 rigid_body_system_1 = RigidBodySystem(square1;
                                       boundary_model=square1_boundary_model,
                                       contact_model=contact_model,
@@ -224,15 +219,8 @@ saving_callback = SolutionSavingCallback(dt=0.05)
 callbacks = CallbackSet(info_callback, saving_callback)
 nothing # hide
 
-# For this FSI problem, a small enough `dtmax` is useful during the free-fall phase,
-# so that fluid particles do not tunnel through the rigid bodies or the tank wall on impact.
-# ```@cast @__NAME__; width=100, height=50, delay=0, loop=true, loop_delay=5
-# sol = solve(ode, RDPK3SpFSAL49(),
-#             abstol=1e-6,
-#             reltol=1e-4,
-#             dtmax=2e-3,
-#             save_everystep=false, callback=callbacks);
-# ```
+# For this FSI problem, a small enough `dtmax` and `reltol` is useful during the free-fall phase,
+# and the tank wall on impact to prevent pentration.
 sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-6,
             reltol=1e-4,
