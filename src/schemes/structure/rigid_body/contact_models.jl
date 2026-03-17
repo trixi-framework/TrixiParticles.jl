@@ -5,7 +5,8 @@ abstract type AbstractRigidContactModel end
                       normal_damping=0.0,
                       contact_distance=0.0)
 
-It is currently only used for rigid-wall contact.
+Basic rigid contact model stored on a rigid body.
+It is currently used for both rigid-wall and rigid-rigid contact.
 The contact force consists of a linear normal spring-dashpot contribution only.
 If `contact_distance == 0`, the particle spacing of the `RigidBodySystem` will be used as contact distance.
 
@@ -54,24 +55,51 @@ function copy_contact_model(model::RigidContactModel, particle_spacing,
                              contact_distance)
 end
 
-@inline function contact_time_step(system::RigidBodySystem)
-    return contact_time_step(system.contact_model, system)
+function contact_time_step(system::RigidBodySystem, semi)
+    # for rigid-wall interaction, limit timestep to the single body contact time step,
+    # for rigid-rigid interactions we need to check all neighbors
+    dt = contact_time_step(system, system) * sqrt(2)
+
+    # TODO this is called for every system, so we compute this twice for every interaction pair
+    foreach_system(semi) do neighbor
+        neighbor === system && return
+        dt = min(dt, contact_time_step(system, neighbor))
+    end
+
+    return dt
 end
 
-@inline function contact_time_step(::Nothing, system::RigidBodySystem)
+@inline function contact_time_step(contact_model::Nothing, system::RigidBodySystem)
+    return Inf
+end
+
+@inline function contact_time_step(system::RigidBodySystem,
+                                   neighbor::RigidBodySystem)
+    return contact_time_step(system.contact_model, system, neighbor.contact_model, neighbor)
+end
+
+@inline function contact_time_step(system, neighbor)
     return Inf
 end
 
 function contact_time_step(contact_model::RigidContactModel,
-                           system::RigidBodySystem)
+                           system::RigidBodySystem,
+                           neighbor_contact_model::RigidContactModel,
+                           neighbor_system::RigidBodySystem)
+    pair_normal_stiffness = (contact_model.normal_stiffness +
+                             neighbor_contact_model.normal_stiffness) / 2
+
     min_mass = minimum(system.mass)
-    normal_stiffness = contact_model.normal_stiffness
+    neighbor_min_mass = minimum(neighbor_system.mass)
+    return sqrt((min_mass * neighbor_min_mass / (min_mass + neighbor_min_mass)) /
+                pair_normal_stiffness)
+end
 
-    if min_mass <= eps(eltype(system)) || normal_stiffness <= eps(eltype(system))
-        return Inf
-    end
-
-    return sqrt(min_mass / normal_stiffness)
+function contact_time_step(contact_model,
+                           system::RigidBodySystem,
+                           neighbor_contact_model,
+                           neighbor_system::RigidBodySystem)
+    return Inf
 end
 
 function Base.show(io::IO, model::RigidContactModel)

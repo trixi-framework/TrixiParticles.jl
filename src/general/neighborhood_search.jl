@@ -106,6 +106,22 @@ end
     return contact_model.contact_distance
 end
 
+@inline function compact_support(system::RigidBodySystem, neighbor::RigidBodySystem)
+    return compact_support(system.contact_model, system, neighbor.contact_model, neighbor)
+end
+
+@inline function compact_support(contact_model, system::RigidBodySystem,
+                                 contact_model_neighbor, neighbor::RigidBodySystem)
+    return zero(eltype(system))
+end
+
+@inline function compact_support(contact_model::RigidContactModel,
+                                 system::RigidBodySystem,
+                                 neighbor_contact_model::RigidContactModel,
+                                 neighbor::RigidBodySystem)
+    return max(contact_model.contact_distance, neighbor_contact_model.contact_distance)
+end
+
 @inline function compact_support(system::RigidBodySystem, neighbor::OpenBoundarySystem)
     # Rigid/open-boundary interactions are currently not modeled.
     return zero(eltype(system))
