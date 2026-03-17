@@ -555,8 +555,9 @@ end
     ref_id = system_indices(ref_system, semi)
     ref_smoothing_kernel = ref_system.smoothing_kernel
 
-    # If we don't cut at the boundary, we only need to iterate over the reference system
-    systems = cut_off_bnd ? semi : (ref_system,)
+    # If we don't cut at the boundary and don't need the wall velocity of the boundary,
+    # we only need to iterate over the reference system.
+    systems = (cut_off_bnd || include_wall_velocity) ? semi : (ref_system,)
 
     foreach_system(systems) do neighbor_system
         system_id = system_indices(neighbor_system, semi)
@@ -605,8 +606,9 @@ end
     end
 
     @threaded parallelization_backend for point in axes(point_coords, 2)
-        if other_density[point] > computed_density[point] ||
-           computed_density[point] < eps()
+        set_nan = computed_density[point] < eps() ||
+                  (cut_off_bnd && other_density[point] > computed_density[point])
+        if set_nan
             # Return NaN values that can be filtered out in ParaView
             computed_density[point] = NaN
             neighbor_count[point] = 0
