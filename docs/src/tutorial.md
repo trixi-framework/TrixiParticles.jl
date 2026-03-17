@@ -42,8 +42,7 @@ directly in the file you run.
 
 ```@raw html
 <img src="https://github.com/user-attachments/assets/0f7aba29-3cf7-4ec1-8c95-841e72fe620d"
-     alt="Packed p\kbold{Diagnostics} & settling, wall-adjacent behavior, pressure profile
-article configuration for a complex geometry"
+     alt="Packed particle configuration for a complex geometry"
      style="max-width: 360px; width: 100%; border-radius: 12px;" />
 ```
 

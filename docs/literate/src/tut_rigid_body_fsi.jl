@@ -107,6 +107,7 @@ nothing # hide
 # The bodies will move according to the prescribed gravity and initial velocities, but without
 # any collisions or fluid forces.
 
+
 rigid_body_system_1_step1 = RigidBodySystem(square1; acceleration=(0.0, -gravity),
                                             particle_spacing=structure_particle_spacing)
 rigid_body_system_2_step1 = RigidBodySystem(square2; acceleration=(0.0, -gravity),
@@ -141,6 +142,15 @@ nothing # hide
 # which allows them to interact with the fluid. We also add the tank boundary to the simulation.
 # However, we still don't use a `contact_model`, so the rigid bodies will not collide with the
 # tank or each other.
+# For rigid-body FSI, the rigid particles need two separate pieces of information:
+#
+# 1. their physical density, which is already stored in `square1` and `square2`
+#    and determines the rigid-body mass and inertia,
+# 2. a boundary model for the fluid coupling, which requires hydrodynamic
+#    masses and densities on the rigid-body surface.
+#
+# In this tutorial, we initialize the hydrodynamic density from the surrounding fluid density.
+#    See [the docs on dummy particles](@ref boundary_models) for a definition for these terms.
 
 boundary_density_calculator = AdamiPressureExtrapolation()
 tank_boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
