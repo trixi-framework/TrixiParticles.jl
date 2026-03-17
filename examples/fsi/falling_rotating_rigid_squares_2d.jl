@@ -132,29 +132,6 @@ structure_system_2 = RigidBodySystem(square2;
 
 extra_structure_systems = (nothing,)
 
-# Uncomment this block to add a floating layer of small rigid spheres above the
-# initial water surface. The spheres have density 500.0, so they mostly float
-# and are appended to `extra_structure_systems`.
-# small_sphere_radius = 0.15
-# small_sphere_density = 500.0
-# small_sphere_y = initial_fluid_size[2] + small_sphere_radius
-# small_sphere_x_positions = 0.2:(3 * small_sphere_radius):1.8
-# small_sphere_contact_model = RigidContactModel(; normal_stiffness=2.0e5,
-#                                                normal_damping=120.0,
-#                                                contact_distance=2.0 *
-#                                                                 structure_particle_spacing)
-# extra_structure_systems = [begin
-#     sphere = SphereShape(structure_particle_spacing, small_sphere_radius,
-#                          (x, small_sphere_y), small_sphere_density,
-#                          sphere_type=RoundSphere())
-#     sphere_boundary_model = structure_boundary_model(sphere)
-#     RigidBodySystem(sphere;
-#                     boundary_model=sphere_boundary_model,
-#                     contact_model=small_sphere_contact_model,
-#                     acceleration=(0.0, -gravity),
-#                     particle_spacing=structure_particle_spacing)
-# end for x in small_sphere_x_positions]
-
 # ==========================================================================================
 # ==== Simulation
 semi = Semidiscretization(fluid_system, boundary_system,

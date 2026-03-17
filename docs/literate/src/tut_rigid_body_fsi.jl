@@ -29,7 +29,8 @@ nothing # hide
 
 # The setup is a rectangular tank with an open top.
 gravity = 9.81
-tspan = (0.0, 0.6)
+tspan = (0.0, 1.0)
+tspan2 = (0.0, 0.6) # hide
 
 initial_fluid_size = (2.0, 1.0)
 tank_size = (2.0, 2.0)
@@ -116,7 +117,7 @@ nothing # hide
 
 # Note that the `Semidiscretization` does not contain the fluid or boundary systems.
 semi_step1 = Semidiscretization(rigid_body_system_1_step1, rigid_body_system_2_step1)
-ode_step1 = semidiscretize(semi_step1, tspan)
+ode_step1 = semidiscretize(semi_step1, tspan2)
 nothing # hide
 
 info_callback = InfoCallback(interval=100)
@@ -132,7 +133,7 @@ nothing # hide
 # in the background to show that no interaction has taken place.
 # As you can see, the squares fall through the fluid and the tank walls.
 p = plot(tank.fluid, tank.boundary, labels=["fluid" "boundary"])
-plot!(p, sol_step1)
+plot!(p, sol_step1, legend=:topright)
 plot!(p, dpi=200) # hide
 savefig(p, "tut_rigid_body_fsi_step1.png"); # hide
 nothing # hide
@@ -198,8 +199,9 @@ info_callback = InfoCallback(interval=100) # hide
 saving_callback_step2 = SolutionSavingCallback(dt=0.02, prefix="step2") # hide
 callbacks_step2 = CallbackSet(info_callback, saving_callback_step2) # hide
 
-sol_step2 = solve(ode_step2, RDPK3SpFSAL49(), abstol=1e-6, reltol=1e-4, dtmax=2e-3,
-                  save_everystep=false, callback=callbacks_step2)
+sol_step2 = solve(ode_step2, RDPK3SpFSAL49(), abstol=1e-6, reltol=1e-4, dtmax=2e-3, #!md
+                  save_everystep=false, callback=callbacks_step2) #!md
+sol_step2 = solve(ode_step2, RDPK3SpFSAL49(), save_everystep=false) # hide
 nothing # hide
 
 # In the plot, you can see the interaction between the fluid and the squares.
@@ -241,8 +243,9 @@ info_callback = InfoCallback(interval=100) # hide
 saving_callback_step3 = SolutionSavingCallback(dt=0.02, prefix="step3") # hide
 callbacks_step3 = CallbackSet(info_callback, saving_callback_step3) # hide
 
-sol_step3 = solve(ode_step3, RDPK3SpFSAL49(), abstol=1e-6, reltol=1e-4, dtmax=2e-3,
-                  save_everystep=false, callback=callbacks_step3)
+sol_step3 = solve(ode_step3, RDPK3SpFSAL49(), abstol=1e-6, reltol=1e-4, dtmax=2e-3,#!md
+                  save_everystep=false, callback=callbacks_step3) #!md
+sol_step3 = solve(ode_step3, RDPK3SpFSAL49(), save_everystep=false) # hide
 nothing # hide
 
 # The plot now shows the full simulation. The squares collide with the tank bottom and each other.
@@ -304,8 +307,9 @@ info_callback = InfoCallback(interval=100) # hide
 saving_callback_step4 = SolutionSavingCallback(dt=0.02, prefix="step4") # hide
 callbacks_step4 = CallbackSet(info_callback, saving_callback_step4) # hide
 
-sol_step4 = solve(ode_step4, RDPK3SpFSAL49(), abstol=1e-6, reltol=1e-4, dtmax=2e-3,
-                  save_everystep=false, callback=callbacks_step4)
+sol_step4 = solve(ode_step4, RDPK3SpFSAL49(), abstol=1e-6, reltol=1e-4, dtmax=2e-3,#!md
+                  save_everystep=false, callback=callbacks_step4) #!md
+sol_step4 = solve(ode_step4, RDPK3SpFSAL49(), save_everystep=false) # hide
 nothing # hide
 
 # And here is the final plot with circles instead of squares.
