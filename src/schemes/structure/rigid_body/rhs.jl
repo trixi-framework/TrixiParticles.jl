@@ -425,7 +425,7 @@ function interact!(dv, v_particle_system, u_particle_system,
     end
 
     # We don't need to model self collision
-    particle_system == neighbor_system && return dv
+    particle_system === neighbor_system && return dv
 
     ELTYPE = eltype(particle_system)
     system_coords = current_coordinates(u_particle_system, particle_system)
@@ -437,8 +437,10 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                                                 neighbor,
                                                                                 pos_diff,
                                                                                 distance
-        # This loop updates both rigid systems with one equal-and-opposite force pair, so
-        # keep the traversal serial.
+        # This kernel accumulates contact force only for `particle_system`. The reverse
+        # contribution is assembled by the separate `(neighbor_system, particle_system)`
+        # interaction pass in `system_interaction!`, which lets this neighbor traversal use
+        # the regular parallel backend.
         distance <= eps(ELTYPE) && return dv
 
         penetration = max(contact_model.contact_distance,

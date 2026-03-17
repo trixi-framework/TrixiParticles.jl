@@ -60,6 +60,7 @@ function contact_time_step(system::RigidBodySystem, semi)
 
     # TODO this is called for every system, so we compute this twice for every interaction pair
     foreach_system(semi) do neighbor
+        neighbor === system && return
         dt = min(dt, contact_time_step(system, neighbor))
     end
 
@@ -90,8 +91,15 @@ function contact_time_step(contact_model::RigidContactModel,
                            system::RigidBodySystem,
                            neighbor_contact_model::RigidContactModel,
                            neighbor_system::RigidBodySystem)
-    return min(contact_time_step(neighbor_contact_model, neighbor_system),
-               contact_time_step(contact_model, system))
+    pair_normal_stiffness = (contact_model.normal_stiffness +
+                                 neighbor_contact_model.normal_stiffness) / 2
+
+    min_mass = minimum(system.mass)
+    neighbor_min_mass = minimum(neighbor_system.mass)
+    println("contact_time_step: min_mass = $min_mass, neighbor_min_mass = $neighbor_min_mass, pair_normal_stiffness = $pair_normal_stiffness")
+    println("contact_time_step: calculated dt = $(sqrt((min_mass * neighbor_min_mass / (min_mass + neighbor_min_mass)) / pair_normal_stiffness))")
+    return sqrt((min_mass * neighbor_min_mass / (min_mass + neighbor_min_mass)) /
+                               pair_normal_stiffness)
 end
 
 function contact_time_step(contact_model,
