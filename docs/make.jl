@@ -90,7 +90,7 @@ makedocs(sitename="TrixiParticles.jl",
                  ],
                  "Fluid-Structure Interaction" => [
                      "Fluid-structure interaction with rigid bodies" => joinpath("tutorials",
-                                                                                   "tut_rigid_body_fsi.md")
+                                                                                 "tut_rigid_body_fsi.md")
                  ],
                  "Preprocessing" => [
                      "Particle packing tutorial" => joinpath("tutorials",
