@@ -92,14 +92,14 @@ function contact_time_step(contact_model::RigidContactModel,
                            neighbor_contact_model::RigidContactModel,
                            neighbor_system::RigidBodySystem)
     pair_normal_stiffness = (contact_model.normal_stiffness +
-                                 neighbor_contact_model.normal_stiffness) / 2
+                             neighbor_contact_model.normal_stiffness) / 2
 
     min_mass = minimum(system.mass)
     neighbor_min_mass = minimum(neighbor_system.mass)
     println("contact_time_step: min_mass = $min_mass, neighbor_min_mass = $neighbor_min_mass, pair_normal_stiffness = $pair_normal_stiffness")
     println("contact_time_step: calculated dt = $(sqrt((min_mass * neighbor_min_mass / (min_mass + neighbor_min_mass)) / pair_normal_stiffness))")
     return sqrt((min_mass * neighbor_min_mass / (min_mass + neighbor_min_mass)) /
-                               pair_normal_stiffness)
+                pair_normal_stiffness)
 end
 
 function contact_time_step(contact_model,
