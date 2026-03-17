@@ -6,26 +6,26 @@
 # where two rigid squares with initial angular velocity fall into a water tank.
 # Compared to the example file, we use a coarser resolution to see results quickly.
 # For more details on the general setup of tank and fluid, see [the tutorial on setting up a simulation](@ref tut_setup).
-# In this tutorial, we will give this setup without further explanation.
+
+# We will build up the simulation step by step:
+# 1. Rigid bodies without any interaction.
+# 2. Fluid-structure interaction, but without rigid-rigid or rigid-wall contact.
+# 3. Full simulation with fluid-structure interaction and contact.
+# 4. Using a different geometry.
 
 using TrixiParticles
 using OrdinaryDiffEq
+using Plots
 
-# ## Resolution
-
+# ## Resolution and basic setup
 # As in the other tutorials, we start by defining the particle spacing.
 # We use the same spacing for the fluid and the rigid bodies so that the coupling
 # operates on the same particle resolution.
 fluid_particle_spacing = 0.04
 structure_particle_spacing = fluid_particle_spacing
-nothing #hide
-
-# We use three boundary layers for the tank walls.
 boundary_layers = 3
 spacing_ratio = 1
 nothing # hide
-
-# ## Experiment setup
 
 # The setup is a rectangular tank with an open top.
 gravity = 9.81
@@ -45,6 +45,7 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
                        acceleration=(0.0, -gravity), state_equation=state_equation)
 nothing # hide
 
+# ## Rigid body geometry
 # Next, we define two rigid squares.
 # Their physical density determines whether they tend to float or sink,
 # while the initial angular velocity prescribes the rigid-body rotation.
@@ -76,8 +77,7 @@ square1 = apply_angular_velocity(square1, square1_angular_velocity)
 square2 = apply_angular_velocity(square2, square2_angular_velocity)
 nothing # hide
 
-# We can visualize the initial setup before defining the SPH systems.
-using Plots
+# We can visualize the initial setup.
 plot(tank.fluid, tank.boundary, square1, square2,
      labels=["fluid" "boundary" "square 1" "square 2"])
 plot!(dpi=200) # hide
@@ -86,7 +86,6 @@ nothing # hide
 # ![initial setup](tut_rigid_body_fsi_setup.png)
 
 # ## Fluid system
-
 # For the water, we use a standard WCSPH discretization.
 fluid_smoothing_length = 1.5 * fluid_particle_spacing
 fluid_smoothing_kernel = WendlandC2Kernel{2}()
@@ -102,9 +101,47 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            acceleration=(0.0, -gravity))
 nothing # hide
 
-# ## Boundary system
+# ## Step 1: Without boundary model and contact model
+# In the first step, we simulate the rigid bodies without interaction with the fluid or the tank.
+# This means we will create a `Semidiscretization` containing only the rigid body systems.
+# The bodies will move according to the prescribed gravity and initial velocities, but without
+# any collisions or fluid forces.
 
-# The tank walls are represented by boundary particles that interact with the fluid.
+rigid_body_system_1_step1 = RigidBodySystem(square1; acceleration=(0.0, -gravity),
+                                            particle_spacing=structure_particle_spacing)
+rigid_body_system_2_step1 = RigidBodySystem(square2; acceleration=(0.0, -gravity),
+                                            particle_spacing=structure_particle_spacing)
+nothing # hide
+
+# Note that the `Semidiscretization` does not contain the fluid or boundary systems.
+semi_step1 = Semidiscretization(rigid_body_system_1_step1, rigid_body_system_2_step1)
+ode_step1 = semidiscretize(semi_step1, tspan)
+nothing # hide
+
+info_callback = InfoCallback(interval=100) # hide
+saving_callback = SolutionSavingCallback(dt=0.02, prefix="step1") # hide
+callbacks = CallbackSet(info_callback, saving_callback) # hide
+
+sol_step1 = solve(ode_step1, RDPK3SpFSAL49(), save_everystep=false, callback=callbacks)
+nothing # hide
+
+# Let's plot the final state of this simulation.
+# We can see the final positions of the squares. The fluid and tank are plotted
+# in the background to show that no interaction has taken place.
+# As you can see, the squares fall through the fluid and the tank walls.
+p = plot(tank.fluid, tank.boundary, labels=["fluid" "boundary"])
+plot!(p, sol_step1)
+plot!(p, dpi=200) # hide
+savefig(p, "tut_rigid_body_fsi_step1.png"); # hide
+nothing # hide
+# ![Step 1](tut_rigid_body_fsi_step1.png)
+
+# ## Step 2: With boundary model, without contact model
+# Now, we introduce fluid-structure interaction. We define a `boundary_model` for each rigid body,
+# which allows them to interact with the fluid. We also add the tank boundary to the simulation.
+# However, we still don't use a `contact_model`, so the rigid bodies will not collide with the
+# tank or each other.
+
 boundary_density_calculator = AdamiPressureExtrapolation()
 tank_boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
                                                   tank.boundary.mass,
@@ -116,24 +153,11 @@ tank_boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
 boundary_system = WallBoundarySystem(tank.boundary, tank_boundary_model)
 nothing # hide
 
-# ## Rigid body systems
-
-# For rigid-body FSI, the rigid particles need two separate pieces of information:
-#
-# 1. their physical density, which is already stored in `square1` and `square2`
-#    and determines the rigid-body mass and inertia,
-# 2. a boundary model for the fluid coupling, which requires "hydrodynamic
-#    masses" and "hydrodynamic densities" on the rigid-body surface.
-#    See [the docs on dummy particles](@ref boundary_models) for a definition for these terms.
-#
-# In this tutorial, we initialize the hydrodynamic density from the surrounding fluid density.
 function rigid_body_boundary_model(shape)
     hydrodynamic_densities = fluid_density * ones(size(shape.density))
-    hydrodynamic_masses = hydrodynamic_densities *
-                          structure_particle_spacing^ndims(fluid_system)
+    hydrodynamic_masses = hydrodynamic_densities * structure_particle_spacing^ndims(fluid_system)
 
-    return BoundaryModelDummyParticles(hydrodynamic_densities,
-                                       hydrodynamic_masses,
+    return BoundaryModelDummyParticles(hydrodynamic_densities, hydrodynamic_masses,
                                        state_equation=state_equation,
                                        boundary_density_calculator,
                                        fluid_smoothing_kernel,
@@ -144,99 +168,143 @@ square1_boundary_model = rigid_body_boundary_model(square1)
 square2_boundary_model = rigid_body_boundary_model(square2)
 nothing # hide
 
-# The `boundary_model` that we pass to `RigidBodySystem` is therefore not the rigid-body material law.
-# It is only the interface seen by the fluid.
-# The rigid-body mass, center of mass, and moment of inertia still come from the original
-# particle masses and densities stored in `square1` and `square2`.
-#
-# Besides fluid coupling, rigid bodies can also use a dedicated contact model for
-# rigid-wall and rigid-rigid collisions.
-# This contact model is independent of the SPH boundary model above.
-#
-# In `RigidContactModel`, the arguments have the following meaning:
-#
-# - `normal_stiffness`: stiffness of the normal penalty spring.
-#   Larger values reduce visible overlap during contact, but also make the contact problem stiffer,
-#   which can require smaller time steps.
-# - `normal_damping`: damping in the normal direction.
-#   This removes kinetic energy during impact.
-#   Larger values make collisions less bouncy, while `0.0` gives the most elastic response.
-# - `contact_distance`: activation distance of the contact shell around each rigid particle.
-#   Contact forces start to act once particles or walls come closer than this distance.
-#   If it is left at `0.0`, TrixiParticles.jl falls back to the `particle_spacing`
-#   passed to `RigidBodySystem`.
-#
-# Here we choose a moderate damping and a contact distance of two particle spacings
-# so that contact is detected robustly on this coarse tutorial resolution.
+rigid_body_system_1_step2 = RigidBodySystem(square1;
+                                            boundary_model=square1_boundary_model,
+                                            acceleration=(0.0, -gravity),
+                                            particle_spacing=structure_particle_spacing)
+rigid_body_system_2_step2 = RigidBodySystem(square2;
+                                            boundary_model=square2_boundary_model,
+                                            acceleration=(0.0, -gravity),
+                                            particle_spacing=structure_particle_spacing)
+nothing # hide
+
+semi_step2 = Semidiscretization(fluid_system, boundary_system,
+                                rigid_body_system_1_step2, rigid_body_system_2_step2)
+ode_step2 = semidiscretize(semi_step2, tspan)
+nothing # hide
+
+info_callback = InfoCallback(interval=100) # hide
+saving_callback_step2 = SolutionSavingCallback(dt=0.02, prefix="step2") # hide
+callbacks_step2 = CallbackSet(info_callback, saving_callback_step2) # hide
+
+sol_step2 = solve(ode_step2, RDPK3SpFSAL49(), abstol=1e-6, reltol=1e-4, dtmax=2e-3,
+                  save_everystep=false, callback=callbacks_step2)
+nothing # hide
+
+# In the plot, you can see the interaction between the fluid and the squares.
+# However, the squares pass through the tank bottom and each other.
+plot(sol_step2)
+plot!(dpi=200) # hide
+savefig("tut_rigid_body_fsi_step2.png"); # hide
+nothing # hide
+# ![Step 2](tut_rigid_body_fsi_step2.png)
+
+
+# ## Step 3: With contact model
+# Finally, we add a `contact_model` to handle collisions between rigid bodies and between
+# rigid bodies and the tank.
+
 contact_model = RigidContactModel(; normal_stiffness=2.0e5,
                                   normal_damping=150.0,
-                                  contact_distance=2.0 *
-                                                   structure_particle_spacing)
-nothing #hide
-
-# Now we can assemble the rigid body system.
-# The first argument of [`RigidBodySystem`](@ref) is the sampled rigid-body particle cloud.
-# It provides the initial coordinates, particle masses, material densities, and any initial velocity.
-# In our case, the initial angular velocity was already written into the initial condition
-# via [`apply_angular_velocity`](@ref).
-#
-# The main keyword arguments used here are:
-#
-# - `boundary_model`: the fluid-facing boundary representation of the rigid body.
-#   Without it, the rigid body would not exchange pressure and viscous forces with the fluid.
-# - `contact_model`: enables rigid-wall and rigid-rigid collision forces.
-#   If this is omitted, the body still participates in FSI, but rigid contact is disabled.
-# - `acceleration`: constant body force per unit mass, here gravity.
-# - `particle_spacing`: reference spacing used internally for copying the contact model
-#   and for contact-related time-step estimates.
-#   This should usually match the spacing used to sample the rigid shape.
-rigid_body_system_1 = RigidBodySystem(square1;
-                                      boundary_model=square1_boundary_model,
-                                      contact_model=contact_model,
-                                      acceleration=(0.0, -gravity),
-                                      particle_spacing=structure_particle_spacing)
-rigid_body_system_2 = RigidBodySystem(square2;
-                                      boundary_model=square2_boundary_model,
-                                      contact_model=contact_model,
-                                      acceleration=(0.0, -gravity),
-                                      particle_spacing=structure_particle_spacing)
+                                  contact_distance=2.0 * structure_particle_spacing)
 nothing # hide
 
-# ## Semidiscretization
-
-# The semidiscretization couples the fluid, the tank wall boundary, and both rigid bodies.
-semi = Semidiscretization(fluid_system, boundary_system,
-                          rigid_body_system_1, rigid_body_system_2)
-ode = semidiscretize(semi, tspan)
+rigid_body_system_1_step3 = RigidBodySystem(square1;
+                                            boundary_model=square1_boundary_model,
+                                            contact_model=contact_model,
+                                            acceleration=(0.0, -gravity),
+                                            particle_spacing=structure_particle_spacing)
+rigid_body_system_2_step3 = RigidBodySystem(square2;
+                                            boundary_model=square2_boundary_model,
+                                            contact_model=contact_model,
+                                            acceleration=(0.0, -gravity),
+                                            particle_spacing=structure_particle_spacing)
 nothing # hide
 
-# ## Time integration
-
-# We reuse the standard callbacks from the other tutorials.
-info_callback = InfoCallback(interval=20)
-saving_callback = SolutionSavingCallback(dt=0.05)
-
-callbacks = CallbackSet(info_callback, saving_callback)
+semi_step3 = Semidiscretization(fluid_system, boundary_system,
+                                rigid_body_system_1_step3, rigid_body_system_2_step3)
+ode_step3 = semidiscretize(semi_step3, tspan)
 nothing # hide
 
-# For this FSI problem, a small enough `dtmax` and `reltol` is useful during the free-fall phase,
-# and the tank wall on impact to prevent pentration.
-sol = solve(ode, RDPK3SpFSAL49(),
-            abstol=1e-6,
-            reltol=1e-4,
-            dtmax=2e-3,
-            save_everystep=false, callback=callbacks)
+info_callback = InfoCallback(interval=100) # hide
+saving_callback_step3 = SolutionSavingCallback(dt=0.02, prefix="step3") # hide
+callbacks_step3 = CallbackSet(info_callback, saving_callback_step3) # hide
 
-# We can inspect the final state with Plots.jl.
-plot(sol)
+sol_step3 = solve(ode_step3, RDPK3SpFSAL49(), abstol=1e-6, reltol=1e-4, dtmax=2e-3,
+                  save_everystep=false, callback=callbacks_step3)
+nothing # hide
+
+# The plot now shows the full simulation. The squares collide with the tank bottom and each other.
+plot(sol_step3)
 plot!(dpi=200) # hide
-savefig("tut_rigid_body_fsi_plot.png"); # hide
+savefig("tut_rigid_body_fsi_step3.png"); # hide
 nothing # hide
-# ![solution plot](tut_rigid_body_fsi_plot.png)
+# ![Step 3](tut_rigid_body_fsi_step3.png)
 
-# The lighter square tends to stay closer to the free surface, while the denser square sinks.
-# This same setup pattern extends directly to other shapes and more rigid bodies.
-#
+
+# ## Step 4: Different geometry
+# The same setup can be used with different geometries. Here, we replace the squares with circles.
+
+circle1_radius = 0.2
+circle2_radius = 0.15
+
+circle1_center = (0.4, 1.25)
+circle2_center = (1.25, 1.30)
+
+circle1 = SphereShape(structure_particle_spacing, circle1_radius, circle1_center,
+                      square1_density, sphere_type=RoundSphere())
+circle2 = SphereShape(structure_particle_spacing, circle2_radius, circle2_center,
+                      square2_density, sphere_type=RoundSphere())
+
+circle1 = apply_angular_velocity(circle1, square1_angular_velocity)
+circle2 = apply_angular_velocity(circle2, square2_angular_velocity)
+nothing # hide
+
+# Let's visualize the new setup.
+plot(tank.fluid, tank.boundary, circle1, circle2,
+     labels=["fluid" "boundary" "circle 1" "circle 2"])
+plot!(dpi=200) # hide
+savefig("tut_rigid_body_fsi_setup_circles.png"); # hide
+nothing # hide
+# ![initial setup with circles](tut_rigid_body_fsi_setup_circles.png)
+
+circle1_boundary_model = rigid_body_boundary_model(circle1)
+circle2_boundary_model = rigid_body_boundary_model(circle2)
+nothing # hide
+
+rigid_body_system_1_step4 = RigidBodySystem(circle1;
+                                            boundary_model=circle1_boundary_model,
+                                            contact_model=contact_model,
+                                            acceleration=(0.0, -gravity),
+                                            particle_spacing=structure_particle_spacing)
+rigid_body_system_2_step4 = RigidBodySystem(circle2;
+                                            boundary_model=circle2_boundary_model,
+                                            contact_model=contact_model,
+                                            acceleration=(0.0, -gravity),
+                                            particle_spacing=structure_particle_spacing)
+nothing # hide
+
+semi_step4 = Semidiscretization(fluid_system, boundary_system,
+                                rigid_body_system_1_step4, rigid_body_system_2_step4)
+ode_step4 = semidiscretize(semi_step4, tspan)
+nothing # hide
+
+info_callback = InfoCallback(interval=100) # hide
+saving_callback_step4 = SolutionSavingCallback(dt=0.02, prefix="step4") # hide
+callbacks_step4 = CallbackSet(info_callback, saving_callback_step4) # hide
+
+sol_step4 = solve(ode_step4, RDPK3SpFSAL49(), abstol=1e-6, reltol=1e-4, dtmax=2e-3,
+                  save_everystep=false, callback=callbacks_step4)
+nothing # hide
+
+# And here is the final plot with circles instead of squares.
+plot(sol_step4)
+plot!(dpi=200) # hide
+savefig("tut_rigid_body_fsi_step4.png"); # hide
+nothing # hide
+# ![Step 4](tut_rigid_body_fsi_step4.png)
+
+
 # ## Next steps
 #
 # A natural extension is to add a layer of small rigid spheres on top of the initial water column.
@@ -273,3 +341,62 @@ nothing # hide
 #
 # This modification is useful for studying many-body rigid-body FSI, including
 # floating-particle rafts, repeated rigid-rigid contact, and wave-driven rearrangement.
+#
+# ### Loading Geometries from Files
+#
+# Instead of using predefined shapes like `RectangularShape` or `SphereShape`, you can load
+# custom geometries from external files. For 2D, `TrixiParticles.jl` supports a simple
+# ASCII format with the extension `.asc`.
+#
+# An `.asc` file should contain a list of 2D coordinates, with x and y values separated by a space,
+# and one point per line. The points should form a closed polygon.
+# `TrixiParticles.jl` includes some example files in the `examples/preprocessing/data` directory.
+#
+# Here is how you can load the `hexagon.asc` file from this directory, create a `ComplexShape` from it,
+# and then use it in a simulation.
+#
+# ```julia
+# # Load the geometry from an .asc file
+# file = pkgdir(TrixiParticles, "examples", "preprocessing", "data", "hexagon.asc")
+# loaded_geometry = load_geometry(file)
+#
+# # Create a `ComplexShape` from the loaded geometry.
+# # We can specify the particle spacing, a starting position, and the density.
+# hexagon_density = 1500.0
+# hexagon_shape = ComplexShape(structure_particle_spacing, loaded_geometry, (1.0, 1.5),
+#                              density=hexagon_density)
+#
+# # Now, `hexagon_shape` can be used to create a `RigidBodySystem`
+# # just like the other shapes in this tutorial.
+# hexagon_boundary_model = rigid_body_boundary_model(hexagon_shape)
+#
+# hexagon_system = RigidBodySystem(hexagon_shape;
+#                                  boundary_model=hexagon_boundary_model,
+#                                  contact_model=contact_model,
+#                                  acceleration=(0.0, -gravity),
+#                                  particle_spacing=structure_particle_spacing)
+#
+# # You can then create a semidiscretization with this new system.
+# # semi = Semidiscretization(fluid_system, boundary_system, hexagon_system)
+# ```
+# This allows you to simulate FSI with arbitrary 2D shapes.
+#
+# ### Example `.asc` Files
+#
+# You can find the `.asc` files used in this tutorial and other examples in the
+# [`examples/preprocessing/data`](https://github.com/trixi-framework/TrixiParticles.jl/blob/main/examples/preprocessing/data/)
+# directory of the `TrixiParticles.jl` repository.
+#
+# Here are links to the raw files on GitHub:
+#
+# - [`hexagon.asc`](https://raw.githubusercontent.com/trixi-framework/TrixiParticles.jl/main/examples/preprocessing/data/hexagon.asc)
+# - [`triangle.asc`](https://raw.githubusercontent.com/trixi-framework/TrixiParticles.jl/main/examples/preprocessing/data/triangle.asc)
+# - [`pentagon.asc`](https://raw.githubusercontent.com/trixi-framework/TrixiParticles.jl/main/examples/preprocessing/data/pentagon.asc)
+# - [`star.asc`](https://raw.githubusercontent.com/trixi-framework/TrixiParticles.jl/main/examples/preprocessing/data/star.asc)
+#
+# To use them, you can use `pkgdir` as shown above, for example:
+#
+# ```julia
+# # file = pkgdir(TrixiParticles, "examples", "preprocessing", "data", "triangle.asc")
+# # loaded_geometry = load_geometry(file)
+# ```
