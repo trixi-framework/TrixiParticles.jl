@@ -60,8 +60,7 @@ struct Semidiscretization{BACKEND, S, RU, RV, NS, UCU, IT}
 
     # Dispatch at `systems` to distinguish this constructor from the one below when
     # 4 systems are passed.
-    # This is an internal constructor only used in `test/count_allocations.jl`
-    # and by Adapt.jl.
+    # This is an internal constructor only used in `test/count_allocations.jl`.
     function Semidiscretization(systems::Tuple, ranges_u, ranges_v, neighborhood_searches,
                                 parallelization_backend::PointNeighbors.ParallelizationBackend,
                                 update_callback_used, integrate_tlsph)
@@ -102,12 +101,13 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
                      for i in eachindex(sizes_v))
 
-    # Create a tuple of n neighborhood searches for each of the n systems.
+    # Create a n x n matrix of n neighborhood searches for each of the n systems.
     # We will need one neighborhood search for each pair of systems.
-    searches = Tuple(Tuple(create_neighborhood_search(neighborhood_search,
-                                                      system, neighbor)
-                           for neighbor in systems)
-                     for system in systems)
+    searches = [create_neighborhood_search(neighborhood_search,
+                                           system, neighbor)
+                for system in systems, neighbor in systems]
+
+    @assert isconcretetype(eltype(searches)) "neighborhood searches are not type-stable"
 
     # These will be set to true inside the `UpdateCallback`.
     # Some techniques require the use of this callback, and this flag can be used
@@ -133,7 +133,7 @@ function Base.show(io::IO, semi::Semidiscretization)
         print(io, system, ", ")
     end
     print(io, "neighborhood_search=")
-    print(io, semi.neighborhood_searches |> eltype |> eltype |> nameof)
+    print(io, semi.neighborhood_searches |> eltype |> nameof)
     print(io, ")")
 end
 
@@ -148,7 +148,7 @@ function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
         summary_line(io, "#spatial dimensions", ndims(semi.systems[1]))
         summary_line(io, "#systems", length(semi.systems))
         summary_line(io, "neighborhood search",
-                     semi.neighborhood_searches |> eltype |> eltype |> nameof)
+                     semi.neighborhood_searches |> eltype |> nameof)
         summary_line(io, "total #particles", sum(nparticles.(semi.systems)))
         summary_line(io, "eltype", eltype(semi.systems[1]))
         summary_line(io, "coordinates eltype", coordinates_eltype(semi.systems[1]))
@@ -272,18 +272,25 @@ function semidiscretize(semi, tspan; reset_threads=true)
     initialize_neighborhood_searches!(semi)
 
     if semi.parallelization_backend isa KernelAbstractions.GPU
-        # Convert all arrays to the correct array type.
+        # Convert all arrays in the systems to the correct array type.
         # When e.g. `parallelization_backend=CUDABackend()`, this will convert all `Array`s
         # to `CuArray`s, moving data to the GPU.
         # See the comments in general/gpu.jl for more details.
-        semi_ = Adapt.adapt(semi.parallelization_backend, semi)
+        systems = Adapt.adapt(semi.parallelization_backend, semi.systems)
+        semi_ = @set semi.systems = systems
+
+        # Also convert the neighborhood searches to the GPU
+        neighborhood_searches = map(search -> Adapt.adapt(semi.parallelization_backend,
+                                                          search),
+                                    semi_.neighborhood_searches)
+        semi__ = @set semi_.neighborhood_searches = neighborhood_searches
 
         # We now have a new `Semidiscretization` with new systems.
         # This means that systems linking to other systems still point to old systems.
         # Therefore, we have to re-link them, which yields yet another `Semidiscretization`.
         # Note that this re-creates systems containing links, so it only works as long
         # as systems don't link to other systems containing links.
-        semi_new = @set semi_.systems = set_system_links.(semi_.systems, Ref(semi_))
+        semi_new = @set semi__.systems = set_system_links.(semi__.systems, Ref(semi__))
 
         @info "To move data to the GPU, `semidiscretize` creates a deep copy of the passed " *
               "`Semidiscretization`. Use `semi = ode.p` to access simulation data."
@@ -415,9 +422,10 @@ function drift!(du_ode, v_ode, u_ode, semi, t)
                 v = wrap_v(v_ode, system, semi)
                 u = wrap_u(u_ode, system, semi)
 
+                integrate_tlsph = semi.integrate_tlsph[]
                 @threaded semi for particle in each_integrated_particle(system)
                     # This can be dispatched per system
-                    add_velocity!(du, v, u, particle, system, semi, t)
+                    add_velocity!(du, v, u, particle, system, integrate_tlsph, t)
                 end
             end
         end
@@ -426,14 +434,14 @@ function drift!(du_ode, v_ode, u_ode, semi, t)
     return du_ode
 end
 
-@inline function add_velocity!(du, v, u, particle, system, semi::Semidiscretization, t)
+@inline function add_velocity!(du, v, u, particle, system, integrate_tlsph, t)
     add_velocity!(du, v, u, particle, system, t)
 end
 
 @inline function add_velocity!(du, v, u, particle, system::TotalLagrangianSPHSystem,
-                               semi::Semidiscretization, t)
+                               integrate_tlsph, t)
     # Only add velocity for TLSPH systems if they are integrated
-    if semi.integrate_tlsph[]
+    if integrate_tlsph
         add_velocity!(du, v, u, particle, system, t)
     end
 end
@@ -545,13 +553,15 @@ function add_source_terms!(dv_ode, v_ode, u_ode, semi, t; semi_wrap=semi)
         v = wrap_v(v_ode, system, semi_wrap)
         u = wrap_u(u_ode, system, semi_wrap)
 
+        # `integrate_tlsph` is extracted from the `semi_wrap`, so that this function
+        # can be used in the `SplitIntegrationCallback` as well.
+        integrate_tlsph = semi_wrap.integrate_tlsph[]
+
         @threaded semi for particle in each_integrated_particle(system)
-            # Dispatch by system type to exclude boundary systems.
-            # `integrate_tlsph` is extracted from the `semi_wrap`, so that this function
-            # can be used in the `SplitIntegrationCallback` as well.
-            add_acceleration!(dv, particle, system, semi_wrap.integrate_tlsph[])
+            # Dispatch by system type to exclude boundary systems
+            add_acceleration!(dv, particle, system, integrate_tlsph)
             add_source_terms_inner!(dv, v, u, particle, system, source_terms(system), t,
-                                    semi_wrap.integrate_tlsph[])
+                                    integrate_tlsph)
         end
     end
 
