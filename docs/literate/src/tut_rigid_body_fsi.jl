@@ -425,8 +425,8 @@ hexagon_system = RigidBodySystem(hexagon_shape;
 #
 # # You can then create a semidiscretization with this new system.
 semi_hexagon = Semidiscretization(fluid_system, boundary_system, hexagon_system)
+ode_step_hex = semidiscretize(semi_hexagon, (0.0, 0.4))
 
-ode_step_hex = semidiscretize(semi_hexagon, tspan) #hide
 sol_step_hex = solve(ode_step_hex, RDPK3SpFSAL49(), abstol=1e-6, reltol=1e-5, dtmax=1e-3,
                      save_everystep=false) # hide
 plot(sol_step_hex, legend=nothing) #hide
