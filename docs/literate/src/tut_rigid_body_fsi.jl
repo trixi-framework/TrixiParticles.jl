@@ -23,6 +23,8 @@ using Plots
 # operates on the same particle resolution.
 fluid_particle_spacing = 0.04
 structure_particle_spacing = fluid_particle_spacing
+nothing #hide
+
 boundary_layers = 3
 spacing_ratio = 1
 nothing # hide
@@ -124,14 +126,24 @@ saving_callback = SolutionSavingCallback(dt=0.02, prefix="step1")
 callbacks = CallbackSet(info_callback, saving_callback)
 nothing # hide
 
-# 
+# ```julia
+# sol_step1 = solve(ode_step1, RDPK3SpFSAL49(), save_everystep=false, callback=callbacks)
+# ```
+sol_step1 = solve(ode_step1, RDPK3SpFSAL49(), save_everystep=false) # hide
+nothing # hide
+
+#
 # Let's plot the final state of this simulation.
 # We can see the final positions of the squares. The fluid and tank are plotted
 # in the background to show that no interaction has taken place.
 # As you can see, the squares fall through the fluid and the tank walls.
 p = plot(tank.fluid, tank.boundary, labels=["fluid" "boundary"])
 plot!(p, sol_step1, legend=:topright)
-plot!(p, dpi=200) # hide
+plot_height = 400 # hide
+domain_height = 2.6 # hide
+markersize = fluid_particle_spacing / (domain_height / plot_height) / 2 # hide
+p = plot(tank.fluid, tank.boundary, labels=["fluid" "boundary"]; markersize) # hide
+plot!(p, sol_step1, legend=:topright, dpi=200; markersize) # hide
 savefig(p, "tut_rigid_body_fsi_step1.png"); # hide
 nothing # hide
 # ![Step 1](tut_rigid_body_fsi_step1.png)
@@ -196,10 +208,12 @@ nothing # hide
 info_callback = InfoCallback(interval=100) # hide
 saving_callback_step2 = SolutionSavingCallback(dt=0.02, prefix="step2") # hide
 callbacks_step2 = CallbackSet(info_callback, saving_callback_step2) # hide
+nothing # hide
 
-sol_step2 = solve(ode_step2, RDPK3SpFSAL49(), abstol=1e-6, reltol=1e-4, dtmax=2e-3, #!md
-                  save_everystep=false, callback=callbacks_step2) #!md
-sol_step2 = solve(ode_step2, RDPK3SpFSAL49(), save_everystep=false) # hide
+# ```julia
+# sol_step2 = solve(ode_step2, RDPK3SpFSAL49(), save_everystep=false, callback=callbacks)
+# ```
+sol_step2 = solve(ode_step2, RDPK3SpFSAL49(), save_everystep=false, abstol=1e-6, reltol=1e-4, dtmax=2e-3) # hide
 nothing # hide
 
 # In the plot, you can see the interaction between the fluid and the squares.
@@ -239,10 +253,13 @@ nothing # hide
 info_callback = InfoCallback(interval=100) # hide
 saving_callback_step3 = SolutionSavingCallback(dt=0.02, prefix="step3") # hide
 callbacks_step3 = CallbackSet(info_callback, saving_callback_step3) # hide
+nothing # hide
 
-sol_step3 = solve(ode_step3, RDPK3SpFSAL49(), abstol=1e-6, reltol=1e-4, dtmax=2e-3,#!md
-                  save_everystep=false, callback=callbacks_step3) #!md
-sol_step3 = solve(ode_step3, RDPK3SpFSAL49(), save_everystep=false) # hide
+# ```julia
+# sol_step3 = solve(ode_step3, RDPK3SpFSAL49(), save_everystep=false,
+#                   callback=callbacks,  abstol=1e-6, reltol=1e-4, dtmax=2e-3)
+# ```
+sol_step3 = solve(ode_step3, RDPK3SpFSAL49(),  abstol=1e-6, reltol=1e-4, dtmax=2e-3, save_everystep=false) # hide
 nothing # hide
 
 # The plot now shows the full simulation. The squares collide with the tank bottom and each other.
@@ -302,10 +319,13 @@ nothing # hide
 info_callback = InfoCallback(interval=100) # hide
 saving_callback_step4 = SolutionSavingCallback(dt=0.02, prefix="step4") # hide
 callbacks_step4 = CallbackSet(info_callback, saving_callback_step4) # hide
+nothing # hide
 
-sol_step4 = solve(ode_step4, RDPK3SpFSAL49(), abstol=1e-6, reltol=1e-4, dtmax=2e-3,#!md
-                  save_everystep=false, callback=callbacks_step4) #!md
-sol_step4 = solve(ode_step4, RDPK3SpFSAL49(), save_everystep=false) # hide
+# ```julia
+# sol_step4 = solve(ode_step4, RDPK3SpFSAL49(), save_everystep=false,
+#                   callback=callbacks,  abstol=1e-6, reltol=1e-4, dtmax=2e-3)
+# ```
+sol_step4 = solve(ode_step4, RDPK3SpFSAL49(),  abstol=1e-6, reltol=1e-4, dtmax=2e-3, save_everystep=false) # hide
 nothing # hide
 
 # And here is the final plot with circles instead of squares.
@@ -324,30 +344,39 @@ nothing # hide
 # contains the same idea as a commented-out block.
 #
 # One possible implementation is:
-# ```julia
-# small_sphere_radius = 0.08
-# small_sphere_density = 500.0
-# small_sphere_y = initial_fluid_size[2] + small_sphere_radius
-# small_sphere_x_positions = 0.25:(3 * small_sphere_radius):1.75
-#
-# small_spheres = [SphereShape(structure_particle_spacing, small_sphere_radius,
-#                              (x, small_sphere_y), small_sphere_density,
-#                              sphere_type=RoundSphere())
-#                  for x in small_sphere_x_positions]
-#
-# small_sphere_systems = [begin
-#     sphere_boundary_model = rigid_body_boundary_model(sphere)
-#     RigidBodySystem(sphere;
-#                     boundary_model=sphere_boundary_model,
-#                     contact_model=contact_model,
-#                     acceleration=(0.0, -gravity),
-#                     particle_spacing=structure_particle_spacing)
-# end for sphere in small_spheres]
-#
-# semi = Semidiscretization(fluid_system, boundary_system,
-#                           rigid_body_system_1, rigid_body_system_2,
-#                           small_sphere_systems...)
-# ```
+small_sphere_radius = 0.08
+small_sphere_density = 500.0
+small_sphere_y = initial_fluid_size[2] + small_sphere_radius
+small_sphere_x_positions = 0.25:(3 * small_sphere_radius):1.75
+
+small_spheres = [SphereShape(structure_particle_spacing, small_sphere_radius,
+                             (x, small_sphere_y), small_sphere_density,
+                             sphere_type=RoundSphere())
+                 for x in small_sphere_x_positions]
+
+small_sphere_systems = [begin
+    sphere_boundary_model = rigid_body_boundary_model(sphere)
+    RigidBodySystem(sphere;
+                    boundary_model=sphere_boundary_model,
+                    contact_model=contact_model,
+                    acceleration=(0.0, -gravity),
+                    particle_spacing=structure_particle_spacing)
+end for sphere in small_spheres]
+
+semi_next = Semidiscretization(fluid_system, boundary_system,
+                          rigid_body_system_1_step3, rigid_body_system_2_step3,
+                          small_sphere_systems...)
+
+ode_step_next = semidiscretize(semi_next, tspan) #hide
+sol_step_next = solve(ode_step_next, RDPK3SpFSAL49(),  abstol=1e-6, reltol=1e-4, dtmax=2e-3, save_everystep=false) # hide
+nothing # hide
+
+plot(sol_step_next, legend=nothing) #hide
+plot!(dpi=200) # hide
+savefig("tut_rigid_body_fsi_next.png"); # hide
+nothing # hide
+# ![next_step](tut_rigid_body_fsi_next.png)
+
 #
 # This modification is useful for studying many-body rigid-body FSI, including
 # floating-particle rafts, repeated rigid-rigid contact, and wave-driven rearrangement.
@@ -365,30 +394,42 @@ nothing # hide
 # Here is how you can load the `hexagon.asc` file from this directory, create a `ComplexShape` from it,
 # and then use it in a simulation.
 #
-# ```julia
 # # Load the geometry from an .asc file
-# file = pkgdir(TrixiParticles, "examples", "preprocessing", "data", "hexagon.asc")
-# loaded_geometry = load_geometry(file)
+file = pkgdir(TrixiParticles, "examples", "preprocessing", "data", "hexagon.asc")
+loaded_geometry = load_geometry(file)
 #
 # # Create a `ComplexShape` from the loaded geometry.
 # # We can specify the particle spacing, a starting position, and the density.
-# hexagon_density = 1500.0
-# hexagon_shape = ComplexShape(structure_particle_spacing, loaded_geometry, (1.0, 1.5),
-#                              density=hexagon_density)
-#
+hexagon_density = 1500.0
+hexagon_shape = ComplexShape(loaded_geometry, particle_spacing=2*structure_particle_spacing,
+                             density=hexagon_density)
+
+hexagon_shape.coordinates .*= (0.5, 0.5) # Scale the shape
+hexagon_shape.coordinates .+= (1.0, 1.5) # Shift the shape to the desired position
+hexagon_shape = TrixiParticles.@set hexagon_shape.particle_spacing = structure_particle_spacing
+
 # # Now, `hexagon_shape` can be used to create a `RigidBodySystem`
 # # just like the other shapes in this tutorial.
-# hexagon_boundary_model = rigid_body_boundary_model(hexagon_shape)
-#
-# hexagon_system = RigidBodySystem(hexagon_shape;
-#                                  boundary_model=hexagon_boundary_model,
-#                                  contact_model=contact_model,
-#                                  acceleration=(0.0, -gravity),
-#                                  particle_spacing=structure_particle_spacing)
+hexagon_boundary_model = rigid_body_boundary_model(hexagon_shape)
+
+hexagon_system = RigidBodySystem(hexagon_shape;
+                                 boundary_model=hexagon_boundary_model,
+                                 contact_model=contact_model,
+                                 acceleration=(0.0, -gravity),
+                                 particle_spacing=structure_particle_spacing)
 #
 # # You can then create a semidiscretization with this new system.
-# # semi = Semidiscretization(fluid_system, boundary_system, hexagon_system)
-# ```
+semi_hexagon = Semidiscretization(fluid_system, boundary_system, hexagon_system)
+
+ode_step_hex = semidiscretize(semi_hexagon, tspan) #hide
+sol_step_hex = solve(ode_step_hex, RDPK3SpFSAL49(),  abstol=1e-6, reltol=1e-5, dtmax=1e-3, save_everystep=false) # hide
+plot(sol_step_hex, legend=nothing) #hide
+plot!(dpi=200) # hide
+savefig("tut_rigid_body_fsi_hex.png"); # hide
+nothing # hide
+
+# ![hexagon_step](tut_rigid_body_fsi_hex.png)
+
 # This allows you to simulate FSI with arbitrary 2D shapes.
 #
 # ### Example `.asc` Files
@@ -397,13 +438,7 @@ nothing # hide
 # [`examples/preprocessing/data`](https://github.com/trixi-framework/TrixiParticles.jl/blob/main/examples/preprocessing/data/)
 # directory of the `TrixiParticles.jl` repository.
 #
-# Here are links to the raw files on GitHub:
-#
-# - [`hexagon.asc`](https://raw.githubusercontent.com/trixi-framework/TrixiParticles.jl/main/examples/preprocessing/data/hexagon.asc)
-# - [`triangle.asc`](https://raw.githubusercontent.com/trixi-framework/TrixiParticles.jl/main/examples/preprocessing/data/triangle.asc)
-# - [`pentagon.asc`](https://raw.githubusercontent.com/trixi-framework/TrixiParticles.jl/main/examples/preprocessing/data/pentagon.asc)
-# - [`star.asc`](https://raw.githubusercontent.com/trixi-framework/TrixiParticles.jl/main/examples/preprocessing/data/star.asc)
-#
+# Some files can be found in examples/preprocessing/data.
 # To use them, you can use `pkgdir` as shown above, for example:
 #
 file = pkgdir(TrixiParticles, "examples", "preprocessing", "data", "triangle.asc")
