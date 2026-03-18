@@ -287,7 +287,7 @@
                                                       "falling_rotating_rigid_squares_w_buoys_2d.jl"),
                                              tspan=(0.0, 0.5)) [
                 r"WARNING: Method definition structure_boundary_model.*\n"
-        ]
+            ]
             @test sol.retcode == ReturnCode.Success
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
