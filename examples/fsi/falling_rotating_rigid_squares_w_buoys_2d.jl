@@ -8,7 +8,6 @@
 using TrixiParticles
 using OrdinaryDiffEq
 
-
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fsi", "falling_rotating_rigid_squares_2d.jl"),
               sol=nothing);
@@ -22,17 +21,19 @@ small_sphere_contact_model = RigidContactModel(; normal_stiffness=2.0e5,
                                                contact_distance=2.0 *
                                                                 structure_particle_spacing)
 extra_structure_systems = [begin
-    sphere = SphereShape(structure_particle_spacing, small_sphere_radius,
-                         (x, small_sphere_y), small_sphere_density,
-                         sphere_type=RoundSphere())
-    sphere_boundary_model = structure_boundary_model(sphere)
-    RigidBodySystem(sphere;
-                    boundary_model=sphere_boundary_model,
-                    contact_model=small_sphere_contact_model,
-                    acceleration=(0.0, -gravity),
-                    particle_spacing=structure_particle_spacing)
-end for x in small_sphere_x_positions]
-
+                               sphere = SphereShape(structure_particle_spacing,
+                                                    small_sphere_radius,
+                                                    (x, small_sphere_y),
+                                                    small_sphere_density,
+                                                    sphere_type=RoundSphere())
+                               sphere_boundary_model = structure_boundary_model(sphere)
+                               RigidBodySystem(sphere;
+                                               boundary_model=sphere_boundary_model,
+                                               contact_model=small_sphere_contact_model,
+                                               acceleration=(0.0, -gravity),
+                                               particle_spacing=structure_particle_spacing)
+                           end
+                           for x in small_sphere_x_positions]
 
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fsi", "falling_rotating_rigid_squares_2d.jl"),

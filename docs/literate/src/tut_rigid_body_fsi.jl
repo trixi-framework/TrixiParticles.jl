@@ -108,7 +108,6 @@ nothing # hide
 # The bodies will move according to the prescribed gravity and initial velocities, but without
 # any collisions or fluid forces.
 
-
 rigid_body_system_1_step1 = RigidBodySystem(square1; acceleration=(0.0, -gravity),
                                             particle_spacing=structure_particle_spacing)
 rigid_body_system_2_step1 = RigidBodySystem(square2; acceleration=(0.0, -gravity),
@@ -167,7 +166,8 @@ nothing # hide
 
 function rigid_body_boundary_model(shape)
     hydrodynamic_densities = fluid_density * ones(size(shape.density))
-    hydrodynamic_masses = hydrodynamic_densities * structure_particle_spacing^ndims(fluid_system)
+    hydrodynamic_masses = hydrodynamic_densities *
+                          structure_particle_spacing^ndims(fluid_system)
 
     return BoundaryModelDummyParticles(hydrodynamic_densities, hydrodynamic_masses,
                                        state_equation=state_equation,
@@ -212,7 +212,6 @@ savefig("tut_rigid_body_fsi_step2.png"); # hide
 nothing # hide
 # ![Step 2](tut_rigid_body_fsi_step2.png)
 
-
 # ## Step 3: With contact model
 # Finally, we add a `contact_model` to handle collisions between rigid bodies and between
 # rigid bodies and the tank.
@@ -254,7 +253,6 @@ plot!(dpi=200) # hide
 savefig("tut_rigid_body_fsi_step3.png"); # hide
 nothing # hide
 # ![Step 3](tut_rigid_body_fsi_step3.png)
-
 
 # ## Step 4: Different geometry
 # The same setup can be used with different geometries. Here, we replace the squares with circles.
@@ -318,7 +316,6 @@ plot!(dpi=200) # hide
 savefig("tut_rigid_body_fsi_step4.png"); # hide
 nothing # hide
 # ![Step 4](tut_rigid_body_fsi_step4.png)
-
 
 # ## Next steps
 #
