@@ -1,3 +1,8 @@
+# These are the systems that require sorting.
+# TODO: The `DEMSystem` should be added here in the future.
+# Boundary particles always stay fixed relative to each other, TLSPH computes in the initial configuration.
+const RequiresSortingSystem = AbstractFluidSystem
+
 struct SortingCallback{I}
     interval::I
 end
@@ -81,15 +86,18 @@ end
 
 sort_particles!(system, v, u, semi) = system
 
-function sort_particles!(system::AbstractFluidSystem, v, u, semi)
+function sort_particles!(system::RequiresSortingSystem, v, u, semi)
     nhs = get_neighborhood_search(system, semi)
-    cell_list = nhs.cell_list
 
-    sort_particles!(system, v, u, nhs, cell_list, semi)
+    if !(nhs isa GridNeighborhoodSearch)
+        throw(ArgumentError("`SortingCallback` can only be used with a `GridNeighborhoodSearch`"))
+    end
+
+    sort_particles!(system, v, u, nhs, nhs.cell_list, semi)
 end
 
 # TODO: Sort also masses and particle spacings for variable smoothing lengths.
-function sort_particles!(system::AbstractFluidSystem, v, u, nhs,
+function sort_particles!(system::RequiresSortingSystem, v, u, nhs,
                          cell_list::FullGridCellList, semi)
     cell_coords = allocate(semi.parallelization_backend, SVector{ndims(system), Int},
                            nparticles(system))
