@@ -30,7 +30,7 @@ nothing # hide
 # The setup is a rectangular tank with an open top.
 gravity = 9.81
 tspan = (0.0, 1.0)
-tspan2 = (0.0, 0.6) # hide
+tspan2 = (0.0, 0.6) # shorter simulation time required for some simulations below
 
 initial_fluid_size = (2.0, 1.0)
 tank_size = (2.0, 2.0)
@@ -122,11 +122,9 @@ nothing # hide
 info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="step1")
 callbacks = CallbackSet(info_callback, saving_callback)
-
-sol_step1 = solve(ode_step1, RDPK3SpFSAL49(), save_everystep=false, callback=callbacks) #!md
-sol_step1 = solve(ode_step1, RDPK3SpFSAL49(), save_everystep=false) # hide
 nothing # hide
 
+# 
 # Let's plot the final state of this simulation.
 # We can see the final positions of the squares. The fluid and tank are plotted
 # in the background to show that no interaction has taken place.
@@ -147,11 +145,11 @@ nothing # hide
 #
 # 1. their physical density, which is already stored in `square1` and `square2`
 #    and determines the rigid-body mass and inertia,
-# 2. a boundary model for the fluid coupling, which requires hydrodynamic
-#    masses and densities on the rigid-body surface.
+# 2. a boundary model for the fluid coupling, which requires "hydrodynamic
+#    masses" and "hydrodynamic densities" on the rigid-body surface.
 #
-# In this tutorial, we initialize the hydrodynamic density from the surrounding fluid density.
-#    See [the docs on dummy particles](@ref boundary_models) for a definition for these terms.
+# In this tutorial, we initialize the "hydrodynamic density" from the surrounding fluid density.
+# See [the docs on dummy particles](@ref boundary_models) for a definition for these terms.
 
 boundary_density_calculator = AdamiPressureExtrapolation()
 tank_boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
@@ -408,7 +406,5 @@ nothing # hide
 #
 # To use them, you can use `pkgdir` as shown above, for example:
 #
-# ```julia
-# # file = pkgdir(TrixiParticles, "examples", "preprocessing", "data", "triangle.asc")
-# # loaded_geometry = load_geometry(file)
-# ```
+file = pkgdir(TrixiParticles, "examples", "preprocessing", "data", "triangle.asc")
+loaded_geometry = load_geometry(file)
