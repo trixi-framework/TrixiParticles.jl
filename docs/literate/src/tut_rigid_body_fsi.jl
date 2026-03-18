@@ -399,12 +399,12 @@ nothing # hide
 # Here is how you can load the `hexagon.asc` file from this directory, create a `ComplexShape` from it,
 # and then use it in a simulation.
 #
-# # Load the geometry from an .asc file
+# Load the geometry from an .asc file.
 file = pkgdir(TrixiParticles, "examples", "preprocessing", "data", "hexagon.asc")
 loaded_geometry = load_geometry(file)
 #
-# # Create a `ComplexShape` from the loaded geometry.
-# # We can specify the particle spacing, a starting position, and the density.
+# Create a `ComplexShape` from the loaded geometry.
+# We can specify the particle spacing, a starting position, and the density.
 hexagon_density = 1500.0
 hexagon_shape = ComplexShape(loaded_geometry, particle_spacing=2*structure_particle_spacing,
                              density=hexagon_density)
@@ -413,8 +413,8 @@ hexagon_shape.coordinates .*= (0.5, 0.5) # Scale the shape
 hexagon_shape.coordinates .+= (1.0, 1.5) # Shift the shape to the desired position
 hexagon_shape = TrixiParticles.@set hexagon_shape.particle_spacing = structure_particle_spacing
 
-# # Now, `hexagon_shape` can be used to create a `RigidBodySystem`
-# # just like the other shapes in this tutorial.
+# Now, `hexagon_shape` can be used to create a `RigidBodySystem`
+# just like the other shapes in this tutorial.
 hexagon_boundary_model = rigid_body_boundary_model(hexagon_shape)
 
 hexagon_system = RigidBodySystem(hexagon_shape;
@@ -423,7 +423,7 @@ hexagon_system = RigidBodySystem(hexagon_shape;
                                  acceleration=(0.0, -gravity),
                                  particle_spacing=structure_particle_spacing)
 #
-# # You can then create a semidiscretization with this new system.
+# You can then create a semidiscretization with this new system.
 semi_hexagon = Semidiscretization(fluid_system, boundary_system, hexagon_system)
 ode_step_hex = semidiscretize(semi_hexagon, (0.0, 0.4))
 
