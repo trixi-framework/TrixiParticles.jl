@@ -35,11 +35,11 @@ TrixiBase = "9a0f1c46-06d5-4909-a5a3-ce25d3fa3284"
 WriteVTK = "64499a7a-5c06-52f2-abe2-ccb03c286192"
 
 [weakdeps]
-OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
 OrdinaryDiffEqCore = "bbf590c4-e513-4bbe-9b18-05decba2e5d8"
+OrdinaryDiffEqSymplecticRK = "fa646aed-7ef9-47eb-84c4-9443fc8cbfa8"
 
 [extensions]
-TrixiParticlesOrdinaryDiffEqExt = ["OrdinaryDiffEq", "OrdinaryDiffEqCore"]
+TrixiParticlesOrdinaryDiffEqExt = ["OrdinaryDiffEqSymplecticRK", "OrdinaryDiffEqCore"]
 
 [compat]
 Accessors = "0.1.43"
@@ -55,7 +55,6 @@ GPUArraysCore = "0.2"
 JSON = "1"
 KernelAbstractions = "0.9"
 MuladdMacro = "0.2"
-OrdinaryDiffEq = "6.91"
 OrdinaryDiffEqCore = "2"
 PointNeighbors = "0.6.5"
 Polyester = "0.7.10"
