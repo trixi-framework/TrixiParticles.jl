@@ -15,7 +15,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 - Added `StateEquationAdaptiveCole` an adaptive sound speed version of the Cole state equation (#875).
 - Added `RigidBodySystem` that supports rigid body dynamics for FSI (#1076).
-- Added `RigidContactModel` that supports rigid-wall and rigid-rigid collisions (#1090).
+- Added `RigidContactModel` that supports rigid-wall and rigid-rigid collisions (#1090, #1091).
 - Added a specialized neighborhood search for TLSPH self-interaction (#1016).
 - Added CFL condition for TLSPH and split integration (#1030).
 - Added new validation case hydrostatic water column (#724).
@@ -28,6 +28,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Documentation
 
+- Added a new tutorial for rigid body dynamics (#1095).
 - Better overview page for tutorials (#1093).
 
 ## Version 0.4.3
