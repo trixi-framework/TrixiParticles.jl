@@ -24,7 +24,7 @@ tspan = (0.0, 2.0)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (2.0, 1.0)
-tank_size = (2.0, 2.0)
+tank_size = (2.0, 5.0)
 
 fluid_density = 1000.0
 sound_speed = 100.0
@@ -93,27 +93,21 @@ boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
 # ==========================================================================================
 # ==== Rigid Structures
 # For FSI we need hydrodynamic masses and densities in the structure boundary model.
-hydrodynamic_densities_1 = fluid_density * ones(size(square1.density))
-hydrodynamic_masses_1 = hydrodynamic_densities_1 *
-                        structure_particle_spacing^ndims(fluid_system)
+function structure_boundary_model(shape)
+    hydrodynamic_densities = fluid_density * ones(size(shape.density))
+    hydrodynamic_masses = hydrodynamic_densities *
+                          structure_particle_spacing^ndims(fluid_system)
 
-boundary_model_structure_1 = BoundaryModelDummyParticles(hydrodynamic_densities_1,
-                                                         hydrodynamic_masses_1,
-                                                         state_equation=state_equation,
-                                                         boundary_density_calculator,
-                                                         fluid_smoothing_kernel,
-                                                         fluid_smoothing_length)
+    return BoundaryModelDummyParticles(hydrodynamic_densities,
+                                       hydrodynamic_masses,
+                                       state_equation=state_equation,
+                                       boundary_density_calculator,
+                                       fluid_smoothing_kernel,
+                                       fluid_smoothing_length)
+end
 
-hydrodynamic_densities_2 = fluid_density * ones(size(square2.density))
-hydrodynamic_masses_2 = hydrodynamic_densities_2 *
-                        structure_particle_spacing^ndims(fluid_system)
-
-boundary_model_structure_2 = BoundaryModelDummyParticles(hydrodynamic_densities_2,
-                                                         hydrodynamic_masses_2,
-                                                         state_equation=state_equation,
-                                                         boundary_density_calculator,
-                                                         fluid_smoothing_kernel,
-                                                         fluid_smoothing_length)
+boundary_model_structure_1 = structure_boundary_model(square1)
+boundary_model_structure_2 = structure_boundary_model(square2)
 
 # Use a less dissipative wall contact for the denser square so its rebound is more visible.
 contact_model_1 = RigidContactModel(; normal_stiffness=2.0e5,
@@ -136,10 +130,13 @@ structure_system_2 = RigidBodySystem(square2;
                                      acceleration=(0.0, -gravity),
                                      particle_spacing=structure_particle_spacing)
 
+extra_structure_systems = (nothing,)
+
 # ==========================================================================================
 # ==== Simulation
 semi = Semidiscretization(fluid_system, boundary_system,
-                          structure_system_1, structure_system_2)
+                          structure_system_1, structure_system_2,
+                          extra_structure_systems...)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=50)
