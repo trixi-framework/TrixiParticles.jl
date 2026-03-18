@@ -213,7 +213,7 @@ nothing # hide
 # ```julia
 # sol_step2 = solve(ode_step2, RDPK3SpFSAL49(), save_everystep=false, callback=callbacks)
 # ```
-sol_step2 = solve(ode_step2, RDPK3SpFSAL49(), save_everystep=false, abstol=1e-6,
+sol_step2 = solve(ode_step2, RDPK3SpFSAL49(), save_everystep=false, abstol=1e-6, # hide
                   reltol=1e-4, dtmax=2e-3) # hide
 nothing # hide
 
@@ -260,7 +260,7 @@ nothing # hide
 # sol_step3 = solve(ode_step3, RDPK3SpFSAL49(), save_everystep=false,
 #                   callback=callbacks,  abstol=1e-6, reltol=1e-4, dtmax=2e-3)
 # ```
-sol_step3 = solve(ode_step3, RDPK3SpFSAL49(), abstol=1e-6, reltol=1e-4, dtmax=2e-3,
+sol_step3 = solve(ode_step3, RDPK3SpFSAL49(), abstol=1e-6, reltol=1e-4, dtmax=2e-3, # hide
                   save_everystep=false) # hide
 nothing # hide
 
@@ -327,7 +327,7 @@ nothing # hide
 # sol_step4 = solve(ode_step4, RDPK3SpFSAL49(), save_everystep=false,
 #                   callback=callbacks,  abstol=1e-6, reltol=1e-4, dtmax=2e-3)
 # ```
-sol_step4 = solve(ode_step4, RDPK3SpFSAL49(), abstol=1e-6, reltol=1e-4, dtmax=2e-3,
+sol_step4 = solve(ode_step4, RDPK3SpFSAL49(), abstol=1e-6, reltol=1e-4, dtmax=2e-3, # hide
                   save_everystep=false) # hide
 nothing # hide
 
@@ -372,7 +372,8 @@ semi_next = Semidiscretization(fluid_system, boundary_system,
                                small_sphere_systems...)
 
 ode_step_next = semidiscretize(semi_next, tspan) #hide
-sol_step_next = solve(ode_step_next, RDPK3SpFSAL49(), abstol=1e-6, reltol=1e-4, dtmax=2e-3,
+sol_step_next = solve(ode_step_next, RDPK3SpFSAL49(), # hide
+                      abstol=1e-6, reltol=1e-4, dtmax=2e-3, # hide
                       save_everystep=false) # hide
 nothing # hide
 
