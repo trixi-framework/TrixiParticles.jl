@@ -412,11 +412,61 @@ function accumulate_contact_manifold_sums!(cache, particle, manifold_index, cont
     return cache
 end
 
-# Collisions between rigid bodies are not yet implemented
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::RigidBodySystem,
                    neighbor_system::RigidBodySystem, semi)
+    contact_model = particle_system.contact_model
+    neighbor_contact_model = neighbor_system.contact_model
+
+    # Without a contact model, rigid bodies do not interact with each other at all, so skip
+    if isnothing(contact_model) || isnothing(neighbor_contact_model)
+        return dv
+    end
+
+    # We don't need to model self collision
+    particle_system === neighbor_system && return dv
+
+    ELTYPE = eltype(particle_system)
+    system_coords = current_coordinates(u_particle_system, particle_system)
+    neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
+
+    foreach_point_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
+                           semi;
+                           points=each_integrated_particle(particle_system)) do particle,
+                                                                                neighbor,
+                                                                                pos_diff,
+                                                                                distance
+        # This kernel accumulates contact force only for `particle_system`. The reverse
+        # contribution is assembled by the separate `(neighbor_system, particle_system)`
+        # interaction pass in `system_interaction!`, which lets this neighbor traversal use
+        # the regular parallel backend.
+        distance <= eps(ELTYPE) && return dv
+
+        penetration = max(contact_model.contact_distance,
+                          neighbor_contact_model.contact_distance) - distance
+        penetration <= 0 && return dv
+
+        normal = pos_diff / distance
+        particle_velocity = current_velocity(v_particle_system, particle_system, particle)
+        neighbor_velocity = current_velocity(v_neighbor_system, neighbor_system, neighbor)
+        relative_velocity = particle_velocity - neighbor_velocity
+        normal_velocity = dot(relative_velocity, normal)
+
+        elastic_force = (contact_model.normal_stiffness +
+                         neighbor_contact_model.normal_stiffness) / 2 * penetration
+        damping_force = -(contact_model.normal_damping +
+                          neighbor_contact_model.normal_damping) / 2 * normal_velocity
+        normal_force_magnitude = max(elastic_force + damping_force, zero(ELTYPE))
+        normal_force_magnitude <= 0 && return dv
+
+        interaction_force = normal_force_magnitude * normal
+
+        for dim in 1:ndims(particle_system)
+            particle_system.force_per_particle[dim, particle] += interaction_force[dim]
+        end
+    end
+
     return dv
 end
 
@@ -428,7 +478,8 @@ function interact!(dv, v_particle_system, u_particle_system,
     return dv
 end
 
-# Structure-structure and structure-boundary/open-boundary interactions are currently not modeled.
+# Other rigid interactions, such as rigid-flexible contact or rigid-boundary coupling beyond
+# the dedicated methods above, are currently not modeled.
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::RigidBodySystem,

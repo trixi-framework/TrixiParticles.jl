@@ -21,7 +21,7 @@ torque and applied consistently to all rigid particles.
 - `boundary_model`: Boundary model for fluid-structure interaction
                     (see [Boundary Models](@ref boundary_models)).
 - `contact_model`: Optional rigid contact model.
-                   If specified, rigid-wall collisions are enabled.
+                   If specified, rigid-wall and rigid-rigid collisions are enabled.
 - `acceleration`: Global acceleration vector applied to all rigid particles.
 - `particle_spacing`: Reference particle spacing used for time-step estimation.
 - `max_manifolds`: Maximum number of wall-contact manifolds cached per rigid particle.
@@ -445,17 +445,12 @@ end
 
 function calculate_dt(v_ode, u_ode, cfl_number, system::RigidBodySystem, semi)
     spacing = particle_spacing(system, first(eachparticle(system)))
-    contact_dt = cfl_number * contact_time_step(system)
+    contact_dt = cfl_number * contact_time_step(system, semi)
 
-    if isnothing(semi)
-        system_velocity = current_velocity(v_ode, system)
-        system_coords = current_coordinates(u_ode, system)
-    else
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-        system_velocity = current_velocity(v, system)
-        system_coords = current_coordinates(u, system)
-    end
+    v = wrap_v(v_ode, system, semi)
+    u = wrap_u(u_ode, system, semi)
+    system_velocity = current_velocity(v, system)
+    system_coords = current_coordinates(u, system)
 
     center_of_mass,
     center_of_mass_velocity = rigid_center_of_mass_kinematics(system,
