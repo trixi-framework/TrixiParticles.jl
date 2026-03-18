@@ -213,7 +213,8 @@ nothing # hide
 # ```julia
 # sol_step2 = solve(ode_step2, RDPK3SpFSAL49(), save_everystep=false, callback=callbacks)
 # ```
-sol_step2 = solve(ode_step2, RDPK3SpFSAL49(), save_everystep=false, abstol=1e-6, reltol=1e-4, dtmax=2e-3) # hide
+sol_step2 = solve(ode_step2, RDPK3SpFSAL49(), save_everystep=false, abstol=1e-6,
+                  reltol=1e-4, dtmax=2e-3) # hide
 nothing # hide
 
 # In the plot, you can see the interaction between the fluid and the squares.
@@ -259,7 +260,8 @@ nothing # hide
 # sol_step3 = solve(ode_step3, RDPK3SpFSAL49(), save_everystep=false,
 #                   callback=callbacks,  abstol=1e-6, reltol=1e-4, dtmax=2e-3)
 # ```
-sol_step3 = solve(ode_step3, RDPK3SpFSAL49(),  abstol=1e-6, reltol=1e-4, dtmax=2e-3, save_everystep=false) # hide
+sol_step3 = solve(ode_step3, RDPK3SpFSAL49(), abstol=1e-6, reltol=1e-4, dtmax=2e-3,
+                  save_everystep=false) # hide
 nothing # hide
 
 # The plot now shows the full simulation. The squares collide with the tank bottom and each other.
@@ -325,7 +327,8 @@ nothing # hide
 # sol_step4 = solve(ode_step4, RDPK3SpFSAL49(), save_everystep=false,
 #                   callback=callbacks,  abstol=1e-6, reltol=1e-4, dtmax=2e-3)
 # ```
-sol_step4 = solve(ode_step4, RDPK3SpFSAL49(),  abstol=1e-6, reltol=1e-4, dtmax=2e-3, save_everystep=false) # hide
+sol_step4 = solve(ode_step4, RDPK3SpFSAL49(), abstol=1e-6, reltol=1e-4, dtmax=2e-3,
+                  save_everystep=false) # hide
 nothing # hide
 
 # And here is the final plot with circles instead of squares.
@@ -355,20 +358,22 @@ small_spheres = [SphereShape(structure_particle_spacing, small_sphere_radius,
                  for x in small_sphere_x_positions]
 
 small_sphere_systems = [begin
-    sphere_boundary_model = rigid_body_boundary_model(sphere)
-    RigidBodySystem(sphere;
-                    boundary_model=sphere_boundary_model,
-                    contact_model=contact_model,
-                    acceleration=(0.0, -gravity),
-                    particle_spacing=structure_particle_spacing)
-end for sphere in small_spheres]
+                            sphere_boundary_model = rigid_body_boundary_model(sphere)
+                            RigidBodySystem(sphere;
+                                            boundary_model=sphere_boundary_model,
+                                            contact_model=contact_model,
+                                            acceleration=(0.0, -gravity),
+                                            particle_spacing=structure_particle_spacing)
+                        end
+                        for sphere in small_spheres]
 
 semi_next = Semidiscretization(fluid_system, boundary_system,
-                          rigid_body_system_1_step3, rigid_body_system_2_step3,
-                          small_sphere_systems...)
+                               rigid_body_system_1_step3, rigid_body_system_2_step3,
+                               small_sphere_systems...)
 
 ode_step_next = semidiscretize(semi_next, tspan) #hide
-sol_step_next = solve(ode_step_next, RDPK3SpFSAL49(),  abstol=1e-6, reltol=1e-4, dtmax=2e-3, save_everystep=false) # hide
+sol_step_next = solve(ode_step_next, RDPK3SpFSAL49(), abstol=1e-6, reltol=1e-4, dtmax=2e-3,
+                      save_everystep=false) # hide
 nothing # hide
 
 plot(sol_step_next, legend=nothing) #hide
@@ -422,7 +427,8 @@ hexagon_system = RigidBodySystem(hexagon_shape;
 semi_hexagon = Semidiscretization(fluid_system, boundary_system, hexagon_system)
 
 ode_step_hex = semidiscretize(semi_hexagon, tspan) #hide
-sol_step_hex = solve(ode_step_hex, RDPK3SpFSAL49(),  abstol=1e-6, reltol=1e-5, dtmax=1e-3, save_everystep=false) # hide
+sol_step_hex = solve(ode_step_hex, RDPK3SpFSAL49(), abstol=1e-6, reltol=1e-5, dtmax=1e-3,
+                     save_everystep=false) # hide
 plot(sol_step_hex, legend=nothing) #hide
 plot!(dpi=200) # hide
 savefig("tut_rigid_body_fsi_hex.png"); # hide
