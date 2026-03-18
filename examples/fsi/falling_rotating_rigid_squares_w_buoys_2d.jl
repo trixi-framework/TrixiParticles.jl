@@ -8,6 +8,8 @@
 using TrixiParticles
 using OrdinaryDiffEq
 
+tspan = (0.0, 2.0)
+
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fsi", "falling_rotating_rigid_squares_2d.jl"),
               sol=nothing);
@@ -37,4 +39,4 @@ extra_structure_systems = [begin
 
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fsi", "falling_rotating_rigid_squares_2d.jl"),
-              extra_structure_systems=extra_structure_systems);
+              extra_structure_systems=extra_structure_systems, tspan=tspan);
