@@ -500,7 +500,7 @@ function process_neighborhood_searches(semi, u_ode, ref_system, smoothing_length
             # We can use the existing neighborhood searches.
             # Update existing NHS with the current coordinates.
             update_nhs!(semi, u_ode)
-            return semi.neighborhood_searches[system_indices(ref_system, semi)]
+            return semi.neighborhood_searches[system_indices(ref_system, semi), :]
         end
     end
 
@@ -528,7 +528,7 @@ end
                                     cut_off_bnd=true, clip_negative_pressure=false)
     (; parallelization_backend) = semi
 
-    if parallelization_backend isa KernelAbstractions.Backend
+    if parallelization_backend isa KernelAbstractions.GPU
         point_coords = Adapt.adapt(parallelization_backend, point_coords_)
     else
         point_coords = point_coords_

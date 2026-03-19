@@ -4,6 +4,33 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.4.4
+
+### API Changes
+
+- Custom quantities called in the `PostprocessCallback` are now passed CPU arrays when
+  the simulation is run on a GPU (#1065).
+
+### Features
+
+- Added `StateEquationAdaptiveCole` an adaptive sound speed version of the Cole state equation (#875).
+- Added `RigidBodySystem` that supports rigid body dynamics for FSI (#1076).
+- Added `RigidContactModel` that supports rigid-wall and rigid-rigid collisions (#1090, #1091).
+- Added a specialized neighborhood search for TLSPH self-interaction (#1016).
+- Added CFL condition for TLSPH and split integration (#1030).
+- Added new validation case hydrostatic water column (#724).
+- Added Carreau–Yasuda non-Newtonian viscosity model (#1010).
+
+### Important Bugfixes
+
+- Fixed the periodic array of cylinders example file (#975).
+- A `StepsizeCallback` can now be used with open boundaries (#1074).
+
+### Documentation
+
+- Added a new tutorial for rigid body dynamics (#1095).
+- Better overview page for tutorials (#1093).
+
 ## Version 0.4.3
 
 ### API Changes
@@ -27,7 +54,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 - Added GPU and FP32 support for DEM (#979).
 
-  
+
 ### Performance
 - Improved GPU performance with shifting up to a factor of 10x (#974, #993).
 
@@ -353,5 +380,3 @@ Features:
 #### TLSPH
 
 An implementation of TLSPH (Total Lagrangian Smoothed Particle Hydrodynamics) for solid bodies enabling FSI (Fluid Structure Interactions).
-
-

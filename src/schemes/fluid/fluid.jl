@@ -171,7 +171,7 @@ end
 function calculate_dt(v_ode, u_ode, cfl_number, system::AbstractFluidSystem, semi)
     (; viscosity, acceleration, surface_tension) = system
 
-    # TODO
+    # TODO variable smoothing length
     smoothing_length_ = initial_smoothing_length(system)
 
     dt_viscosity = 0.125 * smoothing_length_^2
@@ -223,6 +223,19 @@ end
 
 @inline function surface_normal_method(system)
     return nothing
+end
+
+function check_configuration(fluid_system::AbstractFluidSystem, systems, nhs)
+    if !(fluid_system isa ParticlePackingSystem) && !isnothing(fluid_system.surface_tension)
+        foreach_system(systems) do neighbor
+            if neighbor isa AbstractFluidSystem &&
+               isnothing(fluid_system.surface_tension) &&
+               isnothing(fluid_system.surface_normal_method)
+                throw(ArgumentError("either none or all fluid systems in a simulation need " *
+                                    "to use a surface tension model or a surface normal method."))
+            end
+        end
+    end
 end
 
 function system_data(system::AbstractFluidSystem, dv_ode, du_ode, v_ode, u_ode, semi)
