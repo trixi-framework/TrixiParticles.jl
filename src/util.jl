@@ -3,7 +3,7 @@
     element = first(collection)
     remaining_collection = Base.tail(collection)
 
-    func(element)
+    @inline func(element)
 
     # Process remaining collection
     foreach_noalloc(func, remaining_collection)
@@ -17,13 +17,19 @@ end
     element2 = first(collection2)
     remaining_collection2 = Base.tail(collection2)
 
-    func((element1, element2))
+    @inline func((element1, element2))
 
     # Process remaining collection
     foreach_noalloc(func, remaining_collection1, remaining_collection2)
 end
 
 @inline foreach_noalloc(func, collection1::Tuple{}, collection2::Tuple{}) = nothing
+
+@inline cross_product(a, b) = cross(a, b)
+
+@inline function cross_product(a::Number, b::SVector{2})
+    return SVector(-a * b[2], a * b[1])
+end
 
 # Returns `functions[index](args...)`, but in a type-stable way for a heterogeneous tuple `functions`
 @inline function apply_ith_function(functions, index, args...)
