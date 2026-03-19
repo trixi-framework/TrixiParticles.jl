@@ -32,7 +32,8 @@ function SortingCallback(; interval::Integer, initial_sort=true)
 
     # The first one is the `condition`, the second the `affect!`
     return DiscreteCallback(sorting_callback!, sorting_callback!,
-                            initialize=initial_sort ? (initial_sort!) : nothing,
+                            initialize=initial_sort ? (initial_sort!) :
+                                       SciMLBase.INITIALIZE_DEFAULT,
                             save_positions=(false, false))
 end
 
