@@ -8,7 +8,7 @@ struct SortingCallback{I}
 end
 
 """
-    SortingCallback(; interval::Integer)
+    SortingCallback(; interval::Integer, initial_sort=true)
 
 Reorders particles according to neighborhood-search cells for performance optimization.
 
@@ -21,13 +21,19 @@ See [#1044](https://github.com/trixi-framework/TrixiParticles.jl/pull/1044) for 
 
 # Keywords
 - `interval::Integer`: Sort particles at the end of every `interval` time steps.
+- `initial_sort=true`: When enabled, particles are sorted at the beginning of the simulation.
+                       When the initial configuration is a perfect grid of particles,
+                       sorting at the beginning is not necessary and might even slightly
+                       slow down the first time steps, since a perfect grid is even better
+                       than sorting by NHS cell index.
 """
-function SortingCallback(; interval::Integer)
+function SortingCallback(; interval::Integer, initial_sort=true)
     sorting_callback! = SortingCallback(interval)
 
     # The first one is the `condition`, the second the `affect!`
     return DiscreteCallback(sorting_callback!, sorting_callback!,
-                            initialize=(initial_sort!), save_positions=(false, false))
+                            initialize=initial_sort ? (initial_sort!) : nothing,
+                            save_positions=(false, false))
 end
 
 # `initialize`
