@@ -11,27 +11,35 @@ function PointNeighbors.foreach_point_neighbor(f, system, neighbor_system,
                            points, parallelization_backend)
 end
 
-deactivate_out_of_bounds_particles!(system, ::Nothing, nhs, u, semi) = system
+deactivate_out_of_bounds_particles!(system, buffer, nhs, u, semi) = system
 
-function deactivate_out_of_bounds_particles!(system, ::SystemBuffer,
+function deactivate_out_of_bounds_particles!(system, buffer::SystemBuffer,
+                                             nhs::GridNeighborhoodSearch, u, semi)
+    deactivate_out_of_bounds_particles!(system, buffer, nhs, nhs.cell_list, u, semi)
+end
+
+function deactivate_out_of_bounds_particles!(system, buffer, nhs, cell_list, u, semi)
+    return system
+end
+
+function deactivate_out_of_bounds_particles!(system, ::SystemBuffer, nhs,
                                              cell_list::FullGridCellList, u, semi)
-    (; min_corner, max_corner) = cell_list
-    (; cell_size) = get_neighborhood_search(system, semi)
+    @trixi_timeit timer() "deactivate out of bounds particle" begin
+        # Remove the padding layer (see comment in PointNeighbors: full_grid.jl line 60)
+        min_corner = cell_list.min_corner .+ 1001 // 1000 .* nhs.cell_size
+        max_corner = cell_list.max_corner .- 1001 // 1000 .* nhs.cell_size
 
-    # Remove the padding layer (see comment in PointNeighbors: full_grid.jl line 60)
-    min_corner_ = min_corner .+ 1001 // 1000 .* cell_size
-    max_corner_ = max_corner .- 1001 // 1000 .* cell_size
+        @threaded semi for particle in each_integrated_particle(system)
+            particle_position = current_coords(u, system, particle)
 
-    @threaded semi for particle in each_integrated_particle(system)
-        particle_position = current_coords(u, system, particle)
-
-        if !all(min_corner_ .<= particle_position .<= max_corner_)
-            deactivate_particle!(system, particle, u)
+            if !all(min_corner .<= particle_position .<= max_corner)
+                deactivate_particle!(system, particle, u)
+            end
         end
-    end
 
-    if count(system.buffer.active_particle) != system.buffer.active_particle_count[]
-        update_system_buffer!(system.buffer, semi)
+        if count(system.buffer.active_particle) != system.buffer.active_particle_count[]
+            update_system_buffer!(system.buffer, semi)
+        end
     end
 
     return system
