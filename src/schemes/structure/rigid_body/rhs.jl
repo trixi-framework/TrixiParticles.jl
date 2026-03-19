@@ -285,9 +285,9 @@ end
 #
 # This helper filters out non-contacts, computes the local contact state of a single wall
 # sample, determines which manifold that sample belongs to, and adds its weighted
-# contribution to the manifold sums. The weight is chosen as
-# `wall_volume * kernel(distance)`, which keeps the manifold average close to the wall
-# discretization used elsewhere in the SPH code.
+# contribution to the manifold sums. The weight is chosen from the wall sample volume and
+# the contact penetration so contacts remain effective over the full configured
+# `contact_distance`.
 @inline function accumulate_wall_contact_pair!(particle_system::RigidBodySystem,
                                                v_neighbor_system,
                                                neighbor_system::WallBoundarySystem,
@@ -301,14 +301,12 @@ end
 
     normal = pos_diff / distance
     wall_velocity = current_velocity(v_neighbor_system, neighbor_system, neighbor)
-    # Use the wall particle volume times kernel value as a local averaging weight for the
-    # contact manifold. This keeps the manifold reduction close to the SPH discretization.
     density = convert(ELTYPE, neighbor_system.initial_condition.density[neighbor])
     density <= eps(ELTYPE) && return particle_system
 
     volume = convert(ELTYPE, neighbor_system.initial_condition.mass[neighbor]) / density
-    kernel_weight = convert(ELTYPE, smoothing_kernel(neighbor_system, distance, neighbor))
-    contact_weight = max(kernel_weight * volume, zero(ELTYPE))
+    contact_weight = max(volume * penetration / contact_model.contact_distance,
+                         zero(ELTYPE))
     contact_weight <= eps(ELTYPE) && return particle_system
 
     # For adjacent wall samples on the same locally flat face, the tangential offset is about

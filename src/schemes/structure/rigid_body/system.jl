@@ -445,7 +445,18 @@ end
 
 function calculate_dt(v_ode, u_ode, cfl_number, system::RigidBodySystem, semi)
     spacing = particle_spacing(system, first(eachparticle(system)))
-    contact_dt = cfl_number * contact_time_step(system, semi)
+    # Contact stability depends on the most restrictive *actual* rigid contact partner of
+    # this body in the current semidiscretization. Keep this reduction here instead of in
+    # `contact_time_step` so the contact-model file only needs to describe single-body and
+    # pairwise contact scales.
+    contact_dt = Inf
+    foreach_system(semi) do neighbor
+        neighbor === system && return
+
+        if neighbor isa Union{RigidBodySystem, WallBoundarySystem}
+            contact_dt = min(contact_dt, cfl_number * contact_time_step(system, neighbor))
+        end
+    end
 
     v = wrap_v(v_ode, system, semi)
     u = wrap_u(u_ode, system, semi)
