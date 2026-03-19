@@ -12,6 +12,13 @@ end
 
 Reorders particles according to neighborhood-search cells for performance optimization.
 
+When particles become very unordered throughout a long-running simulation, performance
+decreases due to increased cache-misses (on CPUs) and lack of block structure (on GPUs).
+On GPUs, a fully shuffled particle ordering causes a 3-4x slowdown compared to a sorted configuration.
+On CPUs, there is no difference for small problems (<16k particles), but the performance penalty
+grows linearly with the problem size up to 10x slowdown for very large problems (65M particles).
+See [#1044](https://github.com/trixi-framework/TrixiParticles.jl/pull/1044) for more details.
+
 # Keywords
 - `interval=1`: Sort particles at the end of every `interval` time steps.
 - `dt`: Sort particles in regular intervals of `dt` in terms of integration time
@@ -116,7 +123,6 @@ function sort_particles!(system::RequiresSortingSystem, v, u, nhs,
 end
 
 function sort_system!(system, v, u, perm, buffer::Nothing)
-    # Note that the following contain also inactive particles
     system_coords = current_coordinates(u, system)
     system_velocity = current_velocity(v, system)
     system_density = current_density(v, system)
