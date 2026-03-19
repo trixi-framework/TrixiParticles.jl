@@ -5,10 +5,11 @@ const RequiresSortingSystem = AbstractFluidSystem
 
 struct SortingCallback{I}
     interval::I
+    last_t::Float64
 end
 
 """
-    SortingCallback(; interval::Integer, initial_sort=true)
+    SortingCallback(; interval=-1, dt=0.0, initial_sort=true)
 
 Reorders particles according to neighborhood-search cells for performance optimization.
 
@@ -20,21 +21,35 @@ grows linearly with the problem size up to 10x slowdown for very large problems 
 See [#1044](https://github.com/trixi-framework/TrixiParticles.jl/pull/1044) for more details.
 
 # Keywords
-- `interval::Integer`: Sort particles at the end of every `interval` time steps.
+- `interval`: Sort particles at the end of every `interval` time steps.
+- `dt`: Sort particles in regular intervals of `dt` in terms of integration time.
+        This callback does not add extra time steps / `tstops`; instead, reinitialization is
+        triggered at the first solver step after each `dt` interval has elapsed.
 - `initial_sort=true`: When enabled, particles are sorted at the beginning of the simulation.
                        When the initial configuration is a perfect grid of particles,
                        sorting at the beginning is not necessary and might even slightly
                        slow down the first time steps, since a perfect grid is even better
                        than sorting by NHS cell index.
 """
-function SortingCallback(; interval::Integer, initial_sort=true)
-    sorting_callback! = SortingCallback(interval)
+function SortingCallback(; interval::Integer=-1, dt=0.0)
+    if dt > 0 && interval !== -1
+        throw(ArgumentError("Setting both interval and dt is not supported!"))
+    end
+
+    # Sort in intervals in terms of simulation time
+    if dt > 0
+        interval = Float64(dt)
+
+        # Sort every time step (default)
+    elseif interval == -1
+        interval = 1
+    end
+
+    sorting_callback! = SortingCallback(interval, last_t)
 
     # The first one is the `condition`, the second the `affect!`
     return DiscreteCallback(sorting_callback!, sorting_callback!,
-                            initialize=initial_sort ? (initial_sort!) :
-                                       SciMLBase.INITIALIZE_DEFAULT,
-                            save_positions=(false, false))
+                            initialize=(initial_sort!), save_positions=(false, false))
 end
 
 # `initialize`
@@ -50,11 +65,18 @@ function initial_sort!(cb::SortingCallback, u, t, integrator)
     return cb(integrator)
 end
 
-# `condition`
-function (sorting_callback!::SortingCallback)(u, t, integrator)
+# `condition` with `interval`
+function (sorting_callback!::SortingCallback{Int})(u, t, integrator)
     (; interval) = sorting_callback!
 
     return condition_integrator_interval(integrator, interval)
+end
+
+# condition with `dt`
+function (sorting_callback!::SortingCallback)(u, t, integrator)
+    (; interval, last_t) = sorting_callback!
+
+    return (t - last_t) > interval
 end
 
 # `affect!`
@@ -121,20 +143,19 @@ function sort_system!(system, v, u, perm, buffer::Nothing)
     return system
 end
 
-function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:SortingCallback})
+function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:SortingCallback{Int}})
     @nospecialize cb # reduce precompilation time
     print(io, "SortingCallback(interval=", cb.affect!.interval, ")")
 end
 
 function Base.show(io::IO,
-                   cb::DiscreteCallback{<:Any,
-                                        <:PeriodicCallbackAffect{<:SortingCallback}})
+                   cb::DiscreteCallback{<:Any, <:SortingCallback})
     @nospecialize cb # reduce precompilation time
     print(io, "SortingCallback(dt=", cb.affect!.affect!.interval, ")")
 end
 
 function Base.show(io::IO, ::MIME"text/plain",
-                   cb::DiscreteCallback{<:Any, <:SortingCallback})
+                   cb::DiscreteCallback{<:Any, <:SortingCallback{Int}})
     @nospecialize cb # reduce precompilation time
 
     if get(io, :compact, false)
@@ -149,8 +170,7 @@ function Base.show(io::IO, ::MIME"text/plain",
 end
 
 function Base.show(io::IO, ::MIME"text/plain",
-                   cb::DiscreteCallback{<:Any,
-                                        <:PeriodicCallbackAffect{<:SortingCallback}})
+                   cb::DiscreteCallback{<:Any, <:SortingCallback{Int}})
     @nospecialize cb # reduce precompilation time
 
     if get(io, :compact, false)
