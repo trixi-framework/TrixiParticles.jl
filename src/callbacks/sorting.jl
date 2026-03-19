@@ -99,6 +99,7 @@ function sort_particles!(system::RequiresSortingSystem, v, u, nhs,
         cell_coords[particle] = PointNeighbors.cell_coords(point_coords, nhs)
     end
 
+    # TODO `sortperm` works on CUDA but not (yet) on Metal
     perm = sortperm(transfer2cpu(cell_coords))
 
     sort_system!(system, v, u, perm, system.buffer)
