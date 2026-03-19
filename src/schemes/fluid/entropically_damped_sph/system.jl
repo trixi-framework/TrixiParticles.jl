@@ -7,7 +7,8 @@
                                 alpha=0.5, viscosity=nothing,
                                 acceleration=ntuple(_ -> 0.0, NDIMS), surface_tension=nothing,
                                 surface_normal_method=nothing, buffer_size=nothing,
-                                reference_particle_spacing=0.0, source_terms=nothing)
+                                reference_particle_spacing=0.0, color_value=1,
+                                source_terms=nothing)
 
 System for particles of a fluid.
 As opposed to the [weakly compressible SPH scheme](@ref wcsph), which uses an equation of state,
@@ -53,7 +54,10 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
                                 (default: no surface normal method or `ColorfieldSurfaceNormal()` if a surface_tension model is used)
 - `reference_particle_spacing`: The reference particle spacing used for weighting values at the boundary,
                                 which currently is only needed when using surface tension.
-- `color_value`:                The value used to initialize the color of particles in the system.
+- `color_value`:                Integer label used for calculation of surface normals.
+                                Currently this is only used together with [`BoundaryModelDummyParticles`](@ref) and
+                                [`ColorfieldSurfaceNormal`](@ref): fluid-boundary normal evaluation
+                                reads the resulting boundary colorfield to detect wall contact.
 
 """
 struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, COR, PF, TV,
@@ -150,6 +154,7 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                      smoothing_length)...,
              create_cache_correction(correction, initial_condition.density, NDIMS,
                                      n_particles)...,
+             # Per-system color tag for colorfield surface-normal logic and VTK output.
              color=Int(color_value))
 
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`

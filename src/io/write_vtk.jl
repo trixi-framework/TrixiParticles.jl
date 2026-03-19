@@ -159,12 +159,16 @@ function trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
 end
 
 function transfer2cpu(semi::Semidiscretization)
-    # First move all data to the CPU
-    semi = Adapt.adapt(Array, semi)
+    # First move all systems and neighborhood searches to the CPU
+    systems = Adapt.adapt(Array, semi.systems)
+    neighborhood_searches = Adapt.adapt(Array, semi.neighborhood_searches)
+
+    semi_ = @set semi.systems = systems
+    semi__ = @set semi_.neighborhood_searches = neighborhood_searches
 
     # Now, set the parallelization backend to `PolyesterBackend` to make sure that
     # `@threaded` loops still work as expected with this semidiscretization.
-    return @set semi.parallelization_backend = PolyesterBackend()
+    return @set semi__.parallelization_backend = PolyesterBackend()
 end
 
 function transfer2cpu(v_::AbstractGPUArray, u_, semi_)
@@ -415,6 +419,25 @@ function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem)
     end
 
     vtk["material_density"] = system.material_density
+
+    write2vtk!(vtk, v, u, t, system.boundary_model, system)
+end
+
+function write2vtk!(vtk, v, u, t, system::RigidBodySystem)
+    vtk["velocity"] = [current_velocity(v, system, particle)
+                       for particle in eachparticle(system)]
+    vtk["color"] = system.cache.color
+    vtk["material_density"] = system.material_density
+    vtk["mass"] = system.mass
+    vtk["relative_coordinates"] = system.relative_coordinates
+    vtk["center_of_mass"] = [system.center_of_mass[]]
+    vtk["center_of_mass_velocity"] = [system.center_of_mass_velocity[]]
+    vtk["resultant_force"] = [system.resultant_force[]]
+
+    vtk["angular_velocity"] = [system.angular_velocity[]]
+    vtk["resultant_torque"] = [system.resultant_torque[]]
+    vtk["angular_acceleration_force"] = [system.angular_acceleration_force[]]
+    vtk["gyroscopic_acceleration"] = [system.gyroscopic_acceleration[]]
 
     write2vtk!(vtk, v, u, t, system.boundary_model, system)
 end

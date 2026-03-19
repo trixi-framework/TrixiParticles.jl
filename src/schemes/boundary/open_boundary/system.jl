@@ -74,10 +74,7 @@ end
 function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                             fluid_system::AbstractFluidSystem, buffer_size::Integer,
                             boundary_model, calculate_flow_rate=false,
-                            pressure_acceleration=boundary_model isa
-                                                  BoundaryModelDynamicalPressureZhang ?
-                                                  fluid_system.pressure_acceleration_formulation :
-                                                  nothing,
+                            pressure_acceleration=fluid_system.pressure_acceleration_formulation,
                             shifting_technique=boundary_model isa
                                                BoundaryModelDynamicalPressureZhang ?
                                                shifting_technique(fluid_system) : nothing,
@@ -643,6 +640,8 @@ function interpolate_velocity!(system::OpenBoundarySystem, boundary_zone,
     # Shepard-normalized interpolation:
     #   v(p) = (Σ_b v_b V_b W_pb) / (Σ_b V_b W_pb)
     foreach_system(semi) do neighbor_system
+        use_open_boundary_interpolation_neighbor(neighbor_system) || return neighbor_system
+
         v_neighbor = wrap_v(v_ode, neighbor_system, semi)
         u_neighbor = wrap_u(u_ode, neighbor_system, semi)
         neighbor_coords = current_coordinates(u_neighbor, neighbor_system)
@@ -676,6 +675,15 @@ function interpolate_velocity!(system::OpenBoundarySystem, boundary_zone,
 
     return system
 end
+
+# Open-boundary interpolation should reconstruct the surrounding fluid-like velocity field.
+# Therefore, only actual fluid systems and other open-boundary particles contribute;
+# rigid bodies, walls, and other non-fluid systems are intentionally excluded.
+@inline use_open_boundary_interpolation_neighbor(::AbstractFluidSystem) = true
+
+@inline use_open_boundary_interpolation_neighbor(::OpenBoundarySystem) = true
+
+@inline use_open_boundary_interpolation_neighbor(system) = false
 
 function check_configuration(system::OpenBoundarySystem, systems,
                              neighborhood_search::PointNeighbors.AbstractNeighborhoodSearch)
