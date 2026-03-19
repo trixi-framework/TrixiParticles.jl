@@ -48,6 +48,11 @@ sort!(coords, by=cell_index)
 #     return TrixiParticles.PointNeighbors.cell_coords.(coords, Ref(nhs))
 # end
 
+# For benchmarking, run:
+# trixi_include_changeprecision(Float32, "../TrixiParticles.jl/examples/fluid/dam_break_2d_dualsphysics.jl", parallelization_backend=CUDABackend(), tspan=(0.0f0, 1.0f-10), fluid_particle_spacing=0.001, coordinates_eltype=Float32);
+# dv_ode, du_ode = copy(sol.u[end]).x; v_ode, u_ode = copy(sol.u[end]).x; semi = ode.p; system = semi.systems[1]; dv = TrixiParticles.wrap_v(dv_ode, system, semi); v = TrixiParticles.wrap_v(v_ode, system, semi); u = TrixiParticles.wrap_u(u_ode, system, semi);
+# @benchmark TrixiParticles.interact_reassembled!($dv, $v, $u, $v, $u, $system, $system, $semi)
+
 # Run the dam break simulation with this neighborhood search
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
@@ -63,7 +68,7 @@ trixi_include(@__MODULE__,
               viscosity_wall=viscosity_fluid,
               # This is the same saving frequency as in DualSPHysics for easier comparison
               saving_callback=SolutionSavingCallback(dt=0.01),
-              extra_callback=SortingCallback(interval=1),
+            #   extra_callback=SortingCallback(interval=1),
               density_diffusion=nothing, # TODO only for benchmark
               # For benchmarks, use spacing 0.002, fix time steps, and disable VTK saving:
               dt=1e-5, stepsize_callback=nothing, #saving_callback=nothing,

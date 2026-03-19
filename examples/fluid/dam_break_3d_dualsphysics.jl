@@ -12,7 +12,7 @@ using TrixiParticles, TrixiParticles.PointNeighbors, OrdinaryDiffEq
 
 fluid_particle_spacing = 0.0085
 
-smoothing_length = 1.414216 * fluid_particle_spacing
+smoothing_length = 1.7320508 * fluid_particle_spacing
 tank_size = (1.6, 0.665, 0.4)
 initial_fluid_size = (0.4, 0.665, 0.3)
 acceleration = (0.0, 0.0, -9.81)
@@ -62,7 +62,7 @@ trixi_include(@__MODULE__,
             #   viscosity_wall=viscosity_fluid, TODO
               # This is the same saving frequency as in DualSPHysics for easier comparison
             #   saving_callback=SolutionSavingCallback(dt=0.01),
-              extra_callback=SortingCallback(interval=1),
+            #   extra_callback=SortingCallback(interval=1),
               density_diffusion=nothing, # TODO only for benchmark
               # For benchmarks, use spacing 0.002, fix time steps, and disable VTK saving:
               dt=8e-5, #stepsize_callback=nothing, saving_callback=nothing,

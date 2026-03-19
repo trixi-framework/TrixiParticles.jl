@@ -121,7 +121,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                    particle_system, neighbor_system, semi)
 end
 
-function interact!(dv, v_particle_system, u_particle_system,
+function interact2!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::WeaklyCompressibleSPHSystem,
                    neighbor_system::WeaklyCompressibleSPHSystem, semi)
@@ -186,21 +186,21 @@ end
     cell = PointNeighbors.cell_coords(point_coords, nhs)
 
     # cell_blocks = ((cell[1] - 1, cell[2] - 1), (cell[1] - 1, cell[2]), (cell[1] - 1, cell[2] + 1))
-    # cell_blocks = CartesianIndices(ntuple(i -> (cell[i + 1] - 1):(cell[i + 1] + 1), Val(NDIMS - 1)))
-    # for cell_block in cell_blocks
-    #     cell_block_start = (cell[1] - 1, Tuple(cell_block)...)
-    #     cell_index = @inbounds PointNeighbors.cell_index(cell_list, cell_block_start)
-    #     start = @inbounds cell_list.cells.first_bin_index[cell_index]
-    #     stop = @inbounds cell_list.cells.first_bin_index[cell_index + 3] - 1
+    cell_blocks = CartesianIndices(ntuple(i -> (cell[i + 1] - 1):(cell[i + 1] + 1), Val(NDIMS - 1)))
+    for cell_block in cell_blocks
+        cell_block_start = (cell[1] - 1, Tuple(cell_block)...)
+        cell_index = @inbounds PointNeighbors.cell_index(cell_list, cell_block_start)
+        start = @inbounds cell_list.cells.first_bin_index[cell_index]
+        stop = @inbounds cell_list.cells.first_bin_index[cell_index + 3] - 1
 
-    #     for neighbor in start:stop
+        for neighbor in start:stop
 
-    for neighbor_cell_ in PointNeighbors.neighboring_cells(cell, nhs)
-        neighbor_cell = Tuple(neighbor_cell_)
-        neighbors = @inbounds PointNeighbors.points_in_cell(neighbor_cell, nhs)
+    # for neighbor_cell_ in PointNeighbors.neighboring_cells(cell, nhs)
+    #     neighbor_cell = Tuple(neighbor_cell_)
+    #     neighbors = @inbounds PointNeighbors.points_in_cell(neighbor_cell, nhs)
 
-        for neighbor_ in eachindex(neighbors)
-            neighbor = @inbounds neighbors[neighbor_]
+    #     for neighbor_ in eachindex(neighbors)
+    #         neighbor = @inbounds neighbors[neighbor_]
 
             # neighbor_coords_ = vloada(VT_coords, pointer(neighbor_system_coords, 4*(neighbor-1)+1))
             # a, b, c, d = Tuple(neighbor_coords_)
