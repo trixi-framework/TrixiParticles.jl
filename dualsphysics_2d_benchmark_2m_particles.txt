@@ -1,0 +1,105 @@
+2D benchmark 2M particles
+
+DualSPHysics:
+1.55ms
+
+DualSPHysics no density diffusion:
+1.1ms
+
+main FP32, no density diffusion:
+3.1ms
+
+now with compact vov
+main mixed precision:
+5ms (3.2x)
+
+main FP32:
+4ms (2.6x)
+
+with dd, sorted by cell coords:
+4.8ms
+
+sorted by cell index:
+4.9ms
+
+blocks of three cells:
+4.9ms
+
+optimizations (inbounds, zero distance skip):
+4.7ms
+
+simplified kernel gradient:
+4.3ms
+
+no density diffusion:
+3.1ms
+
+unrolled continuity equation:
+3.1ms
+
+unrolled viscosity:
+2.9ms
+
+pull *_a quantities before the neighbor loop:
+2.7ms
+
+split dv and drho:
+2.55ms (2.3x)
+
+add to arrays after loop:
+2.17ms (1.97x)
+
+optimized day 1:
+1.3ms
+
+optimized day 1 mixed precision:
+3.7ms
+
+full grid NHS:
+1.5ms (2.1x)
+
+
+3D DualSPHysics 638400 fluid particles:
+4.9ms
++ 200µs KerUpdatePosCell
+
+main 3D TP, no DD:
+12ms
+
+3D TP stripped (above with pull quantities...) and compact vov:
+8.3ms (3.1x, 1.7x?)
+
+add to arrays after loop:
+7.5ms (2.8x, 1.5x?)
+
+split dv and drho:
+7.4ms
+
+fixed @inbounds:
+6.8ms
+
+fastmath if distance:
+4.7ms
+
+first vloada:
+4.6ms
+
+second vloada:
+4.3ms
+
+mixed precision:
+21.8ms???
+
+kernel grad fastmath:
+4ms
+
+targeted fastdiv with sorted NHS:
+4ms
+fluid-boundary: 0.4ms. fluid-*: 4.4ms
+
+full grid NHS:
+4.9ms (2.4x)
+total 5.3ms
+
+full grid with foreach_point_neighbor:
+7.7ms
