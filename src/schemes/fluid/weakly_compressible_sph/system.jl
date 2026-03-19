@@ -154,7 +154,8 @@ function WeaklyCompressibleSPHSystem(initial_condition, density_calculator, stat
                                      smoothing_length)...,
              create_cache_shifting(initial_condition, shifting_technique)...,
              # Per-system color tag for colorfield surface-normal logic and VTK output.
-             color=Int(color_value))
+             color=Int(color_value),
+             normalization_factor = Float32(-2.7852 / smoothing_length^4))
 
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
     if reference_particle_spacing > 0

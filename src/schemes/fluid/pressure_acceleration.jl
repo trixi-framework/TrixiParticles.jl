@@ -26,7 +26,8 @@ end
 # asymmetric version.
 @inline function pressure_acceleration_continuity_density(m_a, m_b, rho_a, rho_b, p_a, p_b,
                                                           W_a)
-    return -m_b * (p_a + p_b) / (rho_a * rho_b) * W_a
+    # return -m_b * (p_a + p_b) / (rho_a * rho_b) * W_a
+    return -m_b * Base.FastMath.div_fast(p_a + p_b, rho_a * rho_b) * W_a
 end
 
 # Same as above, but not assuming symmetry of the kernel gradient. To be used with
