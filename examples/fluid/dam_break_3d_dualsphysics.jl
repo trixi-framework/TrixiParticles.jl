@@ -19,6 +19,9 @@ acceleration = (0.0, 0.0, -9.81)
 spacing_ratio = 1
 boundary_layers = 1
 fluid_density = 1000.0
+sound_speed = 20 * sqrt(9.81 * tank_size[2])
+state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
+                                   exponent=7)
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
                        n_layers=boundary_layers, spacing_ratio=spacing_ratio,
@@ -48,6 +51,7 @@ trixi_include(@__MODULE__,
               smoothing_length=1.7320508 * fluid_particle_spacing,
               time_integration_scheme=SymplecticPositionVerlet(),
               boundary_density_calculator=ContinuityDensity(),
+              state_equation=state_equation,
               fluid_particle_spacing=fluid_particle_spacing,
               tank_size=tank_size, initial_fluid_size=initial_fluid_size,
               acceleration=acceleration,
