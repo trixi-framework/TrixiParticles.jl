@@ -97,86 +97,36 @@ function interact!(dv, v_particle_system, u_particle_system,
         # See `src/general/smoothing_kernels.jl` for more details.
         distance^2 < eps(initial_smoothing_length(particle_system)^2) && return
 
-        # Apply the same force to the structure particle
-        # that the fluid particle experiences due to the structure particle.
-        # Note that the same arguments are passed here as in fluid-structure interact!,
-        # except that pos_diff has a flipped sign.
-        #
-        # In fluid-structure interaction, use the "hydrodynamic mass" of the structure particles
-        # corresponding to the rest density of the fluid and not the material density.
-        m_a = hydrodynamic_mass(particle_system, particle)
+        grad_kernel = smoothing_kernel_grad(neighbor_system, pos_diff, distance, neighbor)
+
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
         rho_a = current_density(v_particle_system, particle_system, particle)
         rho_b = current_density(v_neighbor_system, neighbor_system, neighbor)
 
-        # Use kernel from the fluid system in order to get the same force here in
-        # structure-fluid interaction as for fluid-structure interaction.
-        # TODO this will not use corrections if the fluid uses corrections.
-        grad_kernel = smoothing_kernel_grad(neighbor_system, pos_diff, distance, particle)
+        dv_fs = structure_fluid_interaction(v_particle_system,
+                                            v_neighbor_system,
+                                            particle_system,
+                                            neighbor_system,
+                                            particle,
+                                            neighbor,
+                                            pos_diff,
+                                            distance,
+                                            sound_speed,
+                                            grad_kernel, m_b, rho_a, rho_b)
 
-        # In fluid-structure interaction, use the "hydrodynamic pressure" of the structure particles
-        # corresponding to the chosen boundary model.
-        p_a = current_pressure(v_particle_system, particle_system, particle)
-        p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)
-
-        # Particle and neighbor (and corresponding systems and all corresponding quantities)
-        # are switched in the following two calls.
-        # This way, we obtain the exact same force as for the fluid-structure interaction,
-        # but with a flipped sign (because `pos_diff` is flipped compared to fluid-structure).
-        dv_boundary = pressure_acceleration(neighbor_system, particle_system,
-                                            neighbor, particle,
-                                            m_b, m_a, p_b, p_a, rho_b, rho_a, pos_diff,
-                                            distance, grad_kernel,
-                                            neighbor_system.correction)
-
-        dv_viscosity_ = dv_viscosity(neighbor_system, particle_system,
-                                     v_neighbor_system, v_particle_system,
-                                     neighbor, particle, pos_diff, distance,
-                                     sound_speed, m_b, m_a, rho_a, rho_b, grad_kernel)
-
-        dv_particle = dv_boundary + dv_viscosity_
-
-        for i in 1:ndims(particle_system)
-            # Multiply `dv` (acceleration on fluid particle b) by the mass of
-            # particle b to obtain the same force as for the fluid-structure interaction.
-            # Divide by the material mass of particle a to obtain the acceleration
-            # of structure particle a.
-            dv[i, particle] += dv_particle[i] * m_b / particle_system.mass[particle]
+        material_mass = @inbounds particle_system.mass[particle]
+        for dim in eachindex(dv_fs)
+            @inbounds dv[dim, particle] += dv_fs[dim] * m_b / material_mass
         end
 
-        continuity_equation!(dv, v_particle_system, v_neighbor_system,
-                             particle, neighbor, pos_diff, distance,
-                             m_b, rho_a, rho_b,
-                             particle_system, neighbor_system, grad_kernel)
+        structure_fluid_continuity!(dv, v_particle_system, v_neighbor_system,
+                                    particle, neighbor, m_b, rho_a, rho_b,
+                                    particle_system, neighbor_system,
+                                    grad_kernel)
     end
 
     return dv
-end
-
-@inline function continuity_equation!(dv, v_particle_system, v_neighbor_system,
-                                      particle, neighbor, pos_diff, distance,
-                                      m_b, rho_a, rho_b,
-                                      particle_system::TotalLagrangianSPHSystem,
-                                      neighbor_system::AbstractFluidSystem,
-                                      grad_kernel)
-    return dv
-end
-
-@inline function continuity_equation!(dv, v_particle_system, v_neighbor_system,
-                                      particle, neighbor, pos_diff, distance,
-                                      m_b, rho_a, rho_b,
-                                      particle_system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
-                                      neighbor_system::AbstractFluidSystem,
-                                      grad_kernel)
-    fluid_density_calculator = neighbor_system.density_calculator
-
-    v_diff = current_velocity(v_particle_system, particle_system, particle) -
-             current_velocity(v_neighbor_system, neighbor_system, neighbor)
-
-    # Call the dummy BC version of the continuity equation
-    continuity_equation!(dv, fluid_density_calculator, m_b, rho_a, rho_b, v_diff,
-                         grad_kernel, particle)
 end
 
 # Structure-boundary interaction

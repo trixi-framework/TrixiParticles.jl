@@ -29,14 +29,10 @@ function interact!(dv, v_particle_system, u_particle_system,
                    particle_system::RigidBodySystem,
                    neighbor_system::AbstractFluidSystem, semi)
     sound_speed = system_sound_speed(neighbor_system)
-    surface_tension = surface_tension_model(neighbor_system)
+    (; force_per_particle) = particle_system
 
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
-
-    # Accumulate pairwise fluid forces per rigid particle first, then reduce them to a
-    # single resultant force/torque after all rigid-fluid interactions have been processed.
-    (; force_per_particle) = particle_system
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     foreach_point_neighbor(particle_system, neighbor_system,
@@ -50,55 +46,32 @@ function interact!(dv, v_particle_system, u_particle_system,
         # See `src/general/smoothing_kernels.jl` for more details.
         distance^2 < eps(initial_smoothing_length(particle_system)^2) && return
 
-        # Apply the same force to the structure particle that the fluid particle
-        # experiences due to the structure particle.
-        # In fluid-structure interaction, use the "hydrodynamic mass" of the structure
-        # particles corresponding to the rest density of the fluid.
-        m_a = @inbounds hydrodynamic_mass(particle_system, particle)
-        m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
-
-        rho_a = @inbounds current_density(v_particle_system, particle_system, particle)
-        rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
-
-        # Use the fluid kernel in order to get the same force as in
-        # fluid-structure interaction.
         grad_kernel = smoothing_kernel_grad(neighbor_system, pos_diff, distance, neighbor)
 
-        # In fluid-structure interaction, use the "hydrodynamic pressure" of the
-        # structure particles corresponding to the chosen boundary model.
-        p_a = @inbounds current_pressure(v_particle_system, particle_system, particle)
-        p_b = @inbounds current_pressure(v_neighbor_system, neighbor_system, neighbor)
+        m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
-        # Particle and neighbor are switched in the following two calls.
-        # This yields the opposite force of the fluid-structure interaction,
-        # because `pos_diff` is flipped.
-        dv_boundary = pressure_acceleration(neighbor_system, particle_system,
-                                            neighbor, particle,
-                                            m_b, m_a, p_b, p_a, rho_b, rho_a,
-                                            pos_diff, distance, grad_kernel,
-                                            system_correction(neighbor_system))
+        rho_a = current_density(v_particle_system, particle_system, particle)
+        rho_b = current_density(v_neighbor_system, neighbor_system, neighbor)
 
-        dv_viscosity_ = dv_viscosity(neighbor_system, particle_system,
-                                     v_neighbor_system, v_particle_system,
-                                     neighbor, particle, pos_diff, distance,
-                                     sound_speed, m_b, m_a, rho_b, rho_a,
-                                     grad_kernel)
+        dv_fs = structure_fluid_interaction(v_particle_system,
+                                                  v_neighbor_system,
+                                                  particle_system,
+                                                  neighbor_system,
+                                                  particle,
+                                                  neighbor,
+                                                  pos_diff,
+                                                  distance,
+                                                  sound_speed,
+                                                  grad_kernel, m_b, rho_a, rho_b)
 
-        dv_adhesion = adhesion_force(surface_tension, neighbor_system, particle_system,
-                                     neighbor, particle, pos_diff, distance)
-
-        dv_particle = dv_boundary + dv_viscosity_ + dv_adhesion
-
-        for i in 1:ndims(particle_system)
-            # `pressure_acceleration`/`dv_viscosity` return acceleration-like pair contributions.
-            # Multiply by the interacting fluid mass to recover the force on this rigid particle.
-            @inbounds force_per_particle[i, particle] += dv_particle[i] * m_b
+        for dim in eachindex(dv_fs)
+            @inbounds force_per_particle[dim, particle] += dv_fs[dim] * m_b
         end
 
-        continuity_equation!(dv, v_particle_system, v_neighbor_system,
-                             particle, neighbor, pos_diff, distance,
-                             m_b, rho_a, rho_b,
-                             particle_system, neighbor_system, grad_kernel)
+        structure_fluid_continuity!(dv, v_particle_system, v_neighbor_system,
+                                    particle, neighbor, m_b, rho_a, rho_b,
+                                    particle_system, neighbor_system,
+                                    grad_kernel)
     end
 
     return dv
@@ -149,32 +122,6 @@ function apply_resultant_force_and_torque!(dv, particle_system::RigidBodySystem,
     end
 
     return dv
-end
-
-# Default rigid boundary models keep density fixed, so structure-fluid coupling does not
-# contribute to a density RHS entry.
-@inline function continuity_equation!(dv, v_particle_system, v_neighbor_system,
-                                      particle, neighbor, pos_diff, distance,
-                                      m_b, rho_a, rho_b,
-                                      particle_system::RigidBodySystem,
-                                      neighbor_system, grad_kernel)
-    # Most rigid boundary models keep their density fixed, so no continuity update is needed.
-    return dv
-end
-
-# Dummy-particle rigid boundaries with `ContinuityDensity` reuse the fluid-compatible
-# density update for the rigid particle.
-@inline function continuity_equation!(dv, v_particle_system, v_neighbor_system,
-                                      particle, neighbor, pos_diff, distance,
-                                      m_b, rho_a, rho_b,
-                                      particle_system::RigidBodySystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
-                                      neighbor_system, grad_kernel)
-    v_diff = current_velocity(v_particle_system, particle_system, particle) -
-             current_velocity(v_neighbor_system, neighbor_system, neighbor)
-
-    # Dummy rigid particles reuse the fluid-compatible density update of the neighbor system.
-    continuity_equation!(dv, density_calculator(neighbor_system), m_b, rho_a, rho_b, v_diff,
-                         grad_kernel, particle)
 end
 
 function interact!(dv, v_particle_system, u_particle_system,
