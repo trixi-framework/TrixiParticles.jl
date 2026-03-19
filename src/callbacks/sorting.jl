@@ -10,6 +10,8 @@ end
 """
     SortingCallback(; interval::Integer=-1, dt=0.0)
 
+Reorders particles according to neighborhood-search cells for performance optimization.
+
 # Keywords
 - `interval=1`: Sort particles at the end of every `interval` time steps.
 - `dt`: Sort particles in regular intervals of `dt` in terms of integration time
