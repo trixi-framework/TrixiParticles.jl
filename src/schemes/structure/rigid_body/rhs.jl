@@ -54,15 +54,15 @@ function interact!(dv, v_particle_system, u_particle_system,
         rho_b = current_density(v_neighbor_system, neighbor_system, neighbor)
 
         dv_fs = structure_fluid_interaction(v_particle_system,
-                                                  v_neighbor_system,
-                                                  particle_system,
-                                                  neighbor_system,
-                                                  particle,
-                                                  neighbor,
-                                                  pos_diff,
-                                                  distance,
-                                                  sound_speed,
-                                                  grad_kernel, m_b, rho_a, rho_b)
+                                            v_neighbor_system,
+                                            particle_system,
+                                            neighbor_system,
+                                            particle,
+                                            neighbor,
+                                            pos_diff,
+                                            distance,
+                                            sound_speed,
+                                            grad_kernel, m_b, rho_a, rho_b)
 
         for dim in eachindex(dv_fs)
             @inbounds force_per_particle[dim, particle] += dv_fs[dim] * m_b
