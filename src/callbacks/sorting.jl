@@ -3,7 +3,7 @@
 # Boundary particles always stay fixed relative to each other, TLSPH computes in the initial configuration.
 const RequiresSortingSystem = AbstractFluidSystem
 
-struct SortingCallback{I}
+mutable struct SortingCallback{I}
     interval::I
     last_t::Float64
 end
@@ -14,16 +14,16 @@ end
 Reorders particles according to neighborhood-search cells for performance optimization.
 
 When particles become very unordered throughout a long-running simulation, performance
-decreases due to increased cache-misses (on CPUs) and lack of block structure (on GPUs).
+degrades due to increased cache-misses (on CPUs) and lack of block structure (on GPUs).
 On GPUs, a fully shuffled particle ordering causes a 3-4x slowdown compared to a sorted configuration.
-On CPUs, there is no difference for small problems (<16k particles), but the performance penalty
-grows linearly with the problem size up to 10x slowdown for very large problems (65M particles).
+On CPUs the performance penalty grows linearly with the problem size and can reach up to a
+10x slowdown for very large problems (65M particles).
 See [#1044](https://github.com/trixi-framework/TrixiParticles.jl/pull/1044) for more details.
 
 # Keywords
 - `interval`: Sort particles at the end of every `interval` time steps.
 - `dt`: Sort particles in regular intervals of `dt` in terms of integration time.
-        This callback does not add extra time steps / `tstops`; instead, reinitialization is
+        This callback does not add extra time steps / `tstops`; instead, sorting is
         triggered at the first solver step after each `dt` interval has elapsed.
 - `initial_sort=true`: When enabled, particles are sorted at the beginning of the simulation.
                        When the initial configuration is a perfect grid of particles,
@@ -45,7 +45,7 @@ function SortingCallback(; interval::Integer=-1, dt=0.0)
         interval = 1
     end
 
-    sorting_callback! = SortingCallback(interval, last_t)
+    sorting_callback! = SortingCallback(interval, 0.0)
 
     # The first one is the `condition`, the second the `affect!`
     return DiscreteCallback(sorting_callback!, sorting_callback!,
@@ -69,7 +69,7 @@ end
 function (sorting_callback!::SortingCallback{Int})(u, t, integrator)
     (; interval) = sorting_callback!
 
-    return condition_integrator_interval(integrator, interval)
+    return !isfinished(integrator) && condition_integrator_interval(integrator, interval)
 end
 
 # condition with `dt`
