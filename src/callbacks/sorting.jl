@@ -8,7 +8,7 @@ struct SortingCallback{I}
 end
 
 """
-    SortingCallback(; interval::Integer=-1, dt=0.0)
+    SortingCallback(; interval::Integer)
 
 Reorders particles according to neighborhood-search cells for performance optimization.
 
@@ -20,37 +20,14 @@ grows linearly with the problem size up to 10x slowdown for very large problems 
 See [#1044](https://github.com/trixi-framework/TrixiParticles.jl/pull/1044) for more details.
 
 # Keywords
-- `interval=1`: Sort particles at the end of every `interval` time steps.
-- `dt`: Sort particles in regular intervals of `dt` in terms of integration time
-        by adding additional `tstops` (note that this may change the solution).
+- `interval::Integer`: Sort particles at the end of every `interval` time steps.
 """
-function SortingCallback(; interval::Integer=-1, dt=0.0)
-    if dt > 0 && interval !== -1
-        throw(ArgumentError("Setting both interval and dt is not supported!"))
-    end
-
-    # Sort in intervals in terms of simulation time
-    if dt > 0
-        interval = Float64(dt)
-
-        # Sort every time step (default)
-    elseif interval == -1
-        interval = 1
-    end
-
+function SortingCallback(; interval::Integer)
     sorting_callback! = SortingCallback(interval)
 
-    if dt > 0
-        # Add a `tstop` every `dt`
-        return PeriodicCallback(sorting_callback!, dt,
-                                initialize=(initial_sort!),
-                                save_positions=(false, false))
-    else
-        # The first one is the `condition`, the second the `affect!`
-        return DiscreteCallback(sorting_callback!, sorting_callback!,
-                                initialize=(initial_sort!),
-                                save_positions=(false, false))
-    end
+    # The first one is the `condition`, the second the `affect!`
+    return DiscreteCallback(sorting_callback!, sorting_callback!,
+                            initialize=(initial_sort!), save_positions=(false, false))
 end
 
 # `initialize`
