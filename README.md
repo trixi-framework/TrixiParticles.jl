@@ -32,7 +32,7 @@ It offers intuitive configuration, robust pre- and post-processing, and vendor-a
     Implicit Incompressible Smoothed Particle Hydrodynamics (IISPH)
   - Models: Surface Tension, Open Boundaries
 - Structural mechanics
-  - Methods: Total Lagrangian SPH (TLSPH), Discrete Element Method (DEM)
+  - Methods:  Total Lagrangian SPH (TLSPH), Discrete Element Method (DEM), Rigid Body Dynamics (RBD)
 - Fluid-Structure Interaction
 - Particle sampling of complex geometries from `.stl`, `.asc`, and `.dxf` files.
 - Output formats:

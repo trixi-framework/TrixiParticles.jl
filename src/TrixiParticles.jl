@@ -65,9 +65,10 @@ include("io/io.jl")
 include("visualization/recipes_plots.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
-export InitialCondition
+export InitialCondition, apply_angular_velocity
 export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangianSPHSystem,
-       WallBoundarySystem, DEMSystem, BoundaryDEMSystem, OpenBoundarySystem,
+       RigidBodySystem, WallBoundarySystem, DEMSystem, BoundaryDEMSystem,
+       OpenBoundarySystem,
        ImplicitIncompressibleSPHSystem
 export BoundaryZone, InFlow, OutFlow, BidirectionalFlow
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
@@ -90,7 +91,7 @@ export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureEx
        BoundaryModelMirroringTafuni, BoundaryModelDynamicalPressureZhang,
        BernoulliPressureExtrapolation, PressureBoundaries
 export FirstOrderMirroring, ZerothOrderMirroring, SimpleMirroring
-export HertzContactModel, LinearContactModel
+export HertzContactModel, LinearContactModel, RigidContactModel
 export PrescribedMotion, OscillatingMotion2D
 export RCRWindkesselModel
 export examples_dir, validation_dir
