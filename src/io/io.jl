@@ -121,6 +121,15 @@ function add_system_data!(system_data, system::TotalLagrangianSPHSystem)
     add_system_data!(system_data, system.penalty_force)
 end
 
+function add_system_data!(system_data, system::RigidBodySystem)
+    system_data["system_type"] = type2string(system)
+    system_data["particle_spacing"] = particle_spacing(system, 1)
+    system_data["acceleration"] = system.acceleration
+    system_data["adhesion_coefficient"] = system.adhesion_coefficient
+    system_data["color"] = system.cache.color
+    add_system_data!(system_data, system.boundary_model)
+end
+
 function add_system_data!(system_data, system::WallBoundarySystem)
     system_data["system_type"] = type2string(system)
     system_data["particle_spacing"] = particle_spacing(system, 1)
@@ -340,4 +349,15 @@ end
 function add_system_data!(system_data, shifting_technique::ParticleShiftingTechnique)
     system_data["shifting_technique"] = Dict{String, Any}()
     system_data["shifting_technique"]["model"] = type2string(shifting_technique)
+end
+
+function add_system_data!(system_data, viscosity::ViscosityCarreauYasuda)
+    system_data["viscosity_model"] = Dict{String, Any}()
+    system_data["viscosity_model"]["model"] = type2string(viscosity)
+    system_data["viscosity_model"]["nu0"] = viscosity.nu0
+    system_data["viscosity_model"]["nu_inf"] = viscosity.nu_inf
+    system_data["viscosity_model"]["lambda"] = viscosity.lambda
+    system_data["viscosity_model"]["a"] = viscosity.a
+    system_data["viscosity_model"]["n"] = viscosity.n
+    system_data["viscosity_model"]["epsilon"] = viscosity.epsilon
 end
