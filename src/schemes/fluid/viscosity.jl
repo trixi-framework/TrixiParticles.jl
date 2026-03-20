@@ -23,8 +23,8 @@ end
                      sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
 end
 
-@inline function dv_viscosity(viscosity::Nothing, particle_system, neighbor_system,
-                              v_particle_system, v_neighbor_system,
+@inline function dv_viscosity(dv_particle, viscosity::Nothing, particle_system, neighbor_system,
+                              vdiff,
                               particle, neighbor, pos_diff, distance,
                               sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
     return zero(pos_diff)

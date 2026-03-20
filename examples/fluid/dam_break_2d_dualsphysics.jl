@@ -31,7 +31,7 @@ tank.boundary.coordinates .+= 0.005
 # Define a GPU-compatible neighborhood search
 min_corner = minimum(tank.boundary.coordinates, dims=2)
 max_corner = maximum(tank.boundary.coordinates, dims=2)
-cell_list = FullGridCellList(; min_corner, max_corner, backend=PointNeighbors.CompactVectorOfVectors{Int32})
+cell_list = FullGridCellList(; min_corner, max_corner)#, backend=PointNeighbors.CompactVectorOfVectors{Int32})
 neighborhood_search = GridNeighborhoodSearch{2}(; cell_list,
                                                 update_strategy=ParallelUpdate())
 

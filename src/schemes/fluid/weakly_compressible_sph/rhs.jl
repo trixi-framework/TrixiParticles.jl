@@ -273,7 +273,7 @@ end
 function interact_reassembled!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::WeaklyCompressibleSPHSystem{NDIMS},
-                   neighbor_system::WeaklyCompressibleSPHSystem, semi) where NDIMS
+                   neighbor_system, semi) where NDIMS
     (; density_calculator, correction) = particle_system
 
     system_coords = current_coordinates(u_particle_system, particle_system)
@@ -302,8 +302,8 @@ function interact_reassembled!(dv, v_particle_system, u_particle_system,
             # rho_b = @inbounds v_neighbor_system[end, neighbor]
             v_b, rho_b = @inbounds velocity_and_density(v_neighbor_system, neighbor_system, neighbor)
 
-            grad_kernel = kernel_grad_ds(particle_system, pos_diff, distance)
-            # grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance, particle)
+            # grad_kernel = kernel_grad_ds(particle_system, pos_diff, distance)
+            grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance, particle)
 
             # dv_particle += -m_b * (p_a + p_b) / (rho_a * rho_b) * grad_kernel
             # dv_particle[] += -m_b * Base.FastMath.div_fast(p_a + p_b, rho_a * rho_b) * grad_kernel
