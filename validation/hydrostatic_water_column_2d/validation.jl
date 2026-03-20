@@ -59,7 +59,8 @@ function run_simulation(method; n_particles_plate_y, tspan)
                   prefix=pp_filename,
                   extra_callback=pp)
 
-    return pp_filename, sol
+    # @invokelatest is required to Julia 1.12 to work
+    return @invokelatest pp_filename, sol
 end
 
 methods = ((name=:edac, use_edac=true),
