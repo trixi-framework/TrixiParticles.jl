@@ -39,7 +39,8 @@ end
                     r"└ New tank length in y-direction.*\n"
                 ]
                 # @invokelatest is required to Julia 1.12 to work
-                @test (@invokelatest (@__MODULE__).semi).neighborhood_searches[1, 1].cell_list isa FullGridCellList
+                @test (@invokelatest (@__MODULE__).semi).neighborhood_searches[1, 1].cell_list isa
+                      FullGridCellList
                 @test (@invokelatest (@__MODULE__).sol).retcode == ReturnCode.Success
                 v_ode, u_ode = sol.u[end].x
                 backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
@@ -69,7 +70,8 @@ end
                     r"└ New tank length in y-direction.*\n"
                 ]
                 # @invokelatest is required to Julia 1.12 to work
-                @test (@invokelatest (@__MODULE__).semi).neighborhood_searches[1, 1].cell_list isa FullGridCellList
+                @test (@invokelatest (@__MODULE__).semi).neighborhood_searches[1, 1].cell_list isa
+                      FullGridCellList
                 @test (@invokelatest (@__MODULE__).sol).retcode == ReturnCode.Success
                 v_ode, u_ode = sol.u[end].x
                 backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
@@ -119,7 +121,8 @@ end
                         r"└ New tank length in y-direction.*\n"
                     ]
                     # @invokelatest is required to Julia 1.12 to work
-                    @test (@invokelatest (@__MODULE__).semi).neighborhood_searches[1, 1].cell_list isa FullGridCellList
+                    @test (@invokelatest (@__MODULE__).semi).neighborhood_searches[1, 1].cell_list isa
+                          FullGridCellList
                     @test (@invokelatest (@__MODULE__).sol).retcode == ReturnCode.Success
                     v_ode, u_ode = sol.u[end].x
                     backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
@@ -144,7 +147,8 @@ end
                 r"└ New tank length in y-direction.*\n"
             ]
             # @invokelatest is required to Julia 1.12 to work
-            @test (@invokelatest (@__MODULE__).semi).neighborhood_searches[1, 1].cell_list isa FullGridCellList
+            @test (@invokelatest (@__MODULE__).semi).neighborhood_searches[1, 1].cell_list isa
+                  FullGridCellList
             @test (@invokelatest (@__MODULE__).sol).retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
@@ -179,7 +183,8 @@ end
                 r"└ New tank length in y-direction.*\n"
             ]
             # @invokelatest is required to Julia 1.12 to work
-            @test (@invokelatest (@__MODULE__).semi).neighborhood_searches[1, 1].cell_list isa FullGridCellList
+            @test (@invokelatest (@__MODULE__).semi).neighborhood_searches[1, 1].cell_list isa
+                  FullGridCellList
             @test (@invokelatest (@__MODULE__).sol).retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
