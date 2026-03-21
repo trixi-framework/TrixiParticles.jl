@@ -1,3 +1,6 @@
+# In the following tests, @invokelatest has been used to get Julia 1.12 to work with these tests
+# Furthermore, SciMLBase.ReturnCode had to be used instead of ReturnCode
+
 const TRIXIPARTICLES_TEST_ = lowercase(get(ENV, "TRIXIPARTICLES_TEST", "all"))
 
 if TRIXIPARTICLES_TEST_ == "cuda"
@@ -38,11 +41,13 @@ end
                     r"┌ Info: The desired tank length in y-direction.*\n",
                     r"└ New tank length in y-direction.*\n"
                 ]
-                # @invokelatest is required to Julia 1.12 to work
-                @test (@invokelatest (@__MODULE__).semi).neighborhood_searches[1, 1].cell_list isa
-                      FullGridCellList
-                @test (@invokelatest (@__MODULE__).sol).retcode == ReturnCode.Success
-                v_ode, u_ode = sol.u[end].x
+
+                sol_ = @invokelatest (@__MODULE__).sol
+                semi_ = @invokelatest (@__MODULE__).semi
+
+                @test semi_.neighborhood_searches[1, 1].cell_list isa FullGridCellList
+                @test sol_.retcode == SciMLBase.ReturnCode.Success
+                v_ode, u_ode = sol_.u[end].x
                 backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
                 @test backend == Main.parallelization_backend
                 @test eltype(v_ode) == Float64
@@ -69,11 +74,13 @@ end
                     r"┌ Info: The desired tank length in y-direction .*\n",
                     r"└ New tank length in y-direction.*\n"
                 ]
-                # @invokelatest is required to Julia 1.12 to work
-                @test (@invokelatest (@__MODULE__).semi).neighborhood_searches[1, 1].cell_list isa
-                      FullGridCellList
-                @test (@invokelatest (@__MODULE__).sol).retcode == ReturnCode.Success
-                v_ode, u_ode = sol.u[end].x
+
+                sol_ = @invokelatest (@__MODULE__).sol
+                semi_ = @invokelatest (@__MODULE__).semi
+
+                @test semi_.neighborhood_searches[1, 1].cell_list isa FullGridCellList
+                @test sol_.retcode == SciMLBase.ReturnCode.Success
+                v_ode, u_ode = sol_.u[end].x
                 backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
                 @test backend == Main.parallelization_backend
                 @test eltype(v_ode) == Float32
@@ -120,11 +127,13 @@ end
                         r"┌ Info: The desired tank length in y-direction.*\n",
                         r"└ New tank length in y-direction.*\n"
                     ]
-                    # @invokelatest is required to Julia 1.12 to work
-                    @test (@invokelatest (@__MODULE__).semi).neighborhood_searches[1, 1].cell_list isa
-                          FullGridCellList
-                    @test (@invokelatest (@__MODULE__).sol).retcode == ReturnCode.Success
-                    v_ode, u_ode = sol.u[end].x
+
+                    sol_ = @invokelatest (@__MODULE__).sol
+                    semi_ = @invokelatest (@__MODULE__).semi
+
+                    @test semi_.neighborhood_searches[1, 1].cell_list isa FullGridCellList
+                    @test sol_.retcode == SciMLBase.ReturnCode.Success
+                    v_ode, u_ode = sol_.u[end].x
                     backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
                     @test backend == Main.parallelization_backend
                     @test eltype(v_ode) == Float32
@@ -146,11 +155,13 @@ end
                 r"┌ Info: The desired tank length in y-direction.*\n",
                 r"└ New tank length in y-direction.*\n"
             ]
-            # @invokelatest is required to Julia 1.12 to work
-            @test (@invokelatest (@__MODULE__).semi).neighborhood_searches[1, 1].cell_list isa
-                  FullGridCellList
-            @test (@invokelatest (@__MODULE__).sol).retcode == ReturnCode.Success
-            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+
+            sol_ = @invokelatest (@__MODULE__).sol
+            semi_ = @invokelatest (@__MODULE__).semi
+
+            @test semi_.neighborhood_searches[1, 1].cell_list isa FullGridCellList
+            @test sol_.retcode == SciMLBase.ReturnCode.Success
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol_.u[end].x[1])
             @test backend == Main.parallelization_backend
         end
 
@@ -163,10 +174,14 @@ end
                                           coordinates_eltype=Float32,
                                           sol=nothing, ode=nothing)
 
+            spacing_ratio_ = @invokelatest (@__MODULE__).spacing_ratio
+            boundary_particle_spacing_ = @invokelatest (@__MODULE__).boundary_particle_spacing
+            tank_ = @invokelatest (@__MODULE__).tank
+
             boundary_model = BoundaryModelMonaghanKajtar(0.5f0,
-                                                         spacing_ratio,
-                                                         boundary_particle_spacing,
-                                                         tank.boundary.mass)
+                                                         spacing_ratio_,
+                                                         boundary_particle_spacing_,
+                                                         tank_.boundary.mass)
 
             @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
                                                              joinpath(examples_dir(),
@@ -182,11 +197,13 @@ end
                 r"┌ Info: The desired tank length in y-direction.*\n",
                 r"└ New tank length in y-direction.*\n"
             ]
-            # @invokelatest is required to Julia 1.12 to work
-            @test (@invokelatest (@__MODULE__).semi).neighborhood_searches[1, 1].cell_list isa
-                  FullGridCellList
-            @test (@invokelatest (@__MODULE__).sol).retcode == ReturnCode.Success
-            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+
+            sol_ = @invokelatest (@__MODULE__).sol
+            semi_ = @invokelatest (@__MODULE__).semi
+
+            @test semi_.neighborhood_searches[1, 1].cell_list isa FullGridCellList
+            @test sol_.retcode == SciMLBase.ReturnCode.Success
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol_.u[end].x[1])
             @test backend == Main.parallelization_backend
         end
 
@@ -199,11 +216,15 @@ end
                                           coordinates_eltype=Float32,
                                           sol=nothing, ode=nothing)
 
+            tank_ = @invokelatest (@__MODULE__).tank
+            fluid_system_ = @invokelatest (@__MODULE__).fluid_system
+            boundary_system_ = @invokelatest (@__MODULE__).boundary_system
+
             # Neighborhood search with `FullGridCellList` for GPU compatibility
-            min_corner = minimum(tank.boundary.coordinates, dims=2)
-            max_corner = maximum(tank.boundary.coordinates, dims=2)
+            min_corner = minimum(tank_.boundary.coordinates, dims=2)
+            max_corner = maximum(tank_.boundary.coordinates, dims=2)
             cell_list = FullGridCellList(; min_corner, max_corner)
-            semi_fullgrid = Semidiscretization(fluid_system, boundary_system,
+            semi_fullgrid = Semidiscretization(fluid_system_, boundary_system_,
                                                neighborhood_search=GridNeighborhoodSearch{3}(;
                                                                                              cell_list),
                                                parallelization_backend=Main.parallelization_backend)
@@ -224,8 +245,12 @@ end
                                                              maxiters=maxiters) [
                 r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
             ]
-            @test sol.retcode == ReturnCode.Success
-            v_ode, u_ode = sol.u[end].x
+
+            sol_ = @invokelatest (@__MODULE__).sol
+            ode_ = @invokelatest (@__MODULE__).ode
+
+            @test sol_.retcode == SciMLBase.ReturnCode.Success
+            v_ode, u_ode = sol_.u[end].x
             backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
             @test backend == Main.parallelization_backend
             @test eltype(v_ode) == Float32
@@ -235,12 +260,12 @@ end
                 stepsize_callback = StepsizeCallback(cfl=0.65)
                 callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback)
 
-                @trixi_test_nowarn sol = solve(ode, SymplecticPositionVerlet(),
-                                               dt=1, # This is overwritten by the stepsize callback
-                                               save_everystep=false, callback=callbacks)
-                @test sol.retcode == ReturnCode.Success
-                @test maximum(maximum.(abs, sol.u[end].x)) < 2^15
-                v_ode, u_ode = sol.u[end].x
+                @trixi_test_nowarn sol_spv = solve(ode_, SymplecticPositionVerlet(),
+                                                   dt=1, # This is overwritten by the stepsize callback
+                                                   save_everystep=false, callback=callbacks)
+                @test sol_spv.retcode == SciMLBase.ReturnCode.Success
+                @test maximum(maximum.(abs, sol_spv.u[end].x)) < 2^15
+                v_ode, u_ode = sol_spv.u[end].x
                 backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
                 @test backend == Main.parallelization_backend
                 @test eltype(v_ode) == Float32
@@ -256,11 +281,23 @@ end
                                                    "hydrostatic_water_column_2d.jl"),
                                           sol=nothing, ode=nothing)
 
+            fluid_particle_spacing_ = @invokelatest (@__MODULE__).fluid_particle_spacing
+            initial_fluid_size_ = @invokelatest (@__MODULE__).initial_fluid_size
+            tank_size_ = @invokelatest (@__MODULE__).tank_size
+            fluid_density_ = @invokelatest (@__MODULE__).fluid_density
+            boundary_layers_ = @invokelatest (@__MODULE__).boundary_layers
+            gravity_ = @invokelatest (@__MODULE__).gravity
+            state_equation_ = @invokelatest (@__MODULE__).state_equation
+            smoothing_kernel_ = @invokelatest (@__MODULE__).smoothing_kernel
+            smoothing_length_ = @invokelatest (@__MODULE__).smoothing_length
+            sound_speed_ = @invokelatest (@__MODULE__).sound_speed
+            viscosity_fluid_ = @invokelatest (@__MODULE__).viscosity_fluid
+
             # Create tank with Float32 coordinates
-            tank = RectangularTank(fluid_particle_spacing, initial_fluid_size,
-                                   tank_size, fluid_density, n_layers=boundary_layers,
-                                   acceleration=(0.0f0, -gravity),
-                                   state_equation=state_equation,
+            tank = RectangularTank(fluid_particle_spacing_, initial_fluid_size_,
+                                   tank_size_, fluid_density_, n_layers=boundary_layers_,
+                                   acceleration=(0.0f0, -gravity_),
+                                   state_equation=state_equation_,
                                    coordinates_eltype=Float32)
 
             hydrostatic_water_column_tests = Dict(
@@ -294,21 +331,21 @@ end
                                                   smoothing_kernel=WendlandC6Kernel{2}()),
                 "EDAC with source term damping" => (source_terms=SourceTermDamping(damping_coefficient=1.0f-4),
                                                     fluid_system=EntropicallyDampedSPHSystem(tank.fluid,
-                                                                                             smoothing_kernel,
-                                                                                             smoothing_length,
-                                                                                             sound_speed,
-                                                                                             viscosity=viscosity_fluid,
+                                                                                             smoothing_kernel_,
+                                                                                             smoothing_length_,
+                                                                                             sound_speed_,
+                                                                                             viscosity=viscosity_fluid_,
                                                                                              density_calculator=ContinuityDensity(),
                                                                                              acceleration=(0.0,
-                                                                                                           -gravity))),
+                                                                                                           -gravity_))),
                 "EDAC with SummationDensity" => (fluid_system=EntropicallyDampedSPHSystem(tank.fluid,
-                                                                                          smoothing_kernel,
-                                                                                          smoothing_length,
-                                                                                          sound_speed,
-                                                                                          viscosity=viscosity_fluid,
+                                                                                          smoothing_kernel_,
+                                                                                          smoothing_length_,
+                                                                                          sound_speed_,
+                                                                                          viscosity=viscosity_fluid_,
                                                                                           density_calculator=SummationDensity(),
                                                                                           acceleration=(0.0,
-                                                                                                        -gravity)),)
+                                                                                                        -gravity_)),)
             )
 
             for (test_description, kwargs) in hydrostatic_water_column_tests
@@ -323,12 +360,15 @@ end
                                                   sol=nothing, ode=nothing, tank=tank,
                                                   kwargs...)
 
+                    fluid_system_ = @invokelatest (@__MODULE__).fluid_system
+                    boundary_system_ = @invokelatest (@__MODULE__).boundary_system
+
                     # Neighborhood search with `FullGridCellList` for GPU compatibility
                     min_corner = minimum(tank.boundary.coordinates, dims=2)
                     max_corner = maximum(tank.boundary.coordinates, dims=2)
                     cell_list = FullGridCellList(; min_corner, max_corner,
                                                  max_points_per_cell=500)
-                    semi_fullgrid = Semidiscretization(fluid_system, boundary_system,
+                    semi_fullgrid = Semidiscretization(fluid_system_, boundary_system_,
                                                        neighborhood_search=GridNeighborhoodSearch{2}(;
                                                                                                      cell_list),
                                                        parallelization_backend=Main.parallelization_backend)
@@ -345,8 +385,10 @@ end
                         r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n",
                     ]
 
-                    @test sol.retcode == ReturnCode.Success
-                    v_ode, u_ode = sol.u[end].x
+                    sol_ = @invokelatest (@__MODULE__).sol
+
+                    @test sol_.retcode == SciMLBase.ReturnCode.Success
+                    v_ode, u_ode = sol_.u[end].x
                     backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
                     @test backend == Main.parallelization_backend
                     @test eltype(v_ode) == Float32
@@ -364,13 +406,19 @@ end
                                           coordinates_eltype=Float32,
                                           sol=nothing, ode=nothing)
 
+            smoothing_kernel_ = @invokelatest (@__MODULE__).smoothing_kernel
+            smoothing_length_ = @invokelatest (@__MODULE__).smoothing_length
+            tank_ = @invokelatest (@__MODULE__).tank
+            fluid_system_ = @invokelatest (@__MODULE__).fluid_system
+            boundary_system_ = @invokelatest (@__MODULE__).boundary_system
+
             # Neighborhood search with `FullGridCellList` for GPU compatibility
-            search_radius = TrixiParticles.compact_support(smoothing_kernel,
-                                                           smoothing_length)
-            min_corner = minimum(tank.boundary.coordinates, dims=2)
-            max_corner = maximum(tank.boundary.coordinates, dims=2) .+ 2 * search_radius
+            search_radius = TrixiParticles.compact_support(smoothing_kernel_,
+                                                           smoothing_length_)
+            min_corner = minimum(tank_.boundary.coordinates, dims=2)
+            max_corner = maximum(tank_.boundary.coordinates, dims=2) .+ 2 * search_radius
             cell_list = FullGridCellList(; min_corner, max_corner)
-            semi_fullgrid = Semidiscretization(fluid_system, boundary_system,
+            semi_fullgrid = Semidiscretization(fluid_system_, boundary_system_,
                                                neighborhood_search=GridNeighborhoodSearch{2}(;
                                                                                              cell_list),
                                                parallelization_backend=Main.parallelization_backend)
@@ -384,8 +432,11 @@ end
                                                              semi=semi_fullgrid) [
                 r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
             ]
-            @test sol.retcode == ReturnCode.Success
-            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+
+            sol_ = @invokelatest (@__MODULE__).sol
+
+            @test sol_.retcode == SciMLBase.ReturnCode.Success
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol_.u[end].x[1])
             @test backend == Main.parallelization_backend
         end
 
@@ -400,8 +451,11 @@ end
                                                              parallelization_backend=Main.parallelization_backend) [
                 r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
             ]
-            @test sol.retcode == ReturnCode.Success
-            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+
+            sol_ = @invokelatest (@__MODULE__).sol
+
+            @test sol_.retcode == SciMLBase.ReturnCode.Success
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol_.u[end].x[1])
             @test backend == Main.parallelization_backend
         end
 
@@ -416,8 +470,11 @@ end
                                                              parallelization_backend=Main.parallelization_backend) [
                 r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
             ]
-            @test sol.retcode == ReturnCode.Success
-            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+
+            sol_ = @invokelatest (@__MODULE__).sol
+
+            @test sol_.retcode == SciMLBase.ReturnCode.Success
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol_.u[end].x[1])
             @test backend == Main.parallelization_backend
         end
 
@@ -433,8 +490,11 @@ end
                                                              parallelization_backend=Main.parallelization_backend) [
                 r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
             ]
-            @test sol.retcode == ReturnCode.Success
-            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+
+            sol_ = @invokelatest (@__MODULE__).sol
+
+            @test sol_.retcode == SciMLBase.ReturnCode.Success
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol_.u[end].x[1])
             @test backend == Main.parallelization_backend
         end
 
@@ -448,8 +508,11 @@ end
                                                              parallelization_backend=Main.parallelization_backend) [
                 r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
             ]
-            @test sol.retcode == ReturnCode.Success
-            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+
+            sol_ = @invokelatest (@__MODULE__).sol
+
+            @test sol_.retcode == SciMLBase.ReturnCode.Success
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol_.u[end].x[1])
             @test backend == Main.parallelization_backend
         end
 
@@ -470,8 +533,11 @@ end
                                                              parallelization_backend=Main.parallelization_backend) [
                 r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
             ]
-            @test sol.retcode == ReturnCode.Success
-            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+
+            sol_ = @invokelatest (@__MODULE__).sol
+
+            @test sol_.retcode == SciMLBase.ReturnCode.Success
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol_.u[end].x[1])
             @test backend == Main.parallelization_backend
         end
 
@@ -495,8 +561,11 @@ end
                                                              parallelization_backend=Main.parallelization_backend) [
                 r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
             ]
-            @test sol.retcode == ReturnCode.Success
-            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+
+            sol_ = @invokelatest (@__MODULE__).sol
+
+            @test sol_.retcode == SciMLBase.ReturnCode.Success
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol_.u[end].x[1])
             @test backend == Main.parallelization_backend
         end
 
@@ -517,9 +586,11 @@ end
                 r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
             ]
 
+            sol_ = @invokelatest (@__MODULE__).sol
+
             # Make sure that the simulation is terminated after a reasonable amount of time
-            @test 0.1 < sol.t[end] < 1.0
-            @test sol.retcode == ReturnCode.Terminated
+            @test 0.1 < sol_.t[end] < 1.0
+            @test sol_.retcode == SciMLBase.ReturnCode.Terminated
         end
     end
 
@@ -535,14 +606,19 @@ end
                 r"\[ Info: To create the self-interaction neighborhood search.*\n",
                 r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
             ]
-            @test sol.retcode == ReturnCode.Success
-            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+
+            sol_ = @invokelatest (@__MODULE__).sol
+
+            @test sol_.retcode == SciMLBase.ReturnCode.Success
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol_.u[end].x[1])
             @test backend == Main.parallelization_backend
         end
 
         @trixi_testset "structure/oscillating_beam_2d.jl with PostprocessCallback" begin
-            pp = PostprocessCallback(; interval=5, total_mass,
+            total_mass_ = @invokelatest (@__MODULE__).total_mass
+            pp = PostprocessCallback(; interval=5, total_mass=total_mass_,
                                      write_file_interval=0)
+
             @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
                                                              joinpath(examples_dir(),
                                                                       "structure",
@@ -554,8 +630,11 @@ end
                 r"\[ Info: To create the self-interaction neighborhood search.*\n",
                 r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
             ]
-            @test sol.retcode == ReturnCode.Success
-            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+
+            sol_ = @invokelatest (@__MODULE__).sol
+
+            @test sol_.retcode == SciMLBase.ReturnCode.Success
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol_.u[end].x[1])
             @test backend == Main.parallelization_backend
             # Check that the postprocess callback was called and computed values
             @test !isempty(pp.affect!.func)
@@ -572,15 +651,23 @@ end
                                           coordinates_eltype=Float32,
                                           sol=nothing, ode=nothing)
 
+            tank_ = @invokelatest (@__MODULE__).tank
+            gate_height_ = @invokelatest (@__MODULE__).gate_height
+            movement_function_ = @invokelatest (@__MODULE__).movement_function
+            fluid_system_ = @invokelatest (@__MODULE__).fluid_system
+            boundary_system_tank_ = @invokelatest (@__MODULE__).boundary_system_tank
+            boundary_system_gate_ = @invokelatest (@__MODULE__).boundary_system_gate
+            structure_system_ = @invokelatest (@__MODULE__).structure_system
+
             # Neighborhood search with `FullGridCellList` for GPU compatibility
-            min_corner = minimum(tank.boundary.coordinates, dims=2)
-            max_corner = maximum(tank.boundary.coordinates, dims=2)
-            max_corner[2] = gate_height + movement_function([0, 0], 0.1f0)[2]
+            min_corner = minimum(tank_.boundary.coordinates, dims=2)
+            max_corner = maximum(tank_.boundary.coordinates, dims=2)
+            max_corner[2] = gate_height_ + movement_function_([0, 0], 0.1f0)[2]
             # We need a very high `max_points_per_cell` because the plate resolution
             # is much finer than the fluid resolution.
             cell_list = FullGridCellList(; min_corner, max_corner)
-            semi_fullgrid = Semidiscretization(fluid_system, boundary_system_tank,
-                                               boundary_system_gate, structure_system,
+            semi_fullgrid = Semidiscretization(fluid_system_, boundary_system_tank_,
+                                               boundary_system_gate_, structure_system_,
                                                neighborhood_search=GridNeighborhoodSearch{2}(;
                                                                                              cell_list),
                                                parallelization_backend=Main.parallelization_backend)
@@ -596,8 +683,11 @@ end
                 r"\[ Info: To create the self-interaction neighborhood search.*\n",
                 r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
             ]
-            @test sol.retcode == ReturnCode.Success
-            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+
+            sol_ = @invokelatest (@__MODULE__).sol
+
+            @test sol_.retcode == SciMLBase.ReturnCode.Success
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol_.u[end].x[1])
             @test backend == Main.parallelization_backend
         end
     end
@@ -609,9 +699,11 @@ end
                                                                       "rectangular_tank_2d.jl"),
                                                              coordinates_eltype=Float32,
                                                              ode=nothing, sol=nothing)
+            tank_ = @invokelatest (@__MODULE__).tank
+
             # Neighborhood search with `FullGridCellList` for GPU compatibility
-            min_corner = minimum(tank.boundary.coordinates, dims=2)
-            max_corner = maximum(tank.boundary.coordinates, dims=2)
+            min_corner = minimum(tank_.boundary.coordinates, dims=2)
+            max_corner = maximum(tank_.boundary.coordinates, dims=2)
             cell_list = FullGridCellList(; min_corner, max_corner)
             neighborhood_search = GridNeighborhoodSearch{2}(; cell_list,
                                                             update_strategy=ParallelUpdate())
@@ -625,8 +717,11 @@ end
                                                              parallelization_backend=Main.parallelization_backend) [
                 r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
             ]
-            @test sol.retcode == ReturnCode.Success
-            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+
+            sol_ = @invokelatest (@__MODULE__).sol
+
+            @test sol_.retcode == SciMLBase.ReturnCode.Success
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol_.u[end].x[1])
             @test backend == Main.parallelization_backend
         end
     end
@@ -642,7 +737,8 @@ end
                                           tspan=(0.0f0, 0.01f0),
                                           parallelization_backend=Main.parallelization_backend)
 
-            semi_new = sol.prob.p
+            sol_ = @invokelatest (@__MODULE__).sol
+            semi_new = sol_.prob.p
 
             @testset verbose=true "Line" begin
                 # Interpolation parameters
@@ -651,7 +747,7 @@ end
                 end_point = Float32[0.5, 0.5]
 
                 result = interpolate_line(start_point, end_point, n_interpolation_points,
-                                          semi_new, semi_new.systems[1], sol;
+                                          semi_new, semi_new.systems[1], sol_;
                                           cut_off_bnd=false)
 
                 @test isapprox(Array(result.computed_density),
@@ -677,7 +773,7 @@ end
 
                 result = interpolate_plane_2d(interpolation_start, interpolation_end,
                                               resolution, semi_new, semi_new.systems[1],
-                                              sol; cut_off_bnd=false)
+                                              sol_; cut_off_bnd=false)
 
                 @test isapprox(Array(result.computed_density),
                                Float32[250.47523, 500.98248, 500.49924, 253.77109,
