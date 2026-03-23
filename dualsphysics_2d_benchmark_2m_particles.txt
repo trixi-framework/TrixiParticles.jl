@@ -101,5 +101,8 @@ full grid NHS:
 4.9ms (2.4x)
 total 5.3ms
 
+full grid with foreach_neighbor inbounds:
+4.8ms
+
 full grid with foreach_point_neighbor:
 7.7ms
