@@ -61,6 +61,7 @@ function interact!(dv, v_particle_system, u_particle_system,
             v_b, rho_b = @inbounds velocity_and_density(v_neighbor_system, neighbor_system,
                                                         neighbor)
             rho_mean = (rho_a + rho_b) / 2
+            vdiff = v_a - v_b
 
             # The following call is equivalent to
             #     `p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)`
@@ -115,15 +116,17 @@ function interact!(dv, v_particle_system, u_particle_system,
 
             # TODO If variable smoothing_length is used, this should use the neighbor smoothing length
             # Propagate `@inbounds` to the continuity equation, which accesses particle data
-            @inbounds continuity_equation!(dv, density_calculator, particle_system,
+            @inbounds continuity_equation!(drho_particle, density_calculator, particle_system,
                                            neighbor_system, v_particle_system,
                                            v_neighbor_system, particle, neighbor,
-                                           pos_diff, distance, m_b, rho_a, rho_b, grad_kernel)
+                                           pos_diff, distance, m_b, rho_a, rho_b, vdiff,
+                                           grad_kernel)
         end
 
         for i in eachindex(dv_particle[])
             @inbounds dv[i, particle] += dv_particle[][i]
         end
+        @inbounds dv[end, particle] += drho_particle[]
     end
 
     return dv
