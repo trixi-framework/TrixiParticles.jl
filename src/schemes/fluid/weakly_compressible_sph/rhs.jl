@@ -293,7 +293,7 @@ function interact_reassembled!(dv, v_particle_system, u_particle_system,
         dv_particle = Ref(zero(v_a))
         drho_particle = Ref(zero(rho_a))
 
-        PointNeighbors.foreach_neighbor(system_coords, neighbor_system_coords,
+        @inbounds PointNeighbors.foreach_neighbor(system_coords, neighbor_system_coords,
                          neighborhood_search, particle) do _, neighbor, pos_diff, distance
             m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
             p_b = @inbounds current_pressure(v_neighbor_system, neighbor_system, neighbor)
@@ -302,8 +302,8 @@ function interact_reassembled!(dv, v_particle_system, u_particle_system,
             # rho_b = @inbounds v_neighbor_system[end, neighbor]
             v_b, rho_b = @inbounds velocity_and_density(v_neighbor_system, neighbor_system, neighbor)
 
-            # grad_kernel = kernel_grad_ds(particle_system, pos_diff, distance)
-            grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance, particle)
+            grad_kernel = kernel_grad_ds(particle_system, pos_diff, distance)
+            # grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance, particle)
 
             # dv_particle += -m_b * (p_a + p_b) / (rho_a * rho_b) * grad_kernel
             # dv_particle[] += -m_b * Base.FastMath.div_fast(p_a + p_b, rho_a * rho_b) * grad_kernel
