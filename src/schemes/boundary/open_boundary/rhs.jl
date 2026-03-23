@@ -23,6 +23,9 @@ function interact!(dv, v_particle_system, u_particle_system,
         rho_a = @inbounds current_density(v_particle_system, particle_system, particle)
         rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
 
+        v_a = @inbounds current_velocity(v_particle_system, particle_system, particle)
+        v_b = @inbounds current_velocity(v_neighbor_system, neighbor_system, neighbor)
+
         grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance, particle)
 
         m_a = @inbounds hydrodynamic_mass(particle_system, particle)
@@ -48,7 +51,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                v_particle_system, v_neighbor_system,
                                                particle, neighbor, pos_diff, distance,
                                                sound_speed, m_a, m_b, rho_a, rho_b,
-                                               grad_kernel)
+                                               v_a, v_b, grad_kernel)
 
         dv_particle = dv_pressure + dv_viscosity_ + dv_pressure_boundary
 

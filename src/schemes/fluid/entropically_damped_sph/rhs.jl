@@ -24,6 +24,9 @@ function interact!(dv, v_particle_system, u_particle_system,
         rho_a = @inbounds current_density(v_particle_system, particle_system, particle)
         rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
 
+        v_a = @inbounds current_velocity(v_particle_system, particle_system, particle)
+        v_b = @inbounds current_velocity(v_neighbor_system, neighbor_system, neighbor)
+
         p_a = @inbounds current_pressure(v_particle_system, particle_system, particle)
         p_b = @inbounds current_pressure(v_neighbor_system, neighbor_system, neighbor)
 
@@ -50,7 +53,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                v_particle_system, v_neighbor_system,
                                                particle, neighbor, pos_diff, distance,
                                                sound_speed, m_a, m_b, rho_a, rho_b,
-                                               grad_kernel)
+                                               v_a, v_b, grad_kernel)
 
         # Extra terms in the momentum equation when using a shifting technique
         dv_tvf = @inbounds dv_shifting(shifting_technique(particle_system),
