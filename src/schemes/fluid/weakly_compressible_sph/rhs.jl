@@ -43,9 +43,10 @@ function interact!(dv, v_particle_system, u_particle_system,
         drho_particle = Ref(zero(rho_a))
 
         # Loop over all neighbors within the kernel cutoff
-        PointNeighbors.foreach_neighbor(system_coords, neighbor_system_coords,
-                                        neighborhood_search,
-                                        particle) do particle, neighbor, pos_diff, distance
+        @inbounds PointNeighbors.foreach_neighbor(system_coords, neighbor_system_coords,
+                                                  neighborhood_search,
+                                                  particle) do particle, neighbor,
+                                                               pos_diff, distance
             # Skip neighbors with the same position because the kernel gradient is zero.
             # Note that `return` only exits the closure, i.e., skips the current neighbor.
             skip_zero_distance(particle_system, distance, almostzero) && return
@@ -140,17 +141,24 @@ end
 end
 
 @propagate_inbounds function velocity_and_density(v, system, particle)
+    (; density_calculator) = system
+
+    return velocity_and_density(v, density_calculator, system, particle)
+end
+
+@propagate_inbounds function velocity_and_density(v, _, system, particle)
     v_particle = current_velocity(v, system, particle)
     rho_particle = current_density(v, system, particle)
 
     return v_particle, rho_particle
 end
 
-# @inline function velocity_and_density(v, ::WeaklyCompressibleSPHSystem{3}, particle)
-#     vrho_a = vloada(Vec{4, eltype(v)}, pointer(v, 4 * (particle - 1) + 1))
-#     a, b, c, d = Tuple(vrho_a)
-#     v_particle = SVector(a, b, c)
-#     rho_particle = d
+@inline function velocity_and_density(v, ::ContinuityDensity,
+                                      ::WeaklyCompressibleSPHSystem{3}, particle)
+    vrho_a = vloada(Vec{4, eltype(v)}, pointer(v, 4 * (particle - 1) + 1))
+    a, b, c, d = Tuple(vrho_a)
+    v_particle = SVector(a, b, c)
+    rho_particle = d
 
-#     return v_particle, rho_particle
-# end
+    return v_particle, rho_particle
+end
