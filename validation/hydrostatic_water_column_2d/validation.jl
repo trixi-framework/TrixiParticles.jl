@@ -59,7 +59,7 @@ function run_simulation(method; n_particles_plate_y, tspan)
                   prefix=pp_filename,
                   extra_callback=pp)
 
-    # @invokelatest is required to Julia 1.12 to work
+    # `@invokelatest` is required with Julia 1.12
     return pp_filename, @invokelatest (@__MODULE__).sol
 end
 
