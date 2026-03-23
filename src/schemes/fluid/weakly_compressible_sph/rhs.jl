@@ -44,6 +44,9 @@ function interact!(dv, v_particle_system, u_particle_system,
         m_a = @inbounds hydrodynamic_mass(particle_system, particle)
         m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
 
+        v_a = @inbounds current_velocity(v_particle_system, particle_system, particle)
+        v_b = @inbounds current_velocity(v_neighbor_system, neighbor_system, neighbor)
+
         # The following call is equivalent to
         #     `p_a = current_pressure(v_particle_system, particle_system, particle)`
         #     `p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)`
@@ -68,7 +71,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                v_particle_system, v_neighbor_system,
                                                particle, neighbor, pos_diff, distance,
                                                sound_speed, m_a, m_b, rho_a, rho_b,
-                                               grad_kernel)
+                                               v_a, v_b, grad_kernel)
 
         # Extra terms in the momentum equation when using a shifting technique
         dv_tvf = @inbounds dv_shifting(shifting_technique(particle_system),
