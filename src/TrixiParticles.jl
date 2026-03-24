@@ -4,7 +4,7 @@ using Reexport: @reexport
 
 using Accessors: @set
 using Adapt: Adapt
-using Base: @propagate_inbounds
+using Base: @propagate_inbounds, FastMath.div_fast
 using CSV: CSV
 using Dates
 using DataFrames: DataFrames, DataFrame

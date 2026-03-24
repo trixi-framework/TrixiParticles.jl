@@ -1,11 +1,13 @@
 @testset verbose=true "Smoothing Kernels" begin
     # Don't show all kernel tests in the final overview
     @testset verbose=false "Integral" begin
-        # All smoothing kernels should integrate to something close to 1
+        # All smoothing kernels should integrate to something close to 1.
+        # We integrate slightly beyond the compact support to verify that the kernel is
+        # correctly evaluating to zero there.
         function integrate_kernel_2d(smk)
             integral_2d_radial,
             _ = quadgk(r -> r * TrixiParticles.kernel(smk, r, 1.0), 0,
-                       TrixiParticles.compact_support(smk, 1.0),
+                       TrixiParticles.compact_support(smk, 1.0) * 1.1,
                        rtol=1e-15)
             return 2 * pi * integral_2d_radial
         end
@@ -13,7 +15,7 @@
         function integrate_kernel_3d(smk)
             integral_3d_radial,
             _ = quadgk(r -> r^2 * TrixiParticles.kernel(smk, r, 1.0), 0,
-                       TrixiParticles.compact_support(smk, 1.0),
+                       TrixiParticles.compact_support(smk, 1.0) * 1.1,
                        rtol=1e-15)
             return 4 * pi * integral_3d_radial
         end
@@ -70,13 +72,19 @@
         # Test 4 different smoothing lengths
         smoothing_lengths = 0.25:0.25:1
 
-        @testset "$kernel_type" for kernel_type in kernels
-            for ndims in 2:3
+        for ndims in 2:3
+            @testset "$kernel_type{$ndims}" for kernel_type in kernels
                 kernel_ = kernel_type{ndims}()
 
                 for h in smoothing_lengths
+                    compact_support_ = TrixiParticles.compact_support(kernel_, h)
                     # Test 11 different radii
-                    radii = 0:(0.1h):(h + eps())
+                    radii = 0:(0.1 * compact_support_):(compact_support_ * 1.01)
+
+                    if kernel_ isa SpikyKernel
+                        # The Spiky kernel is not differentiable at r=0
+                        radii = radii[2:end]
+                    end
 
                     for r in radii
                         # Automatic differentation of `kernel`
