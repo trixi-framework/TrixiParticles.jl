@@ -1,8 +1,8 @@
 # Interaction for open boundaries only with `BoundaryModelDynamicalPressureZhang`
-function interact!(dv, v_particle_system, u_particle_system,
-                   v_neighbor_system, u_neighbor_system,
-                   particle_system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
-                   neighbor_system, semi)
+@inline function interact!(dv, v_particle_system, u_particle_system,
+                           v_neighbor_system, u_neighbor_system,
+                           particle_system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
+                           neighbor_system, semi, nhs, particle)
     (; fluid_system, cache, boundary_model) = particle_system
 
     sound_speed = system_sound_speed(fluid_system)
@@ -11,12 +11,8 @@ function interact!(dv, v_particle_system, u_particle_system,
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
-    foreach_point_neighbor(particle_system, neighbor_system,
-                           system_coords, neighbor_system_coords, semi;
-                           points=each_integrated_particle(particle_system)) do particle,
-                                                                                neighbor,
-                                                                                pos_diff,
-                                                                                distance
+    foreach_neighbor(system_coords, neighbor_system_coords,
+                     nhs, particle) do particle, neighbor, pos_diff, distance
         # `foreach_point_neighbor` makes sure that `particle` and `neighbor` are
         # in bounds of the respective system. For performance reasons, we use `@inbounds`
         # in this hot loop to avoid bounds checking when extracting particle quantities.
@@ -89,17 +85,17 @@ function interact!(dv, v_particle_system, u_particle_system,
     return dv
 end
 
-function pressure_evolution!(dv, particle_system, neighbor_system, v_diff, grad_kernel,
-                             particle, neighbor, pos_diff, distance,
-                             sound_speed, m_a, m_b, p_a, p_b, rho_a, rho_b,
-                             fluid_system::WeaklyCompressibleSPHSystem)
+@inline function pressure_evolution!(dv, particle_system, neighbor_system, v_diff,
+                                     grad_kernel, particle, neighbor, pos_diff, distance,
+                                     sound_speed, m_a, m_b, p_a, p_b, rho_a, rho_b,
+                                     fluid_system::WeaklyCompressibleSPHSystem)
     return dv
 end
 
-function pressure_evolution!(dv, particle_system, neighbor_system, v_diff, grad_kernel,
-                             particle, neighbor, pos_diff, distance,
-                             sound_speed, m_a, m_b, p_a, p_b, rho_a, rho_b,
-                             fluid_system::EntropicallyDampedSPHSystem)
+@inline function pressure_evolution!(dv, particle_system, neighbor_system, v_diff,
+                                     grad_kernel, particle, neighbor, pos_diff, distance,
+                                     sound_speed, m_a, m_b, p_a, p_b, rho_a, rho_b,
+                                     fluid_system::EntropicallyDampedSPHSystem)
     pressure_evolution!(dv, particle_system, neighbor_system, v_diff, grad_kernel,
                         particle, neighbor, pos_diff, distance,
                         sound_speed, m_a, m_b, p_a, p_b, rho_a, rho_b, fluid_system.nu_edac)

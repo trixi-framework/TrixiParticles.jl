@@ -2,9 +2,10 @@
 # in `neighbor_system` and updates `dv` accordingly.
 # It takes into account pressure forces, viscosity, and for `ContinuityDensity` updates
 # the density using the continuity equation.
-function interact!(dv, v_particle_system, u_particle_system,
-                   v_neighbor_system, u_neighbor_system,
-                   particle_system::WeaklyCompressibleSPHSystem, neighbor_system, semi)
+@inline function interact!(dv, v_particle_system, u_particle_system,
+                           v_neighbor_system, u_neighbor_system,
+                           particle_system::WeaklyCompressibleSPHSystem, neighbor_system,
+                           semi, nhs, particle)
     (; density_calculator, correction) = particle_system
 
     sound_speed = system_sound_speed(particle_system)
@@ -20,12 +21,8 @@ function interact!(dv, v_particle_system, u_particle_system,
     # debug_array = zeros(ndims(particle_system), nparticles(particle_system))
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
-    foreach_point_neighbor(particle_system, neighbor_system,
-                           system_coords, neighbor_system_coords, semi;
-                           points=each_integrated_particle(particle_system)) do particle,
-                                                                                neighbor,
-                                                                                pos_diff,
-                                                                                distance
+    foreach_neighbor(system_coords, neighbor_system_coords,
+                     nhs, particle) do particle, neighbor, pos_diff, distance
         # `foreach_point_neighbor` makes sure that `particle` and `neighbor` are
         # in bounds of the respective system. For performance reasons, we use `@inbounds`
         # in this hot loop to avoid bounds checking when extracting particle quantities.

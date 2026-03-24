@@ -15,7 +15,7 @@ struct NBodySystem{NDIMS, ELTYPE <: Real, IC} <: TrixiParticles.AbstractSystem{N
     end
 end
 
-TrixiParticles.timer_name(::NBodySystem) = "nbody"
+@inline TrixiParticles.timer_name(::NBodySystem) = "nbody"
 
 @inline Base.eltype(system::NBodySystem{NDIMS, ELTYPE}) where {NDIMS, ELTYPE} = ELTYPE
 
@@ -40,25 +40,25 @@ function TrixiParticles.update_nhs!(neighborhood_search,
                                           points_moving=(true, true))
 end
 
-function TrixiParticles.compact_support(system::NBodySystem,
-                                        neighbor::NBodySystem)
+@inline function TrixiParticles.compact_support(system::NBodySystem,
+                                                neighbor::NBodySystem)
     # There is no cutoff. All particles interact with each other.
     return Inf
 end
 
-function TrixiParticles.interact!(dv, v_particle_system, u_particle_system,
-                                  v_neighbor_system, u_neighbor_system,
-                                  particle_system::NBodySystem,
-                                  neighbor_system::NBodySystem, semi)
+@inline function TrixiParticles.interact!(dv, v_particle_system, u_particle_system,
+                                          v_neighbor_system, u_neighbor_system,
+                                          particle_system::NBodySystem,
+                                          neighbor_system::NBodySystem,
+                                          semi, nhs, particle)
     (; mass, G) = neighbor_system
 
     system_coords = TrixiParticles.current_coordinates(u_particle_system, particle_system)
     neighbor_coords = TrixiParticles.current_coordinates(u_neighbor_system, neighbor_system)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
-    TrixiParticles.foreach_point_neighbor(particle_system, neighbor_system,
-                                          system_coords, neighbor_coords,
-                                          semi) do particle, neighbor, pos_diff, distance
+    TrixiParticles.foreach_neighbor(system_coords, neighbor_coords,
+                                    nhs, particle) do particle, neighbor, pos_diff, distance
         # No interaction of a particle with itself
         particle_system === neighbor_system && particle === neighbor && return
 
@@ -77,7 +77,7 @@ function TrixiParticles.interact!(dv, v_particle_system, u_particle_system,
     return dv
 end
 
-function energy(v_ode, u_ode, system, semi)
+@inline function energy(v_ode, u_ode, system, semi)
     (; mass) = system
 
     e = zero(eltype(system))
@@ -103,9 +103,9 @@ function energy(v_ode, u_ode, system, semi)
     return e
 end
 
-TrixiParticles.vtkname(system::NBodySystem) = "n-body"
+@inline TrixiParticles.vtkname(system::NBodySystem) = "n-body"
 
-function TrixiParticles.write2vtk!(vtk, v, u, t, system::NBodySystem)
+@inline function TrixiParticles.write2vtk!(vtk, v, u, t, system::NBodySystem)
     (; mass) = system
 
     vtk["velocity"] = v

@@ -49,12 +49,13 @@ semi = Semidiscretization(fluid_system, boundary_system,
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-struct Semidiscretization{BACKEND, S, RU, RV, NS, UCU, IT}
+struct Semidiscretization{TIMERS, S, RU, RV, NS, BACKEND, UCU, IT}
     systems                 :: S
     ranges_u                :: RU
     ranges_v                :: RV
     neighborhood_searches   :: NS
     parallelization_backend :: BACKEND
+    interaction_timers      :: TIMERS
     update_callback_used    :: UCU
     integrate_tlsph         :: IT # `false` if TLSPH integration is decoupled
 
@@ -63,19 +64,20 @@ struct Semidiscretization{BACKEND, S, RU, RV, NS, UCU, IT}
     # This is an internal constructor only used in `test/count_allocations.jl`.
     function Semidiscretization(systems::Tuple, ranges_u, ranges_v, neighborhood_searches,
                                 parallelization_backend::PointNeighbors.ParallelizationBackend,
-                                update_callback_used, integrate_tlsph)
-        new{typeof(parallelization_backend), typeof(systems), typeof(ranges_u),
+                                interaction_timers, update_callback_used, integrate_tlsph)
+        new{typeof(interaction_timers), typeof(systems), typeof(ranges_u),
             typeof(ranges_v), typeof(neighborhood_searches),
-            typeof(update_callback_used),
-            typeof(integrate_tlsph)}(systems, ranges_u, ranges_v,
-                                     neighborhood_searches, parallelization_backend,
+            typeof(parallelization_backend), typeof(update_callback_used),
+            typeof(integrate_tlsph)}(systems, ranges_u, ranges_v, neighborhood_searches,
+                                     parallelization_backend, interaction_timers,
                                      update_callback_used, integrate_tlsph)
     end
 end
 
 function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
                             neighborhood_search=GridNeighborhoodSearch{ndims(first(systems))}(),
-                            parallelization_backend=PolyesterBackend())
+                            parallelization_backend=PolyesterBackend(),
+                            interaction_timers=IndividualTimers())
     systems = filter(system -> !isnothing(system), systems)
 
     if isempty(systems)
@@ -120,9 +122,12 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     integrate_tlsph = Ref(true)
 
     return Semidiscretization(systems, ranges_u, ranges_v, searches,
-                              parallelization_backend, update_callback_used,
-                              integrate_tlsph)
+                              parallelization_backend, interaction_timers,
+                              update_callback_used, integrate_tlsph)
 end
+
+struct IndividualTimers end
+struct CombinedTimers end
 
 # Inline show function e.g. Semidiscretization(neighborhood_search=...)
 function Base.show(io::IO, semi::Semidiscretization)
@@ -681,8 +686,8 @@ end
     return -damping_coefficient * velocity
 end
 
-function system_interaction!(dv_ode, v_ode, u_ode, semi)
-    # Call `interact!` for each pair of systems
+function system_interaction!(dv_ode, v_ode, u_ode,
+                             semi::Semidiscretization{IndividualTimers})
     foreach_system(semi) do system
         foreach_system(semi) do neighbor
             # Construct string for the interactions timer.
@@ -695,7 +700,34 @@ function system_interaction!(dv_ode, v_ode, u_ode, semi)
                 timer_str = ""
             end
 
-            interact!(dv_ode, v_ode, u_ode, system, neighbor, semi, timer_str=timer_str)
+            # Call individual `interact!` for this pair of systems.
+            # On GPUs, this is fully synchronized, so we get a separate timer for each
+            # pair of systems.
+            @trixi_timeit timer() timer_str begin
+                interact!(dv_ode, v_ode, u_ode, system, neighbor, semi)
+            end
+        end
+    end
+
+    return dv_ode
+end
+
+function system_interaction!(dv_ode, v_ode, u_ode,
+                             semi::Semidiscretization{CombinedTimers})
+    foreach_system(semi) do system
+        # Construct string for the interactions timer.
+        # Avoid allocations from string construction when no timers are used.
+        if timeit_debug_enabled()
+            system_index = system_indices(system, semi)
+            timer_str = "$(timer_name(system))$system_index-*"
+        else
+            timer_str = ""
+        end
+
+        # Call a combined `interact!` for all interactions of this system with other systems.
+        # On GPUs, this is fully synchronized, so we get a separate timer for each system.
+        @trixi_timeit timer() timer_str begin
+            interact_combined!(dv_ode, v_ode, u_ode, system, semi)
         end
     end
 
@@ -714,8 +746,9 @@ end
 # Function barrier to make benchmarking interactions easier.
 # One can benchmark, e.g. the fluid-fluid interaction, with:
 # dv_ode, du_ode = copy(sol.u[end]).x; v_ode, u_ode = copy(sol.u[end]).x;
-# @btime TrixiParticles.interact!($dv_ode, $v_ode, $u_ode, $fluid_system, $fluid_system, $semi);
-@inline function interact!(dv_ode, v_ode, u_ode, system, neighbor, semi; timer_str="")
+# semi = ode.p; system = semi.systems[1];
+# @btime TrixiParticles.interact!($dv_ode, $v_ode, $u_ode, $system, $system, $semi);
+function interact!(dv_ode, v_ode, u_ode, system, neighbor, semi)
     dv = wrap_v(dv_ode, system, semi)
     v_system = wrap_v(v_ode, system, semi)
     u_system = wrap_u(u_ode, system, semi)
@@ -723,8 +756,44 @@ end
     v_neighbor = wrap_v(v_ode, neighbor, semi)
     u_neighbor = wrap_u(u_ode, neighbor, semi)
 
-    @trixi_timeit timer() timer_str begin
-        interact!(dv, v_system, u_system, v_neighbor, u_neighbor, system, neighbor, semi)
+    nhs = get_neighborhood_search(system, neighbor, semi)
+
+    # Loop over all particles that are integrated for this system, i.e., all particles
+    # for which `dv` has entries.
+    @threaded semi for particle in each_integrated_particle(system)
+        interact!(dv, v_system, u_system, v_neighbor, u_neighbor,
+                  system, neighbor, semi, nhs, particle)
+    end
+end
+
+# Benchmark the combined interaction for a system with:
+# dv_ode, du_ode = copy(sol.u[end]).x; v_ode, u_ode = copy(sol.u[end]).x;
+# semi = ode.p; system = semi.systems[1];
+# @btime TrixiParticles.interact_combined!($dv_ode, $v_ode, $u_ode, $system, $semi);
+function interact_combined!(dv_ode, v_ode, u_ode, system, semi; synchronize=true)
+    dv = wrap_v(dv_ode, system, semi)
+    v_system = wrap_v(v_ode, system, semi)
+    u_system = wrap_u(u_ode, system, semi)
+
+    # Create an iterator combining systems with their wrapped arrays and NHS.
+    # Note that we cannot use `get_neighborhood_search` because this will return
+    # a NHS of a different type for TLSPH-TLSPH interactions, making the iterator tuple
+    # type-unstable. The different self-interaction NHS for TLSPH is handled
+    # by the `interact!` function for TLSPH.
+    system_index = system_indices(system, semi)
+    f(neighbor) = (neighbor, wrap_v(v_ode, neighbor, semi), wrap_u(u_ode, neighbor, semi),
+                   semi.neighborhood_searches[system_index][system_indices(neighbor, semi)])
+    iterator = map(f, semi.systems)
+
+    # Loop over all particles that are integrated for this system, i.e., all particles
+    # for which `dv` has entries.
+    @threaded semi for particle in each_integrated_particle(system)
+        # Now loop over all neighbor systems to avoid separate loops/kernels
+        # for each pair of systems.
+        foreach_noalloc(iterator) do (neighbor, v_neighbor, u_neighbor, nhs)
+            interact!(dv, v_system, u_system, v_neighbor, u_neighbor,
+                      system, neighbor, semi, nhs, particle)
+        end
     end
 end
 

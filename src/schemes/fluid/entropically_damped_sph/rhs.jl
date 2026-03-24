@@ -1,8 +1,8 @@
 # Fluid-fluid and fluid-boundary interaction
-function interact!(dv, v_particle_system, u_particle_system,
-                   v_neighbor_system, u_neighbor_system,
-                   particle_system::EntropicallyDampedSPHSystem,
-                   neighbor_system, semi)
+@inline function interact!(dv, v_particle_system, u_particle_system,
+                           v_neighbor_system, u_neighbor_system,
+                           particle_system::EntropicallyDampedSPHSystem,
+                           neighbor_system, semi, nhs, particle)
     (; sound_speed, density_calculator, correction, nu_edac) = particle_system
 
     system_coords = current_coordinates(u_particle_system, particle_system)
@@ -12,12 +12,8 @@ function interact!(dv, v_particle_system, u_particle_system,
     surface_tension_b = surface_tension_model(neighbor_system)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
-    foreach_point_neighbor(particle_system, neighbor_system,
-                           system_coords, neighbor_coords, semi;
-                           points=each_integrated_particle(particle_system)) do particle,
-                                                                                neighbor,
-                                                                                pos_diff,
-                                                                                distance
+    foreach_neighbor(system_coords, neighbor_coords,
+                     nhs, particle) do particle, neighbor, pos_diff, distance
         # `foreach_point_neighbor` makes sure that `particle` and `neighbor` are
         # in bounds of the respective system. For performance reasons, we use `@inbounds`
         # in this hot loop to avoid bounds checking when extracting particle quantities.
