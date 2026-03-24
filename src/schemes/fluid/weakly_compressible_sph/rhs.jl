@@ -144,6 +144,12 @@ end
 end
 
 @propagate_inbounds function velocity_and_density(v, system, particle)
+    # For other systems, fall back to the default implementation
+    return velocity_and_density(v, nothing, system, particle)
+end
+
+@propagate_inbounds function velocity_and_density(v, system::WeaklyCompressibleSPHSystem,
+                                                  particle)
     (; density_calculator) = system
 
     return velocity_and_density(v, density_calculator, system, particle)
