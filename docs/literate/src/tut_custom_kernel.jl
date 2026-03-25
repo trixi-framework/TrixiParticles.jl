@@ -65,7 +65,7 @@ struct MyGaussianKernel <: TrixiParticles.AbstractSmoothingKernel{2} end
 # and `TrixiParticles.compact_support`, which defines the compact support of the
 # kernel in relation to the smoothing length.
 # The latter is relevant for determining the search radius of the neighborhood search.
-function TrixiParticles.kernel(kernel::MyGaussianKernel, r, h)
+function TrixiParticles.kernel(kernel::MyGaussianKernel, r::Real, h)
     q = r / h
 
     if q < 2
@@ -75,7 +75,7 @@ function TrixiParticles.kernel(kernel::MyGaussianKernel, r, h)
     return 0.0
 end
 
-function TrixiParticles.kernel_deriv(kernel::MyGaussianKernel, r, h)
+function TrixiParticles.kernel_deriv(kernel::MyGaussianKernel, r::Real, h)
     q = r / h
 
     if q < 2
