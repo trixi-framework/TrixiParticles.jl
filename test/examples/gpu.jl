@@ -38,6 +38,10 @@ end
                     r"┌ Info: The desired tank length in y-direction.*\n",
                     r"└ New tank length in y-direction.*\n"
                 ]
+                # Since Julia 1.12 has issues with world age, we need to use `@invokelatest`
+                # everywhere here. For some reason, this is only necessary in this and the
+                # next test, but not in the other tests in this file.
+                # Perhaps because this is inside an `if` block?
                 @test (@invokelatest (@__MODULE__).semi).neighborhood_searches[1, 1].cell_list isa
                       FullGridCellList
                 @test (@invokelatest (@__MODULE__).sol).retcode ==
@@ -69,6 +73,7 @@ end
                     r"┌ Info: The desired tank length in y-direction .*\n",
                     r"└ New tank length in y-direction.*\n"
                 ]
+                # See the comment in the previous test about `@invokelatest`
                 @test (@invokelatest (@__MODULE__).semi).neighborhood_searches[1, 1].cell_list isa
                       FullGridCellList
                 @test (@invokelatest (@__MODULE__).sol).retcode ==
