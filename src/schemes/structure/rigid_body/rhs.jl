@@ -28,53 +28,9 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::RigidBodySystem,
                    neighbor_system::AbstractFluidSystem, semi)
-    sound_speed = system_sound_speed(neighbor_system)
-    (; force_per_particle) = particle_system
-
-    system_coords = current_coordinates(u_particle_system, particle_system)
-    neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
-
-    # Loop over all pairs of particles and neighbors within the kernel cutoff
-    foreach_point_neighbor(particle_system, neighbor_system,
-                           system_coords, neighbor_coords, semi;
-                           points=each_integrated_particle(particle_system)) do particle,
-                                                                                neighbor,
-                                                                                pos_diff,
-                                                                                distance
-
-        # Only consider particles with a distance > 0.
-        # See `src/general/smoothing_kernels.jl` for more details.
-        distance^2 < eps(initial_smoothing_length(particle_system)^2) && return
-
-        grad_kernel = smoothing_kernel_grad(neighbor_system, pos_diff, distance, neighbor)
-
-        m_b = hydrodynamic_mass(neighbor_system, neighbor)
-
-        rho_a = current_density(v_particle_system, particle_system, particle)
-        rho_b = current_density(v_neighbor_system, neighbor_system, neighbor)
-
-        dv_fs = structure_fluid_interaction(v_particle_system,
-                                            v_neighbor_system,
-                                            particle_system,
-                                            neighbor_system,
-                                            particle,
-                                            neighbor,
-                                            pos_diff,
-                                            distance,
-                                            sound_speed,
-                                            grad_kernel, m_b, rho_a, rho_b)
-
-        for dim in eachindex(dv_fs)
-            @inbounds force_per_particle[dim, particle] += dv_fs[dim] * m_b
-        end
-
-        structure_fluid_continuity!(dv, v_particle_system, v_neighbor_system,
-                                    particle, neighbor, m_b, rho_a, rho_b,
-                                    particle_system, neighbor_system,
-                                    grad_kernel)
-    end
-
-    return dv
+    return interact_structure_fluid!(dv, v_particle_system, u_particle_system,
+                                     v_neighbor_system, u_neighbor_system,
+                                     particle_system, neighbor_system, semi)
 end
 
 # Reduce the accumulated fluid forces to rigid-body resultants and apply the corresponding

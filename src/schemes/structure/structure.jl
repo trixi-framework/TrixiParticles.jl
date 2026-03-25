@@ -1,5 +1,23 @@
 # Shared structure-fluid interaction helpers used by multiple structure schemes.
 
+@inline function accumulate_structure_fluid_pair!(dv, dv_fs,
+                                                  particle_system::TotalLagrangianSPHSystem,
+                                                  particle, m_b)
+    material_mass = @inbounds particle_system.mass[particle]
+    for dim in eachindex(dv_fs)
+        @inbounds dv[dim, particle] += dv_fs[dim] * m_b / material_mass
+    end
+end
+
+@inline function accumulate_structure_fluid_pair!(dv, dv_fs,
+                                                  particle_system::RigidBodySystem,
+                                                  particle, m_b)
+    force_per_particle = particle_system.force_per_particle
+    for dim in eachindex(dv_fs)
+        @inbounds force_per_particle[dim, particle] += dv_fs[dim] * m_b
+    end
+end
+
 @propagate_inbounds function structure_fluid_interaction(v_particle_system,
                                                          v_neighbor_system,
                                                          particle_system::AbstractStructureSystem,
@@ -44,20 +62,75 @@
     return dv_fs
 end
 
-@inline function structure_fluid_continuity!(dv, v_particle_system, v_neighbor_system,
-                                             particle, neighbor, m_b, rho_a, rho_b,
-                                             particle_system::AbstractStructureSystem,
-                                             neighbor_system::AbstractFluidSystem,
-                                             grad_kernel)
+@propagate_inbounds function interact_structure_fluid!(dv, v_particle_system,
+                                                       u_particle_system,
+                                                       v_neighbor_system,
+                                                       u_neighbor_system,
+                                                       particle_system::Union{RigidBodySystem,
+                                                                              TotalLagrangianSPHSystem},
+                                                       neighbor_system::AbstractFluidSystem,
+                                                       semi)
+    sound_speed = system_sound_speed(neighbor_system)
+    system_coords = current_coordinates(u_particle_system, particle_system)
+    neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
+
+    # Loop over all pairs of particles and neighbors within the kernel cutoff.
+    foreach_point_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
+                           semi;
+                           points=each_integrated_particle(particle_system)) do particle,
+                                                                                neighbor,
+                                                                                pos_diff,
+                                                                                distance
+        # Only consider particles with a distance > 0.
+        # See `src/general/smoothing_kernels.jl` for more details.
+        distance^2 < eps(initial_smoothing_length(particle_system)^2) && return
+
+        grad_kernel = smoothing_kernel_grad(neighbor_system, pos_diff, distance, neighbor)
+
+        m_b = hydrodynamic_mass(neighbor_system, neighbor)
+
+        rho_a = current_density(v_particle_system, particle_system, particle)
+        rho_b = current_density(v_neighbor_system, neighbor_system, neighbor)
+
+        dv_fs = structure_fluid_interaction(v_particle_system,
+                                            v_neighbor_system,
+                                            particle_system,
+                                            neighbor_system,
+                                            particle,
+                                            neighbor,
+                                            pos_diff,
+                                            distance,
+                                            sound_speed,
+                                            grad_kernel, m_b, rho_a, rho_b)
+
+        accumulate_structure_fluid_pair!(dv, dv_fs, particle_system, particle, m_b)
+
+        continuity_equation!(dv, v_particle_system, v_neighbor_system,
+                             particle, neighbor, pos_diff, distance,
+                             m_b, rho_a, rho_b,
+                             particle_system, neighbor_system,
+                             grad_kernel)
+    end
+
     return dv
 end
 
-@inline function structure_fluid_continuity!(dv, v_particle_system, v_neighbor_system,
-                                             particle, neighbor, m_b, rho_a, rho_b,
-                                             particle_system::Union{RigidBodySystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
-                                                                    TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}}},
-                                             neighbor_system::AbstractFluidSystem,
-                                             grad_kernel)
+@inline function continuity_equation!(dv, v_particle_system, v_neighbor_system,
+                                      particle, neighbor, pos_diff, distance,
+                                      m_b, rho_a, rho_b,
+                                      particle_system::AbstractStructureSystem,
+                                      neighbor_system::AbstractFluidSystem,
+                                      grad_kernel)
+    return dv
+end
+
+@inline function continuity_equation!(dv, v_particle_system, v_neighbor_system,
+                                      particle, neighbor, pos_diff, distance,
+                                      m_b, rho_a, rho_b,
+                                      particle_system::Union{RigidBodySystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
+                                                             TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}}},
+                                      neighbor_system::AbstractFluidSystem,
+                                      grad_kernel)
     v_diff = current_velocity(v_particle_system, particle_system, particle) -
              current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
