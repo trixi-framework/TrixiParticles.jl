@@ -9,7 +9,7 @@
                                 buffer_size=nothing,
                                 correction=nothing, source_terms=nothing,
                                 surface_tension=nothing, surface_normal_method=nothing,
-                                reference_particle_spacing=0.0))
+                                reference_particle_spacing=0.0, color_value=1))
 
 System for particles of a fluid.
 The weakly compressible SPH (WCSPH) scheme is used, wherein a stiff equation of state
@@ -58,7 +58,10 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
                                 (default: no surface normal method or `ColorfieldSurfaceNormal()` if a surface_tension model is used)
 - `reference_particle_spacing`: The reference particle spacing used for weighting values at the boundary,
                                 which currently is only needed when using surface tension.
-- `color_value`:                The value used to initialize the color of particles in the system.
+- `color_value`:                Integer label used for calculation of surface normals.
+                                Currently this is only used together with [`BoundaryModelDummyParticles`](@ref) and
+                                [`ColorfieldSurfaceNormal`](@ref): fluid-boundary normal evaluation
+                                reads the resulting boundary colorfield to detect wall contact.
 """
 struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K, V, DD, COR,
                                    PF, SC, ST, B, SRFT, SRFN, PR,
@@ -150,6 +153,7 @@ function WeaklyCompressibleSPHSystem(initial_condition, density_calculator, stat
              create_cache_refinement(initial_condition, particle_refinement,
                                      smoothing_length)...,
              create_cache_shifting(initial_condition, shifting_technique)...,
+             # Per-system color tag for colorfield surface-normal logic and VTK output.
              color=Int(color_value))
 
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`

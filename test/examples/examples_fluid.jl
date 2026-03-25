@@ -302,7 +302,7 @@
             r"┌ Info: The desired tank length in y-direction .*\n",
             r"└ New tank length in y-direction.*\n"
         ]
-        @test semi.neighborhood_searches[1][1].cell_list isa FullGridCellList
+        @test semi.neighborhood_searches[1, 1].cell_list isa FullGridCellList
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol) == 0
     end
