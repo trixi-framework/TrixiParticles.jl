@@ -26,7 +26,7 @@ else
 end
 
 # Load package before the tests to avoid world age problems with Julia 1.12
-using OrdinaryDiffEq
+using OrdinaryDiffEq: ReturnCode
 
 @testset verbose=true "Examples $TRIXIPARTICLES_TEST_" begin
     @testset verbose=true "Fluid" begin
