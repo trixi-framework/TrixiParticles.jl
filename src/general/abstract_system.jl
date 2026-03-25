@@ -138,7 +138,7 @@ end
 # the kernel support, call `skip_zero_distance` and then `smoothing_kernel_grad_unsafe`.
 @inline function smoothing_kernel_grad(system, pos_diff, distance, particle)
     h = smoothing_length(system, particle)
-    compact_support_ = compact_support(kernel, h)
+    compact_support_ = compact_support(system_smoothing_kernel(system), h)
 
     # Note that `sqrt(eps(h^2)) != eps(h)`
     if distance > compact_support_ || skip_zero_distance(system, distance, sqrt(eps(h^2)))

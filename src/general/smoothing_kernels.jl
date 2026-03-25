@@ -3,8 +3,6 @@ abstract type AbstractSmoothingKernel{NDIMS} end
 @inline Base.ndims(::AbstractSmoothingKernel{NDIMS}) where {NDIMS} = NDIMS
 
 @inline function kernel_grad(kernel, pos_diff, distance, h)
-    compact_support_ = compact_support(kernel, h)
-
     # For `distance == 0`, the analytical gradient is zero, but the code divides by zero.
     # To account for rounding errors, we check if `distance` is almost zero.
     # Since the coordinates are in the order of the smoothing length `h`,
@@ -39,11 +37,13 @@ end
     # Zero out result if outside of compact support or if `r` is almost zero
     # (to avoid division by zero in the unsafe version).
     compact_support_ = compact_support(kernel, h)
-    condition = r < compact_support_ && r^2 > eps(h^2)
+    if r < compact_support_ && r^2 > eps(h^2)
+        # The unsafe version returns the kernel derivative divided by `r`,
+        # so we multiply it by `r` to get the actual derivative.
+        return kernel_deriv_div_r_unsafe(kernel, r, h) * r
+    end
 
-    # The unsafe version returns the kernel derivative divided by `r`,
-    # so we multiply it by `r` to get the actual derivative.
-    return ifelse(condition, kernel_deriv_div_r_unsafe(kernel, r, h) * r, zero(r))
+    return zero(r)
 end
 
 @inline function skip_zero_distance(correction, system, distance, almostzero)
@@ -286,7 +286,7 @@ struct SchoenbergQuarticSplineKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} en
 end
 
 @inline function kernel_deriv_div_r_unsafe(kernel::SchoenbergQuarticSplineKernel,
-                                                            r::Real, h)
+                                           r::Real, h)
     h_inv = 1 / h
     q = r * h_inv
 
