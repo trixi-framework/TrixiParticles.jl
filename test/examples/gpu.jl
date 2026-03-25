@@ -25,9 +25,6 @@ else
     error("Unknown GPU backend: $TRIXIPARTICLES_TEST_")
 end
 
-# Load package before the tests to avoid world age problems with Julia 1.12
-using OrdinaryDiffEq: ReturnCode
-
 @testset verbose=true "Examples $TRIXIPARTICLES_TEST_" begin
     @testset verbose=true "Fluid" begin
         @trixi_testset "fluid/dam_break_2d_gpu.jl Float64" begin
@@ -43,7 +40,8 @@ using OrdinaryDiffEq: ReturnCode
                 ]
                 @test (@invokelatest (@__MODULE__).semi).neighborhood_searches[1, 1].cell_list isa
                       FullGridCellList
-                @test (@invokelatest (@__MODULE__).sol).retcode == ReturnCode.Success
+                @test (@invokelatest (@__MODULE__).sol).retcode ==
+                      (@invokelatest (@__MODULE__).ReturnCode).Success
                 v_ode, u_ode = (@invokelatest (@__MODULE__).sol).u[end].x
                 backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
                 @test backend == Main.parallelization_backend
@@ -73,7 +71,8 @@ using OrdinaryDiffEq: ReturnCode
                 ]
                 @test (@invokelatest (@__MODULE__).semi).neighborhood_searches[1, 1].cell_list isa
                       FullGridCellList
-                @test (@invokelatest (@__MODULE__).sol).retcode == ReturnCode.Success
+                @test (@invokelatest (@__MODULE__).sol).retcode ==
+                      (@invokelatest (@__MODULE__).ReturnCode).Success
                 v_ode, u_ode = (@invokelatest (@__MODULE__).sol).u[end].x
                 backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
                 @test backend == Main.parallelization_backend
