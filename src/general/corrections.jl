@@ -337,31 +337,36 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
         v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
 
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
+        almostzero = sqrt(eps(compact_support(system, neighbor_system)^2))
 
         foreach_point_neighbor(system, neighbor_system, coordinates, neighbor_coords,
                                semi) do particle, neighbor, pos_diff, distance
-            volume = hydrodynamic_mass(neighbor_system, neighbor) /
-                     current_density(v_neighbor_system, neighbor_system, neighbor)
-            smoothing_length_ = smoothing_length(system, particle)
-
-            function compute_grad_kernel(correction, smoothing_kernel, pos_diff, distance,
-                                         smoothing_length_, system, particle)
-                return smoothing_kernel_grad(system, pos_diff, distance, particle)
+            function kernel_grad_local(correction, smoothing_kernel, pos_diff, distance,
+                                       smoothing_length_, system, particle)
+                return smoothing_kernel_grad_unsafe(system, pos_diff, distance, particle)
             end
 
             # Compute gradient of corrected kernel
-            function compute_grad_kernel(correction::MixedKernelGradientCorrection,
-                                         smoothing_kernel, pos_diff, distance,
-                                         smoothing_length_, system, particle)
-                return corrected_kernel_grad(smoothing_kernel, pos_diff, distance,
-                                             smoothing_length_, KernelCorrection(), system,
-                                             particle)
+            function kernel_grad_local(correction::MixedKernelGradientCorrection,
+                                       smoothing_kernel, pos_diff, distance,
+                                       smoothing_length_, system, particle)
+                return corrected_kernel_grad_unsafe(smoothing_kernel, pos_diff, distance,
+                                                    smoothing_length_, KernelCorrection(),
+                                                    system, particle)
             end
 
-            grad_kernel = compute_grad_kernel(correction, smoothing_kernel, pos_diff,
-                                              distance, smoothing_length_, system, particle)
+            # Skip neighbors with the same position if the kernel gradient is zero.
+            # Note that `return` only exits the closure, i.e., skips the current neighbor.
+            skip_zero_distance(correction, system, distance, almostzero) && return
 
-            iszero(grad_kernel) && return
+            # Now that we know that `distance` is not zero, we can safely call the unsafe
+            # version of the kernel gradient to avoid redundant zero checks.
+            smoothing_length_ = smoothing_length(system, particle)
+            grad_kernel = kernel_grad_local(correction, smoothing_kernel, pos_diff,
+                                            distance, smoothing_length_, system, particle)
+
+            volume = hydrodynamic_mass(neighbor_system, neighbor) /
+                     current_density(v_neighbor_system, neighbor_system, neighbor)
 
             L = volume * grad_kernel * pos_diff'
 
