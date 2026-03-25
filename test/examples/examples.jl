@@ -127,7 +127,8 @@
                                              E=1e7, # Stiffer plate
                                              maxiters=500) [
                 r"\[ Info: To create the self-interaction neighborhood search.*\n",
-                r"┌ Warning: Interrupted. Larger maxiters is needed.*\n",
+                "┌ Warning: Verbosity toggle: max_iters",
+                r".*Interrupted. Larger maxiters is needed.*\n",
                 r"└ @ SciMLBase.*\n"
             ]
             @test sol.retcode == ReturnCode.MaxIters
@@ -182,7 +183,8 @@
                                              maxiters=500,
                                              extra_callback=split_integration) [
                 r"\[ Info: To create the self-interaction neighborhood search.*\n",
-                "┌ Warning: Instability detected. Aborting\n",
+                "┌ Warning: Verbosity toggle: instability",
+                r".*Instability detected. Aborting\n",
                 r".*dt was forced below floating point epsilon.*\n",
                 r"└ @ SciMLBase.*\n"
             ]
