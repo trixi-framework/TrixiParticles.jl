@@ -442,10 +442,10 @@ end
 end
 
 @propagate_inbounds function apply_state_equation!(boundary_model::BoundaryModelDummyParticles{<:Any,
-                                                                                   <:Any,
-                                                                                   <:Any,
-                                                                                   Nothing},
-                                       density, particle)
+                                                                                               <:Any,
+                                                                                               <:Any,
+                                                                                               Nothing},
+                                                   density, particle)
     # Contact-only wall setups can reuse dummy particles for rigid contact without
     # configuring a hydrodynamic state equation. In that case, keep the auxiliary wall
     # pressure at zero because it is only meaningful for fluid-coupled updates.
