@@ -445,7 +445,17 @@ end
 
 function calculate_dt(v_ode, u_ode, cfl_number, system::RigidBodySystem, semi)
     spacing = particle_spacing(system, first(eachparticle(system)))
-    contact_dt = cfl_number * contact_time_step(system, semi)
+    contact_dt = Inf
+
+    # Contact stability depends on the most restrictive *actual* rigid contact partner of
+    # this body.
+    foreach_system(semi) do neighbor
+        neighbor === system && return
+
+        if neighbor isa Union{RigidBodySystem, WallBoundarySystem}
+            contact_dt = min(contact_dt, cfl_number * contact_time_step(system, neighbor))
+        end
+    end
 
     v = wrap_v(v_ode, system, semi)
     u = wrap_u(u_ode, system, semi)
@@ -463,8 +473,7 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::RigidBodySystem, semi)
     radius = rotational_kinematics.max_radius
     angular_speed = norm(rotational_kinematics.angular_velocity)
     # The rigid-body CFL estimate is evaluated from the current state before the
-    # force/torque resultants are refreshed, so use only kinematic contributions
-    # that can be reconstructed directly from `(u, v)`.
+    # force/torque resultants are refreshed.
     angular_acceleration = norm(rotational_kinematics.gyroscopic_acceleration)
     translational_acceleration = zero(center_of_mass_velocity)
 
