@@ -30,7 +30,7 @@ of fluid to solid particles is large enough (e.g. 100:1 or more).
 - `stage_coupling=false`:   If `false`, the TLSPH systems are only updated between full
                             time steps of the main integrator.
                             If `true`, the TLSPH systems are integrated to the intermediate
-                            stage times of the main integrator as well. The sub-integrator
+                            stage times of the main integrator. The sub-integrator
                             integrates from the previous fluid stage time to the next stage
                             time, using the intermediate stage predictions for the fluid
                             state. This strategy is highly efficient (no sub-steps have to be
@@ -47,17 +47,17 @@ of fluid to solid particles is large enough (e.g. 100:1 or more).
                             time integration schemes that have monotonically increasing
                             stage times and no stage time smaller than the time
                             of the previous full step.
-- `predict_positions=true`: The force on the structure due to the fluid is kept constant
+- `predict_positions=true`: If `false`, use the old structure state together with the new
+                            fluid state. If `true`, predict the structure positions for the
+                            fluid force calculation.
+                            The force on the structure due to the fluid is kept constant
                             during one sub-integration call. When computing this force,
                             the new fluid state and the old structure state are available.
                             To avoid inconsistencies and improve accuracy (not stability),
                             we can predict the structure positions at the new time with
                             a simple Euler step,
                             ``u \leftarrow u + v\,(t_{\mathrm{new}} - t_{\mathrm{previous}})``,
-                            only for this fluid force calculation.
-                            If `false`, use the old structure state together with the new
-                            fluid state. If `true`, predict the structure positions for the
-                            fluid force calculation.
+                            which is only used for the fluid force calculation.
 - `kwargs...`:              Additional keyword arguments passed to the integrator
                             of the TLSPH systems. Use this for callbacks like the
                             [`StepsizeCallback`](@ref) for choosing the sub-integration

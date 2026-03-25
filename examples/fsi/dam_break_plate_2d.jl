@@ -37,6 +37,7 @@ sound_speed = 20 * sqrt(gravity * initial_fluid_size[2])
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1)
 
+# `coordinates_eltype=Float64` is the default and can be overwritten with `trixi_include`
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
                        n_layers=boundary_layers, spacing_ratio=spacing_ratio,
                        acceleration=(0.0, -gravity), state_equation=state_equation,

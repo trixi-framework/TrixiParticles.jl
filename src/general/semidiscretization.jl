@@ -307,6 +307,10 @@ function semidiscretize(semi, tspan; reset_threads=true)
     # Reset callback flag that will be set by the `UpdateCallback`
     semi_new.update_callback_used[] = false
 
+    # Store the semidiscretization in `p.semi` to make it accessible during time integration.
+    # In case that a `SplitIntegrationCallback` is used, we will also need to store
+    # extra split integration data in `p`, for which we create a placeholder (`nothing`)
+    # here, since we cannot change `p` from within the callback (only its contents).
     p = @NamedTuple{semi::typeof(semi_new), split_integration_data::Any}((semi_new,
                                                                           nothing))
     return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode, tspan, p)
