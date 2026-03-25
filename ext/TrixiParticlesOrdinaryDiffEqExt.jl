@@ -62,9 +62,10 @@ function OrdinaryDiffEqCore.alg_cache(alg::SymplecticPositionVerlet, u, rate_pro
                                       ::Type{uEltypeNoUnits},
                                       ::Type{uBottomEltypeNoUnits}, ::Type{tTypeNoUnits},
                                       uprev, uprev2, f, t, dt, reltol, p, calck,
-                                      ::Val{true}, verbose) where {uEltypeNoUnits,
-                                                                   uBottomEltypeNoUnits,
-                                                                   tTypeNoUnits}
+                                      ::Val{true},
+                                      verbose) where {uEltypeNoUnits,
+                                                      uBottomEltypeNoUnits,
+                                                      tTypeNoUnits}
     tmp = zero(u)
     k = zero(rate_prototype)
     fsalfirst = zero(rate_prototype)
