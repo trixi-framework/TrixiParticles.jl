@@ -445,6 +445,8 @@ end
 
 function calculate_dt(v_ode, u_ode, cfl_number, system::RigidBodySystem, semi)
     spacing = particle_spacing(system, first(eachparticle(system)))
+    contact_dt = Inf
+
     # Contact stability depends on the most restrictive *actual* rigid contact partner of
     # this body.
     foreach_system(semi) do neighbor
