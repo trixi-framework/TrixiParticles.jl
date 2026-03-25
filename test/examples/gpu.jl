@@ -25,6 +25,9 @@ else
     error("Unknown GPU backend: $TRIXIPARTICLES_TEST_")
 end
 
+# Load package before the tests to avoid world age problems with Julia 1.12
+using OrdinaryDiffEq
+
 @testset verbose=true "Examples $TRIXIPARTICLES_TEST_" begin
     @testset verbose=true "Fluid" begin
         @trixi_testset "fluid/dam_break_2d_gpu.jl Float64" begin
