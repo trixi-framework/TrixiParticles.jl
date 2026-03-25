@@ -103,19 +103,21 @@ function create_neighborhood_search(neighborhood_search, system::TotalLagrangian
                                     nparticles(neighbor))
 end
 
-# === Neighborhood search lookup ===
+# === Neighborhood search handlers ===
+# Base type for all neighborhood search handlers. Handlers manage how neighborhood 
+# searches are stored and retrieved for different interacting systems.
 abstract type AbstractNHSHandler end
 
+# Handler that stores a distinct neighborhood search for every possible pair of systems.
+# Best suited for standard neighborhood searches where each pair has a fixed search radius.
 struct PairsNHSHandler{NHS} <: AbstractNHSHandler
     neighborhood_searches::NHS
 end
 
-function create_neighborhood_search_handler(::Type{<:PairsNHSHandler},
-                                            neighborhood_search, systems)
+function PairsNHSHandler(nhs, systems)
     # Create a tuple of n neighborhood searches for each of the n systems.
     # We will need one neighborhood search for each pair of systems.
-    searches = Tuple(Tuple(create_neighborhood_search(neighborhood_search,
-                                                      system, neighbor)
+    searches = Tuple(Tuple(create_neighborhood_search(nhs, system, neighbor)
                            for neighbor in systems)
                      for system in systems)
 
@@ -126,15 +128,48 @@ function get_neighborhood_search(handler::PairsNHSHandler, system_index, neighbo
     return handler.neighborhood_searches[system_index][neighbor_index]
 end
 
+# Handler specifically designed for grid-based neighborhood searches that need to operate
+# with multiple, pre-defined unique search radii per system.
+struct GridNHSHandler{SI, NHS} <: AbstractNHSHandler
+    search_radii::SI
+    neighborhood_searches::NHS
+end
+
+function GridNHSHandler(nhs::PointNeighbors.AbstractNeighborhoodSearch, systems)
+    # Find a list of search radii that will be requested for each system
+    search_radii = Tuple([compact_support(system, neighbor) for neighbor in systems]
+                         for system in systems)
+    search_radii = Tuple.(sort.(unique.(search_radii)))
+
+    # For each system, create a neighborhood search for each unique search radius
+    searches = Tuple(Tuple(copy_neighborhood_search(nhs, search_radius, nparticles(system))
+                           for search_radius in
+                               search_radii[system_indices(system, systems)])
+                     for system in systems)
+
+    return GridNHSHandler{typeof(search_radii), typeof(searches)}(search_radii, searches)
+end
+
+function get_neighborhood_search(handler::GridNHSHandler, system_index, neighbor_index,
+                                 search_radius)
+    # Find the index of the search radius in the list of search radii for this system
+    search_radii = handler.search_radii[neighbor_index]
+    idx = searchsortedfirst(SVector(search_radii), search_radius - eps(search_radius))
+    # Return the neighborhood search at that index
+    return handler.neighborhood_searches[neighbor_index][idx]
+end
+
+# Handler that uses `VariableSearchRadiusNHS` to support different 
+# compact supports for the same system.
 struct VariableNHSHandler{NHS} <: AbstractNHSHandler
     neighborhood_searches::NHS
 end
 
-function create_neighborhood_search_handler(::Type{<:VariableNHSHandler}, nhs, systems)
+function VariableNHSHandler(nhs, systems)
     # Find a list of search radii that will be requested for each system
     search_radii = Tuple([compact_support(system, neighbor) for neighbor in systems]
                          for system in systems)
-    search_radii = Tuple.(unique.(search_radii))
+    search_radii = Tuple.(sort.(unique.(search_radii)))
 
     # For each system, create a neighborhood search for each unique search radius
     searches = Tuple(VariableSearchRadiusNHS(nhs,
@@ -143,7 +178,6 @@ function create_neighborhood_search_handler(::Type{<:VariableNHSHandler}, nhs, s
                                              nparticles(system))
                      for system in systems)
 
-    # For each system, create a neighborhood search for each unique search radius
     return VariableNHSHandler(searches)
 end
 
@@ -152,6 +186,9 @@ function get_neighborhood_search(handler::VariableNHSHandler, system_index, neig
     handler.neighborhood_searches[neighbor_index]
 end
 
+# === Variable search radius neighborhood search ===
+# A wrapper around multiple neighborhood searches that share the same points 
+# but operate using different search radii. 
 struct VariableSearchRadiusNHS{SR, NHS} <: PointNeighbors.AbstractNeighborhoodSearch
     search_radii          :: SR
     neighborhood_searches :: NHS
@@ -168,22 +205,25 @@ end
 
 @inline requires_update(::VariableSearchRadiusNHS) = (false, true)
 
-# TODO
 @inline function initialize!(search::VariableSearchRadiusNHS, x, y;
                              parallelization_backend=default_backend(x),
                              eachindex_y=axes(y, 2))
+    (; neighborhood_searches) = search
+    initialize!.(neighborhood_searches)
+
     return search
 end
 
-# TODO
 @inline function update!(search::VariableSearchRadiusNHS, x, y;
                          points_moving=(true, true),
                          parallelization_backend=default_backend(x),
                          eachindex_y=axes(y, 2))
+    (; neighborhood_searches) = search
+    update!.(neighborhood_searches)
+
     return search
 end
 
-# Create a copy of a neighborhood search but with a different search radius
 function PointNeighbors.copy_neighborhood_search(nhs::VariableSearchRadiusNHS,
                                                  search_radius, x, y)
     search_radii = Tuple(PointNeighbors.search_radius(search)
@@ -194,13 +234,8 @@ function PointNeighbors.copy_neighborhood_search(nhs::VariableSearchRadiusNHS,
     return VariableSearchRadiusNHS(search_radii, searches)
 end
 
-function PointNeighbors.copy_neighborhood_search(nhs::VariableSearchRadiusNHS,
-                                                 search_radius, n_points;
-                                                 eachpoint=1:n_points)
-    return TrivialNeighborhoodSearch{ndims(nhs)}(; search_radius, eachpoint,
-                                                 periodic_box=nhs.periodic_box)
-end
-
+# Iterate over neighbors by dynamically selecting the correct underlying neighborhood 
+# search based on the requested search radius.
 @inline function foreach_neighbor(f, neighbor_system_coords,
                                   neighborhood_search::VariableSearchRadiusNHS,
                                   point, point_coords, search_radius)
@@ -213,36 +248,6 @@ end
     PointNeighbors.foreach_neighbor(f, neighbor_system_coords, nhs, point, point_coords,
                                     search_radius)
 end
-
-struct GridNHSHandler{SI, NHS} <: AbstractNHSHandler
-    search_radii::SI
-    neighborhood_searches::NHS
-end
-
-function create_neighborhood_search_handler(::Type{<:GridNHSHandler}, nhs, systems)
-    # Find a list of search radii that will be requested for each system
-    search_radii = Tuple([compact_support(system, neighbor) for neighbor in systems]
-                         for system in systems)
-    search_radii = Tuple.(unique.(search_radii))
-
-    # For each system, create a neighborhood search for each unique search radius
-    searches = Tuple(Tuple(copy_neighborhood_search(nhs, search_radius, nparticles(system))
-                           for search_radius in
-                               search_radii[system_indices(system, systems)])
-                     for system in systems)
-
-    return GridNHSHandler(search_radii, searches)
-end
-
-function get_neighborhood_search(handler::GridNHSHandler, system_index, neighbor_index,
-                                 search_radius)
-    # Find the index of the search radius in the list of search radii for this system
-    search_radii = handler.search_radii[neighbor_index]
-    idx = searchsortedfirst(SVector(search_radii), search_radius - eps(search_radius))
-    # Return the neighborhood search at that index
-    return handler.neighborhood_searches[neighbor_index][idx]
-end
-# ==================================
 
 @inline function get_neighborhood_search(system, semi)
     return get_neighborhood_search(system, system, semi)

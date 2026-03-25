@@ -76,8 +76,8 @@ struct Semidiscretization{BACKEND, S, RU, RV, NSH, UCU, IT}
 end
 
 function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
-                            nhs_handler=GridNHSHandler,
                             neighborhood_search=GridNeighborhoodSearch{ndims(first(systems))}(),
+                            neighborhood_search_handler=PairsNHSHandler(neighborhood_search, systems),
                             parallelization_backend=PolyesterBackend())
     systems = filter(system -> !isnothing(system), systems)
 
@@ -99,10 +99,6 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
                for system in systems]
     ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
                      for i in eachindex(sizes_v))
-
-    neighborhood_search_handler = create_neighborhood_search_handler(nhs_handler,
-                                                                     neighborhood_search,
-                                                                     systems)
 
     # These will be set to true inside the `UpdateCallback`.
     # Some techniques require the use of this callback, and this flag can be used

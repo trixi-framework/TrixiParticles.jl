@@ -45,3 +45,31 @@ end
 function allocate(backend, ELTYPE, size)
     return Array{ELTYPE, length(size)}(undef, size)
 end
+
+function Adapt.adapt_structure(to, nhs::VariableSearchRadiusNHS)
+    (; search_radii, neighborhood_searches) = nhs
+    radii = Adapt.adapt_structure(to, search_radii)
+    searches = Adapt.adapt_structure(to, neighborhood_searches)
+
+    return VariableSearchRadiusNHS(radii, searches)
+end
+
+function Adapt.adapt_structure(to, nhs_handler::GridNHSHandler)
+    (; search_radii, neighborhood_searches) = nhs_handler
+    radii = Adapt.adapt_structure(to, search_radii)
+    searches = Adapt.adapt_structure(to, neighborhood_searches)
+
+    return GridNHSHandler(radii, searches)
+end
+
+function Adapt.adapt_structure(to, nhs_handler::PairsNHSHandler)
+    searches = Adapt.adapt_structure(to, nhs_handler.neighborhood_searches)
+
+    return PairsNHSHandler(searches)
+end
+
+function Adapt.adapt_structure(to, nhs_handler::VariableNHSHandler)
+    searches = Adapt.adapt_structure(to, nhs_handler.neighborhood_searches)
+
+    return VariableNHSHandler(searches)
+end

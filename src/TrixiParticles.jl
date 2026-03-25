@@ -112,5 +112,7 @@ export SurfaceTensionAkinci, CohesionForceAkinci, SurfaceTensionMorris,
        SurfaceTensionMomentumMorris
 export ColorfieldSurfaceNormal
 export SymplecticPositionVerlet
+export GridNHSHandler, PairsNHSHandler, VariableNHSHandler
+export VariableSearchRadiusNHS
 
 end # module
