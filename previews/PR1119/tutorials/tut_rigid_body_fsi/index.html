@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Fluid-structure interaction with rigid bodies · TrixiParticles.jl</title><meta name="title" content="Fluid-structure interaction with rigid bodies · TrixiParticles.jl"/><meta property="og:title" content="Fluid-structure interaction with rigid bodies · TrixiParticles.jl"/><meta property="twitter:title" content="Fluid-structure interaction with rigid bodies · TrixiParticles.jl"/><meta name="description" content="Documentation for TrixiParticles.jl."/><meta property="og:description" content="Documentation for TrixiParticles.jl."/><meta property="twitter:description" content="Documentation for TrixiParticles.jl."/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><script src="https://cdn.jsdelivr.net/npm/asciinema-player@3.6.3/dist/bundle/asciinema-player.min.js"></script><link href="https://cdn.jsdelivr.net/npm/asciinema-player@3.6.3/dist/bundle/asciinema-player.min.css" rel="stylesheet" type="text/css"/></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">TrixiParticles.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../news/">News</a></li><li><a class="tocitem" href="../../install/">Installation</a></li><li><a class="tocitem" href="../../getting_started/">Getting started</a></li><li><a class="tocitem" href="../../development/">Development</a></li><li><span class="tocitem">Tutorials</span><ul><li><a class="tocitem" href="../../tutorial/">Overview</a></li><li><input class="collapse-toggle" id="menuitem-6-2" type="checkbox"/><label class="tocitem" for="menuitem-6-2"><span class="docs-label">General</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../tut_setup/">Setting up your simulation from scratch</a></li><li><a class="tocitem" href="../tut_custom_kernel/">Modifying or extending components of TrixiParticles.jl within a simulation file</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-6-3" type="checkbox" checked/><label class="tocitem" for="menuitem-6-3"><span class="docs-label">Fluid-Structure Interaction</span><i class="docs-chevron"></i></label><ul class="collapsed"><li class="is-active"><a class="tocitem" href>Fluid-structure interaction with rigid bodies</a><ul class="internal"><li><a class="tocitem" href="#Resolution-and-basic-setup"><span>Resolution and basic setup</span></a></li><li><a class="tocitem" href="#Rigid-body-geometry"><span>Rigid body geometry</span></a></li><li><a class="tocitem" href="#Fluid-system"><span>Fluid system</span></a></li><li><a class="tocitem" href="#Step-1:-Without-boundary-model-and-contact-model"><span>Step 1: Without boundary model and contact model</span></a></li><li><a class="tocitem" href="#Step-2:-With-boundary-model,-without-contact-model"><span>Step 2: With boundary model, without contact model</span></a></li><li><a class="tocitem" href="#Step-3:-With-contact-model"><span>Step 3: With contact model</span></a></li><li><a class="tocitem" href="#Step-4:-Different-geometry"><span>Step 4: Different geometry</span></a></li><li><a class="tocitem" href="#Next-steps"><span>Next steps</span></a></li></ul></li></ul></li><li><input class="collapse-toggle" id="menuitem-6-4" type="checkbox"/><label class="tocitem" for="menuitem-6-4"><span class="docs-label">Preprocessing</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../tut_packing/">Particle packing tutorial</a></li></ul></li></ul></li><li><a class="tocitem" href="../../examples/">Examples</a></li><li><a class="tocitem" href="../../visualization/">Visualization</a></li><li><span class="tocitem">Preprocessing</span><ul><li><a class="tocitem" href="../../preprocessing/preprocessing/">Sampling of Geometries</a></li></ul></li><li><a class="tocitem" href="../../gpu/">GPU Support</a></li><li><span class="tocitem">API Reference</span><ul><li><a class="tocitem" href="../../overview/">Overview</a></li><li><input class="collapse-toggle" id="menuitem-11-2" type="checkbox"/><label class="tocitem" for="menuitem-11-2"><span class="docs-label">General</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../general/semidiscretization/">Semidiscretization</a></li><li><a class="tocitem" href="../../general/initial_condition/">Initial Condition and Setups</a></li><li><a class="tocitem" href="../../general/interpolation/">Interpolation</a></li><li><a class="tocitem" href="../../general/density_calculators/">Density Calculators</a></li><li><a class="tocitem" href="../../general/smoothing_kernels/">Smoothing Kernels</a></li><li><a class="tocitem" href="../../general/neighborhood_search/">Neighborhood Search</a></li><li><a class="tocitem" href="../../general/util/">Util</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-11-3" type="checkbox"/><label class="tocitem" for="menuitem-11-3"><span class="docs-label">Systems</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><input class="collapse-toggle" id="menuitem-11-3-1" type="checkbox"/><label class="tocitem" for="menuitem-11-3-1"><span class="docs-label">Fluid Models</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../systems/fluid/">Overview</a></li><li><a class="tocitem" href="../../systems/weakly_compressible_sph/">Weakly Compressible SPH (Fluid)</a></li><li><a class="tocitem" href="../../systems/entropically_damped_sph/">Entropically Damped Artificial Compressibility for SPH (Fluid)</a></li><li><a class="tocitem" href="../../systems/implicit_incompressible_sph/">Implicit Incompressible SPH (Fluid)</a></li></ul></li><li><a class="tocitem" href="../../systems/dem/">Discrete Element Method (Solid)</a></li><li><a class="tocitem" href="../../systems/rigid_body/">Rigid Body SPH (Rigid Structure)</a></li><li><a class="tocitem" href="../../systems/total_lagrangian_sph/">Total Lagrangian SPH (Elastic Structure)</a></li><li><a class="tocitem" href="../../systems/boundary/">Boundary</a></li></ul></li><li><a class="tocitem" href="../../time_integration/">Time Integration</a></li><li><a class="tocitem" href="../../callbacks/">Callbacks</a></li><li><a class="tocitem" href="../../reference-trixibase/">TrixiBase.jl API Reference</a></li><li><a class="tocitem" href="../../reference-pointneighbors/">PointNeighbors.jl API Reference</a></li></ul></li><li><a class="tocitem" href="../../authors/">Authors</a></li><li><a class="tocitem" href="../../contributing/">Contributing</a></li><li><a class="tocitem" href="../../code_of_conduct/">Code of Conduct</a></li><li><a class="tocitem" href="../../license/">License</a></li><li><a class="tocitem" href="../../references/">References</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Tutorials</a></li><li><a class="is-disabled">Fluid-Structure Interaction</a></li><li class="is-active"><a href>Fluid-structure interaction with rigid bodies</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Fluid-structure interaction with rigid bodies</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/trixi-framework/TrixiParticles.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/trixi-framework/TrixiParticles.jl/blob/main/docs/literate/src/tut_rigid_body_fsi.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="tut_rigid_body_fsi"><a class="docs-heading-anchor" href="#tut_rigid_body_fsi">Fluid-structure interaction with rigid bodies</a><a id="tut_rigid_body_fsi-1"></a><a class="docs-heading-anchor-permalink" href="#tut_rigid_body_fsi" title="Permalink"></a></h1><p>This tutorial introduces fluid-structure interaction (FSI) with the <a href="../../systems/rigid_body/#TrixiParticles.RigidBodySystem"><code>RigidBodySystem</code></a>. We build a simplified version of <a href="https://github.com/trixi-framework/TrixiParticles.jl/blob/main/examples/fsi/falling_rotating_rigid_squares_2d.jl"><code>examples/fsi/falling_rotating_rigid_squares_2d.jl</code></a>, where two rigid squares with initial angular velocity fall into a water tank. Compared to the example file, we use a coarser resolution to see results quickly. For more details on the general setup of tank and fluid, see <a href="../tut_setup/#tut_setup">the tutorial on setting up a simulation</a>.</p><p>We will build up the simulation step by step:</p><ol><li>Rigid bodies without any interaction.</li><li>Fluid-structure interaction, but without rigid-rigid or rigid-wall contact.</li><li>Full simulation with fluid-structure interaction and contact.</li><li>Using a different geometry.</li></ol><pre><code class="language-julia hljs">using TrixiParticles
+using OrdinaryDiffEq
+using Plots</code></pre><h2 id="Resolution-and-basic-setup"><a class="docs-heading-anchor" href="#Resolution-and-basic-setup">Resolution and basic setup</a><a id="Resolution-and-basic-setup-1"></a><a class="docs-heading-anchor-permalink" href="#Resolution-and-basic-setup" title="Permalink"></a></h2><p>As in the other tutorials, we start by defining the particle spacing. We use the same spacing for the fluid and the rigid bodies so that the coupling operates on the same particle resolution.</p><pre><code class="language-julia hljs">fluid_particle_spacing = 0.04
+structure_particle_spacing = fluid_particle_spacing
+
+boundary_layers = 3
+spacing_ratio = 1</code></pre><p>The setup is a rectangular tank with an open top.</p><pre><code class="language-julia hljs">gravity = 9.81
+tspan = (0.0, 1.0)
+tspan2 = (0.0, 0.6) # shorter simulation time required for some simulations below
+
+initial_fluid_size = (2.0, 1.0)
+tank_size = (2.0, 2.0)
+
+fluid_density = 1000.0
+sound_speed = 100.0
+state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
+                                   exponent=1)
+
+tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
+                       n_layers=boundary_layers, spacing_ratio=spacing_ratio,
+                       faces=(true, true, true, false),
+                       acceleration=(0.0, -gravity), state_equation=state_equation)</code></pre><h2 id="Rigid-body-geometry"><a class="docs-heading-anchor" href="#Rigid-body-geometry">Rigid body geometry</a><a id="Rigid-body-geometry-1"></a><a class="docs-heading-anchor-permalink" href="#Rigid-body-geometry" title="Permalink"></a></h2><p>Next, we define two rigid squares. Their physical density determines whether they tend to float or sink, while the initial angular velocity prescribes the rigid-body rotation.</p><pre><code class="language-julia hljs">square1_side_length = 0.4
+square2_side_length = 0.3
+
+square1_density = 600.0
+square2_density = 2000.0
+
+square1_nparticles_side = round(Int, square1_side_length / structure_particle_spacing)
+square2_nparticles_side = round(Int, square2_side_length / structure_particle_spacing)
+
+square1_bottom_left = (0.4, 1.25)
+square2_bottom_left = (1.25, 1.30)
+
+square1_angular_velocity = 5.0
+square2_angular_velocity = -7.5
+
+square1 = RectangularShape(structure_particle_spacing,
+                           (square1_nparticles_side, square1_nparticles_side),
+                           square1_bottom_left,
+                           density=square1_density)
+square2 = RectangularShape(structure_particle_spacing,
+                           (square2_nparticles_side, square2_nparticles_side),
+                           square2_bottom_left,
+                           density=square2_density)
+
+square1 = apply_angular_velocity(square1, square1_angular_velocity)
+square2 = apply_angular_velocity(square2, square2_angular_velocity)</code></pre><p>We can visualize the initial setup.</p><pre><code class="language-julia hljs">plot(tank.fluid, tank.boundary, square1, square2,
+     labels=[&quot;fluid&quot; &quot;boundary&quot; &quot;square 1&quot; &quot;square 2&quot;])</code></pre><p><img src="../tut_rigid_body_fsi_setup.png" alt="initial setup"/></p><h2 id="Fluid-system"><a class="docs-heading-anchor" href="#Fluid-system">Fluid system</a><a id="Fluid-system-1"></a><a class="docs-heading-anchor-permalink" href="#Fluid-system" title="Permalink"></a></h2><p>For the water, we use a standard WCSPH discretization.</p><pre><code class="language-julia hljs">fluid_smoothing_length = 1.5 * fluid_particle_spacing
+fluid_smoothing_kernel = WendlandC2Kernel{2}()
+
+fluid_density_calculator = ContinuityDensity()
+viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
+density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
+
+fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
+                                           state_equation, fluid_smoothing_kernel,
+                                           fluid_smoothing_length, viscosity=viscosity,
+                                           density_diffusion=density_diffusion,
+                                           acceleration=(0.0, -gravity))</code></pre><h2 id="Step-1:-Without-boundary-model-and-contact-model"><a class="docs-heading-anchor" href="#Step-1:-Without-boundary-model-and-contact-model">Step 1: Without boundary model and contact model</a><a id="Step-1:-Without-boundary-model-and-contact-model-1"></a><a class="docs-heading-anchor-permalink" href="#Step-1:-Without-boundary-model-and-contact-model" title="Permalink"></a></h2><p>In the first step, we simulate the rigid bodies without interaction with the fluid or the tank. This means we will create a <code>Semidiscretization</code> containing only the rigid body systems. The bodies will move according to the prescribed gravity and initial velocities, but without any collisions or fluid forces.</p><pre><code class="language-julia hljs">rigid_body_system_1_step1 = RigidBodySystem(square1; acceleration=(0.0, -gravity),
+                                            particle_spacing=structure_particle_spacing)
+rigid_body_system_2_step1 = RigidBodySystem(square2; acceleration=(0.0, -gravity),
+                                            particle_spacing=structure_particle_spacing)</code></pre><p>Note that the <code>Semidiscretization</code> does not contain the fluid or boundary systems.</p><pre><code class="language-julia hljs">semi_step1 = Semidiscretization(rigid_body_system_1_step1, rigid_body_system_2_step1)
+ode_step1 = semidiscretize(semi_step1, tspan2)
+
+info_callback = InfoCallback(interval=100)
+saving_callback = SolutionSavingCallback(dt=0.02, prefix=&quot;step1&quot;)
+callbacks = CallbackSet(info_callback, saving_callback)</code></pre><pre><code class="language-julia hljs">sol_step1 = solve(ode_step1, RDPK3SpFSAL49(), save_everystep=false, callback=callbacks)</code></pre><p>Let&#39;s plot the final state of this simulation. We can see the final positions of the squares. The fluid and tank are plotted in the background to show that no interaction has taken place. As you can see, the squares fall through the fluid and the tank walls.</p><pre><code class="language-julia hljs">p = plot(tank.fluid, tank.boundary, labels=[&quot;fluid&quot; &quot;boundary&quot;])
+plot!(p, sol_step1, legend=:topright)</code></pre><p><img src="../tut_rigid_body_fsi_step1.png" alt="Step 1"/></p><h2 id="Step-2:-With-boundary-model,-without-contact-model"><a class="docs-heading-anchor" href="#Step-2:-With-boundary-model,-without-contact-model">Step 2: With boundary model, without contact model</a><a id="Step-2:-With-boundary-model,-without-contact-model-1"></a><a class="docs-heading-anchor-permalink" href="#Step-2:-With-boundary-model,-without-contact-model" title="Permalink"></a></h2><p>Now, we introduce fluid-structure interaction. We define a <code>boundary_model</code> for each rigid body, which allows them to interact with the fluid. We also add the tank boundary to the simulation. However, we still don&#39;t use a <code>contact_model</code>, so the rigid bodies will not collide with the tank or each other. For rigid-body FSI, the rigid particles need two separate pieces of information:</p><ol><li>their physical density, which is already stored in <code>square1</code> and <code>square2</code> and determines the rigid-body mass and inertia,</li><li>a boundary model for the fluid coupling, which requires &quot;hydrodynamic masses&quot; and &quot;hydrodynamic densities&quot; on the rigid-body surface.</li></ol><p>In this tutorial, we initialize the &quot;hydrodynamic density&quot; from the surrounding fluid density. See <a href="../../systems/boundary/#boundary_models">the docs on dummy particles</a> for a definition for these terms.</p><pre><code class="language-julia hljs">boundary_density_calculator = AdamiPressureExtrapolation()
+tank_boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
+                                                  tank.boundary.mass,
+                                                  state_equation=state_equation,
+                                                  boundary_density_calculator,
+                                                  fluid_smoothing_kernel,
+                                                  fluid_smoothing_length)
+
+boundary_system = WallBoundarySystem(tank.boundary, tank_boundary_model)
+
+function rigid_body_boundary_model(shape)
+    hydrodynamic_densities = fluid_density * ones(size(shape.density))
+    hydrodynamic_masses = hydrodynamic_densities *
+                          structure_particle_spacing^ndims(fluid_system)
+
+    return BoundaryModelDummyParticles(hydrodynamic_densities, hydrodynamic_masses,
+                                       state_equation=state_equation,
+                                       boundary_density_calculator,
+                                       fluid_smoothing_kernel,
+                                       fluid_smoothing_length)
+end
+
+square1_boundary_model = rigid_body_boundary_model(square1)
+square2_boundary_model = rigid_body_boundary_model(square2)
+
+rigid_body_system_1_step2 = RigidBodySystem(square1;
+                                            boundary_model=square1_boundary_model,
+                                            acceleration=(0.0, -gravity),
+                                            particle_spacing=structure_particle_spacing)
+rigid_body_system_2_step2 = RigidBodySystem(square2;
+                                            boundary_model=square2_boundary_model,
+                                            acceleration=(0.0, -gravity),
+                                            particle_spacing=structure_particle_spacing)
+
+semi_step2 = Semidiscretization(fluid_system, boundary_system,
+                                rigid_body_system_1_step2, rigid_body_system_2_step2)
+ode_step2 = semidiscretize(semi_step2, tspan)</code></pre><pre><code class="language-julia hljs">sol_step2 = solve(ode_step2, RDPK3SpFSAL49(), save_everystep=false, callback=callbacks)</code></pre><p>In the plot, you can see the interaction between the fluid and the squares. However, the squares pass through the tank bottom and each other.</p><pre><code class="language-julia hljs">plot(sol_step2)</code></pre><p><img src="../tut_rigid_body_fsi_step2.png" alt="Step 2"/></p><h2 id="Step-3:-With-contact-model"><a class="docs-heading-anchor" href="#Step-3:-With-contact-model">Step 3: With contact model</a><a id="Step-3:-With-contact-model-1"></a><a class="docs-heading-anchor-permalink" href="#Step-3:-With-contact-model" title="Permalink"></a></h2><p>Finally, we add a <code>contact_model</code> to handle collisions between rigid bodies and between rigid bodies and the tank.</p><pre><code class="language-julia hljs">contact_model = RigidContactModel(; normal_stiffness=2.0e5,
+                                  normal_damping=150.0,
+                                  contact_distance=2.0 * structure_particle_spacing)
+
+rigid_body_system_1_step3 = RigidBodySystem(square1;
+                                            boundary_model=square1_boundary_model,
+                                            contact_model=contact_model,
+                                            acceleration=(0.0, -gravity),
+                                            particle_spacing=structure_particle_spacing)
+rigid_body_system_2_step3 = RigidBodySystem(square2;
+                                            boundary_model=square2_boundary_model,
+                                            contact_model=contact_model,
+                                            acceleration=(0.0, -gravity),
+                                            particle_spacing=structure_particle_spacing)
+
+semi_step3 = Semidiscretization(fluid_system, boundary_system,
+                                rigid_body_system_1_step3, rigid_body_system_2_step3)
+ode_step3 = semidiscretize(semi_step3, tspan)</code></pre><pre><code class="language-julia hljs">sol_step3 = solve(ode_step3, RDPK3SpFSAL49(), save_everystep=false,
+                  callback=callbacks,  abstol=1e-6, reltol=1e-4, dtmax=2e-3)</code></pre><p>The plot now shows the full simulation. The squares collide with the tank bottom and each other.</p><pre><code class="language-julia hljs">plot(sol_step3)</code></pre><p><img src="../tut_rigid_body_fsi_step3.png" alt="Step 3"/></p><h2 id="Step-4:-Different-geometry"><a class="docs-heading-anchor" href="#Step-4:-Different-geometry">Step 4: Different geometry</a><a id="Step-4:-Different-geometry-1"></a><a class="docs-heading-anchor-permalink" href="#Step-4:-Different-geometry" title="Permalink"></a></h2><p>The same setup can be used with different geometries. Here, we replace the squares with circles.</p><pre><code class="language-julia hljs">circle1_radius = 0.2
+circle2_radius = 0.15
+
+circle1_center = (0.4, 1.25)
+circle2_center = (1.25, 1.30)
+
+circle1 = SphereShape(structure_particle_spacing, circle1_radius, circle1_center,
+                      square1_density, sphere_type=RoundSphere())
+circle2 = SphereShape(structure_particle_spacing, circle2_radius, circle2_center,
+                      square2_density, sphere_type=RoundSphere())
+
+circle1 = apply_angular_velocity(circle1, square1_angular_velocity)
+circle2 = apply_angular_velocity(circle2, square2_angular_velocity)</code></pre><p>Let&#39;s visualize the new setup.</p><pre><code class="language-julia hljs">plot(tank.fluid, tank.boundary, circle1, circle2,
+     labels=[&quot;fluid&quot; &quot;boundary&quot; &quot;circle 1&quot; &quot;circle 2&quot;])</code></pre><p><img src="../tut_rigid_body_fsi_setup_circles.png" alt="initial setup with circles"/></p><pre><code class="language-julia hljs">circle1_boundary_model = rigid_body_boundary_model(circle1)
+circle2_boundary_model = rigid_body_boundary_model(circle2)
+
+rigid_body_system_1_step4 = RigidBodySystem(circle1;
+                                            boundary_model=circle1_boundary_model,
+                                            contact_model=contact_model,
+                                            acceleration=(0.0, -gravity),
+                                            particle_spacing=structure_particle_spacing)
+rigid_body_system_2_step4 = RigidBodySystem(circle2;
+                                            boundary_model=circle2_boundary_model,
+                                            contact_model=contact_model,
+                                            acceleration=(0.0, -gravity),
+                                            particle_spacing=structure_particle_spacing)
+
+semi_step4 = Semidiscretization(fluid_system, boundary_system,
+                                rigid_body_system_1_step4, rigid_body_system_2_step4)
+ode_step4 = semidiscretize(semi_step4, tspan)</code></pre><pre><code class="language-julia hljs">sol_step4 = solve(ode_step4, RDPK3SpFSAL49(), save_everystep=false,
+                  callback=callbacks,  abstol=1e-6, reltol=1e-4, dtmax=2e-3)</code></pre><p>And here is the final plot with circles instead of squares.</p><pre><code class="language-julia hljs">plot(sol_step4)</code></pre><p><img src="../tut_rigid_body_fsi_step4.png" alt="Step 4"/></p><h2 id="Next-steps"><a class="docs-heading-anchor" href="#Next-steps">Next steps</a><a id="Next-steps-1"></a><a class="docs-heading-anchor-permalink" href="#Next-steps" title="Permalink"></a></h2><p>A natural extension is to add a layer of small rigid spheres on top of the initial water column. If we choose a density of <code>500.0</code>, the spheres are lighter than the surrounding fluid and should mostly float while interacting with the waves and the falling squares. The example file <a href="https://github.com/trixi-framework/TrixiParticles.jl/blob/main/examples/fsi/falling_rotating_rigid_squares_2d.jl"><code>examples/fsi/falling_rotating_rigid_squares_2d.jl</code></a> contains the same idea as a commented-out block.</p><p>One possible implementation is:</p><pre><code class="language-julia hljs">small_sphere_radius = 0.08
+small_sphere_density = 500.0
+small_sphere_y = initial_fluid_size[2] + small_sphere_radius
+small_sphere_x_positions = 0.25:(3 * small_sphere_radius):1.75
+
+small_spheres = [SphereShape(structure_particle_spacing, small_sphere_radius,
+                             (x, small_sphere_y), small_sphere_density,
+                             sphere_type=RoundSphere())
+                 for x in small_sphere_x_positions]
+
+small_sphere_systems = [begin
+                            sphere_boundary_model = rigid_body_boundary_model(sphere)
+                            RigidBodySystem(sphere;
+                                            boundary_model=sphere_boundary_model,
+                                            contact_model=contact_model,
+                                            acceleration=(0.0, -gravity),
+                                            particle_spacing=structure_particle_spacing)
+                        end
+                        for sphere in small_spheres]
+
+semi_next = Semidiscretization(fluid_system, boundary_system,
+                               rigid_body_system_1_step3, rigid_body_system_2_step3,
+                               small_sphere_systems...)</code></pre><p><img src="../tut_rigid_body_fsi_next.png" alt="next_step"/></p><p>This modification is useful for studying many-body rigid-body FSI, including floating-particle rafts, repeated rigid-rigid contact, and wave-driven rearrangement.</p><h3 id="Loading-Geometries-from-Files"><a class="docs-heading-anchor" href="#Loading-Geometries-from-Files">Loading Geometries from Files</a><a id="Loading-Geometries-from-Files-1"></a><a class="docs-heading-anchor-permalink" href="#Loading-Geometries-from-Files" title="Permalink"></a></h3><p>Instead of using predefined shapes like <code>RectangularShape</code> or <code>SphereShape</code>, you can load custom geometries from external files. For 2D, <code>TrixiParticles.jl</code> supports a simple ASCII format with the extension <code>.asc</code>.</p><p>An <code>.asc</code> file should contain a list of 2D coordinates, with x and y values separated by a space, and one point per line. The points should form a closed polygon. <code>TrixiParticles.jl</code> includes some example files in the <code>examples/preprocessing/data</code> directory.</p><p>Here is how you can load the <code>hexagon.asc</code> file from this directory, create a <code>ComplexShape</code> from it, and then use it in a simulation.</p><p>Load the geometry from an .asc file.</p><pre><code class="language-julia hljs">file = pkgdir(TrixiParticles, &quot;examples&quot;, &quot;preprocessing&quot;, &quot;data&quot;, &quot;hexagon.asc&quot;)
+loaded_geometry = load_geometry(file)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ Polygon{2, Float64}                                                                              │
+│ ═══════════════════                                                                              │
+│ #edges: …………………………………………………………… 6                                                                │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘</code></pre><p>Create a <code>ComplexShape</code> from the loaded geometry. We can specify the particle spacing, a starting position, and the density.</p><pre><code class="language-julia hljs">hexagon_density = 1500.0
+hexagon_shape = ComplexShape(loaded_geometry, particle_spacing=2*structure_particle_spacing,
+                             density=hexagon_density)
+
+hexagon_shape.coordinates .*= (0.5, 0.5) # Scale the shape
+hexagon_shape.coordinates .+= (1.0, 1.5) # Shift the shape to the desired position
+hexagon_shape = TrixiParticles.@set hexagon_shape.particle_spacing = structure_particle_spacing</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ InitialCondition                                                                                 │
+│ ════════════════                                                                                 │
+│ #dimensions: ……………………………………………… 2                                                                │
+│ #particles: ………………………………………………… 398                                                              │
+│ particle spacing: ………………………………… 0.04                                                             │
+│ eltype: …………………………………………………………… Float64                                                          │
+│ coordinate eltype: ……………………………… Float64                                                          │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘</code></pre><p>Now, <code>hexagon_shape</code> can be used to create a <code>RigidBodySystem</code> just like the other shapes in this tutorial.</p><pre><code class="language-julia hljs">hexagon_boundary_model = rigid_body_boundary_model(hexagon_shape)
+
+hexagon_system = RigidBodySystem(hexagon_shape;
+                                 boundary_model=hexagon_boundary_model,
+                                 contact_model=contact_model,
+                                 acceleration=(0.0, -gravity),
+                                 particle_spacing=structure_particle_spacing)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ RigidBodySystem{2}                                                                               │
+│ ══════════════════                                                                               │
+│ #particles: ………………………………………………… 398                                                              │
+│ acceleration: …………………………………………… [0.0, -9.81]                                                     │
+│ boundary model: ……………………………………… BoundaryModelDummyParticles(AdamiPressureExtrapolation, Nothing) │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘</code></pre><p>You can then create a semidiscretization with this new system.</p><pre><code class="language-julia hljs">semi_hexagon = Semidiscretization(fluid_system, boundary_system, hexagon_system)
+ode_step_hex = semidiscretize(semi_hexagon, (0.0, 0.4))
+
+sol_step_hex = solve(ode_step_hex, RDPK3SpFSAL49(), abstol=1e-6, reltol=1e-5, dtmax=1e-3,
+                     save_everystep=false)</code></pre><p><img src="../tut_rigid_body_fsi_hex.png" alt="hexagon_step"/></p><p>This allows you to simulate FSI with arbitrary 2D shapes.</p><h3 id="Example-.asc-Files"><a class="docs-heading-anchor" href="#Example-.asc-Files">Example <code>.asc</code> Files</a><a id="Example-.asc-Files-1"></a><a class="docs-heading-anchor-permalink" href="#Example-.asc-Files" title="Permalink"></a></h3><p>You can find the <code>.asc</code> files used in this tutorial and other examples in the <a href="https://github.com/trixi-framework/TrixiParticles.jl/blob/main/examples/preprocessing/data/"><code>examples/preprocessing/data</code></a> directory of the <code>TrixiParticles.jl</code> repository.</p><p>Some files can be found in examples/preprocessing/data. To use them, you can use <code>pkgdir</code> as shown above, for example:</p><pre><code class="language-julia hljs">file = pkgdir(TrixiParticles, &quot;examples&quot;, &quot;preprocessing&quot;, &quot;data&quot;, &quot;triangle.asc&quot;)
+loaded_geometry = load_geometry(file)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ Polygon{2, Float64}                                                                              │
+│ ═══════════════════                                                                              │
+│ #edges: …………………………………………………………… 3                                                                │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p><script type="module">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+mermaid.initialize({
+    startOnLoad: true,
+    theme: "neutral"
+});
+</script></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../tut_custom_kernel/">« Modifying or extending components of TrixiParticles.jl within a simulation file</a><a class="docs-footer-nextpage" href="../tut_packing/">Particle packing tutorial »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Thursday 26 March 2026 01:04">Thursday 26 March 2026</span>. Using Julia version 1.12.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
