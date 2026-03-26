@@ -1,7 +1,7 @@
 # Shared structure-fluid interaction helpers used by multiple structure schemes.
 @propagate_inbounds function accumulate_structure_fluid_pair!(dv, dv_fs,
-                                                  particle_system::TotalLagrangianSPHSystem,
-                                                  particle, m_b)
+                                                              particle_system::TotalLagrangianSPHSystem,
+                                                              particle, m_b)
     material_mass = particle_system.mass[particle]
     for dim in eachindex(dv_fs)
         dv[dim, particle] += dv_fs[dim] * m_b / material_mass
@@ -9,8 +9,8 @@
 end
 
 @propagate_inbounds function accumulate_structure_fluid_pair!(dv, dv_fs,
-                                                  particle_system::RigidBodySystem,
-                                                  particle, m_b)
+                                                              particle_system::RigidBodySystem,
+                                                              particle, m_b)
     force_per_particle = particle_system.force_per_particle
     for dim in eachindex(dv_fs)
         force_per_particle[dim, particle] += dv_fs[dim] * m_b
