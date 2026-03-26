@@ -42,7 +42,7 @@ jobs:
       fail-fast: false
       matrix:
         version:
-          - '~1.13'
+          - 'pre'
         os:
           - ubuntu-latest
         include:
@@ -52,9 +52,9 @@ jobs:
             os: windows-latest
           - version: '1.10'
             os: macos-14
-          - version: '~1.13'
+          - version: 'pre'
             os: windows-latest
-          - version: '~1.13'
+          - version: 'pre'
             os: macos-14
 
     steps:
