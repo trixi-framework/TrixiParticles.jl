@@ -1,20 +1,19 @@
 # Shared structure-fluid interaction helpers used by multiple structure schemes.
-
-@inline function accumulate_structure_fluid_pair!(dv, dv_fs,
+@propagate_inbounds function accumulate_structure_fluid_pair!(dv, dv_fs,
                                                   particle_system::TotalLagrangianSPHSystem,
                                                   particle, m_b)
-    material_mass = @inbounds particle_system.mass[particle]
+    material_mass = particle_system.mass[particle]
     for dim in eachindex(dv_fs)
-        @inbounds dv[dim, particle] += dv_fs[dim] * m_b / material_mass
+        dv[dim, particle] += dv_fs[dim] * m_b / material_mass
     end
 end
 
-@inline function accumulate_structure_fluid_pair!(dv, dv_fs,
+@propagate_inbounds function accumulate_structure_fluid_pair!(dv, dv_fs,
                                                   particle_system::RigidBodySystem,
                                                   particle, m_b)
     force_per_particle = particle_system.force_per_particle
     for dim in eachindex(dv_fs)
-        @inbounds force_per_particle[dim, particle] += dv_fs[dim] * m_b
+        force_per_particle[dim, particle] += dv_fs[dim] * m_b
     end
 end
 
@@ -70,9 +69,7 @@ function interact_structure_fluid!(dv, v_particle_system,
         dv_viscosity_ = dv_viscosity(neighbor_system, particle_system,
                                      v_neighbor_system, v_particle_system,
                                      neighbor, particle, pos_diff, distance,
-                                     sound_speed, m_b, m_a,
-                                     rho_b, rho_a,
-                                     grad_kernel)
+                                     sound_speed, m_b, m_a, rho_b, rho_a, grad_kernel)
 
         dv_adhesion = adhesion_force(surface_tension, neighbor_system, particle_system,
                                      neighbor, particle, pos_diff, distance)
@@ -84,8 +81,7 @@ function interact_structure_fluid!(dv, v_particle_system,
         continuity_equation!(dv, v_particle_system, v_neighbor_system,
                              particle, neighbor, pos_diff, distance,
                              m_b, rho_a, rho_b,
-                             particle_system, neighbor_system,
-                             grad_kernel)
+                             particle_system, neighbor_system, grad_kernel)
     end
 
     return dv
