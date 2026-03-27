@@ -921,6 +921,16 @@
         @test rigid_system.contact_model.normal_stiffness ≈ contact_model.normal_stiffness
         @test rigid_system.contact_model.normal_damping ≈ contact_model.normal_damping
         @test rigid_system.contact_model.contact_distance ≈ contact_model.contact_distance
+        rigid_system_data = Dict{String, Any}()
+        TrixiParticles.add_system_data!(rigid_system_data, rigid_system)
+        @test rigid_system_data["contact_model"]["model"] ==
+              TrixiParticles.type2string(rigid_system.contact_model)
+        @test rigid_system_data["contact_model"]["normal_stiffness"] ≈
+              contact_model.normal_stiffness
+        @test rigid_system_data["contact_model"]["normal_damping"] ≈
+              contact_model.normal_damping
+        @test rigid_system_data["contact_model"]["contact_distance"] ≈
+              contact_model.contact_distance
         @test size(rigid_system_custom_manifolds.cache.contact_manifold_weight_sum, 1) == 3
         @test TrixiParticles.compact_support(rigid_system, boundary_system) ≈
               contact_model.contact_distance
