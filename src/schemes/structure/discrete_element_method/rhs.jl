@@ -1,17 +1,14 @@
-function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
-                   u_neighbor_system, particle_system::DEMSystem,
-                   neighbor_system::Union{BoundaryDEMSystem, DEMSystem}, semi)
+@inline function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
+                           u_neighbor_system, particle_system::DEMSystem,
+                           neighbor_system::Union{BoundaryDEMSystem, DEMSystem},
+                           semi, nhs, particle)
     damping_coefficient = particle_system.damping_coefficient
 
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-    foreach_point_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
-                           semi;
-                           points=each_integrated_particle(particle_system)) do particle,
-                                                                                neighbor,
-                                                                                pos_diff,
-                                                                                distance
+    foreach_neighbor(system_coords, neighbor_coords,
+                     nhs, particle) do particle, neighbor, pos_diff, distance
         # See `src/general/smoothing_kernels.jl` for more details
         distance^2 < eps(first(particle_system.radius)^2) && return
 

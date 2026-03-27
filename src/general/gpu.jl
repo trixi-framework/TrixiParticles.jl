@@ -28,10 +28,25 @@ Adapt.@adapt_structure RCRWindkesselModel
     PointNeighbors.parallel_foreach(f, iterator, semi.parallelization_backend)
 end
 
+# Same with `@threaded_nosync`
+@inline function PointNeighbors.parallel_foreach_nosync(f, iterator,
+                                                        semi::Semidiscretization)
+    PointNeighbors.parallel_foreach_nosync(f, iterator, semi.parallelization_backend)
+end
+
 function allocate(backend::KernelAbstractions.GPU, ELTYPE, size)
     return KernelAbstractions.allocate(backend, ELTYPE, size)
 end
 
 function allocate(backend, ELTYPE, size)
     return Array{ELTYPE, length(size)}(undef, size)
+end
+
+@inline function synchronize_backend(backend::KernelAbstractions.GPU)
+    KernelAbstractions.synchronize(backend)
+    return nothing
+end
+
+@inline function synchronize_backend(backend)
+    return nothing
 end

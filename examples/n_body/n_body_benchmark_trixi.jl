@@ -6,41 +6,38 @@
 
 using TrixiParticles
 using Printf
-using Polyester
 
 include("n_body_system.jl")
 
 # Redefine interact in a more optimized way
-function TrixiParticles.interact!(dv, v_particle_system, u_particle_system,
-                                  v_neighbor_system, u_neighbor_system,
-                                  neighborhood_search,
-                                  particle_system::NBodySystem,
-                                  neighbor_system::NBodySystem)
+@inline function TrixiParticles.interact!(dv, v_particle_system, u_particle_system,
+                                          v_neighbor_system, u_neighbor_system,
+                                          particle_system::NBodySystem,
+                                          neighbor_system::NBodySystem,
+                                          semi, nhs, particle)
     (; mass, G) = neighbor_system
 
-    for particle in TrixiParticles.each_integrated_particle(particle_system)
-        particle_coords = TrixiParticles.current_coords(u_particle_system,
-                                                        particle_system, particle)
+    particle_coords = @inbounds TrixiParticles.current_coords(u_particle_system,
+                                                              particle_system, particle)
 
-        # This makes `interact!` about 20% faster than looping over all particles
-        # and checking for `particle < neighbor`.
-        # Note that this doesn't work if we have multiple systems.
-        for neighbor in (particle + 1):TrixiParticles.nparticles(neighbor_system)
-            neighbor_coords = TrixiParticles.current_coords(u_neighbor_system,
-                                                            neighbor_system, neighbor)
-            pos_diff = particle_coords - neighbor_coords
+    # This makes `interact!` about 20% faster than looping over all particles
+    # and checking for `particle < neighbor`.
+    # Note that this doesn't work if we have multiple systems.
+    for neighbor in (particle + 1):TrixiParticles.nparticles(neighbor_system)
+        neighbor_coords = @inbounds TrixiParticles.current_coords(u_neighbor_system,
+                                                                  neighbor_system, neighbor)
+        pos_diff = particle_coords - neighbor_coords
 
-            # Multiplying by pos_diff later makes this slightly faster.
-            # Multiplying by (1 / norm) is also faster than dividing by norm.
-            tmp = -G * (1 / norm(pos_diff)^3)
-            tmp1 = mass[neighbor] * tmp
-            tmp2 = mass[particle] * tmp
+        # Multiplying by pos_diff later makes this slightly faster.
+        # Multiplying by (1 / norm) is also faster than dividing by norm.
+        tmp = -G * (1 / norm(pos_diff)^3)
+        tmp1 = @inbounds mass[neighbor] * tmp
+        tmp2 = @inbounds mass[particle] * tmp
 
-            @inbounds for i in 1:ndims(particle_system)
-                # This is slightly faster than dv[...] += tmp1 * pos_diff[i]
-                dv[i, particle] = muladd(tmp1, pos_diff[i], dv[i, particle])
-                dv[i, neighbor] = muladd(tmp2, -pos_diff[i], dv[i, neighbor])
-            end
+        for i in 1:ndims(particle_system)
+            # This is slightly faster than dv[...] += tmp1 * pos_diff[i]
+            @inbounds dv[i, particle] = muladd(tmp1, pos_diff[i], dv[i, particle])
+            @inbounds dv[i, neighbor] = muladd(tmp2, -pos_diff[i], dv[i, neighbor])
         end
     end
 
@@ -77,7 +74,9 @@ particle_system = NBodySystem(initial_condition, G)
 # ==========================================================================================
 # ==== Simulation
 
-semi = Semidiscretization(particle_system, neighborhood_search=nothing)
+# Disable multithreading, since it adds a significant overhead for this small problem
+semi = Semidiscretization(particle_system, neighborhood_search=nothing,
+                          parallelization_backend=SerialBackend())
 
 # This is significantly faster than using OrdinaryDiffEq.
 function symplectic_euler!(velocity, coordinates, semi)
@@ -89,14 +88,14 @@ function symplectic_euler!(velocity, coordinates, semi)
     @time for _ in 1:50_000_000
         TrixiParticles.kick!(dv, v, u, semi, 0.0)
 
-        @inbounds for i in eachindex(v)
-            v[i] += 0.01 * dv[i]
+        for i in eachindex(v)
+            @inbounds v[i] += 0.01 * dv[i]
         end
 
         TrixiParticles.drift!(du, v, u, semi, 0.0)
 
-        @inbounds for i in eachindex(u)
-            u[i] += 0.01 * du[i]
+        for i in eachindex(u)
+            @inbounds u[i] += 0.01 * du[i]
         end
     end
 
@@ -115,10 +114,7 @@ end
 
 @printf("%.9f\n", energy(velocity, coordinates, particle_system, semi))
 
-# Disable multithreading, since it adds a significant overhead for this small problem.
-disable_polyester_threads() do
-    symplectic_euler!(velocity, coordinates, semi)
-end
+symplectic_euler!(velocity, coordinates, semi)
 
 @printf("%.9f\n", energy(velocity, coordinates, particle_system, semi))
 
