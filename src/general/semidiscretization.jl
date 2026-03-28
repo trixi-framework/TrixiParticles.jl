@@ -77,7 +77,8 @@ end
 
 function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
                             neighborhood_search=GridNeighborhoodSearch{ndims(first(systems))}(),
-                            neighborhood_search_handler=PairsNHSHandler(neighborhood_search, systems),
+                            neighborhood_search_handler=PairsNHSHandler(neighborhood_search,
+                                                                        systems),
                             parallelization_backend=PolyesterBackend())
     systems = filter(system -> !isnothing(system), systems)
 

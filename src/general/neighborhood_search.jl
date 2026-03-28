@@ -5,10 +5,11 @@
 function PointNeighbors.foreach_point_neighbor(f, system, neighbor_system,
                                                system_coords, neighbor_coords, semi;
                                                points=eachparticle(system),
-                                               parallelization_backend=semi.parallelization_backend)
+                                               parallelization_backend=semi.parallelization_backend,
+                                               search_radius=nothing)
     neighborhood_search = get_neighborhood_search(system, neighbor_system, semi)
     foreach_point_neighbor(f, system_coords, neighbor_coords, neighborhood_search;
-                           points, parallelization_backend)
+                           points, parallelization_backend, search_radius)
 end
 
 # === Compact support selection ===
@@ -184,69 +185,6 @@ end
 function get_neighborhood_search(handler::VariableNHSHandler, system_index, neighbor_index,
                                  search_radius)
     handler.neighborhood_searches[neighbor_index]
-end
-
-# === Variable search radius neighborhood search ===
-# A wrapper around multiple neighborhood searches that share the same points 
-# but operate using different search radii. 
-struct VariableSearchRadiusNHS{SR, NHS} <: PointNeighbors.AbstractNeighborhoodSearch
-    search_radii          :: SR
-    neighborhood_searches :: NHS
-end
-
-function VariableSearchRadiusNHS(nhs_implementation, search_radii, n_particles)
-    searches = Tuple(PointNeighbors.copy_neighborhood_search(nhs_implementation,
-                                                             search_radius, n_particles)
-                     for search_radius in search_radii)
-    return VariableSearchRadiusNHS(search_radii, searches)
-end
-
-@inline Base.ndims(search::VariableSearchRadiusNHS) = ndims(first(search.neighborhood_searches))
-
-@inline requires_update(::VariableSearchRadiusNHS) = (false, true)
-
-@inline function initialize!(search::VariableSearchRadiusNHS, x, y;
-                             parallelization_backend=default_backend(x),
-                             eachindex_y=axes(y, 2))
-    (; neighborhood_searches) = search
-    initialize!.(neighborhood_searches)
-
-    return search
-end
-
-@inline function update!(search::VariableSearchRadiusNHS, x, y;
-                         points_moving=(true, true),
-                         parallelization_backend=default_backend(x),
-                         eachindex_y=axes(y, 2))
-    (; neighborhood_searches) = search
-    update!.(neighborhood_searches)
-
-    return search
-end
-
-function PointNeighbors.copy_neighborhood_search(nhs::VariableSearchRadiusNHS,
-                                                 search_radius, x, y)
-    search_radii = Tuple(PointNeighbors.search_radius(search)
-                         for search in nhs.neighborhood_searches)
-    searches = Tuple(PointNeighbors.copy_neighborhood_search(search)
-                     for search in nhs.neighborhood_searches)
-
-    return VariableSearchRadiusNHS(search_radii, searches)
-end
-
-# Iterate over neighbors by dynamically selecting the correct underlying neighborhood 
-# search based on the requested search radius.
-@inline function foreach_neighbor(f, neighbor_system_coords,
-                                  neighborhood_search::VariableSearchRadiusNHS,
-                                  point, point_coords, search_radius)
-    # Find the index of the search radius in the list of search radii for this system
-    search_radii = neighborhood_search.search_radii
-    idx = searchsortedfirst(SVector(search_radii), search_radius - eps(search_radius))
-
-    nhs = neighborhood_search.neighborhood_searches[idx]
-
-    PointNeighbors.foreach_neighbor(f, neighbor_system_coords, nhs, point, point_coords,
-                                    search_radius)
 end
 
 @inline function get_neighborhood_search(system, semi)
