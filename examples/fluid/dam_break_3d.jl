@@ -66,12 +66,14 @@ boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
 # ==========================================================================================
 # ==== Simulation
 semi = Semidiscretization(fluid_system, boundary_system,
+                          neighborhood_search=GridNeighborhoodSearch{3}(),
                           parallelization_backend=PolyesterBackend())
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.1, prefix="")
-callbacks = CallbackSet(info_callback, saving_callback)
+extra_callback = nothing
+callbacks = CallbackSet(info_callback, saving_callback, extra_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Limiting of the maximum stepsize is necessary to prevent crashing.
@@ -80,8 +82,10 @@ callbacks = CallbackSet(info_callback, saving_callback)
 # Sometimes, the method fails to do so because forces become extremely large when
 # fluid particles are very close to boundary particles, and the time integration method
 # interprets this as an instability.
-sol = solve(ode, RDPK3SpFSAL35(),
+time_integration_scheme = RDPK3SpFSAL35()
+sol = solve(ode, time_integration_scheme,
             abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
             reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
+            dt=1.0,
             save_everystep=false, callback=callbacks);

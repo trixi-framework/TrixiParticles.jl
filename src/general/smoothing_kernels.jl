@@ -11,7 +11,8 @@ abstract type AbstractSmoothingKernel{NDIMS} end
     # Also note that `sqrt(eps(h^2)) != eps(h)`.
     distance^2 < eps(h^2) && return zero(pos_diff)
 
-    return kernel_deriv(kernel, distance, h) / distance * pos_diff
+    distance_inv = Base.FastMath.div_fast(1, distance)
+    return kernel_deriv(kernel, distance, h) * distance_inv * pos_diff
 end
 
 @inline function corrected_kernel_grad(kernel, pos_diff, distance, h, correction, system,

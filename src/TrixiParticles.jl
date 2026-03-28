@@ -26,6 +26,7 @@ using Random: seed!
 using SciMLBase: SciMLBase, CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
                  get_tmp_cache, set_proposed_dt!, ODESolution, ODEProblem, terminate!,
                  add_tstop!
+using SIMD: vloada, Vec
 @reexport using StaticArrays: SVector
 using StaticArrays: @SMatrix, SMatrix, setindex
 using Statistics: Statistics
@@ -73,7 +74,7 @@ export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangian
 export BoundaryZone, InFlow, OutFlow, BidirectionalFlow
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
        PostprocessCallback, StepsizeCallback, UpdateCallback, SteadyStateReachedCallback,
-       SplitIntegrationCallback
+       SplitIntegrationCallback, SortingCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller, TransportVelocityAdami, ParticleShiftingTechnique,
        ParticleShiftingTechniqueSun2017, ConsistentShiftingSun2019,
