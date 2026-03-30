@@ -104,7 +104,7 @@ function trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
     v = wrap_v(v_ode, system, semi)
     u = wrap_u(u_ode, system, semi)
 
-    overwrite = iter == -1 ? true : false
+    overwrite = iter == -1
 
     file_ = joinpath(output_directory,
                      add_underscore_to_optional_prefix(prefix) * "$system_name")
@@ -112,13 +112,13 @@ function trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
         file = file_ * "_current"
     else
         file = file_ * add_underscore_to_optional_postfix(iter)
+        collection_file = joinpath(output_directory,
+                                   add_underscore_to_optional_prefix(prefix) *
+                                   "$system_name")
+
+        # Reset the collection when the iteration is 0
+        pvd = paraview_collection(collection_file; append=iter > 0)
     end
-
-    collection_file = joinpath(output_directory,
-                               add_underscore_to_optional_prefix(prefix) * "$system_name")
-
-    # Reset the collection when the iteration is 0
-    overwrite || pvd = paraview_collection(collection_file; append=iter > 0)
 
     points = PointNeighbors.periodic_coords(active_coordinates(u, system),
                                             periodic_box)
@@ -159,8 +159,10 @@ function trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
             end
         end
 
-        # Add to collection
-        overwrite || pvd[t] = vtk
+        if overwrite
+            # Add to collection
+            pvd[t] = vtk
+        end
     end
 
     overwrite || vtk_save(pvd)
