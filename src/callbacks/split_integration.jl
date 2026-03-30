@@ -77,7 +77,7 @@ function initialize_split_integration!(cb, u, t, integrator)
     end
 
     # These neighborhood searches are never used
-    periodic_box = extract_periodic_box(semi.neighborhood_searches[1][1])
+    periodic_box = extract_periodic_box(semi.neighborhood_searches[1, 1])
     neighborhood_search = TrivialNeighborhoodSearch{ndims(first(systems))}(; periodic_box)
     semi_split = Semidiscretization(systems...,
                                     neighborhood_search=TrivialNeighborhoodSearch{ndims(first(systems))}(),
@@ -327,9 +327,9 @@ end
     end
 end
 
-function calculate_dt(v_ode, u_ode, cfl_number, p::NamedTuple, integrate_tlsph)
+function calculate_dt(v_ode, u_ode, cfl_number, p::NamedTuple)
     # The split integrator contains a `NamedTuple`
-    return calculate_dt(v_ode, u_ode, cfl_number, p.semi_split, integrate_tlsph)
+    return calculate_dt(v_ode, u_ode, cfl_number, p.semi_split)
 end
 
 function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:SplitIntegrationCallback})

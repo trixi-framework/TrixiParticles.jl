@@ -43,6 +43,7 @@ function OrdinaryDiffEqCore.get_fsalfirstlast(cache::SymplecticPositionVerletCac
     return (cache.fsalfirst, cache.k)
 end
 
+# Legacy version for OrdinaryDiffEqCore < 3 (OrdinaryDiffEq < v6.106.0)
 function OrdinaryDiffEqCore.alg_cache(alg::SymplecticPositionVerlet, u, rate_prototype,
                                       ::Type{uEltypeNoUnits},
                                       ::Type{uBottomEltypeNoUnits}, ::Type{tTypeNoUnits},
@@ -50,6 +51,21 @@ function OrdinaryDiffEqCore.alg_cache(alg::SymplecticPositionVerlet, u, rate_pro
                                       ::Val{true}) where {uEltypeNoUnits,
                                                           uBottomEltypeNoUnits,
                                                           tTypeNoUnits}
+    tmp = zero(u)
+    k = zero(rate_prototype)
+    fsalfirst = zero(rate_prototype)
+    half = uEltypeNoUnits(1 // 2)
+    SymplecticPositionVerletCache(u, uprev, tmp, k, fsalfirst, half)
+end
+
+function OrdinaryDiffEqCore.alg_cache(alg::SymplecticPositionVerlet, u, rate_prototype,
+                                      ::Type{uEltypeNoUnits},
+                                      ::Type{uBottomEltypeNoUnits}, ::Type{tTypeNoUnits},
+                                      uprev, uprev2, f, t, dt, reltol, p, calck,
+                                      ::Val{true},
+                                      verbose) where {uEltypeNoUnits,
+                                                      uBottomEltypeNoUnits,
+                                                      tTypeNoUnits}
     tmp = zero(u)
     k = zero(rate_prototype)
     fsalfirst = zero(rate_prototype)
@@ -140,8 +156,7 @@ end
     @threaded semi for particle in each_integrated_particle(system)
         for i in 1:ndims(system)
             du_system[i,
-                      particle] = duprev_system[i, particle] +
-                                  dt * kdu_system[i, particle]
+                      particle] = duprev_system[i, particle] + dt * kdu_system[i, particle]
         end
     end
 end
