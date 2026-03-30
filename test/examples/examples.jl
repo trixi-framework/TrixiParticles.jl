@@ -72,7 +72,7 @@
                                                       "colliding_rigid_spheres_2d.jl"),
                                              tspan=(0.0, 0.6))
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            @test count_rhs_allocations(sol) == 0
         end
     end
 
@@ -244,9 +244,9 @@
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
                 # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol, semi) < 500
+                @test count_rhs_allocations(sol) < 500
             else
-                @test count_rhs_allocations(sol, semi) == 0
+                @test count_rhs_allocations(sol) == 0
             end
         end
 
@@ -264,9 +264,9 @@
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
                 # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol, semi) < 500
+                @test count_rhs_allocations(sol) < 500
             else
-                @test count_rhs_allocations(sol, semi) == 0
+                @test count_rhs_allocations(sol) == 0
             end
         end
 
@@ -279,9 +279,9 @@
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
                 # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol, semi) < 500
+                @test count_rhs_allocations(sol) < 500
             else
-                @test count_rhs_allocations(sol, semi) == 0
+                @test count_rhs_allocations(sol) == 0
             end
         end
 
@@ -296,9 +296,9 @@
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
                 # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol, semi) < 2000
+                @test count_rhs_allocations(sol) < 2000
             else
-                @test count_rhs_allocations(sol, semi) == 0
+                @test count_rhs_allocations(sol) == 0
             end
         end
 
@@ -317,9 +317,9 @@
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
                 # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol, semi) < 500
+                @test count_rhs_allocations(sol) < 500
             else
-                @test count_rhs_allocations(sol, semi) == 0
+                @test count_rhs_allocations(sol) == 0
             end
         end
     end
