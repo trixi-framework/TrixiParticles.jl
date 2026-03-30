@@ -344,7 +344,11 @@
         @test data.resultant_torque == 0.0
         @test data.angular_acceleration_force == 0.0
         @test data.gyroscopic_acceleration == 0.0
+        @test data.contact_count == 0
+        @test data.max_contact_penetration == 0.0
         @test data.relative_coordinates == rigid_system.relative_coordinates
+        @test :contact_count in fields
+        @test :max_contact_penetration in fields
         @test !(:local_coordinates in fields)
     end
 
@@ -815,6 +819,10 @@
 
         @test vec(force_after_forward_1[:, 1]) ≈ collect(expected_force)
         @test vec(rigid_system_2.force_per_particle[:, 1]) ≈ collect(-expected_force)
+        @test rigid_system_1.cache.contact_count[] == 1
+        @test rigid_system_2.cache.contact_count[] == 1
+        @test rigid_system_1.cache.max_contact_penetration[] ≈ pair_penetration
+        @test rigid_system_2.cache.max_contact_penetration[] ≈ pair_penetration
 
         @test TrixiParticles.compact_support(rigid_system_1, rigid_system_2) ≈
               pair_contact_distance
@@ -886,7 +894,43 @@
         @test runtime_model isa RigidContactModel
         @test runtime_model.normal_stiffness ≈ 2.0e4
         @test runtime_model.normal_damping ≈ 20.0
+        @test runtime_model.static_friction_coefficient ≈ 0.0
+        @test runtime_model.kinetic_friction_coefficient ≈ 0.0
+        @test runtime_model.tangential_stiffness ≈ 0.0
+        @test runtime_model.tangential_damping ≈ 0.0
         @test runtime_model.contact_distance ≈ 0.1
+        @test runtime_model.stick_velocity_tolerance ≈ 1e-6
+        @test runtime_model.penetration_slop ≈ 0.0
+        @test !runtime_model.torque_free
+        @test !runtime_model.resting_contact_projection
+        @test !runtime_model.normalize_force_by_contact_patch
+
+        advanced_contact_model = RigidContactModel(; normal_stiffness=5.0,
+                                                   normal_damping=1.5,
+                                                   static_friction_coefficient=0.6,
+                                                   kinetic_friction_coefficient=0.4,
+                                                   tangential_stiffness=9.0,
+                                                   tangential_damping=2.5,
+                                                   contact_distance=0.0,
+                                                   stick_velocity_tolerance=1.0e-5,
+                                                   penetration_slop=0.01,
+                                                   torque_free=true,
+                                                   resting_contact_projection=true,
+                                                   normalize_force_by_contact_patch=true)
+        advanced_runtime_model = TrixiParticles.copy_contact_model(advanced_contact_model,
+                                                                   0.125, Float32)
+        @test advanced_runtime_model.normal_stiffness ≈ Float32(5.0)
+        @test advanced_runtime_model.normal_damping ≈ Float32(1.5)
+        @test advanced_runtime_model.static_friction_coefficient ≈ Float32(0.6)
+        @test advanced_runtime_model.kinetic_friction_coefficient ≈ Float32(0.4)
+        @test advanced_runtime_model.tangential_stiffness ≈ Float32(9.0)
+        @test advanced_runtime_model.tangential_damping ≈ Float32(2.5)
+        @test advanced_runtime_model.contact_distance ≈ Float32(0.125)
+        @test advanced_runtime_model.stick_velocity_tolerance ≈ Float32(1.0e-5)
+        @test advanced_runtime_model.penetration_slop ≈ Float32(0.01)
+        @test advanced_runtime_model.torque_free
+        @test advanced_runtime_model.resting_contact_projection
+        @test advanced_runtime_model.normalize_force_by_contact_patch
 
         spacing_scaled_model = RigidContactModel(; normal_stiffness=5.0)
         spacing_scaled_runtime = TrixiParticles.copy_contact_model(spacing_scaled_model,
@@ -894,15 +938,51 @@
                                                                    Float64)
         @test spacing_scaled_runtime.contact_distance ≈ 0.125
 
+        @test TrixiParticles.normal_contact_force(contact_model, 0.02, -0.5, Float64) ≈ 410.0
+        normal_force, friction_reference_force = TrixiParticles.normal_contact_force_components(contact_model,
+                                                                                                0.02,
+                                                                                                -0.5,
+                                                                                                Float64)
+        @test normal_force ≈ 410.0
+        @test friction_reference_force ≈ normal_force
+
+        static_tangential_force = TrixiParticles.tangential_contact_force(advanced_contact_model,
+                                                                          SVector(0.02, 0.0),
+                                                                          SVector(0.0, 0.0),
+                                                                          1.0,
+                                                                          Float64)
+        @test static_tangential_force ≈ SVector(-0.18, 0.0)
+
+        slipping_tangential_force = TrixiParticles.tangential_contact_force(advanced_contact_model,
+                                                                            SVector(0.2, 0.0),
+                                                                            SVector(2.0, 0.0),
+                                                                            1.0,
+                                                                            Float64)
+        @test slipping_tangential_force[1] < 0.0
+        @test norm(slipping_tangential_force) ≈
+              advanced_contact_model.kinetic_friction_coefficient
+
         @test_throws ArgumentError RigidContactModel(; normal_stiffness=0.0)
         @test_throws ArgumentError RigidContactModel(; normal_stiffness=1.0,
                                                      normal_damping=-1.0)
         @test_throws ArgumentError RigidContactModel(; normal_stiffness=1.0,
                                                      contact_distance=-1.0)
+        @test_throws ArgumentError RigidContactModel(; normal_stiffness=1.0,
+                                                     static_friction_coefficient=-0.1)
+        @test_throws ArgumentError RigidContactModel(; normal_stiffness=1.0,
+                                                     static_friction_coefficient=0.3,
+                                                     kinetic_friction_coefficient=0.4)
+        @test_throws ArgumentError RigidContactModel(; normal_stiffness=1.0,
+                                                     tangential_stiffness=-1.0)
+        @test_throws ArgumentError RigidContactModel(; normal_stiffness=1.0,
+                                                     penetration_slop=-1.0)
 
         rigid_system = RigidBodySystem(rigid_ic;
                                        acceleration=(0.0, 0.0),
                                        contact_model=contact_model)
+        rigid_system_advanced = RigidBodySystem(rigid_ic;
+                                                acceleration=(0.0, 0.0),
+                                                contact_model=advanced_contact_model)
         rigid_system_with_boundary = RigidBodySystem(rigid_ic;
                                                      acceleration=(0.0, 0.0),
                                                      boundary_model=boundary_model,
@@ -931,6 +1011,19 @@
                                                    contact_model=contact_model,
                                                    max_manifolds=0)
 
+        system_meta_data = Dict{String, Any}()
+        TrixiParticles.add_system_data!(system_meta_data, rigid_system_advanced)
+        @test system_meta_data["contact_model"]["normal_stiffness"] ≈ 5.0
+        @test system_meta_data["contact_model"]["static_friction_coefficient"] ≈ 0.6
+        @test system_meta_data["contact_model"]["kinetic_friction_coefficient"] ≈ 0.4
+        @test system_meta_data["contact_model"]["tangential_stiffness"] ≈ 9.0
+        @test system_meta_data["contact_model"]["tangential_damping"] ≈ 2.5
+        @test system_meta_data["contact_model"]["stick_velocity_tolerance"] ≈ 1.0e-5
+        @test system_meta_data["contact_model"]["penetration_slop"] ≈ 0.01
+        @test system_meta_data["contact_model"]["torque_free"]
+        @test system_meta_data["contact_model"]["resting_contact_projection"]
+        @test system_meta_data["contact_model"]["normalize_force_by_contact_patch"]
+
         semi = Semidiscretization(rigid_system, boundary_system)
         ode = semidiscretize(semi, (0.0, 0.01))
         v_ode, u_ode = ode.u0.x
@@ -944,5 +1037,7 @@
                                              dv_ode, v_ode, u_ode, semi)
 
         @test dv[2, 1] > 0
+        @test rigid_system.cache.contact_count[] == 1
+        @test rigid_system.cache.max_contact_penetration[] ≈ 0.05
     end
 end

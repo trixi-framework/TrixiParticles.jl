@@ -91,11 +91,12 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
     max_manifolds_ = Int(max_manifolds)
     max_manifolds_ > 0 ||
         throw(ArgumentError("`max_manifolds` must be positive"))
+    n_particles = nparticles(initial_condition)
 
     contact_model_ = isnothing(contact_model) ? nothing :
                      copy_contact_model(contact_model, particle_spacing_, ELTYPE)
     initial_velocity = copy(initial_condition.velocity)
-    relative_coordinates = zeros(ELTYPE, NDIMS, nparticles(initial_condition))
+    relative_coordinates = zeros(ELTYPE, NDIMS, n_particles)
     mass = copy(initial_condition.mass)
     material_density = copy(initial_condition.density)
 
@@ -109,7 +110,7 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
         throw(ArgumentError("`RigidBodySystem` requires a positive total mass"))
     end
 
-    force_per_particle = zeros(ELTYPE, NDIMS, nparticles(initial_condition))
+    force_per_particle = zeros(ELTYPE, NDIMS, n_particles)
     zero_rotational_quantity = NDIMS == 2 ? zero(ELTYPE) : zero(SVector{3, ELTYPE})
     if NDIMS == 2
         inertia = Ref(zero(ELTYPE))
@@ -119,10 +120,10 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
         inverse_inertia = Ref(zero(SMatrix{3, 3, ELTYPE, 9}))
     end
 
-    cache = (;
+    cache = (; create_cache_contact(contact_model_, ELTYPE, Val(NDIMS),
+                                    n_particles, max_manifolds_)...,
              create_cache_contact_manifold(contact_model_, Val(NDIMS), ELTYPE,
-                                           nparticles(initial_condition),
-                                           max_manifolds_)...,
+                                           n_particles, max_manifolds_)...,
              color=Int(color_value))
 
     system = RigidBodySystem(initial_condition, initial_velocity, mass,
@@ -144,6 +145,24 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
     return system
 end
 
+function create_cache_contact(contact_model, ELTYPE, ::Val{NDIMS},
+                              n_particles, max_manifolds) where {NDIMS}
+    return (; contact_count=Ref(0),
+            max_contact_penetration=Ref(zero(ELTYPE)))
+end
+
+function reset_contact_manifold_cache!(cache)
+    hasproperty(cache, :contact_manifold_count) || return cache
+
+    set_zero!(cache.contact_manifold_count)
+    set_zero!(cache.contact_manifold_weight_sum)
+    set_zero!(cache.contact_manifold_penetration_sum)
+    set_zero!(cache.contact_manifold_normal_sum)
+    set_zero!(cache.contact_manifold_wall_velocity_sum)
+
+    return cache
+end
+
 function create_cache_contact_manifold(::Nothing, ::Val{NDIMS}, ELTYPE,
                                        n_particles, max_manifolds) where {NDIMS}
     return (;)
@@ -163,6 +182,18 @@ function create_cache_contact_manifold(contact_model, ::Val{NDIMS}, ELTYPE,
             contact_manifold_normal_sum=zeros(ELTYPE, NDIMS, max_manifolds, n_particles),
             contact_manifold_wall_velocity_sum=zeros(ELTYPE, NDIMS, max_manifolds,
                                                      n_particles))
+end
+
+function reset_interaction_accumulators!(system::RigidBodySystem)
+    system.resultant_force[] = zero(system.resultant_force[])
+    system.resultant_torque[] = zero(system.resultant_torque[])
+    system.angular_acceleration_force[] = zero(system.angular_acceleration_force[])
+    set_zero!(system.force_per_particle)
+    system.cache.contact_count[] = 0
+    system.cache.max_contact_penetration[] = zero(eltype(system))
+    reset_contact_manifold_cache!(system.cache)
+
+    return system
 end
 
 function rigid_center_of_mass_kinematics(system::RigidBodySystem, coordinates, velocity)
@@ -384,9 +415,9 @@ function update_final!(system::RigidBodySystem, v, u, v_ode, u_ode, semi, t)
                                                         center_of_mass_velocity;
                                                         relative_coordinates=system.relative_coordinates)
 
-    # Reset interaction caches before RHS assembly so pairwise rigid-fluid forces can
-    # accumulate from scratch and non-RHS update paths do not expose stale resultants.
-    set_zero!(system.force_per_particle)
+    # Reset interaction caches before RHS assembly so per-step rigid contact diagnostics,
+    # pairwise forces, and resultants accumulate from scratch.
+    reset_interaction_accumulators!(system)
 
     system.center_of_mass[] = center_of_mass
     system.center_of_mass_velocity[] = center_of_mass_velocity
@@ -540,6 +571,8 @@ function system_data(system::RigidBodySystem, dv_ode, du_ode, v_ode, u_ode, semi
     resultant_torque = system.resultant_torque[]
     angular_acceleration_force = system.angular_acceleration_force[]
     gyroscopic_acceleration = system.gyroscopic_acceleration[]
+    contact_count = system.cache.contact_count[]
+    max_contact_penetration = system.cache.max_contact_penetration[]
     relative_coordinates = system.relative_coordinates
 
     return (; coordinates, velocity, mass=system.mass,
@@ -549,6 +582,7 @@ function system_data(system::RigidBodySystem, dv_ode, du_ode, v_ode, u_ode, semi
             angular_velocity,
             resultant_force, resultant_torque,
             angular_acceleration_force, gyroscopic_acceleration,
+            contact_count, max_contact_penetration,
             density, pressure, acceleration)
 end
 
@@ -558,6 +592,7 @@ function available_data(::RigidBodySystem)
             :center_of_mass, :center_of_mass_velocity,
             :angular_velocity, :resultant_force, :resultant_torque,
             :angular_acceleration_force, :gyroscopic_acceleration,
+            :contact_count, :max_contact_penetration,
             :density, :pressure, :acceleration)
 end
 

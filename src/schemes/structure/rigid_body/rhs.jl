@@ -197,14 +197,12 @@ function interact!(dv, v_particle_system, u_particle_system,
     # The manifold cache is pair-local scratch storage. It is rebuilt from zero for every
     # rigid-wall interaction pair and only the resulting force contributions survive in
     # `force_per_particle`, which is later reduced to a rigid-body resultant.
-    set_zero!(particle_system.cache.contact_manifold_count)
-    set_zero!(particle_system.cache.contact_manifold_weight_sum)
-    set_zero!(particle_system.cache.contact_manifold_penetration_sum)
-    set_zero!(particle_system.cache.contact_manifold_normal_sum)
-    set_zero!(particle_system.cache.contact_manifold_wall_velocity_sum)
+    reset_contact_manifold_cache!(particle_system.cache)
 
     NDIMS = ndims(particle_system)
     ELTYPE = eltype(particle_system)
+    contact_count = 0
+    max_contact_penetration = zero(ELTYPE)
 
     # First gather all penetrating wall neighbors into a small set of contact manifolds per
     # rigid particle. This avoids applying one noisy contact force per wall particle.
@@ -257,12 +255,10 @@ function interact!(dv, v_particle_system, u_particle_system,
                         relative_velocity = v_particle - v_boundary
                         normal_velocity = dot(relative_velocity, normal)
 
-                        # Only the normal spring-dashpot part is kept in the basic collision.
-                        elastic_force = contact_model.normal_stiffness *
-                                        penetration_effective
-                        damping_force = -contact_model.normal_damping * normal_velocity
-                        normal_force_magnitude = max(elastic_force + damping_force,
-                                                     zero(ELTYPE))
+                        normal_force_magnitude = normal_contact_force(contact_model,
+                                                                     penetration_effective,
+                                                                     normal_velocity,
+                                                                     ELTYPE)
 
                         if normal_force_magnitude > 0
                             interaction_force = normal_force_magnitude * normal
@@ -271,12 +267,20 @@ function interact!(dv, v_particle_system, u_particle_system,
                                 particle_system.force_per_particle[dim,
                                                                    particle] += interaction_force[dim]
                             end
+
+                            contact_count += 1
+                            max_contact_penetration = max(max_contact_penetration,
+                                                          penetration_effective)
                         end
                     end
                 end
             end
         end
     end
+
+    particle_system.cache.contact_count[] += contact_count
+    particle_system.cache.max_contact_penetration[] = max(particle_system.cache.max_contact_penetration[],
+                                                          max_contact_penetration)
 
     return dv
 end
@@ -412,6 +416,77 @@ function accumulate_contact_manifold_sums!(cache, particle, manifold_index, cont
     return cache
 end
 
+@inline function normal_contact_force(normal_stiffness, normal_damping, penetration,
+                                      normal_velocity, ELTYPE)
+    normal_force, _ = normal_contact_force_components(normal_stiffness, normal_damping,
+                                                      penetration, normal_velocity,
+                                                      ELTYPE)
+
+    return normal_force
+end
+
+@inline function normal_contact_force(contact_model::RigidContactModel,
+                                      penetration, normal_velocity, ELTYPE)
+    return normal_contact_force(contact_model.normal_stiffness, contact_model.normal_damping,
+                                penetration, normal_velocity, ELTYPE)
+end
+
+@inline function normal_friction_reference_force(contact_model::RigidContactModel,
+                                                 penetration, normal_velocity, ELTYPE)
+    _, friction_reference_force = normal_contact_force_components(contact_model, penetration,
+                                                                  normal_velocity, ELTYPE)
+
+    return friction_reference_force
+end
+
+@inline function normal_contact_force_components(contact_model::RigidContactModel,
+                                                 penetration, normal_velocity, ELTYPE)
+    return normal_contact_force_components(contact_model.normal_stiffness,
+                                           contact_model.normal_damping,
+                                           penetration, normal_velocity, ELTYPE)
+end
+
+@inline function normal_contact_force_components(normal_stiffness, normal_damping,
+                                                 penetration, normal_velocity, ELTYPE)
+    elastic_force = normal_stiffness * penetration
+    damping_force = -normal_damping * normal_velocity
+    normal_force = max(elastic_force + damping_force, zero(ELTYPE))
+    friction_reference_force = normal_force
+
+    return normal_force, friction_reference_force
+end
+
+function tangential_contact_force(contact_model::RigidContactModel,
+                                  tangential_displacement,
+                                  tangential_velocity,
+                                  normal_force_friction_reference, ELTYPE)
+    force_trial = -contact_model.tangential_stiffness * tangential_displacement -
+                  contact_model.tangential_damping * tangential_velocity
+
+    trial_norm = norm(force_trial)
+    tangential_speed = norm(tangential_velocity)
+    static_limit = contact_model.static_friction_coefficient *
+                   normal_force_friction_reference
+
+    if trial_norm <= static_limit
+        return force_trial
+    end
+
+    kinetic_limit = contact_model.kinetic_friction_coefficient *
+                    normal_force_friction_reference
+    kinetic_limit <= eps(ELTYPE) && return zero(force_trial)
+
+    regularization_velocity = max(contact_model.stick_velocity_tolerance,
+                                  sqrt(eps(ELTYPE)))
+
+    if tangential_speed > eps(ELTYPE)
+        speed_factor = tanh(tangential_speed / regularization_velocity)
+        return -kinetic_limit * speed_factor * tangential_velocity / tangential_speed
+    end
+
+    return zero(force_trial)
+end
+
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::RigidBodySystem,
@@ -430,6 +505,12 @@ function interact!(dv, v_particle_system, u_particle_system,
     ELTYPE = eltype(particle_system)
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
+    contact_count = 0
+    max_contact_penetration = zero(ELTYPE)
+    pair_normal_stiffness = (contact_model.normal_stiffness +
+                             neighbor_contact_model.normal_stiffness) / 2
+    pair_normal_damping = (contact_model.normal_damping +
+                           neighbor_contact_model.normal_damping) / 2
 
     foreach_point_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
                            semi;
@@ -453,11 +534,10 @@ function interact!(dv, v_particle_system, u_particle_system,
         relative_velocity = particle_velocity - neighbor_velocity
         normal_velocity = dot(relative_velocity, normal)
 
-        elastic_force = (contact_model.normal_stiffness +
-                         neighbor_contact_model.normal_stiffness) / 2 * penetration
-        damping_force = -(contact_model.normal_damping +
-                          neighbor_contact_model.normal_damping) / 2 * normal_velocity
-        normal_force_magnitude = max(elastic_force + damping_force, zero(ELTYPE))
+        normal_force_magnitude = normal_contact_force(pair_normal_stiffness,
+                                                      pair_normal_damping,
+                                                      penetration,
+                                                      normal_velocity, ELTYPE)
         normal_force_magnitude <= 0 && return dv
 
         interaction_force = normal_force_magnitude * normal
@@ -465,7 +545,14 @@ function interact!(dv, v_particle_system, u_particle_system,
         for dim in 1:ndims(particle_system)
             particle_system.force_per_particle[dim, particle] += interaction_force[dim]
         end
+
+        contact_count += 1
+        max_contact_penetration = max(max_contact_penetration, penetration)
     end
+
+    particle_system.cache.contact_count[] += contact_count
+    particle_system.cache.max_contact_penetration[] = max(particle_system.cache.max_contact_penetration[],
+                                                          max_contact_penetration)
 
     return dv
 end

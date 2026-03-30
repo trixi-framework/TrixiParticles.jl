@@ -17,6 +17,12 @@ Rigid contact is configured through the contact model. This is separate from the
 boundary model used for fluid-structure interaction; see
 [Boundary Models](@ref boundary_models) for that part of the rigid-body setup.
 
+`RigidContactModel` is the shared runtime model for both rigid-wall and rigid-rigid
+contact. In this first porting step, the shared normal spring-dashpot force and the
+contact diagnostics are active for both paths. The richer tangential/friction fields and
+the wall-specific controls are already part of the runtime model and documented on the
+type, but their stateful and wall-specific behavior is added in later steps of the port.
+
 ```@autodocs
 Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "structure", "rigid_body", "contact_models.jl")]
