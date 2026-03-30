@@ -170,7 +170,7 @@ function Base.show(io::IO, ::MIME"text/plain",
 end
 
 function Base.show(io::IO, ::MIME"text/plain",
-                   cb::DiscreteCallback{<:Any, <:SortingCallback{Int}})
+                   cb::DiscreteCallback{<:Any, <:SortingCallback})
     @nospecialize cb # reduce precompilation time
 
     if get(io, :compact, false)
