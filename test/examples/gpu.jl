@@ -38,9 +38,15 @@ end
                     r"┌ Info: The desired tank length in y-direction.*\n",
                     r"└ New tank length in y-direction.*\n"
                 ]
-                @test semi.neighborhood_searches[1, 1].cell_list isa FullGridCellList
-                @test sol.retcode == ReturnCode.Success
-                v_ode, u_ode = sol.u[end].x
+                # Since Julia 1.12 has issues with world age, we need to use `@invokelatest`
+                # everywhere here. For some reason, this is only necessary in this and the
+                # next test, but not in the other tests in this file.
+                # Perhaps because this is inside an `if` block?
+                @test (@invokelatest (@__MODULE__).semi).neighborhood_searches[1, 1].cell_list isa
+                      FullGridCellList
+                @test (@invokelatest (@__MODULE__).sol).retcode ==
+                      (@invokelatest (@__MODULE__).ReturnCode).Success
+                v_ode, u_ode = (@invokelatest (@__MODULE__).sol).u[end].x
                 backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
                 @test backend == Main.parallelization_backend
                 @test eltype(v_ode) == Float64
@@ -67,9 +73,12 @@ end
                     r"┌ Info: The desired tank length in y-direction .*\n",
                     r"└ New tank length in y-direction.*\n"
                 ]
-                @test semi.neighborhood_searches[1, 1].cell_list isa FullGridCellList
-                @test sol.retcode == ReturnCode.Success
-                v_ode, u_ode = sol.u[end].x
+                # See the comment in the previous test about `@invokelatest`
+                @test (@invokelatest (@__MODULE__).semi).neighborhood_searches[1, 1].cell_list isa
+                      FullGridCellList
+                @test (@invokelatest (@__MODULE__).sol).retcode ==
+                      (@invokelatest (@__MODULE__).ReturnCode).Success
+                v_ode, u_ode = (@invokelatest (@__MODULE__).sol).u[end].x
                 backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
                 @test backend == Main.parallelization_backend
                 @test eltype(v_ode) == Float32

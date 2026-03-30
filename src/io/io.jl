@@ -128,6 +128,7 @@ function add_system_data!(system_data, system::RigidBodySystem)
     system_data["adhesion_coefficient"] = system.adhesion_coefficient
     system_data["color"] = system.cache.color
     add_system_data!(system_data, system.boundary_model)
+    add_system_data!(system_data, system.contact_model)
 end
 
 function add_system_data!(system_data, system::WallBoundarySystem)
@@ -217,6 +218,14 @@ function add_system_data!(system_data, contact_model::LinearContactModel)
     system_data["contact_model"] = Dict{String, Any}()
     system_data["contact_model"]["model"] = type2string(contact_model)
     system_data["contact_model"]["normal_stiffness"] = contact_model.normal_stiffness
+end
+
+function add_system_data!(system_data, contact_model::RigidContactModel)
+    system_data["contact_model"] = Dict{String, Any}()
+    system_data["contact_model"]["model"] = type2string(contact_model)
+    system_data["contact_model"]["normal_stiffness"] = contact_model.normal_stiffness
+    system_data["contact_model"]["normal_damping"] = contact_model.normal_damping
+    system_data["contact_model"]["contact_distance"] = contact_model.contact_distance
 end
 
 function add_system_data!(system_data, state_equation::StateEquationCole)
