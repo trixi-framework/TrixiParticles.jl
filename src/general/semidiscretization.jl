@@ -406,7 +406,6 @@ end
 
 function drift!(du_ode, v_ode, u_ode, semi, t)
     @trixi_timeit timer() "drift!" begin
-        # Set velocity and add acceleration for each system
         foreach_system(semi) do system
             du = wrap_u(du_ode, system, semi)
             v = wrap_v(v_ode, system, semi)
