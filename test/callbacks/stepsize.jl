@@ -1,9 +1,17 @@
 # Minimal objects used to mock an OrdinaryDiffEq integrator. They only store the fields
 # touched by the stepsize callback so we can assert on them in the unit tests.
 
+mutable struct StepsizeTestSemi
+    factor::Float64
+    offset::Float64
+    update_callback_used::Base.RefValue{Bool}
+    integrate_tlsph::Base.RefValue{Bool}
+end
+
 mutable struct StepsizeTestOpts
     adaptive::Bool
     dtmax::Float64
+    callback::Any
 end
 
 mutable struct StepsizeTestIntegrator
@@ -17,7 +25,7 @@ end
 
 function StepsizeTestIntegrator(v_ode, u_ode, semi; adaptive=false)
     state = (; x=(v_ode, u_ode))
-    opts = StepsizeTestOpts(adaptive, 0.0)
+    opts = StepsizeTestOpts(adaptive, 0.0, (; discrete_callbacks=()))
     return StepsizeTestIntegrator(state, semi, opts, 0.0, 0.0, true)
 end
 
@@ -31,8 +39,7 @@ function TrixiParticles.u_modified!(integrator::StepsizeTestIntegrator, flag)
     return integrator
 end
 
-function TrixiParticles.calculate_dt(v_ode, u_ode, cfl_number,
-                                     semi::NamedTuple{(:factor, :offset)})
+function TrixiParticles.calculate_dt(v_ode, u_ode, cfl_number, semi::StepsizeTestSemi)
     return semi.factor * cfl_number + semi.offset
 end
 
@@ -71,7 +78,7 @@ end
     @testset verbose=true "affect!" begin
         # Verify that `affect!` computes the dt via `calculate_dt` and forwards it
         # to `set_proposed_dt!`, `dtmax`, and `dtcache`
-        semi = (; factor=2.0, offset=0.05)
+        semi = StepsizeTestSemi(2.0, 0.05, Ref(false), Ref(true))
         cfl_number = 0.3
         expected_dt = semi.factor * cfl_number + semi.offset
 
@@ -89,7 +96,7 @@ end
 
     @testset verbose=true "initialize" begin
         # The initialize hook should delegate to the callback and thus set the dt once
-        semi = (; factor=1.5, offset=0.1)
+        semi = StepsizeTestSemi(1.5, 0.1, Ref(false), Ref(true))
         cfl_number = 0.25
         expected_dt = semi.factor * cfl_number + semi.offset
 
@@ -101,5 +108,7 @@ end
         @test integrator.proposed_dt == expected_dt
         @test integrator.opts.dtmax == expected_dt
         @test integrator.dtcache == expected_dt
+        @test semi.update_callback_used[] == false
+        @test semi.integrate_tlsph[] == true
     end
 end
