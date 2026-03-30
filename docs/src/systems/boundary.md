@@ -31,12 +31,12 @@ All rigid/FSI examples follow the same construction pattern:
 contact_model_spec = LinearizedHertzMindlinBoundaryContactModel(; ...)
 
 rigid_system = RigidBodySystem(shape;
-                              boundary_contact_model=contact_model_spec,
+                              contact_model=contact_model_spec,
                               ...)
 ```
 
 `RigidBodySystem` converts the typed specification model to the runtime
-[`RigidBoundaryContactModel`](@ref) internally.
+[`RigidContactModel`](@ref) internally.
 
 ```@autodocs
 Modules = [TrixiParticles]

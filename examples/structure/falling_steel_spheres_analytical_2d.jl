@@ -187,7 +187,7 @@ function first_rebound_height(center_y_history, impact_index)
 end
 
 wall_top = maximum(wall_coordinates[2, :])
-runtime_contact_model = first(rigid_systems).boundary_contact_model
+runtime_contact_model = first(rigid_systems).contact_model
 contact_distance = runtime_contact_model.contact_distance
 geometric_contact_height = wall_top + sphere_radius
 effective_contact_height = geometric_contact_height + contact_distance

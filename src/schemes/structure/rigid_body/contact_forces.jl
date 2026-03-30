@@ -1,16 +1,16 @@
 @inline function requires_update_callback(system::RigidBodySystem)
-    return !isnothing(system.boundary_contact_model)
+    return requires_update_callback(system.contact_model)
 end
 
 @inline function contact_time_step(system::RigidBodySystem)
-    return contact_time_step(system.boundary_contact_model, system)
+    return contact_time_step(system.contact_model, system)
 end
 
 @inline function contact_time_step(::Nothing, system::RigidBodySystem)
     return Inf
 end
 
-function contact_time_step(contact_model::RigidBoundaryContactModel,
+function contact_time_step(contact_model::RigidContactModel,
                            system::RigidBodySystem)
     min_mass = minimum(system.mass)
     normal_stiffness = contact_model.normal_stiffness
@@ -32,7 +32,7 @@ function update_contact_manifold_step!(system::RigidBodySystem, v_ode, u_ode, se
         v_neighbor = wrap_v(v_ode, neighbor_system, semi)
         u_neighbor = wrap_u(u_ode, neighbor_system, semi)
 
-        apply_boundary_contact_correction!(system, neighbor_system,
+        apply_contact_correction!(system, neighbor_system,
                                            v_system, u_system,
                                            v_neighbor, u_neighbor,
                                            semi, dt,
@@ -61,14 +61,14 @@ end
 
 function update_rigid_contact_eachstep!(system::RigidBodySystem, v_ode, u_ode, semi, t,
                                         integrator)
-    contact_model = system.boundary_contact_model
-    isnothing(contact_model) && return system
+    contact_model = system.contact_model
+    requires_update_callback(contact_model) || return system
 
     v_system = wrap_v(v_ode, system, semi)
     u_system = wrap_u(u_ode, system, semi)
 
-    system.cache.boundary_contact_count[] = 0
-    system.cache.max_boundary_penetration[] = zero(eltype(system))
+    system.cache.contact_count[] = 0
+    system.cache.max_contact_penetration[] = zero(eltype(system))
 
     active_contact_keys = Set{NTuple{3, Int}}()
     @trixi_timeit timer() "contact manifold update" begin
@@ -96,7 +96,7 @@ function update_contact_manifold_cache!(system::RigidBodySystem{<:Any, <:Any, ND
                                         u_system,
                                         v_neighbor, u_neighbor,
                                         semi,
-                                        contact_model::RigidBoundaryContactModel,
+                                        contact_model::RigidContactModel,
                                         normal_merge_cos, zero_tangential,
                                         ELTYPE) where {NDIMS}
     system_coords = current_coordinates(u_system, system)
@@ -131,7 +131,7 @@ function update_contact_history_from_manifolds!(system::RigidBodySystem{<:Any, <
                                                 neighbor_system_index,
                                                 v_system, dt,
                                                 active_contact_keys,
-                                                contact_model::RigidBoundaryContactModel,
+                                                contact_model::RigidContactModel,
                                                 ELTYPE) where {NDIMS}
     contact_count = 0
     max_penetration = zero(ELTYPE)
@@ -178,12 +178,12 @@ function update_contact_history_from_manifolds!(system::RigidBodySystem{<:Any, <
     return contact_count, max_penetration
 end
 
-function apply_boundary_contact_correction!(system::RigidBodySystem{<:Any, <:Any, NDIMS},
+function apply_contact_correction!(system::RigidBodySystem{<:Any, <:Any, NDIMS},
                                             neighbor_system::WallBoundarySystem,
                                             v_system, u_system,
                                             v_neighbor, u_neighbor,
                                             semi, dt, active_contact_keys) where {NDIMS}
-    contact_model = system.boundary_contact_model
+    contact_model = system.contact_model
     isnothing(contact_model) && return false
 
     reset_contact_manifold_cache!(system.cache)
@@ -205,8 +205,8 @@ function apply_boundary_contact_correction!(system::RigidBodySystem{<:Any, <:Any
                                                                             contact_model,
                                                                             ELTYPE)
 
-    system.cache.boundary_contact_count[] += contact_count
-    system.cache.max_boundary_penetration[] = max(system.cache.max_boundary_penetration[],
+    system.cache.contact_count[] += contact_count
+    system.cache.max_contact_penetration[] = max(system.cache.max_contact_penetration[],
                                                   max_penetration)
 
     # This callback only updates contact history/diagnostics. It must not modify
@@ -217,7 +217,7 @@ end
 function update_contact_tangential_history!(system::RigidBodySystem, contact_key,
                                             tangential_velocity, normal,
                                             penetration_effective, normal_velocity, dt,
-                                            contact_model::RigidBoundaryContactModel)
+                                            contact_model::RigidContactModel)
     dt_ = isfinite(dt) && dt > 0 ? convert(eltype(system), dt) : zero(eltype(system))
     contact_map = system.cache.contact_tangential_displacement
     isnothing(contact_map) && return contact_map

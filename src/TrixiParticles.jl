@@ -43,8 +43,7 @@ using TrixiBase: @trixi_timeit, timer, timeit_debug_enabled,
                                 ThreadsDynamicBackend, default_backend
 using PointNeighbors: PointNeighbors, foreach_point_neighbor, copy_neighborhood_search,
                       @threaded
-using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, VTKFieldData, paraview_collection,
-                vtk_save
+using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, paraview_collection, vtk_save
 
 # `util.jl` needs to be first because of the macros `@trixi_timeit` and `@threaded`
 include("util.jl")
@@ -92,8 +91,9 @@ export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureEx
        BoundaryModelMirroringTafuni, BoundaryModelDynamicalPressureZhang,
        BernoulliPressureExtrapolation, PressureBoundaries
 export FirstOrderMirroring, ZerothOrderMirroring, SimpleMirroring
-export HertzContactModel, LinearContactModel, RigidBoundaryContactModel,
-       PerfectElasticBoundaryContactModel, LinearizedHertzMindlinBoundaryContactModel
+export HertzContactModel, LinearContactModel, RigidContactModel,
+       PerfectElasticBoundaryContactModel, LinearizedHertzMindlinBoundaryContactModel,
+       copy_contact_model
 export PrescribedMotion, OscillatingMotion2D
 export RCRWindkesselModel
 export examples_dir, validation_dir

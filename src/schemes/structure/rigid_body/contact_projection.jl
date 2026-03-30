@@ -60,7 +60,7 @@ end
     return system.cache.resting_contact_counter[]
 end
 
-@inline function resting_contact_speed_threshold(contact_model::RigidBoundaryContactModel,
+@inline function resting_contact_speed_threshold(contact_model::RigidContactModel,
                                                  dt_contact, velocity_floor, ELTYPE)
     # Use the friction stick/slip regularization scale as the upper bound for
     # "resting" motion. Basing this on `contact_distance / dt_contact` makes the
@@ -105,7 +105,7 @@ activate projection on the first low-speed impact step by itself.
 end
 
 function should_project_resting_contact!(system::RigidBodySystem,
-                                         contact_model::RigidBoundaryContactModel,
+                                         contact_model::RigidContactModel,
                                          dt, dt_contact,
                                          velocity_floor,
                                          max_normal_speed,
@@ -125,7 +125,7 @@ function collect_resting_contact_constraints!(system::RigidBodySystem{<:Any, <:A
                                               u_system, v_ode, u_ode, semi,
                                               center_of_mass_velocity,
                                               angular_velocity,
-                                              contact_model::RigidBoundaryContactModel,
+                                              contact_model::RigidContactModel,
                                               constraints,
                                               projection_contact_keys,
                                               projected_particles)
@@ -262,10 +262,10 @@ end
 function project_resting_contact_velocity!(system::RigidBodySystem{<:Any, <:Any, 2},
                                            v_system, u_system, v_ode, u_ode, semi,
                                            integrator)
-    contact_model = system.boundary_contact_model
+    contact_model = system.contact_model
     isnothing(contact_model) && return false
     contact_model.resting_contact_projection || return false
-    system.cache.boundary_contact_count[] > 0 || begin
+    system.cache.contact_count[] > 0 || begin
         reset_resting_contact_counter!(system)
         return false
     end

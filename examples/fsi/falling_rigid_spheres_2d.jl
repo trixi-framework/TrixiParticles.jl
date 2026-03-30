@@ -19,14 +19,14 @@ spacing_ratio = 1
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 9.81
-tspan = (0.0, 0.5)
+tspan = (0.0, 1.0)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (2.0, 0.5)
 tank_size = (2.0, 2.0)
 
 fluid_density = 1000.0
-sound_speed = 10 * sqrt(gravity * initial_fluid_size[2])
+sound_speed = 100.0
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1)
 
@@ -38,21 +38,16 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
 sphere1_radius = 0.3
 sphere2_radius = 0.2
 
-# Material properties [SI units]
-wall_material = (; youngs_modulus=3.0e10, poisson_ratio=0.2)
-material_properties = (
-    wood=(; density=650.0, youngs_modulus=1.0e10, poisson_ratio=0.35,
-          restitution=0.35, friction_coefficient=0.5),
-    steel=(; density=7850.0, youngs_modulus=2.1e11, poisson_ratio=0.29,
-           restitution=0.8, friction_coefficient=0.55)
-)
+# Approximate densities for a floating and a sinking sphere
+sphere1_density = 600.0
+sphere2_density = 3000.0
 
 sphere1_center = (0.6, 1.2)
 sphere2_center = (1.4, 1.2)
 sphere1 = SphereShape(structure_particle_spacing, sphere1_radius, sphere1_center,
-                      material_properties.wood.density, sphere_type=VoxelSphere())
+                      sphere1_density, sphere_type=RoundSphere())
 sphere2 = SphereShape(structure_particle_spacing, sphere2_radius, sphere2_center,
-                      material_properties.steel.density, sphere_type=VoxelSphere())
+                      sphere2_density, sphere_type=RoundSphere())
 
 # ==========================================================================================
 # ==== Fluid
@@ -71,7 +66,7 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
 
 # ==========================================================================================
 # ==== Boundary
-boundary_density_calculator = BernoulliPressureExtrapolation()
+boundary_density_calculator = AdamiPressureExtrapolation()
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=state_equation,
                                              boundary_density_calculator,
@@ -82,61 +77,44 @@ boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
 # ==========================================================================================
 # ==== Rigid Structures
 # For the FSI we need the hydrodynamic masses and densities in the structure boundary model
-function make_boundary_model_structure(shape)
-    hydrodynamic_densities = fluid_density * ones(size(shape.density))
-    hydrodynamic_masses = hydrodynamic_densities *
-                          structure_particle_spacing^ndims(fluid_system)
+hydrodynamic_densities_1 = fluid_density * ones(size(sphere1.density))
+hydrodynamic_masses_1 = hydrodynamic_densities_1 *
+                        structure_particle_spacing^ndims(fluid_system)
 
-    return BoundaryModelDummyParticles(hydrodynamic_densities,
-                                       hydrodynamic_masses,
-                                       state_equation=state_equation,
-                                       boundary_density_calculator,
-                                       fluid_smoothing_kernel,
-                                       fluid_smoothing_length)
-end
+boundary_model_structure_1 = BoundaryModelDummyParticles(hydrodynamic_densities_1,
+                                                         hydrodynamic_masses_1,
+                                                         state_equation=state_equation,
+                                                         boundary_density_calculator,
+                                                         fluid_smoothing_kernel,
+                                                         fluid_smoothing_length)
 
-boundary_model_structure_1 = make_boundary_model_structure(sphere1)
-boundary_model_structure_2 = make_boundary_model_structure(sphere2)
+hydrodynamic_densities_2 = fluid_density * ones(size(sphere2.density))
+hydrodynamic_masses_2 = hydrodynamic_densities_2 *
+                        structure_particle_spacing^ndims(fluid_system)
 
-# Use Hertz-Mindlin linearization with the 2D per-unit-thickness proxy calibration.
-drop_height_1 = max(sphere1_center[2] - sphere1_radius - initial_fluid_size[2],
-                    structure_particle_spacing)
-drop_height_2 = max(sphere2_center[2] - sphere2_radius - initial_fluid_size[2],
-                    structure_particle_spacing)
-impact_velocity_1 = sqrt(2.0 * gravity * drop_height_1)
-impact_velocity_2 = sqrt(2.0 * gravity * drop_height_2)
+boundary_model_structure_2 = BoundaryModelDummyParticles(hydrodynamic_densities_2,
+                                                         hydrodynamic_masses_2,
+                                                         state_equation=state_equation,
+                                                         boundary_density_calculator,
+                                                         fluid_smoothing_kernel,
+                                                         fluid_smoothing_length)
 
-boundary_contact_model_spec_1 = LinearizedHertzMindlinBoundaryContactModel(;
-                                                                            material=material_properties.wood,
-                                                                            wall_material,
-                                                                            radius=sphere1_radius,
-                                                                            impact_velocity=impact_velocity_1,
-                                                                            particle_spacing=structure_particle_spacing,
-                                                                            ndims=2,
-                                                                            torque_free=false,
-                                                                            resting_contact_projection=true)
-boundary_contact_model_spec_2 = LinearizedHertzMindlinBoundaryContactModel(;
-                                                                            material=material_properties.steel,
-                                                                            wall_material,
-                                                                            radius=sphere2_radius,
-                                                                            impact_velocity=impact_velocity_2,
-                                                                            particle_spacing=structure_particle_spacing,
-                                                                            ndims=2,
-                                                                            torque_free=false,
-                                                                            resting_contact_projection=true)
+# Basic rigid contact model used for both rigid bodies.
+contact_model = RigidContactModel(; normal_stiffness=2.0e5,
+                                  normal_damping=200.0,
+                                  contact_distance=2.0 *
+                                                   structure_particle_spacing)
 
-# RigidBodySystem converts each typed contact specification to runtime
-# `RigidBoundaryContactModel` coefficients internally.
 structure_system_1 = RigidBodySystem(sphere1;
-                                    boundary_model=boundary_model_structure_1,
-                                    boundary_contact_model=boundary_contact_model_spec_1,
-                                    acceleration=(0.0, -gravity),
-                                    particle_spacing=structure_particle_spacing)
+                                     boundary_model=boundary_model_structure_1,
+                                     contact_model=contact_model,
+                                     acceleration=(0.0, -gravity),
+                                     particle_spacing=structure_particle_spacing)
 structure_system_2 = RigidBodySystem(sphere2;
-                                    boundary_model=boundary_model_structure_2,
-                                    boundary_contact_model=boundary_contact_model_spec_2,
-                                    acceleration=(0.0, -gravity),
-                                    particle_spacing=structure_particle_spacing)
+                                     boundary_model=boundary_model_structure_2,
+                                     contact_model=contact_model,
+                                     acceleration=(0.0, -gravity),
+                                     particle_spacing=structure_particle_spacing)
 
 # ==========================================================================================
 # ==== Simulation
@@ -146,12 +124,11 @@ ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=50)
 saving_callback = SolutionSavingCallback(dt=0.01, output_directory="out", prefix="")
-update_callback = UpdateCallback()
 
-callbacks = CallbackSet(info_callback, saving_callback, update_callback)
+callbacks = CallbackSet(info_callback, saving_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-6, # Default abstol is 1e-6
-            reltol=1e-3, # Default reltol is 1e-3
+            reltol=1e-4, # Default reltol is 1e-3
             save_everystep=false, callback=callbacks);

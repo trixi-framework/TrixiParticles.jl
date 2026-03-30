@@ -1,6 +1,32 @@
-abstract type AbstractRigidBoundaryContactModel end
+abstract type AbstractRigidContactModel end
+abstract type AbstractRigidContactModelSpecification end
 
-struct RigidBoundaryContactModel{ELTYPE <: Real} <: AbstractRigidBoundaryContactModel
+"""
+    RigidContactModel(; normal_stiffness,
+                      normal_damping=0.0,
+                      static_friction_coefficient=nothing,
+                      kinetic_friction_coefficient=nothing,
+                      tangential_stiffness=nothing,
+                      tangential_damping=nothing,
+                      contact_distance=0.0,
+                      stick_velocity_tolerance=nothing,
+                      penetration_slop=nothing,
+                      torque_free=false,
+                      resting_contact_projection=nothing,
+                      normalize_force_by_contact_patch=false)
+
+Runtime rigid-contact model used by `RigidBodySystem`.
+It currently drives rigid-wall contact through a linear normal spring-dashpot law,
+with optional tangential spring-dashpot friction, stick-slip regularization, and
+resting-contact controls used by the collision prototype.
+
+If `contact_distance == 0`, the `RigidBodySystem` particle spacing is used when the
+model is adapted via `copy_contact_model(model, particle_spacing, ELTYPE)`.
+
+!!! warning "Experimental implementation"
+    This is an experimental feature and may change in future releases.
+"""
+struct RigidContactModel{ELTYPE <: Real} <: AbstractRigidContactModel
     normal_stiffness::ELTYPE
     normal_damping::ELTYPE
     static_friction_coefficient::ELTYPE
@@ -15,18 +41,37 @@ struct RigidBoundaryContactModel{ELTYPE <: Real} <: AbstractRigidBoundaryContact
     normalize_force_by_contact_patch::Bool
 end
 
-function RigidBoundaryContactModel(; normal_stiffness,
-                                   normal_damping=0.0,
-                                   static_friction_coefficient=0.5,
-                                   kinetic_friction_coefficient=0.4,
-                                   tangential_stiffness=0.0,
-                                   tangential_damping=0.0,
-                                   contact_distance=0.0,
-                                   stick_velocity_tolerance=1e-6,
-                                   penetration_slop=0.0,
-                                   torque_free=false,
-                                   resting_contact_projection=true,
-                                   normalize_force_by_contact_patch=false)
+function RigidContactModel(; normal_stiffness,
+                           normal_damping=0.0,
+                           static_friction_coefficient=nothing,
+                           kinetic_friction_coefficient=nothing,
+                           tangential_stiffness=nothing,
+                           tangential_damping=nothing,
+                           contact_distance=0.0,
+                           stick_velocity_tolerance=nothing,
+                           penetration_slop=nothing,
+                           torque_free=false,
+                           resting_contact_projection=nothing,
+                           normalize_force_by_contact_patch=false)
+    advanced_mode = !isnothing(static_friction_coefficient) ||
+                    !isnothing(kinetic_friction_coefficient) ||
+                    !isnothing(tangential_stiffness) ||
+                    !isnothing(tangential_damping) ||
+                    !isnothing(stick_velocity_tolerance) ||
+                    !isnothing(penetration_slop) ||
+                    !isnothing(resting_contact_projection) ||
+                    torque_free
+
+    static_friction_coefficient = something(static_friction_coefficient,
+                                            advanced_mode ? 0.5 : 0.0)
+    kinetic_friction_coefficient = something(kinetic_friction_coefficient,
+                                             advanced_mode ? 0.4 : 0.0)
+    tangential_stiffness = something(tangential_stiffness, 0.0)
+    tangential_damping = something(tangential_damping, 0.0)
+    stick_velocity_tolerance = something(stick_velocity_tolerance, 1e-6)
+    penetration_slop = something(penetration_slop, 0.0)
+    resting_contact_projection = something(resting_contact_projection, advanced_mode)
+    normalize_force_by_contact_patch = Bool(normalize_force_by_contact_patch)
     ELTYPE = promote_type(typeof(normal_stiffness),
                           typeof(normal_damping),
                           typeof(static_friction_coefficient),
@@ -68,14 +113,14 @@ function RigidBoundaryContactModel(; normal_stiffness,
     penetration_slop_ >= 0 ||
         throw(ArgumentError("`penetration_slop` must be non-negative"))
 
-    return RigidBoundaryContactModel(normal_stiffness_, normal_damping_,
-                                     static_friction_coefficient_,
-                                     kinetic_friction_coefficient_,
-                                     tangential_stiffness_, tangential_damping_,
-                                     contact_distance_, stick_velocity_tolerance_,
-                                     penetration_slop_, Bool(torque_free),
-                                     Bool(resting_contact_projection),
-                                     Bool(normalize_force_by_contact_patch))
+    return RigidContactModel(normal_stiffness_, normal_damping_,
+                             static_friction_coefficient_,
+                             kinetic_friction_coefficient_,
+                             tangential_stiffness_, tangential_damping_,
+                             contact_distance_, stick_velocity_tolerance_,
+                             penetration_slop_, Bool(torque_free),
+                             Bool(resting_contact_projection),
+                             normalize_force_by_contact_patch)
 end
 
 """
@@ -86,11 +131,11 @@ end
                                        torque_free=true)
 
 Specification model for idealized rigid-wall elastic impacts.
-It is converted to a [`RigidBoundaryContactModel`](@ref) inside
+It is converted to a [`RigidContactModel`](@ref) inside
 `RigidBodySystem` via constructor-based adaptation
-`RigidBoundaryContactModel(model, particle_spacing, ELTYPE)`.
+`RigidContactModel(model, particle_spacing, ELTYPE)`.
 """
-struct PerfectElasticBoundaryContactModel{ELTYPE <: Real} <: AbstractRigidBoundaryContactModel
+struct PerfectElasticBoundaryContactModel{ELTYPE <: Real} <: AbstractRigidContactModelSpecification
     normal_stiffness::ELTYPE
     contact_distance::ELTYPE
     contact_distance_factor::ELTYPE
@@ -332,15 +377,15 @@ end
                                                resting_contact_projection=true)
 
 Specification model for linearized Hertz-Mindlin rigid-wall contact.
-It is converted to a [`RigidBoundaryContactModel`](@ref) inside
+It is converted to a [`RigidContactModel`](@ref) inside
 `RigidBodySystem` via constructor-based adaptation
-`RigidBoundaryContactModel(model, particle_spacing, ELTYPE)`.
+`RigidContactModel(model, particle_spacing, ELTYPE)`.
 
 A convenience constructor is also provided:
 `LinearizedHertzMindlinBoundaryContactModel(; material, wall_material, radius, ndims, ...)`.
 """
 struct LinearizedHertzMindlinBoundaryContactModel{ELTYPE <: Real} <:
-       AbstractRigidBoundaryContactModel
+       AbstractRigidContactModelSpecification
     effective_youngs_modulus::ELTYPE
     effective_shear_modulus::ELTYPE
     radius::ELTYPE
@@ -492,8 +537,13 @@ function LinearizedHertzMindlinBoundaryContactModel(; material, wall_material, r
                                                       resting_contact_projection)
 end
 
-function RigidBoundaryContactModel(model::PerfectElasticBoundaryContactModel,
-                                   particle_spacing, ::Type{ELTYPE}) where {ELTYPE}
+@inline function copy_contact_model(model::AbstractRigidContactModelSpecification,
+                                    particle_spacing, ::Type{ELTYPE}) where {ELTYPE}
+    return RigidContactModel(model, particle_spacing, ELTYPE)
+end
+
+function RigidContactModel(model::PerfectElasticBoundaryContactModel,
+                           particle_spacing, ::Type{ELTYPE}) where {ELTYPE}
     particle_spacing_ = convert(ELTYPE, particle_spacing)
     particle_spacing_ > 0 ||
         throw(ArgumentError("`particle_spacing` must be positive"))
@@ -501,7 +551,7 @@ function RigidBoundaryContactModel(model::PerfectElasticBoundaryContactModel,
     contact_distance = model.contact_distance > 0 ? convert(ELTYPE, model.contact_distance) :
                        convert(ELTYPE, model.contact_distance_factor) * particle_spacing_
 
-    return RigidBoundaryContactModel(; normal_stiffness=convert(ELTYPE,
+    return RigidContactModel(; normal_stiffness=convert(ELTYPE,
                                                                 model.normal_stiffness),
                                      normal_damping=zero(ELTYPE),
                                      static_friction_coefficient=zero(ELTYPE),
@@ -517,8 +567,8 @@ function RigidBoundaryContactModel(model::PerfectElasticBoundaryContactModel,
                                      normalize_force_by_contact_patch=false)
 end
 
-function RigidBoundaryContactModel(model::LinearizedHertzMindlinBoundaryContactModel,
-                                   particle_spacing, ::Type{ELTYPE}) where {ELTYPE}
+function RigidContactModel(model::LinearizedHertzMindlinBoundaryContactModel,
+                           particle_spacing, ::Type{ELTYPE}) where {ELTYPE}
     particle_spacing_ = convert(ELTYPE, particle_spacing)
     particle_spacing_ > 0 ||
         throw(ArgumentError("`particle_spacing` must be positive"))
@@ -567,7 +617,7 @@ function RigidBoundaryContactModel(model::LinearizedHertzMindlinBoundaryContactM
                                            model.stick_velocity_tolerance_factor) *
                                    impact_velocity)
 
-    return RigidBoundaryContactModel(; normal_stiffness,
+    return RigidContactModel(; normal_stiffness,
                                      normal_damping,
                                      static_friction_coefficient,
                                      kinetic_friction_coefficient,
@@ -582,13 +632,18 @@ function RigidBoundaryContactModel(model::LinearizedHertzMindlinBoundaryContactM
                                      normalize_force_by_contact_patch=true)
 end
 
-function RigidBoundaryContactModel(model::RigidBoundaryContactModel, particle_spacing,
-                                   ::Type{ELTYPE}) where {ELTYPE}
-    contact_distance = model.contact_distance > 0 ? model.contact_distance :
-                       convert(ELTYPE, particle_spacing)
+function copy_contact_model(model::RigidContactModel, particle_spacing,
+                            ::Type{ELTYPE}) where {ELTYPE}
+    particle_spacing_ = convert(ELTYPE, particle_spacing)
+    particle_spacing_ > 0 ||
+        throw(ArgumentError("`particle_spacing` must be positive"))
 
-    return RigidBoundaryContactModel(; normal_stiffness=convert(ELTYPE,
-                                                                model.normal_stiffness),
+    contact_distance = model.contact_distance > 0 ?
+                       convert(ELTYPE, model.contact_distance) :
+                       particle_spacing_
+
+    return RigidContactModel(; normal_stiffness=convert(ELTYPE,
+                                                        model.normal_stiffness),
                                      normal_damping=convert(ELTYPE, model.normal_damping),
                                      static_friction_coefficient=convert(ELTYPE,
                                                                          model.static_friction_coefficient),
@@ -608,18 +663,31 @@ function RigidBoundaryContactModel(model::RigidBoundaryContactModel, particle_sp
                                      normalize_force_by_contact_patch=model.normalize_force_by_contact_patch)
 end
 
+@inline function RigidContactModel(model::RigidContactModel, particle_spacing,
+                                   ::Type{ELTYPE}) where {ELTYPE}
+    return copy_contact_model(model, particle_spacing, ELTYPE)
+end
+
+@inline function requires_update_callback(contact_model::RigidContactModel)
+    return contact_model.tangential_stiffness > 0 ||
+           contact_model.tangential_damping > 0 ||
+           contact_model.resting_contact_projection
+end
+
 create_contact_tangential_displacement(::Nothing, ELTYPE, ::Val{NDIMS}) where {NDIMS} = nothing
 
-function create_contact_tangential_displacement(::RigidBoundaryContactModel, ELTYPE,
+function create_contact_tangential_displacement(contact_model::RigidContactModel, ELTYPE,
                                                 ::Val{NDIMS}) where {NDIMS}
+    requires_update_callback(contact_model) || return nothing
+
     return Dict{NTuple{3, Int}, SVector{NDIMS, ELTYPE}}()
 end
 
 
-function Base.show(io::IO, model::RigidBoundaryContactModel)
+function Base.show(io::IO, model::RigidContactModel)
     @nospecialize model # reduce precompilation time
 
-    print(io, "RigidBoundaryContactModel(")
+    print(io, "RigidContactModel(")
     print(io, "normal_stiffness=", model.normal_stiffness)
     print(io, ", normal_damping=", model.normal_damping)
     print(io, ", mu_s=", model.static_friction_coefficient)

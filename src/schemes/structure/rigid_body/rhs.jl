@@ -193,7 +193,12 @@ end
                          grad_kernel, particle)
 end
 
+# Reset the manifold scratch arrays used while assembling one rigid-wall interaction pair.
+# The cache itself lives on the rigid system, but its contents are strictly transient and
+# are rebuilt from zero before each wall-pair traversal.
 function reset_contact_manifold_cache!(cache)
+    haskey(cache, :contact_manifold_count) || return cache
+
     set_zero!(cache.contact_manifold_count)
     set_zero!(cache.contact_manifold_weight_sum)
     set_zero!(cache.contact_manifold_penetration_sum)
@@ -214,10 +219,12 @@ end
 
     volume = convert(ELTYPE, neighbor_system.initial_condition.mass[neighbor]) / density
     kernel_weight = convert(ELTYPE, smoothing_kernel(neighbor_system, distance, neighbor))
-
     return max(kernel_weight * volume, zero(ELTYPE))
 end
 
+# Greedily assign a contact sample to one cached manifold of the current rigid particle.
+# Samples with sufficiently aligned normals are merged so the later force evaluation acts
+# on one averaged contact patch instead of on every wall particle independently.
 function find_or_add_contact_manifold!(cache, particle, normal, normal_merge_cos, ELTYPE)
     manifold_count = cache.contact_manifold_count[particle]
     normal_sum = cache.contact_manifold_normal_sum
@@ -260,6 +267,8 @@ function find_or_add_contact_manifold!(cache, particle, normal, normal_merge_cos
     return best_index
 end
 
+# Accumulate weighted manifold statistics for one accepted wall-contact sample.
+# The sums are turned into averaged manifold states only in the later force/history pass.
 function accumulate_contact_manifold!(cache, particle, manifold, contact_weight, normal,
                                       wall_velocity, penetration_effective,
                                       tangential_displacement)
@@ -367,7 +376,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::RigidBodySystem{<:Any, <:Any, NDIMS},
                    neighbor_system::WallBoundarySystem, semi) where {NDIMS}
-    contact_model = particle_system.boundary_contact_model
+    contact_model = particle_system.contact_model
     isnothing(contact_model) && return dv
 
     force_per_particle = particle_system.force_per_particle
@@ -385,8 +394,8 @@ function interact!(dv, v_particle_system, u_particle_system,
     contact_map = particle_system.cache.contact_tangential_displacement
     normal_merge_cos = convert(ELTYPE, 0.995)
     patch_merge_cos = convert(ELTYPE, 0.8)
-    boundary_contact_count = 0
-    max_boundary_penetration = zero(ELTYPE)
+    contact_count = 0
+    max_contact_penetration = zero(ELTYPE)
 
     update_contact_manifold_cache!(particle_system, neighbor_system,
                                    u_particle_system,
@@ -455,8 +464,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                 contact_force_per_particle[dim, particle] += interaction_force[dim]
             end
 
-            boundary_contact_count += 1
-            max_boundary_penetration = max(max_boundary_penetration, penetration_effective)
+            contact_count += 1
+            max_contact_penetration = max(max_contact_penetration, penetration_effective)
         end
     end
 
@@ -470,9 +479,9 @@ function interact!(dv, v_particle_system, u_particle_system,
         end
     end
 
-    particle_system.cache.boundary_contact_count[] += boundary_contact_count
-    particle_system.cache.max_boundary_penetration[] = max(particle_system.cache.max_boundary_penetration[],
-                                                           max_boundary_penetration)
+    particle_system.cache.contact_count[] += contact_count
+    particle_system.cache.max_contact_penetration[] = max(particle_system.cache.max_contact_penetration[],
+                                                           max_contact_penetration)
 
     return dv
 end
@@ -515,7 +524,7 @@ function remove_resultant_contact_torque!(force_per_particle,
     return force_per_particle
 end
 
-@inline function normal_contact_force(contact_model::RigidBoundaryContactModel,
+@inline function normal_contact_force(contact_model::RigidContactModel,
                                       penetration, normal_velocity, ELTYPE)
     normal_force, _ = normal_contact_force_components(contact_model, penetration,
                                                       normal_velocity, ELTYPE)
@@ -523,7 +532,7 @@ end
     return normal_force
 end
 
-@inline function normal_friction_reference_force(contact_model::RigidBoundaryContactModel,
+@inline function normal_friction_reference_force(contact_model::RigidContactModel,
                                                  penetration, normal_velocity, ELTYPE)
     _, friction_reference_force = normal_contact_force_components(contact_model, penetration,
                                                                   normal_velocity, ELTYPE)
@@ -531,7 +540,7 @@ end
     return friction_reference_force
 end
 
-@inline function normal_contact_force_components(contact_model::RigidBoundaryContactModel,
+@inline function normal_contact_force_components(contact_model::RigidContactModel,
                                                  penetration, normal_velocity, ELTYPE)
     elastic_force = contact_model.normal_stiffness * penetration
     damping_force = -contact_model.normal_damping * normal_velocity
@@ -541,7 +550,7 @@ end
     return normal_force, friction_reference_force
 end
 
-function tangential_contact_force(contact_model::RigidBoundaryContactModel,
+function tangential_contact_force(contact_model::RigidContactModel,
                                   tangential_displacement,
                                   tangential_velocity,
                                   normal_force_friction_reference, ELTYPE)
