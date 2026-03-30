@@ -1,6 +1,5 @@
 @trixi_testset "Fluid calculate_dt" begin
     using LinearAlgebra: norm
-    using StatsBase: harmmean
 
     struct TestViscosity
         nu::Float64
@@ -16,6 +15,8 @@
 
     TrixiParticles.initial_smoothing_length(system::TestFluidSystem) = system.smoothing_length
     TrixiParticles.system_sound_speed(system::TestFluidSystem) = system.sound_speed
+
+    harmonic_mean(a, b) = iszero(a) || iszero(b) ? zero(a + b) : 2 * a * b / (a + b)
 
     function TrixiParticles.kinematic_viscosity(::TestFluidSystem, viscosity::TestViscosity,
                                                 smoothing_length, sound_speed)
@@ -58,8 +59,8 @@
         dt = TrixiParticles.calculate_interface_dt(nothing, nothing, cfl,
                                                    system_a, system_b, nothing)
 
-        h_interface = harmmean((system_a.smoothing_length, system_b.smoothing_length))
-        signal_speed = harmmean((system_a.sound_speed, system_b.sound_speed))
+        h_interface = harmonic_mean(system_a.smoothing_length, system_b.smoothing_length)
+        signal_speed = harmonic_mean(system_a.sound_speed, system_b.sound_speed)
         dt_acoustic = cfl * h_interface / signal_speed
 
         nu_interface = system_a.viscosity.nu + system_b.viscosity.nu

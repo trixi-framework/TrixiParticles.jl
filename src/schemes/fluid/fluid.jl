@@ -204,12 +204,14 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::AbstractFluidSystem, sem
     return dt
 end
 
+@inline harmonic_mean(a, b) = iszero(a) || iszero(b) ? zero(a + b) : 2 * a * b / (a + b)
+
 function calculate_interface_dt(v_ode, u_ode, cfl_number,
                                 system::AbstractFluidSystem,
                                 neighbor_system::AbstractFluidSystem,
                                 semi)
-    h_interface = harmmean((initial_smoothing_length(system),
-                            initial_smoothing_length(neighbor_system)))
+    h_interface = harmonic_mean(initial_smoothing_length(system),
+                                initial_smoothing_length(neighbor_system))
 
     c_system = system_sound_speed(system)
     c_neighbor_system = system_sound_speed(neighbor_system)
@@ -217,7 +219,7 @@ function calculate_interface_dt(v_ode, u_ode, cfl_number,
     # Adami et al. (2012) suggest that the stiffest interface waves travel with
     # an impedance-limited signal speed; using the harmonic mean of both phase
     # sound speeds penalizes strong contrasts already at t = 0.
-    signal_speed = harmmean((c_system, c_neighbor_system))
+    signal_speed = harmonic_mean(c_system, c_neighbor_system)
     signal_speed == 0 && return Inf
     dt_acoustic = cfl_number * h_interface / signal_speed
 
