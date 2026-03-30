@@ -329,12 +329,13 @@ end
     error("`current_velocity(v, system)` is not implemented for `TotalLagrangianSPHSystem`")
 end
 
-@propagate_inbounds function viscous_velocity(v, system::TotalLagrangianSPHSystem, particle)
-    return extract_svector(system.boundary_model.cache.wall_velocity, system, particle)
-end
-
 @propagate_inbounds function current_density(v, system::TotalLagrangianSPHSystem)
     return current_density(v, system.boundary_model, system)
+end
+
+@inline function viscous_velocity(v, system::TotalLagrangianSPHSystem, particle)
+    # This function is only used in fluid-structure interaction, so it is never called when `boundary_model` is `nothing`
+    return viscous_velocity(v, system.boundary_model.viscosity, system, particle)
 end
 
 # In fluid-structure interaction, use the "hydrodynamic pressure" of the structure particles

@@ -28,14 +28,14 @@
         @test semi.ranges_u == (1:6, 7:15)
         @test semi.ranges_v == (1:6, 7:18)
 
-        nhs = ((TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
-                                                            eachpoint=1:2),
-                TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
-                                                            eachpoint=1:3)),
-               (TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
-                                                            eachpoint=1:2),
-                TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
-                                                            eachpoint=1:3)))
+        nhs = [TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
+               eachpoint=1:2)
+               TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
+               eachpoint=1:2);;
+               TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
+               eachpoint=1:3)
+               TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
+               eachpoint=1:3)]
         @test semi.neighborhood_searches == nhs
     end
 
@@ -49,7 +49,8 @@
             # Mock fluid system
             struct FluidSystemMock <: TrixiParticles.AbstractFluidSystem{2}
                 surface_tension::Nothing
-                FluidSystemMock() = new(nothing)
+                surface_normal_method::Nothing
+                FluidSystemMock() = new(nothing, nothing)
             end
 
             kernel = Val(:smoothing_kernel)

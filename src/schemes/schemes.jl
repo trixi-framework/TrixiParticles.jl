@@ -4,8 +4,10 @@ include("fluid/fluid.jl")
 include("boundary/boundary.jl")
 # Density diffusion requires `OpenBoundarySystem`
 include("fluid/weakly_compressible_sph/density_diffusion.jl")
+include("structure/rigid_body/rigid_body.jl")
 include("structure/total_lagrangian_sph/total_lagrangian_sph.jl")
 include("structure/discrete_element_method/discrete_element_method.jl")
+include("structure/structure.jl")
 # Monaghan-Kajtar repulsive boundary particles require the `WallBoundarySystem`
 # and the `TotalLagrangianSPHSystem`.
 include("boundary/wall_boundary/monaghan_kajtar.jl")
@@ -17,5 +19,6 @@ include("fluid/weakly_compressible_sph/rhs.jl")
 include("fluid/entropically_damped_sph/rhs.jl")
 include("fluid/implicit_incompressible_sph/rhs.jl")
 include("boundary/wall_boundary/rhs.jl")
+include("structure/rigid_body/rhs.jl")
 include("structure/total_lagrangian_sph/rhs.jl")
 include("structure/discrete_element_method/rhs.jl")

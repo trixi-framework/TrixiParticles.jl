@@ -1,7 +1,7 @@
 name = "TrixiParticles"
 uuid = "66699cd8-9c01-4e9d-a059-b96c86d16b3a"
 authors = ["erik.faulhaber <44124897+efaulhaber@users.noreply.github.com>"]
-version = "0.4.4-dev"
+version = "0.4.5-dev"
 
 [deps]
 Accessors = "7d9f7c33-5ae7-4f3b-8dc6-eff91059b697"
@@ -56,7 +56,7 @@ JSON = "1"
 KernelAbstractions = "0.9"
 MuladdMacro = "0.2"
 OrdinaryDiffEq = "6.91"
-OrdinaryDiffEqCore = "2"
+OrdinaryDiffEqCore = "2, 3"
 PointNeighbors = "0.6.5"
 Polyester = "0.7.10"
 ReadVTK = "0.2"
