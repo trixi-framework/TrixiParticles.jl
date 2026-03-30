@@ -77,7 +77,7 @@ function initialize_split_integration!(cb, u, t, integrator)
     end
 
     # These neighborhood searches are never used
-    periodic_box = extract_periodic_box(semi.neighborhood_searches[1][1])
+    periodic_box = extract_periodic_box(semi.neighborhood_searches[1, 1])
     neighborhood_search = TrivialNeighborhoodSearch{ndims(first(systems))}(; periodic_box)
     semi_split = Semidiscretization(systems...,
                                     neighborhood_search=TrivialNeighborhoodSearch{ndims(first(systems))}(),
@@ -212,7 +212,7 @@ function drift_split!(du_ode, v_ode, u_ode, p, t)
     drift!(du_ode, v_ode, u_ode, p.semi_split, t)
 end
 
-# Update the systems before calling `interact!` to compute forces.
+# Update the systems before calling `interact!` to compute forces
 function update_systems_split!(semi, v_ode, u_ode, t)
     # First update step before updating the NHS
     # (for example for writing the current coordinates in the solid system)
@@ -325,6 +325,11 @@ end
             end
         end
     end
+end
+
+function calculate_dt(v_ode, u_ode, cfl_number, p::NamedTuple)
+    # The split integrator contains a `NamedTuple`
+    return calculate_dt(v_ode, u_ode, cfl_number, p.semi_split)
 end
 
 function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:SplitIntegrationCallback})

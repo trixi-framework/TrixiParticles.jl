@@ -77,9 +77,8 @@ end
 # Section 2.2 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
 # Note: This is the simplest form of normal approximation commonly used in SPH and comes
 # with serious deficits in accuracy especially at corners, small neighborhoods and boundaries
-function calc_normal!(system::AbstractFluidSystem, neighbor_system::AbstractBoundarySystem,
-                      u_system, v, v_neighbor_system, u_neighbor_system, semi,
-                      surface_normal_method, neighbor_surface_normal_method)
+function calc_boundary_normal!(system::AbstractFluidSystem, neighbor_system, u_system, v,
+                               u_neighbor_system, semi, surface_normal_method)
     (; cache) = system
     (; colorfield, initial_colorfield) = neighbor_system.boundary_model.cache
     (; boundary_contact_threshold) = surface_normal_method
@@ -122,6 +121,13 @@ function calc_normal!(system::AbstractFluidSystem, neighbor_system::AbstractBoun
     end
 
     return system
+end
+
+function calc_normal!(system::AbstractFluidSystem, neighbor_system::AbstractBoundarySystem,
+                      u_system, v, v_neighbor_system, u_neighbor_system, semi,
+                      surface_normal_method, neighbor_surface_normal_method)
+    return calc_boundary_normal!(system, neighbor_system, u_system, v, u_neighbor_system,
+                                 semi, surface_normal_method)
 end
 
 function remove_invalid_normals!(system::AbstractFluidSystem, surface_tension,
