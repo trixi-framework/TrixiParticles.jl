@@ -65,6 +65,15 @@
                 @test count_rhs_allocations(sol, semi) == 0
             end
         end
+
+        @trixi_testset "structure/colliding_rigid_spheres_2d.jl" begin
+            @trixi_test_nowarn trixi_include(@__MODULE__,
+                                             joinpath(examples_dir(), "structure",
+                                                      "colliding_rigid_spheres_2d.jl"),
+                                             tspan=(0.0, 0.6))
+            @test sol.retcode == ReturnCode.Success
+            @test count_rhs_allocations(sol, semi) == 0
+        end
     end
 
     @testset verbose=true "FSI" begin
@@ -118,7 +127,8 @@
                                              E=1e7, # Stiffer plate
                                              maxiters=500) [
                 r"\[ Info: To create the self-interaction neighborhood search.*\n",
-                r"┌ Warning: Interrupted. Larger maxiters is needed.*\n",
+                "┌ Warning: Verbosity toggle: max_iters \n",
+                r".*Interrupted. Larger maxiters is needed.*\n",
                 r"└ @ SciMLBase.*\n"
             ]
             @test sol.retcode == ReturnCode.MaxIters
@@ -173,7 +183,8 @@
                                              maxiters=500,
                                              extra_callback=split_integration) [
                 r"\[ Info: To create the self-interaction neighborhood search.*\n",
-                "┌ Warning: Instability detected. Aborting\n",
+                "┌ Warning: Verbosity toggle: instability \n",
+                r".*Instability detected. Aborting\n",
                 r".*dt was forced below floating point epsilon.*\n",
                 r"└ @ SciMLBase.*\n"
             ]
@@ -211,6 +222,96 @@
                                                       "falling_spheres_2d.jl"),
                                              tspan=(0.0, 1.0)) [
                 r"\[ Info: To create the self-interaction neighborhood search.*\n"
+            ]
+            @test sol.retcode == ReturnCode.Success
+            if VERSION > v"1.11"
+                # Newer Version than 1.11 produce more allocations
+                # todo: unclear where this is from
+                @test count_rhs_allocations(sol, semi) < 1000
+            else
+                # Older Julia versions than 1.12 produce allocations because `get_neighborhood_search`
+                # is not type-stable with TLSPH.
+                @test count_rhs_allocations(sol, semi) < 200
+            end
+        end
+
+        @trixi_testset "fsi/falling_rigid_spheres_2d.jl" begin
+            @trixi_test_nowarn trixi_include(@__MODULE__,
+                                             joinpath(examples_dir(), "fsi",
+                                                      "falling_rigid_spheres_2d.jl"),
+                                             tspan=(0.0, 0.5))
+            @test sol.retcode == ReturnCode.Success
+            if VERSION < v"1.12"
+                # Older Julia versions produce allocations because `get_neighborhood_search`
+                # is not type-stable with TLSPH.
+                @test count_rhs_allocations(sol, semi) < 500
+            else
+                @test count_rhs_allocations(sol, semi) == 0
+            end
+        end
+
+        @trixi_testset "fsi/hydrostatic_water_column_2d.jl" begin
+            @trixi_test_nowarn trixi_include(@__MODULE__,
+                                             joinpath(examples_dir(), "fsi",
+                                                      "hydrostatic_water_column_2d.jl"),
+                                             tspan=(0.0, 0.1), n_particles_plate_y=3) [
+                r"\[ Info: To create the self-interaction neighborhood search.*\n",
+                r"┌ Warning: keyword `n_clamped_particles` is deprecated.*\n",
+                r"│   caller = ip:0x0\n",
+                r"└ @ Core :-1\n"
+            ]
+            @test sol.retcode == ReturnCode.Success
+            if VERSION < v"1.12"
+                # Older Julia versions produce allocations because `get_neighborhood_search`
+                # is not type-stable with TLSPH.
+                @test count_rhs_allocations(sol, semi) < 500
+            else
+                @test count_rhs_allocations(sol, semi) == 0
+            end
+        end
+
+        @trixi_testset "fsi/falling_rotating_rigid_squares_2d.jl" begin
+            @trixi_test_nowarn trixi_include(@__MODULE__,
+                                             joinpath(examples_dir(), "fsi",
+                                                      "falling_rotating_rigid_squares_2d.jl"),
+                                             tspan=(0.0, 0.5))
+            @test sol.retcode == ReturnCode.Success
+            if VERSION < v"1.12"
+                # Older Julia versions produce allocations because `get_neighborhood_search`
+                # is not type-stable with TLSPH.
+                @test count_rhs_allocations(sol, semi) < 500
+            else
+                @test count_rhs_allocations(sol, semi) == 0
+            end
+        end
+
+        @trixi_testset "fsi/falling_rotating_rigid_squares_w_buoys_2d.jl" begin
+            @trixi_test_nowarn trixi_include(@__MODULE__,
+                                             joinpath(examples_dir(), "fsi",
+                                                      "falling_rotating_rigid_squares_w_buoys_2d.jl"),
+                                             tspan=(0.0, 0.5)) [
+                r"WARNING: Method definition structure_boundary_model.*\n"
+            ]
+            @test sol.retcode == ReturnCode.Success
+            if VERSION < v"1.12"
+                # Older Julia versions produce allocations because `get_neighborhood_search`
+                # is not type-stable with TLSPH or rigid.
+                @test count_rhs_allocations(sol, semi) < 2000
+            else
+                @test count_rhs_allocations(sol, semi) == 0
+            end
+        end
+
+        @trixi_testset "fsi/hydrostatic_water_column_2d.jl with EDAC" begin
+            @trixi_test_nowarn trixi_include(@__MODULE__,
+                                             joinpath(examples_dir(), "fsi",
+                                                      "hydrostatic_water_column_2d.jl"),
+                                             tspan=(0.0, 0.1), n_particles_plate_y=3,
+                                             use_edac=true) [
+                r"\[ Info: To create the self-interaction neighborhood search.*\n",
+                r"┌ Warning: keyword `n_clamped_particles` is deprecated.*\n",
+                r"│   caller = ip:0x0\n",
+                r"└ @ Core :-1\n"
             ]
             @test sol.retcode == ReturnCode.Success
             if VERSION < v"1.12"
