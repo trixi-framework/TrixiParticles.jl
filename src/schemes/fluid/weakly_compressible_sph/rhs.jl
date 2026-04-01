@@ -80,6 +80,16 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                 m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
                                                 distance, grad_kernel, correction)
 
+            # Determine correction factors.
+            # This can usually be ignored, as these are all 1 when no correction is used.
+            (viscosity_correction, pressure_correction,
+             surface_tension_correction) = free_surface_correction(correction,
+                                                                   particle_system,
+                                                                   rho_a, rho_b)
+
+            # Accumulate contributions over all neighbors
+            dv_particle[] += dv_pressure * pressure_correction
+
             # Propagate `@inbounds` to the viscosity function, which accesses particle data
             @inbounds dv_viscosity(dv_particle,
                                    particle_system, neighbor_system,
@@ -105,16 +115,6 @@ function interact!(dv, v_particle_system, u_particle_system,
             @inbounds adhesion_force!(dv_particle, surface_tension_a, particle_system,
                                       neighbor_system,
                                       particle, neighbor, pos_diff, distance)
-
-            # Determine correction factors.
-            # This can usually be ignored, as these are all 1 when no correction is used.
-            (viscosity_correction, pressure_correction,
-             surface_tension_correction) = free_surface_correction(correction,
-                                                                   particle_system,
-                                                                   rho_a, rho_b)
-
-            # Accumulate contributions over all neighbors
-            dv_particle[] += dv_pressure * pressure_correction
 
             # TODO If variable smoothing_length is used, this should use the neighbor smoothing length
             # Propagate `@inbounds` to the continuity equation, which accesses particle data

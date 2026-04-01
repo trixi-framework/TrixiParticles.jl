@@ -142,7 +142,7 @@ end
         # Since this is one of the most performance critical functions, using fast divisions
         # here gives a significant speedup on GPUs.
         mu = div_fast(h * vr, distance^2 + epsilon * h^2)
-        dv_particle[] += div_fast(alpha * c * mu + beta * mu^2, rho_mean) * grad_kernel
+        dv_particle[] += div_fast(m_b * alpha * c * mu + beta * mu^2, rho_mean) * grad_kernel
     end
 
     return dv_particle
