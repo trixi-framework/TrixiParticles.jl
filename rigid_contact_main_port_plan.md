@@ -37,7 +37,7 @@ That regression must not be ported.
 Anything that is conceptually shared between rigid-wall and rigid-rigid contact should be
 designed and merged as shared functionality:
 
-- richer runtime contact model fields,
+- runtime contact model fields as they become active,
 - common normal/tangential force helpers,
 - shared diagnostics,
 - and shared tangential contact-history infrastructure.
@@ -53,7 +53,21 @@ Anything that is fundamentally wall-specific can remain wall-specific:
 Examples, docs, and tests should ship in the same PR that introduces the functionality they
 exercise or explain.
 
-### 3. Re-implement on top of `main`
+### 3. No dormant API or unused changes
+
+Every PR should introduce only code, runtime fields, docs, or examples that are exercised
+by behavior landing in that same PR.
+
+In particular:
+
+- do not add `RigidContactModel` parameters "for later",
+- do not add helper functions that no active code path uses yet,
+- and do not update examples to mention options whose implementation is still deferred.
+
+If a field, helper, or example knob is not yet live, it belongs in the later PR where it
+first becomes live.
+
+### 4. Re-implement on top of `main`
 
 Do not try to merge the branch tip wholesale or cherry-pick it indiscriminately.
 
@@ -64,12 +78,12 @@ For each PR:
 - and explicitly keep or restore `main` behavior where the branch diverged in the wrong
   direction.
 
-### 4. Prefer behavior-preserving defaults
+### 5. Prefer behavior-preserving defaults
 
 When adding new `RigidContactModel` parameters, default values should preserve current
 `main` behavior unless the user explicitly opts into the advanced path.
 
-### 5. Separate shared features from wall-only features
+### 6. Separate shared features from wall-only features
 
 This is the most important architectural rule in the stack.
 
@@ -117,10 +131,10 @@ After the stack lands on `main`, the intended behavior should be:
 
 | PR | Title | Main Theme | Must Also Work For Rigid-Rigid? |
 | --- | --- | --- | --- |
-| 1 | Shared rigid contact runtime model | richer runtime model, shared force-law helpers, shared diagnostics | Yes |
-| 2 | Shared tangential history and callback integration | history lifecycle and callback-driven updates | Yes |
-| 3 | Wall-specific manifold extensions | wall manifold state, patch normalization, wall-only reductions | No |
-| 4 | Wall-only resting-contact projection | persistent low-speed wall-contact fallback | No |
+| 1 | Shared active rigid contact helpers and diagnostics | shared normal-force helpers, active runtime pieces, shared diagnostics | Yes |
+| 2 | Shared frictional rigid contact and callback-driven history | tangential/friction runtime fields, history lifecycle, callback integration | Yes |
+| 3 | Wall-specific manifold extensions and active wall controls | wall manifold state, patch normalization, and remaining wall-only active controls | No |
+| 4 | Wall-only resting-contact projection | projection runtime field and persistent low-speed wall-contact fallback | No |
 | 5 | Typed wall-contact specifications and user-facing examples | material/spec models, examples, docs, tests | Indirectly only |
 | 6 | Optional cleanup/infrastructure | alias removal or infra-only refactors if needed | Depends |
 
@@ -128,32 +142,33 @@ The sections below describe each PR in detail.
 
 ---
 
-## PR 1: Shared Rigid Contact Runtime Model
+## PR 1: Shared Active Rigid Contact Helpers And Diagnostics
 
 ### Proposed title
 
-`Extend RigidContactModel and share core contact-law helpers`
+`Share active rigid contact helpers and diagnostics`
 
 ### Objective
 
-Introduce the richer runtime contact model from the branch, but do it in a way that supports
-both rigid-wall and rigid-rigid contact instead of only the wall path.
+Port only the active shared rigid-contact functionality needed immediately on `main`:
 
-This PR establishes the shared foundation that later PRs will build on.
+- shared normal-force helpers used by both rigid-wall and rigid-rigid contact,
+- and shared rigid-contact diagnostics and their I/O exposure.
+
+This PR should not introduce dormant advanced runtime parameters yet.
+It establishes the minimal shared foundation that later PRs will build on.
 
 ### Why this PR exists separately
 
-Right now, `main` and `collision` differ in two different ways at once:
+Right now, `collision` bundles active shared changes and future-facing runtime API in the
+same area of the codebase.
 
-- the shape of the contact model,
-- and the wall-contact implementation using that model.
-
-Those should not be reviewed together.
+Under the "no dormant API" rule, those should not be reviewed together.
 
 This PR should answer one question only:
 
-"Can `main` safely adopt the richer runtime contact model and shared helper functions without
-breaking rigid-rigid contact?"
+"Can `main` safely factor the currently active shared rigid-contact helpers and diagnostics
+without breaking rigid-rigid contact?"
 
 ### Primary files in scope
 
@@ -168,26 +183,20 @@ breaking rigid-rigid contact?"
 
 ### Functional changes to port
 
-Port the expanded runtime `RigidContactModel` fields from the branch:
-
-- `static_friction_coefficient`
-- `kinetic_friction_coefficient`
-- `tangential_stiffness`
-- `tangential_damping`
-- `stick_velocity_tolerance`
-- `penetration_slop`
-- `torque_free`
-- `resting_contact_projection`
-- `normalize_force_by_contact_patch`
-
-Port the shared helper functions as shared primitives:
+Port the shared helper functions that become active in this PR:
 
 - `normal_contact_force_components`
 - `normal_contact_force`
-- `normal_friction_reference_force`
-- `tangential_contact_force`
 
 These helpers should live in a place that both the wall and rigid-rigid paths can call.
+
+Port the shared rigid-contact diagnostics:
+
+- `contact_count`
+- `max_contact_penetration`
+
+Do not port friction/history or wall-only runtime parameters yet.
+If a `RigidContactModel` change is not exercised by active PR1 behavior, defer it.
 
 ### Important design rule
 
@@ -209,30 +218,22 @@ Specifically:
 
 - keep `main`'s rigid-rigid `interact!`,
 - refactor it to use the shared normal-force helper,
-- and only enable tangential terms for rigid-rigid if the implementation is fully correct in
-  this PR.
-
-If tangential rigid-rigid behavior is not finished here, the acceptable interim state is:
-
-- rigid-rigid still works,
-- rigid-rigid still uses normal-only forces,
-- the shared runtime model is richer,
-- and the tangential pieces are wired only where they are actually correct.
+- and keep rigid-rigid normal-only in this PR.
 
 The unacceptable state is:
 
 - rigid-rigid becoming a no-op.
 
+The acceptable interim state is:
+
+- rigid-rigid still works,
+- rigid-rigid still uses normal-only forces,
+- shared normal-force logic is factored out,
+- and no dormant tangential/friction API is introduced yet.
+
 ### Diagnostics to add in this PR
 
-Port the per-system diagnostics introduced by the branch:
-
-- `contact_count`
-- `max_contact_penetration`
-
-These should be maintained in a way that works for both rigid-wall and rigid-rigid contact.
-
-Port the corresponding output support:
+Port the corresponding output support for `contact_count` and `max_contact_penetration`:
 
 - VTK fields in `src/io/write_vtk.jl`
 - metadata export in `src/io/io.jl`
@@ -242,8 +243,7 @@ Port the corresponding output support:
 
 Expand `test/systems/rigid_system.jl` with tests that cover:
 
-- constructor and validation behavior for the richer `RigidContactModel`,
-- backward-compatible defaults that reproduce the old normal-only behavior,
+- the active normal-only `RigidContactModel` behavior and validation,
 - rigid-rigid normal-only contact still functioning,
 - rigid-wall normal-only contact still functioning,
 - `contact_count` and `max_contact_penetration` being exported and populated,
@@ -253,50 +253,55 @@ Expand `test/systems/rigid_system.jl` with tests that cover:
 
 Update `docs/src/systems/rigid_body.md` to document:
 
-- the richer runtime `RigidContactModel`,
-- which fields are generic,
-- which fields are currently only consumed by wall-specific paths,
-- and which default values preserve the basic `main` behavior.
+- the active normal-only rigid-contact behavior on `main`,
+- the new shared diagnostics,
+- and that richer friction/history and wall-only controls are introduced only in later PRs
+  when they become active.
 
 ### Acceptance criteria
 
 - `main` retains working rigid-rigid contact.
-- The richer runtime model is available and validated.
+- The shared normal-contact helper layer is active for both rigid-wall and rigid-rigid
+  normal contact.
 - Shared diagnostics exist and are exposed through I/O.
+- No dormant runtime/contact-law API is introduced.
 - Existing normal-only behavior remains the default for users who do not opt into advanced
   parameters.
 
 ### Explicit non-goals
 
+- no friction/tangential runtime parameters yet,
 - no contact history yet,
 - no `UpdateCallback` requirement yet,
+- no wall-only control parameters yet,
 - no wall-specification models yet,
 - no resting-contact projection yet,
 - no alias cleanup yet.
 
 ---
 
-## PR 2: Shared Tangential Contact History And Callback Integration
+## PR 2: Shared Frictional Rigid Contact And Callback-Driven History
 
 ### Proposed title
 
-`Add shared rigid contact history updates through UpdateCallback`
+`Add frictional rigid contact and shared history updates through UpdateCallback`
 
 ### Objective
 
-Port the contact-history lifecycle from the branch and hook it into `UpdateCallback`, but
-design it so it is not wall-only.
+Port frictional/tangential rigid contact as live behavior and hook its state updates into
+`UpdateCallback`, but design it so it is not wall-only.
 
-This PR should establish the state-management layer for frictional contact.
+Under the "no dormant API" rule, this is also the PR where the tangential/friction runtime
+fields should first appear, because this PR is what makes them active.
 
 ### Why this PR exists separately
 
-The branch introduces two conceptually different things:
+The branch introduces richer tangential/friction laws and a callback-driven per-step
+history update mechanism.
 
-- richer contact laws,
-- and a callback-driven per-step history update mechanism.
-
-These need separate review.
+Without the "no dormant API" rule, those could be staged separately.
+With that rule, they belong together: the runtime fields become user-facing only when the
+callback/history implementation makes them real behavior.
 
 ### Primary files in scope
 
@@ -311,6 +316,16 @@ These need separate review.
 
 ### Functional changes to port
 
+Introduce the friction/history-dependent runtime fields only when they are first consumed
+by active code in this PR. At minimum this should include:
+
+- `static_friction_coefficient`
+- `kinetic_friction_coefficient`
+- `tangential_stiffness`
+- `tangential_damping`
+- `stick_velocity_tolerance`
+- and any penetration/slop parameter that the active friction/history law actually uses
+
 Port the history-management pieces from the branch:
 
 - `update_rigid_contact_eachstep!`
@@ -318,6 +333,13 @@ Port the history-management pieces from the branch:
 - inactive contact-pair cleanup
 - tangential displacement updates
 - and the callback hook added in `src/callbacks/update.jl`
+
+Port the shared helper functions that first become live here:
+
+- `normal_friction_reference_force`
+- `tangential_contact_force`
+
+If a helper or runtime field is still unused after this PR, defer it again.
 
 ### Required redesign for rigid-rigid support
 
@@ -407,31 +429,38 @@ to explain:
 - which rigid-contact features depend on it,
 - and how users should configure examples/simulations accordingly.
 
+If an existing example is updated to use frictional rigid contact, update it in this PR and
+make the callback requirement explicit there as well.
+
 ### Acceptance criteria
 
-- The rigid-contact history lifecycle is callback-driven and reviewed separately from the
-  core force law.
+- The friction/history-dependent runtime fields introduced here are active in code that
+  lands in this same PR.
+- The rigid-contact history lifecycle is callback-driven.
 - The history design is generic enough for rigid-rigid contact.
 - Rigid-rigid contact is not broken or silently excluded.
+- No dormant friction/history API remains after the PR is merged.
 
 ### Explicit non-goals
 
 - no wall-specific patch normalization yet,
 - no wall-only resting-contact projection yet,
+- no wall-only control parameters that are still inactive,
 - no material/specification models yet.
 
 ---
 
-## PR 3: Wall-Specific Manifold Extensions And Patch Normalization
+## PR 3: Wall-Specific Manifold Extensions And Active Wall Controls
 
 ### Proposed title
 
-`Extend rigid-wall manifolds with patch normalization and wall-specific state`
+`Extend rigid-wall manifolds and activate wall-only controls`
 
 ### Objective
 
 Port the wall-specific parts of the branch that improve rigid-wall contact quality but do
-not naturally apply to rigid-rigid contact.
+not naturally apply to rigid-rigid contact, and activate any remaining wall-only runtime
+controls whose behavior first becomes live here.
 
 ### Why this PR exists separately
 
@@ -441,7 +470,7 @@ This PR should review only the incremental wall-specific refinements:
 
 - extra wall-manifold scratch state,
 - patch clustering / normalization,
-- and the wall-specific use of the richer runtime model.
+- and the wall-specific controls that become active together with that logic.
 
 ### Primary files in scope
 
@@ -457,7 +486,11 @@ Port the wall-specific cache and logic:
 - patch clustering buffers,
 - wall-manifold extensions needed by the branch implementation,
 - `normalize_force_by_contact_patch`,
+- `torque_free` if it is activated here,
 - and any wall-only data reductions that improve resolution dependence.
+
+As with the rest of the stack, do not introduce wall-only knobs here unless they become
+active in this PR.
 
 ### Rigid-rigid requirement
 
@@ -483,12 +516,14 @@ Update `docs/src/systems/rigid_body.md` to clarify:
 
 - which parts of the contact stack are wall-specific,
 - what `normalize_force_by_contact_patch` does,
-- and when a user should enable or leave it disabled.
+- what any other newly active wall-only controls do,
+- and when a user should enable or leave them disabled.
 
 ### Acceptance criteria
 
 - Wall-specific quality improvements land without changing the rigid-rigid contract.
 - The wall-only nature of the feature is explicit in code and docs.
+- No dormant wall-only runtime option is introduced.
 
 ### Explicit non-goals
 
@@ -510,6 +545,9 @@ Port the low-speed wall-contact projection fallback from the branch.
 
 This is the mechanism that prevents rigid bodies from remaining in penetrated or numerically
 stuck wall-contact states when adaptive timesteps collapse in the settled-contact regime.
+
+Under the "no dormant API" rule, this is also the PR where `resting_contact_projection`
+should first appear as a user-facing runtime option.
 
 ### Why this PR exists separately
 
@@ -534,6 +572,7 @@ That should not be hidden inside a larger contact PR.
 
 Port:
 
+- the `resting_contact_projection` runtime field,
 - persistence counters,
 - resting-contact detection,
 - projection trigger logic,
@@ -580,6 +619,7 @@ Update `docs/src/systems/rigid_body.md` to explain:
 - The branch's wall-settling stabilization is available on `main`.
 - Its wall-only scope is explicit.
 - It does not alter rigid-rigid behavior.
+- No projection-only control lands before this PR.
 
 ### Explicit non-goals
 
@@ -779,6 +819,18 @@ Examples of shared concepts:
 - tangential displacement history,
 - contact-law parameters.
 
+### Decision E: Runtime Fields Land Only When They Become Active
+
+Do not introduce `RigidContactModel` parameters ahead of the PR that makes them real
+behavior.
+
+Concretely:
+
+- keep PR1 limited to active normal-contact helpers and diagnostics,
+- introduce friction/history fields with PR2,
+- introduce remaining wall-only controls with PR3 and PR4,
+- and update examples only when those options are actually usable.
+
 ## Suggested Branch Stack
 
 If you want to implement this as a stacked series, a reasonable branch naming scheme is:
@@ -809,9 +861,9 @@ Do not port this branch by following the branch commit history.
 
 Port it by architectural slice:
 
-- shared runtime first,
-- shared history/callback plumbing second,
-- wall-specific reductions third,
+- shared active helpers and diagnostics first,
+- friction/history runtime fields together with callback plumbing second,
+- wall-specific reductions and active wall controls third,
 - wall-only projection fourth,
 - user-facing typed wall models last,
 - and cleanup only after the functional stack is stable.
