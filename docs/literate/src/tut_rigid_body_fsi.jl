@@ -227,10 +227,15 @@ nothing # hide
 
 # ## Step 3: With contact model
 # Finally, we add a `contact_model` to handle collisions between rigid bodies and between
-# rigid bodies and the tank.
+# rigid bodies and the tank. Here we also enable the frictional rigid-wall path, so we need
+# `UpdateCallback()` to update the tangential contact history between time steps.
 
 contact_model = RigidContactModel(; normal_stiffness=2.0e5,
                                   normal_damping=150.0,
+                                  static_friction_coefficient=0.6,
+                                  kinetic_friction_coefficient=0.4,
+                                  tangential_stiffness=1.0e5,
+                                  tangential_damping=150.0,
                                   contact_distance=2.0 * structure_particle_spacing)
 nothing # hide
 
@@ -253,15 +258,15 @@ nothing # hide
 
 info_callback = InfoCallback(interval=100) # hide
 saving_callback_step3 = SolutionSavingCallback(dt=0.02, prefix="step3") # hide
-callbacks_step3 = CallbackSet(info_callback, saving_callback_step3) # hide
+callbacks_step3 = CallbackSet(info_callback, saving_callback_step3, UpdateCallback()) # hide
 nothing # hide
 
 # ```julia
 # sol_step3 = solve(ode_step3, RDPK3SpFSAL49(), save_everystep=false,
-#                   callback=callbacks,  abstol=1e-6, reltol=1e-4, dtmax=2e-3)
+#                   callback=callbacks_step3,  abstol=1e-6, reltol=1e-4, dtmax=2e-3)
 # ```
 sol_step3 = solve(ode_step3, RDPK3SpFSAL49(), abstol=1e-6, reltol=1e-4, dtmax=2e-3, # hide
-                  save_everystep=false) # hide
+                  save_everystep=false, callback=callbacks_step3) # hide
 nothing # hide
 
 # The plot now shows the full simulation. The squares collide with the tank bottom and each other.
@@ -320,15 +325,15 @@ nothing # hide
 
 info_callback = InfoCallback(interval=100) # hide
 saving_callback_step4 = SolutionSavingCallback(dt=0.02, prefix="step4") # hide
-callbacks_step4 = CallbackSet(info_callback, saving_callback_step4) # hide
+callbacks_step4 = CallbackSet(info_callback, saving_callback_step4, UpdateCallback()) # hide
 nothing # hide
 
 # ```julia
 # sol_step4 = solve(ode_step4, RDPK3SpFSAL49(), save_everystep=false,
-#                   callback=callbacks,  abstol=1e-6, reltol=1e-4, dtmax=2e-3)
+#                   callback=callbacks_step4,  abstol=1e-6, reltol=1e-4, dtmax=2e-3)
 # ```
 sol_step4 = solve(ode_step4, RDPK3SpFSAL49(), abstol=1e-6, reltol=1e-4, dtmax=2e-3, # hide
-                  save_everystep=false) # hide
+                  save_everystep=false, callback=callbacks_step4) # hide
 nothing # hide
 
 # And here is the final plot with circles instead of squares.
@@ -372,9 +377,10 @@ semi_next = Semidiscretization(fluid_system, boundary_system,
                                small_sphere_systems...)
 
 ode_step_next = semidiscretize(semi_next, tspan) #hide
+callbacks_step_next = CallbackSet(UpdateCallback()) # hide
 sol_step_next = solve(ode_step_next, RDPK3SpFSAL49(), # hide
                       abstol=1e-6, reltol=1e-4, dtmax=2e-3, # hide
-                      save_everystep=false) # hide
+                      save_everystep=false, callback=callbacks_step_next) # hide
 nothing # hide
 
 plot(sol_step_next, legend=nothing) #hide
@@ -428,8 +434,9 @@ hexagon_system = RigidBodySystem(hexagon_shape;
 semi_hexagon = Semidiscretization(fluid_system, boundary_system, hexagon_system)
 ode_step_hex = semidiscretize(semi_hexagon, (0.0, 0.4))
 
+callbacks_step_hex = CallbackSet(UpdateCallback()) # hide
 sol_step_hex = solve(ode_step_hex, RDPK3SpFSAL49(), abstol=1e-6, reltol=1e-5, dtmax=1e-3,
-                     save_everystep=false)
+                     save_everystep=false, callback=callbacks_step_hex)
 plot(sol_step_hex, legend=nothing) #hide
 plot!(dpi=200) # hide
 savefig("tut_rigid_body_fsi_hex.png"); # hide

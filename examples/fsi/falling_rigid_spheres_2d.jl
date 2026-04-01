@@ -99,9 +99,14 @@ boundary_model_structure_2 = BoundaryModelDummyParticles(hydrodynamic_densities_
                                                          fluid_smoothing_kernel,
                                                          fluid_smoothing_length)
 
-# Basic rigid contact model used for both rigid bodies.
+# Use the frictional rigid-wall contact path, which requires `UpdateCallback()` to keep
+# the tangential contact history in sync between time steps.
 contact_model = RigidContactModel(; normal_stiffness=2.0e5,
                                   normal_damping=200.0,
+                                  static_friction_coefficient=0.6,
+                                  kinetic_friction_coefficient=0.4,
+                                  tangential_stiffness=1.0e5,
+                                  tangential_damping=150.0,
                                   contact_distance=2.0 *
                                                    structure_particle_spacing)
 
@@ -125,7 +130,7 @@ ode = semidiscretize(semi, tspan)
 info_callback = InfoCallback(interval=50)
 saving_callback = SolutionSavingCallback(dt=0.01, output_directory="out", prefix="")
 
-callbacks = CallbackSet(info_callback, saving_callback)
+callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback())
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 sol = solve(ode, RDPK3SpFSAL49(),
