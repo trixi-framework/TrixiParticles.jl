@@ -197,7 +197,11 @@ function interact!(dv, v_particle_system, u_particle_system,
     # The manifold cache is pair-local scratch storage. It is rebuilt from zero for every
     # rigid-wall interaction pair and only the resulting force contributions survive in
     # `force_per_particle`, which is later reduced to a rigid-body resultant.
-    reset_contact_manifold_cache!(particle_system.cache)
+    set_zero!(particle_system.cache.contact_manifold_count)
+    set_zero!(particle_system.cache.contact_manifold_weight_sum)
+    set_zero!(particle_system.cache.contact_manifold_penetration_sum)
+    set_zero!(particle_system.cache.contact_manifold_normal_sum)
+    set_zero!(particle_system.cache.contact_manifold_wall_velocity_sum)
 
     NDIMS = ndims(particle_system)
     ELTYPE = eltype(particle_system)

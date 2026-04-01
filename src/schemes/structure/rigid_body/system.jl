@@ -151,18 +151,6 @@ function create_cache_contact(contact_model, ELTYPE, ::Val{NDIMS},
             max_contact_penetration=Ref(zero(ELTYPE)))
 end
 
-function reset_contact_manifold_cache!(cache)
-    hasproperty(cache, :contact_manifold_count) || return cache
-
-    set_zero!(cache.contact_manifold_count)
-    set_zero!(cache.contact_manifold_weight_sum)
-    set_zero!(cache.contact_manifold_penetration_sum)
-    set_zero!(cache.contact_manifold_normal_sum)
-    set_zero!(cache.contact_manifold_wall_velocity_sum)
-
-    return cache
-end
-
 function create_cache_contact_manifold(::Nothing, ::Val{NDIMS}, ELTYPE,
                                        n_particles, max_manifolds) where {NDIMS}
     return (;)
