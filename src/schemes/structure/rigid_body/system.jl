@@ -374,7 +374,8 @@ function update_boundary_interpolation!(boundary_model, system::RigidBodySystem,
     return system
 end
 
-function update_final!(system::RigidBodySystem, v, u, v_ode, u_ode, semi, t)
+function update_final!(system::RigidBodySystem, v, u, v_ode, u_ode, semi, t;
+                       reset_interaction_caches=true)
     system_coords = current_coordinates(u, system)
     system_velocity = current_velocity(v, system)
     center_of_mass,
@@ -387,10 +388,12 @@ function update_final!(system::RigidBodySystem, v, u, v_ode, u_ode, semi, t)
                                                         center_of_mass_velocity;
                                                         relative_coordinates=system.relative_coordinates)
 
-    # Reset pairwise rigid-fluid force accumulation before the next RHS assembly.
-    set_zero!(system.force_per_particle)
-    system.cache.contact_count[] = 0
-    system.cache.max_contact_penetration[] = zero(eltype(system))
+    if reset_interaction_caches
+        # Reset pairwise interaction accumulation before the next RHS assembly.
+        set_zero!(system.force_per_particle)
+        system.cache.contact_count[] = 0
+        system.cache.max_contact_penetration[] = zero(eltype(system))
+    end
 
     system.center_of_mass[] = center_of_mass
     system.center_of_mass_velocity[] = center_of_mass_velocity

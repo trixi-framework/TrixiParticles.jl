@@ -153,30 +153,14 @@ function (pp::PostprocessCallback)(integrator)
         t = integrator.t
         v_ode, u_ode = integrator.u.x
         filenames = system_names(semi.systems)
-        rigid_contact_diagnostics = map(semi.systems) do system
-            if system isa RigidBodySystem
-                return (system.cache.contact_count[],
-                        system.cache.max_contact_penetration[])
-            end
-
-            return nothing
-        end
         new_data = false
 
         # Update quantities that are stored in the systems. These quantities (e.g. pressure)
         # still have the values from the last stage of the previous step if not updated here.
         @trixi_timeit timer() "update systems and nhs" begin
             # Don't create sub-timers here to avoid cluttering the timer output
-            @notimeit timer() update_systems_and_nhs(v_ode, u_ode, semi, t)
-        end
-
-        foreach_system(semi) do system
-            system isa RigidBodySystem || return
-            diagnostics = rigid_contact_diagnostics[system_indices(system, semi)]
-            isnothing(diagnostics) && return
-
-            system.cache.contact_count[] = diagnostics[1]
-            system.cache.max_contact_penetration[] = diagnostics[2]
+            @notimeit timer() update_systems_and_nhs(v_ode, u_ode, semi, t;
+                                                     reset_interaction_caches=false)
         end
 
         # Transfer to CPU if data is on the GPU. Do nothing if already on CPU.

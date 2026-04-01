@@ -153,7 +153,7 @@ function update_boundary_interpolation!(system, v, u, v_ode, u_ode, semi, t)
     return system
 end
 
-function update_final!(system, v, u, v_ode, u_ode, semi, t)
+function update_final!(system, v, u, v_ode, u_ode, semi, t; kwargs...)
     return system
 end
 
