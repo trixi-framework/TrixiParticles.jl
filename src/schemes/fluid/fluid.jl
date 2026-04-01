@@ -150,7 +150,7 @@ end
                                                particle_system, neighbor_system,
                                                particle, neighbor, rho_a, rho_b)
 
-    dv[end, particle] += rho_a / rho_b * m_b * dot(vdiff, grad_kernel)
+    dv[end, particle] += div_fast(rho_a, rho_b) * m_b * dot(vdiff, grad_kernel)
 
     # Artificial density diffusion should only be applied to systems representing a fluid
     # with the same physical properties i.e. density and viscosity.

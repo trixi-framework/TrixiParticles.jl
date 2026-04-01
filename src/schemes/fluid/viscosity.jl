@@ -127,8 +127,10 @@ end
     # approaching particles and turn it off for receding particles. In this way, the
     # viscosity is used for shocks and not rarefactions."
     if vr < 0
-        mu = h * vr / (distance^2 + epsilon * h^2)
-        return (alpha * c * mu + beta * mu^2) / rho_mean * grad_kernel
+        # Since this is one of the most performance critical functions, using fast divisions
+        # here gives a significant speedup on GPUs.
+        mu = div_fast(h * vr, distance^2 + epsilon * h^2)
+        return div_fast(alpha * c * mu + beta * mu^2, rho_mean) * grad_kernel
     end
 
     return zero(v_diff)
