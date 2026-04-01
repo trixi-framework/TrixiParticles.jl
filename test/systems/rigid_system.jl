@@ -899,10 +899,12 @@
 
             @test only(Array(TrixiParticles.ReadVTK.get_data(point_data_contact["contact_count"]))) ==
                   rigid_system_1.cache.contact_count[]
-            @test only(Array(TrixiParticles.ReadVTK.get_data(point_data_contact["contact_count"]))) > 0
+            @test only(Array(TrixiParticles.ReadVTK.get_data(point_data_contact["contact_count"]))) >
+                  0
             @test only(Array(TrixiParticles.ReadVTK.get_data(point_data_contact["max_contact_penetration"]))) ≈
                   rigid_system_1.cache.max_contact_penetration[]
-            @test only(Array(TrixiParticles.ReadVTK.get_data(point_data_contact["max_contact_penetration"]))) > 0
+            @test only(Array(TrixiParticles.ReadVTK.get_data(point_data_contact["max_contact_penetration"]))) >
+                  0
         end
 
         rigid_coordinates = reshape([0.0, 0.05], 2, 1)

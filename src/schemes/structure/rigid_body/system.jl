@@ -159,11 +159,11 @@ end
 function create_cache_contact_manifold(contact_model, ::Val{NDIMS}, ELTYPE,
                                        n_particles, max_manifolds) where {NDIMS}
     return (; contact_count_per_particle=zeros(Int, n_particles),
-             max_contact_penetration_per_particle=zeros(ELTYPE, n_particles),
-             contact_manifold_count=zeros(Int, n_particles),
-             contact_manifold_weight_sum=zeros(ELTYPE, max_manifolds, n_particles),
-             contact_manifold_penetration_sum=zeros(ELTYPE, max_manifolds, n_particles),
-             contact_manifold_normal_sum=zeros(ELTYPE, NDIMS, max_manifolds, n_particles),
+            max_contact_penetration_per_particle=zeros(ELTYPE, n_particles),
+            contact_manifold_count=zeros(Int, n_particles),
+            contact_manifold_weight_sum=zeros(ELTYPE, max_manifolds, n_particles),
+            contact_manifold_penetration_sum=zeros(ELTYPE, max_manifolds, n_particles),
+            contact_manifold_normal_sum=zeros(ELTYPE, NDIMS, max_manifolds, n_particles),
             contact_manifold_wall_velocity_sum=zeros(ELTYPE, NDIMS, max_manifolds,
                                                      n_particles))
 end
