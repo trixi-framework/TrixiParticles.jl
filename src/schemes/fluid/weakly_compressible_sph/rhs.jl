@@ -295,6 +295,8 @@ function interact_reassembled!(dv, v_particle_system, u_particle_system,
 
         @inbounds PointNeighbors.foreach_neighbor(system_coords, neighbor_system_coords,
                          neighborhood_search, particle) do _, neighbor, pos_diff, distance
+            distance < eps() && return
+            
             m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
             p_b = @inbounds current_pressure(v_neighbor_system, neighbor_system, neighbor)
 
