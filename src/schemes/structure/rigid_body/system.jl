@@ -91,12 +91,11 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
     max_manifolds_ = Int(max_manifolds)
     max_manifolds_ > 0 ||
         throw(ArgumentError("`max_manifolds` must be positive"))
-    n_particles = nparticles(initial_condition)
 
     contact_model_ = isnothing(contact_model) ? nothing :
                      copy_contact_model(contact_model, particle_spacing_, ELTYPE)
     initial_velocity = copy(initial_condition.velocity)
-    relative_coordinates = zeros(ELTYPE, NDIMS, n_particles)
+    relative_coordinates = zeros(ELTYPE, NDIMS, nparticles(initial_condition))
     mass = copy(initial_condition.mass)
     material_density = copy(initial_condition.density)
 
@@ -110,7 +109,7 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
         throw(ArgumentError("`RigidBodySystem` requires a positive total mass"))
     end
 
-    force_per_particle = zeros(ELTYPE, NDIMS, n_particles)
+    force_per_particle = zeros(ELTYPE, NDIMS, nparticles(initial_condition))
     zero_rotational_quantity = NDIMS == 2 ? zero(ELTYPE) : zero(SVector{3, ELTYPE})
     if NDIMS == 2
         inertia = Ref(zero(ELTYPE))
@@ -120,10 +119,11 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
         inverse_inertia = Ref(zero(SMatrix{3, 3, ELTYPE, 9}))
     end
 
-    cache = (; create_cache_contact(contact_model_, ELTYPE, Val(NDIMS),
-                                    n_particles, max_manifolds_)...,
+    cache = (; contact_count=Ref(0),
+             max_contact_penetration=Ref(zero(ELTYPE)),
              create_cache_contact_manifold(contact_model_, Val(NDIMS), ELTYPE,
-                                           n_particles, max_manifolds_)...,
+                                           nparticles(initial_condition),
+                                           max_manifolds_)...,
              color=Int(color_value))
 
     system = RigidBodySystem(initial_condition, initial_velocity, mass,
@@ -143,12 +143,6 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
                              cache)
 
     return system
-end
-
-function create_cache_contact(contact_model, ELTYPE, ::Val{NDIMS},
-                              n_particles, max_manifolds) where {NDIMS}
-    return (; contact_count=Ref(0),
-            max_contact_penetration=Ref(zero(ELTYPE)))
 end
 
 function create_cache_contact_manifold(::Nothing, ::Val{NDIMS}, ELTYPE,
