@@ -32,8 +32,9 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         # In 3D, this function can combine velocity and density load into one wide load,
         # which gives a significant speedup on GPUs.
-        v_a, rho_a = @inbounds velocity_and_density(v_particle_system, particle_system,
-                                                    particle)
+        (v_a,
+         rho_a) = @inbounds velocity_and_density(v_particle_system, particle_system,
+                                                 particle)
 
         # Accumulate the RHS contributions over all neighbors before writing to `dv`,
         # to reduce the number of memory writes.
@@ -58,8 +59,9 @@ function interact!(dv, v_particle_system, u_particle_system,
 
             # `foreach_neighbor` makes sure that `neighbor` is in bounds of `neighbor_system`
             m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
-            v_b, rho_b = @inbounds velocity_and_density(v_neighbor_system, neighbor_system,
-                                                        neighbor)
+            (v_b,
+             rho_b) = @inbounds velocity_and_density(v_neighbor_system, neighbor_system,
+                                                     neighbor)
             rho_mean = (rho_a + rho_b) / 2
             vdiff = v_a - v_b
 
@@ -107,8 +109,9 @@ function interact!(dv, v_particle_system, u_particle_system,
             # Determine correction factors.
             # This can usually be ignored, as these are all 1 when no correction is used.
             (viscosity_correction, pressure_correction,
-            surface_tension_correction) = free_surface_correction(correction, particle_system,
-                                                                  rho_mean)
+             surface_tension_correction) = free_surface_correction(correction,
+                                                                   particle_system,
+                                                                   rho_mean)
 
             # Accumulate contributions over all neighbors
             dv_particle[] += dv_pressure * pressure_correction +
@@ -116,11 +119,11 @@ function interact!(dv, v_particle_system, u_particle_system,
 
             # TODO If variable smoothing_length is used, this should use the neighbor smoothing length
             # Propagate `@inbounds` to the continuity equation, which accesses particle data
-            @inbounds continuity_equation!(drho_particle, density_calculator, particle_system,
-                                           neighbor_system, v_particle_system,
-                                           v_neighbor_system, particle, neighbor,
-                                           pos_diff, distance, m_b, rho_a, rho_b, vdiff,
-                                           grad_kernel)
+            @inbounds continuity_equation!(drho_particle, density_calculator,
+                                           particle_system, neighbor_system,
+                                           v_particle_system, v_neighbor_system,
+                                           particle, neighbor, pos_diff, distance,
+                                           m_b, rho_a, rho_b, vdiff, grad_kernel)
         end
 
         for i in eachindex(dv_particle[])
