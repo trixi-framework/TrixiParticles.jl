@@ -172,12 +172,12 @@ end
     # Artificial density diffusion should only be applied to systems representing a fluid
     # with the same physical properties i.e. density and viscosity.
     # TODO: shouldn't be applied to particles on the interface (depends on PR #539)
-    if particle_system === neighbor_system
-        density_diffusion!(dv, density_diffusion(particle_system),
-                           v_particle_system, particle, neighbor,
-                           pos_diff, distance, m_b, rho_a, rho_b, particle_system,
-                           grad_kernel)
-    end
+    # if particle_system === neighbor_system
+    #     density_diffusion!(dv, density_diffusion(particle_system),
+    #                        v_particle_system, particle, neighbor,
+    #                        pos_diff, distance, m_b, rho_a, rho_b, particle_system,
+    #                        grad_kernel)
+    # end
 end
 
 function calculate_dt(v_ode, u_ode, cfl_number, system::AbstractFluidSystem, semi)
