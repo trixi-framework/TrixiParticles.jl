@@ -74,6 +74,14 @@
             @test sol.retcode == ReturnCode.Success
             @test count_rhs_allocations(sol, semi) == 0
         end
+
+        @trixi_testset "structure/sliding_rigid_squares_friction_2d.jl" begin
+            @trixi_test_nowarn trixi_include(@__MODULE__,
+                                             joinpath(examples_dir(), "structure",
+                                                      "sliding_rigid_squares_friction_2d.jl"),
+                                             tspan=(0.0, 0.3))
+            @test sol.retcode == ReturnCode.Success
+        end
     end
 
     @testset verbose=true "FSI" begin
