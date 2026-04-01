@@ -860,6 +860,27 @@
         @test dv_rigid_2[1, 1] ≈ -expected_force[1] / rigid_mass_2[1]
         @test dv_rigid_1[2, 1] ≈ 0.0
         @test dv_rigid_2[2, 1] ≈ 0.0
+
+        mktempdir() do tmp_dir
+            du_ode_rigid = zero(u_ode_rigid)
+            dvdu_ode_rigid = (; x=(dv_ode_rigid, du_ode_rigid))
+            vu_ode_rigid = (; x=(v_ode_rigid, u_ode_rigid))
+            trixi2vtk(dvdu_ode_rigid, vu_ode_rigid, semi_rigid, 0.0;
+                      output_directory=tmp_dir, iter=1)
+
+            contact_filename = TrixiParticles.system_names(semi_rigid.systems)[1]
+            vtk_contact = TrixiParticles.ReadVTK.VTKFile(joinpath(tmp_dir,
+                                                                  "$(contact_filename)_1.vtu"))
+            point_data_contact = TrixiParticles.ReadVTK.get_point_data(vtk_contact)
+
+            @test only(Array(TrixiParticles.ReadVTK.get_data(point_data_contact["contact_count"]))) ==
+                  rigid_system_1.cache.contact_count[]
+            @test only(Array(TrixiParticles.ReadVTK.get_data(point_data_contact["contact_count"]))) > 0
+            @test only(Array(TrixiParticles.ReadVTK.get_data(point_data_contact["max_contact_penetration"]))) ≈
+                  rigid_system_1.cache.max_contact_penetration[]
+            @test only(Array(TrixiParticles.ReadVTK.get_data(point_data_contact["max_contact_penetration"]))) > 0
+        end
+
         rigid_coordinates = reshape([0.0, 0.05], 2, 1)
         rigid_velocity = reshape([0.0, -1.0], 2, 1)
         rigid_mass = [1.0]
