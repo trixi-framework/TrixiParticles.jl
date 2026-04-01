@@ -66,35 +66,34 @@ function interact!(dv, v_particle_system, u_particle_system,
                                             distance, grad_kernel, correction)
 
         # Propagate `@inbounds` to the viscosity function, which accesses particle data
-        dv_viscosity_ = Ref(zero(pos_diff))
-        @inbounds dv_viscosity(dv_viscosity_, particle_system, neighbor_system,
+        dv_particle = Ref(zero(pos_diff))
+        @inbounds dv_viscosity(dv_particle, particle_system, neighbor_system,
                                v_particle_system, v_neighbor_system,
                                particle, neighbor, pos_diff, distance,
                                sound_speed, m_a, m_b, rho_a, rho_b,
                                v_a, v_b, grad_kernel)
 
         # Extra terms in the momentum equation when using a shifting technique
-        dv_tvf = @inbounds dv_shifting(shifting_technique(particle_system),
-                                       particle_system, neighbor_system,
-                                       v_particle_system, v_neighbor_system,
-                                       particle, neighbor, m_a, m_b, rho_a, rho_b,
-                                       pos_diff, distance, grad_kernel, correction)
+        @inbounds dv_shifting!(dv_particle, shifting_technique(particle_system),
+                               particle_system, neighbor_system,
+                               v_particle_system, v_neighbor_system,
+                               particle, neighbor, m_a, m_b, rho_a, rho_b,
+                               pos_diff, distance, grad_kernel, correction)
 
-        dv_surface_tension = surface_tension_correction *
-                             surface_tension_force(surface_tension_a, surface_tension_b,
-                                                   particle_system, neighbor_system,
-                                                   particle, neighbor, pos_diff, distance,
-                                                   rho_a, rho_b, grad_kernel)
+        dv_surface_tension = Ref(zero(pos_diff))
+        @inbounds surface_tension_force!(dv_surface_tension, surface_tension_a,
+                                         surface_tension_b,
+                                         particle_system, neighbor_system,
+                                         particle, neighbor, pos_diff, distance,
+                                         rho_a, rho_b, grad_kernel)
+        dv_particle[] += surface_tension_correction * dv_surface_tension[]
 
-        dv_adhesion = adhesion_force(surface_tension_a, particle_system, neighbor_system,
-                                     particle, neighbor, pos_diff, distance)
-
-        dv_particle = dv_pressure + viscosity_correction * dv_viscosity_[] + dv_tvf +
-                      dv_surface_tension +
-                      dv_adhesion
+        @inbounds adhesion_force!(dv_particle, surface_tension_a, particle_system,
+                                  neighbor_system,
+                                  particle, neighbor, pos_diff, distance)
 
         for i in 1:ndims(particle_system)
-            @inbounds dv[i, particle] += dv_particle[i]
+            @inbounds dv[i, particle] += dv_particle[][i]
             # Debug example
             # debug_array[i, particle] += dv_pressure[i]
         end
