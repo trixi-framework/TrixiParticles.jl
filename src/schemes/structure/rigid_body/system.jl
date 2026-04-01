@@ -184,18 +184,6 @@ function create_cache_contact_manifold(contact_model, ::Val{NDIMS}, ELTYPE,
                                                      n_particles))
 end
 
-function reset_interaction_accumulators!(system::RigidBodySystem)
-    system.resultant_force[] = zero(system.resultant_force[])
-    system.resultant_torque[] = zero(system.resultant_torque[])
-    system.angular_acceleration_force[] = zero(system.angular_acceleration_force[])
-    set_zero!(system.force_per_particle)
-    system.cache.contact_count[] = 0
-    system.cache.max_contact_penetration[] = zero(eltype(system))
-    reset_contact_manifold_cache!(system.cache)
-
-    return system
-end
-
 function rigid_center_of_mass_kinematics(system::RigidBodySystem, coordinates, velocity)
     total_mass = system.total_mass
     center_of_mass = zero(SVector{ndims(system), eltype(system)})
@@ -415,9 +403,8 @@ function update_final!(system::RigidBodySystem, v, u, v_ode, u_ode, semi, t)
                                                         center_of_mass_velocity;
                                                         relative_coordinates=system.relative_coordinates)
 
-    # Reset interaction caches before RHS assembly so per-step rigid contact diagnostics,
-    # pairwise forces, and resultants accumulate from scratch.
-    reset_interaction_accumulators!(system)
+    # Reset pairwise rigid-fluid force accumulation before the next RHS assembly.
+    set_zero!(system.force_per_particle)
 
     system.center_of_mass[] = center_of_mass
     system.center_of_mass_velocity[] = center_of_mass_velocity
