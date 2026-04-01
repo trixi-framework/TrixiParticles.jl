@@ -60,29 +60,30 @@ struct MyGaussianKernel <: TrixiParticles.AbstractSmoothingKernel{2} end
 
 # By looking at the implementation of existing kernels in TrixiParticles.jl,
 # we can see that a kernel implementation requires three functions.
-# `TrixiParticles.kernel`, which is the kernel function itself,
-# `TrixiParticles.kernel_deriv`, which is the derivative of the kernel function,
-# and `TrixiParticles.compact_support`, which defines the compact support of the
-# kernel in relation to the smoothing length.
+# `TrixiParticles.kernel_unsafe`, which is the kernel function itself,
+# `TrixiParticles.kernel_deriv_div_r_unsafe`, which is the derivative of the
+# kernel divided by ``r``, and `TrixiParticles.compact_support`, which defines
+# the compact support of the kernel in relation to the smoothing length.
 # The latter is relevant for determining the search radius of the neighborhood search.
-function TrixiParticles.kernel(kernel::MyGaussianKernel, r::Real, h)
+#
+# We implement `kernel_deriv_div_r_unsafe` instead of `kernel_deriv` directly since
+# this avoids an extra division in the hot loop and is robust near ``r=0``.
+# The public function `TrixiParticles.kernel_deriv` is defined automatically by
+# TrixiParticles from this method (and multiplies by ``r`` again when needed).
+# In the unsafe functions, we do not check the compact support; this is handled in the
+# safe wrappers `TrixiParticles.kernel` and `TrixiParticles.kernel_deriv` based on the
+# compact support defined in `TrixiParticles.compact_support`.
+function TrixiParticles.kernel_unsafe(kernel::MyGaussianKernel, r::Real, h)
     q = r / h
 
-    if q < 2
-        return 1 / (pi * h^2) * exp(-q^2)
-    end
-
-    return 0.0
+    return 1 / (pi * h^2) * exp(-q^2)
 end
 
-function TrixiParticles.kernel_deriv(kernel::MyGaussianKernel, r::Real, h)
+function TrixiParticles.kernel_deriv_div_r_unsafe(kernel::MyGaussianKernel, r::Real, h)
     q = r / h
 
-    if q < 2
-        return 1 / (pi * h^2) * (-2 * q) * exp(-q^2) / h
-    end
-
-    return 0.0
+    kernel_deriv = 1 / (pi * h^2) * (-2 * q) * exp(-q^2) / h
+    return kernel_deriv / r
 end
 
 TrixiParticles.compact_support(::MyGaussianKernel, h) = 2 * h
