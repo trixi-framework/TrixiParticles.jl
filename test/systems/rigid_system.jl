@@ -845,6 +845,30 @@
         @test TrixiParticles.calculate_dt(zero_velocity_ode, u_ode_rigid, 0.25,
                                           semi_rigid) ≈ 0.25 * pair_contact_dt
 
+        dv_ode_reset = zero(v_ode_rigid)
+        TrixiParticles.update_final!(rigid_system_1, v_rigid_1, u_rigid_1,
+                                     v_ode_rigid, u_ode_rigid, semi_rigid, 0.0)
+        TrixiParticles.update_final!(rigid_system_2, v_rigid_2, u_rigid_2,
+                                     v_ode_rigid, u_ode_rigid, semi_rigid, 0.0)
+        TrixiParticles.system_interaction!(dv_ode_reset, v_ode_rigid, u_ode_rigid,
+                                           semi_rigid)
+        @test rigid_system_1.cache.contact_count[] == 1
+        @test rigid_system_2.cache.contact_count[] == 1
+        @test rigid_system_1.cache.max_contact_penetration[] ≈ pair_penetration
+        @test rigid_system_2.cache.max_contact_penetration[] ≈ pair_penetration
+
+        TrixiParticles.set_zero!(dv_ode_reset)
+        TrixiParticles.update_final!(rigid_system_1, v_rigid_1, u_rigid_1,
+                                     v_ode_rigid, u_ode_rigid, semi_rigid, 0.0)
+        TrixiParticles.update_final!(rigid_system_2, v_rigid_2, u_rigid_2,
+                                     v_ode_rigid, u_ode_rigid, semi_rigid, 0.0)
+        TrixiParticles.system_interaction!(dv_ode_reset, v_ode_rigid, u_ode_rigid,
+                                           semi_rigid)
+        @test rigid_system_1.cache.contact_count[] == 1
+        @test rigid_system_2.cache.contact_count[] == 1
+        @test rigid_system_1.cache.max_contact_penetration[] ≈ pair_penetration
+        @test rigid_system_2.cache.max_contact_penetration[] ≈ pair_penetration
+
         dv_rigid_1 = TrixiParticles.wrap_v(dv_ode_rigid, rigid_system_1, semi_rigid)
         dv_rigid_2 = TrixiParticles.wrap_v(dv_ode_rigid, rigid_system_2, semi_rigid)
         TrixiParticles.finalize_interaction!(rigid_system_1, dv_rigid_1, v_rigid_1,

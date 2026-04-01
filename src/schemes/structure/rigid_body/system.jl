@@ -150,18 +150,20 @@ function create_cache_contact_manifold(::Nothing, ::Val{NDIMS}, ELTYPE,
     return (;)
 end
 
-# Allocate per-particle manifold scratch arrays for rigid-wall contact.
+# Allocate per-particle scratch arrays for rigid contact.
 #
-# The cache shape is `[dimension, manifold, particle]` for vector-valued sums and
+# The manifold cache shape is `[dimension, manifold, particle]` for vector-valued sums and
 # `[manifold, particle]` for scalar sums. It is rebuilt for each rigid-wall system pair in
-# the RHS and therefore acts purely as transient manifold assembly storage; the persistent
-# collision effect is the force accumulated in `force_per_particle`.
+# the RHS and therefore acts purely as transient manifold assembly storage. The per-particle
+# diagnostic scratch is reused for both rigid-wall and rigid-rigid contact reductions.
 function create_cache_contact_manifold(contact_model, ::Val{NDIMS}, ELTYPE,
                                        n_particles, max_manifolds) where {NDIMS}
-    return (; contact_manifold_count=zeros(Int, n_particles),
-            contact_manifold_weight_sum=zeros(ELTYPE, max_manifolds, n_particles),
-            contact_manifold_penetration_sum=zeros(ELTYPE, max_manifolds, n_particles),
-            contact_manifold_normal_sum=zeros(ELTYPE, NDIMS, max_manifolds, n_particles),
+    return (; contact_count_per_particle=zeros(Int, n_particles),
+             max_contact_penetration_per_particle=zeros(ELTYPE, n_particles),
+             contact_manifold_count=zeros(Int, n_particles),
+             contact_manifold_weight_sum=zeros(ELTYPE, max_manifolds, n_particles),
+             contact_manifold_penetration_sum=zeros(ELTYPE, max_manifolds, n_particles),
+             contact_manifold_normal_sum=zeros(ELTYPE, NDIMS, max_manifolds, n_particles),
             contact_manifold_wall_velocity_sum=zeros(ELTYPE, NDIMS, max_manifolds,
                                                      n_particles))
 end
@@ -387,6 +389,8 @@ function update_final!(system::RigidBodySystem, v, u, v_ode, u_ode, semi, t)
 
     # Reset pairwise rigid-fluid force accumulation before the next RHS assembly.
     set_zero!(system.force_per_particle)
+    system.cache.contact_count[] = 0
+    system.cache.max_contact_penetration[] = zero(eltype(system))
 
     system.center_of_mass[] = center_of_mass
     system.center_of_mass_velocity[] = center_of_mass_velocity
@@ -394,6 +398,20 @@ function update_final!(system::RigidBodySystem, v, u, v_ode, u_ode, semi, t)
     system.inverse_inertia[] = rotational_kinematics.inverse_inertia
     system.angular_velocity[] = rotational_kinematics.angular_velocity
     system.gyroscopic_acceleration[] = rotational_kinematics.gyroscopic_acceleration
+
+    return system
+end
+
+function interaction_diagnostics(system::RigidBodySystem)
+    return (; contact_count=system.cache.contact_count[],
+            max_contact_penetration=system.cache.max_contact_penetration[])
+end
+
+function restore_interaction_diagnostics!(system::RigidBodySystem, diagnostics)
+    isnothing(diagnostics) && return system
+
+    system.cache.contact_count[] = diagnostics.contact_count
+    system.cache.max_contact_penetration[] = diagnostics.max_contact_penetration
 
     return system
 end

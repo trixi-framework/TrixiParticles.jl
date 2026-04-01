@@ -153,6 +153,7 @@ function (pp::PostprocessCallback)(integrator)
         t = integrator.t
         v_ode, u_ode = integrator.u.x
         filenames = system_names(semi.systems)
+        diagnostics = map(interaction_diagnostics, semi.systems)
         new_data = false
 
         # Update quantities that are stored in the systems. These quantities (e.g. pressure)
@@ -160,6 +161,10 @@ function (pp::PostprocessCallback)(integrator)
         @trixi_timeit timer() "update systems and nhs" begin
             # Don't create sub-timers here to avoid cluttering the timer output
             @notimeit timer() update_systems_and_nhs(v_ode, u_ode, semi, t)
+        end
+
+        foreach_system(semi) do system
+            restore_interaction_diagnostics!(system, diagnostics[system_indices(system, semi)])
         end
 
         # Transfer to CPU if data is on the GPU. Do nothing if already on CPU.

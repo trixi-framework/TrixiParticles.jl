@@ -157,6 +157,14 @@ function update_final!(system, v, u, v_ode, u_ode, semi, t)
     return system
 end
 
+function interaction_diagnostics(system)
+    return nothing
+end
+
+function restore_interaction_diagnostics!(system, diagnostics)
+    return system
+end
+
 function finalize_interaction!(system, dv, v, u, dv_ode, v_ode, u_ode, semi)
     return system
 end
