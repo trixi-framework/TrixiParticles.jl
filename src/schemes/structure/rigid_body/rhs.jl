@@ -205,6 +205,9 @@ function interact!(dv, v_particle_system, u_particle_system,
 
     NDIMS = ndims(particle_system)
     ELTYPE = eltype(particle_system)
+    zero_tangential = zero(SVector{NDIMS, ELTYPE})
+    contact_map = particle_system.cache.contact_tangential_displacement
+    neighbor_system_index = system_indices(neighbor_system, semi)
     set_zero!(particle_system.cache.contact_count_per_particle)
     set_zero!(particle_system.cache.max_contact_penetration_per_particle)
     contact_count_per_particle = particle_system.cache.contact_count_per_particle
@@ -262,15 +265,25 @@ function interact!(dv, v_particle_system, u_particle_system,
 
                         relative_velocity = v_particle - v_boundary
                         normal_velocity = dot(relative_velocity, normal)
-
-                        elastic_force = contact_model.normal_stiffness *
-                                        penetration_effective
-                        damping_force = -contact_model.normal_damping * normal_velocity
-                        normal_force_magnitude = max(elastic_force + damping_force,
-                                                     zero(ELTYPE))
+                        tangential_velocity = relative_velocity - normal_velocity * normal
+                        normal_force_magnitude = normal_friction_reference_force(contact_model,
+                                                                                penetration_effective,
+                                                                                normal_velocity)
 
                         if normal_force_magnitude > 0
-                            interaction_force = normal_force_magnitude * normal
+                            tangential_displacement = isnothing(contact_map) ?
+                                                      zero_tangential :
+                                                      get(contact_map,
+                                                          wall_contact_key(neighbor_system_index,
+                                                                           particle,
+                                                                           manifold_index),
+                                                          zero_tangential)
+                            tangential_force = tangential_contact_force(contact_model,
+                                                                        tangential_displacement,
+                                                                        tangential_velocity,
+                                                                        normal_force_magnitude)
+                            interaction_force = normal_force_magnitude * normal +
+                                                tangential_force
 
                             for dim in eachindex(interaction_force)
                                 particle_system.force_per_particle[dim,
@@ -313,7 +326,8 @@ end
     distance <= eps(ELTYPE) && return particle_system
 
     penetration = contact_model.contact_distance - distance
-    penetration <= 0 && return particle_system
+    penetration_effective = penetration - contact_model.penetration_slop
+    penetration_effective <= 0 && return particle_system
 
     normal = pos_diff / distance
     wall_velocity = current_velocity(v_neighbor_system, neighbor_system, neighbor)
@@ -339,7 +353,8 @@ end
                                                       normal,
                                                       normal_merge_cos)
     accumulate_contact_manifold_sums!(particle_system.cache, particle, manifold_index,
-                                      contact_weight, normal, wall_velocity, penetration)
+                                      contact_weight, normal, wall_velocity,
+                                      penetration_effective)
 
     return particle_system
 end

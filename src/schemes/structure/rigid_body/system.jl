@@ -119,7 +119,8 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
         inverse_inertia = Ref(zero(SMatrix{3, 3, ELTYPE, 9}))
     end
 
-    cache = (; contact_count=Ref(0),
+    cache = (; create_cache_contact_history(contact_model_, Val(NDIMS), ELTYPE)...,
+             contact_count=Ref(0),
              max_contact_penetration=Ref(zero(ELTYPE)),
              create_cache_contact_manifold(contact_model_, Val(NDIMS), ELTYPE,
                                            nparticles(initial_condition),
@@ -148,6 +149,11 @@ end
 function create_cache_contact_manifold(::Nothing, ::Val{NDIMS}, ELTYPE,
                                        n_particles, max_manifolds) where {NDIMS}
     return (;)
+end
+
+function create_cache_contact_history(contact_model, ::Val{NDIMS},
+                                      ::Type{ELTYPE}) where {NDIMS, ELTYPE}
+    return (; contact_tangential_displacement=nothing)
 end
 
 # Allocate per-particle scratch arrays for rigid contact.
