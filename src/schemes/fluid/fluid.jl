@@ -163,9 +163,9 @@ end
                                                   v_particle_system, v_neighbor_system,
                                                   particle, neighbor, pos_diff, distance,
                                                   m_b, rho_a, rho_b, vdiff, grad_kernel)
-    vdiff += continuity_equation_shifting_term(shifting_technique(particle_system),
-                                               particle_system, neighbor_system,
-                                               particle, neighbor, rho_a, rho_b)
+    # vdiff += continuity_equation_shifting_term(shifting_technique(particle_system),
+    #                                            particle_system, neighbor_system,
+    #                                            particle, neighbor, rho_a, rho_b)
 
     drho_particle[] += div_fast(rho_a, rho_b) * m_b * dot(vdiff, grad_kernel)
 
