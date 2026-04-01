@@ -62,7 +62,14 @@ function trixi2vtk(dvdu_ode, vu_ode, semi, t; iter=nothing, output_directory="ou
                    prefix="", git_hash=compute_git_hash(), max_coordinates=Inf,
                    custom_quantities...)
     (; systems) = semi
-    diagnostics = map(interaction_diagnostics, systems)
+    rigid_contact_diagnostics = map(systems) do system
+        if system isa RigidBodySystem
+            return (system.cache.contact_count[],
+                    system.cache.max_contact_penetration[])
+        end
+
+        return nothing
+    end
 
     # Update quantities that are stored in the systems. These quantities (e.g. pressure)
     # still have the values from the last stage of the previous step if not updated here.
@@ -73,7 +80,12 @@ function trixi2vtk(dvdu_ode, vu_ode, semi, t; iter=nothing, output_directory="ou
     end
 
     foreach_system(semi) do system
-        restore_interaction_diagnostics!(system, diagnostics[system_indices(system, semi)])
+        system isa RigidBodySystem || return
+        diagnostics = rigid_contact_diagnostics[system_indices(system, semi)]
+        isnothing(diagnostics) && return
+
+        system.cache.contact_count[] = diagnostics[1]
+        system.cache.max_contact_penetration[] = diagnostics[2]
     end
 
     filenames = system_names(systems)

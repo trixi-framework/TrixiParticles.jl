@@ -402,20 +402,6 @@ function update_final!(system::RigidBodySystem, v, u, v_ode, u_ode, semi, t)
     return system
 end
 
-function interaction_diagnostics(system::RigidBodySystem)
-    return (; contact_count=system.cache.contact_count[],
-            max_contact_penetration=system.cache.max_contact_penetration[])
-end
-
-function restore_interaction_diagnostics!(system::RigidBodySystem, diagnostics)
-    isnothing(diagnostics) && return system
-
-    system.cache.contact_count[] = diagnostics.contact_count
-    system.cache.max_contact_penetration[] = diagnostics.max_contact_penetration
-
-    return system
-end
-
 @inline function inertia_contribution(relative_position::SVector{NDIMS, ELTYPE}) where {NDIMS,
                                                                                         ELTYPE}
     return dot(relative_position, relative_position)
