@@ -418,9 +418,9 @@ end
 
 @inline function normal_contact_force(normal_stiffness, normal_damping, penetration,
                                       normal_velocity, ELTYPE)
-    normal_force, _ = normal_contact_force_components(normal_stiffness, normal_damping,
-                                                      penetration, normal_velocity,
-                                                      ELTYPE)
+    _, _, normal_force = normal_contact_force_components(normal_stiffness, normal_damping,
+                                                         penetration, normal_velocity,
+                                                         ELTYPE)
 
     return normal_force
 end
@@ -429,14 +429,6 @@ end
                                       penetration, normal_velocity, ELTYPE)
     return normal_contact_force(contact_model.normal_stiffness, contact_model.normal_damping,
                                 penetration, normal_velocity, ELTYPE)
-end
-
-@inline function normal_friction_reference_force(contact_model::RigidContactModel,
-                                                 penetration, normal_velocity, ELTYPE)
-    _, friction_reference_force = normal_contact_force_components(contact_model, penetration,
-                                                                  normal_velocity, ELTYPE)
-
-    return friction_reference_force
 end
 
 @inline function normal_contact_force_components(contact_model::RigidContactModel,
@@ -451,40 +443,8 @@ end
     elastic_force = normal_stiffness * penetration
     damping_force = -normal_damping * normal_velocity
     normal_force = max(elastic_force + damping_force, zero(ELTYPE))
-    friction_reference_force = normal_force
 
-    return normal_force, friction_reference_force
-end
-
-function tangential_contact_force(contact_model::RigidContactModel,
-                                  tangential_displacement,
-                                  tangential_velocity,
-                                  normal_force_friction_reference, ELTYPE)
-    force_trial = -contact_model.tangential_stiffness * tangential_displacement -
-                  contact_model.tangential_damping * tangential_velocity
-
-    trial_norm = norm(force_trial)
-    tangential_speed = norm(tangential_velocity)
-    static_limit = contact_model.static_friction_coefficient *
-                   normal_force_friction_reference
-
-    if trial_norm <= static_limit
-        return force_trial
-    end
-
-    kinetic_limit = contact_model.kinetic_friction_coefficient *
-                    normal_force_friction_reference
-    kinetic_limit <= eps(ELTYPE) && return zero(force_trial)
-
-    regularization_velocity = max(contact_model.stick_velocity_tolerance,
-                                  sqrt(eps(ELTYPE)))
-
-    if tangential_speed > eps(ELTYPE)
-        speed_factor = tanh(tangential_speed / regularization_velocity)
-        return -kinetic_limit * speed_factor * tangential_velocity / tangential_speed
-    end
-
-    return zero(force_trial)
+    return elastic_force, damping_force, normal_force
 end
 
 function interact!(dv, v_particle_system, u_particle_system,
