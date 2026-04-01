@@ -193,7 +193,7 @@ extra_callback = nothing
 callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback(), extra_callback)
 
 sol = solve(ode_problem, RDPK3SpFSAL35(),
-                 abstol=1e-6, # Default abstol is 1e-6 (may need tuning to prevent boundary penetration)
-                 reltol=1e-4, # Default reltol is 1e-3 (may need tuning to prevent boundary penetration)
-                 dtmax=1e-2,  # Limit stepsize to prevent crashing
-                 save_everystep=false, callback=callbacks)
+            abstol=1e-6, # Default abstol is 1e-6 (may need tuning to prevent boundary penetration)
+            reltol=1e-4, # Default reltol is 1e-3 (may need tuning to prevent boundary penetration)
+            dtmax=1e-2,  # Limit stepsize to prevent crashing
+            save_everystep=false, callback=callbacks)
