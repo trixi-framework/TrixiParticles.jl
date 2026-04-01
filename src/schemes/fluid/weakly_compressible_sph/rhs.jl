@@ -79,13 +79,12 @@ function interact!(dv, v_particle_system, u_particle_system,
                                particle, neighbor, m_a, m_b, rho_a, rho_b,
                                pos_diff, distance, grad_kernel, correction)
 
-        dv_surface_tension = Ref(zero(pos_diff))
-        @inbounds surface_tension_force!(dv_surface_tension, surface_tension_a,
-                                         surface_tension_b,
+        @inbounds surface_tension_force!(dv_particle,
+                                         surface_tension_a, surface_tension_b,
                                          particle_system, neighbor_system,
                                          particle, neighbor, pos_diff, distance,
-                                         rho_a, rho_b, grad_kernel)
-        dv_particle[] += surface_tension_correction * dv_surface_tension[]
+                                         rho_a, rho_b, grad_kernel,
+                                         surface_tension_correction)
 
         @inbounds adhesion_force!(dv_particle, surface_tension_a, particle_system,
                                   neighbor_system,

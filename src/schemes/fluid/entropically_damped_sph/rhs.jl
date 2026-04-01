@@ -65,7 +65,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                                          surface_tension_b,
                                          particle_system, neighbor_system,
                                          particle, neighbor, pos_diff, distance,
-                                         rho_a, rho_b, grad_kernel)
+                                         rho_a, rho_b, grad_kernel, 1)
 
         @inbounds adhesion_force!(dv_particle, surface_tension_a, particle_system,
                                   neighbor_system,
