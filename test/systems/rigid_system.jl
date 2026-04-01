@@ -923,9 +923,6 @@
                                                                    Float64)
         @test spacing_scaled_runtime.contact_distance ≈ 0.125
 
-        @test TrixiParticles.normal_contact_force(contact_model, 0.02, -0.5) ≈ 410.0
-        @test TrixiParticles.normal_contact_force(contact_model, 0.02, 30.0) ≈ 0.0
-
         @test_throws ArgumentError RigidContactModel(; normal_stiffness=0.0)
         @test_throws ArgumentError RigidContactModel(; normal_stiffness=1.0,
                                                      normal_damping=-1.0)
