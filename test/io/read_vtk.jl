@@ -203,6 +203,88 @@
                   rigid_system.cache.contact_count[]
             @test only(Array(TrixiParticles.ReadVTK.get_data(field_data["max_contact_penetration"]))) ==
                   rigid_system.cache.max_contact_penetration[]
+
+            rigid_coordinates_1 = reshape([0.0, 0.0], 2, 1)
+            rigid_velocity_1 = reshape([0.0, 0.0], 2, 1)
+            rigid_mass_1 = [2.0]
+            rigid_density_1 = [1000.0]
+            rigid_ic_1 = InitialCondition(; coordinates=rigid_coordinates_1,
+                                          velocity=rigid_velocity_1,
+                                          mass=rigid_mass_1,
+                                          density=rigid_density_1,
+                                          particle_spacing=0.1)
+
+            rigid_coordinates_2 = reshape([0.08, 0.0], 2, 1)
+            rigid_velocity_2 = reshape([-1.5, 0.0], 2, 1)
+            rigid_mass_2 = [3.0]
+            rigid_density_2 = [1000.0]
+            rigid_ic_2 = InitialCondition(; coordinates=rigid_coordinates_2,
+                                          velocity=rigid_velocity_2,
+                                          mass=rigid_mass_2,
+                                          density=rigid_density_2,
+                                          particle_spacing=0.1)
+
+            contact_model_1 = RigidContactModel(; normal_stiffness=20.0,
+                                                normal_damping=4.0,
+                                                contact_distance=0.1)
+            contact_model_2 = RigidContactModel(; normal_stiffness=30.0,
+                                                normal_damping=8.0,
+                                                contact_distance=0.12)
+
+            rigid_system_1 = RigidBodySystem(rigid_ic_1;
+                                             acceleration=(0.0, 0.0),
+                                             contact_model=contact_model_1)
+            rigid_system_2 = RigidBodySystem(rigid_ic_2;
+                                             acceleration=(0.0, 0.0),
+                                             contact_model=contact_model_2)
+            semi_contact = Semidiscretization(rigid_system_1, rigid_system_2)
+            ode_contact = semidiscretize(semi_contact, (0.0, 0.01))
+            v_ode_contact, u_ode_contact = ode_contact.u0.x
+            dv_ode_contact = zero(v_ode_contact)
+            du_ode_contact = zero(u_ode_contact)
+
+            v_rigid_1 = TrixiParticles.wrap_v(v_ode_contact, rigid_system_1, semi_contact)
+            u_rigid_1 = TrixiParticles.wrap_u(u_ode_contact, rigid_system_1, semi_contact)
+            v_rigid_2 = TrixiParticles.wrap_v(v_ode_contact, rigid_system_2, semi_contact)
+            u_rigid_2 = TrixiParticles.wrap_u(u_ode_contact, rigid_system_2, semi_contact)
+            TrixiParticles.update_final!(rigid_system_1, v_rigid_1, u_rigid_1,
+                                         v_ode_contact, u_ode_contact, semi_contact, 0.0)
+            TrixiParticles.update_final!(rigid_system_2, v_rigid_2, u_rigid_2,
+                                         v_ode_contact, u_ode_contact, semi_contact, 0.0)
+
+            TrixiParticles.interact!(dv_ode_contact, v_ode_contact, u_ode_contact,
+                                     rigid_system_1, rigid_system_2, semi_contact)
+            TrixiParticles.interact!(dv_ode_contact, v_ode_contact, u_ode_contact,
+                                     rigid_system_2, rigid_system_1, semi_contact)
+
+            dv_rigid_1 = TrixiParticles.wrap_v(dv_ode_contact, rigid_system_1, semi_contact)
+            dv_rigid_2 = TrixiParticles.wrap_v(dv_ode_contact, rigid_system_2, semi_contact)
+            TrixiParticles.finalize_interaction!(rigid_system_1, dv_rigid_1, v_rigid_1,
+                                                 u_rigid_1, dv_ode_contact, v_ode_contact,
+                                                 u_ode_contact, semi_contact)
+            TrixiParticles.finalize_interaction!(rigid_system_2, dv_rigid_2, v_rigid_2,
+                                                 u_rigid_2, dv_ode_contact, v_ode_contact,
+                                                 u_ode_contact, semi_contact)
+
+            @test rigid_system_1.cache.contact_count[] > 0
+            @test rigid_system_1.cache.max_contact_penetration[] > 0
+
+            dvdu_ode_contact = (; x=(dv_ode_contact, du_ode_contact))
+            vu_ode_contact = (; x=(v_ode_contact, u_ode_contact))
+            trixi2vtk(dvdu_ode_contact, vu_ode_contact, semi_contact, 0.0;
+                      output_directory=tmp_dir, iter=1)
+
+            contact_filename = TrixiParticles.system_names(semi_contact.systems)[1]
+            vtk_contact = TrixiParticles.ReadVTK.VTKFile(joinpath(tmp_dir,
+                                                                  "$(contact_filename)_1.vtu"))
+            point_data_contact = TrixiParticles.ReadVTK.get_point_data(vtk_contact)
+
+            @test only(Array(TrixiParticles.ReadVTK.get_data(point_data_contact["contact_count"]))) ==
+                  rigid_system_1.cache.contact_count[]
+            @test only(Array(TrixiParticles.ReadVTK.get_data(point_data_contact["contact_count"]))) > 0
+            @test only(Array(TrixiParticles.ReadVTK.get_data(point_data_contact["max_contact_penetration"]))) ≈
+                  rigid_system_1.cache.max_contact_penetration[]
+            @test only(Array(TrixiParticles.ReadVTK.get_data(point_data_contact["max_contact_penetration"]))) > 0
         end
     end
 end
