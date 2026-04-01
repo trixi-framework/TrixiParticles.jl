@@ -261,8 +261,7 @@ function interact!(dv, v_particle_system, u_particle_system,
 
                         normal_force_magnitude = normal_contact_force(contact_model,
                                                                      penetration_effective,
-                                                                     normal_velocity,
-                                                                     ELTYPE)
+                                                                     normal_velocity)
 
                         if normal_force_magnitude > 0
                             interaction_force = normal_force_magnitude * normal
@@ -421,34 +420,24 @@ function accumulate_contact_manifold_sums!(cache, particle, manifold_index, cont
 end
 
 @inline function normal_contact_force(normal_stiffness, normal_damping, penetration,
-                                      normal_velocity, ELTYPE)
-    _, _, normal_force = normal_contact_force_components(normal_stiffness, normal_damping,
-                                                         penetration, normal_velocity,
-                                                         ELTYPE)
-
-    return normal_force
+                                      normal_velocity)
+    elastic_force = normal_stiffness * penetration
+    damping_force = -normal_damping * normal_velocity
+    normal_force = elastic_force + damping_force
+    return max(normal_force, zero(normal_force))
 end
 
 @inline function normal_contact_force(contact_model::RigidContactModel,
-                                      penetration, normal_velocity, ELTYPE)
+                                      penetration, normal_velocity)
     return normal_contact_force(contact_model.normal_stiffness, contact_model.normal_damping,
-                                penetration, normal_velocity, ELTYPE)
+                                penetration, normal_velocity)
 end
 
 @inline function normal_contact_force_components(contact_model::RigidContactModel,
-                                                 penetration, normal_velocity, ELTYPE)
-    return normal_contact_force_components(contact_model.normal_stiffness,
-                                           contact_model.normal_damping,
-                                           penetration, normal_velocity, ELTYPE)
-end
-
-@inline function normal_contact_force_components(normal_stiffness, normal_damping,
-                                                 penetration, normal_velocity, ELTYPE)
-    elastic_force = normal_stiffness * penetration
-    damping_force = -normal_damping * normal_velocity
-    normal_force = max(elastic_force + damping_force, zero(ELTYPE))
-
-    return elastic_force, damping_force, normal_force
+                                                 penetration, normal_velocity)
+    elastic_force = contact_model.normal_stiffness * penetration
+    damping_force = -contact_model.normal_damping * normal_velocity
+    return elastic_force, damping_force
 end
 
 function interact!(dv, v_particle_system, u_particle_system,
@@ -501,7 +490,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         normal_force_magnitude = normal_contact_force(pair_normal_stiffness,
                                                       pair_normal_damping,
                                                       penetration,
-                                                      normal_velocity, ELTYPE)
+                                                      normal_velocity)
         normal_force_magnitude <= 0 && return dv
 
         interaction_force = normal_force_magnitude * normal

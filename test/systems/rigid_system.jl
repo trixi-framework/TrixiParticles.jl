@@ -923,11 +923,11 @@
                                                                    Float64)
         @test spacing_scaled_runtime.contact_distance ≈ 0.125
 
-        @test TrixiParticles.normal_contact_force(contact_model, 0.02, -0.5, Float64) ≈ 410.0
-        elastic_force, damping_force, normal_force = TrixiParticles.normal_contact_force_components(contact_model,
-                                                                                                    0.02,
-                                                                                                    -0.5,
-                                                                                                    Float64)
+        @test TrixiParticles.normal_contact_force(contact_model, 0.02, -0.5) ≈ 410.0
+        elastic_force, damping_force = TrixiParticles.normal_contact_force_components(contact_model,
+                                                                                      0.02,
+                                                                                      -0.5)
+        normal_force = max(elastic_force + damping_force, zero(elastic_force + damping_force))
         @test elastic_force ≈ 400.0
         @test damping_force ≈ 10.0
         @test normal_force ≈ 410.0
