@@ -433,13 +433,6 @@ end
                                 penetration, normal_velocity)
 end
 
-@inline function normal_contact_force_components(contact_model::RigidContactModel,
-                                                 penetration, normal_velocity)
-    elastic_force = contact_model.normal_stiffness * penetration
-    damping_force = -contact_model.normal_damping * normal_velocity
-    return elastic_force, damping_force
-end
-
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::RigidBodySystem,
