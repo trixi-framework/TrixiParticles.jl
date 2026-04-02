@@ -786,8 +786,8 @@ end
 
 # Renormalized to the truncated integral over [0,2h]
 @inline function normalization_factor(kernel::LaguerreGaussKernel{1}, h_inv)
-    # C = 1 / (2 * (7 * sqrt(pi) / 16) * erf(2) - (5 / 12) * exp(-4))
-    C = oftype(h_inv, 0.6510370392044922)
+    # C = 1 / (2 * ((7 * sqrt(pi) / 16) * erf(2) - (5 / 12) * exp(-4)))
+    C = oftype(h_inv, 0.65428780253539)
     # C' = C / h
     return C * h_inv
 end
