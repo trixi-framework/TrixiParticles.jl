@@ -14,145 +14,124 @@ function interact!(dv, v_particle_system, u_particle_system,
 
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
+    neighborhood_search = get_neighborhood_search(particle_system, neighbor_system, semi)
 
-    # In order to visualize quantities like pressure forces or viscosity forces, uncomment
-    # the following code and the two other lines below that are marked as "debug example".
-    # debug_array = zeros(ndims(particle_system), nparticles(particle_system))
+    # For `distance == 0`, the analytical gradient is zero, but the unsafe gradient divides
+    # by zero. To account for rounding errors, we check if `distance` is almost zero.
+    # Since the coordinates are in the order of the compact support `c`, `distance^2` is in
+    # the order of `c^2`, so we need to check `distance < sqrt(eps(c^2))`.
+    # Note that `sqrt(eps(c^2)) != eps(c)`.
+    compact_support_ = compact_support(particle_system, neighbor_system)
+    almostzero = sqrt(eps(compact_support_^2))
 
-    # For `distance == 0`, the analytical gradient is zero, but the unsafe gradient
-    # and the density diffusion divide by zero.
-    # To account for rounding errors, we check if `distance` is almost zero.
-    # Since the coordinates are in the order of the smoothing length `h`, `distance^2` is in
-    # the order of `h^2`, so we need to check `distance < sqrt(eps(h^2))`.
-    # Note that `sqrt(eps(h^2)) != eps(h)`.
-    h = initial_smoothing_length(particle_system)
-    almostzero = sqrt(eps(h^2))
-
-    # Loop over all pairs of particles and neighbors within the kernel cutoff
-    foreach_point_neighbor(particle_system, neighbor_system,
-                           system_coords, neighbor_system_coords, semi;
-                           points=each_integrated_particle(particle_system)) do particle,
-                                                                                neighbor,
-                                                                                pos_diff,
-                                                                                distance
-        # Skip neighbors with the same position because the kernel gradient is zero.
-        # Note that `return` only exits the closure, i.e., skips the current neighbor.
-        skip_zero_distance(particle_system) && distance < almostzero && return
-
-        # Now that we know that `distance` is not zero, we can safely call the unsafe
-        # version of the kernel gradient to avoid redundant zero checks.
-        grad_kernel = smoothing_kernel_grad_unsafe(particle_system, pos_diff,
-                                                   distance, particle)
-
-        # `foreach_point_neighbor` makes sure that `particle` and `neighbor` are
-        # in bounds of the respective system. For performance reasons, we use `@inbounds`
-        # in this hot loop to avoid bounds checking when extracting particle quantities.
-        rho_a = @inbounds current_density(v_particle_system, particle_system, particle)
-        rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
-        rho_mean = (rho_a + rho_b) / 2
-
-        v_a = @inbounds current_velocity(v_particle_system, particle_system, particle)
-        v_b = @inbounds current_velocity(v_neighbor_system, neighbor_system, neighbor)
-
-        # Determine correction factors.
-        # This can be ignored, as these are all 1 when no correction is used.
-        (viscosity_correction, pressure_correction,
-         surface_tension_correction) = free_surface_correction(correction, particle_system,
-                                                               rho_mean)
-
+    @threaded semi for particle in each_integrated_particle(particle_system)
+        # We are looping over the particles of `particle_system`, so it is guaranteed
+        # that `particle` is in bounds of `particle_system`.
         m_a = @inbounds hydrodynamic_mass(particle_system, particle)
-        m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
+        p_a = @inbounds current_pressure(v_particle_system, particle_system, particle)
 
         v_a = @inbounds current_velocity(v_particle_system, particle_system, particle)
-        v_b = @inbounds current_velocity(v_neighbor_system, neighbor_system, neighbor)
+        rho_a = @inbounds current_density(v_particle_system, particle_system, particle)
 
-        # The following call is equivalent to
-        #     `p_a = current_pressure(v_particle_system, particle_system, particle)`
-        #     `p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)`
-        # Only when the neighbor system is a `WallBoundarySystem` or a `TotalLagrangianSPHSystem`
-        # with the boundary model `PressureMirroring`, this will return `p_b = p_a`, which is
-        # the pressure of the fluid particle.
-        p_a,
-        p_b = @inbounds particle_neighbor_pressure(v_particle_system,
-                                                   v_neighbor_system,
-                                                   particle_system, neighbor_system,
-                                                   particle, neighbor)
-
-        dv_pressure = pressure_correction *
-                      pressure_acceleration(particle_system, neighbor_system,
-                                            particle, neighbor,
-                                            m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
-                                            distance, grad_kernel, correction)
-
-        dv_particle = Ref(dv_pressure)
-
-        # Propagate `@inbounds` to the viscosity function, which accesses particle data
-        @inbounds dv_viscosity!(dv_particle, particle_system, neighbor_system,
-                                v_particle_system, v_neighbor_system,
-                                particle, neighbor, pos_diff, distance,
-                                sound_speed, m_a, m_b, rho_a, rho_b,
-                                v_a, v_b, grad_kernel, viscosity_correction)
-
-        # Extra terms in the momentum equation when using a shifting technique
-        @inbounds dv_shifting!(dv_particle, shifting_technique(particle_system),
-                               particle_system, neighbor_system,
-                               v_particle_system, v_neighbor_system,
-                               particle, neighbor, m_a, m_b, rho_a, rho_b,
-                               pos_diff, distance, grad_kernel, correction)
-
-        @inbounds surface_tension_force!(dv_particle,
-                                         surface_tension_a, surface_tension_b,
-                                         particle_system, neighbor_system,
-                                         particle, neighbor, pos_diff, distance,
-                                         rho_a, rho_b, grad_kernel,
-                                         surface_tension_correction)
-
-        @inbounds adhesion_force!(dv_particle, surface_tension_a, particle_system,
-                                  neighbor_system,
-                                  particle, neighbor, pos_diff, distance)
-
-        for i in 1:ndims(particle_system)
-            @inbounds dv[i, particle] += dv_particle[][i]
-            # Debug example
-            # debug_array[i, particle] += dv_pressure[i]
-        end
-
+        # Accumulate the RHS contributions over all neighbors before writing to `dv`,
+        # to reduce the number of memory writes.
+        # Note that we need a `Ref` in order to be able to update these variables
+        # inside the closure in the `foreach_neighbor` loop.
+        dv_particle = Ref(zero(v_a))
         drho_particle = Ref(zero(rho_a))
 
-        # TODO If variable smoothing_length is used, this should use the neighbor smoothing length
-        # Propagate `@inbounds` to the continuity equation, which accesses particle data
-        @inbounds continuity_equation!(drho_particle, density_calculator,
-                                       particle_system, neighbor_system,
-                                       particle, neighbor, pos_diff, distance,
-                                       m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+        # Loop over all neighbors within the kernel cutoff
+        @inbounds PointNeighbors.foreach_neighbor(system_coords, neighbor_system_coords,
+                                                  neighborhood_search,
+                                                  particle) do particle, neighbor,
+                                                               pos_diff, distance
+            # Skip neighbors with the same position because the kernel gradient is zero.
+            # Note that `return` only exits the closure, i.e., skips the current neighbor.
+            skip_zero_distance(particle_system) && distance < almostzero && return
 
+            # Now that we know that `distance` is not zero, we can safely call the unsafe
+            # version of the kernel gradient to avoid redundant zero checks.
+            grad_kernel = smoothing_kernel_grad_unsafe(particle_system, pos_diff,
+                                                       distance, particle)
+
+            # `foreach_neighbor` makes sure that `neighbor` is in bounds of `neighbor_system`
+            m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
+            v_b = @inbounds current_velocity(v_neighbor_system, neighbor_system, neighbor)
+            rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
+            rho_mean = (rho_a + rho_b) / 2
+
+            # The following call is equivalent to
+            #     `p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)`
+            # Only when the neighbor system is a `WallBoundarySystem`
+            # or a `TotalLagrangianSPHSystem` with the boundary model `PressureMirroring`,
+            # this will return `p_b = p_a`, which is the pressure of the fluid particle.
+            p_b = @inbounds neighbor_pressure(v_neighbor_system, neighbor_system,
+                                              neighbor, p_a)
+
+            # Determine correction factors.
+            # This can usually be ignored, as these are all 1 when no correction is used.
+            (viscosity_correction, pressure_correction,
+             surface_tension_correction) = free_surface_correction(correction,
+                                                                   particle_system,
+                                                                   rho_mean)
+
+            # For `ContinuityDensity` without correction, this is equivalent to
+            # dv_pressure = -m_b * (p_a + p_b) / (rho_a * rho_b) * grad_kernel
+            dv_pressure = pressure_acceleration(particle_system, neighbor_system,
+                                                   particle, neighbor,
+                                                   m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
+                                                   distance, grad_kernel, correction)
+            dv_particle[] += dv_pressure * pressure_correction
+
+            # Propagate `@inbounds` to the viscosity function, which accesses particle data
+            @inbounds dv_viscosity!(dv_particle, particle_system, neighbor_system,
+                                    v_particle_system, v_neighbor_system,
+                                    particle, neighbor, pos_diff, distance,
+                                    sound_speed, m_a, m_b, rho_a, rho_b,
+                                    v_a, v_b, grad_kernel, viscosity_correction)
+
+            # Extra terms in the momentum equation when using a shifting technique
+            @inbounds dv_shifting!(dv_particle, shifting_technique(particle_system),
+                                   particle_system, neighbor_system,
+                                   v_particle_system, v_neighbor_system,
+                                   particle, neighbor, m_a, m_b, rho_a, rho_b,
+                                   pos_diff, distance, grad_kernel, correction)
+
+            @inbounds surface_tension_force!(dv_particle,
+                                             surface_tension_a, surface_tension_b,
+                                             particle_system, neighbor_system,
+                                             particle, neighbor, pos_diff, distance,
+                                             rho_a, rho_b, grad_kernel,
+                                             surface_tension_correction)
+
+            @inbounds adhesion_force!(dv_particle, surface_tension_a, particle_system,
+                                      neighbor_system,
+                                      particle, neighbor, pos_diff, distance)
+
+            # TODO If variable smoothing_length is used, this should use the neighbor smoothing length
+            # Propagate `@inbounds` to the continuity equation, which accesses particle data
+            @inbounds continuity_equation!(drho_particle, density_calculator,
+                                           particle_system, neighbor_system,
+                                           particle, neighbor, pos_diff, distance,
+                                           m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+        end
+
+        for i in eachindex(dv_particle[])
+            @inbounds dv[i, particle] += dv_particle[][i]
+        end
         @inbounds write_drho_particle!(dv, density_calculator, drho_particle, particle)
     end
-    # Debug example
-    # periodic_box = neighborhood_search.periodic_box
-    # Note: this saves a file in every stage of the integrator
-    # if !@isdefined iter; iter = 0; end
-    # TODO: This call should use public API. This requires some additional changes to simplify the calls.
-    # trixi2vtk(v_particle_system, u_particle_system, -1.0, particle_system, periodic_box, debug=debug_array, prefix="debug", iter=iter += 1)
 
     return dv
 end
 
-@propagate_inbounds function particle_neighbor_pressure(v_particle_system,
-                                                        v_neighbor_system,
-                                                        particle_system, neighbor_system,
-                                                        particle, neighbor)
-    p_a = current_pressure(v_particle_system, particle_system, particle)
-    p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)
-
-    return p_a, p_b
+@propagate_inbounds function neighbor_pressure(v_neighbor_system, neighbor_system,
+                                               neighbor, p_a)
+    return current_pressure(v_neighbor_system, neighbor_system, neighbor)
 end
 
-@inline function particle_neighbor_pressure(v_particle_system, v_neighbor_system,
-                                            particle_system,
-                                            neighbor_system::WallBoundarySystem{<:BoundaryModelDummyParticles{PressureMirroring}},
-                                            particle, neighbor)
-    p_a = current_pressure(v_particle_system, particle_system, particle)
-
-    return p_a, p_a
+@inline function neighbor_pressure(v_neighbor_system,
+                                   neighbor_system::WallBoundarySystem{<:BoundaryModelDummyParticles{PressureMirroring}},
+                                   neighbor, p_a)
+    return p_a
 end
