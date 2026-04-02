@@ -12,6 +12,14 @@
             return 2 * pi * integral_2d_radial
         end
 
+        function integrate_kernel_1d(smk)
+            integral_1d_half,
+            _ = quadgk(r -> TrixiParticles.kernel(smk, r, 1.0), 0,
+                       TrixiParticles.compact_support(smk, 1.0) * 1.1,
+                       rtol=1e-15)
+            return 2 * integral_1d_half
+        end
+
         function integrate_kernel_3d(smk)
             integral_3d_radial,
             _ = quadgk(r -> r^2 * TrixiParticles.kernel(smk, r, 1.0), 0,
@@ -43,6 +51,13 @@
             LaguerreGaussKernel
         ]
 
+        kernels_1d = [
+            SchoenbergCubicSplineKernel,
+            SchoenbergQuarticSplineKernel,
+            SchoenbergQuinticSplineKernel,
+            LaguerreGaussKernel
+        ]
+
         @testset "$kernel" for kernel in kernels
             # The integral should be 1 for all kernels
             error_2d = abs(integrate_kernel_2d(kernel{2}()) - 1.0)
@@ -50,6 +65,11 @@
 
             @test error_2d <= 1e-15
             @test error_3d <= 1e-15
+
+            if kernel in kernels_1d
+                error_1d = abs(integrate_kernel_1d(kernel{1}()) - 1.0)
+                @test error_1d <= 1e-15
+            end
         end
     end
 
@@ -69,11 +89,20 @@
             LaguerreGaussKernel
         ]
 
+        kernels_1d = [
+            SchoenbergCubicSplineKernel,
+            SchoenbergQuarticSplineKernel,
+            SchoenbergQuinticSplineKernel,
+            LaguerreGaussKernel
+        ]
+
         # Test 4 different smoothing lengths
         smoothing_lengths = 0.25:0.25:1
 
-        for ndims in 2:3
-            @testset "$kernel_type{$ndims}" for kernel_type in kernels
+        for ndims in 1:3
+            kernels_ndims = ndims == 1 ? kernels_1d : kernels
+
+            @testset "$kernel_type{$ndims}" for kernel_type in kernels_ndims
                 kernel_ = kernel_type{ndims}()
 
                 for h in smoothing_lengths
@@ -119,11 +148,20 @@
             LaguerreGaussKernel
         ]
 
+        kernels_1d = [
+            SchoenbergCubicSplineKernel,
+            SchoenbergQuarticSplineKernel,
+            SchoenbergQuinticSplineKernel,
+            LaguerreGaussKernel
+        ]
+
         # Test different smoothing length types
         smoothing_lengths = (0.5, 0.5f0)
 
-        @testset "$kernel_type" for kernel_type in kernels
-            for ndims in 2:3
+        for ndims in 1:3
+            kernels_ndims = ndims == 1 ? kernels_1d : kernels
+
+            @testset "$kernel_type{$ndims}" for kernel_type in kernels_ndims
                 kernel_ = kernel_type{ndims}()
 
                 for h in smoothing_lengths
