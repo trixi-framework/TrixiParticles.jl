@@ -130,8 +130,8 @@ end
     return kernel(smoothing_kernel, distance, smoothing_length(system, particle))
 end
 
-@inline function skip_zero_distance(system, distance, almostzero)
-    return skip_zero_distance(system_correction(system), system, distance, almostzero)
+@inline function skip_zero_distance(system::AbstractSystem)
+    return skip_zero_distance(system_correction(system))
 end
 
 # Robust/safe version of the function below. In performance-critical code, manually check
@@ -141,7 +141,7 @@ end
     compact_support_ = compact_support(system_smoothing_kernel(system), h)
 
     # Note that `sqrt(eps(h^2)) != eps(h)`
-    if distance > compact_support_ || skip_zero_distance(system, distance, sqrt(eps(h^2)))
+    if distance > compact_support_ || (skip_zero_distance(system) && distance < sqrt(eps(h^2)))
         return zero(pos_diff)
     end
 

@@ -357,7 +357,7 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
 
             # Skip neighbors with the same position if the kernel gradient is zero.
             # Note that `return` only exits the closure, i.e., skips the current neighbor.
-            skip_zero_distance(correction, system, distance, almostzero) && return
+            skip_zero_distance(correction) && return
 
             # Now that we know that `distance` is not zero, we can safely call the unsafe
             # version of the kernel gradient to avoid redundant zero checks.

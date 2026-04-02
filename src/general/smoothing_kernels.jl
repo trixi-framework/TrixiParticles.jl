@@ -46,13 +46,12 @@ end
     return zero(r)
 end
 
-@inline function skip_zero_distance(correction, system, distance, almostzero)
-    return distance < almostzero
+@inline function skip_zero_distance(correction)
+    return true
 end
 
 @inline function skip_zero_distance(::Union{KernelCorrection,
-                                            MixedKernelGradientCorrection},
-                                    system, distance, almostzero)
+                                            MixedKernelGradientCorrection})
     # For these corrections, the kernel gradient between a particle and itself is not zero
     return false
 end
