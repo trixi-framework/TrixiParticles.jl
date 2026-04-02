@@ -46,14 +46,14 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         # Propagate `@inbounds` to the viscosity function, which accesses particle data
         dv_viscosity_ = Ref(zero(pos_diff))
-        @inbounds dv_viscosity(dv_viscosity_,
-                               viscosity_model(fluid_system,
-                                               neighbor_system),
-                               particle_system, neighbor_system,
-                               v_particle_system, v_neighbor_system,
-                               particle, neighbor, pos_diff, distance,
-                               sound_speed, m_a, m_b, rho_a, rho_b,
-                               v_a, v_b, grad_kernel)
+        @inbounds dv_viscosity!(dv_viscosity_,
+                                viscosity_model(fluid_system,
+                                                neighbor_system),
+                                particle_system, neighbor_system,
+                                v_particle_system, v_neighbor_system,
+                                particle, neighbor, pos_diff, distance,
+                                sound_speed, m_a, m_b, rho_a, rho_b,
+                                v_a, v_b, grad_kernel)
 
         dv_particle = dv_pressure + dv_viscosity_[] + dv_pressure_boundary
 

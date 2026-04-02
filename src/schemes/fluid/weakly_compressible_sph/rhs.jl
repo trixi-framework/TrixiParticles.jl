@@ -67,11 +67,11 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         # Propagate `@inbounds` to the viscosity function, which accesses particle data
         dv_viscosity_ = Ref(zero(pos_diff))
-        @inbounds dv_viscosity(dv_viscosity_, particle_system, neighbor_system,
-                               v_particle_system, v_neighbor_system,
-                               particle, neighbor, pos_diff, distance,
-                               sound_speed, m_a, m_b, rho_a, rho_b,
-                               v_a, v_b, grad_kernel)
+        @inbounds dv_viscosity!(dv_viscosity_, particle_system, neighbor_system,
+                                v_particle_system, v_neighbor_system,
+                                particle, neighbor, pos_diff, distance,
+                                sound_speed, m_a, m_b, rho_a, rho_b,
+                                v_a, v_b, grad_kernel, viscosity_correction)
 
         # Extra terms in the momentum equation when using a shifting technique
         dv_tvf = @inbounds dv_shifting(shifting_technique(particle_system),
@@ -89,9 +89,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         dv_adhesion = adhesion_force(surface_tension_a, particle_system, neighbor_system,
                                      particle, neighbor, pos_diff, distance)
 
-        dv_particle = dv_pressure + viscosity_correction * dv_viscosity_[] + dv_tvf +
-                      dv_surface_tension +
-                      dv_adhesion
+        dv_particle = dv_pressure + dv_viscosity_[] + dv_tvf +
+                      dv_surface_tension + dv_adhesion
 
         for i in 1:ndims(particle_system)
             @inbounds dv[i, particle] += dv_particle[i]

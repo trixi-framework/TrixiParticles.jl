@@ -287,11 +287,11 @@ function calculate_predicted_velocity_and_d_ii_values!(system::ImplicitIncompres
             grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
             dv_viscosity_ = Ref(zero(pos_diff))
-            @inbounds dv_viscosity(dv_viscosity_, system, neighbor_system,
-                                   v_particle_system, v_neighbor_system,
-                                   particle, neighbor, pos_diff, distance,
-                                   sound_speed, m_a, m_b, rho_a, rho_b,
-                                   v_a, v_b, grad_kernel)
+            @inbounds dv_viscosity!(dv_viscosity_, system, neighbor_system,
+                                    v_particle_system, v_neighbor_system,
+                                    particle, neighbor, pos_diff, distance,
+                                    sound_speed, m_a, m_b, rho_a, rho_b,
+                                    v_a, v_b, grad_kernel)
             # Add all other non-pressure forces
             for i in 1:ndims(system)
                 @inbounds advection_velocity[i,
