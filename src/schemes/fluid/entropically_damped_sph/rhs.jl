@@ -74,19 +74,25 @@ function interact!(dv, v_particle_system, u_particle_system,
             @inbounds dv[i, particle] += dv_particle[i]
         end
 
-        v_diff = current_velocity(v_particle_system, particle_system, particle) -
-                 current_velocity(v_neighbor_system, neighbor_system, neighbor)
+        v_a = current_velocity(v_particle_system, particle_system, particle)
+        v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
+        v_diff = v_a - v_b
 
         pressure_evolution!(dv, particle_system, neighbor_system, v_diff, grad_kernel,
                             particle, neighbor, pos_diff, distance,
                             sound_speed, m_a, m_b, p_a, p_b, rho_a, rho_b, nu_edac)
 
+        drho_particle = Ref(zero(rho_a))
+
         # TODO If variable smoothing_length is used, this should use the neighbor smoothing length
         # Propagate `@inbounds` to the continuity equation, which accesses particle data
-        @inbounds continuity_equation!(dv, density_calculator, particle_system,
+        @inbounds continuity_equation!(drho_particle, density_calculator, particle_system,
                                        neighbor_system, v_particle_system,
                                        v_neighbor_system, particle, neighbor,
-                                       pos_diff, distance, m_b, rho_a, rho_b, grad_kernel)
+                                       pos_diff, distance, m_b, rho_a, rho_b,
+                                       v_a, v_b, grad_kernel)
+
+        @inbounds dv[end, particle] += drho_particle[]
     end
 
     return dv

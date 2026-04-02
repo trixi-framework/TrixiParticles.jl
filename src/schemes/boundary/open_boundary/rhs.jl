@@ -62,10 +62,11 @@ function interact!(dv, v_particle_system, u_particle_system,
         # Continuity equation
         @inbounds dv[end, particle] += rho_a / rho_b * m_b * dot(v_diff, grad_kernel)
 
-        density_diffusion!(dv, density_diffusion(particle_system),
-                           v_particle_system, particle, neighbor,
-                           pos_diff, distance, m_b, rho_a, rho_b,
-                           particle_system, grad_kernel)
+        drho_particle = Ref(zero(rho_a))
+        density_diffusion!(drho_particle, density_diffusion(particle_system),
+                           particle_system, particle, neighbor,
+                           pos_diff, distance, m_b, rho_a, rho_b, grad_kernel)
+        @inbounds dv[end, particle] += drho_particle[]
 
         # Open boundary pressure evolution matches the corresponding fluid system:
         # - EDAC: Compute pressure evolution like the fluid system
