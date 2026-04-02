@@ -30,8 +30,11 @@ function interact!(dv, v_particle_system, u_particle_system,
         m_a = @inbounds hydrodynamic_mass(particle_system, particle)
         p_a = @inbounds current_pressure(v_particle_system, particle_system, particle)
 
-        v_a = @inbounds current_velocity(v_particle_system, particle_system, particle)
-        rho_a = @inbounds current_density(v_particle_system, particle_system, particle)
+        # In 3D, this function can combine velocity and density load into one wide load,
+        # which gives a significant speedup on GPUs.
+        (v_a,
+         rho_a) = @inbounds velocity_and_density(v_particle_system, particle_system,
+                                                 particle)
 
         # Accumulate the RHS contributions over all neighbors before writing to `dv`,
         # to reduce the number of memory writes.
@@ -56,8 +59,9 @@ function interact!(dv, v_particle_system, u_particle_system,
 
             # `foreach_neighbor` makes sure that `neighbor` is in bounds of `neighbor_system`
             m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
-            v_b = @inbounds current_velocity(v_neighbor_system, neighbor_system, neighbor)
-            rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
+            (v_b,
+             rho_b) = @inbounds velocity_and_density(v_neighbor_system, neighbor_system,
+                                                     neighbor)
 
             # The following call is equivalent to
             #     `p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)`
@@ -133,4 +137,34 @@ end
                                    neighbor_system::WallBoundarySystem{<:BoundaryModelDummyParticles{PressureMirroring}},
                                    neighbor, p_a)
     return p_a
+end
+
+@propagate_inbounds function velocity_and_density(v, system::WeaklyCompressibleSPHSystem,
+                                                  particle)
+    (; density_calculator) = system
+
+    return velocity_and_density(v, density_calculator, system, particle)
+end
+
+@propagate_inbounds function velocity_and_density(v, _, system, particle)
+    v_particle = current_velocity(v, system, particle)
+    rho_particle = current_density(v, system, particle)
+
+    return v_particle, rho_particle
+end
+
+@inline function velocity_and_density(v::AbstractGPUArray, ::ContinuityDensity,
+                                      ::WeaklyCompressibleSPHSystem{3}, particle)
+    # Since `v` is stored as a 4 x N matrix, this aligned load extracts one column
+    # of `v` corresponding to `particle`.
+    # As opposed to `extract_svector`, this will translate to a single wide load instruction
+    # on the GPU, which is faster than 4 separate loads.
+    vrho_a = vloada(Vec{4, eltype(v)}, pointer(v, 4 * (particle - 1) + 1))
+
+    # The column of `v` is ordered as (v_x, v_y, v_z, rho)
+    a, b, c, d = Tuple(vrho_a)
+    v_particle = SVector(a, b, c)
+    rho_particle = d
+
+    return v_particle, rho_particle
 end
