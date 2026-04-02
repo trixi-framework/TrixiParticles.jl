@@ -15,7 +15,7 @@ using FileIO: FileIO
 using ForwardDiff: ForwardDiff
 using GPUArraysCore: AbstractGPUArray
 using JSON: JSON
-using KernelAbstractions: KernelAbstractions, @kernel, @index
+using KernelAbstractions: KernelAbstractions, @kernel, @index, @localmem, @synchronize
 using LinearAlgebra: norm, normalize, cross, dot, I, tr, inv, pinv, det
 using MuladdMacro: @muladd
 using Polyester: Polyester, @batch

@@ -112,12 +112,12 @@ end
     smoothing_length_neighbor = smoothing_length(particle_system, neighbor)
     smoothing_length_average = (smoothing_length_particle + smoothing_length_neighbor) / 2
 
-    nu_a = kinematic_viscosity(particle_system,
-                               viscosity_model(neighbor_system, particle_system),
-                               smoothing_length_particle, sound_speed)
-    nu_b = kinematic_viscosity(neighbor_system,
-                               viscosity_model(particle_system, neighbor_system),
-                               smoothing_length_neighbor, sound_speed)
+    nu_a = 0#kinematic_viscosity(particle_system,
+                            #    viscosity_model(neighbor_system, particle_system),
+                            #    smoothing_length_particle, sound_speed)
+    nu_b = 0#kinematic_viscosity(neighbor_system,
+                            #    viscosity_model(particle_system, neighbor_system),
+                            #    smoothing_length_neighbor, sound_speed)
 
     viscosity(dv_particle, sound_speed, v_diff, pos_diff, distance, rho_mean, rho_a, rho_b,
               smoothing_length_average, grad_kernel, nu_a, nu_b, m_b)
