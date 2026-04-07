@@ -177,6 +177,8 @@ end
                                         particle, neighbor, pos_diff, distance,
                                         rho_a, rho_b, grad_kernel,
                                         surface_tension_correction)
+    (; smoothing_kernel) = particle_system
+
     # No cohesion with oneself. See `src/general/smoothing_kernels.jl` for more details.
     distance^2 < eps(initial_smoothing_length(particle_system)^2) && return dv_particle
 
