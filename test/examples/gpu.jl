@@ -51,7 +51,7 @@ end
         y = Adapt.adapt(parallelization_backend, rand(Float32, 1024) .+ 1)
 
         max_error = maximum(abs.(TrixiParticles.div_fast.(x, y) - x ./ y))
-        @test max_error < 1f-6
+        @test max_error < 1.0f-6
 
         # Make sure that this is actually using a fast division
         @test max_error > 0
