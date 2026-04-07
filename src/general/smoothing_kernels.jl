@@ -208,6 +208,9 @@ end
     result = -3 * (2 - q)^2 / 4 + 3 * (q < 1) * (1 - q)^2
     kernel_deriv = normalization_factor(kernel, h_inv) * result * h_inv
 
+    # Since this is one of the most performance critical functions, using fast divisions
+    # here gives a significant speedup on GPUs.
+    # See the docs page "Development" for more details on `div_fast`.
     return div_fast(kernel_deriv, r)
 end
 
@@ -300,6 +303,9 @@ end
 
     kernel_deriv = normalization_factor(kernel, h_inv) * result * h_inv
 
+    # Since this is one of the most performance critical functions, using fast divisions
+    # here gives a significant speedup on GPUs.
+    # See the docs page "Development" for more details on `div_fast`.
     return div_fast(kernel_deriv, r)
 end
 
@@ -370,6 +376,9 @@ end
 
     kernel_deriv = normalization_factor(kernel, h_inv) * result * h_inv
 
+    # Since this is one of the most performance critical functions, using fast divisions
+    # here gives a significant speedup on GPUs.
+    # See the docs page "Development" for more details on `div_fast`.
     return div_fast(kernel_deriv, r)
 end
 
@@ -616,6 +625,9 @@ end
 
     kernel_deriv = normalization_factor(kernel, h_inv) * -6 * q * (1 - q^2)^2 * h_inv
 
+    # Since this is one of the most performance critical functions, using fast divisions
+    # here gives a significant speedup on GPUs.
+    # See the docs page "Development" for more details on `div_fast`.
     return div_fast(kernel_deriv, r)
 end
 
@@ -678,6 +690,9 @@ end
 
     kernel_deriv = -3 * normalization_factor(kernel, h_inv) * (1 - q)^2 * h_inv
 
+    # Since this is one of the most performance critical functions, using fast divisions
+    # here gives a significant speedup on GPUs.
+    # See the docs page "Development" for more details on `div_fast`.
     return div_fast(kernel_deriv, r)
 end
 
