@@ -94,7 +94,8 @@
             TrixiParticles.smoothing_length(::MockSystem, _) = eps()
 
             function TrixiParticles.smoothing_kernel_grad_unsafe(::MockSystem,
-                                                                 pos_diff, distance, particle)
+                                                                 pos_diff, distance,
+                                                                 particle)
                 return kernel_deriv * pos_diff / distance
             end
             TrixiParticles.compact_support(::MockSystem, ::MockSystem) = 1000.0
