@@ -98,7 +98,13 @@ The following rules improve kernel performance and avoid common GPU pitfalls:
    For example, prefer `x / 2` over `0.5 * x` so `Float32` simulations stay in `Float32`.
    Verify this with `@device_code`, or by confirming the kernel runs on an Apple GPU
    (most Apple GPUs do not support `Float64`).
-3. Use `div_fast` only in performance-critical divisions and only after benchmarking.
+3. Use `div_fast` in performance-critical divisions, but only after benchmarking (!).
    It can significantly speed up kernels, but should not be applied indiscriminately.
    When introducing `div_fast` in code, add a reference to [this section](@ref writing_fast_gpu_code)
-   to document the rationale and benchmarking context.
+   to document the rationale and benchmarking context, e.g., like so:
+   ```julia
+   # Since this is one of the most performance critical functions, using fast divisions
+   # here gives a significant speedup on GPUs.
+   # See the docs page "Development" for more details on `div_fast`.
+   result = div_fast(divident, divisor)
+   ```
