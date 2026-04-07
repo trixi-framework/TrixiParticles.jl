@@ -66,3 +66,39 @@ To create a new release for TrixiParticles.jl, perform the following steps:
    version should be `v0.3.1-dev`. If you just released `v0.2.4`, the new development
    version should be `v0.2.5-dev`.
 
+## Writing GPU-compatible code (@id writing_gpu_code)
+
+When implementing new functionality that should run on both CPUs and GPUs,
+follow these rules:
+
+1. Data structures must be generic and parametric.
+   Do not hardcode concrete CPU array types like `Vector` or `Matrix` in fields.
+   Use type parameters, so the same structure can store CPU arrays and GPU arrays.
+2. Add an Adapt.jl rule in `src/general/gpu.jl`.
+   Register the new type with `Adapt.@adapt_structure ...`, so `adapt` can recursively
+   convert all arrays inside the structure to GPU arrays.
+   This conversion is then applied automatically inside `semidiscretize`.
+3. Use `@threaded` for all loops.
+   Accessing GPU arrays inside regular loops is not allowed.
+   With a GPU backend, `@threaded` loops are compiled to GPU kernels.
+4. Write type-stable code and do not allocate inside `@threaded` loops.
+   This is required for GPU kernels and is also essential for fast multithreaded CPU code.
+
+## Writing fast GPU code
+
+The following rules improve kernel performance and avoid common GPU pitfalls:
+
+1. Avoid exceptions and bounds errors inside kernels.
+   Perform all required checks before entering `@threaded` loops (that is, before GPU kernels).
+   Then use `@inbounds` directly at the loop where bounds are guaranteed.
+   In TrixiParticles.jl, we do not place `@inbounds` inside inner helper functions.
+   Instead, mark helper functions with `@propagate_inbounds` so the loop-level
+   `@inbounds` is propagated.
+2. Avoid implicit `Float64` literals in arithmetic.
+   For example, prefer `x / 2` over `0.5 * x` so `Float32` simulations stay in `Float32`.
+   Verify this with `@device_code`, or by confirming the kernel runs on an Apple GPU
+   (most Apple GPUs do not support `Float64`).
+3. Use `div_fast` only in performance-critical divisions and only after benchmarking.
+   It can significantly speed up kernels, but should not be applied indiscriminately.
+   When introducing `div_fast` in code, add a reference to [this section](@ref gpu_div_fast)
+   to document the rationale and benchmarking context.
