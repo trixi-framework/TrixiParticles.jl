@@ -141,7 +141,7 @@ end
     compact_support_ = compact_support(system_smoothing_kernel(system), h)
 
     # Note that `sqrt(eps(h^2)) != eps(h)`
-    if distance > compact_support_ ||
+    if distance >= compact_support_ ||
        (skip_zero_distance(system) && distance^2 < eps(h^2))
         return zero(pos_diff)
     end
