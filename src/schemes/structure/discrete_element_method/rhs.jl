@@ -12,8 +12,8 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
     # Since the coordinates are in the order of the smoothing length `h`, `distance^2` is in
     # the order of `h^2`, so we need to check `distance < sqrt(eps(h^2))`.
     # Note that `sqrt(eps(h^2)) != eps(h)`.
-    h = initial_smoothing_length(particle_system)
-    almostzero = sqrt(eps(h^2))
+    r = first(particle_system.radius)
+    almostzero = sqrt(eps(r^2))
 
     foreach_point_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
                            semi;
