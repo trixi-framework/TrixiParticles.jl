@@ -66,7 +66,7 @@ To create a new release for TrixiParticles.jl, perform the following steps:
    version should be `v0.3.1-dev`. If you just released `v0.2.4`, the new development
    version should be `v0.2.5-dev`.
 
-## Writing GPU-compatible code (@id writing_gpu_code)
+## [Writing GPU-compatible code](@id writing_gpu_code)
 
 When implementing new functionality that should run on both CPUs and GPUs,
 follow these rules:
@@ -84,7 +84,7 @@ follow these rules:
 4. Write type-stable code and do not allocate inside `@threaded` loops.
    This is required for GPU kernels and is also essential for fast multithreaded CPU code.
 
-## Writing fast GPU code
+## [Writing fast GPU code](@id writing_fast_gpu_code)
 
 The following rules improve kernel performance and avoid common GPU pitfalls:
 
@@ -100,5 +100,5 @@ The following rules improve kernel performance and avoid common GPU pitfalls:
    (most Apple GPUs do not support `Float64`).
 3. Use `div_fast` only in performance-critical divisions and only after benchmarking.
    It can significantly speed up kernels, but should not be applied indiscriminately.
-   When introducing `div_fast` in code, add a reference to [this section](@ref gpu_div_fast)
+   When introducing `div_fast` in code, add a reference to [this section](@ref writing_fast_gpu_code)
    to document the rationale and benchmarking context.
