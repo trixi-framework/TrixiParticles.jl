@@ -25,10 +25,16 @@
         grad_kernel = TrixiParticles.smoothing_kernel_grad(system_wcsph, pos_diff,
                                                            distance, 1)
 
+        v = nothing
+        v_a = v_diff
+        v_b = zeros(2)
+        m_a = 1.0
+        m_b = 1.0
+
         dv = Ref(zero(v_diff))
-        viscosity(dv, sound_speed, v_diff, pos_diff, distance,
-                  rho_mean, rho_a, rho_b, smoothing_length,
-                  grad_kernel, 0.0, 0.0, 1.0)
+        viscosity(dv, system_wcsph, system_wcsph,
+                  v, v, 1, 2, pos_diff, distance,
+                  sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
 
         @test isapprox(dv[][1], -0.02049217623299368, atol=6e-15)
         @test isapprox(dv[][2], 0.03073826434949052, atol=6e-15)
