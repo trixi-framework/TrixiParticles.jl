@@ -204,6 +204,15 @@ function compute_correction_values!(system,
 
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
+        # For `distance == 0`, the analytical gradient is zero, but the unsafe gradient
+        # and the density diffusion divide by zero.
+        # To account for rounding errors, we check if `distance` is almost zero.
+        # Since the coordinates are in the order of the smoothing length `h`, `distance^2` is in
+        # the order of `h^2`, so we need to check `distance < sqrt(eps(h^2))`.
+        # Note that `sqrt(eps(h^2)) != eps(h)`.
+        h = initial_smoothing_length(system)
+        almostzero = sqrt(eps(h^2))
+
         # Loop over all pairs of particles and neighbors within the kernel cutoff
         foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
                                semi) do particle, neighbor, pos_diff, distance
@@ -217,10 +226,12 @@ function compute_correction_values!(system,
 
             kernel_correction_coefficient[particle] += volume * W
 
-            # Only consider particles with a distance > 0. See `src/general/smoothing_kernels.jl` for more details.
-            if distance^2 > eps(initial_smoothing_length(system)^2)
-                grad_W = kernel_grad(system_smoothing_kernel(system), pos_diff, distance,
-                                     smoothing_length(system, particle))
+            # Only consider particles with a distance > 0.
+            if distance > almostzero
+                # Now that we know that `distance` is not zero, we can safely call the
+                # unsafe version of the kernel gradient to avoid redundant zero checks.
+                grad_W = kernel_grad_unsafe(system_smoothing_kernel(system), pos_diff,
+                                            distance, smoothing_length(system, particle))
                 tmp = volume * grad_W
                 for i in axes(dw_gamma, 1)
                     dw_gamma[i, particle] += tmp[i]

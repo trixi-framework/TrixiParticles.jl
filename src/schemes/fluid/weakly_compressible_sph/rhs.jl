@@ -19,13 +19,14 @@ function interact!(dv, v_particle_system, u_particle_system,
     # the following code and the two other lines below that are marked as "debug example".
     # debug_array = zeros(ndims(particle_system), nparticles(particle_system))
 
-    # For `distance == 0`, the analytical gradient is zero, but the unsafe gradient divides
-    # by zero. To account for rounding errors, we check if `distance` is almost zero.
-    # Since the coordinates are in the order of the compact support `c`, `distance^2` is in
-    # the order of `c^2`, so we need to check `distance < sqrt(eps(c^2))`.
-    # Note that `sqrt(eps(c^2)) != eps(c)`.
-    compact_support_ = compact_support(particle_system, neighbor_system)
-    almostzero = sqrt(eps(compact_support_^2))
+    # For `distance == 0`, the analytical gradient is zero, but the unsafe gradient
+    # and the density diffusion divide by zero.
+    # To account for rounding errors, we check if `distance` is almost zero.
+    # Since the coordinates are in the order of the smoothing length `h`, `distance^2` is in
+    # the order of `h^2`, so we need to check `distance < sqrt(eps(h^2))`.
+    # Note that `sqrt(eps(h^2)) != eps(h)`.
+    h = initial_smoothing_length(particle_system)
+    almostzero = sqrt(eps(h^2))
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     foreach_point_neighbor(particle_system, neighbor_system,
