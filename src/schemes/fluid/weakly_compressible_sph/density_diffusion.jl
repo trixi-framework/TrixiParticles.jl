@@ -164,7 +164,7 @@ end
                                                    particle, neighbor)
     (; normalized_density_gradient) = density_diffusion
 
-    # Fist term by Molteni & Colagrossi
+    # First term by Molteni & Colagrossi
     result = 2 * (rho_a - rho_b)
 
     # Second correction term

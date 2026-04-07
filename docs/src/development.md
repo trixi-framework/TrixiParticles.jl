@@ -106,5 +106,5 @@ The following rules improve kernel performance and avoid common GPU pitfalls:
    # Since this is one of the most performance critical functions, using fast divisions
    # here gives a significant speedup on GPUs.
    # See the docs page "Development" for more details on `div_fast`.
-   result = div_fast(divident, divisor)
+   result = div_fast(dividend, divisor)
    ```
