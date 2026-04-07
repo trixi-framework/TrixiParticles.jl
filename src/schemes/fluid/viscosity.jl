@@ -75,6 +75,57 @@ struct ArtificialViscosityMonaghan{ELTYPE}
     end
 end
 
+# See, e.g.,
+# Joseph J. Monaghan. "Smoothed Particle Hydrodynamics".
+# In: Reports on Progress in Physics (2005), pages 1703-1759.
+# [doi: 10.1088/0034-4885/68/8/r01](http://dx.doi.org/10.1088/0034-4885/68/8/R01)
+@inline function kinematic_viscosity(system, viscosity::ArtificialViscosityMonaghan,
+                                     smoothing_length, sound_speed)
+    (; alpha) = viscosity
+
+    return alpha * smoothing_length * sound_speed / (2 * ndims(system) + 4)
+end
+
+@propagate_inbounds function (viscosity::ArtificialViscosityMonaghan)(dv_particle,
+                                                                      particle_system,
+                                                                      neighbor_system,
+                                                                      v_particle_system,
+                                                                      v_neighbor_system,
+                                                                      particle, neighbor,
+                                                                      pos_diff, distance,
+                                                                      sound_speed,
+                                                                      m_a, m_b, rho_a, rho_b,
+                                                                      v_a, v_b, grad_kernel,
+                                                                      viscosity_correction=1)
+    v_visc_a = viscous_velocity(v_particle_system, particle_system, particle, v_a)
+    v_visc_b = viscous_velocity(v_neighbor_system, neighbor_system, neighbor, v_b)
+    v_diff = v_visc_a - v_visc_b
+
+    # v_ab ⋅ r_ab
+    vr = dot(v_diff, pos_diff)
+
+    # Monaghan 2005 p. 1741 (doi: 10.1088/0034-4885/68/8/r01):
+    # "In the case of shock tube problems, it is usual to turn the viscosity on for
+    # approaching particles and turn it off for receding particles. In this way, the
+    # viscosity is used for shocks and not rarefactions."
+    if vr < 0
+        (; alpha, beta, epsilon) = viscosity
+
+        h_a = smoothing_length(particle_system, particle)
+        h_b = smoothing_length(particle_system, neighbor)
+        h = (h_a + h_b) / 2
+
+        rho_mean = (rho_a + rho_b) / 2
+
+        mu = h * vr / (distance^2 + epsilon * h^2)
+        c = sound_speed
+        dv_viscosity = m_b * (alpha * c * mu + beta * mu^2) / rho_mean * grad_kernel
+        dv_particle[] += viscosity_correction * dv_viscosity
+    end
+
+    return dv_particle
+end
+
 @doc raw"""
     ViscosityMorris(; nu, epsilon=0.01)
 
@@ -100,27 +151,24 @@ end
     return viscosity.nu
 end
 
-@propagate_inbounds function (viscosity::Union{ArtificialViscosityMonaghan,
-                                               ViscosityMorris})(dv_particle,
-                                                                 particle_system,
-                                                                 neighbor_system,
-                                                                 v_particle_system,
-                                                                 v_neighbor_system,
-                                                                 particle, neighbor,
-                                                                 pos_diff, distance,
-                                                                 sound_speed,
-                                                                 m_a, m_b, rho_a, rho_b,
-                                                                 v_a, v_b, grad_kernel,
-                                                                 viscosity_correction=1)
-    rho_mean = (rho_a + rho_b) / 2
-
+@propagate_inbounds function (viscosity::ViscosityMorris)(dv_particle,
+                                                          particle_system,
+                                                          neighbor_system,
+                                                          v_particle_system,
+                                                          v_neighbor_system,
+                                                          particle, neighbor,
+                                                          pos_diff, distance,
+                                                          sound_speed,
+                                                          m_a, m_b, rho_a, rho_b,
+                                                          v_a, v_b, grad_kernel,
+                                                          viscosity_correction=1)
     v_visc_a = viscous_velocity(v_particle_system, particle_system, particle, v_a)
     v_visc_b = viscous_velocity(v_neighbor_system, neighbor_system, neighbor, v_b)
     v_diff = v_visc_a - v_visc_b
 
     smoothing_length_particle = smoothing_length(particle_system, particle)
     smoothing_length_neighbor = smoothing_length(particle_system, neighbor)
-    smoothing_length_average = (smoothing_length_particle + smoothing_length_neighbor) / 2
+    h = (smoothing_length_particle + smoothing_length_neighbor) / 2
 
     nu_a = kinematic_viscosity(particle_system,
                                viscosity_model(neighbor_system, particle_system),
@@ -129,40 +177,6 @@ end
                                viscosity_model(particle_system, neighbor_system),
                                smoothing_length_neighbor, sound_speed)
 
-    viscosity(dv_particle, sound_speed, v_diff, pos_diff, distance, rho_mean, rho_a, rho_b,
-              smoothing_length_average, grad_kernel, nu_a, nu_b, m_b,
-              viscosity_correction)
-
-    return dv_particle
-end
-
-@inline function (viscosity::ArtificialViscosityMonaghan)(dv_particle, c, v_diff,
-                                                          pos_diff, distance,
-                                                          rho_mean, rho_a, rho_b, h,
-                                                          grad_kernel, nu_a, nu_b, m_b,
-                                                          viscosity_correction=1)
-    (; alpha, beta, epsilon) = viscosity
-
-    # v_ab ⋅ r_ab
-    vr = dot(v_diff, pos_diff)
-
-    # Monaghan 2005 p. 1741 (doi: 10.1088/0034-4885/68/8/r01):
-    # "In the case of shock tube problems, it is usual to turn the viscosity on for
-    # approaching particles and turn it off for receding particles. In this way, the
-    # viscosity is used for shocks and not rarefactions."
-    if vr < 0
-        mu = h * vr / (distance^2 + epsilon * h^2)
-        dv_particle[] += viscosity_correction * m_b *
-                         (alpha * c * mu + beta * mu^2) / rho_mean * grad_kernel
-    end
-
-    return dv_particle
-end
-
-@inline function (viscosity::ViscosityMorris)(dv_particle, c, v_diff, pos_diff,
-                                              distance, rho_mean, rho_a, rho_b, h,
-                                              grad_kernel, nu_a, nu_b, m_b,
-                                              viscosity_correction=1)
     epsilon = viscosity.epsilon
 
     mu_a = nu_a * rho_a
@@ -314,12 +328,15 @@ This model is appropriate for turbulent flows where unresolved scales contribute
 - `epsilon=0.01`: Parameter to prevent singularities
 """
 struct ViscosityAdamiSGS{ELTYPE}
-    nu      :: ELTYPE      # kinematic viscosity [e.g., 1e-6 m²/s]
-    C_S     :: ELTYPE     # Smagorinsky constant [e.g., 0.1-0.2]
+    nu      :: ELTYPE # Kinematic viscosity [e.g., 1e-6 m²/s]
+    C_S     :: ELTYPE # Smagorinsky constant [e.g., 0.1-0.2]
     epsilon :: ELTYPE # Epsilon for singularity prevention [e.g., 0.001]
 end
 
-ViscosityAdamiSGS(; nu, C_S=0.1, epsilon=0.001) = ViscosityAdamiSGS(nu, C_S, epsilon)
+function ViscosityAdamiSGS(; nu, C_S=0.1, epsilon=0.001)
+    # The eltype is determined by the type of `nu`.
+    return ViscosityAdamiSGS{typeof(nu)}(nu, C_S, epsilon)
+end
 
 @propagate_inbounds function (viscosity::ViscosityAdamiSGS)(dv_particle,
                                                             particle_system,
@@ -381,8 +398,8 @@ ViscosityAdamiSGS(; nu, C_S=0.1, epsilon=0.001) = ViscosityAdamiSGS(nu, C_S, eps
                                   v_diff, nu_a, nu_b, epsilon, viscosity_correction)
 end
 
-function kinematic_viscosity(system, viscosity::ViscosityAdamiSGS, smoothing_length,
-                             sound_speed)
+@inline function kinematic_viscosity(system, viscosity::ViscosityAdamiSGS,
+                                     smoothing_length, sound_speed)
     return viscosity.nu
 end
 
@@ -430,12 +447,14 @@ This model is appropriate for turbulent flows where unresolved scales contribute
 - `epsilon=0.01`: Parameter to prevent singularities
 """
 struct ViscosityMorrisSGS{ELTYPE}
-    nu::ELTYPE      # kinematic viscosity [e.g., 1e-6 m²/s]
-    C_S::ELTYPE     # Smagorinsky constant [e.g., 0.1-0.2]
-    epsilon::ELTYPE # Epsilon for singularity prevention [e.g., 0.001]
+    nu      :: ELTYPE # Kinematic viscosity [e.g., 1e-6 m²/s]
+    C_S     :: ELTYPE # Smagorinsky constant [e.g., 0.1-0.2]
+    epsilon :: ELTYPE # Epsilon for singularity prevention [e.g., 0.001]
 end
 
-ViscosityMorrisSGS(; nu, C_S=0.1, epsilon=0.001) = ViscosityMorrisSGS(nu, C_S, epsilon)
+function ViscosityMorrisSGS(; nu, C_S=0.1, epsilon=0.001)
+    return ViscosityMorrisSGS{typeof(nu)}(nu, C_S, epsilon)
+end
 
 @propagate_inbounds function (viscosity::ViscosityMorrisSGS)(dv_particle,
                                                              particle_system,
@@ -484,8 +503,8 @@ ViscosityMorrisSGS(; nu, C_S=0.1, epsilon=0.001) = ViscosityMorrisSGS(nu, C_S, e
     return dv_particle
 end
 
-function kinematic_viscosity(system, viscosity::ViscosityMorrisSGS, smoothing_length,
-                             sound_speed)
+@inline function kinematic_viscosity(system, viscosity::ViscosityMorrisSGS,
+                                     smoothing_length, sound_speed)
     return viscosity.nu
 end
 
@@ -514,7 +533,7 @@ struct ViscosityCarreauYasuda{ELTYPE}
 end
 
 function ViscosityCarreauYasuda(; nu0, nu_inf, lambda, a, n, epsilon=0.01)
-    ViscosityCarreauYasuda(nu0, nu_inf, lambda, a, n, epsilon)
+    ViscosityCarreauYasuda{typeof(nu0)}(nu0, nu_inf, lambda, a, n, epsilon)
 end
 
 @propagate_inbounds function (viscosity::ViscosityCarreauYasuda)(dv_particle,
