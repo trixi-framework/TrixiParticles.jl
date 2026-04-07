@@ -12,7 +12,7 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
     # Since the coordinates are in the order of the radius `r`, `distance^2` is in
     # the order of `r^2`, so we need to check `distance < sqrt(eps(r^2))`.
     # Note that `sqrt(eps(r^2)) != eps(r)`.
-    r = first(particle_system.radius)
+    r = maximum(particle_system.radius)
     almostzero = sqrt(eps(r^2))
 
     foreach_point_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
