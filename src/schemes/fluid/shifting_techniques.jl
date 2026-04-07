@@ -48,7 +48,8 @@ end
     return zero(grad_kernel)
 end
 
-# Additional term(s) in the continuity equation due to the shifting technique
+# Add additional term(s) in the continuity equation due to the shifting technique
+# and return the modified term.
 @inline function continuity_equation_shifting_term(v_diff, shifting, particle_system,
                                                    neighbor_system,
                                                    particle, neighbor, rho_a, rho_b)

@@ -115,6 +115,10 @@ end
     return drho_particle
 end
 
+@inline function write_drho_particle!(dv, ::AbstractSystem, drho_particle, particle)
+    return dv
+end
+
 @propagate_inbounds function write_drho_particle!(dv,
                                                   ::Union{RigidBodySystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
                                                           TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}}},
