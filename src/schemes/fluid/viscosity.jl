@@ -94,7 +94,8 @@ end
                                                                       particle, neighbor,
                                                                       pos_diff, distance,
                                                                       sound_speed,
-                                                                      m_a, m_b, rho_a, rho_b,
+                                                                      m_a, m_b,
+                                                                      rho_a, rho_b,
                                                                       v_a, v_b, grad_kernel,
                                                                       viscosity_correction=1)
     v_visc_a = viscous_velocity(v_particle_system, particle_system, particle, v_a)
