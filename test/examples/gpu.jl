@@ -43,7 +43,7 @@ end
         # We don't test `max_error > 0`, since this might be exact on some CPUs
         # (we observed this on ARM CPUs).
         max_error = maximum(abs.(TrixiParticles.div_fast.(x, y) - x ./ y))
-        @test max_error < 1f-6
+        @test max_error < 1.0f-6
     end
 
     @testset verbose=true "GPU Float32" begin
