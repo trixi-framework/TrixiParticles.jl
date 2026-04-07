@@ -1,3 +1,5 @@
+# TODO this might be integrated into CUDA.jl at some point, see
+# https://github.com/JuliaGPU/CUDA.jl/pull/3077
 module TrixiParticlesCUDAExt
 
 using CUDA: CUDA
