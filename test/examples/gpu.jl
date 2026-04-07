@@ -28,12 +28,22 @@ else
 end
 
 @testset verbose=true "div_fast $TRIXIPARTICLES_TEST_" begin
-    @testset verbose=true "CPU $T" for T in [Float32, Float64]
-        x = T(pi)
-        y = rand(T, 1024) .+ 1
+    @testset verbose=true "CPU Float64" begin
+        x = Float64(pi)
+        y = rand(Float64, 1024) .+ 1
 
-        # `div_fast` is a regular division on the CPU, so we expect exact equality
+        # We expect exact equality for `Float64` on the CPU
         @test TrixiParticles.div_fast.(x, y) == x ./ y
+    end
+
+    @testset verbose=true "CPU Float32" begin
+        x = Float32(pi)
+        y = rand(Float32, 1024) .+ 1
+
+        # We don't test `max_error > 0`, since this might be exact on some CPUs
+        # (we observed this on ARM CPUs).
+        max_error = maximum(abs.(TrixiParticles.div_fast.(x, y) - x ./ y))
+        @test max_error < 1f-6
     end
 
     @testset verbose=true "GPU Float32" begin
