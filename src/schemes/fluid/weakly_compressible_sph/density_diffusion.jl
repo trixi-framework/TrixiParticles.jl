@@ -225,10 +225,8 @@ end
                                 particle_system, particle, neighbor)
     density_diffusion_term = dot(psi, grad_kernel) * volume_b
 
-    smoothing_length_avg = (smoothing_length(particle_system, particle) +
-                            smoothing_length(particle_system, neighbor)) / 2
-    drho_particle[] += delta * smoothing_length_avg * sound_speed *
-                       density_diffusion_term
+    h = smoothing_length(particle_system, particle)
+    drho_particle[] += delta * h * sound_speed * density_diffusion_term
 end
 
 # Density diffusion `nothing` or interaction other than fluid-fluid
