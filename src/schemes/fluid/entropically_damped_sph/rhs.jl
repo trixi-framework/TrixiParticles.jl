@@ -92,7 +92,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                                        pos_diff, distance, m_b, rho_a, rho_b,
                                        v_a, v_b, grad_kernel)
 
-        @inbounds dv[end, particle] += drho_particle[]
+        @inbounds write_drho_particle!(dv, density_calculator, drho_particle, particle)
     end
 
     return dv

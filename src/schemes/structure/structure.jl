@@ -87,7 +87,7 @@ function interact_structure_fluid!(dv, v_particle_system,
                              m_b, rho_a, rho_b, v_a, v_b,
                              particle_system, neighbor_system, grad_kernel)
 
-        dv[end, particle] += drho_particle[]
+        @inbounds write_drho_particle!(dv, particle_system, drho_particle, particle)
     end
 
     return dv
@@ -113,4 +113,13 @@ end
                          m_b, rho_a, rho_b, v_a, v_b, grad_kernel, particle)
 
     return drho_particle
+end
+
+@propagate_inbounds function write_drho_particle!(dv,
+                                                  ::Union{RigidBodySystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
+                                                          TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}}},
+                                                  drho_particle, particle)
+    dv[end, particle] += drho_particle[]
+
+    return dv
 end
