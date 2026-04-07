@@ -145,7 +145,8 @@ end
     return zero(SVector{ndims(system), eltype(system)})
 end
 
-@inline function viscous_velocity(v, system::WallBoundarySystem, particle, v_particle)
+@propagate_inbounds function viscous_velocity(v, system::WallBoundarySystem,
+                                              particle, v_particle)
     return viscous_velocity(v, system.boundary_model.viscosity, system,
                             particle, v_particle)
 end
@@ -155,7 +156,7 @@ end
     return v_particle
 end
 
-@inline function viscous_velocity(v, viscosity, system, particle, v_particle)
+@propagate_inbounds function viscous_velocity(v, viscosity, system, particle, v_particle)
     # Wall velocity in the viscosity calculation contains the physical wall velocity
     # and an interpolated velocity when a wall viscosity (no-slip BC) is used.
     return extract_svector(system.boundary_model.cache.wall_velocity, system, particle)
