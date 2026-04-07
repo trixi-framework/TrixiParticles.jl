@@ -142,7 +142,7 @@ end
 
     # Note that `sqrt(eps(h^2)) != eps(h)`
     if distance > compact_support_ ||
-       (skip_zero_distance(system) && distance < sqrt(eps(h^2)))
+       (skip_zero_distance(system) && distance^2 < eps(h^2))
         return zero(pos_diff)
     end
 
