@@ -343,7 +343,7 @@ ViscosityAdamiSGS(; nu, C_S=0.1, epsilon=0.001) = ViscosityAdamiSGS(nu, C_S, eps
     # and then the Smagorinsky eddy viscosity:
     #   ν_SGS = (C_S * h̄)^2 * S_mag.
     #
-     # Since this is one of the most performance critical functions, using fast divisions
+    # Since this is one of the most performance critical functions, using fast divisions
     # here gives a significant speedup on GPUs.
     # See the docs page "Development" for more details on `div_fast`.
     S_mag = div_fast(sqrt(dot(v_diff, v_diff)), (distance + epsilon))
