@@ -154,8 +154,8 @@ function allocate_buffer(ic, dd::DensityDiffusionAntuono, buffer::SystemBuffer)
 end
 
 @propagate_inbounds function density_diffusion_psi(density_diffusion::DensityDiffusionAntuono,
-                                       rho_a, rho_b, pos_diff, distance, system,
-                                       particle, neighbor)
+                                                   rho_a, rho_b, pos_diff, distance, system,
+                                                   particle, neighbor)
     (; normalized_density_gradient) = density_diffusion
 
     # Fist term by Molteni & Colagrossi

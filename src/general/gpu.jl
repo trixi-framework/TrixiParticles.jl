@@ -35,4 +35,3 @@ end
 function allocate(backend, ELTYPE, size)
     return Array{ELTYPE, length(size)}(undef, size)
 end
-
