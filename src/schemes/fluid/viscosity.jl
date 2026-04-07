@@ -113,7 +113,7 @@ end
         (; alpha, beta, epsilon) = viscosity
 
         h_a = smoothing_length(particle_system, particle)
-        h_b = smoothing_length(particle_system, neighbor)
+        h_b = smoothing_length(neighbor_system, neighbor)
         h = (h_a + h_b) / 2
 
         rho_mean = (rho_a + rho_b) / 2
@@ -168,7 +168,7 @@ end
     v_diff = v_visc_a - v_visc_b
 
     smoothing_length_particle = smoothing_length(particle_system, particle)
-    smoothing_length_neighbor = smoothing_length(particle_system, neighbor)
+    smoothing_length_neighbor = smoothing_length(neighbor_system, neighbor)
     h = (smoothing_length_particle + smoothing_length_neighbor) / 2
 
     nu_a = kinematic_viscosity(particle_system,
@@ -250,7 +250,7 @@ end
     epsilon = viscosity.epsilon
 
     smoothing_length_particle = smoothing_length(particle_system, particle)
-    smoothing_length_neighbor = smoothing_length(particle_system, neighbor)
+    smoothing_length_neighbor = smoothing_length(neighbor_system, neighbor)
     smoothing_length_average = (smoothing_length_particle + smoothing_length_neighbor) / 2
 
     nu_a = kinematic_viscosity(particle_system,
@@ -341,7 +341,7 @@ end
     epsilon = viscosity.epsilon
 
     smoothing_length_particle = smoothing_length(particle_system, particle)
-    smoothing_length_neighbor = smoothing_length(particle_system, neighbor)
+    smoothing_length_neighbor = smoothing_length(neighbor_system, neighbor)
     smoothing_length_average = (smoothing_length_particle + smoothing_length_neighbor) / 2
 
     nu_a = kinematic_viscosity(particle_system,
@@ -459,7 +459,7 @@ end
     epsilon = viscosity.epsilon
 
     smoothing_length_particle = smoothing_length(particle_system, particle)
-    smoothing_length_neighbor = smoothing_length(particle_system, neighbor)
+    smoothing_length_neighbor = smoothing_length(neighbor_system, neighbor)
     smoothing_length_average = (smoothing_length_particle + smoothing_length_neighbor) / 2
 
     nu_a = kinematic_viscosity(particle_system,
@@ -540,7 +540,7 @@ end
     epsilon = viscosity.epsilon
 
     smoothing_length_particle = smoothing_length(particle_system, particle)
-    smoothing_length_neighbor = smoothing_length(particle_system, neighbor)
+    smoothing_length_neighbor = smoothing_length(neighbor_system, neighbor)
     smoothing_length_average = (smoothing_length_particle + smoothing_length_neighbor) / 2
 
     v_a = viscous_velocity(v_particle_system, particle_system, particle, v_a)

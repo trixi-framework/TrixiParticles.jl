@@ -74,7 +74,7 @@ function interact_structure_fluid!(dv, v_particle_system,
                       v_neighbor_system, v_particle_system,
                       neighbor, particle, pos_diff, distance,
                       sound_speed, m_b, m_a, rho_b, rho_a,
-                      v_a, v_b, grad_kernel)
+                      v_b, v_a, grad_kernel)
 
         dv_adhesion = adhesion_force(surface_tension, neighbor_system, particle_system,
                                      neighbor, particle, pos_diff, distance)
