@@ -7,6 +7,9 @@
 # asymmetric version.
 @inline function pressure_acceleration_summation_density(m_a, m_b, rho_a, rho_b, p_a, p_b,
                                                          W_a)
+    # Since this is one of the most performance critical functions, using fast divisions
+    # here gives a significant speedup on GPUs.
+    # See the docs page "Development" for more details on `div_fast`.
     return -m_b * (div_fast(p_a, rho_a^2) + div_fast(p_b, rho_b^2)) * W_a
 end
 
@@ -14,6 +17,9 @@ end
 # corrections that do not produce a symmetric kernel gradient.
 @inline function pressure_acceleration_summation_density(m_a, m_b, rho_a, rho_b, p_a, p_b,
                                                          W_a, W_b)
+    # Since this is one of the most performance critical functions, using fast divisions
+    # here gives a significant speedup on GPUs.
+    # See the docs page "Development" for more details on `div_fast`.
     return -m_b * (div_fast(p_a, rho_a^2) * W_a - div_fast(p_b, rho_b^2) * W_b)
 end
 
@@ -28,6 +34,7 @@ end
                                                           W_a)
     # Since this is one of the most performance critical functions, using fast divisions
     # here gives a significant speedup on GPUs.
+    # See the docs page "Development" for more details on `div_fast`.
     return -m_b * div_fast(p_a + p_b, rho_a * rho_b) * W_a
 end
 
@@ -35,6 +42,9 @@ end
 # corrections that do not produce a symmetric kernel gradient.
 @inline function pressure_acceleration_continuity_density(m_a, m_b, rho_a, rho_b, p_a, p_b,
                                                           W_a, W_b)
+    # Since this is one of the most performance critical functions, using fast divisions
+    # here gives a significant speedup on GPUs.
+    # See the docs page "Development" for more details on `div_fast`.
     return -div_fast(m_b, rho_a * rho_b) * (p_a * W_a - p_b * W_b)
 end
 

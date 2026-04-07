@@ -48,6 +48,9 @@ end
 
 @inline function density_diffusion_psi(::DensityDiffusionMolteniColagrossi, rho_a, rho_b,
                                        pos_diff, distance, system, particle, neighbor)
+    # Since this is one of the most performance critical functions, using fast divisions
+    # here gives a significant speedup on GPUs.
+    # See the docs page "Development" for more details on `div_fast`.
     return div_fast(2 * (rho_a - rho_b), distance^2) * pos_diff
 end
 
@@ -77,6 +80,9 @@ end
 
 @inline function density_diffusion_psi(::DensityDiffusionFerrari, rho_a, rho_b,
                                        pos_diff, distance, system, particle, neighbor)
+    # Since this is one of the most performance critical functions, using fast divisions
+    # here gives a significant speedup on GPUs.
+    # See the docs page "Development" for more details on `div_fast`.
     h = smoothing_length(system, particle) + smoothing_length(system, neighbor)
     return div_fast((rho_a - rho_b), h * distance) * pos_diff
 end
@@ -166,6 +172,9 @@ end
     normalized_gradient_b = extract_svector(normalized_density_gradient, system, neighbor)
     result -= dot(normalized_gradient_a + normalized_gradient_b, pos_diff)
 
+    # Since this is one of the most performance critical functions, using fast divisions
+    # here gives a significant speedup on GPUs.
+    # See the docs page "Development" for more details on `div_fast`.
     return div_fast(result, distance^2) * pos_diff
 end
 
@@ -215,6 +224,9 @@ end
     # See `src/general/smoothing_kernels.jl` for more details.
     distance^2 < eps(initial_smoothing_length(particle_system)^2) && return
 
+    # Since this is one of the most performance critical functions, using fast divisions
+    # here gives a significant speedup on GPUs.
+    # See the docs page "Development" for more details on `div_fast`.
     volume_b = div_fast(m_b, rho_b)
     psi = density_diffusion_psi(density_diffusion, rho_a, rho_b, pos_diff, distance,
                                 particle_system, particle, neighbor)
