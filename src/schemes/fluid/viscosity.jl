@@ -7,12 +7,12 @@ end
 # This function is only necessary to allow `nothing` as viscosity.
 # Otherwise, we could just apply the viscosity as a function directly.
 @propagate_inbounds function dv_viscosity!(dv_particle,
-                                           particle_system, neighbor_system,
-                                          v_particle_system, v_neighbor_system,
-                                          particle, neighbor, pos_diff, distance,
-                                          sound_speed, m_a, m_b, rho_a, rho_b,
-                                          v_a, v_b, grad_kernel,
-                                          viscosity_correction=1)
+                                           particle_system::AbstractSystem, neighbor_system,
+                                           v_particle_system, v_neighbor_system,
+                                           particle, neighbor, pos_diff, distance,
+                                           sound_speed, m_a, m_b, rho_a, rho_b,
+                                           v_a, v_b, grad_kernel,
+                                           viscosity_correction=1)
     viscosity = viscosity_model(particle_system, neighbor_system)
 
     return dv_viscosity!(dv_particle, viscosity,
