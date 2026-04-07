@@ -5,11 +5,13 @@ if TRIXIPARTICLES_TEST_ == "cuda"
     CUDA.versioninfo()
     parallelization_backend = CUDABackend()
     supports_double_precision = true
+    fp64_fastdiv = true
 elseif TRIXIPARTICLES_TEST_ == "amdgpu"
     using AMDGPU
     AMDGPU.versioninfo()
     parallelization_backend = ROCBackend()
     supports_double_precision = true
+    fp64_fastdiv = false
 elseif TRIXIPARTICLES_TEST_ == "metal"
     using Metal
     Metal.versioninfo()
@@ -23,6 +25,46 @@ elseif TRIXIPARTICLES_TEST_ == "oneapi"
     supports_double_precision = false
 else
     error("Unknown GPU backend: $TRIXIPARTICLES_TEST_")
+end
+
+@testset verbose=true "div_fast $TRIXIPARTICLES_TEST_" begin
+    @testset verbose=true "CPU $T" for T in [Float32, Float64]
+        x = T(pi)
+        y = rand(T, 1024) .+ 1
+
+        # `div_fast` is a regular division on the CPU, so we expect exact equality
+        @test TrixiParticles.div_fast.(x, y) == x ./ y
+    end
+
+    @testset verbose=true "GPU Float32" begin
+        x = Float32(pi)
+        y = Adapt.adapt(parallelization_backend, rand(Float32, 1024) .+ 1)
+
+        max_error = maximum(abs.(TrixiParticles.div_fast.(x, y) - x ./ y))
+        @test max_error < 1f-6
+
+        # Make sure that this is actually using a fast division
+        @test max_error > 0
+    end
+
+    if supports_double_precision
+        @testset verbose=true "GPU Float64" begin
+            x = Float64(pi)
+            y = Adapt.adapt(parallelization_backend, rand(Float64, 1024) .+ 1)
+
+            max_error = maximum(abs.(TrixiParticles.div_fast.(x, y) - x ./ y))
+
+            if fp64_fastdiv
+                @test max_error < 1e-15
+
+                # Make sure that this is actually using a fast division
+                @test max_error > 0
+            else
+                # If fast division for Float64 is not supported, we expect exact equality
+                @test max_error == 0
+            end
+        end
+    end
 end
 
 @testset verbose=true "Examples $TRIXIPARTICLES_TEST_" begin
