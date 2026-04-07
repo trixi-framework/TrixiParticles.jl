@@ -146,6 +146,12 @@ end
     return velocity_and_density(v, density_calculator, system, particle)
 end
 
+@propagate_inbounds function velocity_and_density(v, system, particle)
+    # Call the default method below
+    return velocity_and_density(v, nothing, system, particle)
+end
+
+# Default method, which simply calls `current_velocity` and `current_density` separately.
 @propagate_inbounds function velocity_and_density(v, _, system, particle)
     v_particle = current_velocity(v, system, particle)
     rho_particle = current_density(v, system, particle)
@@ -153,12 +159,15 @@ end
     return v_particle, rho_particle
 end
 
+# Optimized version for WCSPH with `ContinuityDensity` in 3D on GPUs,
+# which combines the velocity and density load into one wide load.
 @inline function velocity_and_density(v::AbstractGPUArray, ::ContinuityDensity,
                                       ::WeaklyCompressibleSPHSystem{3}, particle)
     # Since `v` is stored as a 4 x N matrix, this aligned load extracts one column
     # of `v` corresponding to `particle`.
     # As opposed to `extract_svector`, this will translate to a single wide load instruction
     # on the GPU, which is faster than 4 separate loads.
+    # Note that this doesn't work for 2D because it requires a stride of 2^n.
     vrho_a = vloada(Vec{4, eltype(v)}, pointer(v, 4 * (particle - 1) + 1))
 
     # The column of `v` is ordered as (v_x, v_y, v_z, rho)
