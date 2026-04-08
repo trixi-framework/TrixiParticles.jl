@@ -4,21 +4,21 @@
 @propagate_inbounds function dv_viscosity_tlsph!(dv_particle, system, v_system,
                                                  particle, neighbor,
                                                  current_pos_diff, current_distance,
-                                                 m_a, m_b, rho_a, rho_b, grad_kernel)
+                                                 m_a, m_b, rho_a, rho_b, F_a, grad_kernel)
     viscosity = system.viscosity
 
     return dv_viscosity_tlsph!(dv_particle, viscosity, system, v_system,
                                particle, neighbor, current_pos_diff, current_distance,
-                               m_a, m_b, rho_a, rho_b, grad_kernel)
+                               m_a, m_b, rho_a, rho_b, F_a, grad_kernel)
 end
 
 @propagate_inbounds function dv_viscosity_tlsph!(dv_particle, viscosity, system,
                                                  v_system, particle, neighbor,
                                                  current_pos_diff, current_distance,
-                                                 m_a, m_b, rho_a, rho_b, grad_kernel)
+                                                 m_a, m_b, rho_a, rho_b, F_a, grad_kernel)
     return viscosity(dv_particle, system, v_system, particle, neighbor,
                      current_pos_diff, current_distance,
-                     m_a, m_b, rho_a, rho_b, grad_kernel)
+                     m_a, m_b, rho_a, rho_b, F_a, grad_kernel)
 end
 
 @inline function dv_viscosity_tlsph!(dv_particle, viscosity::Nothing, system,
@@ -38,7 +38,8 @@ end
                                                                       current_pos_diff,
                                                                       current_distance,
                                                                       m_a, m_b, rho_a,
-                                                                      rho_b, grad_kernel)
+                                                                      rho_b, F_a,
+                                                                      grad_kernel)
     v_a = current_velocity(v_system, system, particle)
     v_b = current_velocity(v_system, system, neighbor)
     v_diff = v_a - v_b
@@ -54,10 +55,14 @@ end
         # Compute bulk modulus from Young's modulus and Poisson's ratio.
         # See the table at the end of https://en.wikipedia.org/wiki/Lam%C3%A9_parameters
         E = young_modulus(system, particle)
+        # A fast division is slower here for some reason
         K = E / (ndims(system) * (1 - 2 * poisson_ratio(system, particle)))
 
         # Newton–Laplace equation
-        sound_speed = sqrt(K / rho_a)
+        # Since this is one of the most performance critical functions, using fast divisions
+        # here gives a significant speedup on GPUs.
+        # See the docs page "Development" for more details on `div_fast`.
+        sound_speed = sqrt(div_fast(K, rho_a))
 
         h_a = smoothing_length(system, particle)
         h_b = smoothing_length(system, neighbor)
@@ -65,18 +70,20 @@ end
 
         rho_mean = (rho_a + rho_b) / 2
 
+        # Since this is one of the most performance critical functions, using fast divisions
+        # here gives a significant speedup on GPUs.
+        # See the docs page "Development" for more details on `div_fast`.
         (; alpha, beta, epsilon) = viscosity
-        mu = h * vr / (current_distance^2 + epsilon * h^2)
+        mu = div_fast(h * vr, (current_distance^2 + epsilon * h^2))
         c = sound_speed
-        pi_ab = (alpha * c * mu + beta * mu^2) / rho_mean * grad_kernel
+        pi_ab = div_fast(alpha * c * mu + beta * mu^2, rho_mean) * grad_kernel
 
-        F = deformation_gradient(system, particle)
-        det_F = det(F)
+        det_F = det(F_a)
         if abs(det_F) < 1.0f-9
             return dv_particle
         end
         # See eq. 26 of Lin et al. (2015)
-        dv_particle[] += m_b * det_F * inv(F)' * pi_ab
+        dv_particle[] += m_b * det_F * inv(F_a)' * pi_ab
     end
 
     return dv_particle
