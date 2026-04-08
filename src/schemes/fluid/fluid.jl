@@ -136,31 +136,48 @@ end
     return dv
 end
 
-# This formulation was chosen to be consistent with the used pressure_acceleration formulations
-@propagate_inbounds function continuity_equation!(dv, density_calculator::ContinuityDensity,
+# For compatibility with the old continuity equation function
+@propagate_inbounds function continuity_equation!(dv::AbstractArray,
+                                                  density_calculator::ContinuityDensity,
                                                   particle_system::AbstractFluidSystem,
                                                   neighbor_system,
                                                   v_particle_system, v_neighbor_system,
                                                   particle, neighbor, pos_diff, distance,
                                                   m_b, rho_a, rho_b, grad_kernel)
+    drho_particle = Ref(zero(rho_a))
     vdiff = current_velocity(v_particle_system, particle_system, particle) -
             current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
-    vdiff += continuity_equation_shifting_term(shifting_technique(particle_system),
-                                               particle_system, neighbor_system,
-                                               particle, neighbor, rho_a, rho_b)
+    continuity_equation!(drho_particle, density_calculator, particle_system,
+                         neighbor_system, v_particle_system, v_neighbor_system,
+                         particle, neighbor, pos_diff, distance,
+                         m_b, rho_a, rho_b, vdiff, grad_kernel)
+    dv[end, particle] += drho_particle[]
+end
 
-    dv[end, particle] += rho_a / rho_b * m_b * dot(vdiff, grad_kernel)
+# This formulation was chosen to be consistent with the used pressure_acceleration formulations
+@propagate_inbounds function continuity_equation!(drho_particle,
+                                                  density_calculator::ContinuityDensity,
+                                                  particle_system::AbstractFluidSystem,
+                                                  neighbor_system,
+                                                  v_particle_system, v_neighbor_system,
+                                                  particle, neighbor, pos_diff, distance,
+                                                  m_b, rho_a, rho_b, vdiff, grad_kernel)
+    # vdiff += continuity_equation_shifting_term(shifting_technique(particle_system),
+    #                                            particle_system, neighbor_system,
+    #                                            particle, neighbor, rho_a, rho_b)
+
+    drho_particle[] += div_fast(rho_a, rho_b) * m_b * dot(vdiff, grad_kernel)
 
     # Artificial density diffusion should only be applied to systems representing a fluid
     # with the same physical properties i.e. density and viscosity.
     # TODO: shouldn't be applied to particles on the interface (depends on PR #539)
-    if particle_system === neighbor_system
-        density_diffusion!(dv, density_diffusion(particle_system),
-                           v_particle_system, particle, neighbor,
-                           pos_diff, distance, m_b, rho_a, rho_b, particle_system,
-                           grad_kernel)
-    end
+    # if particle_system === neighbor_system
+    #     density_diffusion!(dv, density_diffusion(particle_system),
+    #                        v_particle_system, particle, neighbor,
+    #                        pos_diff, distance, m_b, rho_a, rho_b, particle_system,
+    #                        grad_kernel)
+    # end
 end
 
 function calculate_dt(v_ode, u_ode, cfl_number, system::AbstractFluidSystem, semi)

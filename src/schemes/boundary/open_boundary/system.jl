@@ -644,8 +644,10 @@ function interpolate_velocity!(system::OpenBoundarySystem, boundary_zone,
             W_ab = kernel(smoothing_kernel, distance, smoothing_length)
             @inbounds shepard_coefficient[point] += volume_b * W_ab
 
+            velocity_neighbor_ = @inbounds current_velocity(v_neighbor, neighbor_system,
+                                                            neighbor)
             velocity_neighbor = @inbounds viscous_velocity(v_neighbor, neighbor_system,
-                                                           neighbor)
+                                                           neighbor, velocity_neighbor_)
             for i in axes(velocity_neighbor, 1)
                 @inbounds sample_velocity[i,
                                           point] += velocity_neighbor[i] * volume_b * W_ab

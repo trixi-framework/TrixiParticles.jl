@@ -9,44 +9,87 @@ abstract type AbstractSmoothingKernel{NDIMS} end
     # `distance^2` is in the order of `h^2`, hence the comparison `distance^2 < eps(h^2)`.
     # Note that this is faster than `distance < sqrt(eps(h^2))`.
     # Also note that `sqrt(eps(h^2)) != eps(h)`.
-    distance^2 < eps(h^2) && return zero(pos_diff)
+    compact_support_ = compact_support(kernel, h)
+    nonzero = distance < compact_support_ && distance^2 > eps(h^2)
+    nonzero || return zero(pos_diff)
 
-    return kernel_deriv(kernel, distance, h) / distance * pos_diff
+    # Now we can use `kernel_grad_unsafe` without worrying about division by zero
+    return kernel_grad_unsafe(kernel, pos_diff, distance, h)
 end
 
-@inline function corrected_kernel_grad(kernel, pos_diff, distance, h, correction, system,
-                                       particle)
-    return kernel_grad(kernel, pos_diff, distance, h)
+# Skip the zero distance and compact support checks for maximum performance.
+# Only call this when you are sure that `distance` is not zero and within the compact support.
+@inline function kernel_grad_unsafe(kernel, pos_diff, distance, h)
+    # Call an optimized version of the kernel derivative, skipping redundant checks.
+    # Since this is used as `kernel_deriv / distance * pos_diff`, we already divide by `r`
+    # (or rather skip a multiplication by `r`) inside `kernel_deriv_div_r_unsafe`
+    # to save expensive divisions.
+    return kernel_deriv_div_r_unsafe(kernel, distance, h) * pos_diff
 end
 
-@inline function corrected_kernel_grad(kernel_, pos_diff, distance, h, ::KernelCorrection,
-                                       system, particle)
+@inline function kernel(kernel, r::Real, h)
+    # Zero out result if outside of compact support
+    compact_support_ = compact_support(kernel, h)
+    return ifelse(r < compact_support_, kernel_unsafe(kernel, r, h), zero(r))
+end
+
+@inline function kernel_deriv(kernel, r::Real, h)
+    # Zero out result if outside of compact support or if `r` is almost zero
+    # (to avoid division by zero in the unsafe version).
+    compact_support_ = compact_support(kernel, h)
+    if r < compact_support_ && r^2 > eps(h^2)
+        # The unsafe version returns the kernel derivative divided by `r`,
+        # so we multiply it by `r` to get the actual derivative.
+        return kernel_deriv_div_r_unsafe(kernel, r, h) * r
+    end
+
+    return zero(r)
+end
+
+@inline function skip_zero_distance(correction, system, distance, almostzero)
+    return distance < almostzero
+end
+
+@inline function skip_zero_distance(::Union{KernelCorrection,
+                                            MixedKernelGradientCorrection},
+                                    system, distance, almostzero)
+    # For these corrections, the kernel gradient between a particle and itself is not zero
+    return false
+end
+
+@inline function corrected_kernel_grad_unsafe(kernel, pos_diff, distance, h, correction,
+                                              system, particle)
+    return kernel_grad_unsafe(kernel, pos_diff, distance, h)
+end
+
+@inline function corrected_kernel_grad_unsafe(kernel_, pos_diff, distance, h,
+                                              ::KernelCorrection, system, particle)
     return (kernel_grad(kernel_, pos_diff, distance, h) .-
             kernel(kernel_, distance, h) * dw_gamma(system, particle)) /
            kernel_correction_coefficient(system, particle)
 end
 
-@inline function corrected_kernel_grad(kernel, pos_diff, distance, h,
-                                       corr::BlendedGradientCorrection, system,
-                                       particle)
+@inline function corrected_kernel_grad_unsafe(kernel, pos_diff, distance, h,
+                                              corr::BlendedGradientCorrection, system,
+                                              particle)
     (; blending_factor) = corr
 
-    grad = kernel_grad(kernel, pos_diff, distance, h)
+    grad = kernel_grad_unsafe(kernel, pos_diff, distance, h)
     return (1 - blending_factor) * grad +
            blending_factor * correction_matrix(system, particle) * grad
 end
 
-@inline function corrected_kernel_grad(kernel, pos_diff, distance, h,
-                                       ::GradientCorrection, system, particle)
-    grad = kernel_grad(kernel, pos_diff, distance, h)
+@inline function corrected_kernel_grad_unsafe(kernel, pos_diff, distance, h,
+                                              ::GradientCorrection, system, particle)
+    grad = kernel_grad_unsafe(kernel, pos_diff, distance, h)
     return correction_matrix(system, particle) * grad
 end
 
-@inline function corrected_kernel_grad(kernel, pos_diff, distance, h,
-                                       ::MixedKernelGradientCorrection, system,
-                                       particle)
-    grad = corrected_kernel_grad(kernel, pos_diff, distance, h, KernelCorrection(),
-                                 system, particle)
+@inline function corrected_kernel_grad_unsafe(kernel, pos_diff, distance, h,
+                                              ::MixedKernelGradientCorrection, system,
+                                              particle)
+    grad = corrected_kernel_grad_unsafe(kernel, pos_diff, distance, h, KernelCorrection(),
+                                        system, particle)
     return correction_matrix(system, particle) * grad
 end
 
@@ -80,32 +123,40 @@ which is beneficial in regards to stability but makes it less accurate.
 """
 struct GaussianKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
 
-@inline @fastmath function kernel(kernel::GaussianKernel, r::Real, h)
-    q = r / h
+@inline function kernel_unsafe(kernel::GaussianKernel, r::Real, h)
+    h_inv = 1 / h
+    q = r * h_inv
+    q2 = -q^2
+    # Only use `@fastmath` for the exponential. Make sure not to apply `@fastmath` to `q^2`,
+    # or it will translate to a generic power function instead of `q * q` (`literal_pow`)
+    # due to a bug in Julia 1.12, see https://github.com/JuliaLang/julia/pull/60640.
+    exp_q2 = @fastmath exp(q2)
 
-    # Zero out result if q >= 3
-    result = ifelse(q < 3, normalization_factor(kernel, h) * exp(-q^2), zero(q))
-
-    return result
+    return normalization_factor(kernel, h_inv) * exp_q2
 end
 
-@inline @fastmath function kernel_deriv(kernel::GaussianKernel, r::Real, h)
-    inner_deriv = 1 / h
-    q = r * inner_deriv
+@inline function kernel_deriv_div_r_unsafe(kernel::GaussianKernel, r::Real, h)
+    h_inv = 1 / h
+    q = r * h_inv
+    q2 = -q^2
+    # Only use `@fastmath` for the exponential. Make sure not to apply `@fastmath` to `q^2`,
+    # or it will translate to a generic power function instead of `q * q` (`literal_pow`)
+    # due to a bug in Julia 1.12, see https://github.com/JuliaLang/julia/pull/60640.
+    exp_q2 = @fastmath exp(q2)
 
-    # Zero out result if q >= 3
-    result = ifelse(q < 3,
-                    -2 * q * normalization_factor(kernel, h) * exp(-q^2) * inner_deriv,
-                    zero(q))
-
-    return result
+    return -2 * normalization_factor(kernel, h_inv) * exp_q2 * h_inv^2
 end
 
 @inline compact_support(::GaussianKernel, h) = 3 * h
 
-@inline normalization_factor(::GaussianKernel{2}, h) = 1 / (pi * h^2)
-# First convert `pi` to the type of `h` to preserve the type of `h`
-@inline normalization_factor(::GaussianKernel{3}, h) = 1 / (oftype(h, pi)^(3 // 2) * h^3)
+@inline function normalization_factor(::GaussianKernel{2}, h_inv)
+    return oftype(h_inv, 1 / pi) * h_inv^2
+end
+
+@inline function normalization_factor(::GaussianKernel{3}, h_inv)
+    # 1 / (pi^1.5 * h^3)
+    return oftype(h_inv, 0.17958712212516656) * h_inv^3
+end
 
 @doc raw"""
     SchoenbergCubicSplineKernel{NDIMS}()
@@ -140,40 +191,40 @@ For general information and usage see [Smoothing Kernels](@ref smoothing_kernel)
 """
 struct SchoenbergCubicSplineKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
 
-@muladd @inline function kernel(kernel::SchoenbergCubicSplineKernel, r::Real, h)
-    q = r / h
+@inline function kernel_unsafe(kernel::SchoenbergCubicSplineKernel, r::Real, h)
+    h_inv = 1 / h
+    q = r * h_inv
 
     # We do not use `+=` or `-=` since these are not recognized by MuladdMacro.jl.
     result = 1 * (2 - q)^3 / 4
-    result = result - (q < 1) * (1 - q)^3
+    @muladd result = result - (q < 1) * (1 - q)^3
 
-    # Zero out result if q >= 2
-    result = ifelse(q < 2, normalization_factor(kernel, h) * result, zero(result))
-
-    return result
+    return normalization_factor(kernel, h_inv) * result
 end
 
-@muladd @inline function kernel_deriv(kernel::SchoenbergCubicSplineKernel, r::Real, h)
-    inner_deriv = 1 / h
-    q = r * inner_deriv
+@inline function kernel_deriv_div_r_unsafe(kernel::SchoenbergCubicSplineKernel, r::Real, h)
+    h_inv = 1 / h
+    q = r * h_inv
 
-    # We do not use `+=` or `-=` since these are not recognized by MuladdMacro.jl
-    result = -3 * (2 - q)^2 / 4
-    result = result + 3 * (q < 1) * (1 - q)^2
+    result = -3 * (2 - q)^2 / 4 + 3 * (q < 1) * (1 - q)^2
+    kernel_deriv = normalization_factor(kernel, h_inv) * result * h_inv
 
-    # Zero out result if q >= 2
-    result = ifelse(q < 2, normalization_factor(kernel, h) * result * inner_deriv,
-                    zero(result))
-
-    return result
+    return div_fast(kernel_deriv, r)
 end
 
 @inline compact_support(::SchoenbergCubicSplineKernel, h) = 2 * h
 
-# Note that `2 // 3 / h` saves one instruction but is significantly slower on GPUs (for now)
-@inline normalization_factor(::SchoenbergCubicSplineKernel{1}, h) = 2 / (3 * h)
-@inline normalization_factor(::SchoenbergCubicSplineKernel{2}, h) = 10 / (pi * h^2 * 7)
-@inline normalization_factor(::SchoenbergCubicSplineKernel{3}, h) = 1 / (pi * h^3)
+@inline function normalization_factor(::SchoenbergCubicSplineKernel{1}, h_inv)
+    return oftype(h_inv, 2 / 3) * h_inv
+end
+
+@inline function normalization_factor(::SchoenbergCubicSplineKernel{2}, h_inv)
+    return oftype(h_inv, 10 / (pi * 7)) * h_inv^2
+end
+
+@inline function normalization_factor(::SchoenbergCubicSplineKernel{3}, h_inv)
+    return oftype(h_inv, 1 / pi) * h_inv^3
+end
 
 @doc raw"""
     SchoenbergQuarticSplineKernel{NDIMS}()
@@ -217,54 +268,55 @@ struct SchoenbergQuarticSplineKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} en
 # to a power of three, see
 # https://github.com/JuliaLang/julia/blob/34934736fa4dcb30697ac1b23d11d5ad394d6a4d/base/intfuncs.jl#L327-L339
 # By using the `@fastpow` macro, we are consciously trading off some precision in the result
-# for enhanced computational speed. This is especially useful in scenarios where performance
-# is a higher priority than exact precision.
-@fastpow @muladd @inline function kernel(kernel::SchoenbergQuarticSplineKernel, r::Real, h)
-    q = r / h
+# for enhanced computational speed by using simple multiplications for higher powers.
+@fastpow @inline function kernel_unsafe(kernel::SchoenbergQuarticSplineKernel, r::Real, h)
+    h_inv = 1 / h
+    q = r * h_inv
 
-    # Preserve the type of `q`
-    q5_2 = (5 // 2 - q)
-    q3_2 = (3 // 2 - q)
-    q1_2 = (1 // 2 - q)
+    # Note: using `5 // 2` here makes it 8x slower on GPUs for some reason
+    q5_2 = 2.5f0 - q
+    q3_2 = 1.5f0 - q
+    q1_2 = 0.5f0 - q
 
-    # We do not use `+=` or `-=` since these are not recognized by MuladdMacro.jl
-    result = q5_2^4
-    result = result - 5 * (q < 3 // 2) * q3_2^4
-    result = result + 10 * (q < 1 // 2) * q1_2^4
+    # Note: `q < 3 // 2` is not working on GPUs.
+    # See https://github.com/JuliaGPU/CUDA.jl/issues/2681.
+    result = q5_2^4 - 5 * (q < 1.5f0) * q3_2^4 + 10 * (q < 0.5f0) * q1_2^4
 
-    # Zero out result if q >= 5/2
-    result = ifelse(q < 5 // 2, normalization_factor(kernel, h) * result, zero(result))
-
-    return result
+    return normalization_factor(kernel, h_inv) * result
 end
 
-@fastpow @muladd @inline function kernel_deriv(kernel::SchoenbergQuarticSplineKernel,
-                                               r::Real, h)
-    inner_deriv = 1 / h
-    q = r * inner_deriv
+@inline function kernel_deriv_div_r_unsafe(kernel::SchoenbergQuarticSplineKernel,
+                                           r::Real, h)
+    h_inv = 1 / h
+    q = r * h_inv
 
-    # Preserve the type of `q`
-    q5_2 = 5 // 2 - q
-    q3_2 = 3 // 2 - q
-    q1_2 = 1 // 2 - q
+    # Note: using `5 // 2` here makes it 8x slower on GPUs for some reason
+    q5_2 = 2.5f0 - q
+    q3_2 = 1.5f0 - q
+    q1_2 = 0.5f0 - q
 
-    # We do not use `+=` or `-=` since these are not recognized by MuladdMacro.jl
-    result = -4 * q5_2^3
-    result = result + 20 * (q < 3 // 2) * q3_2^3
-    result = result - 40 * (q < 1 // 2) * q1_2^3
+    # Note: `q < 3 // 2` is not working on GPUs.
+    # See https://github.com/JuliaGPU/CUDA.jl/issues/2681.
+    result = -4 * q5_2^3 + 20 * (q < 1.5f0) * q3_2^3 - 40 * (q < 0.5f0) * q1_2^3
 
-    # Zero out result if q >= 5/2
-    result = ifelse(q < 5 // 2, normalization_factor(kernel, h) * result * inner_deriv,
-                    zero(result))
+    kernel_deriv = normalization_factor(kernel, h_inv) * result * h_inv
 
-    return result
+    return div_fast(kernel_deriv, r)
 end
 
-@inline compact_support(::SchoenbergQuarticSplineKernel, h) = 5 * h / 2
+@inline compact_support(::SchoenbergQuarticSplineKernel, h) = oftype(h, 5 / 2) * h
 
-@inline normalization_factor(::SchoenbergQuarticSplineKernel{1}, h) = 1 / (24 * h)
-@inline normalization_factor(::SchoenbergQuarticSplineKernel{2}, h) = 96 / (pi * h^2 * 1199)
-@inline normalization_factor(::SchoenbergQuarticSplineKernel{3}, h) = 1 / (pi * h^3 * 20)
+@inline function normalization_factor(::SchoenbergQuarticSplineKernel{1}, h_inv)
+    return oftype(h_inv, 1 / 24) * h_inv
+end
+
+@inline function normalization_factor(::SchoenbergQuarticSplineKernel{2}, h_inv)
+    return oftype(h_inv, 96 / (pi * 1199)) * h_inv^2
+end
+
+@inline function normalization_factor(::SchoenbergQuarticSplineKernel{3}, h_inv)
+    return oftype(h_inv, 1 / (pi * 20)) * h_inv^3
+end
 
 @doc raw"""
     SchoenbergQuinticSplineKernel{NDIMS}()
@@ -301,48 +353,40 @@ For general information and usage see [Smoothing Kernels](@ref smoothing_kernel)
 """
 struct SchoenbergQuinticSplineKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
 
-@fastpow @muladd @inline function kernel(kernel::SchoenbergQuinticSplineKernel, r::Real, h)
-    q = r / h
-    q3 = (3 - q)
-    q2 = (2 - q)
-    q1 = (1 - q)
+@fastpow @inline function kernel_unsafe(kernel::SchoenbergQuinticSplineKernel, r::Real, h)
+    h_inv = 1 / h
+    q = r * h_inv
 
-    # We do not use `+=` or `-=` since these are not recognized by MuladdMacro.jl
-    result = q3^5
-    result = result - 6 * (q < 2) * q2^5
-    result = result + 15 * (q < 1) * q1^5
+    result = (3 - q)^5 - 6 * (q < 2) * (2 - q)^5 + 15 * (q < 1) * (1 - q)^5
 
-    # Zero out result if q >= 3
-    result = ifelse(q < 3, normalization_factor(kernel, h) * result, zero(result))
-
-    return result
+    return normalization_factor(kernel, h_inv) * result
 end
 
-@fastpow @muladd @inline function kernel_deriv(kernel::SchoenbergQuinticSplineKernel,
-                                               r::Real, h)
-    inner_deriv = 1 / h
-    q = r * inner_deriv
-    q3 = (3 - q)
-    q2 = (2 - q)
-    q1 = (1 - q)
+@fastpow @inline function kernel_deriv_div_r_unsafe(kernel::SchoenbergQuinticSplineKernel,
+                                                    r::Real, h)
+    h_inv = 1 / h
+    q = r * h_inv
 
-    # We do not use `+=` or `-=` since these are not recognized by MuladdMacro.jl
-    result = -5 * q3^4
-    result = result + 30 * (q < 2) * q2^4
-    result = result - 75 * (q < 1) * q1^4
+    result = -5 * (3 - q)^4 + 30 * (q < 2) * (2 - q)^4 - 75 * (q < 1) * (1 - q)^4
 
-    # Zero out result if q >= 3
-    result = ifelse(q < 3, normalization_factor(kernel, h) * result * inner_deriv,
-                    zero(result))
+    kernel_deriv = normalization_factor(kernel, h_inv) * result * h_inv
 
-    return result
+    return div_fast(kernel_deriv, r)
 end
 
 @inline compact_support(::SchoenbergQuinticSplineKernel, h) = 3 * h
 
-@inline normalization_factor(::SchoenbergQuinticSplineKernel{1}, h) = 1 / (120 * h)
-@inline normalization_factor(::SchoenbergQuinticSplineKernel{2}, h) = 7 / (pi * h^2 * 478)
-@inline normalization_factor(::SchoenbergQuinticSplineKernel{3}, h) = 1 / (pi * h^3 * 120)
+@inline function normalization_factor(::SchoenbergQuinticSplineKernel{1}, h_inv)
+    return oftype(h_inv, 1 / (120)) * h_inv
+end
+
+@inline function normalization_factor(::SchoenbergQuinticSplineKernel{2}, h_inv)
+    return oftype(h_inv, 7 / (pi * 478)) * h_inv^2
+end
+
+@inline function normalization_factor(::SchoenbergQuinticSplineKernel{3}, h_inv)
+    return oftype(h_inv, 1 / (pi * 120)) * h_inv^3
+end
 
 abstract type AbstractWendlandKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
 
@@ -383,33 +427,26 @@ For general information and usage see [Smoothing Kernels](@ref smoothing_kernel)
 """
 struct WendlandC2Kernel{NDIMS} <: AbstractWendlandKernel{NDIMS} end
 
-@fastpow @inline function kernel(kernel::WendlandC2Kernel, r::Real, h)
-    q = r / h
+@fastpow @inline function kernel_unsafe(kernel::WendlandC2Kernel, r::Real, h)
+    h_inv = 1 / h
+    q = r * h_inv
 
-    result = (1 - q / 2)^4 * (2 * q + 1)
-
-    # Zero out result if q >= 2
-    result = ifelse(q < 2, normalization_factor(kernel, h) * result, zero(q))
-
-    return result
+    return normalization_factor(kernel, h_inv) * (1 - q / 2)^4 * (2 * q + 1)
 end
 
-@inline function kernel_deriv(kernel::WendlandC2Kernel, r::Real, h)
-    inner_deriv = 1 / h
-    q = r * inner_deriv
+@inline function kernel_deriv_div_r_unsafe(kernel::WendlandC2Kernel, r::Real, h)
+    h_inv = 1 / h
+    q = r * h_inv
 
-    result = -5 * (1 - q / 2)^3 * q
-
-    # Zero out result if q >= 2
-    result = ifelse(q < 2,
-                    normalization_factor(kernel, h) * result * inner_deriv, zero(q))
-
-    return result
+    return -5 * normalization_factor(kernel, h_inv) * (1 - q / 2)^3 * h_inv^2
 end
 
-# Note that `7 // 4` saves one instruction but is significantly slower on GPUs (for now)
-@inline normalization_factor(::WendlandC2Kernel{2}, h) = 7 / (pi * h^2 * 4)
-@inline normalization_factor(::WendlandC2Kernel{3}, h) = 21 / (pi * h^3 * 16)
+@inline function normalization_factor(::WendlandC2Kernel{2}, h_inv)
+    return oftype(h_inv, 7 / (4 * pi)) * h_inv^2
+end
+@inline function normalization_factor(::WendlandC2Kernel{3}, h_inv)
+    return oftype(h_inv, 21 / (16 * pi)) * h_inv^3
+end
 
 @doc raw"""
     WendlandC4Kernel{NDIMS}()
@@ -445,31 +482,30 @@ For general information and usage see [Smoothing Kernels](@ref smoothing_kernel)
 """
 struct WendlandC4Kernel{NDIMS} <: AbstractWendlandKernel{NDIMS} end
 
-@fastpow @inline function kernel(kernel::WendlandC4Kernel, r::Real, h)
-    q = r / h
+@fastpow @inline function kernel_unsafe(kernel::WendlandC4Kernel, r::Real, h)
+    h_inv = 1 / h
+    q = r * h_inv
 
     result = (1 - q / 2)^6 * (35 * q^2 / 12 + 3 * q + 1)
 
-    # Zero out result if q >= 2
-    result = ifelse(q < 2, normalization_factor(kernel, h) * result, zero(q))
-
-    return result
+    return normalization_factor(kernel, h_inv) * result
 end
 
-@fastpow @inline function kernel_deriv(kernel::WendlandC4Kernel, r::Real, h)
-    q = r / h
+@fastpow @inline function kernel_deriv_div_r_unsafe(kernel::WendlandC4Kernel, r::Real, h)
+    h_inv = 1 / h
+    q = r * h_inv
 
-    derivative = -7 * q / 3 * (2 + 5 * q) * (1 - q / 2)^5
+    result = oftype(r, -7 / 3) * (2 + 5 * q) * (1 - q / 2)^5 * h_inv^2
 
-    # Zero out result if q >= 2
-    result = ifelse(q < 2, normalization_factor(kernel, h) * derivative / h,
-                    zero(derivative))
-
-    return result
+    return normalization_factor(kernel, h_inv) * result
 end
 
-@inline normalization_factor(::WendlandC4Kernel{2}, h) = 9 / (pi * h^2 * 4)
-@inline normalization_factor(::WendlandC4Kernel{3}, h) = 495 / (pi * h^3 * 256)
+@inline function normalization_factor(::WendlandC4Kernel{2}, h_inv)
+    return oftype(h_inv, 9 / (pi * 4)) * h_inv^2
+end
+@inline function normalization_factor(::WendlandC4Kernel{3}, h_inv)
+    return oftype(h_inv, 495 / (pi * 256)) * h_inv^3
+end
 
 @doc raw"""
     WendlandC6Kernel{NDIMS}()
@@ -505,31 +541,31 @@ For general information and usage see [Smoothing Kernels](@ref smoothing_kernel)
 """
 struct WendlandC6Kernel{NDIMS} <: AbstractWendlandKernel{NDIMS} end
 
-@fastpow @inline function kernel(kernel::WendlandC6Kernel, r::Real, h)
-    q = r / h
+@fastpow @inline function kernel_unsafe(kernel::WendlandC6Kernel, r::Real, h)
+    h_inv = 1 / h
+    q = r * h_inv
 
     result = (1 - q / 2)^8 * (4 * q^3 + 25 * q^2 / 4 + 4 * q + 1)
 
-    # Zero out result if q >= 2
-    result = ifelse(q < 2, normalization_factor(kernel, h) * result, zero(q))
-
-    return result
+    return normalization_factor(kernel, h_inv) * result
 end
 
-@fastpow @muladd @inline function kernel_deriv(kernel::WendlandC6Kernel, r::Real, h)
-    q = r / h
+@fastpow @inline function kernel_deriv_div_r_unsafe(kernel::WendlandC6Kernel, r::Real, h)
+    h_inv = 1 / h
+    q = r * h_inv
 
-    derivative = -11 * q / 4 * (8 * q^2 + 7 * q + 2) * (1 - q / 2)^7
+    result = oftype(r, -11 / 4) * (8 * q^2 + 7 * q + 2) * (1 - q / 2)^7 * h_inv^2
 
-    # Zero out result if q >= 2
-    result = ifelse(q < 2, normalization_factor(kernel, h) * derivative / h,
-                    zero(derivative))
-
-    return result
+    return normalization_factor(kernel, h_inv) * result
 end
 
-@inline normalization_factor(::WendlandC6Kernel{2}, h) = 39 / (pi * h^2 * 14)
-@inline normalization_factor(::WendlandC6Kernel{3}, h) = 1365 / (pi * h^3 * 512)
+@inline function normalization_factor(::WendlandC6Kernel{2}, h_inv)
+    return oftype(h_inv, 39 / (pi * 14)) * h_inv^2
+end
+
+@inline function normalization_factor(::WendlandC6Kernel{3}, h_inv)
+    return oftype(h_inv, 1365 / (pi * 512)) * h_inv^3
+end
 
 @doc raw"""
     Poly6Kernel{NDIMS}()
@@ -540,7 +576,6 @@ especially in computer graphics contexts. It is defined as
 ```math
 W(r, h) = \frac{1}{h^d} w(r/h)
 ```
-
 
 with
 
@@ -569,34 +604,31 @@ For general information and usage see [Smoothing Kernels](@ref smoothing_kernel)
 """
 struct Poly6Kernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
 
-@inline function kernel(kernel::Poly6Kernel, r::Real, h)
-    q = r / h
+@inline function kernel_unsafe(kernel::Poly6Kernel, r::Real, h)
+    h_inv = 1 / h
+    q = r * h_inv
 
-    result = (1 - q^2)^3
-
-    # Zero out result if q >= 1
-    result = ifelse(q < 1, normalization_factor(kernel, h) * result, zero(q))
-
-    return result
+    return normalization_factor(kernel, h_inv) * (1 - q^2)^3
 end
 
-@inline function kernel_deriv(kernel::Poly6Kernel, r::Real, h)
-    inner_deriv = 1 / h
-    q = r * inner_deriv
+@inline function kernel_deriv_div_r_unsafe(kernel::Poly6Kernel, r::Real, h)
+    h_inv = 1 / h
+    q = r * h_inv
 
-    result = -6 * q * (1 - q^2)^2
+    kernel_deriv = normalization_factor(kernel, h_inv) * -6 * q * (1 - q^2)^2 * h_inv
 
-    # Zero out result if q >= 1
-    result = ifelse(q < 1,
-                    result * normalization_factor(kernel, h) * inner_deriv, zero(q))
-    return result
+    return div_fast(kernel_deriv, r)
 end
 
 @inline compact_support(::Poly6Kernel, h) = h
 
-# Note that `315 // 64` saves one instruction but is significantly slower on GPUs (for now)
-@inline normalization_factor(::Poly6Kernel{2}, h) = 4 / (pi * h^2)
-@inline normalization_factor(::Poly6Kernel{3}, h) = 315 / (pi * h^3 * 64)
+@inline function normalization_factor(::Poly6Kernel{2}, h_inv)
+    return oftype(h_inv, 4 / (pi)) * h_inv^2
+end
+
+@inline function normalization_factor(::Poly6Kernel{3}, h_inv)
+    return oftype(h_inv, 315 / (64 * pi)) * h_inv^3
+end
 
 @doc raw"""
     SpikyKernel{NDIMS}()
@@ -634,38 +666,36 @@ For general information and usage see [Smoothing Kernels](@ref smoothing_kernel)
 """
 struct SpikyKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
 
-@inline function kernel(kernel::SpikyKernel, r::Real, h)
-    q = r / h
+@inline function kernel_unsafe(kernel::SpikyKernel, r::Real, h)
+    h_inv = 1 / h
+    q = r * h_inv
 
-    result = (1 - q)^3
-
-    # Zero out result if q >= 1
-    result = ifelse(q < 1, normalization_factor(kernel, h) * result, zero(q))
-
-    return result
+    return normalization_factor(kernel, h_inv) * (1 - q)^3
 end
 
-@inline function kernel_deriv(kernel::SpikyKernel, r::Real, h)
-    inner_deriv = 1 / h
-    q = r * inner_deriv
+@inline function kernel_deriv_div_r_unsafe(kernel::SpikyKernel, r::Real, h)
+    h_inv = 1 / h
+    q = r * h_inv
 
-    result = -3 * (1 - q)^2
+    kernel_deriv = -3 * normalization_factor(kernel, h_inv) * (1 - q)^2 * h_inv
 
-    # Zero out result if q >= 1
-    result = ifelse(q < 1, result * normalization_factor(kernel, h) * inner_deriv, zero(q))
-
-    return result
+    return div_fast(kernel_deriv, r)
 end
 
 @inline compact_support(::SpikyKernel, h) = h
 
-@inline normalization_factor(::SpikyKernel{2}, h) = 10 / (pi * h^2)
-@inline normalization_factor(::SpikyKernel{3}, h) = 15 / (pi * h^3)
+@inline function normalization_factor(::SpikyKernel{2}, h_inv)
+    return oftype(h_inv, 10 / pi) * h_inv^2
+end
+
+@inline function normalization_factor(::SpikyKernel{3}, h_inv)
+    return oftype(h_inv, 15 / pi) * h_inv^3
+end
 
 @doc raw"""
     LaguerreGaussKernel{NDIMS}()
 
-Truncated Laguerre–Gauss kernel (fourth-order smoothing) as defined in
+Truncated Laguerre-Gauss kernel (fourth-order smoothing) as defined in
 [Wang2024](@cite). Its radial form uses ``q = r/h`` and is truncated at
 ``q = 2`` (compact support ``2h``):
 
@@ -716,51 +746,65 @@ For general information and usage see [Smoothing Kernels](@ref smoothing_kernel)
 """
 struct LaguerreGaussKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
 
-@fastpow @inline function kernel(kernel::LaguerreGaussKernel, r::Real, h)
-    q = r / h
+@fastpow @inline function kernel_unsafe(kernel::LaguerreGaussKernel, r::Real, h)
+    h_inv = 1 / h
+    q = r * h_inv
 
-    # polynomial part: 1 - s^2/2 + s^4/6
+    # Polynomial part
     poly = 1 - q^2 / 2 + q^4 / 6
 
-    # zero out for s ≥ 2
-    return ifelse(q < 2, normalization_factor(kernel, h) * poly * exp(-q^2), zero(q))
+    q2 = -q^2
+    # Only use `@fastmath` for the exponential. Make sure not to apply `@fastmath` to `q^2`,
+    # or it will translate to a generic power function instead of `q * q` (`literal_pow`)
+    # due to a bug in Julia 1.12, see https://github.com/JuliaLang/julia/pull/60640.
+    exp_q2 = @fastmath exp(q2)
+
+    return normalization_factor(kernel, h_inv) * poly * exp_q2
 end
 
-@inline function kernel_deriv(kernel::LaguerreGaussKernel, r::Real, h)
-    invh = 1 / h
-    q = r * invh
+@inline function kernel_deriv_div_r_unsafe(kernel::LaguerreGaussKernel, r::Real, h)
+    h_inv = 1 / h
+    q = r * h_inv
 
-    # dg/dq = (q/3)*(-q^4 + 5q^2 - 9) * exp(-q^2)
-    poly = ((-q^2 + 5) * q^2 - 9) * (q / 3)
+    # dg/dq = (q / 3) * (-q^4 + 5q^2 - 9) * exp(-q^2), but we already divide by `r``
+    poly = (h_inv / 3) * ((-q^2 + 5) * q^2 - 9)
 
-    return ifelse(q < 2, normalization_factor(kernel, h) * exp(-q^2) * poly * invh, zero(q))
+    q2 = -q^2
+    # Only use `@fastmath` for the exponential. Make sure not to apply `@fastmath` to `q^2`,
+    # or it will translate to a generic power function instead of `q * q` (`literal_pow`)
+    # due to a bug in Julia 1.12, see https://github.com/JuliaLang/julia/pull/60640.
+    exp_q2 = @fastmath exp(q2)
+
+    return normalization_factor(kernel, h_inv) * poly * exp_q2 * h_inv
 end
 
 @inline compact_support(::LaguerreGaussKernel, h) = 2 * h
-# Original normalization factors as in Wang2024
-# @inline normalization_factor(::LaguerreGaussKernel{1}, h) = (8 / (5 * sqrt(pi))) / h
-# @inline normalization_factor(::LaguerreGaussKernel{2}, h) = (3 / (pi)) / (h^2)
-# @inline normalization_factor(::LaguerreGaussKernel{3}, h) = (8 / (pi^(3 // 2))) / (h^3)
+
+# Original normalization factors as in Wang2024:
+# 1D: (8 / (5 * sqrt(pi))) / h
+# 2D: (3 / (pi)) / (h^2)
+# 3D: (8 / (pi^(3 / 2))) / (h^3)
 
 # Renormalized to the truncated integral over [0,2h]
-@inline function normalization_factor(kernel::LaguerreGaussKernel{1}, h)
-    # C = 1/(2*(7 * sqrt(pi) / 16) * erf(2) - (5 / 12) * exp(-4))
-    C = oftype(h, 0.65428780253539)
-    # C' = C/h
-    return C / h
+@inline function normalization_factor(kernel::LaguerreGaussKernel{1}, h_inv)
+    # C = 1 / (2 * (7 * sqrt(pi) / 16) * erf(2) - (5 / 12) * exp(-4))
+    C = oftype(h_inv, 0.6510370392044922)
+    # C' = C / h
+    return C * h_inv
 end
 
-@inline function normalization_factor(kernel::LaguerreGaussKernel{2}, h)
+@inline function normalization_factor(kernel::LaguerreGaussKernel{2}, h_inv)
     # C = 2 * pi * (5 - 17 * exp(-4)) / 12
-    C = oftype(h, 2.454963094351984)
+    C_inv = oftype(h_inv, 0.4073380990128333)
     # C' = 1 / (h^2 * C)
-    return 1 / (h^2 * C)
+    return C_inv * h_inv^2
 end
 
-@inline function normalization_factor(kernel::LaguerreGaussKernel{3}, h)
+@inline function normalization_factor(kernel::LaguerreGaussKernel{3}, h_inv)
     # C = (7 * sqrt(pi) / 32) * erf(2) - (77 / 24) * exp(-4)
-    C = oftype(h, 0.3271479336905373)
+    # C_ = 1 / (4 * pi * C)
+    C_ = oftype(h_inv, 0.24324613836999895)
 
-    # 4*pi cannot be pulled into C otherwise the test fails because of differences in rounding
-    return 1 / (C * 4 * pi * h^3)
+    # C' = 1 / (4 * pi * h^3 * C) = C_ / (h^3)
+    return C_ * h_inv^3
 end

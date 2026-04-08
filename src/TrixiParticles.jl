@@ -15,7 +15,7 @@ using FileIO: FileIO
 using ForwardDiff: ForwardDiff
 using GPUArraysCore: AbstractGPUArray
 using JSON: JSON
-using KernelAbstractions: KernelAbstractions, @kernel, @index
+using KernelAbstractions: KernelAbstractions, @kernel, @index, @localmem, @synchronize
 using LinearAlgebra: norm, normalize, cross, dot, I, tr, inv, pinv, det
 using MuladdMacro: @muladd
 using Polyester: Polyester, @batch
@@ -26,6 +26,7 @@ using Random: seed!
 using SciMLBase: SciMLBase, CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
                  get_tmp_cache, set_proposed_dt!, ODESolution, ODEProblem, terminate!,
                  add_tstop!
+using SIMD: vloada, Vec
 @reexport using StaticArrays: SVector
 using StaticArrays: @SMatrix, SMatrix, setindex
 using Statistics: Statistics

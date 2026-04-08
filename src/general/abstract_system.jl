@@ -130,10 +130,30 @@ end
     return kernel(smoothing_kernel, distance, smoothing_length(system, particle))
 end
 
+@inline function skip_zero_distance(system, distance, almostzero)
+    return skip_zero_distance(system_correction(system), system, distance, almostzero)
+end
+
+# Robust/safe version of the function below. In performance-critical code, manually check
+# the kernel support, call `skip_zero_distance` and then `smoothing_kernel_grad_unsafe`.
 @inline function smoothing_kernel_grad(system, pos_diff, distance, particle)
-    return corrected_kernel_grad(system_smoothing_kernel(system), pos_diff,
-                                 distance, smoothing_length(system, particle),
-                                 system_correction(system), system, particle)
+    h = smoothing_length(system, particle)
+    compact_support_ = compact_support(system_smoothing_kernel(system), h)
+
+    # Note that `sqrt(eps(h^2)) != eps(h)`
+    if distance > compact_support_ || skip_zero_distance(system, distance, sqrt(eps(h^2)))
+        return zero(pos_diff)
+    end
+
+    return smoothing_kernel_grad_unsafe(system, pos_diff, distance, particle)
+end
+
+# Skip the zero distance and compact support checks for maximum performance.
+# Only call this when you are sure that `0 < distance < compact_support`.
+@inline function smoothing_kernel_grad_unsafe(system, pos_diff, distance, particle)
+    return corrected_kernel_grad_unsafe(system_smoothing_kernel(system), pos_diff,
+                                        distance, smoothing_length(system, particle),
+                                        system_correction(system), system, particle)
 end
 
 # System updates do nothing by default, but can be dispatched if needed
