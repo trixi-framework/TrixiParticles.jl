@@ -110,14 +110,13 @@ end
     # approaching particles and turn it off for receding particles. In this way, the
     # viscosity is used for shocks and not rarefactions."
     if vr < 0
-        (; alpha, beta, epsilon) = viscosity
-
         h_a = smoothing_length(particle_system, particle)
         h_b = smoothing_length(neighbor_system, neighbor)
         h = (h_a + h_b) / 2
 
         rho_mean = (rho_a + rho_b) / 2
 
+        (; alpha, beta, epsilon) = viscosity
         mu = h * vr / (distance^2 + epsilon * h^2)
         c = sound_speed
         dv_viscosity = m_b * (alpha * c * mu + beta * mu^2) / rho_mean * grad_kernel
