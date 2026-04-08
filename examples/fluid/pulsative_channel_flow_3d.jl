@@ -11,11 +11,11 @@
 # ==========================================================================================
 using TrixiParticles
 
-# a more reasonable particle spacing factor is 30, which takes around an hour to 0.5s simulation time
+# A more reasonable particle spacing factor is 30, which takes around an hour to 0.5s simulation time
 particle_spacing_factor = 15
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "poiseuille_flow_3d.jl"),
-              solution=nothing, particle_spacing_factor=particle_spacing_factor)
+              sol=nothing, particle_spacing_factor=particle_spacing_factor)
 
 v_max = channel_diameter^2 * imposed_pressure_drop /
         (8 * dynamic_viscosity * channel_length)

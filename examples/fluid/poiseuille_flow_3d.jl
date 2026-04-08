@@ -35,12 +35,13 @@ tspan = (0.0, 1.0)
 fluid_density = 1000.0
 reynolds_number = 50
 imposed_pressure_drop = 0.1
-const dynamic_viscosity = sqrt(fluid_density * channel_radius^2 * imposed_pressure_drop /
+dynamic_viscosity = sqrt(fluid_density * channel_radius^2 * imposed_pressure_drop /
                                (4 * reynolds_number))
 
 v_max = channel_radius^2 * imposed_pressure_drop / (4 * dynamic_viscosity * channel_length)
 
-sound_speed_factor = 100
+# To accurately capture the initial transient this value has to be increased to around 100 which doubles the runtime
+sound_speed_factor = 50
 sound_speed = sound_speed_factor * v_max
 
 flow_direction = (1.0, 0.0, 0.0)
