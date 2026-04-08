@@ -36,7 +36,7 @@ fluid_density = 1000.0
 reynolds_number = 50
 imposed_pressure_drop = 0.1
 dynamic_viscosity = sqrt(fluid_density * channel_radius^2 * imposed_pressure_drop /
-                               (4 * reynolds_number))
+                         (4 * reynolds_number))
 
 v_max = channel_radius^2 * imposed_pressure_drop / (4 * dynamic_viscosity * channel_length)
 
