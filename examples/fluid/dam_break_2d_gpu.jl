@@ -23,6 +23,7 @@ trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               fluid_particle_spacing=0.6 / 40,
               spacing_ratio=1, boundary_layers=4,
+              coordinates_eltype=Float64,
               sol=nothing, ode=nothing)
 
 # Define a GPU-compatible neighborhood search
@@ -41,4 +42,5 @@ trixi_include(@__MODULE__,
               boundary_layers=boundary_layers, spacing_ratio=spacing_ratio,
               boundary_model=boundary_model,
               parallelization_backend=PolyesterBackend(),
-              boundary_density_calculator=boundary_density_calculator)
+              boundary_density_calculator=boundary_density_calculator,
+              coordinates_eltype=Float64)

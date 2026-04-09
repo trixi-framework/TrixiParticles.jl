@@ -306,19 +306,18 @@ function compute_gradient_correction_matrix!(corr_matrix, system, coordinates, d
 
     set_zero!(corr_matrix)
 
-    # Loop over all pairs of particles and neighbors within the kernel cutoff.
+    # Loop over all pairs of particles and neighbors within the kernel cutoff
     foreach_point_neighbor(system, system, coordinates, coordinates,
                            semi) do particle, neighbor, pos_diff, distance
-        volume = mass[neighbor] / density_fun(neighbor)
-
         grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
-
         iszero(grad_kernel) && return
+
+        volume = @inbounds mass[neighbor] / density_fun(neighbor)
 
         result = volume * grad_kernel * pos_diff'
 
-        @inbounds for j in 1:ndims(system), i in 1:ndims(system)
-            corr_matrix[i, j, particle] -= result[i, j]
+        for j in 1:ndims(system), i in 1:ndims(system)
+            @inbounds corr_matrix[i, j, particle] -= result[i, j]
         end
     end
 

@@ -38,7 +38,7 @@ clamped_particles = SphereShape(particle_spacing, clamp_radius + particle_spacin
                                 (0.0, elastic_beam.thickness / 2), material.density,
                                 cutout_min=(0.0, 0.0),
                                 cutout_max=(clamp_radius, elastic_beam.thickness),
-                                place_on_shell=true)
+                                place_on_shell=true, coordinates_eltype=Float64)
 
 n_particles_clamp_x = round(Int, clamp_radius / particle_spacing)
 
@@ -50,7 +50,8 @@ n_particles_per_dimension = (round(Int, elastic_beam.length / particle_spacing) 
 # from the boundary, which is correct for fluids, but not for structures.
 # We therefore need to pass `place_on_shell=true`.
 beam = RectangularShape(particle_spacing, n_particles_per_dimension,
-                        (0.0, 0.0), density=material.density, place_on_shell=true)
+                        (0.0, 0.0), density=material.density, place_on_shell=true,
+                        coordinates_eltype=Float64)
 
 structure = union(clamped_particles, beam)
 
@@ -64,12 +65,16 @@ structure_system = TotalLagrangianSPHSystem(structure, smoothing_kernel, smoothi
                                             clamped_particles=1:nparticles(clamped_particles),
                                             acceleration=(0.0, -gravity),
                                             penalty_force=nothing, viscosity=nothing,
-                                            clamped_particles_motion=nothing)
+                                            clamped_particles_motion=nothing,
+                                            self_interaction_nhs=:default)
 
 # ==========================================================================================
 # ==== Simulation
+# Note that the `neighborhood_search` passed here is not used if the simulation
+# consists of a single `TotalLagrangianSPHSystem`.
+# Instead, the neighborhood search passed to the `TotalLagrangianSPHSystem` is used.
 semi = Semidiscretization(structure_system,
-                          neighborhood_search=PrecomputedNeighborhoodSearch{2}(),
+                          neighborhood_search=nothing,
                           parallelization_backend=PolyesterBackend())
 ode = semidiscretize(semi, tspan)
 

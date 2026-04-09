@@ -81,15 +81,13 @@
                                         boundary_model=nothing,
                                         fluid_system=FluidSystemMockRCR(nothing, nothing))
             system.boundary_zone_indices .= 1
-
-            u = system.initial_condition.coordinates
             v = system.initial_condition.velocity
 
             times = collect(tspan[1]:dt:tspan[2])
             p_calculated = empty(times)
             for t in times
-                v[1, :] .= func(t)
-                TrixiParticles.calculate_flow_rate_and_pressure!(system, v, u, dt)
+                system.cache.boundary_zones_flow_rate[1][] = func(t)
+                TrixiParticles.calculate_pressure!(system, dt)
 
                 # Store only values after the seventh cycle
                 if t >= 7T

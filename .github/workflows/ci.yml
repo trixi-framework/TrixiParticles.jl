@@ -44,6 +44,7 @@ jobs:
         version:
           - '1.10'
           - '1.11'
+          - '1.12'
         os:
           - ubuntu-latest
         include:
@@ -53,14 +54,14 @@ jobs:
             os: windows-latest
           - version: '1.10'
             os: macos-14
-          - version: '1.11'
+          - version: '1.12'
             os: windows-latest
-          - version: '1.11'
+          - version: '1.12'
             os: macos-14
 
     steps:
       - name: Check out project
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Set up Julia
         uses: julia-actions/setup-julia@v2
@@ -70,7 +71,7 @@ jobs:
       - name: Display Julia version
         run: julia -e 'using InteractiveUtils; versioninfo(verbose=true)'
 
-      - uses: julia-actions/cache@v2
+      - uses: julia-actions/cache@v3
 
       - name: Build package
         uses: julia-actions/julia-buildpkg@v1
@@ -94,7 +95,7 @@ jobs:
       - name: Upload unit coverage report to Codecov
         # Only run coverage in one Job (Ubuntu and latest Julia version)
         if: matrix.os == 'ubuntu-latest' && matrix.version == '1.11'
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           files: lcov.info
           fail_ci_if_error: true
@@ -121,7 +122,7 @@ jobs:
       - name: Upload total coverage report to Codecov
         # Only run coverage in one Job (Ubuntu and latest Julia version)
         if: matrix.os == 'ubuntu-latest' && matrix.version == '1.11'
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           files: lcov.info
           fail_ci_if_error: true

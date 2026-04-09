@@ -1,6 +1,7 @@
 """
     WallBoundarySystem(initial_condition, boundary_model;
-                       prescribed_motion=nothing, adhesion_coefficient=0.0)
+                       prescribed_motion=nothing, adhesion_coefficient=0.0,
+                       color_value=0)
 
 System for boundaries modeled by boundary particles.
 The interaction between fluid and boundary particles is specified by the boundary model.
@@ -13,11 +14,15 @@ The interaction between fluid and boundary particles is specified by the boundar
 - `prescribed_motion`: For moving boundaries, a [`PrescribedMotion`](@ref) can be passed.
 - `adhesion_coefficient`: Coefficient specifying the adhesion of a fluid to the surface.
    Note: currently it is assumed that all fluids have the same adhesion coefficient.
+- `color_value`: Integer label used for calculation of surface normals.
+   Currently this is only used together with [`BoundaryModelDummyParticles`](@ref) and
+   [`ColorfieldSurfaceNormal`](@ref): fluid-boundary normal evaluation
+   reads the resulting boundary colorfield to detect wall contact.
 """
-struct WallBoundarySystem{BM, NDIMS, ELTYPE <: Real, IC, CO, M, IM,
+struct WallBoundarySystem{BM, ELTYPE <: Real, NDIMS, IC, CO, M, IM,
                           CA} <: AbstractBoundarySystem{NDIMS}
     initial_condition    :: IC
-    coordinates          :: CO # Array{ELTYPE, 2}
+    coordinates          :: CO # Array{coordinates_eltype, 2}
     boundary_model       :: BM
     prescribed_motion    :: M
     ismoving             :: IM # Ref{Bool} (to make a mutable field compatible with GPUs)
@@ -28,9 +33,9 @@ struct WallBoundarySystem{BM, NDIMS, ELTYPE <: Real, IC, CO, M, IM,
     # See the comments in general/gpu.jl for more details.
     function WallBoundarySystem(initial_condition, coordinates, boundary_model,
                                 prescribed_motion, ismoving, adhesion_coefficient, cache)
-        ELTYPE = eltype(coordinates)
+        ELTYPE = eltype(initial_condition)
 
-        new{typeof(boundary_model), size(coordinates, 1), ELTYPE, typeof(initial_condition),
+        new{typeof(boundary_model), ELTYPE, size(coordinates, 1), typeof(initial_condition),
             typeof(coordinates), typeof(prescribed_motion), typeof(ismoving),
             typeof(cache)}(initial_condition, coordinates, boundary_model,
                            prescribed_motion, ismoving, adhesion_coefficient, cache)
@@ -45,6 +50,7 @@ function WallBoundarySystem(initial_condition, model; prescribed_motion=nothing,
     initialize_prescribed_motion!(prescribed_motion, initial_condition)
 
     cache = create_cache_boundary(prescribed_motion, initial_condition)
+    # Boundary color tag used for dummy-particle colorfield initialization/contact tests.
     cache = (cache..., color=Int(color_value))
 
     return WallBoundarySystem(initial_condition, coordinates, model, prescribed_motion,
@@ -61,9 +67,7 @@ function create_cache_boundary(prescribed_motion::PrescribedMotion, initial_cond
     return (; velocity, acceleration, initial_coordinates)
 end
 
-@inline function Base.eltype(system::WallBoundarySystem)
-    eltype(system.coordinates)
-end
+@inline Base.eltype(::WallBoundarySystem{<:Any, ELTYPE}) where {ELTYPE} = ELTYPE
 
 @inline function nparticles(system::WallBoundarySystem)
     size(system.coordinates, 2)
@@ -145,12 +149,12 @@ end
     return viscous_velocity(v, system.boundary_model.viscosity, system, particle)
 end
 
-@inline function viscous_velocity(v, viscosity, system::WallBoundarySystem, particle)
-    return extract_svector(system.boundary_model.cache.wall_velocity, system, particle)
+@inline function viscous_velocity(v, ::Nothing, system, particle)
+    return current_velocity(v, system, particle)
 end
 
-@inline function viscous_velocity(v, ::Nothing, system::WallBoundarySystem, particle)
-    return current_velocity(v, system, particle)
+@inline function viscous_velocity(v, viscosity, system, particle)
+    return extract_svector(system.boundary_model.cache.wall_velocity, system, particle)
 end
 
 @inline function current_density(v, system::WallBoundarySystem)
@@ -185,7 +189,9 @@ function apply_prescribed_motion!(system::WallBoundarySystem,
     (; ismoving, coordinates, cache) = system
     (; acceleration, velocity) = cache
 
-    prescribed_motion(coordinates, velocity, acceleration, ismoving, system, semi, t)
+    @trixi_timeit timer() "apply prescribed motion" begin
+        prescribed_motion(coordinates, velocity, acceleration, ismoving, system, semi, t)
+    end
 
     return system
 end
@@ -269,10 +275,13 @@ function initialize_colorfield!(system, boundary_model, semi)
 end
 
 function initialize_colorfield!(system, ::BoundaryModelDummyParticles, semi)
-    system_coords = system.coordinates
+    system_coords = initial_coordinates(system)
     (; smoothing_kernel, smoothing_length, cache) = system.boundary_model
 
     if haskey(cache, :initial_colorfield)
+        set_zero!(cache.initial_colorfield)
+        set_zero!(cache.neighbor_count)
+
         foreach_point_neighbor(system, system, system_coords, system_coords, semi,
                                points=eachparticle(system)) do particle, neighbor,
                                                                pos_diff, distance
@@ -339,5 +348,25 @@ function Base.show(io::IO, ::MIME"text/plain", system::WallBoundarySystem)
         summary_line(io, "adhesion coefficient", system.adhesion_coefficient)
         summary_line(io, "color", system.cache.color)
         summary_footer(io)
+    end
+end
+
+function check_configuration(system::WallBoundarySystem, systems, nhs)
+    (; boundary_model) = system
+
+    n_particles_model = length(system.boundary_model.hydrodynamic_mass)
+    if n_particles_model != nparticles(system)
+        throw(ArgumentError("the boundary model was initialized with $n_particles_model " *
+                            "particles, but the `WallBoundarySystem` has " *
+                            "$(nparticles(system)) particles."))
+    end
+
+    foreach_system(systems) do neighbor
+        if neighbor isa WeaklyCompressibleSPHSystem &&
+           boundary_model isa BoundaryModelDummyParticles &&
+           isnothing(boundary_model.state_equation)
+            throw(ArgumentError("`WeaklyCompressibleSPHSystem` cannot be used without " *
+                                "setting a `state_equation` for all boundary models"))
+        end
     end
 end

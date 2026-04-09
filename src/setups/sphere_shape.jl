@@ -2,7 +2,8 @@
     SphereShape(particle_spacing, radius, center_position, density;
                 sphere_type=VoxelSphere(), n_layers=-1, layer_outwards=false,
                 cutout_min=(0.0, 0.0), cutout_max=(0.0, 0.0), place_on_shell=false,
-                velocity=zeros(length(center_position)), mass=nothing, pressure=0.0)
+                velocity=zeros(length(center_position)), mass=nothing, pressure=0,
+                coordinates_eltype=Float64)
 
 Generate a sphere that is either completely filled (by default)
 or hollow (by passing `n_layers`).
@@ -17,37 +18,40 @@ A cuboid can be cut out of the sphere by specifying the two corners in negative 
 coordinate directions as `cutout_min` and `cutout_max`.
 
 # Arguments
-- `particle_spacing`:   Spacing between the particles.
+- `particle_spacing`:   Spacing between the particles. The type of this argument
+                        determines the eltype of the initial condition.
 - `radius`:             Radius of the sphere.
 - `center_position`:    The coordinates of the center of the sphere.
 - `density`:            Either a function mapping each particle's coordinates to its density,
                         or a scalar for a constant density over all particles.
 
 # Keywords
-- `sphere_type`:    Either [`VoxelSphere`](@ref) or [`RoundSphere`](@ref) (see
-                    explanation above).
+- `sphere_type = VoxelSphere()`: Either [`VoxelSphere`](@ref) or [`RoundSphere`](@ref)
+                    (see explanation above).
 - `n_layers`:       Set to an integer greater than zero to generate a hollow sphere,
                     where the shell consists of `n_layers` layers.
-- `layer_outwards`: When set to `false` (by default), `radius` is the outer radius
+- `layer_outwards = false`: When set to `false`, `radius` is the outer radius
                     of the sphere. When set to `true`, `radius` is the inner radius
                     of the sphere. This is only used when `n_layers > 0`.
 - `cutout_min`:     Corner in negative coordinate directions of a cuboid that is to be
                     cut out of the sphere.
 - `cutout_max`:     Corner in positive coordinate directions of a cuboid that is to be
                     cut out of the sphere.
-- `place_on_shell`: If `place_on_shell=true`, particles will be placed on the shell of the shape.
-                    For example, the [`TotalLagrangianSPHSystem`](@ref) requires particles
-                    to be placed on the shell of the shape and not half a particle spacing away,
-                    as for fluids.
+- `place_on_shell = false`: If `place_on_shell=true`, particles will be placed on the shell
+                    of the shape. For example, the [`TotalLagrangianSPHSystem`](@ref)
+                    requires particles to be placed on the shell of the shape and
+                    not half a particle spacing away, as for fluids.
 - `velocity`:       Either a function mapping each particle's coordinates to its velocity,
                     or, for a constant fluid velocity, a vector holding this velocity.
                     Velocity is constant zero by default.
-- `mass`:           Either `nothing` (default) to automatically compute particle mass from particle
-                    density and spacing, or a function mapping each particle's coordinates to its mass,
-                    or a scalar for a constant mass over all particles.
+- `mass`:           By default, automatically compute particle mass from particle
+                    density and spacing. Can also be a function mapping each particle's
+                    coordinates to its mass, or a scalar for a constant mass over all particles.
 - `pressure`:       Either a function mapping each particle's coordinates to its pressure,
                     or a scalar for a constant pressure over all particles. This is optional and
                     only needed when using the [`EntropicallyDampedSPHSystem`](@ref).
+- `coordinates_eltype = Float64`: The eltype of the particle coordinates.
+                    See [the docs on GPU support](@ref gpu_support) for more information.
 
 # Examples
 ```jldoctest; output = false
@@ -80,25 +84,29 @@ SphereShape(0.1, 0.5, (0.2, 0.4, 0.3), 1000.0, sphere_type=RoundSphere())
 
 # output
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ InitialCondition{Float64}                                                                        │
-│ ═════════════════════════                                                                        │
+│ InitialCondition                                                                                 │
+│ ════════════════                                                                                 │
 │ #dimensions: ……………………………………………… 3                                                                │
 │ #particles: ………………………………………………… 518                                                              │
 │ particle spacing: ………………………………… 0.1                                                              │
+│ eltype: …………………………………………………………… Float64                                                          │
+│ coordinate eltype: ……………………………… Float64                                                          │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
 function SphereShape(particle_spacing, radius, center_position, density;
                      sphere_type=VoxelSphere(), n_layers=-1, layer_outwards=false,
                      cutout_min=(0.0, 0.0), cutout_max=(0.0, 0.0), place_on_shell=false,
-                     velocity=zeros(length(center_position)), mass=nothing, pressure=0)
+                     velocity=zeros(length(center_position)), mass=nothing, pressure=0,
+                     coordinates_eltype=Float64)
     if particle_spacing < eps()
         throw(ArgumentError("`particle_spacing` needs to be positive and larger than $(eps())"))
     end
 
     NDIMS = length(center_position)
 
-    coordinates = sphere_shape_coords(sphere_type, particle_spacing, radius,
+    coordinates = sphere_shape_coords(sphere_type,
+                                      convert(coordinates_eltype, particle_spacing), radius,
                                       SVector{NDIMS}(center_position),
                                       n_layers, layer_outwards, place_on_shell)
 

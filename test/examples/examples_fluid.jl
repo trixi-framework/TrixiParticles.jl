@@ -200,7 +200,9 @@
             ]
             @test sol.retcode == ReturnCode.Success
             @test count_rhs_allocations(sol, semi) == 0
-            @test eltype(sol) == Float32
+            v_ode, u_ode = sol[end].x
+            @test eltype(v_ode) == Float32
+            @test eltype(u_ode) == Float64
         end
     end
 
@@ -300,7 +302,7 @@
             r"┌ Info: The desired tank length in y-direction .*\n",
             r"└ New tank length in y-direction.*\n"
         ]
-        @test semi.neighborhood_searches[1][1].cell_list isa FullGridCellList
+        @test semi.neighborhood_searches[1, 1].cell_list isa FullGridCellList
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
     end
@@ -532,7 +534,7 @@
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",
                                                   "periodic_array_of_cylinders_2d.jl"),
-                                         tspan=(0.0, 0.1))
+                                         tspan=(0.0, 20.0))
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
     end

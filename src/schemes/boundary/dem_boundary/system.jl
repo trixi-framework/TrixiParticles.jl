@@ -39,9 +39,7 @@ function BoundaryDEMSystem(initial_condition, normal_stiffness)
                              normal_stiffness, nothing)
 end
 
-@inline function Base.eltype(system::BoundaryDEMSystem)
-    eltype(system.coordinates)
-end
+@inline Base.eltype(::BoundaryDEMSystem{<:Any, ELTYPE}) where {ELTYPE} = ELTYPE
 
 @inline function nparticles(system::BoundaryDEMSystem)
     size(system.coordinates, 2)

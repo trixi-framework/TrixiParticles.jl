@@ -7,15 +7,82 @@
                                        density=1000.0, pressure=900.0, mass=50.0)
 
         @testset verbose=true "`InitialCondition`" begin
-            trixi2vtk(expected_ic; filename="tmp_initial_condition",
-                      output_directory=tmp_dir)
+            @testset verbose=true "`Float64`" begin
+                trixi2vtk(expected_ic; filename="tmp_initial_condition_64",
+                          output_directory=tmp_dir)
+                file = joinpath(tmp_dir, "tmp_initial_condition_64.vtu")
+                test_ic = vtk2trixi(file)
 
-            test_ic = vtk2trixi(joinpath(tmp_dir, "tmp_initial_condition.vtu"))
+                @test isapprox(expected_ic.coordinates, test_ic.coordinates, rtol=1e-5)
+                @test isapprox(expected_ic.velocity, test_ic.velocity, rtol=1e-5)
+                @test isapprox(expected_ic.density, test_ic.density, rtol=1e-5)
+                @test isapprox(expected_ic.pressure, test_ic.pressure, rtol=1e-5)
+                @test eltype(test_ic) === Float64
+                @test eltype(test_ic.coordinates) === Float64
+            end
 
-            @test isapprox(expected_ic.coordinates, test_ic.coordinates, rtol=1e-5)
-            @test isapprox(expected_ic.velocity, test_ic.velocity, rtol=1e-5)
-            @test isapprox(expected_ic.density, test_ic.density, rtol=1e-5)
-            @test isapprox(expected_ic.pressure, test_ic.pressure, rtol=1e-5)
+            @testset verbose=true "`Float32`" begin
+                expected_ic_32 = InitialCondition(;
+                                                  coordinates=convert.(Float32,
+                                                                       coordinates),
+                                                  velocity=convert.(Float32, velocity),
+                                                  density=1000.0f0, pressure=900.0f0,
+                                                  mass=50.0f0, particle_spacing=0.1f0)
+                trixi2vtk(expected_ic_32; filename="tmp_initial_condition_32",
+                          output_directory=tmp_dir)
+                file = joinpath(tmp_dir, "tmp_initial_condition_32.vtu")
+                test_ic = vtk2trixi(file)
+
+                @test isapprox(expected_ic_32.coordinates, test_ic.coordinates, rtol=1e-5)
+                @test isapprox(expected_ic_32.velocity, test_ic.velocity, rtol=1e-5)
+                @test isapprox(expected_ic_32.density, test_ic.density, rtol=1e-5)
+                @test isapprox(expected_ic_32.pressure, test_ic.pressure, rtol=1e-5)
+                @test eltype(test_ic) === Float32
+                @test eltype(test_ic.coordinates) === Float32
+            end
+
+            @testset verbose=true "Custom Element Type" begin
+                trixi2vtk(expected_ic; filename="tmp_initial_condition_custom",
+                          output_directory=tmp_dir)
+                file = joinpath(tmp_dir, "tmp_initial_condition_custom.vtu")
+                test_ic = vtk2trixi(file, element_type=Float32, coordinates_eltype=Float32)
+
+                @test isapprox(expected_ic.coordinates, test_ic.coordinates, rtol=1e-5)
+                @test isapprox(expected_ic.velocity, test_ic.velocity, rtol=1e-5)
+                @test isapprox(expected_ic.density, test_ic.density, rtol=1e-5)
+                @test isapprox(expected_ic.pressure, test_ic.pressure, rtol=1e-5)
+                @test eltype(test_ic) === Float32
+                @test eltype(test_ic.coordinates) === Float32
+            end
+
+            @testset verbose=true "Mixed Types" begin
+                expected_ic_mixed = InitialCondition(;
+                                                     coordinates=coordinates,
+                                                     velocity=convert.(Float32, velocity),
+                                                     density=1000.0f0, pressure=900.0f0,
+                                                     mass=50.0f0, particle_spacing=0.1f0)
+                trixi2vtk(expected_ic_mixed; filename="tmp_initial_condition_mixed",
+                          output_directory=tmp_dir)
+                file = joinpath(tmp_dir, "tmp_initial_condition_mixed.vtu")
+                test_ic = vtk2trixi(file)
+
+                @test isapprox(expected_ic.coordinates, test_ic.coordinates, rtol=1e-5)
+                @test isapprox(expected_ic.velocity, test_ic.velocity, rtol=1e-5)
+                @test isapprox(expected_ic.density, test_ic.density, rtol=1e-5)
+                @test isapprox(expected_ic.pressure, test_ic.pressure, rtol=1e-5)
+                @test eltype(test_ic) === Float32
+                @test eltype(test_ic.coordinates) === Float64
+            end
+
+            @testset verbose=true "Exact Field Matches" begin
+                trixi2vtk(expected_ic; filename="tmp_initial_condition_exact_field_match",
+                          output_directory=tmp_dir,
+                          center_of_mass_velocity=fill(42.0, size(expected_ic.velocity)))
+                file = joinpath(tmp_dir, "tmp_initial_condition_exact_field_match.vtu")
+                test_ic = vtk2trixi(file)
+
+                @test isapprox(expected_ic.velocity, test_ic.velocity, rtol=1e-5)
+            end
         end
 
         @testset verbose=true "`AbstractFluidSystem`" begin
@@ -86,6 +153,52 @@
             @test isapprox(zeros(size(test.velocity)), test.velocity, rtol=1e-5)
             @test isapprox(boundary_model.pressure, test.pressure, rtol=1e-5)
             @test isapprox(boundary_model.cache.density, test.density, rtol=1e-5)
+        end
+
+        @testset verbose=true "`RigidBodySystem`" begin
+            coordinates_rigid = [-1.0 1.0
+                                 0.0 0.0]
+            velocity_rigid = [0.0 0.0
+                              -1.0 1.0]
+            rigid_ic = InitialCondition(; coordinates=coordinates_rigid,
+                                        velocity=velocity_rigid,
+                                        density=[1000.0, 1000.0],
+                                        mass=[1.0, 1.0])
+
+            rigid_system = RigidBodySystem(rigid_ic; acceleration=(0.0, 0.0))
+            semi = Semidiscretization(rigid_system)
+            ode = semidiscretize(semi, (0.0, 0.01))
+            v_ode, u_ode = ode.u0.x
+            v = TrixiParticles.wrap_v(v_ode, rigid_system, semi)
+            u = TrixiParticles.wrap_u(u_ode, rigid_system, semi)
+            TrixiParticles.update_final!(rigid_system, v, u, v_ode, u_ode, semi, 0.0)
+
+            vu_ode = (; x=(v_ode, u_ode))
+            trixi2vtk(rigid_system, nothing, vu_ode, semi, 0.0,
+                      nothing; system_name="tmp_file_rigid", output_directory=tmp_dir,
+                      iter=1)
+
+            vtk_file = TrixiParticles.ReadVTK.VTKFile(joinpath(tmp_dir,
+                                                               "tmp_file_rigid_1.vtu"))
+            point_data = TrixiParticles.ReadVTK.get_point_data(vtk_file)
+            field_data = TrixiParticles.ReadVTK.get_field_data(vtk_file)
+
+            @test Array(TrixiParticles.ReadVTK.get_data(point_data["relative_coordinates"])) ==
+                  rigid_system.relative_coordinates
+            @test vec(Array(TrixiParticles.ReadVTK.get_data(field_data["center_of_mass"]))) ==
+                  collect(rigid_system.center_of_mass[])
+            @test vec(Array(TrixiParticles.ReadVTK.get_data(field_data["center_of_mass_velocity"]))) ==
+                  collect(rigid_system.center_of_mass_velocity[])
+            @test vec(Array(TrixiParticles.ReadVTK.get_data(field_data["resultant_force"]))) ==
+                  collect(rigid_system.resultant_force[])
+            @test only(Array(TrixiParticles.ReadVTK.get_data(field_data["angular_velocity"]))) ==
+                  rigid_system.angular_velocity[]
+            @test only(Array(TrixiParticles.ReadVTK.get_data(field_data["resultant_torque"]))) ==
+                  rigid_system.resultant_torque[]
+            @test only(Array(TrixiParticles.ReadVTK.get_data(field_data["angular_acceleration_force"]))) ==
+                  rigid_system.angular_acceleration_force[]
+            @test only(Array(TrixiParticles.ReadVTK.get_data(field_data["gyroscopic_acceleration"]))) ==
+                  rigid_system.gyroscopic_acceleration[]
         end
     end
 end

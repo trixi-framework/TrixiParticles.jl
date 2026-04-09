@@ -158,12 +158,34 @@ function trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
     vtk_save(pvd)
 end
 
+function transfer2cpu(semi::Semidiscretization)
+    # First move all systems and neighborhood searches to the CPU
+    systems = Adapt.adapt(Array, semi.systems)
+    neighborhood_searches = Adapt.adapt(Array, semi.neighborhood_searches)
+
+    semi_ = @set semi.systems = systems
+    semi__ = @set semi_.neighborhood_searches = neighborhood_searches
+
+    # Now, set the parallelization backend to `PolyesterBackend` to make sure that
+    # `@threaded` loops still work as expected with this semidiscretization.
+    return @set semi__.parallelization_backend = PolyesterBackend()
+end
+
+function transfer2cpu(v_::AbstractGPUArray, u_, semi_)
+    semi = transfer2cpu(semi_)
+    v, u = transfer2cpu(v_, u_)
+
+    return v, u, semi
+end
+
+function transfer2cpu(v_, u_, semi_)
+    return v_, u_, semi_
+end
+
 function transfer2cpu(v_::AbstractGPUArray, u_, system_, semi_)
-    semi = Adapt.adapt(Array, semi_)
+    v, u, semi = transfer2cpu(v_, u_, semi_)
     system_index = system_indices(system_, semi_)
     system = semi.systems[system_index]
-
-    v, u = transfer2cpu(v_, u_)
 
     return v, u, system, semi
 end
@@ -401,6 +423,25 @@ function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem)
     write2vtk!(vtk, v, u, t, system.boundary_model, system)
 end
 
+function write2vtk!(vtk, v, u, t, system::RigidBodySystem)
+    vtk["velocity"] = [current_velocity(v, system, particle)
+                       for particle in eachparticle(system)]
+    vtk["color"] = system.cache.color
+    vtk["material_density"] = system.material_density
+    vtk["mass"] = system.mass
+    vtk["relative_coordinates"] = system.relative_coordinates
+    vtk["center_of_mass"] = [system.center_of_mass[]]
+    vtk["center_of_mass_velocity"] = [system.center_of_mass_velocity[]]
+    vtk["resultant_force"] = [system.resultant_force[]]
+
+    vtk["angular_velocity"] = [system.angular_velocity[]]
+    vtk["resultant_torque"] = [system.resultant_torque[]]
+    vtk["angular_acceleration_force"] = [system.angular_acceleration_force[]]
+    vtk["gyroscopic_acceleration"] = [system.gyroscopic_acceleration[]]
+
+    write2vtk!(vtk, v, u, t, system.boundary_model, system)
+end
+
 function write2vtk!(vtk, v, u, t, system::OpenBoundarySystem)
     vtk["velocity"] = [current_velocity(v, system, particle)
                        for particle in eachparticle(system)]
@@ -408,6 +449,16 @@ function write2vtk!(vtk, v, u, t, system::OpenBoundarySystem)
                       for particle in eachparticle(system)]
     vtk["pressure"] = [current_pressure(v, system, particle)
                        for particle in eachparticle(system)]
+
+    if system.calculate_flow_rate
+        Q_total = zero(eltype(system))
+        for i in eachindex(system.cache.boundary_zones_flow_rate)
+            vtk["Q_$i"] = system.cache.boundary_zones_flow_rate[i][]
+            Q_total += system.cache.boundary_zones_flow_rate[i][]
+        end
+
+        vtk["Q_total"] = Q_total
+    end
 
     return vtk
 end

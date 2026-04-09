@@ -22,6 +22,8 @@ See the docs of this package for an overview and a comparison of different imple
     │ #systems: ……………………………………………………… 2                                                                │
     │ neighborhood search: ………………………… PrecomputedNeighborhoodSearch                                    │
     │ total #particles: ………………………………… 636                                                              │
+    │ eltype: …………………………………………………………… Float64                                                          │
+    │ coordinates eltype: …………………………… Float64                                                          │
     └──────────────────────────────────────────────────────────────────────────────────────────────────┘
     ```
     The keyword argument `periodic_box` in the neighborhood search constructors can be used
@@ -39,5 +41,7 @@ See the docs of this package for an overview and a comparison of different imple
     │ #systems: ……………………………………………………… 2                                                                │
     │ neighborhood search: ………………………… GridNeighborhoodSearch                                           │
     │ total #particles: ………………………………… 636                                                              │
+    │ eltype: …………………………………………………………… Float64                                                          │
+    │ coordinates eltype: …………………………… Float64                                                          │
     └──────────────────────────────────────────────────────────────────────────────────────────────────┘
     ```

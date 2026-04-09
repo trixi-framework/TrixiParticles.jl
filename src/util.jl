@@ -1,9 +1,9 @@
-# Same as `foreach`, but it optimizes away for small input tuples
+# Same as `foreach`, but it is unrolled by the compiler for small input tuples
 @inline function foreach_noalloc(func, collection)
     element = first(collection)
     remaining_collection = Base.tail(collection)
 
-    func(element)
+    @inline func(element)
 
     # Process remaining collection
     foreach_noalloc(func, remaining_collection)
@@ -11,19 +11,24 @@ end
 
 @inline foreach_noalloc(func, collection::Tuple{}) = nothing
 
-# Same as `foreach(enumerate(something))`, but without allocations.
-# Note that compile times may increase if this is used with big tuples.
-@inline foreach_enumerate(func, collection) = foreach_enumerate(func, collection, 1)
-@inline foreach_enumerate(func, collection::Tuple{}, index) = nothing
+@inline function foreach_noalloc(func, collection1, collection2)
+    element1 = first(collection1)
+    remaining_collection1 = Base.tail(collection1)
+    element2 = first(collection2)
+    remaining_collection2 = Base.tail(collection2)
 
-@inline function foreach_enumerate(func, collection, index)
-    element = first(collection)
-    remaining_collection = Base.tail(collection)
-
-    @inline func((index, element))
+    @inline func((element1, element2))
 
     # Process remaining collection
-    foreach_enumerate(func, remaining_collection, index + 1)
+    foreach_noalloc(func, remaining_collection1, remaining_collection2)
+end
+
+@inline foreach_noalloc(func, collection1::Tuple{}, collection2::Tuple{}) = nothing
+
+@inline cross_product(a, b) = cross(a, b)
+
+@inline function cross_product(a::Number, b::SVector{2})
+    return SVector(-a * b[2], a * b[1])
 end
 
 # Returns `functions[index](args...)`, but in a type-stable way for a heterogeneous tuple `functions`
@@ -182,9 +187,19 @@ Base.pointer(A::ThreadedBroadcastArray) = pointer(parent(A))
 Base.size(A::ThreadedBroadcastArray) = size(parent(A))
 Base.IndexStyle(::Type{<:ThreadedBroadcastArray}) = IndexLinear()
 
-function Base.similar(A::ThreadedBroadcastArray, ::Type{T}) where {T}
-    return ThreadedBroadcastArray(similar(A.array, T);
+function Base.similar(A::ThreadedBroadcastArray, ::Type{T}, dims::Base.Dims) where {T}
+    return ThreadedBroadcastArray(similar(A.array, T, dims);
                                   parallelization_backend=A.parallelization_backend)
+end
+
+function Base.convert(::Type{ThreadedBroadcastArray{T, N, A, P}},
+                      a::AbstractArray) where {T, N, A, P}
+    if a isa ThreadedBroadcastArray{T, N, A, P}
+        return a
+    end
+
+    # TODO we only have the type `P` here and just assume that we can do `P()`
+    return ThreadedBroadcastArray(convert(A, a), parallelization_backend=P())
 end
 
 Base.@propagate_inbounds function Base.getindex(A::ThreadedBroadcastArray, i...)

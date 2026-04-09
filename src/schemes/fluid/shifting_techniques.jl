@@ -250,7 +250,7 @@ function ParticleShiftingTechniqueSun2017(; kwargs...)
 end
 
 """
-    ConsistentShiftingSun2019(; sound_speed_factor=0.1, kwargs...)
+    ConsistentShiftingSun2019(; sound_speed_factor=0.1f0, kwargs...)
 
 Consistent Particle Shifting Technique by [Sun et al. (2019)](@cite Sun2019).
 
@@ -261,10 +261,10 @@ ParticleShiftingTechnique(integrate_shifting_velocity=true,
                           modify_continuity_equation=true,
                           second_continuity_equation_term=ContinuityEquationTermSun2019(),
                           momentum_equation_term=MomentumEquationTermSun2019(),
-                          v_max_factor=0, sound_speed_factor=0.1)
+                          v_max_factor=0, sound_speed_factor=0.1f0)
 
 # output
-ParticleShiftingTechnique{true, true, true, false, Float64, ContinuityEquationTermSun2019, MomentumEquationTermSun2019}(0.1, ContinuityEquationTermSun2019(), MomentumEquationTermSun2019())
+ParticleShiftingTechnique{true, true, true, false, Float32, ContinuityEquationTermSun2019, MomentumEquationTermSun2019}(0.1f0, ContinuityEquationTermSun2019(), MomentumEquationTermSun2019())
 ```
 
 See [ParticleShiftingTechnique](@ref ParticleShiftingTechnique) for all available options.
@@ -284,7 +284,7 @@ See [ParticleShiftingTechnique](@ref ParticleShiftingTechnique) for all availabl
 shifting_technique = ConsistentShiftingSun2019()
 
 # output
-ParticleShiftingTechnique{true, true, true, false, Float64, ContinuityEquationTermSun2019, MomentumEquationTermSun2019}(0.1, ContinuityEquationTermSun2019(), MomentumEquationTermSun2019())
+ParticleShiftingTechnique{true, true, true, false, Float32, ContinuityEquationTermSun2019, MomentumEquationTermSun2019}(0.1f0, ContinuityEquationTermSun2019(), MomentumEquationTermSun2019())
 ```
 
 !!! warning
@@ -298,7 +298,7 @@ function ConsistentShiftingSun2019(; kwargs...)
                                      modify_continuity_equation=true,
                                      second_continuity_equation_term=ContinuityEquationTermSun2019(),
                                      momentum_equation_term=MomentumEquationTermSun2019(),
-                                     v_max_factor=0, sound_speed_factor=0.1,
+                                     v_max_factor=0, sound_speed_factor=0.1f0,
                                      kwargs...)
 end
 
@@ -410,11 +410,14 @@ end
 # means `compute_v_max=true`
 function v_max(shifting::ParticleShiftingTechnique{<:Any, <:Any, <:Any, true},
                v, system)
-    # This has similar performance to `maximum(..., eachparticle(system))`,
+    # This has similar performance as `maximum(..., eachparticle(system))`,
     # but is GPU-compatible.
-    v_max = maximum(x -> sqrt(dot(x, x)),
-                    reinterpret(reshape, SVector{ndims(system), eltype(v)},
-                                current_velocity(v, system)))
+    velocity = current_velocity(v, system)
+    v_max2 = maximum(x -> dot(x, x),
+                     reinterpret(reshape, SVector{ndims(system), eltype(velocity)},
+                                 velocity))
+    v_max = sqrt(v_max2)
+
     return shifting.v_factor * v_max
 end
 
@@ -427,8 +430,8 @@ function v_max(shifting::ParticleShiftingTechnique{<:Any, <:Any, <:Any, false},
     return shifting.v_factor * sound_speed
 end
 
-function update_shifting_inner!(system, shifting::ParticleShiftingTechnique,
-                                v, u, v_ode, u_ode, semi)
+@fastpow function update_shifting_inner!(system, shifting::ParticleShiftingTechnique,
+                                         v, u, v_ode, u_ode, semi)
     (; cache) = system
     (; delta_v) = cache
 
@@ -455,18 +458,14 @@ function update_shifting_inner!(system, shifting::ParticleShiftingTechnique,
                                                                            neighbor,
                                                                            pos_diff,
                                                                            distance
-            m_b = hydrodynamic_mass(neighbor_system, neighbor)
-            rho_a = current_density(v, system, particle)
-            rho_b = current_density(v_neighbor, neighbor_system, neighbor)
+            m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
+            rho_a = @inbounds current_density(v, system, particle)
+            rho_b = @inbounds current_density(v_neighbor, neighbor_system, neighbor)
 
             kernel = smoothing_kernel(system, distance, particle)
             grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
-            # According to p. 29 below Eq. 9
-            R = 2 // 10
-            n = 4
-
-            # Eq. 7 in Sun et al. (2017).
+            # Eq. 7 in Sun et al. (2017). R = 0.2 and n = 4 according to p. 29 below Eq. 9.
             # According to the paper, CFL * Ma can be rewritten as Δt * v_max / h
             # (see p. 29, right above Eq. 9), but this does not yield the same amount
             # of shifting when scaling h.
@@ -477,7 +476,7 @@ function update_shifting_inner!(system, shifting::ParticleShiftingTechnique,
             # - linearly with the particle spacing,
             # - linearly with the time step.
             # See https://github.com/trixi-framework/TrixiParticles.jl/pull/834.
-            delta_v_ = -v_max_ * (2 * h)^2 / (2 * dx) * (1 + R * (kernel / Wdx)^n) *
+            delta_v_ = -v_max_ * (2 * h)^2 / (2 * dx) * (1 + (kernel / Wdx)^4 * 2 / 10) *
                        m_b / (rho_a + rho_b) * grad_kernel
 
             # Write into the buffer

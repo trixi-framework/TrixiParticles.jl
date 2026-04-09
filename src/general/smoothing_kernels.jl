@@ -144,8 +144,7 @@ struct SchoenbergCubicSplineKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
     q = r / h
 
     # We do not use `+=` or `-=` since these are not recognized by MuladdMacro.jl.
-    # Use `//` to preserve the type of `q`.
-    result = 1 // 4 * (2 - q)^3
+    result = 1 * (2 - q)^3 / 4
     result = result - (q < 1) * (1 - q)^3
 
     # Zero out result if q >= 2
@@ -159,8 +158,7 @@ end
     q = r * inner_deriv
 
     # We do not use `+=` or `-=` since these are not recognized by MuladdMacro.jl
-    # Use `//` to preserve the type of `q`.
-    result = -3 // 4 * (2 - q)^2
+    result = -3 * (2 - q)^2 / 4
     result = result + 3 * (q < 1) * (1 - q)^2
 
     # Zero out result if q >= 2
@@ -172,8 +170,8 @@ end
 
 @inline compact_support(::SchoenbergCubicSplineKernel, h) = 2 * h
 
-@inline normalization_factor(::SchoenbergCubicSplineKernel{1}, h) = 2 / 3h
-# `7 * pi` is always `Float64`. `pi * h^2 * 7` preserves the type of `h`.
+# Note that `2 // 3 / h` saves one instruction but is significantly slower on GPUs (for now)
+@inline normalization_factor(::SchoenbergCubicSplineKernel{1}, h) = 2 / (3 * h)
 @inline normalization_factor(::SchoenbergCubicSplineKernel{2}, h) = 10 / (pi * h^2 * 7)
 @inline normalization_factor(::SchoenbergCubicSplineKernel{3}, h) = 1 / (pi * h^3)
 
@@ -262,10 +260,9 @@ end
     return result
 end
 
-@inline compact_support(::SchoenbergQuarticSplineKernel, h) = 5 // 2 * h
+@inline compact_support(::SchoenbergQuarticSplineKernel, h) = 5 * h / 2
 
-@inline normalization_factor(::SchoenbergQuarticSplineKernel{1}, h) = 1 / 24h
-# `1199 * pi` is always `Float64`. `pi * h^2 * 1199` preserves the type of `h`.
+@inline normalization_factor(::SchoenbergQuarticSplineKernel{1}, h) = 1 / (24 * h)
 @inline normalization_factor(::SchoenbergQuarticSplineKernel{2}, h) = 96 / (pi * h^2 * 1199)
 @inline normalization_factor(::SchoenbergQuarticSplineKernel{3}, h) = 1 / (pi * h^3 * 20)
 
@@ -343,15 +340,14 @@ end
 
 @inline compact_support(::SchoenbergQuinticSplineKernel, h) = 3 * h
 
-@inline normalization_factor(::SchoenbergQuinticSplineKernel{1}, h) = 1 / 120h
-# `478 * pi` is always `Float64`. `pi * h^2 * 478` preserves the type of `h`.
+@inline normalization_factor(::SchoenbergQuinticSplineKernel{1}, h) = 1 / (120 * h)
 @inline normalization_factor(::SchoenbergQuinticSplineKernel{2}, h) = 7 / (pi * h^2 * 478)
 @inline normalization_factor(::SchoenbergQuinticSplineKernel{3}, h) = 1 / (pi * h^3 * 120)
 
 abstract type AbstractWendlandKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
 
 # Compact support for all Wendland kernels
-@inline compact_support(::AbstractWendlandKernel, h) = 2h
+@inline compact_support(::AbstractWendlandKernel, h) = 2 * h
 
 @doc raw"""
     WendlandC2Kernel{NDIMS}()
@@ -390,7 +386,7 @@ struct WendlandC2Kernel{NDIMS} <: AbstractWendlandKernel{NDIMS} end
 @fastpow @inline function kernel(kernel::WendlandC2Kernel, r::Real, h)
     q = r / h
 
-    result = (1 - q / 2)^4 * (2q + 1)
+    result = (1 - q / 2)^4 * (2 * q + 1)
 
     # Zero out result if q >= 2
     result = ifelse(q < 2, normalization_factor(kernel, h) * result, zero(q))
@@ -398,16 +394,11 @@ struct WendlandC2Kernel{NDIMS} <: AbstractWendlandKernel{NDIMS} end
     return result
 end
 
-@fastpow @muladd @inline function kernel_deriv(kernel::WendlandC2Kernel, r::Real, h)
+@inline function kernel_deriv(kernel::WendlandC2Kernel, r::Real, h)
     inner_deriv = 1 / h
     q = r * inner_deriv
 
-    q1_3 = (1 - q / 2)^3
-    q1_4 = (1 - q / 2)^4
-
-    # We do not use `+=` or `-=` since these are not recognized by MuladdMacro.jl
-    result = -2 * q1_3 * (2q + 1)
-    result = result + q1_4 * 2
+    result = -5 * (1 - q / 2)^3 * q
 
     # Zero out result if q >= 2
     result = ifelse(q < 2,
@@ -416,9 +407,9 @@ end
     return result
 end
 
-@inline normalization_factor(::WendlandC2Kernel{2}, h) = 7 / (pi * h^2) / 4
-# `2 * pi` is always `Float64`. `pi * h^3 * 2` preserves the type of `h`.
-@inline normalization_factor(::WendlandC2Kernel{3}, h) = 21 / (pi * h^3 * 2) / 8
+# Note that `7 // 4` saves one instruction but is significantly slower on GPUs (for now)
+@inline normalization_factor(::WendlandC2Kernel{2}, h) = 7 / (pi * h^2 * 4)
+@inline normalization_factor(::WendlandC2Kernel{3}, h) = 21 / (pi * h^3 * 16)
 
 @doc raw"""
     WendlandC4Kernel{NDIMS}()
@@ -457,7 +448,7 @@ struct WendlandC4Kernel{NDIMS} <: AbstractWendlandKernel{NDIMS} end
 @fastpow @inline function kernel(kernel::WendlandC4Kernel, r::Real, h)
     q = r / h
 
-    result = (1 - q / 2)^6 * (35q^2 / 12 + 3q + 1)
+    result = (1 - q / 2)^6 * (35 * q^2 / 12 + 3 * q + 1)
 
     # Zero out result if q >= 2
     result = ifelse(q < 2, normalization_factor(kernel, h) * result, zero(q))
@@ -465,13 +456,10 @@ struct WendlandC4Kernel{NDIMS} <: AbstractWendlandKernel{NDIMS} end
     return result
 end
 
-@fastpow @muladd @inline function kernel_deriv(kernel::WendlandC4Kernel, r::Real, h)
+@fastpow @inline function kernel_deriv(kernel::WendlandC4Kernel, r::Real, h)
     q = r / h
 
-    # Use `//` to preserve the type of `q`
-    term1 = (1 - q / 2)^6 * (3 + 35 // 6 * q)
-    term2 = 3 * (1 - q / 2)^5 * (1 + 3q + 35 // 12 * q^2)
-    derivative = term1 - term2
+    derivative = -7 * q / 3 * (2 + 5 * q) * (1 - q / 2)^5
 
     # Zero out result if q >= 2
     result = ifelse(q < 2, normalization_factor(kernel, h) * derivative / h,
@@ -480,9 +468,8 @@ end
     return result
 end
 
-@inline normalization_factor(::WendlandC4Kernel{2}, h) = 9 / (pi * h^2) / 4
-# `32 * pi` is always `Float64`. `pi * h^2 * 32` preserves the type of `h`.
-@inline normalization_factor(::WendlandC4Kernel{3}, h) = 495 / (pi * h^3 * 32) / 8
+@inline normalization_factor(::WendlandC4Kernel{2}, h) = 9 / (pi * h^2 * 4)
+@inline normalization_factor(::WendlandC4Kernel{3}, h) = 495 / (pi * h^3 * 256)
 
 @doc raw"""
     WendlandC6Kernel{NDIMS}()
@@ -521,7 +508,7 @@ struct WendlandC6Kernel{NDIMS} <: AbstractWendlandKernel{NDIMS} end
 @fastpow @inline function kernel(kernel::WendlandC6Kernel, r::Real, h)
     q = r / h
 
-    result = (1 - q / 2)^8 * (4q^3 + 25q^2 / 4 + 4q + 1)
+    result = (1 - q / 2)^8 * (4 * q^3 + 25 * q^2 / 4 + 4 * q + 1)
 
     # Zero out result if q >= 2
     result = ifelse(q < 2, normalization_factor(kernel, h) * result, zero(q))
@@ -531,9 +518,8 @@ end
 
 @fastpow @muladd @inline function kernel_deriv(kernel::WendlandC6Kernel, r::Real, h)
     q = r / h
-    term1 = -4 * (1 - q / 2)^7 * (4q^3 + 25q^2 / 4 + 4q + 1)
-    term2 = (1 - q / 2)^8 * (12q^2 + 50q / 4 + 4)
-    derivative = term1 + term2
+
+    derivative = -11 * q / 4 * (8 * q^2 + 7 * q + 2) * (1 - q / 2)^7
 
     # Zero out result if q >= 2
     result = ifelse(q < 2, normalization_factor(kernel, h) * derivative / h,
@@ -542,9 +528,8 @@ end
     return result
 end
 
-# `7 * pi` is always `Float64`. `pi * h^2 * 7` preserves the type of `h`.
-@inline normalization_factor(::WendlandC6Kernel{2}, h) = 78 / (pi * h^2 * 7) / 4
-@inline normalization_factor(::WendlandC6Kernel{3}, h) = 1365 / (pi * h^3 * 64) / 8
+@inline normalization_factor(::WendlandC6Kernel{2}, h) = 39 / (pi * h^2 * 14)
+@inline normalization_factor(::WendlandC6Kernel{3}, h) = 1365 / (pi * h^3 * 512)
 
 @doc raw"""
     Poly6Kernel{NDIMS}()
@@ -609,8 +594,8 @@ end
 
 @inline compact_support(::Poly6Kernel, h) = h
 
+# Note that `315 // 64` saves one instruction but is significantly slower on GPUs (for now)
 @inline normalization_factor(::Poly6Kernel{2}, h) = 4 / (pi * h^2)
-# `64 * pi` is always `Float64`. `pi * h^3 * 64` preserves the type of `h`.
 @inline normalization_factor(::Poly6Kernel{3}, h) = 315 / (pi * h^3 * 64)
 
 @doc raw"""
@@ -676,3 +661,106 @@ end
 
 @inline normalization_factor(::SpikyKernel{2}, h) = 10 / (pi * h^2)
 @inline normalization_factor(::SpikyKernel{3}, h) = 15 / (pi * h^3)
+
+@doc raw"""
+    LaguerreGaussKernel{NDIMS}()
+
+Truncated Laguerre–Gauss kernel (fourth-order smoothing) as defined in
+[Wang2024](@cite). Its radial form uses ``q = r/h`` and is truncated at
+``q = 2`` (compact support ``2h``):
+
+```math
+W(r,h) = \frac{C_d}{h^d}
+\left(1 - \frac{q^2}{2} + \frac{q^4}{6}\right) e^{-q^2},
+\quad q = \frac{r}{h}, \quad 0 \le q \le 2,
+```
+
+where the dimension-dependent normalization constants ``C_d`` are chosen so that
+the truncated kernel is normalized,
+
+```math
+\int_{\lVert x \rVert \le 2h} W(\lVert x \rVert, h)\,\mathrm{d}^d x = 1.
+```
+
+Explicitly, for ``d = 1,2,3`` we obtain
+
+```math
+C_1 = \frac{1}{
+  2\Bigl(\frac{7\sqrt{\pi}}{16}\,\mathrm{erf}(2)
+         - \frac{5}{12} e^{-4}\Bigr)}
+    \approx 0.6542878,
+```
+
+```math
+C_2 = \frac{6}{\pi\bigl(5 - 17 e^{-4}\bigr)}
+    \approx 0.4073381,
+```
+
+```math
+C_3 = \frac{1}{
+  4\pi\Bigl(\frac{7\sqrt{\pi}}{32}\,\mathrm{erf}(2)
+           - \frac{77}{24} e^{-4}\Bigr)}
+    \approx 0.2432461.
+```
+
+These values differ from the original infinite-support normalization factors in
+[Wang2024](@cite) because the kernel is truncated at ``q = 2`` and then
+renormalized.
+
+Recommended practical choice from the paper: use ``h \approx 1.3 \Delta x``
+and the same cut-off as Wendland (``2h``) for comparable cost. Negative lobes
+enforce the vanishing second moment (fourth-order smoothing) while remaining
+stable in Eulerian / total Lagrangian SPH with relaxed particles.
+
+For general information and usage see [Smoothing Kernels](@ref smoothing_kernel).
+"""
+struct LaguerreGaussKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
+
+@fastpow @inline function kernel(kernel::LaguerreGaussKernel, r::Real, h)
+    q = r / h
+
+    # polynomial part: 1 - s^2/2 + s^4/6
+    poly = 1 - q^2 / 2 + q^4 / 6
+
+    # zero out for s ≥ 2
+    return ifelse(q < 2, normalization_factor(kernel, h) * poly * exp(-q^2), zero(q))
+end
+
+@inline function kernel_deriv(kernel::LaguerreGaussKernel, r::Real, h)
+    invh = 1 / h
+    q = r * invh
+
+    # dg/dq = (q/3)*(-q^4 + 5q^2 - 9) * exp(-q^2)
+    poly = ((-q^2 + 5) * q^2 - 9) * (q / 3)
+
+    return ifelse(q < 2, normalization_factor(kernel, h) * exp(-q^2) * poly * invh, zero(q))
+end
+
+@inline compact_support(::LaguerreGaussKernel, h) = 2 * h
+# Original normalization factors as in Wang2024
+# @inline normalization_factor(::LaguerreGaussKernel{1}, h) = (8 / (5 * sqrt(pi))) / h
+# @inline normalization_factor(::LaguerreGaussKernel{2}, h) = (3 / (pi)) / (h^2)
+# @inline normalization_factor(::LaguerreGaussKernel{3}, h) = (8 / (pi^(3 // 2))) / (h^3)
+
+# Renormalized to the truncated integral over [0,2h]
+@inline function normalization_factor(kernel::LaguerreGaussKernel{1}, h)
+    # C = 1/(2*(7 * sqrt(pi) / 16) * erf(2) - (5 / 12) * exp(-4))
+    C = oftype(h, 0.65428780253539)
+    # C' = C/h
+    return C / h
+end
+
+@inline function normalization_factor(kernel::LaguerreGaussKernel{2}, h)
+    # C = 2 * pi * (5 - 17 * exp(-4)) / 12
+    C = oftype(h, 2.454963094351984)
+    # C' = 1 / (h^2 * C)
+    return 1 / (h^2 * C)
+end
+
+@inline function normalization_factor(kernel::LaguerreGaussKernel{3}, h)
+    # C = (7 * sqrt(pi) / 32) * erf(2) - (77 / 24) * exp(-4)
+    C = oftype(h, 0.3271479336905373)
+
+    # 4*pi cannot be pulled into C otherwise the test fails because of differences in rounding
+    return 1 / (C * 4 * pi * h^3)
+end
