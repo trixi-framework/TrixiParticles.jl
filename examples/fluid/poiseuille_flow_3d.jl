@@ -181,9 +181,9 @@ neighborhood_search = GridNeighborhoodSearch{3}(;
                                                 update_strategy=ParallelUpdate())
 
 semi = Semidiscretization(fluid_system, open_boundary,
-                                         boundary_system,
-                                         neighborhood_search=neighborhood_search,
-                                         parallelization_backend=PolyesterBackend())
+                          boundary_system,
+                          neighborhood_search=neighborhood_search,
+                          parallelization_backend=PolyesterBackend())
 
 ode_problem = semidiscretize(semi, tspan)
 
