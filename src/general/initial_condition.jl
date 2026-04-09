@@ -16,6 +16,9 @@ to build more complex geometries.
 `InitialCondition`s also support the set operations `setdiff` and `intersect` together
 with `TrixiParticles.TriangleMesh` and `TrixiParticles.Polygon` returned by [`load_geometry`](@ref).
 
+To add a rotational contribution to an existing initial condition, use
+[`apply_angular_velocity`](@ref).
+
 # Arguments
 - `coordinates`: An array where the $i$-th column holds the coordinates of particle $i$.
 - `density`:     Either a vector holding the density of each particle,
@@ -38,6 +41,7 @@ with `TrixiParticles.TriangleMesh` and `TrixiParticles.Polygon` returned by [`lo
 - `particle_spacing`: The spacing between the particles. This is a scalar, as the spacing
                       is assumed to be uniform. This is only needed when using
                       set operations on the `InitialCondition` or for automatic mass calculation.
+
 
 # Examples
 ```jldoctest; output = false
@@ -461,3 +465,74 @@ function move_particles_to_end!(a::AbstractVector, particle_ids_to_move)
 end
 
 move_particles_to_end!(a::Real, particle_ids_to_move) = a
+
+function center_of_mass_from_mass(coordinates, mass, ::Val{NDIMS}, ELTYPE) where {NDIMS}
+    weighted_center_of_mass = zero(SVector{NDIMS, ELTYPE})
+    center_of_mass = zero(SVector{NDIMS, ELTYPE})
+    total_mass = zero(ELTYPE)
+    n_particles = length(mass)
+
+    n_particles == 0 && return center_of_mass
+
+    for particle in eachindex(mass)
+        particle_coordinates = extract_svector(coordinates, Val(NDIMS), particle)
+        particle_mass = convert(ELTYPE, mass[particle])
+        total_mass += particle_mass
+        weighted_center_of_mass += particle_mass * particle_coordinates
+        center_of_mass += particle_coordinates
+    end
+
+    if total_mass > eps(ELTYPE)
+        return weighted_center_of_mass / total_mass
+    end
+
+    return center_of_mass / n_particles
+end
+
+@doc raw"""
+    apply_angular_velocity(initial_condition::InitialCondition, angular_velocity)
+
+Return a new [`InitialCondition`](@ref) whose velocity includes the rotational
+contribution ``v = \omega \times r`` around the center of mass of `initial_condition`.
+
+In 2D, pass a scalar angular speed in rad/s.
+In 3D, pass a vector of length 3 whose direction gives the rotation axis
+(right-hand rule) and whose norm ``|\omega|`` gives the angular speed in rad/s.
+"""
+function apply_angular_velocity(initial_condition::InitialCondition, angular_velocity)
+    NDIMS = ndims(initial_condition)
+    ELTYPE = eltype(initial_condition)
+    if NDIMS == 2
+        if !(angular_velocity isa Number)
+            throw(ArgumentError("`angular_velocity` must be a scalar for a 2D problem"))
+        end
+        angular_velocity_ = convert(ELTYPE, angular_velocity)
+    elseif NDIMS == 3
+        if !(angular_velocity isa Union{Tuple, AbstractArray} &&
+             length(angular_velocity) == 3)
+            throw(ArgumentError("`angular_velocity` must be of length 3 for a 3D problem"))
+        end
+        angular_velocity_ = SVector{3, ELTYPE}(Tuple(angular_velocity))
+    else
+        throw(ArgumentError("`apply_angular_velocity` currently supports only 2D and 3D, got $(NDIMS)D"))
+    end
+    velocity = copy(initial_condition.velocity)
+    if !iszero(angular_velocity_)
+        center_of_mass = center_of_mass_from_mass(initial_condition.coordinates,
+                                                  initial_condition.mass, Val(NDIMS),
+                                                  ELTYPE)
+
+        for particle in axes(velocity, 2)
+            relative_position = extract_svector(initial_condition.coordinates, Val(NDIMS),
+                                                particle) - center_of_mass
+            rotational_velocity = cross_product(angular_velocity_, relative_position)
+
+            for dim in 1:NDIMS
+                velocity[dim, particle] += rotational_velocity[dim]
+            end
+        end
+    end
+
+    # Return a copy of `initial_condition` with the correct velocity set
+    return @set initial_condition.velocity = velocity
+end

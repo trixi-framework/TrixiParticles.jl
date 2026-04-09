@@ -38,9 +38,15 @@ end
                     r"┌ Info: The desired tank length in y-direction.*\n",
                     r"└ New tank length in y-direction.*\n"
                 ]
-                @test semi.neighborhood_searches[1][1].cell_list isa FullGridCellList
-                @test sol.retcode == ReturnCode.Success
-                v_ode, u_ode = sol.u[end].x
+                # Since Julia 1.12 has issues with world age, we need to use `@invokelatest`
+                # everywhere here. For some reason, this is only necessary in this and the
+                # next test, but not in the other tests in this file.
+                # Perhaps because this is inside an `if` block?
+                @test (@invokelatest (@__MODULE__).semi).neighborhood_searches[1, 1].cell_list isa
+                      FullGridCellList
+                @test (@invokelatest (@__MODULE__).sol).retcode ==
+                      (@invokelatest (@__MODULE__).ReturnCode).Success
+                v_ode, u_ode = (@invokelatest (@__MODULE__).sol).u[end].x
                 backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
                 @test backend == Main.parallelization_backend
                 @test eltype(v_ode) == Float64
@@ -67,9 +73,12 @@ end
                     r"┌ Info: The desired tank length in y-direction .*\n",
                     r"└ New tank length in y-direction.*\n"
                 ]
-                @test semi.neighborhood_searches[1][1].cell_list isa FullGridCellList
-                @test sol.retcode == ReturnCode.Success
-                v_ode, u_ode = sol.u[end].x
+                # See the comment in the previous test about `@invokelatest`
+                @test (@invokelatest (@__MODULE__).semi).neighborhood_searches[1, 1].cell_list isa
+                      FullGridCellList
+                @test (@invokelatest (@__MODULE__).sol).retcode ==
+                      (@invokelatest (@__MODULE__).ReturnCode).Success
+                v_ode, u_ode = (@invokelatest (@__MODULE__).sol).u[end].x
                 backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
                 @test backend == Main.parallelization_backend
                 @test eltype(v_ode) == Float32
@@ -116,7 +125,7 @@ end
                         r"┌ Info: The desired tank length in y-direction.*\n",
                         r"└ New tank length in y-direction.*\n"
                     ]
-                    @test semi.neighborhood_searches[1][1].cell_list isa FullGridCellList
+                    @test semi.neighborhood_searches[1, 1].cell_list isa FullGridCellList
                     @test sol.retcode == ReturnCode.Success
                     v_ode, u_ode = sol.u[end].x
                     backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
@@ -140,7 +149,7 @@ end
                 r"┌ Info: The desired tank length in y-direction.*\n",
                 r"└ New tank length in y-direction.*\n"
             ]
-            @test semi.neighborhood_searches[1][1].cell_list isa FullGridCellList
+            @test semi.neighborhood_searches[1, 1].cell_list isa FullGridCellList
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
@@ -174,7 +183,7 @@ end
                 r"┌ Info: The desired tank length in y-direction.*\n",
                 r"└ New tank length in y-direction.*\n"
             ]
-            @test semi.neighborhood_searches[1][1].cell_list isa FullGridCellList
+            @test semi.neighborhood_searches[1, 1].cell_list isa FullGridCellList
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
@@ -528,6 +537,28 @@ end
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
+        end
+
+        @trixi_testset "structure/oscillating_beam_2d.jl with PostprocessCallback" begin
+            pp = PostprocessCallback(; interval=5, total_mass,
+                                     write_file_interval=0)
+            @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
+                                                             joinpath(examples_dir(),
+                                                                      "structure",
+                                                                      "oscillating_beam_2d.jl"),
+                                                             coordinates_eltype=Float32,
+                                                             tspan=(0.0f0, 0.1f0),
+                                                             saving_callback=pp,
+                                                             parallelization_backend=Main.parallelization_backend) [
+                r"\[ Info: To create the self-interaction neighborhood search.*\n",
+                r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
+            ]
+            @test sol.retcode == ReturnCode.Success
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+            @test backend == Main.parallelization_backend
+            # Check that the postprocess callback was called and computed values
+            @test !isempty(pp.affect!.func)
+            @test !isempty(pp.affect!.times)
         end
     end
 

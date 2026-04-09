@@ -72,10 +72,7 @@ end
 function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                             fluid_system::AbstractFluidSystem, buffer_size::Integer,
                             boundary_model, calculate_flow_rate=false,
-                            pressure_acceleration=boundary_model isa
-                                                  BoundaryModelDynamicalPressureZhang ?
-                                                  fluid_system.pressure_acceleration_formulation :
-                                                  nothing,
+                            pressure_acceleration=fluid_system.pressure_acceleration_formulation,
                             shifting_technique=boundary_model isa
                                                BoundaryModelDynamicalPressureZhang ?
                                                shifting_technique(fluid_system) : nothing)
@@ -114,20 +111,7 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
     # in the `BoundaryZone`, but they are not used in the actual simulation.
     # The reference values are extracted above in the "create cache" function
     # and then stored in `system.cache` as a `Tuple`.
-    boundary_zones_new = map(zone -> BoundaryZone(zone.initial_condition,
-                                                  zone.spanning_set,
-                                                  zone.zone_origin,
-                                                  zone.zone_width,
-                                                  zone.flow_direction,
-                                                  zone.face_normal,
-                                                  zone.rest_pressure,
-                                                  nothing,
-                                                  zone.cache,
-                                                  zone.average_inflow_velocity,
-                                                  zone.prescribed_density,
-                                                  zone.prescribed_pressure,
-                                                  zone.prescribed_velocity),
-                             boundary_zones_)
+    boundary_zones_new = map(zone -> @set(zone.reference_values = nothing), boundary_zones_)
 
     return OpenBoundarySystem(boundary_model, initial_conditions, fluid_system,
                               fluid_system_index, smoothing_kernel, smoothing_length, mass,
@@ -295,6 +279,11 @@ end
     current_density(v, system)[particle] = density
 
     return v
+end
+
+function calculate_dt(v_ode, u_ode, cfl_number, system::OpenBoundarySystem, semi)
+    # Open boundaries don't affect the timestep calculation
+    return Inf
 end
 
 @inline function add_velocity!(du, v, u, particle, system::OpenBoundarySystem, t)
@@ -639,6 +628,8 @@ function interpolate_velocity!(system::OpenBoundarySystem, boundary_zone,
     # Shepard-normalized interpolation:
     #   v(p) = (Σ_b v_b V_b W_pb) / (Σ_b V_b W_pb)
     foreach_system(semi) do neighbor_system
+        use_open_boundary_interpolation_neighbor(neighbor_system) || return neighbor_system
+
         v_neighbor = wrap_v(v_ode, neighbor_system, semi)
         u_neighbor = wrap_u(u_ode, neighbor_system, semi)
         neighbor_coords = current_coordinates(u_neighbor, neighbor_system)
@@ -657,8 +648,7 @@ function interpolate_velocity!(system::OpenBoundarySystem, boundary_zone,
                                                            neighbor)
             for i in axes(velocity_neighbor, 1)
                 @inbounds sample_velocity[i,
-                                          point] += velocity_neighbor[i] * volume_b *
-                                                    W_ab
+                                          point] += velocity_neighbor[i] * volume_b * W_ab
             end
         end
     end
@@ -673,6 +663,15 @@ function interpolate_velocity!(system::OpenBoundarySystem, boundary_zone,
 
     return system
 end
+
+# Open-boundary interpolation should reconstruct the surrounding fluid-like velocity field.
+# Therefore, only actual fluid systems and other open-boundary particles contribute;
+# rigid bodies, walls, and other non-fluid systems are intentionally excluded.
+@inline use_open_boundary_interpolation_neighbor(::AbstractFluidSystem) = true
+
+@inline use_open_boundary_interpolation_neighbor(::OpenBoundarySystem) = true
+
+@inline use_open_boundary_interpolation_neighbor(system) = false
 
 function check_configuration(system::OpenBoundarySystem, systems,
                              neighborhood_search::PointNeighbors.AbstractNeighborhoodSearch)
