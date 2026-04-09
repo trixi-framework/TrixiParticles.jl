@@ -194,9 +194,7 @@ struct SchoenbergCubicSplineKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
     h_inv = 1 / h
     q = r * h_inv
 
-    # We do not use `+=` or `-=` since these are not recognized by MuladdMacro.jl.
-    result = 1 * (2 - q)^3 / 4
-    @muladd result = result - (q < 1) * (1 - q)^3
+    result = 1 * (2 - q)^3 / 4 - (q < 1) * (1 - q)^3
 
     return normalization_factor(kernel, h_inv) * result
 end
