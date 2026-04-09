@@ -178,7 +178,7 @@ end
 # This is just for readability to loop over all systems with wrapped arrays.
 @inline function foreach_system_wrapped(f, semi::Union{NamedTuple, Semidiscretization},
                                         v_ode, u_ode)
-    return foreach_system(semi) do system
+    foreach_system(semi) do system
         f(system, wrap_v(v_ode, system, semi), wrap_u(u_ode, system, semi))
     end
 end
