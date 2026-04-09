@@ -20,9 +20,13 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "poiseuille_flow_3d
 v_max = channel_diameter^2 * imposed_pressure_drop /
         (8 * dynamic_viscosity * channel_length)
 
-function dynamic_pressure_drop(pos, t)
-    return imposed_pressure_drop +
-           (channel_length - pos[1]) / channel_length * imposed_pressure_drop * cos(t)
+# Use `let` block to define the function with the *current values* of the global variables,
+# instead of reading the globals every time it is called, which would make it slow.
+let imposed_pressure_drop = imposed_pressure_drop, channel_length = channel_length
+    global function dynamic_pressure_drop(pos, t)
+        return imposed_pressure_drop +
+               (channel_length - pos[1]) / channel_length * imposed_pressure_drop * cos(t)
+    end
 end
 
 saving_callback = SolutionSavingCallback(dt=0.01, prefix="", output_directory="out")
