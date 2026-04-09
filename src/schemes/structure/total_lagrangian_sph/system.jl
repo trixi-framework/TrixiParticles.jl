@@ -489,30 +489,48 @@ end
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     initial_coords = initial_coordinates(system)
-    foreach_point_neighbor(system, system, initial_coords, initial_coords,
-                           semi) do particle, neighbor, initial_pos_diff, initial_distance
-        # Skip neighbors with the same position because the kernel gradient is zero.
-        # Note that `return` only exits the closure, i.e., skips the current neighbor.
-        skip_zero_distance(system) && initial_distance < almostzero && return
+    neighborhood_search = get_neighborhood_search(system, system, semi)
 
-        # Now that we know that `distance` is not zero, we can safely call the unsafe
-        # version of the kernel gradient to avoid redundant zero checks.
-        grad_kernel = smoothing_kernel_grad_unsafe(system, initial_pos_diff,
-                                                   initial_distance, particle)
+    @threaded semi for particle in each_integrated_particle(system)
+        # We are looping over the particles of `system`, so it is guaranteed
+        # that `particle` is in bounds of `system`.
+        current_coords_a = @inbounds current_coords(system, particle)
+        L_a = @inbounds correction_matrix(system, particle)
 
-        volume = @inbounds mass[neighbor] / material_density[neighbor]
-        pos_diff_ = @inbounds current_coords(system, particle) -
-                              current_coords(system, neighbor)
-        # On GPUs, convert `Float64` coordinates to `Float32` after computing the difference
-        pos_diff = convert.(eltype(system), pos_diff_)
+        # Accumulate the contributions over all neighbors before writing
+        # to `deformation_grad` to reduce the number of memory writes.
+        # Note that we need a `Ref` in order to be able to update these variables
+        # inside the closure in the `foreach_neighbor` loop.
+        result = Ref(zero(L_a))
 
-        # Multiply by L_{0a}
-        L = @inbounds correction_matrix(system, particle)
+        # Loop over all neighbors within the kernel cutoff
+        @inbounds PointNeighbors.foreach_neighbor(initial_coords, initial_coords,
+                                                  neighborhood_search,
+                                                  particle) do particle, neighbor,
+                                                               initial_pos_diff,
+                                                               initial_distance
+            # Skip neighbors with the same position because the kernel gradient is zero.
+            # Note that `return` only exits the closure, i.e., skips the current neighbor.
+            skip_zero_distance(system) && initial_distance < almostzero && return
 
-        result = volume * pos_diff * grad_kernel' * L'
+            # Now that we know that `distance` is not zero, we can safely call the unsafe
+            # version of the kernel gradient to avoid redundant zero checks.
+            grad_kernel = smoothing_kernel_grad_unsafe(system, initial_pos_diff,
+                                                       initial_distance, particle)
+
+            volume = @inbounds mass[neighbor] / material_density[neighbor]
+            current_coords_b = @inbounds current_coords(system, neighbor)
+            pos_diff_ = current_coords_a - current_coords_b
+            # On GPUs, convert `Float64` coordinates to `Float32` after computing the difference
+            pos_diff = convert.(eltype(system), pos_diff_)
+
+            # The tensor product pos_diff ⊗ (L_{0a} * ∇W) is equivalent to multiplication
+            # by the transpose: pos_diff * (L_{0a} * ∇W)ᵀ = pos_diff * ∇Wᵀ * L_{0a}ᵀ.
+            result[] -= volume * pos_diff * grad_kernel' * L_a'
+        end
 
         for j in 1:ndims(system), i in 1:ndims(system)
-            @inbounds deformation_grad[i, j, particle] -= result[i, j]
+            @inbounds deformation_grad[i, j, particle] += result[][i, j]
         end
     end
 

@@ -40,7 +40,7 @@ end
         current_coords_a = @inbounds current_coords(system, particle)
         F_a = @inbounds deformation_gradient(system, particle)
 
-        # Accumulate the RHS contributions over all neighbors before writing to `dv`,
+        # Accumulate the RHS contributions over all neighbors before writing to `dv`
         # to reduce the number of memory writes.
         # Note that we need a `Ref` in order to be able to update these variables
         # inside the closure in the `foreach_neighbor` loop.
