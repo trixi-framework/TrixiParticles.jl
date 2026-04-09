@@ -180,12 +180,12 @@ neighborhood_search = GridNeighborhoodSearch{3}(;
                                                                            max_corner),
                                                 update_strategy=ParallelUpdate())
 
-semi_discretization = Semidiscretization(fluid_system, open_boundary,
+semi = Semidiscretization(fluid_system, open_boundary,
                                          boundary_system,
                                          neighborhood_search=neighborhood_search,
                                          parallelization_backend=PolyesterBackend())
 
-ode_problem = semidiscretize(semi_discretization, tspan)
+ode_problem = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=20)
 saving_callback = SolutionSavingCallback(dt=0.01, prefix="", output_directory="out")

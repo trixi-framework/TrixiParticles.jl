@@ -497,7 +497,7 @@
             r"└ @ TrixiParticles .*boundary_zones\.jl:\d+\n"
         ]
         @test fluid_system isa WeaklyCompressibleSPHSystem
-        @test solution.retcode == ReturnCode.Success
+        @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
     end
 
@@ -512,7 +512,7 @@
             r"└ @ TrixiParticles .*boundary_zones\.jl:\d+\n"
         ]
         @test fluid_system isa WeaklyCompressibleSPHSystem
-        @test solution.retcode == ReturnCode.Success
+        @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
     end
 
