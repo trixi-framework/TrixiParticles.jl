@@ -179,7 +179,7 @@ end
 @inline function foreach_system_wrapped(f, semi::Union{NamedTuple, Semidiscretization},
                                         v_ode, u_ode)
     foreach_system(semi) do system
-        f(system, wrap_v(v_ode, system, semi), wrap_u(u_ode, system, semi))
+        @inline f(system, wrap_v(v_ode, system, semi), wrap_u(u_ode, system, semi))
     end
 end
 
