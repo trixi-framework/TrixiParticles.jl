@@ -54,7 +54,7 @@ end
 end
 
 @inline function density_calculator(system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang})
-    return system.density_calculator
+    return ContinuityDensity()
 end
 
 @inline impose_rest_density!(v, system, particle, boundary_model) = v

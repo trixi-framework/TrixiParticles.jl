@@ -34,7 +34,6 @@ struct OpenBoundarySystem{BM, ELTYPE, NDIMS, IC, FS, FSI, K, ARRAY1D, BC, FC, BZ
     initial_condition                 :: IC
     fluid_system                      :: FS
     fluid_system_index                :: FSI
-    density_calculator                :: ContinuityDensity
     smoothing_kernel                  :: K
     smoothing_length                  :: ELTYPE
     mass                              :: ARRAY1D # Array{ELTYPE, 1}: [particle]
@@ -51,9 +50,9 @@ struct OpenBoundarySystem{BM, ELTYPE, NDIMS, IC, FS, FSI, K, ARRAY1D, BC, FC, BZ
 end
 
 function OpenBoundarySystem(boundary_model, initial_condition, fluid_system,
-                            fluid_system_index, density_calculator, smoothing_kernel,
-                            smoothing_length, mass, volume, boundary_candidates,
-                            fluid_candidates, boundary_zone_indices, boundary_zone, buffer,
+                            fluid_system_index, smoothing_kernel, smoothing_length, mass,
+                            volume, boundary_candidates, fluid_candidates,
+                            boundary_zone_indices, boundary_zone, buffer,
                             pressure_acceleration, shifting_technique, calculate_flow_rate,
                             cache)
     OpenBoundarySystem{typeof(boundary_model), eltype(mass), ndims(initial_condition),
@@ -63,12 +62,11 @@ function OpenBoundarySystem(boundary_model, initial_condition, fluid_system,
                        typeof(boundary_zone_indices), typeof(boundary_zone), typeof(buffer),
                        typeof(pressure_acceleration), typeof(shifting_technique),
                        typeof(cache)}(boundary_model, initial_condition, fluid_system,
-                                      fluid_system_index, density_calculator,
-                                      smoothing_kernel, smoothing_length, mass, volume,
-                                      boundary_candidates, fluid_candidates,
-                                      boundary_zone_indices, boundary_zone, buffer,
-                                      pressure_acceleration, shifting_technique,
-                                      calculate_flow_rate, cache)
+                                      fluid_system_index, smoothing_kernel,
+                                      smoothing_length, mass, volume, boundary_candidates,
+                                      fluid_candidates, boundary_zone_indices,
+                                      boundary_zone, buffer, pressure_acceleration,
+                                      shifting_technique, calculate_flow_rate, cache)
 end
 
 function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
@@ -120,10 +118,10 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
     boundary_zones_new = map(zone -> @set(zone.reference_values = nothing), boundary_zones_)
 
     return OpenBoundarySystem(boundary_model, initial_conditions, fluid_system,
-                              fluid_system_index, ContinuityDensity(), smoothing_kernel,
-                              smoothing_length, mass, volume, boundary_candidates,
-                              fluid_candidates, boundary_zone_indices, boundary_zones_new,
-                              buffer, pressure_acceleration, shifting_technique,
+                              fluid_system_index, smoothing_kernel, smoothing_length, mass,
+                              volume, boundary_candidates, fluid_candidates,
+                              boundary_zone_indices, boundary_zones_new, buffer,
+                              pressure_acceleration, shifting_technique,
                               calculate_flow_rate, cache)
 end
 
