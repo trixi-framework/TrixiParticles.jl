@@ -2,7 +2,7 @@
   "simulation_info": {
     "julia_version": "1.12.5",
     "solver_name": "TrixiParticles.jl",
-    "solver_version": "2277802-dirty",
+    "solver_version": "3dc3c7b-dirty",
     "technical_setup": {
       "number_of_threads": 1,
       "parallelization_backend": "PolyesterBackend"
