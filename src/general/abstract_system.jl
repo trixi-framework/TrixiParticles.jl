@@ -130,6 +130,11 @@ end
     return kernel(smoothing_kernel, distance, smoothing_length(system, particle))
 end
 
+@inline function smoothing_kernel_unsafe(system, distance, particle)
+    (; smoothing_kernel) = system
+    return kernel_unsafe(smoothing_kernel, distance, smoothing_length(system, particle))
+end
+
 @inline function skip_zero_distance(system::AbstractSystem)
     return skip_zero_distance(system_correction(system))
 end
