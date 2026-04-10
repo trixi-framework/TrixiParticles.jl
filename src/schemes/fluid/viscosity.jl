@@ -115,11 +115,15 @@ end
         h = (h_a + h_b) / 2
 
         rho_mean = (rho_a + rho_b) / 2
-
         (; alpha, beta, epsilon) = viscosity
-        mu = h * vr / (distance^2 + epsilon * h^2)
+
+        # Since this is one of the most performance critical functions, using fast divisions
+        # here gives a significant speedup on GPUs.
+        # See the docs page "Development" for more details on `div_fast`.
+        mu = div_fast(h * vr, distance^2 + epsilon * h^2)
         c = sound_speed
-        dv_viscosity = m_b * (alpha * c * mu + beta * mu^2) / rho_mean * grad_kernel
+        # TODO why is m_b inside the `div_fast` faster on H100 than `m_b * div_fast(...)`?
+        dv_viscosity = div_fast(m_b * alpha * c * mu + m_b * beta * mu^2, rho_mean) * grad_kernel
         dv_particle[] += viscosity_correction * dv_viscosity
     end
 
@@ -182,9 +186,12 @@ end
     mu_a = nu_a * rho_a
     mu_b = nu_b * rho_b
 
-    dv_particle[] += viscosity_correction * m_b * (mu_a + mu_b) /
-                     (rho_a * rho_b) * dot(pos_diff, grad_kernel) /
-                     (distance^2 + epsilon * h^2) * v_diff
+    # Since this is one of the most performance critical functions, using fast divisions
+    # here gives a significant speedup on GPUs.
+    # See the docs page "Development" for more details on `div_fast`.
+    dv_viscosity = div_fast(m_b * (mu_a + mu_b) * dot(pos_diff, grad_kernel),
+                            rho_a * rho_b * (distance^2 + epsilon * h^2)) * v_diff
+    dv_particle[] += viscosity_correction * dv_viscosity
 
     return dv_particle
 end
@@ -209,19 +216,22 @@ struct ViscosityAdami{ELTYPE}
     end
 end
 
-@inline function adami_viscosity_force!(dv_particle, smoothing_length_average, pos_diff,
-                                        distance, grad_kernel, m_a, m_b, rho_a, rho_b,
+@inline function adami_viscosity_force!(dv_particle, h, pos_diff, distance,
+                                        grad_kernel, m_a, m_b, rho_a, rho_b,
                                         v_diff, nu_a, nu_b, epsilon,
                                         viscosity_correction=1)
     eta_a = nu_a * rho_a
     eta_b = nu_b * rho_b
 
-    eta_tilde = 2 * (eta_a * eta_b) / (eta_a + eta_b)
+    # Since this is one of the most performance critical functions, using fast divisions
+    # here gives a significant speedup on GPUs.
+    # See the docs page "Development" for more details on `div_fast`.
+    volume_a = div_fast(m_a, rho_a)
+    volume_b = div_fast(m_b, rho_b)
 
-    tmp = eta_tilde / (distance^2 + epsilon * smoothing_length_average^2)
-
-    volume_a = m_a / rho_a
-    volume_b = m_b / rho_b
+    # eta_tilde = 2 * (eta_a * eta_b) / (eta_a + eta_b)
+    # tmp = eta_tilde / (distance^2 + epsilon * h^2) / m_a
+    tmp = div_fast(2 * eta_a * eta_b, (eta_a + eta_b) * (distance^2 + epsilon * h^2) * m_a)
 
     # This formulation was introduced by Hu and Adams (2006). https://doi.org/10.1016/j.jcp.2005.09.001
     # They argued that the formulation is more flexible because of the possibility to formulate
@@ -232,9 +242,9 @@ end
     # Because when using this formulation for the pressure acceleration, it is not
     # energy conserving.
     # See issue: https://github.com/trixi-framework/TrixiParticles.jl/issues/394
-    visc = (volume_a^2 + volume_b^2) * dot(grad_kernel, pos_diff) * tmp / m_a
+    visc = (volume_a^2 + volume_b^2) * dot(grad_kernel, pos_diff) * tmp
 
-    dv_particle[] += viscosity_correction * visc .* v_diff
+    dv_particle[] += viscosity_correction * visc * v_diff
 
     return dv_particle
 end
@@ -375,7 +385,10 @@ end
     # and then the Smagorinsky eddy viscosity:
     #   ν_SGS = (C_S * h̄)^2 * S_mag.
     #
-    S_mag = norm(v_diff) / (distance + epsilon)
+    # Since this is one of the most performance critical functions, using fast divisions
+    # here gives a significant speedup on GPUs.
+    # See the docs page "Development" for more details on `div_fast`.
+    S_mag = div_fast(sqrt(dot(v_diff, v_diff)), (distance + epsilon))
     nu_SGS = (viscosity.C_S * smoothing_length_average)^2 * S_mag
 
     # Effective kinematic viscosity is the sum of the standard and SGS parts.
@@ -459,7 +472,7 @@ end
 
     smoothing_length_particle = smoothing_length(particle_system, particle)
     smoothing_length_neighbor = smoothing_length(neighbor_system, neighbor)
-    smoothing_length_average = (smoothing_length_particle + smoothing_length_neighbor) / 2
+    h = (smoothing_length_particle + smoothing_length_neighbor) / 2
 
     nu_a = kinematic_viscosity(particle_system,
                                viscosity_model(neighbor_system, particle_system),
@@ -474,8 +487,11 @@ end
 
     # SGS part: Compute the subgrid-scale eddy viscosity.
     # See comments above for `ViscosityAdamiSGS`.
-    S_mag = norm(v_diff) / (distance + epsilon)
-    nu_SGS = (viscosity.C_S * smoothing_length_average)^2 * S_mag
+    # Since this is one of the most performance critical functions, using fast divisions
+    # here gives a significant speedup on GPUs.
+    # See the docs page "Development" for more details on `div_fast`.
+    S_mag = div_fast(sqrt(dot(v_diff, v_diff)), (distance + epsilon))
+    nu_SGS = (viscosity.C_S * h)^2 * S_mag
 
     # Effective viscosities include the SGS term.
     nu_a_eff = nu_a + nu_SGS
@@ -485,9 +501,12 @@ end
     mu_a = nu_a_eff * rho_a
     mu_b = nu_b_eff * rho_b
 
-    dv_particle[] += viscosity_correction * m_b * (mu_a + mu_b) /
-                     (rho_a * rho_b) * (dot(pos_diff, grad_kernel)) /
-                     (distance^2 + epsilon * smoothing_length_average^2) * v_diff
+    # Since this is one of the most performance critical functions, using fast divisions
+    # here gives a significant speedup on GPUs.
+    # See the docs page "Development" for more details on `div_fast`.
+    dv_viscosity = div_fast(m_b * (mu_a + mu_b) * dot(pos_diff, grad_kernel),
+                            rho_a * rho_b * (distance^2 + epsilon * h^2)) * v_diff
+    dv_particle[] += viscosity_correction * dv_viscosity
 
     return dv_particle
 end
@@ -546,7 +565,10 @@ end
     v_b = viscous_velocity(v_neighbor_system, neighbor_system, neighbor, v_b)
     v_diff = v_a - v_b
 
-    gamma_dot = norm(v_diff) / (distance + epsilon)
+    # Since this is one of the most performance critical functions, using fast divisions
+    # here gives a significant speedup on GPUs.
+    # See the docs page "Development" for more details on `div_fast`.
+    gamma_dot = div_fast(sqrt(dot(v_diff, v_diff)), (distance + epsilon))
 
     # Compute Carreau-Yasuda effective viscosity
     (; nu0, nu_inf, lambda, a, n) = viscosity
