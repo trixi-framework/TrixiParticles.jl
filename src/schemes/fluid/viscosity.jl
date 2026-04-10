@@ -123,7 +123,8 @@ end
         mu = div_fast(h * vr, distance^2 + epsilon * h^2)
         c = sound_speed
         # TODO why is m_b inside the `div_fast` faster on H100 than `m_b * div_fast(...)`?
-        dv_viscosity = div_fast(m_b * alpha * c * mu + m_b * beta * mu^2, rho_mean) * grad_kernel
+        dv_viscosity = div_fast(m_b * alpha * c * mu + m_b * beta * mu^2, rho_mean) *
+                       grad_kernel
         dv_particle[] += viscosity_correction * dv_viscosity
     end
 
