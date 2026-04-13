@@ -446,7 +446,7 @@ end
                                                              joinpath(examples_dir(),
                                                                       "fluid",
                                                                       "poiseuille_flow_2d.jl"),
-                                                             wcsph=true,
+                                                             use_wcsph=true,
                                                              coordinates_eltype=Float32,
                                                              parallelization_backend=Main.parallelization_backend) [
                 r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
@@ -462,7 +462,7 @@ end
                                                              joinpath(examples_dir(),
                                                                       "fluid",
                                                                       "poiseuille_flow_2d.jl"),
-                                                             wcsph=false,
+                                                             use_wcsph=false,
                                                              coordinates_eltype=Float32,
                                                              parallelization_backend=Main.parallelization_backend) [
                 r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
