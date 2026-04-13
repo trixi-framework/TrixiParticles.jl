@@ -509,9 +509,12 @@ end
     return neighbor_system.boundary_model.viscosity
 end
 
-@inline function viscous_velocity(v, system::RigidBodySystem, particle)
-    # This function is only used in fluid-structure interaction, so it is never called when `boundary_model` is `nothing`
-    return viscous_velocity(v, system.boundary_model.viscosity, system, particle)
+@propagate_inbounds function viscous_velocity(v, system::RigidBodySystem,
+                                              particle, v_particle)
+    # This function is only used in fluid-structure interaction,
+    # so it is never called when `boundary_model` is `nothing`
+    return viscous_velocity(v, system.boundary_model.viscosity, system,
+                            particle, v_particle)
 end
 
 @inline acceleration_source(system::RigidBodySystem) = system.acceleration

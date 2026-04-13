@@ -67,14 +67,13 @@ end
                                                        current_pos_diff, current_distance,
                                                        system, m_a, m_b, rho_a, rho_b)
 
-        dv_viscosity = @inbounds dv_viscosity_tlsph(system, v_system, particle, neighbor,
-                                                    current_pos_diff, current_distance,
-                                                    m_a, m_b, rho_a, rho_b, grad_kernel)
-
-        dv_particle = dv_stress + dv_penalty_force_ + dv_viscosity
+        dv_particle = Ref(dv_stress + dv_penalty_force_)
+        @inbounds dv_viscosity_tlsph!(dv_particle, system, v_system, particle, neighbor,
+                                      current_pos_diff, current_distance,
+                                      m_a, m_b, rho_a, rho_b, grad_kernel)
 
         for i in 1:ndims(system)
-            @inbounds dv[i, particle] += dv_particle[i]
+            @inbounds dv[i, particle] += dv_particle[][i]
         end
 
         # TODO continuity equation for boundary model with `ContinuityDensity`?
