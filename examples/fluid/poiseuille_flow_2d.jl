@@ -58,9 +58,11 @@ channel = RectangularTank(particle_spacing, domain_size, domain_size, fluid_dens
                           n_layers=boundary_layers, faces=(false, false, true, true),
                           coordinates_eltype=Float64)
 
-# The analytical solution depends on the length of the fluid domain.
-# Thus, the `BoundaryZone`s extend into the fluid domain because the pressure is not
-# prescribed at the `boundary_face`, but at the free surface of the `BoundaryZone`.
+# The analytical solution uses the full inflow-to-outflow extent x in [0, channel_length].
+# Since the pressure is prescribed at the free surface of each `BoundaryZone` instead of at
+# its `boundary_face`, the inlet and outlet free surfaces lie at x = 0 and
+# x = channel_length (= L), respectively. Thus, the boundary zones are effectively part of
+# the computational domain in this setup.
 inlet = RectangularTank(particle_spacing, open_boundary_size, open_boundary_size,
                         fluid_density, n_layers=boundary_layers, pressure=inlet_pressure,
                         min_coordinates=(0.0, 0.0), faces=(false, false, true, true),

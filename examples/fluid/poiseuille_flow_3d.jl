@@ -71,6 +71,11 @@ fluid_cross_section_coordinates = hcat(particle_spacing / 2 *
                                        ones(nparticles(fluid_cross_section)),
                                        fluid_cross_section.coordinates')'
 
+# The analytical solution uses the full inflow-to-outflow extent x in [0, channel_length].
+# Since the pressure is prescribed at the free surface of each `BoundaryZone` instead of at
+# its `boundary_face`, the inlet and outlet free surfaces lie at x = 0 and
+# x = channel_length (= L), respectively. Thus, the boundary zones are effectively part of
+# the computational domain in this setup.
 inlet_particles = extrude_geometry(fluid_cross_section_coordinates; particle_spacing,
                                    direction=collect(flow_direction),
                                    density=fluid_density,

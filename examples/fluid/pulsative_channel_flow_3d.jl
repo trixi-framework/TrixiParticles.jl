@@ -24,6 +24,9 @@ v_max = channel_diameter^2 * imposed_pressure_drop /
 # instead of reading the globals every time it is called, which would make it slow.
 let imposed_pressure_drop = imposed_pressure_drop, channel_length = channel_length
     global function dynamic_pressure_drop(pos, t)
+        # The pressure drop is defined over the same full inflow-to-outflow extent as in
+        # `poiseuille_flow_3d.jl`, i.e., with boundary-zone free surfaces at x = 0 and
+        # x = channel_length (= L).
         return imposed_pressure_drop +
                (channel_length - pos[1]) / channel_length * imposed_pressure_drop * cos(t)
     end
