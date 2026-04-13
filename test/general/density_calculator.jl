@@ -1,5 +1,3 @@
-using OrdinaryDiffEq
-
 # Setup a single particle and calculate its density
 @testset verbose=true "DensityCalculators" begin
     @testset verbose=true "SummationDensity" begin
