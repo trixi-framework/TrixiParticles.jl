@@ -331,10 +331,8 @@ end
                                                                      fluid_density_calculator=SummationDensity(),
                                                                      maxiters=38, # 38 time steps on CPU
                                                                      clip_negative_pressure=true),
-                # Broken due to https://github.com/JuliaGPU/CUDA.jl/issues/2681
-                # and https://github.com/JuliaGPU/Metal.jl/issues/550.
-                # "WCSPH with SchoenbergQuarticSplineKernel" => (smoothing_length=1.1,
-                #                                                smoothing_kernel=SchoenbergQuarticSplineKernel{2}()),
+                "WCSPH with SchoenbergQuarticSplineKernel" => (smoothing_length=1.1,
+                                                               smoothing_kernel=SchoenbergQuarticSplineKernel{2}()),
                 "WCSPH with SchoenbergQuinticSplineKernel" => (smoothing_length=1.1,
                                                                smoothing_kernel=SchoenbergQuinticSplineKernel{2}()),
                 "WCSPH with WendlandC2Kernel" => (smoothing_length=1.5,
