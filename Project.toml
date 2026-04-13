@@ -1,7 +1,7 @@
 name = "TrixiParticles"
 uuid = "66699cd8-9c01-4e9d-a059-b96c86d16b3a"
 authors = ["erik.faulhaber <44124897+efaulhaber@users.noreply.github.com>"]
-version = "0.4.4-dev"
+version = "0.4.5-dev"
 
 [deps]
 Accessors = "7d9f7c33-5ae7-4f3b-8dc6-eff91059b697"
@@ -37,14 +37,17 @@ WriteVTK = "64499a7a-5c06-52f2-abe2-ccb03c286192"
 [weakdeps]
 OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
 OrdinaryDiffEqCore = "bbf590c4-e513-4bbe-9b18-05decba2e5d8"
+CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 
 [extensions]
 TrixiParticlesOrdinaryDiffEqExt = ["OrdinaryDiffEq", "OrdinaryDiffEqCore"]
+TrixiParticlesCUDAExt = "CUDA"
 
 [compat]
 Accessors = "0.1.43"
 Adapt = "4"
 CSV = "0.10"
+CUDA = "5.9.1"
 DataFrames = "1.6"
 DelimitedFiles = "1"
 DiffEqCallbacks = "4"
@@ -56,7 +59,7 @@ JSON = "1"
 KernelAbstractions = "0.9"
 MuladdMacro = "0.2"
 OrdinaryDiffEq = "6.91"
-OrdinaryDiffEqCore = "2"
+OrdinaryDiffEqCore = "2, 3"
 PointNeighbors = "0.6.5"
 Polyester = "0.7.10"
 ReadVTK = "0.2"

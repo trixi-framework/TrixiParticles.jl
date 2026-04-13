@@ -5,11 +5,13 @@ if TRIXIPARTICLES_TEST_ == "cuda"
     CUDA.versioninfo()
     parallelization_backend = CUDABackend()
     supports_double_precision = true
+    fp64_fastdiv = true
 elseif TRIXIPARTICLES_TEST_ == "amdgpu"
     using AMDGPU
     AMDGPU.versioninfo()
     parallelization_backend = ROCBackend()
     supports_double_precision = true
+    fp64_fastdiv = false
 elseif TRIXIPARTICLES_TEST_ == "metal"
     using Metal
     Metal.versioninfo()
@@ -25,6 +27,56 @@ else
     error("Unknown GPU backend: $TRIXIPARTICLES_TEST_")
 end
 
+@testset verbose=true "div_fast $TRIXIPARTICLES_TEST_" begin
+    @testset verbose=true "CPU Float64" begin
+        x = Float64(pi)
+        y = rand(Float64, 1024) .+ 1
+
+        # We expect exact equality for `Float64` on the CPU
+        @test TrixiParticles.div_fast.(x, y) == x ./ y
+    end
+
+    @testset verbose=true "CPU Float32" begin
+        x = Float32(pi)
+        y = rand(Float32, 1024) .+ 1
+
+        # We don't test `max_error > 0`, since this might be exact on some CPUs
+        # (we observed this on ARM CPUs).
+        max_error = maximum(abs.(TrixiParticles.div_fast.(x, y) - x ./ y))
+        @test max_error < 1.0f-6
+    end
+
+    @testset verbose=true "GPU Float32" begin
+        x = Float32(pi)
+        y = Adapt.adapt(parallelization_backend, rand(Float32, 1024) .+ 1)
+
+        max_error = maximum(abs.(TrixiParticles.div_fast.(x, y) - x ./ y))
+        @test max_error < 1.0f-6
+
+        # Make sure that this is actually using a fast division
+        @test max_error > 0
+    end
+
+    if supports_double_precision
+        @testset verbose=true "GPU Float64" begin
+            x = Float64(pi)
+            y = Adapt.adapt(parallelization_backend, rand(Float64, 1024) .+ 1)
+
+            max_error = maximum(abs.(TrixiParticles.div_fast.(x, y) - x ./ y))
+
+            if fp64_fastdiv
+                @test max_error < 1e-15
+
+                # Make sure that this is actually using a fast division
+                @test max_error > 0
+            else
+                # If fast division for Float64 is not supported, we expect exact equality
+                @test max_error == 0
+            end
+        end
+    end
+end
+
 @testset verbose=true "Examples $TRIXIPARTICLES_TEST_" begin
     @testset verbose=true "Fluid" begin
         @trixi_testset "fluid/dam_break_2d_gpu.jl Float64" begin
@@ -38,9 +90,15 @@ end
                     r"┌ Info: The desired tank length in y-direction.*\n",
                     r"└ New tank length in y-direction.*\n"
                 ]
-                @test semi.neighborhood_searches[1][1].cell_list isa FullGridCellList
-                @test sol.retcode == ReturnCode.Success
-                v_ode, u_ode = sol.u[end].x
+                # Since Julia 1.12 has issues with world age, we need to use `@invokelatest`
+                # everywhere here. For some reason, this is only necessary in this and the
+                # next test, but not in the other tests in this file.
+                # Perhaps because this is inside an `if` block?
+                @test (@invokelatest (@__MODULE__).semi).neighborhood_searches[1, 1].cell_list isa
+                      FullGridCellList
+                @test (@invokelatest (@__MODULE__).sol).retcode ==
+                      (@invokelatest (@__MODULE__).ReturnCode).Success
+                v_ode, u_ode = (@invokelatest (@__MODULE__).sol).u[end].x
                 backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
                 @test backend == Main.parallelization_backend
                 @test eltype(v_ode) == Float64
@@ -67,9 +125,12 @@ end
                     r"┌ Info: The desired tank length in y-direction .*\n",
                     r"└ New tank length in y-direction.*\n"
                 ]
-                @test semi.neighborhood_searches[1][1].cell_list isa FullGridCellList
-                @test sol.retcode == ReturnCode.Success
-                v_ode, u_ode = sol.u[end].x
+                # See the comment in the previous test about `@invokelatest`
+                @test (@invokelatest (@__MODULE__).semi).neighborhood_searches[1, 1].cell_list isa
+                      FullGridCellList
+                @test (@invokelatest (@__MODULE__).sol).retcode ==
+                      (@invokelatest (@__MODULE__).ReturnCode).Success
+                v_ode, u_ode = (@invokelatest (@__MODULE__).sol).u[end].x
                 backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
                 @test backend == Main.parallelization_backend
                 @test eltype(v_ode) == Float32
@@ -116,7 +177,7 @@ end
                         r"┌ Info: The desired tank length in y-direction.*\n",
                         r"└ New tank length in y-direction.*\n"
                     ]
-                    @test semi.neighborhood_searches[1][1].cell_list isa FullGridCellList
+                    @test semi.neighborhood_searches[1, 1].cell_list isa FullGridCellList
                     @test sol.retcode == ReturnCode.Success
                     v_ode, u_ode = sol.u[end].x
                     backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
@@ -140,7 +201,7 @@ end
                 r"┌ Info: The desired tank length in y-direction.*\n",
                 r"└ New tank length in y-direction.*\n"
             ]
-            @test semi.neighborhood_searches[1][1].cell_list isa FullGridCellList
+            @test semi.neighborhood_searches[1, 1].cell_list isa FullGridCellList
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
@@ -174,7 +235,7 @@ end
                 r"┌ Info: The desired tank length in y-direction.*\n",
                 r"└ New tank length in y-direction.*\n"
             ]
-            @test semi.neighborhood_searches[1][1].cell_list isa FullGridCellList
+            @test semi.neighborhood_searches[1, 1].cell_list isa FullGridCellList
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
