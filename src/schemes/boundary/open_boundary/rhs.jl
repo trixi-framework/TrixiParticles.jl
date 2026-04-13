@@ -3,7 +3,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
                    neighbor_system, semi)
-    (; fluid_system, cache, boundary_model) = particle_system
+    (; fluid_system, cache) = particle_system
 
     sound_speed = system_sound_speed(fluid_system)
 
@@ -75,13 +75,11 @@ function interact!(dv, v_particle_system, u_particle_system,
         v_diff = current_velocity(v_particle_system, particle_system, particle) -
                  current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
-        # Continuity equation
-        @inbounds dv[end, particle] += rho_a / rho_b * m_b * dot(v_diff, grad_kernel)
-
-        density_diffusion!(dv, density_diffusion(particle_system),
-                           v_particle_system, particle, neighbor,
-                           pos_diff, distance, m_b, rho_a, rho_b,
-                           particle_system, grad_kernel)
+        # Propagate `@inbounds` to the continuity equation, which accesses particle data
+        @inbounds continuity_equation!(dv, particle_system, neighbor_system,
+                                       v_particle_system, v_neighbor_system, particle,
+                                       neighbor, pos_diff, distance, m_b, rho_a, rho_b,
+                                       grad_kernel)
 
         # Open boundary pressure evolution matches the corresponding fluid system:
         # - EDAC: Compute pressure evolution like the fluid system
