@@ -221,8 +221,11 @@ end
                                                                        OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}},
                                                 grad_kernel)
     # Density diffusion terms are all zero for distance zero.
-    # See `src/general/smoothing_kernels.jl` for more details.
-    distance^2 < eps(initial_smoothing_length(particle_system)^2) && return
+    # If `skip_zero_distance` is `true`, we can assume that this function isn't called
+    # for distance zero because these neighbors have already been skipped.
+    if !skip_zero_distance(particle_system)
+        distance^2 < eps(initial_smoothing_length(particle_system)^2) && return
+    end
 
     # Since this is one of the most performance critical functions, using fast divisions
     # here gives a significant speedup on GPUs.
