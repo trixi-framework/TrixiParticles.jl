@@ -45,11 +45,14 @@ function interact!(dv, v_particle_system, u_particle_system,
         rho_a = current_density(v_particle_system, particle_system, particle)
         rho_b = current_density(v_neighbor_system, neighbor_system, neighbor)
 
-        v_diff = current_velocity(v_particle_system, particle_system, particle) -
-                 current_velocity(v_neighbor_system, neighbor_system, neighbor)
+        v_a = current_velocity(v_particle_system, particle_system, particle)
+        v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
-        continuity_equation!(dv, density_calculator(neighbor_system),
-                             m_b, rho_a, rho_b, v_diff, grad_kernel, particle)
+        drho_particle = Ref(zero(rho_a))
+        continuity_equation!(drho_particle, density_calculator(neighbor_system),
+                             m_b, rho_a, rho_b, v_a, v_b, grad_kernel, particle)
+
+        dv[end, particle] += drho_particle[]
     end
 
     return dv
@@ -58,13 +61,19 @@ end
 # This is the derivative of the density summation, which is compatible with the
 # `SummationDensity` pressure acceleration.
 # Energy preservation tests will fail with the other formulation.
-function continuity_equation!(dv, fluid_density_calculator::SummationDensity,
-                              m_b, rho_a, rho_b, v_diff, grad_kernel, particle)
-    dv[end, particle] += m_b * dot(v_diff, grad_kernel)
+@propagate_inbounds function continuity_equation!(drho_particle, ::SummationDensity,
+                                                  m_b, rho_a, rho_b, v_a, v_b,
+                                                  grad_kernel, particle)
+    drho_particle[] += m_b * dot(v_a - v_b, grad_kernel)
+
+    return drho_particle
 end
 
 # This is identical to the continuity equation of the fluid
-function continuity_equation!(dv, fluid_density_calculator::ContinuityDensity,
-                              m_b, rho_a, rho_b, v_diff, grad_kernel, particle)
-    dv[end, particle] += rho_a / rho_b * m_b * dot(v_diff, grad_kernel)
+@propagate_inbounds function continuity_equation!(drho_particle, ::ContinuityDensity,
+                                                  m_b, rho_a, rho_b, v_a, v_b,
+                                                  grad_kernel, particle)
+    drho_particle[] += rho_a / rho_b * m_b * dot(v_a - v_b, grad_kernel)
+
+    return drho_particle
 end

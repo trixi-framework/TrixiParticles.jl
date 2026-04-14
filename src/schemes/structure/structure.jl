@@ -93,34 +93,46 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
 
         accumulate_structure_fluid_pair!(dv, dv_particle[], particle_system, particle, m_b)
 
-        continuity_equation!(dv, v_particle_system, v_neighbor_system,
+        drho_particle = Ref(zero(rho_a))
+        continuity_equation!(drho_particle, particle_system, neighbor_system,
                              particle, neighbor, pos_diff, distance,
-                             m_b, rho_a, rho_b,
-                             particle_system, neighbor_system, grad_kernel)
+                             m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+
+        @inbounds write_drho_particle!(dv, particle_system, drho_particle, particle)
     end
 
     return dv
 end
 
-@inline function continuity_equation!(dv, v_particle_system, v_neighbor_system,
-                                      particle, neighbor, pos_diff, distance,
-                                      m_b, rho_a, rho_b,
+@inline function continuity_equation!(drho_particle,
                                       particle_system::AbstractStructureSystem,
                                       neighbor_system::AbstractFluidSystem,
-                                      grad_kernel)
-    return dv
+                                      particle, neighbor, pos_diff, distance,
+                                      m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+    return drho_particle
 end
 
-@inline function continuity_equation!(dv, v_particle_system, v_neighbor_system,
-                                      particle, neighbor, pos_diff, distance,
-                                      m_b, rho_a, rho_b,
+@inline function continuity_equation!(drho_particle,
                                       particle_system::Union{RigidBodySystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
                                                              TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}}},
                                       neighbor_system::AbstractFluidSystem,
-                                      grad_kernel)
-    v_diff = current_velocity(v_particle_system, particle_system, particle) -
-             current_velocity(v_neighbor_system, neighbor_system, neighbor)
+                                      particle, neighbor, pos_diff, distance,
+                                      m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+    continuity_equation!(drho_particle, density_calculator(neighbor_system),
+                         m_b, rho_a, rho_b, v_a, v_b, grad_kernel, particle)
 
-    continuity_equation!(dv, density_calculator(neighbor_system), m_b, rho_a, rho_b, v_diff,
-                         grad_kernel, particle)
+    return drho_particle
+end
+
+@inline function write_drho_particle!(dv, ::AbstractSystem, drho_particle, particle)
+    return dv
+end
+
+@propagate_inbounds function write_drho_particle!(dv,
+                                                  ::Union{RigidBodySystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
+                                                          TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}}},
+                                                  drho_particle, particle)
+    dv[end, particle] += drho_particle[]
+
+    return dv
 end
