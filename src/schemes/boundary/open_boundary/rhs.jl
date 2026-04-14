@@ -83,7 +83,7 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         # Propagate `@inbounds` to the continuity equation, which accesses particle data
         drho_particle = Ref(zero(rho_a))
-        @inbounds continuity_equation!(drho_particle,
+        @inbounds continuity_equation!(drho_particle, ContinuityDensity(),
                                        particle_system, neighbor_system,
                                        v_particle_system, v_neighbor_system,
                                        particle, neighbor, pos_diff, distance,

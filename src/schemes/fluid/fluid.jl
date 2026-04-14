@@ -145,17 +145,6 @@ end
                                                   particle, neighbor, pos_diff, distance,
                                                   m_b, rho_a, rho_b, v_a, v_b,
                                                   grad_kernel)
-    return continuity_equation!(drho_particle, particle_system, neighbor_system,
-                                v_particle_system, v_neighbor_system,
-                                particle, neighbor, pos_diff, distance,
-                                m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
-end
-
-@propagate_inbounds function continuity_equation!(drho_particle,
-                                                  particle_system, neighbor_system,
-                                                  v_particle_system, v_neighbor_system,
-                                                  particle, neighbor, pos_diff, distance,
-                                                  m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
     v_diff = v_a - v_b
 
     v_diff = continuity_equation_shifting_term(v_diff,
