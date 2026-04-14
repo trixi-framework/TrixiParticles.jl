@@ -492,9 +492,9 @@ end
 
 # Update the systems for a simulation before calling `interact!` to compute forces.
 function update_systems!(v_ode, u_ode, semi, t;
-                         update_nhs=true,
-                         update_boundary_interpolation=true,
-                         update_inter_system=true)
+                         update_nhs=false,
+                         update_boundary_interpolation=false,
+                         update_inter_system=false)
     # First update step before updating the NHS
     # (for example for writing the current coordinates in the TLSPH system)
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
@@ -540,7 +540,10 @@ end
 # Update the systems and neighborhood searches (NHS) for a simulation
 # before calling `interact!` to compute forces.
 function update_systems_and_nhs(v_ode, u_ode, semi, t)
-    update_systems!(v_ode, u_ode, semi, t)
+    update_systems!(v_ode, u_ode, semi, t;
+                    update_nhs=true,
+                    update_boundary_interpolation=true,
+                    update_inter_system=true)
 end
 
 # The `SplitIntegrationCallback` overwrites `semi_wrap` to use a different

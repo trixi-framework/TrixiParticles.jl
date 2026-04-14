@@ -218,10 +218,7 @@ function update_systems_split!(semi, v_ode, u_ode, t)
     # a lot of the speedup that we can gain with split integration.
     # We assume that the TLSPH particles move so little during the substeps
     # that the extrapolated pressure/density values can be treated as constant.
-    update_systems!(v_ode, u_ode, semi, t;
-                    update_nhs=false,
-                    update_boundary_interpolation=false,
-                    update_inter_system=false)
+    update_systems!(v_ode, u_ode, semi, t)
 end
 
 function system_interaction_split!(dv_ode_split, v_ode, u_ode, semi,
