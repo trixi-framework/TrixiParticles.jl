@@ -8,8 +8,7 @@ abstract type AbstractRigidContactModel end
 Shared rigid-contact model used by the active rigid-wall and rigid-rigid contact paths.
 The current contact force consists of a linear normal spring-dashpot contribution only.
 If `contact_distance == 0`, the particle spacing of the `RigidBodySystem` will be used
-as contact distance when the model is adapted via
-`copy_contact_model(model, particle_spacing, ELTYPE)`.
+as contact distance.
 
 !!! warning "Experimental implementation"
     This is an experimental feature and may change in future releases.
