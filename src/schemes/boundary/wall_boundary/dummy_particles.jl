@@ -3,6 +3,7 @@
                                 density_calculator, smoothing_kernel,
                                 smoothing_length; viscosity=nothing,
                                 state_equation=nothing, correction=nothing,
+                                clip_negative_pressure=true,
                                 reference_particle_spacing=0.0)
 
 Boundary model for [`WallBoundarySystem`](@ref).
@@ -22,6 +23,15 @@ Boundary model for [`WallBoundarySystem`](@ref).
 - `correction`:                 Correction method of the adjacent fluid system (see [Corrections](@ref corrections)).
 - `viscosity`:                  Slip (default) or no-slip condition. See description below for further
                                 information.
+- `clip_negative_pressure=true`: Clip negative boundary pressures to avoid sticking
+                                artifacts from attractive fluid-boundary forces at free
+                                surfaces. Note that this is not a correct formulation
+                                at interior boundaries (away from free surfaces).
+                                Disable this option when simulating closed systems without
+                                free surfaces to avoid artificially increased boundary
+                                pressures that cause larger gaps between fluid and boundary
+                                in areas of low pressure, against which the particle
+                                shifting technique is fighting.
 - `reference_particle_spacing`: The reference particle spacing used for weighting values at the boundary,
                                 which currently is only needed when using surface tension.
 # Examples
@@ -39,24 +49,38 @@ boundary_model = BoundaryModelDummyParticles(densities, masses, AdamiPressureExt
 BoundaryModelDummyParticles(AdamiPressureExtrapolation, ViscosityAdami)
 ```
 """
-struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, VECTOR, SE, K, V, COR, C}
-    pressure           :: VECTOR # Vector{ELTYPE}
-    hydrodynamic_mass  :: VECTOR # Vector{ELTYPE}
-    state_equation     :: SE
-    density_calculator :: DC
-    smoothing_kernel   :: K
-    smoothing_length   :: ELTYPE
-    viscosity          :: V
-    correction         :: COR
-    cache              :: C
+struct BoundaryModelDummyParticles{DC, SE, CLIP, ELTYPE <: Real, VECTOR, K, V, COR, C}
+    pressure               :: VECTOR # Vector{ELTYPE}
+    hydrodynamic_mass      :: VECTOR # Vector{ELTYPE}
+    state_equation         :: SE
+    density_calculator     :: DC
+    smoothing_kernel       :: K
+    smoothing_length       :: ELTYPE
+    viscosity              :: V
+    correction             :: COR
+    cache                  :: C
+    # Store this both as field and type parameter to avoid annoying hand-written
+    # `adapt_structure` functions.
+    clip_negative_pressure :: Bool
+
+    function BoundaryModelDummyParticles(pressure, hydrodynamic_mass, state_equation,
+                                         density_calculator, smoothing_kernel,
+                                         smoothing_length, viscosity, correction,
+                                         cache, clip_negative_pressure)
+        return new{typeof(density_calculator), typeof(state_equation),
+                   clip_negative_pressure, eltype(pressure), typeof(pressure),
+                   typeof(smoothing_kernel), typeof(viscosity), typeof(correction),
+                   typeof(cache)}(pressure, hydrodynamic_mass, state_equation,
+                                  density_calculator, smoothing_kernel, smoothing_length,
+                                  viscosity, correction, cache, clip_negative_pressure)
+    end
 end
 
-# The default constructor needs to be accessible for Adapt.jl to work with this struct.
-# See the comments in general/gpu.jl for more details.
 function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                      density_calculator, smoothing_kernel,
                                      smoothing_length; viscosity=nothing,
                                      state_equation=nothing, correction=nothing,
+                                     clip_negative_pressure=true,
                                      reference_particle_spacing=0.0)
     pressure = initial_boundary_pressure(initial_density, density_calculator,
                                          state_equation)
@@ -82,10 +106,17 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
 
     return BoundaryModelDummyParticles(pressure, hydrodynamic_mass, state_equation,
                                        density_calculator, smoothing_kernel,
-                                       smoothing_length, viscosity, correction, cache)
+                                       smoothing_length, viscosity, correction, cache,
+                                       clip_negative_pressure)
 end
 
-@inline Base.ndims(boundary_model::BoundaryModelDummyParticles) = ndims(boundary_model.smoothing_kernel)
+@inline function Base.ndims(boundary_model::BoundaryModelDummyParticles)
+    return ndims(boundary_model.smoothing_kernel)
+end
+
+@inline function clip_negative_pressure(::BoundaryModelDummyParticles{<:Any, <:Any, CLIP}) where {CLIP}
+    return CLIP
+end
 
 @doc raw"""
     AdamiPressureExtrapolation(; pressure_offset=0, allow_loop_flipping=true)
@@ -108,7 +139,6 @@ end
                               loop is not thread parallelizable.
                               This can cause error variations between simulations with
                               different numbers of threads.
-
 """
 struct AdamiPressureExtrapolation{ELTYPE}
     pressure_offset     :: ELTYPE
@@ -423,33 +453,33 @@ end
 
 function compute_pressure!(boundary_model, ::Union{SummationDensity, ContinuityDensity},
                            system, v, u, v_ode, u_ode, semi)
-
-    # Limit pressure to be non-negative to avoid attractive forces between fluid and
-    # boundary particles at free surfaces (sticking artifacts).
     @threaded semi for particle in eachparticle(system)
-        apply_state_equation!(boundary_model, current_density(v, system, particle),
-                              particle)
+        @inbounds apply_state_equation!(boundary_model,
+                                        current_density(v, system, particle), particle)
     end
 
     return boundary_model
 end
 
-# Use this function to avoid passing closures to Polyester.jl with `@batch` (`@threaded`).
-# Otherwise, `@threaded` does not work here with Julia ARM on macOS.
-# See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
-@inline function apply_state_equation!(boundary_model, density, particle)
-    boundary_model.pressure[particle] = max(boundary_model.state_equation(density), 0)
+@propagate_inbounds function apply_state_equation!(boundary_model, density, particle)
+    pressure = boundary_model.state_equation(density)
+
+    # This is determined statically and has therefore no overhead.
+    if clip_negative_pressure(boundary_model)
+        # Clip pressure to avoid sticking artifacts from negative pressures at free surfaces.
+        pressure = max(pressure, 0)
+    end
+
+    boundary_model.pressure[particle] = pressure
 end
 
 @propagate_inbounds function apply_state_equation!(boundary_model::BoundaryModelDummyParticles{<:Any,
-                                                                                               <:Any,
-                                                                                               <:Any,
                                                                                                Nothing},
                                                    density, particle)
     # Contact-only wall setups can reuse dummy particles for rigid contact without
     # configuring a hydrodynamic state equation. In that case, keep the auxiliary wall
     # pressure at zero because it is only meaningful for fluid-coupled updates.
-    boundary_model.pressure[particle] = zero(eltype(boundary_model.pressure))
+    boundary_model.pressure[particle] = 0
 end
 
 function compute_pressure!(boundary_model,
@@ -518,9 +548,11 @@ function compute_adami_density!(boundary_model, system, v, particle)
         compute_wall_velocity!(viscosity, system, v, particle)
     end
 
-    # Limit pressure to be non-negative to avoid attractive forces between fluid and
-    # boundary particles at free surfaces (sticking artifacts).
-    @inbounds pressure[particle] = max(pressure[particle], 0)
+    # Clip pressure to avoid sticking artifacts from negative pressures at free surfaces.
+    # This is determined statically and has therefore no overhead.
+    if clip_negative_pressure(boundary_model)
+        @inbounds pressure[particle] = max(pressure[particle], 0)
+    end
 
     # Apply inverse state equation to compute density (not used with EDAC)
     inverse_state_equation!(density, state_equation, pressure, particle)

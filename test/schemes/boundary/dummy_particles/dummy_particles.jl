@@ -10,6 +10,63 @@
         @test repr(boundary_model) == expected_repr
     end
 
+    @testset "Pressure clipping" begin
+        state_equation = StateEquationCole(sound_speed=10.0,
+                                           reference_density=1000.0,
+                                           exponent=7,
+                                           clip_negative_pressure=false)
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        smoothing_length = 0.1
+
+        boundary_model_clip = BoundaryModelDummyParticles([1000.0], [1.0],
+                                                          SummationDensity(),
+                                                          smoothing_kernel,
+                                                          smoothing_length,
+                                                          state_equation=state_equation)
+        boundary_model_no_clip = BoundaryModelDummyParticles([1000.0], [1.0],
+                                                             SummationDensity(),
+                                                             smoothing_kernel,
+                                                             smoothing_length,
+                                                             state_equation=state_equation,
+                                                             clip_negative_pressure=false)
+
+        @test TrixiParticles.clip_negative_pressure(boundary_model_clip)
+        @test !TrixiParticles.clip_negative_pressure(boundary_model_no_clip)
+
+        TrixiParticles.apply_state_equation!(boundary_model_clip, 900.0, 1)
+        TrixiParticles.apply_state_equation!(boundary_model_no_clip, 900.0, 1)
+
+        @test boundary_model_clip.pressure[1] == 0
+        @test boundary_model_no_clip.pressure[1] < 0
+
+        # Test that clipping behavior is preserved through `adapt_structure`.
+        adapted_model_clip = TrixiParticles.Adapt.adapt(Array, boundary_model_clip)
+        adapted_model_no_clip = TrixiParticles.Adapt.adapt(Array, boundary_model_no_clip)
+        @test TrixiParticles.clip_negative_pressure(adapted_model_clip)
+        @test !TrixiParticles.clip_negative_pressure(adapted_model_no_clip)
+
+        boundary_model_adami_clip = BoundaryModelDummyParticles([1000.0], [1.0],
+                                                                AdamiPressureExtrapolation(),
+                                                                smoothing_kernel,
+                                                                smoothing_length,
+                                                                state_equation=state_equation)
+        boundary_model_adami_no_clip = BoundaryModelDummyParticles([1000.0], [1.0],
+                                                                   AdamiPressureExtrapolation(),
+                                                                   smoothing_kernel,
+                                                                   smoothing_length,
+                                                                   state_equation=state_equation,
+                                                                   clip_negative_pressure=false)
+
+        for model in (boundary_model_adami_clip, boundary_model_adami_no_clip)
+            model.cache.volume[1] = 1
+            model.pressure[1] = -1
+            TrixiParticles.compute_adami_density!(model, nothing, nothing, 1)
+        end
+
+        @test boundary_model_adami_clip.pressure[1] == 0
+        @test boundary_model_adami_no_clip.pressure[1] == -1
+    end
+
     @testset verbose=true "Viscosity Adami/Bernoulli: Wall Velocity" begin
         particle_spacing = 0.1
 
