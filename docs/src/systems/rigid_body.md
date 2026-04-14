@@ -30,8 +30,7 @@ The current implementation uses the same model for rigid-wall and rigid-rigid co
   forces or contact-history terms yet.
 
 `contact_distance` defines when contact starts. If `contact_distance == 0`, the
-particle spacing of the `RigidBodySystem` is used when the contact model is adapted to
-the runtime system.
+particle spacing of the `RigidBodySystem` is used.
 
 If no `contact_model` is specified for a rigid body, rigid-wall and rigid-rigid contact
 for that system are disabled.
