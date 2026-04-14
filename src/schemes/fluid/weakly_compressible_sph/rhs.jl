@@ -82,9 +82,9 @@ function interact!(dv, v_particle_system, u_particle_system,
             # For `ContinuityDensity` without correction, this is equivalent to
             # dv_pressure = -m_b * (p_a + p_b) / (rho_a * rho_b) * grad_kernel
             dv_pressure = pressure_acceleration(particle_system, neighbor_system,
-                                                   particle, neighbor,
-                                                   m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
-                                                   distance, grad_kernel, correction)
+                                                particle, neighbor,
+                                                m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
+                                                distance, grad_kernel, correction)
             dv_particle[] += dv_pressure * pressure_correction
 
             # Propagate `@inbounds` to the viscosity function, which accesses particle data
