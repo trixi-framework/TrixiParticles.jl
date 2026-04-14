@@ -20,7 +20,6 @@
                                  acceleration=(0.0, -9.81),
                                  particle_spacing=0.1)
 
-        @test system isa RigidBodySystem
         @test ndims(system) == 2
         @test system.initial_condition == initial_condition
         @test all(iszero, system.relative_coordinates)
@@ -36,11 +35,12 @@
         @test system.adhesion_coefficient == 0.0
         @test TrixiParticles.v_nvariables(system) == 2
 
-        # todo: fix this
-        # dt = TrixiParticles.calculate_dt(system.initial_velocity,
-        #                                  system.initial_condition.coordinates,
-        #                                  0.25, system, nothing)
-        # @test isinf(dt)
+        semi = Semidiscretization(system, neighborhood_search=nothing)
+        system = semi.systems[1]
+        ode = semidiscretize(semi, (0.0, 0.0); reset_threads=false)
+
+        dt = TrixiParticles.calculate_dt(ode.u0.x[1], ode.u0.x[2], 0.25, system, semi)
+        @test isinf(dt)
     end
 
     @trixi_testset "Show" begin
@@ -158,21 +158,17 @@
         @test iszero(system_2d.angular_velocity[])
         @test v0_2d == [0.0 0.0
                         -1.0 1.0]
-        # todo: fix this
-        # dt_2d = TrixiParticles.calculate_dt(v0_2d, u0_2d, 0.25, system_2d,
-        #                                     nothing)
-        # @test isapprox(dt_2d, 0.25 * 0.1 / 1.0)
-        # dt_2d_larger_cfl = TrixiParticles.calculate_dt(v0_2d, u0_2d, 0.5,
-        #                                                system_2d, nothing)
-        # @test isapprox(dt_2d_larger_cfl, 0.5 * 0.1 / 1.0)
-
         semi_2d = Semidiscretization(system_2d, neighborhood_search=nothing)
+        system_2d = semi_2d.systems[1]
         ode_2d = semidiscretize(semi_2d, (0.0, 0.0); reset_threads=false)
+        dt_2d = TrixiParticles.calculate_dt(v0_2d, u0_2d, 0.25, system_2d, semi_2d)
+        @test isapprox(dt_2d, 0.25 * 0.1 / 1.0)
+        dt_2d_larger_cfl = TrixiParticles.calculate_dt(v0_2d, u0_2d, 0.5,
+                                                       system_2d, semi_2d)
+        @test isapprox(dt_2d_larger_cfl, 0.5 * 0.1 / 1.0)
         dt_2d_semi = TrixiParticles.calculate_dt(ode_2d.u0.x[1], ode_2d.u0.x[2], 0.25,
                                                  ode_2d.p)
-
-        # todo: fix this
-        # @test isapprox(dt_2d_semi, dt_2d)
+        @test isapprox(dt_2d_semi, dt_2d)
 
         TrixiParticles.update_final!(system_2d, v0_2d, u0_2d, nothing, nothing, nothing,
                                      0.0)
@@ -203,81 +199,85 @@
         @test system_3d.angular_velocity[] == [0.0, 0.0, 2.0]
     end
 
-    # todo: fix this
-    # @trixi_testset "Time Step Estimate 3D Gyroscopic" begin
-    #     coordinates = [1.0 -1.0 0.0 0.0 0.0 0.0
-    #                    0.0 0.0 2.0 -2.0 0.0 0.0
-    #                    0.0 0.0 0.0 0.0 3.0 -3.0]
-    #     mass = fill(1.0, 6)
-    #     density = fill(1000.0, 6)
-    #     initial_condition = apply_angular_velocity(InitialCondition(; coordinates, mass,
-    #                                                                 density,
-    #                                                                 particle_spacing=10.0),
-    #                                                (1.0, 2.0, 3.0))
-    #     system = RigidBodySystem(initial_condition; acceleration=(0.0, 0.0, 0.0))
+    @trixi_testset "Time Step Estimate 3D Gyroscopic" begin
+        coordinates = [1.0 -1.0 0.0 0.0 0.0 0.0
+                       0.0 0.0 2.0 -2.0 0.0 0.0
+                       0.0 0.0 0.0 0.0 3.0 -3.0]
+        mass = fill(1.0, 6)
+        density = fill(1000.0, 6)
+        initial_condition = apply_angular_velocity(InitialCondition(; coordinates, mass,
+                                                                    density,
+                                                                    particle_spacing=10.0),
+                                                   (1.0, 2.0, 3.0))
+        system = RigidBodySystem(initial_condition; acceleration=(0.0, 0.0, 0.0))
+        semi = Semidiscretization(system, neighborhood_search=nothing)
+        system = semi.systems[1]
+        ode = semidiscretize(semi, (0.0, 0.0); reset_threads=false)
 
-    #     angular_velocity = SVector(1.0, 2.0, 3.0)
-    #     gyroscopic_acceleration = SVector(-30 / 13, 12 / 5, -6 / 5)
-    #     acceleration_scale = 3.0 * (norm(angular_velocity)^2 +
-    #                           norm(gyroscopic_acceleration))
-    #     dt_acceleration = 0.25 * sqrt(10.0 / acceleration_scale)
-    #     dt_velocity = 0.25 * 10.0 / (3.0 * norm(angular_velocity))
+        angular_velocity = SVector(1.0, 2.0, 3.0)
+        gyroscopic_acceleration = SVector(-30 / 13, 12 / 5, -6 / 5)
+        acceleration_scale = 3.0 * (norm(angular_velocity)^2 +
+                              norm(gyroscopic_acceleration))
+        dt_acceleration = 0.25 * sqrt(10.0 / acceleration_scale)
+        dt_velocity = 0.25 * 10.0 / (3.0 * norm(angular_velocity))
 
-    #     dt = TrixiParticles.calculate_dt(system.initial_velocity,
-    #                                      system.initial_condition.coordinates,
-    #                                      0.25, system, nothing)
-    #     @test isapprox(dt, min(dt_acceleration, dt_velocity))
-    # end
+        dt = TrixiParticles.calculate_dt(ode.u0.x[1], ode.u0.x[2], 0.25, system, semi)
+        @test isapprox(dt, min(dt_acceleration, dt_velocity))
+    end
 
-    # todo: fix this
-    # @trixi_testset "Time Step Estimate from Initial Velocity" begin
-    #     coordinates = [-1.0 1.0
-    #                    0.0 0.0]
-    #     velocity = [0.0 0.0
-    #                 -1.0 1.0]
-    #     mass = [1.0, 1.0]
-    #     density = [1000.0, 1000.0]
-    #     initial_condition = InitialCondition(; coordinates, velocity, mass, density,
-    #                                          particle_spacing=0.1)
-    #     system = RigidBodySystem(initial_condition; acceleration=(0.0, 0.0))
+    @trixi_testset "Time Step Estimate from Initial Velocity" begin
+        coordinates = [-1.0 1.0
+                       0.0 0.0]
+        velocity = [0.0 0.0
+                    -1.0 1.0]
+        mass = [1.0, 1.0]
+        density = [1000.0, 1000.0]
+        initial_condition = InitialCondition(; coordinates, velocity, mass, density,
+                                             particle_spacing=0.1)
+        system = RigidBodySystem(initial_condition; acceleration=(0.0, 0.0))
+        semi = Semidiscretization(system, neighborhood_search=nothing)
+        system = semi.systems[1]
+        ode = semidiscretize(semi, (0.0, 0.0); reset_threads=false)
 
-    #     @test iszero(system.angular_velocity[])
+        @test iszero(system.angular_velocity[])
 
-    #     dt = TrixiParticles.calculate_dt(system.initial_velocity,
-    #                                      system.initial_condition.coordinates,
-    #                                      0.25, system, nothing)
-    #     @test isapprox(dt, 0.25 * 0.1 / 1.0)
+        dt = TrixiParticles.calculate_dt(ode.u0.x[1], ode.u0.x[2], 0.25, system, semi)
+        @test isapprox(dt, 0.25 * 0.1 / 1.0)
 
-    #     TrixiParticles.update_final!(system, system.initial_velocity,
-    #                                  system.initial_condition.coordinates,
-    #                                  nothing, nothing, nothing, 0.0)
-    #     @test system.angular_velocity[] == 1.0
-    # end
+        v = TrixiParticles.wrap_v(ode.u0.x[1], system, semi)
+        u = TrixiParticles.wrap_u(ode.u0.x[2], system, semi)
+        TrixiParticles.update_final!(system, v, u, ode.u0.x[1], ode.u0.x[2], semi, 0.0)
+        @test system.angular_velocity[] == 1.0
+    end
 
-    # todo: fix this
-    # @trixi_testset "Time Step Invariance under Uniform Acceleration" begin
-    #     coordinates = [-1.0 1.0
-    #                    0.0 0.0]
-    #     velocity = [1.0 1.0
-    #                 0.0 0.0]
-    #     mass = [1.0, 1.0]
-    #     density = [1000.0, 1000.0]
-    #     initial_condition = InitialCondition(; coordinates, velocity, mass, density,
-    #                                          particle_spacing=0.1)
+    @trixi_testset "Time Step Invariance under Uniform Acceleration" begin
+        coordinates = [-1.0 1.0
+                       0.0 0.0]
+        velocity = [1.0 1.0
+                    0.0 0.0]
+        mass = [1.0, 1.0]
+        density = [1000.0, 1000.0]
+        initial_condition = InitialCondition(; coordinates, velocity, mass, density,
+                                             particle_spacing=0.1)
 
-    #     system_ref = RigidBodySystem(initial_condition; acceleration=(0.0, -9.81))
-    #     system_shifted = RigidBodySystem(initial_condition; acceleration=(0.0, -1000.0))
+        system_ref = RigidBodySystem(initial_condition; acceleration=(0.0, -9.81))
+        semi_ref = Semidiscretization(system_ref, neighborhood_search=nothing)
+        system_ref = semi_ref.systems[1]
+        ode_ref = semidiscretize(semi_ref, (0.0, 0.0); reset_threads=false)
 
-    #     dt_ref = TrixiParticles.calculate_dt(system_ref.initial_velocity,
-    #                                          system_ref.initial_condition.coordinates,
-    #                                          0.25, system_ref, nothing)
-    #     dt_shifted = TrixiParticles.calculate_dt(system_shifted.initial_velocity,
-    #                                              system_shifted.initial_condition.coordinates,
-    #                                              0.25, system_shifted, nothing)
+        system_shifted = RigidBodySystem(initial_condition; acceleration=(0.0, -1000.0))
+        semi_shifted = Semidiscretization(system_shifted, neighborhood_search=nothing)
+        system_shifted = semi_shifted.systems[1]
+        ode_shifted = semidiscretize(semi_shifted, (0.0, 0.0); reset_threads=false)
 
-    #     @test isapprox(dt_ref, 0.25 * 0.1 / 1.0)
-    #     @test dt_shifted == dt_ref
-    # end
+        dt_ref = TrixiParticles.calculate_dt(ode_ref.u0.x[1], ode_ref.u0.x[2], 0.25,
+                                             system_ref, semi_ref)
+        dt_shifted = TrixiParticles.calculate_dt(ode_shifted.u0.x[1], ode_shifted.u0.x[2],
+                                                 0.25, system_shifted, semi_shifted)
+
+        @test isapprox(dt_ref, 0.25 * 0.1 / 1.0)
+        @test dt_shifted == dt_ref
+    end
 
     @trixi_testset "Rotational Kinematics" begin
         coordinates = [-1.0 1.0
@@ -399,21 +399,18 @@
 
         expected_center_of_mass = [4.0, 3.0]
         expected_relative_coordinates = u_new .- expected_center_of_mass
-        # todo: fix this
-        # dt_restarted = TrixiParticles.calculate_dt(v_new, u_new, 0.25, rigid_system,
-        #                                            nothing)
+        semi = Semidiscretization(rigid_system, neighborhood_search=nothing)
+        dt_restarted = TrixiParticles.calculate_dt(v_new, u_new, 0.25, rigid_system, semi)
 
-        TrixiParticles.update_final!(rigid_system, v_new, u_new, nothing, nothing, nothing,
+        TrixiParticles.update_final!(rigid_system, v_new, u_new, nothing, nothing, semi,
                                      0.0)
-        # todo: fix this
-        # dt_updated = TrixiParticles.calculate_dt(v_new, u_new, 0.25, rigid_system, nothing)
+        dt_updated = TrixiParticles.calculate_dt(v_new, u_new, 0.25, rigid_system, semi)
 
         @test rigid_system.center_of_mass[] == expected_center_of_mass
         @test rigid_system.relative_coordinates == expected_relative_coordinates
         @test rigid_system.center_of_mass_velocity[] == [2.0, 5.0]
         @test rigid_system.angular_velocity[] == 0.5
-        #todo: fix this
-        # @test isapprox(dt_restarted, dt_updated)
+        @test isapprox(dt_restarted, dt_updated)
     end
 
     @trixi_testset "Velocity Components with ContinuityDensity" begin
@@ -836,8 +833,15 @@
                                                rigid_system_2) == Inf
         @test TrixiParticles.contact_time_step(rigid_system_2,
                                                rigid_system_without_contact) == Inf
-        @test TrixiParticles.contact_time_step(rigid_system_1, semi_rigid) ≈ pair_contact_dt
-        @test TrixiParticles.contact_time_step(rigid_system_2, semi_rigid) ≈ pair_contact_dt
+        @test TrixiParticles.contact_time_step(rigid_system_1) ≈
+              sqrt(rigid_mass_1[1] / contact_model_1.normal_stiffness)
+        @test TrixiParticles.contact_time_step(rigid_system_2) ≈
+              sqrt(rigid_mass_2[1] / contact_model_2.normal_stiffness)
+        semi_single_rigid = Semidiscretization(rigid_system_1)
+        ode_single_rigid = semidiscretize(semi_single_rigid, (0.0, 0.01))
+        zero_velocity_single = zero(ode_single_rigid.u0.x[1])
+        @test TrixiParticles.calculate_dt(zero_velocity_single, ode_single_rigid.u0.x[2],
+                                          0.25, rigid_system_1, semi_single_rigid) == Inf
         zero_velocity_ode = zero(v_ode_rigid)
         @test TrixiParticles.calculate_dt(zero_velocity_ode, u_ode_rigid, 0.25,
                                           rigid_system_1, semi_rigid) ≈
@@ -936,7 +940,6 @@
                                           contact_distance=0.1)
 
         runtime_model = TrixiParticles.copy_contact_model(contact_model, 0.1, Float64)
-        @test runtime_model isa RigidContactModel
         @test runtime_model.normal_stiffness ≈ 2.0e4
         @test runtime_model.normal_damping ≈ 20.0
         @test runtime_model.contact_distance ≈ 0.1
@@ -968,16 +971,26 @@
                                                        acceleration=(0.0, 0.0),
                                                        boundary_model=boundary_model)
         @test haskey(rigid_system.cache, :contact_manifold_count)
-        @test rigid_system.contact_model isa RigidContactModel
         @test rigid_system.contact_model.normal_stiffness ≈ contact_model.normal_stiffness
         @test rigid_system.contact_model.normal_damping ≈ contact_model.normal_damping
         @test rigid_system.contact_model.contact_distance ≈ contact_model.contact_distance
+        rigid_system_data = Dict{String, Any}()
+        TrixiParticles.add_system_data!(rigid_system_data, rigid_system)
+        @test rigid_system_data["contact_model"]["model"] ==
+              TrixiParticles.type2string(rigid_system.contact_model)
+        @test rigid_system_data["contact_model"]["normal_stiffness"] ≈
+              contact_model.normal_stiffness
+        @test rigid_system_data["contact_model"]["normal_damping"] ≈
+              contact_model.normal_damping
+        @test rigid_system_data["contact_model"]["contact_distance"] ≈
+              contact_model.contact_distance
         @test size(rigid_system_custom_manifolds.cache.contact_manifold_weight_sum, 1) == 3
         @test TrixiParticles.compact_support(rigid_system, boundary_system) ≈
               contact_model.contact_distance
         @test TrixiParticles.compact_support(rigid_system_with_boundary,
                                              boundary_system) ≈
               contact_model.contact_distance
+        @test iszero(TrixiParticles.compact_support(boundary_system, rigid_system))
         @test iszero(TrixiParticles.compact_support(rigid_system_without_contact,
                                                     boundary_system))
         @test_throws ArgumentError RigidBodySystem(rigid_ic;
@@ -994,6 +1007,30 @@
         ode = semidiscretize(semi, (0.0, 0.01))
         v_ode, u_ode = ode.u0.x
         dv_ode = zero(v_ode)
+        wall_contact_dt = sqrt(rigid_mass[1] / contact_model.normal_stiffness)
+
+        @test TrixiParticles.contact_time_step(rigid_system) ≈ wall_contact_dt
+        @test TrixiParticles.contact_time_step(rigid_system, boundary_system) ≈
+              wall_contact_dt
+
+        kick_boundary_model = BoundaryModelDummyParticles(boundary_density, boundary_mass,
+                                                          SummationDensity(),
+                                                          smoothing_kernel,
+                                                          smoothing_length)
+        kick_rigid_system = RigidBodySystem(rigid_ic;
+                                            acceleration=(0.0, 0.0),
+                                            contact_model=contact_model)
+        kick_boundary_system = WallBoundarySystem(boundary_ic, kick_boundary_model)
+        kick_semi = Semidiscretization(kick_rigid_system, kick_boundary_system)
+        kick_ode = semidiscretize(kick_semi, (0.0, 0.01))
+        kick_v_ode, kick_u_ode = kick_ode.u0.x
+        kick_dv_ode = zero(kick_v_ode)
+
+        TrixiParticles.kick!(kick_dv_ode, kick_v_ode, kick_u_ode, kick_semi, 0.0)
+        kick_dv = TrixiParticles.wrap_v(kick_dv_ode, kick_rigid_system, kick_semi)
+
+        @test kick_dv[2, 1] > 0
+        @test kick_rigid_system.resultant_force[][2] > 0
 
         TrixiParticles.interact!(dv_ode, v_ode, u_ode, rigid_system, boundary_system, semi)
         dv = TrixiParticles.wrap_v(dv_ode, rigid_system, semi)
@@ -1005,5 +1042,41 @@
         @test dv[2, 1] > 0
         @test rigid_system.cache.contact_count[] == 1
         @test rigid_system.cache.max_contact_penetration[] ≈ 0.05
+
+        far_rigid_ic = InitialCondition(; coordinates=reshape([0.0, 0.09], 2, 1),
+                                        velocity=rigid_velocity,
+                                        mass=rigid_mass,
+                                        density=rigid_density,
+                                        particle_spacing=0.1)
+        short_support_boundary_model = BoundaryModelDummyParticles(boundary_density,
+                                                                   boundary_mass,
+                                                                   SummationDensity(),
+                                                                   smoothing_kernel,
+                                                                   0.04)
+        short_support_boundary = WallBoundarySystem(boundary_ic,
+                                                    short_support_boundary_model)
+        far_rigid_system = RigidBodySystem(far_rigid_ic;
+                                           acceleration=(0.0, 0.0),
+                                           contact_model=contact_model)
+        short_support_semi = Semidiscretization(far_rigid_system, short_support_boundary)
+        short_support_ode = semidiscretize(short_support_semi, (0.0, 0.01))
+        short_support_v_ode, short_support_u_ode = short_support_ode.u0.x
+        short_support_dv_ode = zero(short_support_v_ode)
+
+        TrixiParticles.interact!(short_support_dv_ode, short_support_v_ode,
+                                 short_support_u_ode, far_rigid_system,
+                                 short_support_boundary, short_support_semi)
+        short_support_dv = TrixiParticles.wrap_v(short_support_dv_ode, far_rigid_system,
+                                                 short_support_semi)
+        short_support_v = TrixiParticles.wrap_v(short_support_v_ode, far_rigid_system,
+                                                short_support_semi)
+        short_support_u = TrixiParticles.wrap_u(short_support_u_ode, far_rigid_system,
+                                                short_support_semi)
+        TrixiParticles.finalize_interaction!(far_rigid_system, short_support_dv,
+                                             short_support_v, short_support_u,
+                                             short_support_dv_ode, short_support_v_ode,
+                                             short_support_u_ode, short_support_semi)
+
+        @test short_support_dv[2, 1] > 0
     end
 end

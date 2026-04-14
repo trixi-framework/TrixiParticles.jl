@@ -137,3 +137,8 @@ On GPUs that do not support `Float64`, such as most Apple GPUs, we also need to 
 the coordinates to `Float32` by passing `coordinates_eltype=Float32` to
 the setup functions that create [`InitialCondition`](@ref)s, such as
 [`RectangularTank`](@ref), [`RectangularShape`](@ref), and [`SphereShape`](@ref).
+
+## Writing GPU-compatible code
+
+Please see the [development documentation](@ref writing_gpu_code) for guidelines on
+how to write GPU-compatible code.

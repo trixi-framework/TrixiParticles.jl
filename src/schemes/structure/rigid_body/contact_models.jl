@@ -56,51 +56,54 @@ function copy_contact_model(model::RigidContactModel, particle_spacing,
                              contact_distance)
 end
 
-function contact_time_step(system::RigidBodySystem, semi)
-    # for rigid-wall interaction, limit timestep to the single body contact time step,
-    # for rigid-rigid interactions we need to check all neighbors
-    dt = contact_time_step(system, system) * sqrt(2)
-
-    # TODO this is called for every system, so we compute this twice for every interaction pair
-    foreach_system(semi) do neighbor
-        neighbor === system && return
-        dt = min(dt, contact_time_step(system, neighbor))
-    end
-
-    return dt
+# Single-body rigid-contact scale.
+#
+# This models the rigid body contacting an infinite-mass wall with its own contact model.
+# It is intentionally *not* the same as `contact_time_step(system, system)`: the latter
+# would represent two identical copies of the same rigid body in pair contact and therefore
+# uses the reduced mass `m/2` instead of the rigid-wall limit `m`.
+@inline function contact_time_step(system::RigidBodySystem)
+    return contact_time_step(system.contact_model, system)
 end
 
-@inline function contact_time_step(contact_model::Nothing, system::RigidBodySystem)
+@inline function contact_time_step(::Nothing, system::RigidBodySystem)
     return Inf
+end
+
+@inline function contact_time_step(contact_model::RigidContactModel,
+                                   system::RigidBodySystem)
+    # A wall is treated as an infinite-mass contact partner, so the reduced mass collapses
+    # to the mass of the rigid body particle itself.
+    return sqrt(minimum(system.mass) / contact_model.normal_stiffness)
 end
 
 @inline function contact_time_step(system::RigidBodySystem,
                                    neighbor::RigidBodySystem)
-    return contact_time_step(system.contact_model, system, neighbor.contact_model, neighbor)
-end
+    if isinf(contact_time_step(system)) || isinf(contact_time_step(neighbor))
+        return Inf
+    end
+    contact_model = system.contact_model::RigidContactModel
+    neighbor_contact_model = neighbor.contact_model::RigidContactModel
 
-@inline function contact_time_step(system, neighbor)
-    return Inf
-end
-
-function contact_time_step(contact_model::RigidContactModel,
-                           system::RigidBodySystem,
-                           neighbor_contact_model::RigidContactModel,
-                           neighbor_system::RigidBodySystem)
+    # For rigid-rigid contact, use one symmetric pair stiffness and the reduced mass of the
+    # lightest contact-carrying particles of both bodies. This makes the estimate invariant
+    # under swapping `system` and `neighbor`.
     pair_normal_stiffness = (contact_model.normal_stiffness +
                              neighbor_contact_model.normal_stiffness) / 2
 
-    min_mass = minimum(system.mass)
-    neighbor_min_mass = minimum(neighbor_system.mass)
-    return sqrt((min_mass * neighbor_min_mass / (min_mass + neighbor_min_mass)) /
-                pair_normal_stiffness)
+    system_min_mass = minimum(system.mass)
+    neighbor_min_mass = minimum(neighbor.mass)
+    reduced_mass = system_min_mass * neighbor_min_mass /
+                   (system_min_mass + neighbor_min_mass)
+
+    return sqrt(reduced_mass / pair_normal_stiffness)
 end
 
-function contact_time_step(contact_model,
-                           system::RigidBodySystem,
-                           neighbor_contact_model,
-                           neighbor_system::RigidBodySystem)
-    return Inf
+@inline function contact_time_step(system::RigidBodySystem,
+                                   neighbor::WallBoundarySystem)
+    # Wall boundaries do not carry their own rigid-body mass or inertia model, so the
+    # wall-contact estimate is exactly the single-body rigid-wall limit.
+    return contact_time_step(system)
 end
 
 function Base.show(io::IO, model::RigidContactModel)
