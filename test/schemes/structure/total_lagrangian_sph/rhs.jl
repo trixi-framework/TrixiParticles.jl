@@ -58,35 +58,21 @@
             kernel_deriv = 1.0
 
             #### Mocking
-            struct MockSystem <: TrixiParticles.AbstractSystem{2} end
+            struct MockSystem <: TrixiParticles.AbstractSystem{2}
+                current_coordinates
+                material_density
+                pk1_rho2
+                mass
+                penalty_force
+                viscosity
+                buffer
+            end
             @inline Base.eltype(::MockSystem) = Float64
-            system = MockSystem()
+            system = MockSystem(current_coordinates, material_density, pk1_rho2, mass,
+                                nothing, nothing, nothing)
 
             function TrixiParticles.initial_coordinates(::MockSystem)
                 return initial_coordinates
-            end
-
-            # Unpack calls should return predefined values or
-            # another mock object of the type Val{:mock_property_name}.
-            function Base.getproperty(::MockSystem, f::Symbol)
-                if f === :current_coordinates
-                    return current_coordinates
-                elseif f === :material_density
-                    return material_density
-                elseif f === :pk1_rho2
-                    return pk1_rho2
-                elseif f === :mass
-                    return mass
-                elseif f === :penalty_force
-                    return nothing
-                elseif f === :viscosity
-                    return nothing
-                elseif f === :buffer
-                    return nothing
-                end
-
-                # For all other properties, return mock objects
-                return Val(Symbol("mock_" * string(f)))
             end
 
             TrixiParticles.eachparticle(::MockSystem) = eachparticle
@@ -101,6 +87,9 @@
             TrixiParticles.compact_support(::MockSystem, ::MockSystem) = 1000.0
             function TrixiParticles.current_coords(system::MockSystem, particle)
                 return TrixiParticles.current_coords(initial_coordinates, system, particle)
+            end
+            function TrixiParticles.deformation_gradient(::MockSystem, particle)
+                return nothing
             end
 
             #### Verification
