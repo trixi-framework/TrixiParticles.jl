@@ -15,6 +15,7 @@ function interact!(dv, v_particle_system, u_particle_system,
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
     neighborhood_search = get_neighborhood_search(particle_system, neighbor_system, semi)
+    backend = semi.parallelization_backend
 
     # For `distance == 0`, the analytical gradient is zero, but the unsafe gradient divides
     # by zero. To account for rounding errors, we check if `distance` is almost zero.
@@ -34,7 +35,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         # which gives a significant speedup on GPUs.
         (v_a,
          rho_a) = @inbounds velocity_and_density(v_particle_system, particle_system,
-                                                 particle)
+                                                 backend, particle)
 
         # Accumulate the RHS contributions over all neighbors before writing to `dv`,
         # to reduce the number of memory writes.
@@ -61,7 +62,7 @@ function interact!(dv, v_particle_system, u_particle_system,
             m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
             (v_b,
              rho_b) = @inbounds velocity_and_density(v_neighbor_system, neighbor_system,
-                                                     neighbor)
+                                                     backend, neighbor)
 
             # The following call is equivalent to
             #     `p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)`
@@ -140,19 +141,19 @@ end
 end
 
 @propagate_inbounds function velocity_and_density(v, system::WeaklyCompressibleSPHSystem,
-                                                  particle)
+                                                  backend, particle)
     (; density_calculator) = system
 
-    return velocity_and_density(v, density_calculator, system, particle)
+    return velocity_and_density(v, density_calculator, system, backend, particle)
 end
 
-@propagate_inbounds function velocity_and_density(v, system, particle)
+@propagate_inbounds function velocity_and_density(v, system, backend, particle)
     # Call the default method below
-    return velocity_and_density(v, nothing, system, particle)
+    return velocity_and_density(v, nothing, system, backend, particle)
 end
 
 # Default method, which simply calls `current_velocity` and `current_density` separately.
-@propagate_inbounds function velocity_and_density(v, _, system, particle)
+@propagate_inbounds function velocity_and_density(v, _, system, backend, particle)
     v_particle = current_velocity(v, system, particle)
     rho_particle = current_density(v, system, particle)
 
@@ -161,19 +162,24 @@ end
 
 # Optimized version for WCSPH with `ContinuityDensity` in 3D on GPUs,
 # which combines the velocity and density load into one wide load.
-@inline function velocity_and_density(v::AbstractGPUArray, ::ContinuityDensity,
-                                      ::WeaklyCompressibleSPHSystem{3}, particle)
+# This is slightly slower on CPUs, so we only use it with GPU backends.
+# Note that we cannot dispatch by `AbstractGPUArray` because this is called from within
+# a kernel, where the arrays are device arrays (like `CuDeviceArray`),
+# which are not `AbstractGPUArray`s.
+@inline function velocity_and_density(v, ::ContinuityDensity,
+                                      ::WeaklyCompressibleSPHSystem{3},
+                                      ::KernelAbstractions.GPU,
+                                      particle)
     # Since `v` is stored as a 4 x N matrix, this aligned load extracts one column
     # of `v` corresponding to `particle`.
     # As opposed to `extract_svector`, this will translate to a single wide load instruction
     # on the GPU, which is faster than 4 separate loads.
     # Note that this doesn't work for 2D because it requires a stride of 2^n.
-    vrho_a = vloada(Vec{4, eltype(v)}, pointer(v, 4 * (particle - 1) + 1))
+    vrho_particle = SIMD.vloada(SIMD.Vec{4, eltype(v)}, pointer(v, 4 * (particle - 1) + 1))
 
-    # The column of `v` is ordered as (v_x, v_y, v_z, rho)
-    a, b, c, d = Tuple(vrho_a)
-    v_particle = SVector(a, b, c)
-    rho_particle = d
+    # The columns of `v` are ordered as (v_x, v_y, v_z, rho)
+    v1, v2, v3, rho = Tuple(vrho_particle)
+    v_particle = SVector(v1, v2, v3)
 
-    return v_particle, rho_particle
+    return v_particle, rho
 end

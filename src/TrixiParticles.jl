@@ -25,7 +25,7 @@ using Random: seed!
 using SciMLBase: SciMLBase, CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
                  get_tmp_cache, set_proposed_dt!, ODESolution, ODEProblem, terminate!,
                  add_tstop!
-using SIMD: vloada, Vec
+using SIMD: SIMD
 @reexport using StaticArrays: SVector
 using StaticArrays: @SMatrix, SMatrix, setindex
 using Statistics: Statistics
