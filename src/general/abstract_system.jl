@@ -183,6 +183,10 @@ function update_final!(system, v, u, v_ode, u_ode, semi, t; kwargs...)
     return system
 end
 
+function reset_interaction_caches!(system)
+    return system
+end
+
 function finalize_interaction!(system, dv, v, u, dv_ode, v_ode, u_ode, semi)
     return system
 end

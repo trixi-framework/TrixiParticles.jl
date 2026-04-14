@@ -492,7 +492,7 @@ end
 
 # Update the systems and neighborhood searches (NHS) for a simulation
 # before calling `interact!` to compute forces.
-function update_systems_and_nhs(v_ode, u_ode, semi, t; reset_interaction_caches=true)
+function update_systems_and_nhs(v_ode, u_ode, semi, t)
     # First update step before updating the NHS
     # (for example for writing the current coordinates in the TLSPH system)
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
@@ -525,9 +525,18 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t; reset_interaction_caches=
 
     # Final update step for all remaining systems
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
-        update_final!(system, v, u, v_ode, u_ode, semi, t;
-                      reset_interaction_caches=reset_interaction_caches)
+        update_final!(system, v, u, v_ode, u_ode, semi, t)
     end
+end
+
+# Some systems accumulate pairwise interaction state outside `dv_ode`. Reset that state once
+# at the beginning of every explicitly assembled interaction pass.
+function reset_interaction_caches!(semi::Union{NamedTuple, Semidiscretization})
+    foreach_system(semi) do system
+        reset_interaction_caches!(system)
+    end
+
+    return semi
 end
 
 # The `SplitIntegrationCallback` overwrites `semi_wrap` to use a different
@@ -669,6 +678,8 @@ end
 end
 
 function system_interaction!(dv_ode, v_ode, u_ode, semi)
+    reset_interaction_caches!(semi)
+
     # Call `interact!` for each pair of systems
     foreach_system(semi) do system
         foreach_system(semi) do neighbor
@@ -701,6 +712,8 @@ end
 # Function barrier to make benchmarking interactions easier.
 # One can benchmark, e.g. the fluid-fluid interaction, with:
 # dv_ode, du_ode = copy(sol.u[end]).x; v_ode, u_ode = copy(sol.u[end]).x;
+# For manual multi-pair interaction assembly, call `reset_interaction_caches!(semi)` once
+# before the first direct `interact!` call.
 # @btime TrixiParticles.interact!($dv_ode, $v_ode, $u_ode, $fluid_system, $fluid_system, $semi);
 @inline function interact!(dv_ode, v_ode, u_ode, system, neighbor, semi; timer_str="")
     dv = wrap_v(dv_ode, system, semi)

@@ -159,8 +159,7 @@ function (pp::PostprocessCallback)(integrator)
         # still have the values from the last stage of the previous step if not updated here.
         @trixi_timeit timer() "update systems and nhs" begin
             # Don't create sub-timers here to avoid cluttering the timer output
-            @notimeit timer() update_systems_and_nhs(v_ode, u_ode, semi, t;
-                                                     reset_interaction_caches=false)
+            @notimeit timer() update_systems_and_nhs(v_ode, u_ode, semi, t)
         end
 
         # Transfer to CPU if data is on the GPU. Do nothing if already on CPU.
