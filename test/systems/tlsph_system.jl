@@ -150,13 +150,14 @@
                 #### Mocking
                 # Mock the system
                 struct MockSystem <: TrixiParticles.AbstractStructureSystem{2}
-                    mass
-                    correction_matrix
-                    material_density
-                    smoothing_length
+                    mass::Any
+                    correction_matrix::Any
+                    material_density::Any
+                    smoothing_length::Any
                 end
                 Base.eltype(::MockSystem) = Float64
-                system = MockSystem(mass, correction_matrix, Val(:mock_material_density), 0.12)
+                system = MockSystem(mass, correction_matrix, Val(:mock_material_density),
+                                    0.12)
 
                 function TrixiParticles.current_coords(::MockSystem, particle)
                     return TrixiParticles.extract_svector(current_coordinates[i], Val(2),

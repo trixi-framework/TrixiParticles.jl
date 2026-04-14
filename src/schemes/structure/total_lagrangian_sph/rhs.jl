@@ -48,9 +48,10 @@ end
         dv_particle = Ref(zero(current_coords_a))
 
         # Loop over all neighbors within the kernel cutoff
-        @inbounds foreach_neighbor(system_coords, system_coords, neighborhood_search,
-                                   backend,particle) do particle, neighbor,
-                                                        initial_pos_diff, initial_distance
+        @inbounds foreach_neighbor(system_coords, system_coords,
+                                   neighborhood_search, backend,
+                                   particle) do particle, neighbor,
+                                                initial_pos_diff, initial_distance
             # Skip neighbors with the same position because the kernel gradient is zero.
             # Note that `return` only exits the closure, i.e., skips the current neighbor.
             skip_zero_distance(system) && initial_distance < almostzero && return

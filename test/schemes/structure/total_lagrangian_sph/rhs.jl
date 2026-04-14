@@ -59,13 +59,13 @@
 
             #### Mocking
             struct MockSystem <: TrixiParticles.AbstractSystem{2}
-                current_coordinates
-                material_density
-                pk1_rho2
-                mass
-                penalty_force
-                viscosity
-                buffer
+                current_coordinates::Any
+                material_density::Any
+                pk1_rho2::Any
+                mass::Any
+                penalty_force::Any
+                viscosity::Any
+                buffer::Any
             end
             @inline Base.eltype(::MockSystem) = Float64
             system = MockSystem(current_coordinates, material_density, pk1_rho2, mass,
