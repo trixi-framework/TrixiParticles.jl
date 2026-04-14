@@ -68,7 +68,7 @@ function trixi2vtk(dvdu_ode, vu_ode, semi, t; iter=nothing, output_directory="ou
     @trixi_timeit timer() "update systems" begin
         v_ode, u_ode = vu_ode.x
         # Don't create sub-timers here to avoid cluttering the timer output
-        @notimeit timer() update_systems_and_nhs(v_ode, u_ode, semi, t)
+        @notimeit timer() update_systems!(v_ode, u_ode, semi, t)
     end
 
     filenames = system_names(systems)

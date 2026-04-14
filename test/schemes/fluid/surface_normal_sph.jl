@@ -104,7 +104,7 @@ function create_fluid_system(coordinates, velocity, mass, density, particle_spac
     end
 
     ode = semidiscretize(semi, tspan)
-    TrixiParticles.update_systems_and_nhs(ode.u0.x..., semi, 0.0)
+    TrixiParticles.update_systems!(ode.u0.x..., semi, 0.0)
 
     return system, boundary_system, semi, ode
 end

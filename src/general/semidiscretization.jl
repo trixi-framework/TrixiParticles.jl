@@ -480,10 +480,7 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
         # Update the systems and neighborhood searches (NHS) for a simulation
         # before calling `interact!` to compute forces.
         @trixi_timeit timer() "update systems and nhs" update_systems!(v_ode, u_ode, semi,
-                                                                       t;
-                                                                       update_nhs=true,
-                                                                       update_boundary_interpolation=true,
-                                                                       update_inter_system=true)
+                                                                       t)
 
         @trixi_timeit timer() "system interaction" system_interaction!(dv_ode, v_ode, u_ode,
                                                                        semi)
@@ -495,11 +492,28 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
     return dv_ode
 end
 
-# Update the systems for a simulation before calling `interact!` to compute forces.
-function update_systems!(v_ode, u_ode, semi, t;
-                         update_nhs=false,
-                         update_boundary_interpolation=false,
-                         update_inter_system=false)
+# Update the systems and neighborhood searches (NHS) for a simulation
+# before calling `interact!` to compute forces.
+function update_systems!(v_ode, u_ode, semi, t)
+    _update_systems!(v_ode, u_ode, semi, t;
+                     update_nhs=true,
+                     update_boundary_interpolation=true,
+                     update_inter_system=true)
+end
+
+# Reduced system update used by split integration to avoid unnecessary work.
+function update_systems_split!(v_ode, u_ode, semi, t)
+    _update_systems!(v_ode, u_ode, semi, t;
+                     update_nhs=false,
+                     update_boundary_interpolation=false,
+                     update_inter_system=false)
+end
+
+# Internal helper to update the different derived quantities stored in the systems.
+function _update_systems!(v_ode, u_ode, semi, t;
+                          update_nhs,
+                          update_boundary_interpolation,
+                          update_inter_system)
     # First update step before updating the NHS
     # (for example for writing the current coordinates in the TLSPH system)
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u

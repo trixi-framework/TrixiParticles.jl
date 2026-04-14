@@ -25,7 +25,7 @@
 
         tspan = (0.0, 0.01)
         ode = semidiscretize(semi, tspan)
-        TrixiParticles.update_systems_and_nhs(ode.u0.x..., semi, 0.0)
+        TrixiParticles.update_systems!(ode.u0.x..., semi, 0.0)
 
         @test density[1] ===
               water_density * TrixiParticles.kernel(smoothing_kernel, 0.0, smoothing_length)

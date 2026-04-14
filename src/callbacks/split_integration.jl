@@ -169,7 +169,7 @@ function affect_inner!(integrator, split_integrator)
         # Update quantities that are stored in the systems. These quantities (e.g. pressure)
         # still have the values from the last stage of the previous step if not updated here.
         @trixi_timeit timer() "update systems and nhs" begin
-            update_systems_and_nhs(v_ode, u_ode, semi, new_t)
+            update_systems!(v_ode, u_ode, semi, new_t)
         end
 
         # Integrate the split integrator up to the new time
@@ -198,8 +198,9 @@ function kick_split!(dv_ode_split, v_ode_split, u_ode_split, p, t)
     # a lot of the speedup that we can gain with split integration.
     # We assume that the TLSPH particles move so little during the substeps
     # that the extrapolated pressure/density values can be treated as constant.
-    @trixi_timeit timer() "update systems" update_systems!(v_ode_split, u_ode_split,
-                                                           semi_split, t)
+    @trixi_timeit timer() "update systems" update_systems_split!(v_ode_split,
+                                                                 u_ode_split,
+                                                                 semi_split, t)
 
     @trixi_timeit timer() "system interaction" begin
         system_interaction_split!(dv_ode_split, v_ode, u_ode, semi,
