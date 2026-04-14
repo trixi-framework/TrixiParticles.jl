@@ -161,13 +161,11 @@ end
 
 # Optimized version for WCSPH with `ContinuityDensity` in 3D,
 # which combines the velocity and density load into one wide load.
-# This is significantly faster on GPUs.
+# This is significantly faster on GPUs than the 4 individual loads of `extract_svector`.
 @inline function velocity_and_density(v, ::ContinuityDensity,
                                       ::WeaklyCompressibleSPHSystem{3}, particle)
     # Since `v` is stored as a 4 x N matrix, this aligned load extracts one column
     # of `v` corresponding to `particle`.
-    # As opposed to `extract_svector`, this will translate to a single wide load instruction
-    # on the GPU, which is faster than 4 separate loads.
     # Note that this doesn't work for 2D because it requires a stride of 2^n.
     vrho_particle = SIMD.vloada(SIMD.Vec{4, eltype(v)}, pointer(v, 4 * (particle - 1) + 1))
 
