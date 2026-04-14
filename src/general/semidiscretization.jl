@@ -477,8 +477,13 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
 
         @trixi_timeit timer() "reset ∂v/∂t" set_zero!(dv_ode)
 
-        @trixi_timeit timer() "update systems and nhs" update_systems_and_nhs(v_ode, u_ode,
-                                                                              semi, t)
+        # Update the systems and neighborhood searches (NHS) for a simulation
+        # before calling `interact!` to compute forces.
+        @trixi_timeit timer() "update systems and nhs" update_systems!(v_ode, u_ode, semi,
+                                                                       t;
+                                                                       update_nhs=true,
+                                                                       update_boundary_interpolation=true,
+                                                                       update_inter_system=true)
 
         @trixi_timeit timer() "system interaction" system_interaction!(dv_ode, v_ode, u_ode,
                                                                        semi)
@@ -535,15 +540,6 @@ function update_systems!(v_ode, u_ode, semi, t;
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_final!(system, v, u, v_ode, u_ode, semi, t)
     end
-end
-
-# Update the systems and neighborhood searches (NHS) for a simulation
-# before calling `interact!` to compute forces.
-function update_systems_and_nhs(v_ode, u_ode, semi, t)
-    update_systems!(v_ode, u_ode, semi, t;
-                    update_nhs=true,
-                    update_boundary_interpolation=true,
-                    update_inter_system=true)
 end
 
 # The `SplitIntegrationCallback` overwrites `semi_wrap` to use a different
