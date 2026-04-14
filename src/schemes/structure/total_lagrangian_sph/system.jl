@@ -329,12 +329,16 @@ end
     error("`current_velocity(v, system)` is not implemented for `TotalLagrangianSPHSystem`")
 end
 
-@propagate_inbounds function viscous_velocity(v, system::TotalLagrangianSPHSystem, particle)
-    return extract_svector(system.boundary_model.cache.wall_velocity, system, particle)
-end
-
 @propagate_inbounds function current_density(v, system::TotalLagrangianSPHSystem)
     return current_density(v, system.boundary_model, system)
+end
+
+@propagate_inbounds function viscous_velocity(v, system::TotalLagrangianSPHSystem,
+                                              particle, v_particle)
+    # This function is only used in fluid-structure interaction,
+    # so it is never called when `boundary_model` is `nothing`
+    return viscous_velocity(v, system.boundary_model.viscosity, system,
+                            particle, v_particle)
 end
 
 # In fluid-structure interaction, use the "hydrodynamic pressure" of the structure particles
@@ -474,22 +478,33 @@ end
     # Reset deformation gradient
     set_zero!(deformation_grad)
 
+    # For `distance == 0`, the analytical gradient is zero, but the unsafe gradient
+    # and the density diffusion divide by zero.
+    # To account for rounding errors, we check if `distance` is almost zero.
+    # Since the coordinates are in the order of the smoothing length `h`, `distance^2` is in
+    # the order of `h^2`, so we need to check `distance < sqrt(eps(h^2))`.
+    # Note that `sqrt(eps(h^2)) != eps(h)`.
+    h = initial_smoothing_length(system)
+    almostzero = sqrt(eps(h^2))
+
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     initial_coords = initial_coordinates(system)
     foreach_point_neighbor(system, system, initial_coords, initial_coords,
                            semi) do particle, neighbor, initial_pos_diff, initial_distance
-        # Only consider particles with a distance > 0.
-        # See `src/general/smoothing_kernels.jl` for more details.
-        initial_distance^2 < eps(initial_smoothing_length(system)^2) && return
+        # Skip neighbors with the same position because the kernel gradient is zero.
+        # Note that `return` only exits the closure, i.e., skips the current neighbor.
+        skip_zero_distance(system) && initial_distance < almostzero && return
+
+        # Now that we know that `distance` is not zero, we can safely call the unsafe
+        # version of the kernel gradient to avoid redundant zero checks.
+        grad_kernel = smoothing_kernel_grad_unsafe(system, initial_pos_diff,
+                                                   initial_distance, particle)
 
         volume = @inbounds mass[neighbor] / material_density[neighbor]
         pos_diff_ = @inbounds current_coords(system, particle) -
                               current_coords(system, neighbor)
         # On GPUs, convert `Float64` coordinates to `Float32` after computing the difference
         pos_diff = convert.(eltype(system), pos_diff_)
-
-        grad_kernel = smoothing_kernel_grad(system, initial_pos_diff,
-                                            initial_distance, particle)
 
         # Multiply by L_{0a}
         L = @inbounds correction_matrix(system, particle)
@@ -741,5 +756,37 @@ function Base.show(io::IO, ::MIME"text/plain", system::TotalLagrangianSPHSystem)
         summary_line(io, "penalty force", system.penalty_force)
         summary_line(io, "viscosity", system.viscosity)
         summary_footer(io)
+    end
+end
+
+function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
+    (; boundary_model) = system
+
+    if !isnothing(boundary_model)
+        n_particles_model = length(system.boundary_model.hydrodynamic_mass)
+        if n_particles_model != nparticles(system)
+            throw(ArgumentError("the boundary model was initialized with $n_particles_model " *
+                                "particles, but the `TotalLagrangianSPHSystem` has " *
+                                "$(nparticles(system)) particles."))
+        end
+    end
+
+    if system.self_interaction_nhs.periodic_box != extract_periodic_box(nhs)
+        throw(ArgumentError("The `periodic_box` of the `TotalLagrangianSPHSystem`'s " *
+                            "self-interaction neighborhood search must be the same " *
+                            "as of the global neighborhood search."))
+    end
+
+    foreach_system(systems) do neighbor
+        if neighbor isa AbstractFluidSystem && boundary_model === nothing
+            throw(ArgumentError("a boundary model for `TotalLagrangianSPHSystem` must be " *
+                                "specified when simulating a fluid-structure interaction."))
+        end
+    end
+
+    if boundary_model isa BoundaryModelDummyParticles &&
+       boundary_model.density_calculator isa ContinuityDensity
+        throw(ArgumentError("`BoundaryModelDummyParticles` with density calculator " *
+                            "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"))
     end
 end

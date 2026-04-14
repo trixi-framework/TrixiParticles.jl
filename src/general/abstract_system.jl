@@ -52,18 +52,19 @@ end
 
 initialize!(system, semi) = system
 
-# This should not be dispatched by system type. We always expect to get a column of `A`.
-@propagate_inbounds function extract_svector(A, system, i)
-    extract_svector(A, Val(ndims(system)), i)
+# This should not be dispatched by system type. We always expect the first index of `A`
+# to enumerate spatial dimensions.
+@propagate_inbounds function extract_svector(A, system, i...)
+    extract_svector(A, Val(ndims(system)), i...)
 end
 
-# Return the `i`-th column of the array `A` as an `SVector`.
-@inline function extract_svector(A, ::Val{NDIMS}, i) where {NDIMS}
+# Return `A[:, i...]` as an `SVector`.
+@inline function extract_svector(A, ::Val{NDIMS}, i...) where {NDIMS}
     # Explicit bounds check, which can be removed by calling this function with `@inbounds`
-    @boundscheck checkbounds(A, NDIMS, i)
+    @boundscheck checkbounds(A, NDIMS, i...)
 
     # Assume inbounds access now
-    return SVector(ntuple(@inline(dim->@inbounds A[dim, i]), NDIMS))
+    return SVector(ntuple(@inline(dim->@inbounds A[dim, i...]), NDIMS))
 end
 
 # Return `A[:, :, i]` as an `SMatrix`.
@@ -129,10 +130,36 @@ end
     return kernel(smoothing_kernel, distance, smoothing_length(system, particle))
 end
 
+@inline function smoothing_kernel_unsafe(system, distance, particle)
+    (; smoothing_kernel) = system
+    return kernel_unsafe(smoothing_kernel, distance, smoothing_length(system, particle))
+end
+
+@inline function skip_zero_distance(system::AbstractSystem)
+    return skip_zero_distance(system_correction(system))
+end
+
+# Robust/safe version of the function below. In performance-critical code, manually check
+# the kernel support, call `skip_zero_distance` and then `smoothing_kernel_grad_unsafe`.
 @inline function smoothing_kernel_grad(system, pos_diff, distance, particle)
-    return corrected_kernel_grad(system_smoothing_kernel(system), pos_diff,
-                                 distance, smoothing_length(system, particle),
-                                 system_correction(system), system, particle)
+    h = smoothing_length(system, particle)
+    compact_support_ = compact_support(system_smoothing_kernel(system), h)
+
+    # Note that `sqrt(eps(h^2)) != eps(h)`
+    if distance >= compact_support_ ||
+       (skip_zero_distance(system) && distance^2 < eps(h^2))
+        return zero(pos_diff)
+    end
+
+    return smoothing_kernel_grad_unsafe(system, pos_diff, distance, particle)
+end
+
+# Skip the zero distance and compact support checks for maximum performance.
+# Only call this when you are sure that `0 < distance < compact_support`.
+@inline function smoothing_kernel_grad_unsafe(system, pos_diff, distance, particle)
+    return corrected_kernel_grad_unsafe(system_smoothing_kernel(system), pos_diff,
+                                        distance, smoothing_length(system, particle),
+                                        system_correction(system), system, particle)
 end
 
 # System updates do nothing by default, but can be dispatched if needed
@@ -153,6 +180,10 @@ function update_boundary_interpolation!(system, v, u, v_ode, u_ode, semi, t)
 end
 
 function update_final!(system, v, u, v_ode, u_ode, semi, t)
+    return system
+end
+
+function finalize_interaction!(system, dv, v, u, dv_ode, v_ode, u_ode, semi)
     return system
 end
 

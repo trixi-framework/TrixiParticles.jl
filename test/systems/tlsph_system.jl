@@ -184,10 +184,11 @@
 
                 Base.getindex(::Val{:mock_material_density}, ::Int64) = density
 
-                function TrixiParticles.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _)
-                    return kernel_derivative
+                function TrixiParticles.smoothing_kernel_grad_unsafe(::Val{:mock_system_tensor},
+                                                                     pos_diff, distance,
+                                                                     particle)
+                    return kernel_derivative * pos_diff / distance
                 end
-                Base.eps(::Type{Val{:mock_smoothing_length}}) = eps()
                 semi = DummySemidiscretization()
 
                 # Compute deformation gradient
@@ -383,7 +384,8 @@
         for particle in TrixiParticles.eachparticle(system)
             system.deformation_grad[:, :, particle] = [1.0 0.2; 0.2 1.0]
             system.pk1_rho2[:, :,
-                            particle] = [1.0 0.5; 0.5 1.0] / material_densities[particle]^2
+                            particle] = [1.0 0.5; 0.5 1.0] /
+                                        material_densities[particle]^2
         end
 
         von_mises_stress = TrixiParticles.von_mises_stress(system)

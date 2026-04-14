@@ -143,6 +143,15 @@ end
                                                   v_particle_system, v_neighbor_system,
                                                   particle, neighbor, pos_diff, distance,
                                                   m_b, rho_a, rho_b, grad_kernel)
+    return continuity_equation!(dv, particle_system, neighbor_system, v_particle_system,
+                                v_neighbor_system, particle, neighbor, pos_diff, distance,
+                                m_b, rho_a, rho_b, grad_kernel)
+end
+
+@propagate_inbounds function continuity_equation!(dv, particle_system, neighbor_system,
+                                                  v_particle_system, v_neighbor_system,
+                                                  particle, neighbor, pos_diff, distance,
+                                                  m_b, rho_a, rho_b, grad_kernel)
     vdiff = current_velocity(v_particle_system, particle_system, particle) -
             current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
@@ -150,7 +159,10 @@ end
                                                particle_system, neighbor_system,
                                                particle, neighbor, rho_a, rho_b)
 
-    dv[end, particle] += rho_a / rho_b * m_b * dot(vdiff, grad_kernel)
+    # Since this is one of the most performance critical functions, using fast divisions
+    # here gives a significant speedup on GPUs.
+    # See the docs page "Development" for more details on `div_fast`.
+    dv[end, particle] += div_fast(rho_a, rho_b) * m_b * dot(vdiff, grad_kernel)
 
     # Artificial density diffusion should only be applied to systems representing a fluid
     # with the same physical properties i.e. density and viscosity.
@@ -218,6 +230,19 @@ end
 
 @inline function surface_normal_method(system)
     return nothing
+end
+
+function check_configuration(fluid_system::AbstractFluidSystem, systems, nhs)
+    if !(fluid_system isa ParticlePackingSystem) && !isnothing(fluid_system.surface_tension)
+        foreach_system(systems) do neighbor
+            if neighbor isa AbstractFluidSystem &&
+               isnothing(fluid_system.surface_tension) &&
+               isnothing(fluid_system.surface_normal_method)
+                throw(ArgumentError("either none or all fluid systems in a simulation need " *
+                                    "to use a surface tension model or a surface normal method."))
+            end
+        end
+    end
 end
 
 function system_data(system::AbstractFluidSystem, dv_ode, du_ode, v_ode, u_ode, semi)
