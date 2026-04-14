@@ -72,7 +72,8 @@ makedocs(sitename="TrixiParticles.jl",
          plugins=[bib],
          # Run doctests and check docs for the following modules
          modules=[TrixiParticles, TrixiBase],
-         format=Documenter.HTML(; assets=Asciicast.assets()),
+         # Set edit_link explicitly to avoid `git remote show origin` lookups.
+         format=Documenter.HTML(; assets=Asciicast.assets(), edit_link="main"),
          # Explicitly specify documentation structure
          pages=[
              "Home" => "index.md",

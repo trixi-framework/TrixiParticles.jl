@@ -183,16 +183,6 @@ end
     end
 end
 
-@inline function foreach_system_wrapped(f, semi::Union{NamedTuple, Semidiscretization},
-                                        dv_ode, v_ode, u_ode)
-    return foreach_system(semi) do system
-        f(system,
-          wrap_v(dv_ode, system, semi),
-          wrap_v(v_ode, system, semi),
-          wrap_u(u_ode, system, semi))
-    end
-end
-
 """
     semidiscretize(semi, tspan; reset_threads=true)
 
@@ -561,7 +551,11 @@ end
 # TODO `semi` is not used yet, but will be used when the source terms API is modified
 # to match the custom quantities API.
 function add_source_terms!(dv_ode, v_ode, u_ode, semi, t; semi_wrap=semi)
-    foreach_system_wrapped(semi_wrap, dv_ode, v_ode, u_ode) do system, dv, v, u
+    foreach_system(semi_wrap) do system
+        dv = wrap_v(dv_ode, system, semi_wrap)
+        v = wrap_v(v_ode, system, semi_wrap)
+        u = wrap_u(u_ode, system, semi_wrap)
+
         # `integrate_tlsph` is extracted from the `semi_wrap`, so that this function
         # can be used in the `SplitIntegrationCallback` as well.
         integrate_tlsph = semi_wrap.integrate_tlsph[]

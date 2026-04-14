@@ -1,3 +1,9 @@
+# By default, use `div_fast` of `Base.FastMath`.
+# In the `TrixiParticlesCUDAExt` extension, this is redefined for `Float64`.
+@inline function div_fast(x, y)
+    return Base.FastMath.div_fast(x, y)
+end
+
 # Same as `foreach`, but it is unrolled by the compiler for small input tuples
 @inline function foreach_noalloc(func, collection)
     element = first(collection)
