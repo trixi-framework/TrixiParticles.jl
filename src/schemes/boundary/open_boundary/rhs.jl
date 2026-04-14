@@ -3,12 +3,21 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
                    neighbor_system, semi)
-    (; fluid_system, cache, boundary_model) = particle_system
+    (; fluid_system, cache) = particle_system
 
     sound_speed = system_sound_speed(fluid_system)
 
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
+
+    # For `distance == 0`, the analytical gradient is zero, but the unsafe gradient
+    # and the density diffusion divide by zero.
+    # To account for rounding errors, we check if `distance` is almost zero.
+    # Since the coordinates are in the order of the smoothing length `h`, `distance^2` is in
+    # the order of `h^2`, so we need to check `distance < sqrt(eps(h^2))`.
+    # Note that `sqrt(eps(h^2)) != eps(h)`.
+    h = initial_smoothing_length(particle_system)
+    almostzero = sqrt(eps(h^2))
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     foreach_point_neighbor(particle_system, neighbor_system,
@@ -17,13 +26,23 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                                                 neighbor,
                                                                                 pos_diff,
                                                                                 distance
+        # Skip neighbors with the same position because the kernel gradient is zero.
+        # Note that `return` only exits the closure, i.e., skips the current neighbor.
+        skip_zero_distance(particle_system) && distance < almostzero && return
+
+        # Now that we know that `distance` is not zero, we can safely call the unsafe
+        # version of the kernel gradient to avoid redundant zero checks.
+        grad_kernel = smoothing_kernel_grad_unsafe(particle_system, pos_diff,
+                                                   distance, particle)
+
         # `foreach_point_neighbor` makes sure that `particle` and `neighbor` are
         # in bounds of the respective system. For performance reasons, we use `@inbounds`
         # in this hot loop to avoid bounds checking when extracting particle quantities.
         rho_a = @inbounds current_density(v_particle_system, particle_system, particle)
         rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
 
-        grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance, particle)
+        v_a = @inbounds current_velocity(v_particle_system, particle_system, particle)
+        v_b = @inbounds current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
         m_a = @inbounds hydrodynamic_mass(particle_system, particle)
         m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
@@ -42,31 +61,33 @@ function interact!(dv, v_particle_system, u_particle_system,
         dv_pressure_boundary = 2 * p_boundary * (m_b / (rho_a * rho_b)) * grad_kernel
 
         # Propagate `@inbounds` to the viscosity function, which accesses particle data
-        dv_viscosity_ = @inbounds dv_viscosity(viscosity_model(fluid_system,
-                                                               neighbor_system),
-                                               particle_system, neighbor_system,
-                                               v_particle_system, v_neighbor_system,
-                                               particle, neighbor, pos_diff, distance,
-                                               sound_speed, m_a, m_b, rho_a, rho_b,
-                                               grad_kernel)
+        dv_viscosity_ = Ref(zero(pos_diff))
+        @inbounds dv_viscosity!(dv_viscosity_,
+                                viscosity_model(fluid_system,
+                                                neighbor_system),
+                                particle_system, neighbor_system,
+                                v_particle_system, v_neighbor_system,
+                                particle, neighbor, pos_diff, distance,
+                                sound_speed, m_a, m_b, rho_a, rho_b,
+                                v_a, v_b, grad_kernel)
 
-        dv_particle = dv_pressure + dv_viscosity_ + dv_pressure_boundary
+        dv_particle = dv_pressure + dv_viscosity_[] + dv_pressure_boundary
 
         for i in 1:ndims(particle_system)
             @inbounds dv[i, particle] += dv_particle[i]
         end
 
-        v_diff = current_velocity(v_particle_system, particle_system, particle) -
-                 current_velocity(v_neighbor_system, neighbor_system, neighbor)
+        v_a = current_velocity(v_particle_system, particle_system, particle)
+        v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
+        v_diff = v_a - v_b
 
-        # Continuity equation
-        @inbounds dv[end, particle] += rho_a / rho_b * m_b * dot(v_diff, grad_kernel)
-
+        # Propagate `@inbounds` to the continuity equation, which accesses particle data
         drho_particle = Ref(zero(rho_a))
-        density_diffusion!(drho_particle, density_diffusion(particle_system),
-                           particle_system, particle, neighbor,
-                           pos_diff, distance, m_b, rho_a, rho_b, grad_kernel)
-        @inbounds dv[end, particle] += drho_particle[]
+        @inbounds continuity_equation!(drho_particle,
+                                       particle_system, neighbor_system,
+                                       v_particle_system, v_neighbor_system,
+                                       particle, neighbor, pos_diff, distance,
+                                       m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
 
         # Open boundary pressure evolution matches the corresponding fluid system:
         # - EDAC: Compute pressure evolution like the fluid system
