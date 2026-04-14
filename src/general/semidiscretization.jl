@@ -506,12 +506,11 @@ function update_systems!(v_ode, u_ode, semi, t;
         update_positions!(system, v, u, v_ode, u_ode, semi, t)
     end
 
-    # Update NHS
     if update_nhs
         @trixi_timeit timer() "update nhs" update_nhs!(semi, u_ode)
     end
 
-    # Second update step.
+    # Second update step depends on updated NHS.
     # This is used to calculate density and pressure of the fluid systems
     # before updating the boundary systems,
     # since the fluid pressure is needed by the Adami interpolation.
