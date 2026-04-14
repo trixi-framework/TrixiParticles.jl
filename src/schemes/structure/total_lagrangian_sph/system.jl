@@ -490,6 +490,7 @@ end
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     initial_coords = initial_coordinates(system)
     neighborhood_search = get_neighborhood_search(system, system, semi)
+    backend = semi.parallelization_backend
 
     @threaded semi for particle in each_integrated_particle(system)
         # We are looping over the particles of `system`, so it is guaranteed
@@ -504,11 +505,9 @@ end
         result = Ref(zero(L_a))
 
         # Loop over all neighbors within the kernel cutoff
-        @inbounds PointNeighbors.foreach_neighbor(initial_coords, initial_coords,
-                                                  neighborhood_search,
-                                                  particle) do particle, neighbor,
-                                                               initial_pos_diff,
-                                                               initial_distance
+        @inbounds foreach_neighbor(initial_coords, initial_coords, neighborhood_search,
+                                   backend, particle) do particle, neighbor,
+                                                         initial_pos_diff, initial_distance
             # Skip neighbors with the same position because the kernel gradient is zero.
             # Note that `return` only exits the closure, i.e., skips the current neighbor.
             skip_zero_distance(system) && initial_distance < almostzero && return
