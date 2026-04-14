@@ -25,7 +25,7 @@ end
                                      v_system, particle, neighbor,
                                      current_pos_diff, current_distance,
                                      m_a, m_b, rho_a, rho_b, F_a, grad_kernel)
-    return zero(current_pos_diff)
+    return dv_particle
 end
 
 # Applying the viscosity according to Lin et al. (2015):
