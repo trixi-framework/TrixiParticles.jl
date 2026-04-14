@@ -24,7 +24,7 @@ end
 @inline function dv_viscosity_tlsph!(dv_particle, viscosity::Nothing, system,
                                      v_system, particle, neighbor,
                                      current_pos_diff, current_distance,
-                                     m_a, m_b, rho_a, rho_b, grad_kernel)
+                                     m_a, m_b, rho_a, rho_b, F_a, grad_kernel)
     return zero(current_pos_diff)
 end
 
