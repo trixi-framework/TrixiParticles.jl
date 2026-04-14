@@ -94,10 +94,9 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
         accumulate_structure_fluid_pair!(dv, dv_particle[], particle_system, particle, m_b)
 
         drho_particle = Ref(zero(rho_a))
-        continuity_equation!(drho_particle,
+        continuity_equation!(drho_particle, particle_system, neighbor_system,
                              particle, neighbor, pos_diff, distance,
-                             m_b, rho_a, rho_b, v_a, v_b,
-                             particle_system, neighbor_system, grad_kernel)
+                             m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
 
         @inbounds write_drho_particle!(dv, particle_system, drho_particle, particle)
     end
@@ -106,21 +105,19 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
 end
 
 @inline function continuity_equation!(drho_particle,
-                                      particle, neighbor, pos_diff, distance,
-                                      m_b, rho_a, rho_b, v_a, v_b,
                                       particle_system::AbstractStructureSystem,
                                       neighbor_system::AbstractFluidSystem,
-                                      grad_kernel)
+                                      particle, neighbor, pos_diff, distance,
+                                      m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
     return drho_particle
 end
 
 @inline function continuity_equation!(drho_particle,
-                                      particle, neighbor, pos_diff, distance,
-                                      m_b, rho_a, rho_b, v_a, v_b,
                                       particle_system::Union{RigidBodySystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
                                                              TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}}},
                                       neighbor_system::AbstractFluidSystem,
-                                      grad_kernel)
+                                      particle, neighbor, pos_diff, distance,
+                                      m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
     continuity_equation!(drho_particle, density_calculator(neighbor_system),
                          m_b, rho_a, rho_b, v_a, v_b, grad_kernel, particle)
 

@@ -61,16 +61,18 @@ end
 # This is the derivative of the density summation, which is compatible with the
 # `SummationDensity` pressure acceleration.
 # Energy preservation tests will fail with the other formulation.
-function continuity_equation!(drho_particle, ::SummationDensity,
-                              m_b, rho_a, rho_b, v_a, v_b, grad_kernel, particle)
+@propagate_inbounds function continuity_equation!(drho_particle, ::SummationDensity,
+                                                  m_b, rho_a, rho_b, v_a, v_b,
+                                                  grad_kernel, particle)
     drho_particle[] += m_b * dot(v_a - v_b, grad_kernel)
 
     return drho_particle
 end
 
 # This is identical to the continuity equation of the fluid
-function continuity_equation!(drho_particle, ::ContinuityDensity,
-                              m_b, rho_a, rho_b, v_a, v_b, grad_kernel, particle)
+@propagate_inbounds function continuity_equation!(drho_particle, ::ContinuityDensity,
+                                                  m_b, rho_a, rho_b, v_a, v_b,
+                                                  grad_kernel, particle)
     drho_particle[] += rho_a / rho_b * m_b * dot(v_a - v_b, grad_kernel)
 
     return drho_particle

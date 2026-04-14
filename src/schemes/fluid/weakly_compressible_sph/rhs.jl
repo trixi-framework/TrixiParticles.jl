@@ -123,7 +123,6 @@ function interact!(dv, v_particle_system, u_particle_system,
         # Propagate `@inbounds` to the continuity equation, which accesses particle data
         @inbounds continuity_equation!(drho_particle, density_calculator,
                                        particle_system, neighbor_system,
-                                       v_particle_system, v_neighbor_system,
                                        particle, neighbor, pos_diff, distance,
                                        m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
 
