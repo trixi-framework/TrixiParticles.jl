@@ -194,9 +194,12 @@ function kick_split!(dv_ode_split, v_ode_split, u_ode_split, p, t)
 
     @trixi_timeit timer() "reset ∂v/∂t" set_zero!(dv_ode_split)
 
-    # Update the TLSPH systems
-    @trixi_timeit timer() "update systems" update_systems_split!(semi_split, v_ode_split,
-                                                                 u_ode_split, t)
+    # No `update_boundary_interpolation!` for performance reasons, or we will lose
+    # a lot of the speedup that we can gain with split integration.
+    # We assume that the TLSPH particles move so little during the substeps
+    # that the extrapolated pressure/density values can be treated as constant.
+    @trixi_timeit timer() "update systems" update_systems!(v_ode_split, u_ode_split,
+                                                           semi_split, t)
 
     @trixi_timeit timer() "system interaction" begin
         system_interaction_split!(dv_ode_split, v_ode, u_ode, semi,
@@ -210,15 +213,6 @@ end
 
 function drift_split!(du_ode, v_ode, u_ode, p, t)
     drift!(du_ode, v_ode, u_ode, p.semi_split, t)
-end
-
-# Update the systems before calling `interact!` to compute forces
-function update_systems_split!(semi, v_ode, u_ode, t)
-    # No `update_boundary_interpolation!` for performance reasons, or we will lose
-    # a lot of the speedup that we can gain with split integration.
-    # We assume that the TLSPH particles move so little during the substeps
-    # that the extrapolated pressure/density values can be treated as constant.
-    update_systems!(v_ode, u_ode, semi, t)
 end
 
 function system_interaction_split!(dv_ode_split, v_ode, u_ode, semi,
