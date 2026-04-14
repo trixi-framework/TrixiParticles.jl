@@ -82,12 +82,14 @@ end
                                         Val(NDIMS^2)))
 end
 
+# Optimized version for 2D, which uses SIMD.jl to combine the 4 loads of the 2x2 matrix
+# into a single wide load. This is significantly faster on GPUs than 4 individual loads.
 @inline function extract_smatrix(A, ::Val{2}, particle)
     @boundscheck checkbounds(A, 2, 2, particle)
 
-    x = vloada(Vec{4, eltype(A)}, pointer(A, 4 * (particle - 1) + 1))
+    # Note that this doesn't work in 3D because it requires a stride of 2^n.
+    x = SIMD.vloada(SIMD.Vec{4, eltype(A)}, pointer(A, 4 * (particle - 1) + 1))
 
-    # Extract the matrix elements for this particle as a tuple to pass to SMatrix
     return SMatrix{2, 2}(Tuple(x))
 end
 
