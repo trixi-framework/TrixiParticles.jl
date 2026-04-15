@@ -496,7 +496,8 @@ end
     neighborhood_search = get_neighborhood_search(system, semi)
     backend = semi.parallelization_backend
 
-    @threaded semi for particle in each_integrated_particle(system)
+    # The deformation gradient is computed for all particles, including the clamped ones
+    @threaded semi for particle in eachparticle(system)
         # We are looping over the particles of `system`, so it is guaranteed
         # that `particle` is in bounds of `system`.
         current_coords_a = @inbounds current_coords(system, particle)
