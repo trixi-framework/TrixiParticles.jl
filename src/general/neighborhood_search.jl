@@ -6,6 +6,8 @@ function PointNeighbors.foreach_point_neighbor(f, system, neighbor_system,
                                                system_coords, neighbor_coords, semi;
                                                points=eachparticle(system),
                                                parallelization_backend=semi.parallelization_backend)
+    has_system_interaction(system, neighbor_system, semi) || return nothing
+
     neighborhood_search = get_neighborhood_search(system, neighbor_system, semi)
     foreach_point_neighbor(f, system_coords, neighbor_coords, neighborhood_search;
                            points, parallelization_backend)
@@ -246,6 +248,8 @@ function update_nhs!(semi, u_ode)
         u_system = wrap_u(u_ode, system, semi, system_index)
 
         foreach_system_indexed(semi) do neighbor_index, neighbor
+            has_system_interaction(semi, system_index, neighbor_index) || return
+
             u_neighbor = wrap_u(u_ode, neighbor, semi, neighbor_index)
             neighborhood_search = get_neighborhood_search(system, neighbor, semi,
                                                           system_index, neighbor_index)

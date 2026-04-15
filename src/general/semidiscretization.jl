@@ -18,6 +18,10 @@ The semidiscretization couples the passed systems to one simulation.
 - `threaded_nhs_update=true`:   Can be used to deactivate thread parallelization in the neighborhood search update.
                                 This can be one of the largest sources of variations between simulations
                                 with different thread numbers due to particle ordering changes.
+- `system_interaction=(system_index, neighbor_index) -> true`: Predicate evaluated once
+                                for each ordered system pair. Returning `false` disables
+                                neighborhood-search updates and neighbor traversals for
+                                that pair while keeping all other interactions unchanged.
 
 # Examples
 ```jldoctest; output = false, setup = :(trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing); ref_system = fluid_system)
@@ -49,11 +53,12 @@ semi = Semidiscretization(fluid_system, boundary_system,
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-struct Semidiscretization{BACKEND, S, RU, RV, NS, UCU, IT}
+struct Semidiscretization{BACKEND, S, RU, RV, NS, SI, UCU, IT}
     systems                 :: S
     ranges_u                :: RU
     ranges_v                :: RV
     neighborhood_searches   :: NS
+    system_interactions     :: SI
     parallelization_backend :: BACKEND
     update_callback_used    :: UCU
     integrate_tlsph         :: IT # `false` if TLSPH integration is decoupled
@@ -62,20 +67,38 @@ struct Semidiscretization{BACKEND, S, RU, RV, NS, UCU, IT}
     # 4 systems are passed.
     # This is an internal constructor only used in `test/count_allocations.jl`.
     function Semidiscretization(systems::Tuple, ranges_u, ranges_v, neighborhood_searches,
+                                system_interactions,
                                 parallelization_backend::PointNeighbors.ParallelizationBackend,
                                 update_callback_used, integrate_tlsph)
         new{typeof(parallelization_backend), typeof(systems), typeof(ranges_u),
             typeof(ranges_v), typeof(neighborhood_searches),
+            typeof(system_interactions),
             typeof(update_callback_used),
             typeof(integrate_tlsph)}(systems, ranges_u, ranges_v,
-                                     neighborhood_searches, parallelization_backend,
+                                     neighborhood_searches, system_interactions,
+                                     parallelization_backend,
                                      update_callback_used, integrate_tlsph)
     end
 end
 
+@inline default_system_interaction(system_index, neighbor_index) = true
+
+function create_system_interactions(system_interaction, systems::Tuple)
+    n_systems = length(systems)
+    system_interactions = falses(n_systems, n_systems)
+
+    for system_index in eachindex(systems), neighbor_index in eachindex(systems)
+        system_interactions[system_index, neighbor_index] = Bool(system_interaction(system_index,
+                                                                                    neighbor_index))
+    end
+
+    return system_interactions
+end
+
 function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
                             neighborhood_search=GridNeighborhoodSearch{ndims(first(systems))}(),
-                            parallelization_backend=PolyesterBackend())
+                            parallelization_backend=PolyesterBackend(),
+                            system_interaction=default_system_interaction)
     systems = filter(system -> !isnothing(system), systems)
 
     if isempty(systems)
@@ -106,6 +129,7 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     searches = [create_neighborhood_search(neighborhood_search,
                                            system, neighbor)
                 for system in systems, neighbor in systems]
+    system_interactions = create_system_interactions(system_interaction, systems)
 
     @assert isconcretetype(eltype(searches)) "neighborhood searches are not type-stable"
 
@@ -119,7 +143,7 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     # with this set to false.
     integrate_tlsph = Ref(true)
 
-    return Semidiscretization(systems, ranges_u, ranges_v, searches,
+    return Semidiscretization(systems, ranges_u, ranges_v, searches, system_interactions,
                               parallelization_backend, update_callback_used,
                               integrate_tlsph)
 end
@@ -166,6 +190,17 @@ end
     end
 
     return index
+end
+
+@inline function has_system_interaction(semi::Semidiscretization,
+                                        system_index::Integer, neighbor_index::Integer)
+    return semi.system_interactions[system_index, neighbor_index]
+end
+
+@inline function has_system_interaction(system, neighbor_system, semi::Semidiscretization)
+    return has_system_interaction(semi,
+                                  system_indices(system, semi),
+                                  system_indices(neighbor_system, semi))
 end
 
 # This is just for readability to loop over all systems without allocations
@@ -732,6 +767,8 @@ end
 
 @inline function interact!(dv_ode, v_ode, u_ode, system, neighbor, semi,
                            system_index::Integer, neighbor_index::Integer; timer_str="")
+    has_system_interaction(semi, system_index, neighbor_index) || return dv_ode
+
     dv = wrap_v(dv_ode, system, semi, system_index)
     v_system = wrap_v(v_ode, system, semi, system_index)
     u_system = wrap_u(u_ode, system, semi, system_index)
