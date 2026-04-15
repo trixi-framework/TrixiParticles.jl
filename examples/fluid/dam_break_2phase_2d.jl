@@ -16,7 +16,7 @@ W = 2 * H
 # ==== Resolution
 
 # Note: The resolution is very coarse. A better result is obtained with H/60 or higher (which takes over 1 hour)
-fluid_particle_spacing = H / 40
+fluid_particle_spacing = H / 20
 
 # ==========================================================================================
 # ==== Experiment Setup
