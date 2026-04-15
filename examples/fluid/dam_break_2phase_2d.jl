@@ -87,7 +87,8 @@ air_system_system = WeaklyCompressibleSPHSystem(air_system, fluid_density_calcul
 # Use two copies of the wall geometry with hydrodynamic properties matched to the adjacent
 # fluid phase. This avoids exposing the light air phase to water-density wall particles and
 # vice versa, while keeping the physical wall coordinates unchanged.
-water_boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
+water_boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
+                                                   tank.boundary.mass,
                                                    boundary_density_calculator,
                                                    smoothing_kernel, smoothing_length,
                                                    state_equation=state_equation,
@@ -114,12 +115,12 @@ air_boundary_system = WallBoundarySystem(tank.boundary, air_boundary_model,
 
 # Semidiscretization order:
 # 1: water fluid, 2: air fluid, 3: water wall, 4: air wall
-matched_phase_wall_interaction(system_index, neighbor_index) = !(
-    (system_index == 1 && neighbor_index == 4) ||
-    (system_index == 4 && neighbor_index == 1) ||
-    (system_index == 2 && neighbor_index == 3) ||
-    (system_index == 3 && neighbor_index == 2)
-)
+function matched_phase_wall_interaction(system_index, neighbor_index)
+    !((system_index == 1 && neighbor_index == 4) ||
+      (system_index == 4 && neighbor_index == 1) ||
+      (system_index == 2 && neighbor_index == 3) ||
+      (system_index == 3 && neighbor_index == 2))
+end
 
 # ==========================================================================================
 # ==== Simulation
