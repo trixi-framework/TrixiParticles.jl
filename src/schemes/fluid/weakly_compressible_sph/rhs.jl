@@ -51,6 +51,9 @@ function interact!(dv, v_particle_system, u_particle_system,
         rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
         rho_mean = (rho_a + rho_b) / 2
 
+        v_a = @inbounds current_velocity(v_particle_system, particle_system, particle)
+        v_b = @inbounds current_velocity(v_neighbor_system, neighbor_system, neighbor)
+
         # Determine correction factors.
         # This can be ignored, as these are all 1 when no correction is used.
         (viscosity_correction, pressure_correction,
@@ -114,12 +117,16 @@ function interact!(dv, v_particle_system, u_particle_system,
             # debug_array[i, particle] += dv_pressure[i]
         end
 
+        drho_particle = Ref(zero(rho_a))
+
         # TODO If variable smoothing_length is used, this should use the neighbor smoothing length
         # Propagate `@inbounds` to the continuity equation, which accesses particle data
-        @inbounds continuity_equation!(dv, density_calculator, particle_system,
-                                       neighbor_system, v_particle_system,
-                                       v_neighbor_system, particle, neighbor,
-                                       pos_diff, distance, m_b, rho_a, rho_b, grad_kernel)
+        @inbounds continuity_equation!(drho_particle, density_calculator,
+                                       particle_system, neighbor_system,
+                                       particle, neighbor, pos_diff, distance,
+                                       m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+
+        @inbounds write_drho_particle!(dv, density_calculator, drho_particle, particle)
     end
     # Debug example
     # periodic_box = neighborhood_search.periodic_box

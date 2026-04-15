@@ -213,13 +213,12 @@ function update!(density_diffusion::DensityDiffusionAntuono, v, u, system, semi)
     return density_diffusion
 end
 
-@propagate_inbounds function density_diffusion!(dv,
+@propagate_inbounds function density_diffusion!(drho_particle,
                                                 density_diffusion::AbstractDensityDiffusion,
-                                                v_particle_system, particle, neighbor,
-                                                pos_diff, distance, m_b, rho_a, rho_b,
                                                 particle_system::Union{AbstractFluidSystem,
                                                                        OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}},
-                                                grad_kernel)
+                                                particle, neighbor, pos_diff, distance,
+                                                m_b, rho_a, rho_b, grad_kernel)
     # Density diffusion terms are all zero for distance zero.
     # If `skip_zero_distance` is `true`, we can assume that this function isn't called
     # for distance zero because these neighbors have already been skipped.
@@ -240,12 +239,12 @@ end
 
     (; delta) = density_diffusion
     sound_speed = system_sound_speed(particle_system)
-    dv[end, particle] += delta * smoothing_length_avg * sound_speed * density_diffusion_term
+    drho_particle[] += delta * smoothing_length_avg * sound_speed * density_diffusion_term
 end
 
 # Density diffusion `nothing` or interaction other than fluid-fluid
-@inline function density_diffusion!(dv, density_diffusion, v_particle_system, particle,
-                                    neighbor, pos_diff, distance, m_b, rho_a, rho_b,
-                                    particle_system, grad_kernel)
-    return dv
+@inline function density_diffusion!(drho_particle, density_diffusion, particle_system,
+                                    particle, neighbor, pos_diff, distance,
+                                    m_b, rho_a, rho_b, grad_kernel)
+    return drho_particle
 end
