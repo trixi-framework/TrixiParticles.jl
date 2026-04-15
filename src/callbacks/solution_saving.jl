@@ -26,7 +26,7 @@ To ignore a custom quantity for a specific system, return `nothing`.
 - `overwrite=false`:            If `true`, overwrite the previous set of VTK files instead of
                                 creating a new set of files each interval.
                                 Useful for memory efficiency in large simulations where only
-                                the final result matters. The difference to simply setting
+                                the final results matters. The difference to simply setting
                                 `save_final_solution=true` is that this provides regular checkpoint
                                 backups at each save interval.
                                 If `false` (default), files are not overwritten and an iteration
@@ -193,7 +193,7 @@ function (solution_callback::SolutionSavingCallback)(integrator)
         end
 
         trixi2vtk(dvdu_ode, vu_ode, semi, integrator.t;
-                  iter=(overwrite ? -1 : iter), output_directory, prefix,
+                  iter=(overwrite ? nothing : iter), output_directory, prefix,
                   git_hash=git_hash[], max_coordinates, custom_quantities...)
     end
 
