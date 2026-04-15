@@ -93,10 +93,11 @@
             TrixiParticles.each_integrated_particle(::MockSystem) = each_integrated_particle
             TrixiParticles.smoothing_length(::MockSystem, _) = eps()
 
-            function TrixiParticles.add_acceleration!(_, _, ::MockSystem)
-                return nothing
+            function TrixiParticles.smoothing_kernel_grad_unsafe(::MockSystem,
+                                                                 pos_diff, distance,
+                                                                 particle)
+                return kernel_deriv * pos_diff / distance
             end
-            TrixiParticles.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_deriv
             TrixiParticles.compact_support(::MockSystem, ::MockSystem) = 1000.0
             function TrixiParticles.current_coords(system::MockSystem, particle)
                 return TrixiParticles.current_coords(initial_coordinates, system, particle)
