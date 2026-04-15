@@ -356,9 +356,13 @@ end
 end
 
 @propagate_inbounds function deformation_gradient(system, particle)
+    # `deformation_grad` is not a view, so we can use the fast `extract_smatrix_aligned`
+    # instead of the generic `extract_smatrix`.
     extract_smatrix(system.deformation_grad, system, particle)
 end
 @propagate_inbounds function pk1_rho2(system, particle)
+    # `pk1_rho2` is not a view, so we can use the fast `extract_smatrix_aligned`
+    # instead of the generic `extract_smatrix`.
     extract_smatrix(system.pk1_rho2, system, particle)
 end
 
