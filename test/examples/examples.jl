@@ -33,7 +33,7 @@
             # Use a fixed time step, tuned to the maximum stable step size for this example.
             # Together with the very large penalty force alpha, this test will crash with
             # "Instability detected" if the penalty force is not working correctly.
-            callbacks = CallbackSet(callbacks, StepsizeCallback(cfl=1.6))
+            callbacks = CallbackSet((@__MODULE__).callbacks, StepsizeCallback(cfl=1.6))
             sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false), dt=1.0,
                         save_everystep=false, callback=callbacks)
             @test sol.retcode == ReturnCode.Success

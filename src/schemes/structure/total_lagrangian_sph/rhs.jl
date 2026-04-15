@@ -19,7 +19,7 @@ end
 
     # Everything here is done in the initial coordinates
     system_coords = initial_coordinates(system)
-    neighborhood_search = get_neighborhood_search(system, system, semi)
+    neighborhood_search = get_neighborhood_search(system, semi)
     backend = semi.parallelization_backend
 
     # For `distance == 0`, the analytical gradient is zero, but the unsafe gradient

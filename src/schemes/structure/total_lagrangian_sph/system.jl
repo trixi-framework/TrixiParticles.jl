@@ -489,7 +489,7 @@ end
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     initial_coords = initial_coordinates(system)
-    neighborhood_search = get_neighborhood_search(system, system, semi)
+    neighborhood_search = get_neighborhood_search(system, semi)
     backend = semi.parallelization_backend
 
     @threaded semi for particle in each_integrated_particle(system)
