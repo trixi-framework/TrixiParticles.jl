@@ -42,8 +42,10 @@ end
     E_a = young_modulus(system, particle)
     E_b = young_modulus(system, neighbor)
 
+    # Note that this is actually ϵ^b_ab = -ϵ^b_ba in the paper, so we later compute
+    # δ^b_ab instead of δ^b_ba, but δ^b_ab = δ^b_ba because of antisymmetry of x_ab and ϵ_ab.
     eps_a = F_a * initial_pos_diff - current_pos_diff
-    eps_b = -(F_b * initial_pos_diff - current_pos_diff)
+    eps_b = F_b * initial_pos_diff - current_pos_diff
 
     # This is (E_a * delta_a + E_b * delta_b) * current_distance.
     # Pulling the division by `current_distance` out allows us to do one division by
