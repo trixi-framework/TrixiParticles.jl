@@ -105,7 +105,8 @@ end
 end
 
 # Fall back to the generic version when not in 2D.
-@propagate_inbounds function extract_smatrix_aligned(A, ::Val{NDIMS}, particle) where {NDIMS}
+@propagate_inbounds function extract_smatrix_aligned(A, ::Val{NDIMS},
+                                                     particle) where {NDIMS}
     return extract_smatrix(A, Val(NDIMS), particle)
 end
 
