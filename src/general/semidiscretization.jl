@@ -15,13 +15,17 @@ The semidiscretization couples the passed systems to one simulation.
                             and the examples below for more details.
                             To use a periodic domain, pass a [`PeriodicBox`](@ref) to the
                             neighborhood search.
-- `threaded_nhs_update=true`:   Can be used to deactivate thread parallelization in the neighborhood search update.
-                                This can be one of the largest sources of variations between simulations
-                                with different thread numbers due to particle ordering changes.
+- `parallelization_backend=PolyesterBackend()`: Backend used for thread-parallel loops,
+                            including the generic neighborhood-search update paths.
+                            Pass `SerialBackend()` to disable thread parallelization.
 - `system_interaction=(system_index, neighbor_index) -> true`: Predicate evaluated once
-                                for each ordered system pair. Returning `false` disables
-                                neighborhood-search updates and neighbor traversals for
-                                that pair while keeping all other interactions unchanged.
+                            during construction for each ordered pair of systems in the
+                            resulting semidiscretization after filtering out `nothing`
+                            systems.
+                            Returning `false` skips the generic pairwise RHS dispatch and
+                            the generic neighborhood-search update and traversal paths for
+                            that ordered pair. Scheme-specific helper logic that directly
+                            addresses explicit linked systems is unchanged.
 
 # Examples
 ```jldoctest; output = false, setup = :(trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing); ref_system = fluid_system)
@@ -726,7 +730,8 @@ end
 end
 
 function system_interaction!(dv_ode, v_ode, u_ode, semi)
-    # Call `interact!` for each pair of systems
+    # Call `interact!` for each ordered pair of systems.
+    # Disabled pairs return immediately in the indexed wrapper below.
     foreach_system_indexed(semi) do system_index, system
         foreach_system_indexed(semi) do neighbor_index, neighbor
             # Construct string for the interactions timer.

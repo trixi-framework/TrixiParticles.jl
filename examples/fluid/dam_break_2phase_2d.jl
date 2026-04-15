@@ -16,7 +16,7 @@ W = 2 * H
 # ==== Resolution
 
 # Note: The resolution is very coarse. A better result is obtained with H/60 or higher (which takes over 1 hour)
-fluid_particle_spacing = H / 20
+fluid_particle_spacing = H / 40
 
 # ==========================================================================================
 # ==== Experiment Setup
@@ -82,10 +82,52 @@ air_system_system = WeaklyCompressibleSPHSystem(air_system, fluid_density_calcul
                                                 acceleration=(0.0, -gravity))
 
 # ==========================================================================================
+# ==== Setup phase-specific wall boundaries
+
+# Use two copies of the wall geometry with hydrodynamic properties matched to the adjacent
+# fluid phase. This avoids exposing the light air phase to water-density wall particles and
+# vice versa, while keeping the physical wall coordinates unchanged.
+water_boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
+                                                   boundary_density_calculator,
+                                                   smoothing_kernel, smoothing_length,
+                                                   state_equation=state_equation,
+                                                   correction=nothing,
+                                                   reference_particle_spacing=0,
+                                                   viscosity=viscosity_wall)
+
+water_boundary_system = WallBoundarySystem(tank.boundary, water_boundary_model,
+                                           adhesion_coefficient=0.0)
+
+air_boundary_density = fill(air_density, length(tank.boundary.density))
+air_boundary_mass = tank.boundary.mass .* (air_density / fluid_density)
+
+air_boundary_model = BoundaryModelDummyParticles(air_boundary_density, air_boundary_mass,
+                                                 boundary_density_calculator,
+                                                 smoothing_kernel, smoothing_length,
+                                                 state_equation=air_eos,
+                                                 correction=nothing,
+                                                 reference_particle_spacing=0,
+                                                 viscosity=viscosity_wall)
+
+air_boundary_system = WallBoundarySystem(tank.boundary, air_boundary_model,
+                                         adhesion_coefficient=0.0)
+
+# Semidiscretization order:
+# 1: water fluid, 2: air fluid, 3: water wall, 4: air wall
+matched_phase_wall_interaction(system_index, neighbor_index) = !(
+    (system_index == 1 && neighbor_index == 4) ||
+    (system_index == 4 && neighbor_index == 1) ||
+    (system_index == 2 && neighbor_index == 3) ||
+    (system_index == 3 && neighbor_index == 2)
+)
+
+# ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(fluid_system, air_system_system, boundary_system,
+semi = Semidiscretization(fluid_system, air_system_system,
+                          water_boundary_system, air_boundary_system,
                           neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=nothing),
-                          parallelization_backend=PolyesterBackend())
+                          parallelization_backend=PolyesterBackend(),
+                          system_interaction=matched_phase_wall_interaction)
 ode = semidiscretize(semi, tspan)
 
 sol = solve(ode, RDPK3SpFSAL35(),

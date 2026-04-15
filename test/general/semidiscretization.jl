@@ -225,6 +225,10 @@
             return Semidiscretization(systems...; neighborhood_search)
         end
 
+        # Disable only the cross-coupling between the mismatched fluid/boundary pairs:
+        # fluid A must ignore boundary B and fluid B must ignore boundary A.
+        # The filtered four-system RHS is compared against reduced semidiscretizations that
+        # keep only the allowed neighbors for each system, which makes the intended effect explicit.
         for (test_name, nhs_factory) in (("without neighborhood search", () -> nothing),
              ("with grid neighborhood search",
               () -> GridNeighborhoodSearch{2}(update_strategy=SerialUpdate())))

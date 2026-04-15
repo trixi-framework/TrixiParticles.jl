@@ -1,7 +1,8 @@
 # === PointNeighbors integration ===
 # Loop over all pairs of particles and neighbors within the kernel cutoff.
 # `f(particle, neighbor, pos_diff, distance)` is called for every particle-neighbor pair.
-# By default, loop over `eachparticle(system)`.
+# By default, loop over `eachparticle(system)`. If the semidiscretization disables this
+# ordered system pair via `has_system_interaction`, the traversal is skipped entirely.
 function PointNeighbors.foreach_point_neighbor(f, system, neighbor_system,
                                                system_coords, neighbor_coords, semi;
                                                points=eachparticle(system),
@@ -244,7 +245,7 @@ end
 
 # === Neighborhood search updates (per-system) ===
 function update_nhs!(semi, u_ode)
-    # Update NHS for each pair of systems
+    # Update NHS for each enabled ordered pair of systems.
     foreach_system_indexed(semi) do system_index, system
         u_system = wrap_u(u_ode, system, semi, system_index)
 
