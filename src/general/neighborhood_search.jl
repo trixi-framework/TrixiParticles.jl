@@ -214,13 +214,11 @@ function initialize_neighborhood_searches!(semi)
     return semi
 end
 
-function initialize_neighborhood_search!(semi, system, neighbor,
-                                         system_index::Integer, neighbor_index::Integer)
+function initialize_neighborhood_search!(semi, system, neighbor)
     # TODO Initialize after adapting to the GPU.
     # Currently, this cannot use `semi.parallelization_backend`
     # because data is still on the CPU.
-    PointNeighbors.initialize!(get_neighborhood_search(system, neighbor, semi,
-                                                       system_index, neighbor_index),
+    PointNeighbors.initialize!(get_neighborhood_search(system, neighbor, semi),
                                initial_coordinates(system),
                                initial_coordinates(neighbor),
                                eachindex_y=each_active_particle(neighbor),
@@ -230,8 +228,7 @@ function initialize_neighborhood_search!(semi, system, neighbor,
 end
 
 function initialize_neighborhood_search!(semi, system::TotalLagrangianSPHSystem,
-                                         neighbor::TotalLagrangianSPHSystem,
-                                         system_index::Integer, neighbor_index::Integer)
+                                         neighbor::TotalLagrangianSPHSystem)
     # For TLSPH, the self-interaction NHS is already initialized in the system constructor
     return semi
 end
@@ -240,14 +237,6 @@ end
 function initialize_self_interaction_nhs(system, neighborhood_search,
                                          parallelization_backend)
     return system
-end
-
-function initialize_neighborhood_search!(semi, system, neighbor)
-    system_index = system_indices(system, semi)
-    neighbor_index = system_indices(neighbor, semi)
-
-    return initialize_neighborhood_search!(semi, system, neighbor,
-                                           system_index, neighbor_index)
 end
 
 # === Neighborhood search updates (per-system) ===

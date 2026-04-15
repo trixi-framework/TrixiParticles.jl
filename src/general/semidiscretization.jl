@@ -197,16 +197,6 @@ end
           wrap_u(u_ode, system, semi, system_index))
     end
 end
-
-@inline function foreach_system_wrapped(f, semi::Union{NamedTuple, Semidiscretization},
-                                        dv_ode, v_ode, u_ode)
-    return foreach_system_indexed(semi) do system_index, system
-        f(system,
-          wrap_v(dv_ode, system, semi, system_index),
-          wrap_v(v_ode, system, semi, system_index),
-          wrap_u(u_ode, system, semi, system_index))
-    end
-end
 """
     semidiscretize(semi, tspan; reset_threads=true)
 
