@@ -174,7 +174,8 @@ end
     system_index = system_indices(system, semi)
     neighbor_index = system_indices(neighbor_system, semi)
 
-    return get_neighborhood_search(system, neighbor_system, semi, system_index, neighbor_index)
+    return get_neighborhood_search(system, neighbor_system, semi, system_index,
+                                   neighbor_index)
 end
 
 @inline function get_neighborhood_search(system, semi, system_index::Integer)

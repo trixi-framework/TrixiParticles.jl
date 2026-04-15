@@ -204,14 +204,15 @@
             return Array(TrixiParticles.wrap_v(dv_ode, system, semi, system_index))
         end
 
-        matched_system_pairs(system_index, neighbor_index) = !((system_index == 1 &&
-                                                                 neighbor_index == 4) ||
-                                                                (system_index == 4 &&
-                                                                 neighbor_index == 1) ||
-                                                                (system_index == 2 &&
-                                                                 neighbor_index == 3) ||
-                                                                (system_index == 3 &&
-                                                                 neighbor_index == 2))
+        matched_system_pairs(system_index,
+                             neighbor_index) = !((system_index == 1 &&
+                                                  neighbor_index == 4) ||
+                                                 (system_index == 4 &&
+                                                  neighbor_index == 1) ||
+                                                 (system_index == 2 &&
+                                                  neighbor_index == 3) ||
+                                                 (system_index == 3 &&
+                                                  neighbor_index == 2))
 
         function make_semi(nhs_factory, systems...; filtered=false)
             neighborhood_search = nhs_factory()
@@ -224,10 +225,9 @@
             return Semidiscretization(systems...; neighborhood_search)
         end
 
-        for (test_name, nhs_factory) in (
-            ("without neighborhood search", () -> nothing),
-            ("with grid neighborhood search", () -> GridNeighborhoodSearch{2}(update_strategy=SerialUpdate()))
-        )
+        for (test_name, nhs_factory) in (("without neighborhood search", () -> nothing),
+             ("with grid neighborhood search",
+              () -> GridNeighborhoodSearch{2}(update_strategy=SerialUpdate())))
             @testset "$test_name" begin
                 semi_full = let
                     fluid_a, fluid_b, boundary_a, boundary_b = make_systems()
@@ -278,9 +278,9 @@
                 @test system_dv(dv_filtered, semi_filtered, 1) ≈ system_dv(dv_a, semi_a, 1)
                 @test system_dv(dv_filtered, semi_filtered, 2) ≈ system_dv(dv_b, semi_b, 2)
                 @test system_dv(dv_filtered, semi_filtered, 3) ≈ system_dv(dv_boundary_a,
-                                                                            semi_boundary_a, 2)
+                                semi_boundary_a, 2)
                 @test system_dv(dv_filtered, semi_filtered, 4) ≈ system_dv(dv_boundary_b,
-                                                                            semi_boundary_b, 2)
+                                semi_boundary_b, 2)
 
                 @test !isapprox(system_dv(dv_filtered, semi_filtered, 3),
                                 system_dv(dv_full, semi_full, 3))

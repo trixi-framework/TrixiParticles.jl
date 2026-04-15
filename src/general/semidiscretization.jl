@@ -88,8 +88,9 @@ function create_system_interactions(system_interaction, systems::Tuple)
     system_interactions = falses(n_systems, n_systems)
 
     for system_index in eachindex(systems), neighbor_index in eachindex(systems)
-        system_interactions[system_index, neighbor_index] = Bool(system_interaction(system_index,
-                                                                                    neighbor_index))
+        system_interactions[system_index,
+                            neighbor_index] = Bool(system_interaction(system_index,
+                                                                      neighbor_index))
     end
 
     return system_interactions
