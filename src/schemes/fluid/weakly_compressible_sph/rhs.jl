@@ -25,14 +25,20 @@ function interact!(dv, v_particle_system, u_particle_system,
     compact_support_ = compact_support(particle_system, neighbor_system)
     almostzero = sqrt(eps(compact_support_^2))
 
+    use_simd_load_system = Val(use_simd_load(v_particle_system, particle_system))
+    use_simd_load_neighbor = Val(use_simd_load(v_neighbor_system, neighbor_system))
+
     @threaded semi for particle in each_integrated_particle(particle_system)
         # We are looping over the particles of `particle_system`, so it is guaranteed
         # that `particle` is in bounds of `particle_system`.
         m_a = @inbounds hydrodynamic_mass(particle_system, particle)
         p_a = @inbounds current_pressure(v_particle_system, particle_system, particle)
 
-        v_a = @inbounds current_velocity(v_particle_system, particle_system, particle)
-        rho_a = @inbounds current_density(v_particle_system, particle_system, particle)
+        # In 3D, this function can combine velocity and density load into one wide load,
+        # which gives a significant speedup on GPUs.
+        (v_a,
+         rho_a) = @inbounds velocity_and_density(v_particle_system, particle_system,
+                                                 use_simd_load_system, particle)
 
         # Accumulate the RHS contributions over all neighbors before writing to `dv`,
         # to reduce the number of memory writes.
@@ -56,8 +62,9 @@ function interact!(dv, v_particle_system, u_particle_system,
 
             # `foreach_neighbor` makes sure that `neighbor` is in bounds of `neighbor_system`
             m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
-            v_b = @inbounds current_velocity(v_neighbor_system, neighbor_system, neighbor)
-            rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
+            (v_b,
+             rho_b) = @inbounds velocity_and_density(v_neighbor_system, neighbor_system,
+                                                     use_simd_load_neighbor, neighbor)
 
             # The following call is equivalent to
             #     `p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)`
@@ -134,3 +141,60 @@ end
                                    neighbor, p_a)
     return p_a
 end
+
+# Default method, which simply calls `current_velocity` and `current_density` separately.
+@propagate_inbounds function velocity_and_density(v, system, ::Val{false}, particle)
+    v_particle = current_velocity(v, system, particle)
+    rho_particle = current_density(v, system, particle)
+
+    return v_particle, rho_particle
+end
+
+# Optimized version for WCSPH with `ContinuityDensity` in 3D,
+# which combines the velocity and density load into one wide load.
+# This is significantly faster on GPUs than the 4 individual loads of `extract_svector`.
+# WARNING: this requires that the pointer of `v` is aligned to the size
+#          of `SIMD.Vec{4, eltype(v)}`, which is checked by `use_simd_load`.
+@inline function velocity_and_density(v, system, ::Val{true}, particle)
+    # Since `v` is stored as a 4 x N matrix, this aligned load extracts one column
+    # of `v` corresponding to `particle`.
+    # Note that this doesn't work for 2D because it requires a stride of 2^n.
+    vrho_particle = SIMD.vloada(SIMD.Vec{4, eltype(v)}, pointer(v, 4 * (particle - 1) + 1))
+
+    # The columns of `v` are ordered as (v_x, v_y, v_z, rho)
+    v1, v2, v3, rho = Tuple(vrho_particle)
+    v_particle = SVector(v1, v2, v3)
+
+    return v_particle, rho
+end
+
+# By default, don't use SIMD loads
+use_simd_load(v, system) = false
+
+function use_simd_load(v::AbstractGPUArray, system::WeaklyCompressibleSPHSystem{3})
+    use_simd_load(v, system, system.density_calculator)
+end
+
+use_simd_load(v, system, density_calculator) = false
+
+# Only use SIMD loads when all of these conditions are satisfied:
+# - WCSPH with `ContinuityDensity` in 3D. Only then, the columns of `v` are of length 4.
+# - We are on a GPU, where the SIMD load gives a significant speedup.
+# - The velocity array is aligned for SIMD loads, which requires that the pointer of `v`
+#   is aligned to the size of `SIMD.Vec{4, eltype(v)}`.
+#   Otherwise, we cannot use `vloada`, which is an *aligned* SIMD load.
+#   The unaligned version `vload` does not produce wide load instructions on GPUs.
+#   In this last case, we don't fall back to the non-SIMD version and throw an error instead.
+function use_simd_load(v::AbstractGPUArray, system, ::ContinuityDensity)
+    aligned = is_aligned(pointer(v), SIMD.Vec{4, eltype(v)})
+
+    if !aligned
+        error("on GPUs in 3D, all WCSPH systems with `ContinuityDensity` must be the " *
+              "first systems in the semidiscretization to ensure that their integration " *
+              "arrays are aligned for SIMD loads.")
+    end
+
+    return aligned
+end
+
+is_aligned(ptr, ::Type{SIMD.Vec{N, T}}) where {N, T} = UInt(ptr) % (N * sizeof(T)) == 0
