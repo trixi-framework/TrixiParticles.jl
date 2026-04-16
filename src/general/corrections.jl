@@ -395,9 +395,7 @@ end
 
 function correction_matrix_inversion_step!(corr_matrix, system, semi)
     @threaded semi for particle in eachparticle(system)
-        # `corr_matrix` is not a view, so we can use the fast `extract_smatrix_aligned`
-        # instead of the generic `extract_smatrix`.
-        L = extract_smatrix_aligned(corr_matrix, system, particle)
+        L = extract_smatrix(corr_matrix, system, particle)
 
         # The matrix `L` only becomes singular when the particle and all neighbors
         # are collinear (in 2D) or lie all in the same plane (in 3D).

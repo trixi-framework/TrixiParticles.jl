@@ -77,42 +77,6 @@ end
     end
 end
 
-@testset verbose=true "extract_smatrix_aligned $TRIXIPARTICLES_TEST_" begin
-    if supports_double_precision
-        types = [Float64, Float32]
-    else
-        types = [Float32]
-    end
-
-    @testset verbose=true "$T" for T in types
-        @testset verbose=true "$(N)D" for N in 2:3
-            @testset "CPU" begin
-                A = rand(T, N, N, 4)
-
-                # Test that the SIMD version is consistent with the non-SIMD version.
-                for i in 1:4
-                    @test TrixiParticles.extract_smatrix_aligned(A, Val(N), i) ==
-                          TrixiParticles.extract_smatrix(A, Val(N), i)
-                end
-            end
-
-            @testset "GPU" begin
-                A = Adapt.adapt(parallelization_backend, rand(T, N, N, 4))
-                val = Val(N)
-
-                # Test that the SIMD version is consistent with the non-SIMD version.
-                # In order to test this on the GPU, we need to use a kernel with `@threaded`.
-                result = Adapt.adapt(parallelization_backend, zeros(Bool, 4))
-                TrixiParticles.@threaded parallelization_backend for i in 1:4
-                    result[i] = TrixiParticles.extract_smatrix_aligned(A, val, i) ==
-                                TrixiParticles.extract_smatrix(A, val, i)
-                end
-                @test all(result)
-            end
-        end
-    end
-end
-
 @testset verbose=true "Examples $TRIXIPARTICLES_TEST_" begin
     @testset verbose=true "Fluid" begin
         @trixi_testset "fluid/dam_break_2d_gpu.jl Float64" begin
