@@ -60,17 +60,23 @@ end
 
 oil_state_equation = StateEquationCole(; sound_speed, reference_density=oil_density,
                                        exponent=1, clip_negative_pressure=false)
-oil_system = WeaklyCompressibleSPHSystem(oil, fluid_density_calculator,
-                                         oil_eos, smoothing_kernel,
-                                         smoothing_length, viscosity=oil_viscosity,
+oil_system = WeaklyCompressibleSPHSystem(oil;
+                                         smoothing_kernel=smoothing_kernel,
+                                         smoothing_length=smoothing_length,
+                                         density_calculator=fluid_density_calculator,
+                                         state_equation=oil_eos,
+                                         viscosity=oil_viscosity,
                                          acceleration=(0.0, -gravity),
                                          surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.01),
                                          correction=AkinciFreeSurfaceCorrection(oil_density),
                                          reference_particle_spacing=fluid_particle_spacing)
 
-# oil_system = WeaklyCompressibleSPHSystem(oil, fluid_density_calculator,
-#                                          oil_eos, smoothing_kernel,
-#                                          smoothing_length, viscosity=oil_viscosity,
+# oil_system = WeaklyCompressibleSPHSystem(oil;
+#                                          smoothing_kernel=smoothing_kernel,
+#                                          smoothing_length=smoothing_length,
+#                                          density_calculator=fluid_density_calculator,
+#                                          state_equation=oil_eos,
+#                                          viscosity=oil_viscosity,
 #                                          acceleration=(0.0, -gravity),
 #                                          surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.03),
 #                                          reference_particle_spacing=fluid_particle_spacing)

@@ -45,9 +45,12 @@ smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 fluid_density_calculator = ContinuityDensity()
 viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 
-fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
-                                           state_equation, smoothing_kernel,
-                                           smoothing_length, viscosity=viscosity,
+fluid_system = WeaklyCompressibleSPHSystem(tank.fluid;
+                                           smoothing_kernel=smoothing_kernel,
+                                           smoothing_length=smoothing_length,
+                                           density_calculator=fluid_density_calculator,
+                                           state_equation=state_equation,
+                                           viscosity=viscosity,
                                            acceleration=(0.0, -gravity))
 
 # ==========================================================================================

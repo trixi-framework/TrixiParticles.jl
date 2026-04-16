@@ -82,18 +82,23 @@ if wcsph
                                        exponent=1)
     density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 
-    fluid_system = WeaklyCompressibleSPHSystem(pipe.fluid, fluid_density_calculator,
-                                               state_equation, smoothing_kernel,
+    fluid_system = WeaklyCompressibleSPHSystem(pipe.fluid;
+                                               smoothing_kernel=smoothing_kernel,
+                                               smoothing_length=smoothing_length,
+                                               density_calculator=fluid_density_calculator,
+                                               state_equation=state_equation,
                                                density_diffusion=density_diffusion,
-                                               smoothing_length, viscosity=viscosity,
+                                               viscosity=viscosity,
                                                shifting_technique=ParticleShiftingTechnique(v_max_factor=1.5),
                                                buffer_size=n_buffer_particles)
 else
     # Alternatively the EDAC scheme can be used
     state_equation = nothing
 
-    fluid_system = EntropicallyDampedSPHSystem(pipe.fluid, smoothing_kernel,
-                                               smoothing_length, sound_speed,
+    fluid_system = EntropicallyDampedSPHSystem(pipe.fluid;
+                                               smoothing_kernel=smoothing_kernel,
+                                               smoothing_length=smoothing_length,
+                                               sound_speed=sound_speed,
                                                viscosity=viscosity,
                                                density_calculator=fluid_density_calculator,
                                                shifting_technique=ParticleShiftingTechnique(),

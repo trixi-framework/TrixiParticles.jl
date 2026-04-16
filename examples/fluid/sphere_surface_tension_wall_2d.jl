@@ -52,9 +52,11 @@ alpha = 8 * nu / (fluid_smoothing_length * sound_speed)
 # `adhesion_coefficient = 0.001` and `surface_tension_coefficient = 2.0` for no wetting
 
 viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
-sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, ContinuityDensity(),
-                                                     state_equation, fluid_smoothing_kernel,
-                                                     fluid_smoothing_length,
+sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1;
+                                                     smoothing_kernel=fluid_smoothing_kernel,
+                                                     smoothing_length=fluid_smoothing_length,
+                                                     density_calculator=ContinuityDensity(),
+                                                     state_equation=state_equation,
                                                      viscosity=viscosity,
                                                      acceleration=(0.0, -gravity),
                                                      surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=2.0),

@@ -59,17 +59,22 @@ alpha = 8 * nu / (fluid_smoothing_length * sound_speed)
 viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
 density_diffusion = DensityDiffusionAntuono(sphere2, delta=0.1)
 
-sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1, fluid_smoothing_kernel,
-                                                     fluid_smoothing_length,
-                                                     sound_speed, viscosity=viscosity,
+sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1;
+                                                     smoothing_kernel=fluid_smoothing_kernel,
+                                                     smoothing_length=fluid_smoothing_length,
+                                                     sound_speed=sound_speed,
+                                                     viscosity=viscosity,
                                                      density_calculator=ContinuityDensity(),
                                                      acceleration=(0.0, -gravity),
                                                      surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.05),
                                                      reference_particle_spacing=fluid_particle_spacing)
 
-sphere = WeaklyCompressibleSPHSystem(sphere2, fluid_density_calculator,
-                                     state_equation, fluid_smoothing_kernel,
-                                     fluid_smoothing_length, viscosity=viscosity,
+sphere = WeaklyCompressibleSPHSystem(sphere2;
+                                     smoothing_kernel=fluid_smoothing_kernel,
+                                     smoothing_length=fluid_smoothing_length,
+                                     density_calculator=fluid_density_calculator,
+                                     state_equation=state_equation,
+                                     viscosity=viscosity,
                                      density_diffusion=density_diffusion,
                                      acceleration=(0.0, -gravity))
 

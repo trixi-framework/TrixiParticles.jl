@@ -45,9 +45,12 @@ fluid_density_calculator = ContinuityDensity()
 
 # This is to set acceleration with `trixi_include`
 system_acceleration = (0.0, -gravity)
-fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
-                                           state_equation, smoothing_kernel,
-                                           smoothing_length, viscosity=viscosity_fluid,
+fluid_system = WeaklyCompressibleSPHSystem(tank.fluid;
+                                           smoothing_kernel=smoothing_kernel,
+                                           smoothing_length=smoothing_length,
+                                           density_calculator=fluid_density_calculator,
+                                           state_equation=state_equation,
+                                           viscosity=viscosity_fluid,
                                            acceleration=system_acceleration,
                                            source_terms=nothing)
 

@@ -1,7 +1,9 @@
 """
-    WeaklyCompressibleSPHSystem(initial_condition,
-                                density_calculator, state_equation,
-                                smoothing_kernel, smoothing_length;
+    WeaklyCompressibleSPHSystem(initial_condition;
+                                smoothing_kernel,
+                                smoothing_length,
+                                density_calculator,
+                                state_equation,
                                 acceleration=ntuple(_ -> 0.0, NDIMS),
                                 viscosity=nothing, density_diffusion=nothing,
                                 pressure_acceleration=nothing,
@@ -18,15 +20,15 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
 
 # Arguments
 - `initial_condition`:  [`InitialCondition`](@ref) representing the system's particles.
-- `density_calculator`: Density calculator for the system.
-                        See [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
-- `state_equation`:     Equation of state for the system. See [`StateEquationCole`](@ref).
-- `smoothing_kernel`:   Smoothing kernel to be used for this system.
-                        See [Smoothing Kernels](@ref smoothing_kernel).
-- `smoothing_length`:   Smoothing length to be used for this system.
-                        See [Smoothing Kernels](@ref smoothing_kernel).
 
 # Keywords
+- `smoothing_kernel`:            Smoothing kernel to be used for this system.
+                                 See [Smoothing Kernels](@ref smoothing_kernel).
+- `smoothing_length`:            Smoothing length to be used for this system.
+                                 See [Smoothing Kernels](@ref smoothing_kernel).
+- `density_calculator`:          Density calculator for the system.
+                                 See [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
+- `state_equation`:              Equation of state for the system. See [`StateEquationCole`](@ref).
 - `acceleration`:               Acceleration vector for the system. (default: zero vector)
 - `viscosity`:                  Viscosity model for this system (default: no viscosity).
                                 See [`ArtificialViscosityMonaghan`](@ref) or [`ViscosityAdami`](@ref).
@@ -84,6 +86,18 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K, 
     buffer                            :: B
     particle_refinement               :: PR # TODO
     cache                             :: C
+end
+
+# Keyword-only public front door used by the examples and docs.
+function WeaklyCompressibleSPHSystem(initial_condition;
+                                     smoothing_kernel,
+                                     smoothing_length,
+                                     density_calculator,
+                                     state_equation,
+                                     kwargs...)
+    return WeaklyCompressibleSPHSystem(initial_condition, density_calculator,
+                                       state_equation, smoothing_kernel,
+                                       smoothing_length; kwargs...)
 end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.

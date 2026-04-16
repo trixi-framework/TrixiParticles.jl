@@ -38,9 +38,11 @@ fluid = RectangularShape(particle_spacing, round.(Int, fluid_size ./ particle_sp
 
 alpha = 8 * nu / (smoothing_length * sound_speed)
 source_terms = SourceTermDamping(; damping_coefficient=0.5)
-# fluid_system = WeaklyCompressibleSPHSystem(fluid, SummationDensity(),
-#                                            state_equation, fluid_smoothing_kernel,
-#                                            smoothing_length,
+# fluid_system = WeaklyCompressibleSPHSystem(fluid;
+#                                            smoothing_kernel=fluid_smoothing_kernel,
+#                                            smoothing_length=smoothing_length,
+#                                            density_calculator=SummationDensity(),
+#                                            state_equation=state_equation,
 #                                            reference_particle_spacing=particle_spacing,
 #                                            viscosity=ArtificialViscosityMonaghan(alpha=alpha,
 #                                                                                  beta=0.0),
@@ -49,9 +51,10 @@ source_terms = SourceTermDamping(; damping_coefficient=0.5)
 #                                            source_terms=source_terms)
 
 # Alternatively can also be used with surface_tension=SurfaceTensionMomentumMorris(surface_tension_coefficient=1.0)
-fluid_system = EntropicallyDampedSPHSystem(fluid, fluid_smoothing_kernel,
-                                           smoothing_length,
-                                           sound_speed,
+fluid_system = EntropicallyDampedSPHSystem(fluid;
+                                           smoothing_kernel=fluid_smoothing_kernel,
+                                           smoothing_length=smoothing_length,
+                                           sound_speed=sound_speed,
                                            viscosity=ViscosityMorris(nu=nu),
                                            density_calculator=ContinuityDensity(),
                                            reference_particle_spacing=particle_spacing,

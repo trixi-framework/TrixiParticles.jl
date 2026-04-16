@@ -34,6 +34,11 @@
                                                      density_calculator,
                                                      state_equation, smoothing_kernel,
                                                      smoothing_length)
+                system_keywords = WeaklyCompressibleSPHSystem(initial_condition;
+                                                              smoothing_kernel=smoothing_kernel,
+                                                              smoothing_length=smoothing_length,
+                                                              density_calculator=density_calculator,
+                                                              state_equation=state_equation)
 
                 @test system isa WeaklyCompressibleSPHSystem{NDIMS}
                 @test system.initial_condition == initial_condition
@@ -44,9 +49,20 @@
                 @test TrixiParticles.initial_smoothing_length(system) == smoothing_length
                 @test system.viscosity === nothing
                 @test system.acceleration == [0.0 for _ in 1:NDIMS]
+                @test system_keywords isa WeaklyCompressibleSPHSystem{NDIMS}
+                @test system_keywords.initial_condition == system.initial_condition
+                @test system_keywords.mass == system.mass
+                @test system_keywords.density_calculator == system.density_calculator
+                @test system_keywords.state_equation == system.state_equation
+                @test system_keywords.smoothing_kernel == system.smoothing_kernel
+                @test TrixiParticles.initial_smoothing_length(system_keywords) ==
+                      TrixiParticles.initial_smoothing_length(system)
+                @test system_keywords.viscosity === system.viscosity
+                @test system_keywords.acceleration == system.acceleration
 
                 if density_calculator isa SummationDensity
                     @test length(system.cache.density) == size(coordinates, 2)
+                    @test length(system_keywords.cache.density) == size(coordinates, 2)
                 end
 
                 error_str1 = "`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"

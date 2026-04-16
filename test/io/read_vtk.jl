@@ -86,9 +86,10 @@
         end
 
         @testset verbose=true "`AbstractFluidSystem`" begin
-            fluid_system = EntropicallyDampedSPHSystem(expected_ic,
-                                                       SchoenbergCubicSplineKernel{2}(),
-                                                       1.5, 1.5)
+            fluid_system = EntropicallyDampedSPHSystem(expected_ic;
+                                                       smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
+                                                       smoothing_length=1.5,
+                                                       sound_speed=1.5)
 
             # Overwrite values because we skip the update step
             fluid_system.cache.density .= expected_ic.density

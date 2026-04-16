@@ -26,6 +26,10 @@
 
             system = EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                                  smoothing_length, sound_speed)
+            system_keywords = EntropicallyDampedSPHSystem(initial_condition;
+                                                          smoothing_kernel=smoothing_kernel,
+                                                          smoothing_length=smoothing_length,
+                                                          sound_speed=sound_speed)
 
             @test system isa EntropicallyDampedSPHSystem{NDIMS}
             @test system.initial_condition == initial_condition
@@ -36,6 +40,17 @@
             @test system.viscosity === nothing
             @test system.nu_edac == (0.5 * smoothing_length * sound_speed) / 8
             @test system.acceleration == [0.0 for _ in 1:NDIMS]
+            @test system_keywords isa EntropicallyDampedSPHSystem{NDIMS}
+            @test system_keywords.initial_condition == system.initial_condition
+            @test system_keywords.mass == system.mass
+            @test system_keywords.density_calculator == system.density_calculator
+            @test system_keywords.smoothing_kernel == system.smoothing_kernel
+            @test TrixiParticles.initial_smoothing_length(system_keywords) ==
+                  TrixiParticles.initial_smoothing_length(system)
+            @test system_keywords.shifting_technique isa Nothing
+            @test system_keywords.viscosity === system.viscosity
+            @test system_keywords.nu_edac == system.nu_edac
+            @test system_keywords.acceleration == system.acceleration
 
             error_str1 = "`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"
             @test_throws ArgumentError(error_str1) EntropicallyDampedSPHSystem(initial_condition,

@@ -64,8 +64,11 @@ state_equation = StateEquationCole(; sound_speed, reference_density=fluid_densit
                                    exponent=1, clip_negative_pressure=false)
 
 density_diffusion = DensityDiffusionAntuono(fluid, delta=0.1)
-fluid_system = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(), state_equation,
-                                           smoothing_kernel, smoothing_length,
+fluid_system = WeaklyCompressibleSPHSystem(fluid;
+                                           smoothing_kernel=smoothing_kernel,
+                                           smoothing_length=smoothing_length,
+                                           density_calculator=ContinuityDensity(),
+                                           state_equation=state_equation,
                                            density_diffusion=density_diffusion,
                                            viscosity=ViscosityAdami(; nu),
                                            shifting_technique=ParticleShiftingTechnique(),

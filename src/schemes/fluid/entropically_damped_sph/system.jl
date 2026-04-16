@@ -1,6 +1,8 @@
 @doc raw"""
-    EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
-                                smoothing_length, sound_speed;
+    EntropicallyDampedSPHSystem(initial_condition;
+                                smoothing_kernel,
+                                smoothing_length,
+                                sound_speed,
                                 pressure_acceleration=inter_particle_averaged_pressure,
                                 density_calculator=SummationDensity(),
                                 shifting_technique=nothing,
@@ -17,13 +19,13 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
 
 # Arguments
 - `initial_condition`:  Initial condition representing the system's particles.
-- `sound_speed`:        Speed of sound.
-- `smoothing_kernel`:   Smoothing kernel to be used for this system.
-                        See [Smoothing Kernels](@ref smoothing_kernel).
-- `smoothing_length`:   Smoothing length to be used for this system.
-                        See [Smoothing Kernels](@ref smoothing_kernel).
 
 # Keywords
+- `smoothing_kernel`:            Smoothing kernel to be used for this system.
+                                 See [Smoothing Kernels](@ref smoothing_kernel).
+- `smoothing_length`:            Smoothing length to be used for this system.
+                                 See [Smoothing Kernels](@ref smoothing_kernel).
+- `sound_speed`:                Speed of sound.
 - `viscosity`:                  Viscosity model for this system (default: no viscosity).
                                 Recommended: [`ViscosityAdami`](@ref).
 - `acceleration`:               Acceleration vector for the system. (default: zero vector)
@@ -81,6 +83,18 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, COR, 
     buffer                            :: B
     particle_refinement               :: PR
     cache                             :: C
+end
+
+# Keyword-only public front door used by the examples and docs.
+function EntropicallyDampedSPHSystem(initial_condition;
+                                     smoothing_kernel,
+                                     smoothing_length,
+                                     sound_speed,
+                                     density_calculator=SummationDensity(),
+                                     kwargs...)
+    return EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
+                                       smoothing_length, sound_speed;
+                                       density_calculator, kwargs...)
 end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
