@@ -179,6 +179,11 @@ end
     return kernel(smoothing_kernel, distance, smoothing_length)
 end
 
+@inline function smoothing_kernel_unsafe(system::WallBoundarySystem, distance, particle)
+    (; smoothing_kernel, smoothing_length) = system.boundary_model
+    return kernel_unsafe(smoothing_kernel, distance, smoothing_length)
+end
+
 @inline function smoothing_length(system::WallBoundarySystem, particle)
     return smoothing_length(system.boundary_model, particle)
 end

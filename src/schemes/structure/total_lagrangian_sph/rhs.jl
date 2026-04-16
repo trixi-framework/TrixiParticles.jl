@@ -19,6 +19,8 @@ end
 
     # Everything here is done in the initial coordinates
     system_coords = initial_coordinates(system)
+    neighborhood_search = get_neighborhood_search(system, semi)
+    backend = semi.parallelization_backend
 
     # For `distance == 0`, the analytical gradient is zero, but the unsafe gradient
     # and the density diffusion divide by zero.
@@ -29,48 +31,61 @@ end
     h = initial_smoothing_length(system)
     almostzero = sqrt(eps(h^2))
 
-    # Loop over all pairs of particles and neighbors within the kernel cutoff.
-    # For structure-structure interaction, this has to happen in the initial coordinates.
-    foreach_point_neighbor(system, system, system_coords, system_coords, semi;
-                           points=each_integrated_particle(system)) do particle, neighbor,
-                                                                       initial_pos_diff,
-                                                                       initial_distance
-        # Skip neighbors with the same position because the kernel gradient is zero.
-        # Note that `return` only exits the closure, i.e., skips the current neighbor.
-        skip_zero_distance(system) && initial_distance < almostzero && return
-
-        # Now that we know that `distance` is not zero, we can safely call the unsafe
-        # version of the kernel gradient to avoid redundant zero checks.
-        grad_kernel = smoothing_kernel_grad_unsafe(system, initial_pos_diff,
-                                                   initial_distance, particle)
-
-        rho_a = @inbounds system.material_density[particle]
-        rho_b = @inbounds system.material_density[neighbor]
-
+    @threaded semi for particle in each_integrated_particle(system)
+        # We are looping over the particles of `system`, so it is guaranteed
+        # that `particle` is in bounds of `system`.
         m_a = @inbounds system.mass[particle]
-        m_b = @inbounds system.mass[neighbor]
-
+        rho_a = @inbounds system.material_density[particle]
         # PK1 / rho^2
         pk1_rho2_a = @inbounds pk1_rho2(system, particle)
-        pk1_rho2_b = @inbounds pk1_rho2(system, neighbor)
+        current_coords_a = @inbounds current_coords(system, particle)
+        F_a = @inbounds deformation_gradient(system, particle)
 
-        current_pos_diff_ = @inbounds current_coords(system, particle) -
-                                      current_coords(system, neighbor)
-        # On GPUs, convert `Float64` coordinates to `Float32` after computing the difference
-        current_pos_diff = convert.(eltype(system), current_pos_diff_)
-        current_distance = norm(current_pos_diff)
+        # Accumulate the RHS contributions over all neighbors before writing to `dv`
+        # to reduce the number of memory writes.
+        # Note that we need a `Ref` in order to be able to update these variables
+        # inside the closure in the `foreach_neighbor` loop.
+        dv_particle = Ref(zero(current_coords_a))
 
-        dv_stress = m_b * (pk1_rho2_a + pk1_rho2_b) * grad_kernel
+        # Loop over all neighbors within the kernel cutoff
+        @inbounds foreach_neighbor(system_coords, system_coords,
+                                   neighborhood_search, backend,
+                                   particle) do particle, neighbor,
+                                                initial_pos_diff, initial_distance
+            # Skip neighbors with the same position because the kernel gradient is zero.
+            # Note that `return` only exits the closure, i.e., skips the current neighbor.
+            skip_zero_distance(system) && initial_distance < almostzero && return
 
-        dv_penalty_force_ = @inbounds dv_penalty_force(penalty_force, particle, neighbor,
-                                                       initial_pos_diff, initial_distance,
-                                                       current_pos_diff, current_distance,
-                                                       system, m_a, m_b, rho_a, rho_b)
+            # Now that we know that `distance` is not zero, we can safely call the unsafe
+            # version of the kernel gradient to avoid redundant zero checks.
+            grad_kernel = smoothing_kernel_grad_unsafe(system, initial_pos_diff,
+                                                       initial_distance, particle)
 
-        dv_particle = Ref(dv_stress + dv_penalty_force_)
-        @inbounds dv_viscosity_tlsph!(dv_particle, system, v_system, particle, neighbor,
-                                      current_pos_diff, current_distance,
-                                      m_a, m_b, rho_a, rho_b, grad_kernel)
+            rho_b = @inbounds system.material_density[neighbor]
+            m_b = @inbounds system.mass[neighbor]
+            # PK1 / rho^2
+            pk1_rho2_b = @inbounds pk1_rho2(system, neighbor)
+            current_coords_b = @inbounds current_coords(system, neighbor)
+
+            # The compiler is smart enough to optimize this away if no penalty force is used
+            F_b = @inbounds deformation_gradient(system, neighbor)
+
+            current_pos_diff_ = current_coords_a - current_coords_b
+            # On GPUs, convert `Float64` coordinates to `Float32` after computing the difference
+            current_pos_diff = convert.(eltype(system), current_pos_diff_)
+            current_distance = norm(current_pos_diff)
+
+            dv_particle[] += m_b * (pk1_rho2_a + pk1_rho2_b) * grad_kernel
+
+            @inbounds dv_penalty_force!(dv_particle, penalty_force, particle, neighbor,
+                                        initial_pos_diff, initial_distance,
+                                        current_pos_diff, current_distance,
+                                        system, m_a, m_b, rho_a, rho_b, F_a, F_b)
+
+            @inbounds dv_viscosity_tlsph!(dv_particle, system, v_system, particle, neighbor,
+                                          current_pos_diff, current_distance,
+                                          m_a, m_b, rho_a, rho_b, F_a, grad_kernel)
+        end
 
         for i in 1:ndims(system)
             @inbounds dv[i, particle] += dv_particle[][i]
