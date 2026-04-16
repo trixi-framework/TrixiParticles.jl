@@ -82,6 +82,34 @@ end
                                         Val(NDIMS^2)))
 end
 
+# Optimized version for 2D, which uses SIMD.jl to combine the 4 loads of the 2x2 matrix
+# into a single wide load. This is significantly faster on GPUs than 4 individual loads.
+# WARNING:
+# 1. This only works if the matrix elements are stored contiguously in memory.
+#    The 4 elements of the 2x2 matrix for a particle must immediately follow the
+#    4 elements of the previous particle's matrix, with no padding in between.
+# 2. The pointer of `A` must be aligned to the size of `Vec{4, eltype(A)}`.
+#    This is guaranteed if `A` is allocated by Julia and has the correct size,
+#    but may not be true if `A` is a view or subarray.
+@propagate_inbounds function extract_smatrix_aligned(A, system, particle)
+    return extract_smatrix_aligned(A, Val(ndims(system)), particle)
+end
+
+@inline function extract_smatrix_aligned(A, ::Val{2}, particle)
+    @boundscheck checkbounds(A, 2, 2, particle)
+
+    # Note that this doesn't work in 3D because it requires a stride of 2^n.
+    x = SIMD.vloada(SIMD.Vec{4, eltype(A)}, pointer(A, 4 * (particle - 1) + 1))
+
+    return SMatrix{2, 2}(Tuple(x))
+end
+
+# Fall back to the generic version when not in 2D.
+@propagate_inbounds function extract_smatrix_aligned(A, ::Val{NDIMS},
+                                                     particle) where {NDIMS}
+    return extract_smatrix(A, Val(NDIMS), particle)
+end
+
 # Specifically get the current coordinates of a particle for all system types.
 @propagate_inbounds function current_coords(u, system, particle)
     return extract_svector(current_coordinates(u, system), system, particle)
