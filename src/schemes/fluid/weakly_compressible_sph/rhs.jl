@@ -93,7 +93,7 @@ function interact!(dv, v_particle_system, u_particle_system,
             @inbounds dv_shifting!(dv_particle, shifting_technique(particle_system),
                                    particle_system, neighbor_system,
                                    v_particle_system, v_neighbor_system,
-                                   particle, neighbor, m_a, m_b, rho_a, rho_b,
+                                   particle, neighbor, m_a, m_b, v_a, v_b, rho_a, rho_b,
                                    pos_diff, distance, grad_kernel, correction)
 
             @inbounds surface_tension_force!(dv_particle,
