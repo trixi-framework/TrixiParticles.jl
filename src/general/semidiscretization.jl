@@ -60,8 +60,7 @@ struct Semidiscretization{BACKEND, S, RU, RV, NS, UCU, IT}
 
     # Dispatch at `systems` to distinguish this constructor from the one below when
     # 4 systems are passed.
-    # This is an internal constructor only used in `test/count_allocations.jl`
-    # and by Adapt.jl.
+    # This is an internal constructor only used in `test/count_allocations.jl`.
     function Semidiscretization(systems::Tuple, ranges_u, ranges_v, neighborhood_searches,
                                 parallelization_backend::PointNeighbors.ParallelizationBackend,
                                 update_callback_used, integrate_tlsph)
@@ -102,12 +101,13 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
                      for i in eachindex(sizes_v))
 
-    # Create a tuple of n neighborhood searches for each of the n systems.
+    # Create a n x n matrix of n neighborhood searches for each of the n systems.
     # We will need one neighborhood search for each pair of systems.
-    searches = Tuple(Tuple(create_neighborhood_search(neighborhood_search,
-                                                      system, neighbor)
-                           for neighbor in systems)
-                     for system in systems)
+    searches = [create_neighborhood_search(neighborhood_search,
+                                           system, neighbor)
+                for system in systems, neighbor in systems]
+
+    @assert isconcretetype(eltype(searches)) "neighborhood searches are not type-stable"
 
     # These will be set to true inside the `UpdateCallback`.
     # Some techniques require the use of this callback, and this flag can be used
@@ -133,7 +133,7 @@ function Base.show(io::IO, semi::Semidiscretization)
         print(io, system, ", ")
     end
     print(io, "neighborhood_search=")
-    print(io, semi.neighborhood_searches |> eltype |> eltype |> nameof)
+    print(io, semi.neighborhood_searches |> eltype |> nameof)
     print(io, ")")
 end
 
@@ -148,7 +148,7 @@ function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
         summary_line(io, "#spatial dimensions", ndims(semi.systems[1]))
         summary_line(io, "#systems", length(semi.systems))
         summary_line(io, "neighborhood search",
-                     semi.neighborhood_searches |> eltype |> eltype |> nameof)
+                     semi.neighborhood_searches |> eltype |> nameof)
         summary_line(io, "total #particles", sum(nparticles.(semi.systems)))
         summary_line(io, "eltype", eltype(semi.systems[1]))
         summary_line(io, "coordinates eltype", coordinates_eltype(semi.systems[1]))
@@ -174,6 +174,14 @@ end
 end
 
 @inline foreach_system(f, systems) = foreach_noalloc(f, systems)
+
+# This is just for readability to loop over all systems with wrapped arrays.
+@inline function foreach_system_wrapped(f, semi::Union{NamedTuple, Semidiscretization},
+                                        v_ode, u_ode)
+    foreach_system(semi) do system
+        @inline f(system, wrap_v(v_ode, system, semi), wrap_u(u_ode, system, semi))
+    end
+end
 
 """
     semidiscretize(semi, tspan; reset_threads=true)
@@ -259,10 +267,7 @@ function semidiscretize(semi, tspan; reset_threads=true)
     end
 
     # Set initial condition
-    foreach_system(semi) do system
-        u0_system = wrap_u(u0_ode, system, semi)
-        v0_system = wrap_v(v0_ode, system, semi)
-
+    foreach_system_wrapped(semi, v0_ode, u0_ode) do system, v0_system, u0_system
         write_u0!(u0_system, system)
         write_v0!(v0_system, system)
     end
@@ -272,18 +277,25 @@ function semidiscretize(semi, tspan; reset_threads=true)
     initialize_neighborhood_searches!(semi)
 
     if semi.parallelization_backend isa KernelAbstractions.GPU
-        # Convert all arrays to the correct array type.
+        # Convert all arrays in the systems to the correct array type.
         # When e.g. `parallelization_backend=CUDABackend()`, this will convert all `Array`s
         # to `CuArray`s, moving data to the GPU.
         # See the comments in general/gpu.jl for more details.
-        semi_ = Adapt.adapt(semi.parallelization_backend, semi)
+        systems = Adapt.adapt(semi.parallelization_backend, semi.systems)
+        semi_ = @set semi.systems = systems
+
+        # Also convert the neighborhood searches to the GPU
+        neighborhood_searches = map(search -> Adapt.adapt(semi.parallelization_backend,
+                                                          search),
+                                    semi_.neighborhood_searches)
+        semi__ = @set semi_.neighborhood_searches = neighborhood_searches
 
         # We now have a new `Semidiscretization` with new systems.
         # This means that systems linking to other systems still point to old systems.
         # Therefore, we have to re-link them, which yields yet another `Semidiscretization`.
         # Note that this re-creates systems containing links, so it only works as long
         # as systems don't link to other systems containing links.
-        semi_new = @set semi_.systems = set_system_links.(semi_.systems, Ref(semi_))
+        semi_new = @set semi__.systems = set_system_links.(semi__.systems, Ref(semi__))
 
         @info "To move data to the GPU, `semidiscretize` creates a deep copy of the passed " *
               "`Semidiscretization`. Use `semi = ode.p` to access simulation data."
@@ -325,10 +337,8 @@ function restart_with!(semi, sol; reset_threads=true)
 
     initialize_neighborhood_searches!(semi)
 
-    foreach_system(semi) do system
-        v = wrap_v(sol.u[end].x[1], system, semi)
-        u = wrap_u(sol.u[end].x[2], system, semi)
-
+    v_ode, u_ode = sol.u[end].x
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         restart_with!(system, v, u)
     end
 
@@ -410,14 +420,13 @@ function drift!(du_ode, v_ode, u_ode, semi, t)
 
         @trixi_timeit timer() "velocity" begin
             # Set velocity and add acceleration for each system
-            foreach_system(semi) do system
+            foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
                 du = wrap_u(du_ode, system, semi)
-                v = wrap_v(v_ode, system, semi)
-                u = wrap_u(u_ode, system, semi)
 
+                integrate_tlsph = semi.integrate_tlsph[]
                 @threaded semi for particle in each_integrated_particle(system)
                     # This can be dispatched per system
-                    add_velocity!(du, v, u, particle, system, semi, t)
+                    add_velocity!(du, v, u, particle, system, integrate_tlsph, t)
                 end
             end
         end
@@ -426,14 +435,14 @@ function drift!(du_ode, v_ode, u_ode, semi, t)
     return du_ode
 end
 
-@inline function add_velocity!(du, v, u, particle, system, semi::Semidiscretization, t)
+@inline function add_velocity!(du, v, u, particle, system, integrate_tlsph, t)
     add_velocity!(du, v, u, particle, system, t)
 end
 
 @inline function add_velocity!(du, v, u, particle, system::TotalLagrangianSPHSystem,
-                               semi::Semidiscretization, t)
+                               integrate_tlsph, t)
     # Only add velocity for TLSPH systems if they are integrated
-    if semi.integrate_tlsph[]
+    if integrate_tlsph
         add_velocity!(du, v, u, particle, system, t)
     end
 end
@@ -486,10 +495,7 @@ end
 function update_systems_and_nhs(v_ode, u_ode, semi, t)
     # First update step before updating the NHS
     # (for example for writing the current coordinates in the TLSPH system)
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_positions!(system, v, u, v_ode, u_ode, semi, t)
     end
 
@@ -500,37 +506,25 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
     # This is used to calculate density and pressure of the fluid systems
     # before updating the boundary systems,
     # since the fluid pressure is needed by the Adami interpolation.
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_quantities!(system, v, u, v_ode, u_ode, semi, t)
     end
 
     update_implicit_sph!(semi, v_ode, u_ode, t)
 
     # Perform correction and pressure calculation
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_pressure!(system, v, u, v_ode, u_ode, semi, t)
     end
 
     # This update depends on the computed quantities of the fluid system and therefore
     # needs to be after `update_quantities!`.
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_boundary_interpolation!(system, v, u, v_ode, u_ode, semi, t)
     end
 
     # Final update step for all remaining systems
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_final!(system, v, u, v_ode, u_ode, semi, t)
     end
 end
@@ -545,13 +539,15 @@ function add_source_terms!(dv_ode, v_ode, u_ode, semi, t; semi_wrap=semi)
         v = wrap_v(v_ode, system, semi_wrap)
         u = wrap_u(u_ode, system, semi_wrap)
 
+        # `integrate_tlsph` is extracted from the `semi_wrap`, so that this function
+        # can be used in the `SplitIntegrationCallback` as well.
+        integrate_tlsph = semi_wrap.integrate_tlsph[]
+
         @threaded semi for particle in each_integrated_particle(system)
-            # Dispatch by system type to exclude boundary systems.
-            # `integrate_tlsph` is extracted from the `semi_wrap`, so that this function
-            # can be used in the `SplitIntegrationCallback` as well.
-            add_acceleration!(dv, particle, system, semi_wrap.integrate_tlsph[])
+            # Dispatch by system type to exclude boundary systems
+            add_acceleration!(dv, particle, system, integrate_tlsph)
             add_source_terms_inner!(dv, v, u, particle, system, source_terms(system), t,
-                                    semi_wrap.integrate_tlsph[])
+                                    integrate_tlsph)
         end
     end
 
@@ -572,9 +568,9 @@ end
 
 @inline add_acceleration!(dv, particle, system) = dv
 
-@inline function add_acceleration!(dv, particle,
-                                   system::Union{AbstractFluidSystem,
-                                                 AbstractStructureSystem})
+@propagate_inbounds function add_acceleration!(dv, particle,
+                                               system::Union{AbstractFluidSystem,
+                                                             AbstractStructureSystem})
     (; acceleration) = system
 
     for i in 1:ndims(system)
@@ -595,7 +591,29 @@ end
     integrate_tlsph && add_source_terms_inner!(dv, v, u, particle, system, source_terms_, t)
 end
 
-@inline function add_source_terms_inner!(dv, v, u, particle, system, source_terms_, t)
+@propagate_inbounds function add_source_terms_inner!(dv, v, u, particle,
+                                                     system::RigidBodySystem,
+                                                     source_terms_, t)
+    coords = current_coords(u, system, particle)
+    velocity = current_velocity(v, system, particle)
+    density = system.material_density[particle]
+    pressure = 0 # Rigid body systems don't have a pressure, but some source terms might depend on it
+
+    source = source_terms_(coords, velocity, density, pressure, t)
+
+    for i in eachindex(source)
+        dv[i, particle] += source[i]
+    end
+
+    return dv
+end
+
+@inline add_source_terms_inner!(dv, v, u, particle,
+                                system::RigidBodySystem,
+                                source_terms_::Nothing, t) = dv
+
+@propagate_inbounds function add_source_terms_inner!(dv, v, u, particle, system,
+                                                     source_terms_, t)
     coords = current_coords(u, system, particle)
     velocity = current_velocity(v, system, particle)
     density = current_density(v, system, particle)
@@ -667,6 +685,15 @@ function system_interaction!(dv_ode, v_ode, u_ode, semi)
         end
     end
 
+    # Finalize systems that need to reduce accumulated interaction data afterward.
+    foreach_system(semi) do system
+        dv = wrap_v(dv_ode, system, semi)
+        v = wrap_v(v_ode, system, semi)
+        u = wrap_u(u_ode, system, semi)
+
+        finalize_interaction!(system, dv, v, u, dv_ode, v_ode, u_ode, semi)
+    end
+
     return dv_ode
 end
 
@@ -709,16 +736,26 @@ end
 check_configuration(system::AbstractSystem, systems, nhs) = nothing
 
 function check_system_color(systems)
-    if any(system isa AbstractFluidSystem && !(system isa ParticlePackingSystem) &&
-           !isnothing(system.surface_tension)
-           for system in systems)
+    requires_color_check = any(systems) do system
+        system isa AbstractFluidSystem || return false
+        system isa ParticlePackingSystem && return false
 
-        # System indices of all systems that are either a fluid or a boundary system
-        system_ids = findall(system isa Union{AbstractFluidSystem, WallBoundarySystem}
-                             for system in systems)
+        return !isnothing(system.surface_tension) ||
+               system.surface_normal_method isa ColorfieldSurfaceNormal
+    end
+
+    if requires_color_check
+
+        # Systems that contribute to the colorfield/contact logic.
+        system_ids = findall(system -> (system isa AbstractFluidSystem &&
+                                        !(system isa ParticlePackingSystem)) ||
+                                       system isa WallBoundarySystem ||
+                                       system isa
+                                       RigidBodySystem{<:BoundaryModelDummyParticles},
+                             systems)
 
         if length(system_ids) > 1 && sum(i -> systems[i].cache.color, system_ids) == 0
-            throw(ArgumentError("If a surface tension model is used the values of at least one system needs to have a color different than 0."))
+            throw(ArgumentError("If `ColorfieldSurfaceNormal` or a surface tension model is used, at least one participating system must have a color different from 0."))
         end
     end
 end

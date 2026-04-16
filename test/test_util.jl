@@ -2,6 +2,7 @@ using Test
 using TrixiTest: @trixi_test_nowarn
 using TrixiParticles
 using TrixiParticles: PointNeighbors
+using TrixiParticles.Adapt
 using LinearAlgebra
 using Printf
 using CSV: CSV

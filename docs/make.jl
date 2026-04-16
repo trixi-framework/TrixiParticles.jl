@@ -38,6 +38,8 @@ Literate.markdown(joinpath("docs", "literate", "src", "tut_setup.jl"),
                   joinpath("docs", "src", "tutorials"))
 Literate.markdown(joinpath("docs", "literate", "src", "tut_custom_kernel.jl"),
                   joinpath("docs", "src", "tutorials"))
+Literate.markdown(joinpath("docs", "literate", "src", "tut_rigid_body_fsi.jl"),
+                  joinpath("docs", "src", "tutorials"))
 Literate.markdown(joinpath("docs", "literate", "src", "tut_packing.jl"),
                   joinpath("docs", "src", "tutorials"))
 
@@ -70,7 +72,8 @@ makedocs(sitename="TrixiParticles.jl",
          plugins=[bib],
          # Run doctests and check docs for the following modules
          modules=[TrixiParticles, TrixiBase],
-         format=Documenter.HTML(; assets=Asciicast.assets()),
+         # Set edit_link explicitly to avoid `git remote show origin` lookups.
+         format=Documenter.HTML(; assets=Asciicast.assets(), edit_link="main"),
          # Explicitly specify documentation structure
          pages=[
              "Home" => "index.md",
@@ -85,6 +88,10 @@ makedocs(sitename="TrixiParticles.jl",
                                                                            "tut_setup.md"),
                      "Modifying or extending components of TrixiParticles.jl within a simulation file" => joinpath("tutorials",
                                                                                                                    "tut_custom_kernel.md")
+                 ],
+                 "Fluid-Structure Interaction" => [
+                     "Fluid-structure interaction with rigid bodies" => joinpath("tutorials",
+                                                                                 "tut_rigid_body_fsi.md")
                  ],
                  "Preprocessing" => [
                      "Particle packing tutorial" => joinpath("tutorials",
@@ -120,6 +127,8 @@ makedocs(sitename="TrixiParticles.jl",
                                                                            "implicit_incompressible_sph.md")
                      ],
                      "Discrete Element Method (Solid)" => joinpath("systems", "dem.md"),
+                     "Rigid Body SPH (Rigid Structure)" => joinpath("systems",
+                                                                    "rigid_body.md"),
                      "Total Lagrangian SPH (Elastic Structure)" => joinpath("systems",
                                                                             "total_lagrangian_sph.md"),
                      "Boundary" => joinpath("systems", "boundary.md")
