@@ -77,14 +77,17 @@ function interact!(dv, v_particle_system, u_particle_system,
             @inbounds dv[i, particle] += dv_particle[i]
         end
 
-        v_diff = current_velocity(v_particle_system, particle_system, particle) -
-                 current_velocity(v_neighbor_system, neighbor_system, neighbor)
+        v_a = current_velocity(v_particle_system, particle_system, particle)
+        v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
+        v_diff = v_a - v_b
 
         # Propagate `@inbounds` to the continuity equation, which accesses particle data
-        @inbounds continuity_equation!(dv, particle_system, neighbor_system,
-                                       v_particle_system, v_neighbor_system, particle,
-                                       neighbor, pos_diff, distance, m_b, rho_a, rho_b,
-                                       grad_kernel)
+        drho_particle = Ref(zero(rho_a))
+        @inbounds continuity_equation!(drho_particle,
+                                       particle_system, neighbor_system,
+                                       particle, neighbor, pos_diff, distance,
+                                       m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+        dv[end, particle] += drho_particle[]
 
         # Open boundary pressure evolution matches the corresponding fluid system:
         # - EDAC: Compute pressure evolution like the fluid system
