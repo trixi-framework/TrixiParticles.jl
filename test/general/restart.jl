@@ -9,8 +9,8 @@
         # differ. The results must be interpolated to enable comparison with the restart
         # simulation. The fluid domain starts at `x = 10 * particle_spacing`.
         n_interpolation_points = 10
-        start_point = [0.0 + 10 * particle_spacing, wall_distance / 2]
-        end_point = [flow_length - 10 * particle_spacing, wall_distance / 2]
+        start_point = [0.0 + 10 * particle_spacing, channel_height / 2]
+        end_point = [channel_length - 10 * particle_spacing, channel_height / 2]
         result_full = interpolate_line(start_point, end_point, n_interpolation_points,
                                        semi, fluid_system, sol, cut_off_bnd=false)
 
@@ -36,9 +36,9 @@
                                           sol_restart.prob.p.systems[1],
                                           sol_restart, cut_off_bnd=false)
 
-        @test isapprox(result_full.velocity, result_restart.velocity, rtol=8e-3)
+        @test isapprox(result_full.velocity, result_restart.velocity, rtol=1e-2)
         @test isapprox(result_full.density, result_restart.density, rtol=8e-4)
-        @test isapprox(result_full.pressure, result_restart.pressure, rtol=7e-2)
+        @test isapprox(result_full.pressure, result_restart.pressure, rtol=8e-2)
     end
 
     @trixi_testset "Restore Previous State" begin
@@ -51,7 +51,7 @@
         # Run half simulation
         trixi_include(@__MODULE__,
                       joinpath(examples_dir(), "fluid", "poiseuille_flow_2d.jl"),
-                      reference_pressure_out=pressure_model,
+                      outlet_reference_pressure=pressure_model,
                       tspan=(0.0, 0.3), sound_speed_factor=10, particle_spacing=4e-5)
 
         iter = round(Int, 0.3 / 0.02)

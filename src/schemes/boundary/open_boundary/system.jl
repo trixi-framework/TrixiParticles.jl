@@ -725,21 +725,15 @@ function restore_previous_state!(system::OpenBoundarySystem, file)
     # may result in particles being located outside their intended boundary zone, even though they
     # were written as active particles.
     set_zero!(system.boundary_zone_indices)
-    values = vtk2trixi(file; create_initial_condition=false, zone_id="zone_id")
+
+    values = vtk2trixi(file; create_initial_condition=false)
     system.boundary_zone_indices[each_integrated_particle(system)] .= values.zone_id
 
     if any(pm -> isa(pm, AbstractPressureModel), system.cache.pressure_reference_values)
-        pm_zone_ids = findall(pm -> isa(pm, AbstractPressureModel),
-                              system.cache.pressure_reference_values)
-        keys_p = [(Symbol(:p, i), "boundary_zone_pressure_$(i)")
-                  for i in eachindex(system.boundary_zones)[pm_zone_ids]]
-        keys_Q = [(Symbol(:Q, i), "Q_$(i)") for i in eachindex(system.boundary_zones)]
-        values = vtk2trixi(file; create_initial_condition=false, vcat(keys_p, keys_Q)...)
-
         for (i, pressure_model) in enumerate(system.cache.pressure_reference_values)
             if pressure_model isa AbstractPressureModel
-                pressure_model.pressure[] = values[Symbol(:p, i)]
-                pressure_model.flow_rate[] = values[Symbol(:Q, i)]
+                pressure_model.pressure[] = values[Symbol(:boundary_zone_pressure_, i)]
+                pressure_model.flow_rate[] = values[Symbol(:Q_, i)]
             end
         end
     end
