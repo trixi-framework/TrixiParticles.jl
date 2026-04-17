@@ -114,18 +114,18 @@ function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing
         @assert allunique(clamped_particles) "`clamped_particles` contains duplicate particle indices"
 
         n_clamped_particles = length(clamped_particles)
-        ic_sorted_indices = deepcopy(initial_condition)
-        young_modulus_sorted_indices = copy(young_modulus)
-        poisson_ratio_sorted_indices = copy(poisson_ratio)
-        move_particles_to_end!(ic_sorted_indices, collect(clamped_particles))
-        move_particles_to_end!(young_modulus_sorted_indices, collect(clamped_particles))
-        move_particles_to_end!(poisson_ratio_sorted_indices, collect(clamped_particles))
+        initial_condition_sorted = deepcopy(initial_condition)
+        young_modulus_sorted = copy(young_modulus)
+        poisson_ratio_sorted = copy(poisson_ratio)
+        move_particles_to_end!(initial_condition_sorted, clamped_particles)
+        move_particles_to_end!(young_modulus_sorted, clamped_particles)
+        move_particles_to_end!(poisson_ratio_sorted, clamped_particles)
     end
 
-    initial_coordinates = copy(ic_sorted_indices.coordinates)
-    current_coordinates = copy(ic_sorted_indices.coordinates)
-    mass = copy(ic_sorted_indices.mass)
-    material_density = copy(ic_sorted_indices.density)
+    initial_coordinates = copy(initial_condition_sorted.coordinates)
+    current_coordinates = copy(initial_condition_sorted.coordinates)
+    mass = copy(initial_condition_sorted.mass)
+    material_density = copy(initial_condition_sorted.density)
     correction_matrix = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
     pk1_rho2 = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
     deformation_grad = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
