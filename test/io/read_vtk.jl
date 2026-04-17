@@ -106,13 +106,13 @@
             end
 
             @testset verbose=true "Exact Field Matches" begin
-                trixi2vtk(expected_ic; filename="tmp_initial_condition_exact_field_match",
+                trixi2vtk(expected_data; filename="tmp_initial_condition_exact_field_match",
                           output_directory=tmp_dir,
-                          center_of_mass_velocity=fill(42.0, size(expected_ic.velocity)))
+                          center_of_mass_velocity=fill(42.0, size(expected_data.velocity)))
                 file = joinpath(tmp_dir, "tmp_initial_condition_exact_field_match.vtu")
                 test_ic = vtk2trixi(file)
 
-                @test isapprox(expected_ic.velocity, test_ic.velocity, rtol=1e-5)
+                @test isapprox(expected_data.velocity, test_ic.velocity, rtol=1e-5)
             end
         end
 
