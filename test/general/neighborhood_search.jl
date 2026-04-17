@@ -17,7 +17,7 @@
         cell_list = TrixiParticles.FullGridCellList(; min_corner=(-1.0, -1.0),
                                                     max_corner=(1.0, 1.0),
                                                     search_radius=0.1)
-        dummy_nhs = (; cell_size=0.1)
+        dummy_nhs = (; cell_size=0.1, periodic_box=nothing, cell_list)
         semi = DummySemidiscretization()
 
         # All particles should remain active
@@ -39,7 +39,7 @@
         cell_list = TrixiParticles.FullGridCellList(; min_corner=(-1.0, -1.0),
                                                     max_corner=(1.0, 1.0),
                                                     search_radius=0.1)
-        dummy_nhs = (; cell_size=0.1)
+        dummy_nhs = (; cell_size=0.1, periodic_box=nothing, cell_list)
         semi = DummySemidiscretization()
 
         TrixiParticles.deactivate_out_of_bounds_particles!(system, buffer, dummy_nhs,
@@ -68,7 +68,7 @@
         cell_list = TrixiParticles.FullGridCellList(; min_corner=(-1.0, -1.0),
                                                     max_corner=(1.0, 1.0),
                                                     search_radius=0.1)
-        dummy_nhs = (; cell_size=0.1)
+        dummy_nhs = (; cell_size=0.1, periodic_box=nothing, cell_list)
         semi = DummySemidiscretization()
 
         TrixiParticles.deactivate_out_of_bounds_particles!(system, buffer, dummy_nhs,
