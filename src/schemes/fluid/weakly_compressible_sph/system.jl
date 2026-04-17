@@ -338,7 +338,8 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_od
     return system
 end
 
-function update_final!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t)
+function update_final!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t;
+                       kwargs...)
     (; surface_tension) = system
 
     # Surface normal of neighbor and boundary needs to have been calculated already
