@@ -28,6 +28,54 @@
         end
     end
 
+    @testset verbose=true "High-level Dummy-Particle Builder" begin
+        boundary_coordinates = [1.0 2.0
+                                1.0 2.0]
+        fluid_coordinates = [0.0 0.5
+                             0.0 0.0]
+
+        boundary_ic = InitialCondition(; coordinates=boundary_coordinates, mass, density)
+        fluid_ic = InitialCondition(; coordinates=fluid_coordinates, mass, density)
+
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        smoothing_length = 0.8
+        state_equation = StateEquationCole(; sound_speed=15.0, reference_density=1000.0,
+                                           exponent=1)
+        viscosity = ViscosityAdami(nu=1e-6)
+
+        fluid_system = WeaklyCompressibleSPHSystem(fluid_ic, ContinuityDensity(),
+                                                   state_equation, smoothing_kernel,
+                                                   smoothing_length,
+                                                   correction=KernelCorrection(),
+                                                   reference_particle_spacing=0.1)
+
+        boundary_model = BoundaryModelDummyParticles(boundary_ic;
+                                                     fluid_system=fluid_system,
+                                                     viscosity=viscosity)
+        system = WallBoundarySystem(boundary_ic, boundary_model,
+                                    adhesion_coefficient=0.3,
+                                    color_value=2)
+
+        @test system isa WallBoundarySystem
+        @test system.boundary_model isa BoundaryModelDummyParticles
+        @test system.boundary_model.hydrodynamic_mass == boundary_ic.mass
+        @test system.boundary_model.density_calculator isa AdamiPressureExtrapolation
+        @test system.boundary_model.smoothing_kernel === smoothing_kernel
+        @test system.boundary_model.smoothing_length == smoothing_length
+        @test system.boundary_model.viscosity == viscosity
+        @test system.boundary_model.state_equation == state_equation
+        @test system.boundary_model.correction isa KernelCorrection
+        @test system.boundary_model.cache.reference_particle_spacing == 0.1
+        @test system.adhesion_coefficient == 0.3
+        @test system.cache.color == 2
+
+        edac_system = EntropicallyDampedSPHSystem(fluid_ic, smoothing_kernel,
+                                                  smoothing_length, 15.0)
+        edac_boundary_model = BoundaryModelDummyParticles(boundary_ic;
+                                                          fluid_system=edac_system)
+        @test edac_boundary_model.state_equation === nothing
+    end
+
     @testset verbose=true "Moving Boundaries" begin
         @testset "$(i+1)D" for i in 1:2
             NDIMS = i + 1

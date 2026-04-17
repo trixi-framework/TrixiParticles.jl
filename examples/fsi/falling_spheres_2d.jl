@@ -71,12 +71,9 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
 # ==========================================================================================
 # ==== Boundary
 boundary_density_calculator = BernoulliPressureExtrapolation()
-boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=state_equation,
-                                             boundary_density_calculator,
-                                             fluid_smoothing_kernel, fluid_smoothing_length)
-
-boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
+wall_boundary_model = BoundaryModelDummyParticles(tank.boundary; fluid_system=fluid_system,
+                                                  boundary_density_calculator=boundary_density_calculator)
+boundary_system = WallBoundarySystem(tank.boundary, wall_boundary_model)
 
 # ==========================================================================================
 # ==== Structure

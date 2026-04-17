@@ -59,13 +59,10 @@ viscosity_wall = nothing
 # Activate to switch to no-slip walls
 #viscosity_wall = ViscosityAdami(nu=0.0025 * smoothing_length * sound_speed / 8)
 
-boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=state_equation,
-                                             boundary_density_calculator,
-                                             smoothing_kernel, smoothing_length,
-                                             viscosity=viscosity_wall)
-
-boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
+wall_boundary_model = BoundaryModelDummyParticles(tank.boundary; fluid_system=fluid_system,
+                                                  boundary_density_calculator=boundary_density_calculator,
+                                                  viscosity=viscosity_wall)
+boundary_system = WallBoundarySystem(tank.boundary, wall_boundary_model)
 
 # ==========================================================================================
 # ==== Simulation

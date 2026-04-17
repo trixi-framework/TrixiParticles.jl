@@ -113,11 +113,10 @@ else
                                                                               damping_coefficient=0.05))
 end
 
-boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=state_equation,
-                                             boundary_density_calculator,
-                                             smoothing_kernel, smoothing_length_fluid)
-boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
+wall_boundary_model = BoundaryModelDummyParticles(tank.boundary; fluid_system=fluid_system,
+                                                  boundary_density_calculator=boundary_density_calculator,
+                                                  state_equation=state_equation)
+boundary_system = WallBoundarySystem(tank.boundary, wall_boundary_model)
 boundary_model_structure = BoundaryModelDummyParticles(hydrodynamic_densities,
                                                        hydrodynamic_masses,
                                                        state_equation=state_equation,

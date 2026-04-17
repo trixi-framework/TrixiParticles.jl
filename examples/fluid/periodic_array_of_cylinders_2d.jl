@@ -74,13 +74,9 @@ fluid_system = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(), state_equ
 
 # ==========================================================================================
 # ==== Boundary
-boundary_model = BoundaryModelDummyParticles(boundary.density, boundary.mass,
-                                             AdamiPressureExtrapolation(),
-                                             viscosity=ViscosityAdami(; nu),
-                                             smoothing_kernel, smoothing_length,
-                                             state_equation=state_equation)
-
-boundary_system = WallBoundarySystem(boundary, boundary_model)
+wall_boundary_model = BoundaryModelDummyParticles(boundary; fluid_system=fluid_system,
+                                                  viscosity=ViscosityAdami(; nu))
+boundary_system = WallBoundarySystem(boundary, wall_boundary_model)
 
 # ==========================================================================================
 # ==== Simulation

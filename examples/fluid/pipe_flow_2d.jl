@@ -137,20 +137,15 @@ outflow = BoundaryZone(; boundary_face=face_out, face_normal=(-flow_direction),
                        initial_condition=outlet.fluid, boundary_type=boundary_type_out)
 
 open_boundary = OpenBoundarySystem(inflow, outflow; fluid_system,
-                                   boundary_model=open_boundary_model,
-                                   buffer_size=n_buffer_particles)
+                                   boundary_model=open_boundary_model)
 
 # ==========================================================================================
 # ==== Boundary
 wall = union(pipe.boundary, inlet.boundary, outlet.boundary)
 viscosity_boundary = viscosity
-boundary_model = BoundaryModelDummyParticles(wall.density, wall.mass,
-                                             AdamiPressureExtrapolation(),
-                                             state_equation=state_equation,
-                                             viscosity=viscosity_boundary,
-                                             smoothing_kernel, smoothing_length)
-
-boundary_system = WallBoundarySystem(wall, boundary_model)
+wall_boundary_model = BoundaryModelDummyParticles(wall; fluid_system=fluid_system,
+                                                  viscosity=viscosity_boundary)
+boundary_system = WallBoundarySystem(wall, wall_boundary_model)
 
 # ==========================================================================================
 # ==== Simulation

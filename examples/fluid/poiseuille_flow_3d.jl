@@ -162,18 +162,13 @@ outlet_zone = BoundaryZone(; boundary_face=outlet_face,
                            boundary_type=outlet_boundary_type)
 
 open_boundary = OpenBoundarySystem(inlet_zone, outlet_zone; fluid_system,
-                                   boundary_model=open_boundary_model,
-                                   buffer_size=n_buffer_particles)
+                                   boundary_model=open_boundary_model)
 
 # ==========================================================================================
 # ==== Boundary
-boundary_model = BoundaryModelDummyParticles(wall_boundary.density, wall_boundary.mass,
-                                             AdamiPressureExtrapolation(),
-                                             state_equation=state_equation,
-                                             viscosity=viscosity,
-                                             smoothing_kernel, smoothing_length)
-
-boundary_system = WallBoundarySystem(wall_boundary, boundary_model)
+wall_boundary_model = BoundaryModelDummyParticles(wall_boundary; fluid_system=fluid_system,
+                                                  viscosity=viscosity)
+boundary_system = WallBoundarySystem(wall_boundary, wall_boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
