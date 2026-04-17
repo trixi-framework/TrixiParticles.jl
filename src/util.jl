@@ -1,3 +1,9 @@
+# By default, use `div_fast` of `Base.FastMath`.
+# In the `TrixiParticlesCUDAExt` extension, this is redefined for `Float64`.
+@inline function div_fast(x, y)
+    return Base.FastMath.div_fast(x, y)
+end
+
 # Same as `foreach`, but it is unrolled by the compiler for small input tuples
 @inline function foreach_noalloc(func, collection)
     element = first(collection)
@@ -187,8 +193,8 @@ Base.pointer(A::ThreadedBroadcastArray) = pointer(parent(A))
 Base.size(A::ThreadedBroadcastArray) = size(parent(A))
 Base.IndexStyle(::Type{<:ThreadedBroadcastArray}) = IndexLinear()
 
-function Base.similar(A::ThreadedBroadcastArray, ::Type{T}) where {T}
-    return ThreadedBroadcastArray(similar(A.array, T);
+function Base.similar(A::ThreadedBroadcastArray, ::Type{T}, dims::Base.Dims) where {T}
+    return ThreadedBroadcastArray(similar(A.array, T, dims);
                                   parallelization_backend=A.parallelization_backend)
 end
 

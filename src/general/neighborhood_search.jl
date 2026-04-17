@@ -11,19 +11,19 @@ function PointNeighbors.foreach_point_neighbor(f, system, neighbor_system,
                            points, parallelization_backend)
 end
 
-deactivate_out_of_bounds_particles!(system, buffer, nhs, u, semi) = system
+deactivate_out_of_bounds_particles!(system, buffer, nhs, v, u, semi) = system
 
 function deactivate_out_of_bounds_particles!(system, buffer::SystemBuffer,
-                                             nhs::GridNeighborhoodSearch, u, semi)
-    deactivate_out_of_bounds_particles!(system, buffer, nhs, nhs.cell_list, u, semi)
+                                             nhs::GridNeighborhoodSearch, v, u, semi)
+    deactivate_out_of_bounds_particles!(system, buffer, nhs, nhs.cell_list, v, u, semi)
 end
 
-function deactivate_out_of_bounds_particles!(system, buffer, nhs, cell_list, u, semi)
+function deactivate_out_of_bounds_particles!(system, buffer, nhs, cell_list, v, u, semi)
     return system
 end
 
 function deactivate_out_of_bounds_particles!(system, ::SystemBuffer, nhs,
-                                             cell_list::FullGridCellList, u, semi)
+                                             cell_list::FullGridCellList, v, u, semi)
     @trixi_timeit timer() "deactivate out of bounds particle" begin
         # Remove the padding layer (see comment in PointNeighbors: full_grid.jl line 60)
         min_corner = cell_list.min_corner .+ 1001 // 1000 .* nhs.cell_size
@@ -33,16 +33,22 @@ function deactivate_out_of_bounds_particles!(system, ::SystemBuffer, nhs,
             particle_position = current_coords(u, system, particle)
 
             if !all(min_corner .<= particle_position .<= max_corner)
-                deactivate_particle!(system, particle, u)
+                deactivate_particle!(system, particle, v, u)
             end
         end
 
         if count(system.buffer.active_particle) != system.buffer.active_particle_count[]
-            update_system_buffer!(system.buffer, semi)
+            update_system_buffer!(system.buffer)
         end
     end
 
     return system
+end
+
+@propagate_inbounds function foreach_neighbor(f, system_coords, neighbor_coords,
+                                              neighborhood_search, backend, particle)
+    PointNeighbors.foreach_neighbor(f, system_coords, neighbor_coords,
+                                    neighborhood_search, particle)
 end
 
 # === Compact support selection ===
@@ -114,6 +120,15 @@ end
     # for density summations.
     (; smoothing_kernel, smoothing_length) = model
     return compact_support(smoothing_kernel, smoothing_length)
+end
+
+@inline function compact_support(system::WallBoundarySystem,
+                                 model::BoundaryModelDummyParticles,
+                                 neighbor::RigidBodySystem{Nothing})
+    # Contact-only rigid bodies do not participate in wall-side hydrodynamic passes such as
+    # density summation, pressure extrapolation, or correction assembly. Keep the reverse
+    # wall->rigid search radius at zero so those updates never query rigid hydrodynamic data.
+    return zero(eltype(system))
 end
 
 @inline function compact_support(system::RigidBodySystem, ::Nothing, neighbor)
