@@ -78,7 +78,13 @@ end
 
 @inline function TrixiParticles.get_neighborhood_search(system,
                                                         semi::DummySemidiscretization)
-    return get_neighborhood_search(system, system, semi)
+    return TrixiParticles.get_neighborhood_search(system, system, semi)
+end
+
+# Avoid method ambiguity
+@inline function TrixiParticles.get_neighborhood_search(system::TotalLagrangianSPHSystem,
+                                                        semi::DummySemidiscretization)
+    return TrixiParticles.get_neighborhood_search(system, system, semi)
 end
 
 include("count_allocations.jl")
