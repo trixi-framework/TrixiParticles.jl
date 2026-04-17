@@ -94,10 +94,21 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
 
     sizes_u = [u_nvariables(system) * n_integrated_particles(system)
                for system in systems]
-    ranges_u = Tuple((sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])
-                     for i in eachindex(sizes_u))
     sizes_v = [v_nvariables(system) * n_integrated_particles(system)
                for system in systems]
+
+    # Align sizes to 64 bytes by adding padding if necessary.
+    # This ensures that aligned loads can be used on the integration arrays, which can
+    # significantly improve performance on GPUs. Performance benefits on CPUs remain
+    # to be investigated.
+    for i in eachindex(systems)
+        block_size = div(64, sizeof(eltype(systems[i])))
+        sizes_u[i] = div(sizes_u[i], block_size, RoundUp) * block_size
+        sizes_v[i] = div(sizes_v[i], block_size, RoundUp) * block_size
+    end
+
+    ranges_u = Tuple((sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])
+                     for i in eachindex(sizes_u))
     ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
                      for i in eachindex(sizes_v))
 

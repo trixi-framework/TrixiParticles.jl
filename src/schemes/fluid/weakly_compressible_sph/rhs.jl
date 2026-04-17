@@ -186,14 +186,10 @@ use_aligned_vrho_load(v, system, density_calculator) = false
 #   The unaligned version `vload` does not produce wide load instructions on GPUs.
 function use_aligned_vrho_load(v::AbstractGPUArray, system, ::ContinuityDensity)
     if !can_use_aligned_load(v, 4)
-        # If aligned loads are possible for the problem, but not allowed due to alignment,
-        # we don't fall back to the non-SIMD version and throw an error instead.
-        # This is likely a configuration error (see the error message below), and notifying
-        # the user is better than silently falling back to slower loads and thus
-        # non-deterministic performance.
-        error("on GPUs in 3D, all WCSPH systems with `ContinuityDensity` must be the " *
-              "first systems in the semidiscretization to ensure that their integration " *
-              "arrays are aligned for SIMD loads.")
+        # Aligned loads should always be possible on GPUs because the slices of `v_ode`
+        # are aligned to 64 bytes in `Semidiscretization` and arrays on GPUs are always
+        # aligned to full pages.
+        error("illegal alignment of `v` integration array. Please report this issue.")
     end
 
     return true
