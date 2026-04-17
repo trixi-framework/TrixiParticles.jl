@@ -33,7 +33,7 @@
         @test TrixiParticles.each_integrated_particle(system_buffer) == 1:(n_particles + 1)
 
         TrixiParticles.deactivate_particle!(system_buffer, particle_id,
-                                            ones(2, particle_id))
+                                            zeros(2, particle_id), ones(2, particle_id))
 
         TrixiParticles.update_system_buffer!(system_buffer.buffer)
 
@@ -41,7 +41,7 @@
 
         particle_id = 5
         TrixiParticles.deactivate_particle!(system_buffer, particle_id,
-                                            ones(2, particle_id))
+                                            zeros(2, particle_id), ones(2, particle_id))
 
         TrixiParticles.update_system_buffer!(system_buffer.buffer)
 

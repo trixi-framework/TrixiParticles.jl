@@ -64,7 +64,7 @@ end
     return view(buffer.eachparticle, 1:buffer.active_particle_count[])
 end
 
-@inline function deactivate_particle!(system, particle, u)
+@inline function deactivate_particle!(system, particle, v, u)
     (; active_particle) = system.buffer
 
     # Set particle far away from simulation domain
@@ -73,10 +73,50 @@ end
         u[dim, particle] = eltype(system)(1e16)
     end
 
+    # To ensure that the velocity of an inactive particle does not dominate the time step
+    # in adaptive time integrators, set this velocity to zero.
+    # Additionally, this enables map-reduce operations for `v_max` computation
+    # without having to distinguish inactive particles.
+    for dim in 1:ndims(system)
+        v[dim, particle] = 0
+    end
+
     # `deactivate_particle!` and `active_particle[particle] = true`
     # are never called on the same buffer inside a kernel,
     # so we don't have any race conditions on this `active_particle` vector.
     active_particle[particle] = false
 
     return system
+end
+
+function sort_system!(system, v, u, perm, buffer::SystemBuffer)
+    (; active_particle) = buffer
+
+    # Note that the following contain also inactive particles
+    system_coords = current_coordinates(u, system)
+    system_velocity = current_velocity(v, system)
+    system_density = current_density(v, system)
+    system_pressure = current_pressure(v, system)
+
+    # First permutation: sort by desired `perm`
+    active_particle_sorted = active_particle[perm]
+
+    # Second permutation: move inactive particles to the end (true first, false last)
+    perm2 = sortperm(transfer2cpu(active_particle_sorted), rev=true)
+
+    # Combined permutation
+    combined_perm = perm[perm2]
+
+    # Apply to all data
+    active_particle .= active_particle_sorted[perm2]
+    system_coords .= system_coords[:, combined_perm]
+    system_velocity .= system_velocity[:, combined_perm]
+    system_pressure .= system_pressure[combined_perm]
+    system_density .= system_density[combined_perm]
+
+    # Update buffer
+    buffer.active_particle_count[] = count(active_particle)
+    buffer.eachparticle[1:buffer.active_particle_count[]] .= 1:buffer.active_particle_count[]
+
+    return buffer
 end

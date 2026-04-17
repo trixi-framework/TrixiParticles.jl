@@ -68,9 +68,12 @@ function vtk2trixi(file; element_type=nothing, coordinates_eltype=nothing,
 
     fields = [:velocity, :density, :pressure, :particle_spacing]
     for field in fields
-        # Look for any key that contains the field name
+        # First look for an exact key match, then fall back to substring matching.
         all_keys = keys(point_data)
-        idx = findfirst(k -> occursin(string(field), k), all_keys)
+        idx = findfirst(k -> k == field, all_keys)
+        if idx === nothing
+            idx = findfirst(k -> occursin(field, k), all_keys)
+        end
         if idx !== nothing
             results[field] = convert.(ELTYPE, ReadVTK.get_data(point_data[all_keys[idx]]))
         else
