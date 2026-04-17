@@ -1,4 +1,4 @@
-# # Particle Packing Tutorial
+# # [Particle Packing Tutorial](@id tut_packing)
 
 # In this tutorial, we will guide you through the complete particle packing pipeline.
 # The algorithmic background is explained in [Particle Packing](@ref particle_packing).
@@ -125,8 +125,8 @@ plot!(geometry, linestyle=:dash, label=nothing, showaxis=false, color=:black,
 # ## Particle packing
 
 # In the following, we will essentially follow the same steps described in the fluid tutorials.
-# That means we will generate systems that are then passed to the [`Semidiscretization`](@ref Semidiscretization).
-# The difference from a typical physical simulation is that we use [`ParticlePackingSystem`](@ref ParticlePackingSystem),
+# That means we will generate systems that are then passed to the [`Semidiscretization`](@ref).
+# The difference from a typical physical simulation is that we use [`ParticlePackingSystem`](@ref),
 # which does not represent any physical law. Instead, we only use the simulation framework to time-integrate
 # the packing process.
 
@@ -152,7 +152,7 @@ packing_system = ParticlePackingSystem(shape_sampled;
                                        signed_distance_field=nothing, background_pressure)
 
 # We now proceed with the familiar steps
-# "Semidiscretization" and "Time integration" from the fluid tutorials.
+# "Semidiscretization" and "Time integration" from the [basic tutorial](@ref tut_setup).
 semi = Semidiscretization(packing_system)
 
 ## Use a high `tspan` to guarantee that the simulation runs for at least `maxiters`

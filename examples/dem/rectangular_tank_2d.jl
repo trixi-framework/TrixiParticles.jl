@@ -24,7 +24,7 @@ tank_height = 4.0
 # and a "boundary" region for the container walls.
 tank = RectangularTank(particle_spacing, (rock_width, rock_height),
                        (tank_width, tank_height), rock_density,
-                       n_layers=2)
+                       n_layers=2, coordinates_eltype=Float64)
 
 # ==========================================================================================
 # ==== Systems
@@ -35,8 +35,10 @@ tank = RectangularTank(particle_spacing, (rock_width, rock_height),
 
 # Move the rock particles up to let them fall
 tank.fluid.coordinates[2, :] .+= 0.5
-# small perturbation
-tank.fluid.coordinates .+= 0.01 .* (2 .* rand(size(tank.fluid.coordinates)) .- 1)
+# Small perturbation
+for i in 1:size(tank.fluid.coordinates, 2)
+    tank.fluid.coordinates[:, i] .+= 0.01 .* (2 .* rand(2) .- 1)
+end
 
 # Create a contact model.
 # Option 1: Hertzian contact model (uses elastic modulus and Poisson's ratio)
@@ -54,8 +56,9 @@ boundary_system = BoundaryDEMSystem(tank.boundary, 10e7)
 # ==========================================================================================
 # ==== Simulation
 # ==========================================================================================
-
-semi = Semidiscretization(rock_system, boundary_system)
+semi = Semidiscretization(rock_system, boundary_system;
+                          neighborhood_search=GridNeighborhoodSearch{2}(),
+                          parallelization_backend=PolyesterBackend())
 
 tspan = (0.0, 4.0)
 ode = semidiscretize(semi, tspan)

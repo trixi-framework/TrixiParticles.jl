@@ -23,16 +23,18 @@
     @testset verbose=true "Show" begin
         shape = RectangularShape(0.05, (20, 20), (0.0, 0.0), density=1.0)
 
-        show_compact = "InitialCondition{Float64}()"
+        show_compact = "InitialCondition{Float64, Float64}()"
         @test repr(shape) == show_compact
 
         show_box = """
             ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-            │ InitialCondition{Float64}                                                                        │
-            │ ═════════════════════════                                                                        │
+            │ InitialCondition                                                                                 │
+            │ ════════════════                                                                                 │
             │ #dimensions: ……………………………………………… 2                                                                │
             │ #particles: ………………………………………………… 400                                                              │
             │ particle spacing: ………………………………… 0.05                                                             │
+            │ eltype: …………………………………………………………… Float64                                                          │
+            │ coordinate eltype: ……………………………… Float64                                                          │
             └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", shape) == show_box
     end
@@ -104,6 +106,53 @@
             @test ic_actual1.mass == ic_actual2.mass == ic_expected.mass
             @test ic_actual1.density == ic_actual2.density == ic_expected.density
             @test ic_actual1.pressure == ic_actual2.pressure == ic_expected.pressure
+        end
+
+        @testset "Apply Angular Velocity" begin
+            coordinates_2d = [0.0 2.0
+                              0.0 0.0]
+            base_velocity_2d = [1.0 1.0
+                                2.0 2.0]
+            mass_2d = [1.0, 3.0]
+            density_2d = [1000.0, 1000.0]
+            ic_2d = InitialCondition(; coordinates=coordinates_2d,
+                                     velocity=base_velocity_2d,
+                                     mass=mass_2d, density=density_2d)
+            rotated_ic_2d = apply_angular_velocity(ic_2d, 2.0)
+
+            @test rotated_ic_2d.velocity ≈ [1.0 1.0
+                                            -1.0 3.0]
+            @test ic_2d.velocity == base_velocity_2d
+            error_str = "`angular_velocity` must be a scalar for a 2D problem"
+            @test_throws ArgumentError(error_str) apply_angular_velocity(ic_2d, (2.0,))
+            @test_throws ArgumentError(error_str) apply_angular_velocity(ic_2d, (0.0, 1.0))
+            @test_throws ArgumentError(error_str) apply_angular_velocity(ic_2d, nothing)
+
+            coordinates_3d = [0.0 2.0
+                              0.0 0.0
+                              0.0 0.0]
+            base_velocity_3d = [1.0 1.0
+                                0.0 0.0
+                                0.0 0.0]
+            mass_3d = [1.0, 1.0]
+            density_3d = [1000.0, 1000.0]
+            ic_3d = InitialCondition(; coordinates=coordinates_3d,
+                                     velocity=base_velocity_3d,
+                                     mass=mass_3d, density=density_3d)
+            rotated_ic_3d = apply_angular_velocity(ic_3d, (0.0, 0.0, 2.0))
+
+            @test rotated_ic_3d.velocity ≈ [1.0 1.0
+                                            -2.0 2.0
+                                            0.0 0.0]
+            @test ic_3d.velocity == base_velocity_3d
+            error_str = "`angular_velocity` must be of length 3 for a 3D problem"
+            @test_throws ArgumentError(error_str) apply_angular_velocity(ic_3d, 2.0)
+            @test_throws ArgumentError(error_str) apply_angular_velocity(ic_3d, nothing)
+
+            ic_1d = InitialCondition(; coordinates=zeros(1, 2), velocity=zeros(1, 2),
+                                     mass=ones(2), density=ones(2))
+            error_str = "`apply_angular_velocity` currently supports only 2D and 3D, got 1D"
+            @test_throws ArgumentError(error_str) apply_angular_velocity(ic_1d, 2.0)
         end
 
         @testset "Automatic Mass Calculation" begin

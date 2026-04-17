@@ -14,35 +14,53 @@ struct PenaltyForceGanzenmueller{ELTYPE}
     end
 end
 
-@inline function dv_penalty_force(penalty_force::Nothing,
-                                  particle, neighbor, initial_pos_diff, initial_distance,
-                                  current_pos_diff, current_distance,
-                                  system, m_a, m_b, rho_a, rho_b)
-    return zero(initial_pos_diff)
+@inline function dv_penalty_force!(dv_particle, penalty_force::Nothing,
+                                   particle, neighbor, initial_pos_diff, initial_distance,
+                                   current_pos_diff, current_distance,
+                                   system, m_a, m_b, rho_a, rho_b, F_a, F_b)
+    return dv_particle
 end
 
-@inline function dv_penalty_force(penalty_force::PenaltyForceGanzenmueller,
-                                  particle, neighbor, initial_pos_diff, initial_distance,
-                                  current_pos_diff, current_distance,
-                                  system, m_a, m_b, rho_a, rho_b)
-    volume_a = m_a / rho_a
-    volume_b = m_b / rho_b
+@propagate_inbounds function dv_penalty_force!(dv_particle,
+                                               penalty_force::PenaltyForceGanzenmueller,
+                                               particle, neighbor, initial_pos_diff,
+                                               initial_distance,
+                                               current_pos_diff, current_distance,
+                                               system, m_a, m_b, rho_a, rho_b, F_a, F_b)
+    (; alpha) = penalty_force
 
-    kernel_weight = smoothing_kernel(system, initial_distance, particle)
+    # Since this is one of the most performance critical functions, using fast divisions
+    # here gives a significant speedup on GPUs.
+    # See the docs page "Development" for more details on `div_fast`.
+    volume_a = div_fast(m_a, rho_a)
+    volume_b = div_fast(m_b, rho_b)
 
-    F_a = deformation_gradient(system, particle)
-    F_b = deformation_gradient(system, neighbor)
+    # This function is called after a compact support check, so we can use the unsafe
+    # kernel function, which does not check the distance again.
+    kernel_weight = smoothing_kernel_unsafe(system, initial_distance, particle)
 
-    # Use the symmetry of epsilon to simplify computations
-    eps_sum = (F_a + F_b) * initial_pos_diff - 2 * current_pos_diff
-    delta_sum = dot(eps_sum, current_pos_diff) / current_distance
+    E_a = young_modulus(system, particle)
+    E_b = young_modulus(system, neighbor)
 
-    E = young_modulus(system, particle)
+    # Note that this is actually ϵ^b_ab = -ϵ^b_ba in the paper, so we later compute
+    # δ^b_ab instead of δ^b_ba, but δ^b_ab = δ^b_ba because of antisymmetry of x_ab and ϵ_ab.
+    eps_a = F_a * initial_pos_diff - current_pos_diff
+    eps_b = F_b * initial_pos_diff - current_pos_diff
 
-    f = (penalty_force.alpha / 2) * volume_a * volume_b *
-        kernel_weight / initial_distance^2 * E * delta_sum * current_pos_diff /
-        current_distance
+    # This is (E_a * delta_a + E_b * delta_b) * current_distance.
+    # Pulling the division by `current_distance` out allows us to do one division by
+    # `current_distance^2` instead.
+    delta_sum = E_a * dot(eps_a, current_pos_diff) + E_b * dot(eps_b, current_pos_diff)
 
-    # Divide force by mass to obtain acceleration
-    return f / m_a
+    # The division contains all scalar factors, which are then multiplied by
+    # the vector `current_pos_diff` at the end.
+    # We already divide by `m_a` to obtain an acceleration.
+    # Since this is one of the most performance critical functions, using fast divisions
+    # here gives a significant speedup on GPUs.
+    # See the docs page "Development" for more details on `div_fast`.
+    dv_particle[] += div_fast((alpha / 2) * volume_a * volume_b * kernel_weight * delta_sum,
+                              initial_distance^2 * current_distance^2 * m_a) *
+                     current_pos_diff
+
+    return dv_particle
 end

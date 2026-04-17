@@ -6,6 +6,13 @@ Supported file formats are `.stl`, `.asc` and `dxf`.
 For comprehensive information about the supported file formats, refer to the documentation at
 [Read geometries from file](@ref read_geometries_from_file).
 
+!!! note
+    ASCII STL files may contain multiple `solid ... endsolid` patches. In that case
+    the function returns a `Vector{TriangleMesh}` with one `TriangleMesh` per patch.
+    For single-patch files the function returns a single `TriangleMesh`.
+    If you prefer a single combined geometry instead of multiple patches, call
+    `union(geometries...)` on the returned vector to merge all patches into one `TriangleMesh`.
+
 # Arguments
 - `filename`: Name of the file to be loaded.
 
@@ -132,7 +139,8 @@ end
 
 # FileIO.jl docs:
 # https://juliaio.github.io/FileIO.jl/stable/implementing/#All-at-once-I/O:-implementing-load-and-save
-function load(fn::FileIO.File{FileIO.format"STL_BINARY"}; element_types...)
+function load(fn::Union{FileIO.File{FileIO.format"STL_BINARY"},
+                        FileIO.File{FileIO.format"STL_ASCII"}}; element_types...)
     open(fn) do s
         FileIO.skipmagic(s) # skip over the magic bytes
         load(s; element_types...)
@@ -153,6 +161,81 @@ function load(fs::FileIO.Stream{FileIO.format"STL_BINARY"}; ELTYPE=Float64)
     load_data!(face_vertices, vertices, normals, io)
 
     return TriangleMesh(face_vertices, normals, vertices)
+end
+
+function load(fs::FileIO.Stream{FileIO.format"STL_ASCII"}; ELTYPE=Float64)
+    # ASCII STL (solid ... endsolid)
+    io = FileIO.stream(fs)
+
+    # Unlike the binary STL format, the ASCII STL does not include a face count up front;
+    # faces must be discovered by parsing until the end of the file.
+    face_vertices = Tuple{SVector{3, ELTYPE}, SVector{3, ELTYPE}, SVector{3, ELTYPE}}[]
+    vertices = SVector{3, ELTYPE}[]
+    normals = SVector{3, ELTYPE}[]
+    # ASCII STL files may contain multiple "solid ... endsolid" patches.
+    # Collect each patch as a separate `TriangleMesh` and return a Vector.
+    # If the file contains only one patch we return the single `TriangleMesh`.
+    geometries = TriangleMesh[]
+
+    load_data_ascii!(geometries, face_vertices, vertices, normals, io)
+
+    length(geometries) == 1 && return first(geometries)
+
+    return geometries
+end
+
+function load_data_ascii!(geometries,
+                          face_vertices::Vector{Tuple{SVector{3, T}, SVector{3, T},
+                                                      SVector{3, T}}},
+                          vertices, normals, io) where {T}
+    while !eof(io)
+        line = strip(readline(io))
+        low = lowercase(line)
+
+        if startswith(low, "endsolid")
+            # First patch finished
+            push!(geometries,
+                  TriangleMesh(copy(face_vertices), copy(normals), copy(vertices)))
+
+            empty!(face_vertices)
+            empty!(normals)
+            empty!(vertices)
+        end
+
+        # look for facet normal ...
+        if startswith(low, "facet")
+            parts = split(line)
+            # Expect: `["facet", "normal", nx, ny, nz]`
+            @assert length(parts)>=5 "Unexpected facet normal line: $line"
+            n = SVector{3, T}(parse(T, parts[3]), parse(T, parts[4]), parse(T, parts[5]))
+            push!(normals, n)
+
+            # Consume "outer loop"
+            while !eof(io)
+                lowercase(strip(readline(io))) == "outer loop" && break
+            end
+
+            # Read three vertex lines
+            for _ in 1:3
+                l = strip(readline(io))
+                partv = split(l)
+                @assert lowercase(partv[1])=="vertex" "Unexpected vertex line: $l"
+                vertex = SVector{3, T}(parse(T, partv[2]), parse(T, partv[3]),
+                                       parse(T, partv[4]))
+
+                push!(vertices, vertex)
+            end
+
+            push!(face_vertices, (vertices[end - 2], vertices[end - 1], vertices[end]))
+
+            # Consume "endloop" and "endfacet"
+            while !eof(io)
+                lowercase(strip(readline(io))) == "endfacet" && break
+            end
+        end
+    end
+
+    return geometries
 end
 
 function load_data!(face_vertices::Vector{Tuple{SVector{3, T}, SVector{3, T},

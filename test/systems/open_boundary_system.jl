@@ -9,6 +9,7 @@
         TrixiParticles.initial_smoothing_length(system::FluidSystemMock2) = 1.0
         TrixiParticles.nparticles(system::FluidSystemMock2) = 1
         TrixiParticles.system_smoothing_kernel(system::FluidSystemMock2) = nothing
+        TrixiParticles.density_calculator(system::FluidSystemMock2) = TrixiParticles.ContinuityDensity()
 
         inflow = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, 1.0]),
                               particle_spacing=0.05,

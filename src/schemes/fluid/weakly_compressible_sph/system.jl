@@ -9,7 +9,7 @@
                                 buffer_size=nothing,
                                 correction=nothing, source_terms=nothing,
                                 surface_tension=nothing, surface_normal_method=nothing,
-                                reference_particle_spacing=0.0))
+                                reference_particle_spacing=0.0, color_value=1))
 
 System for particles of a fluid.
 The weakly compressible SPH (WCSPH) scheme is used, wherein a stiff equation of state
@@ -58,7 +58,10 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
                                 (default: no surface normal method or `ColorfieldSurfaceNormal()` if a surface_tension model is used)
 - `reference_particle_spacing`: The reference particle spacing used for weighting values at the boundary,
                                 which currently is only needed when using surface tension.
-- `color_value`:                The value used to initialize the color of particles in the system.
+- `color_value`:                Integer label used for calculation of surface normals.
+                                Currently this is only used together with [`BoundaryModelDummyParticles`](@ref) and
+                                [`ColorfieldSurfaceNormal`](@ref): fluid-boundary normal evaluation
+                                reads the resulting boundary colorfield to detect wall contact.
 """
 struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K, V, DD, COR,
                                    PF, SC, ST, B, SRFT, SRFN, PR,
@@ -85,8 +88,7 @@ end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
-function WeaklyCompressibleSPHSystem(initial_condition,
-                                     density_calculator, state_equation,
+function WeaklyCompressibleSPHSystem(initial_condition, density_calculator, state_equation,
                                      smoothing_kernel, smoothing_length;
                                      acceleration=ntuple(_ -> zero(eltype(initial_condition)),
                                                          ndims(smoothing_kernel)),
@@ -151,6 +153,7 @@ function WeaklyCompressibleSPHSystem(initial_condition,
              create_cache_refinement(initial_condition, particle_refinement,
                                      smoothing_length)...,
              create_cache_shifting(initial_condition, shifting_technique)...,
+             # Per-system color tag for colorfield surface-normal logic and VTK output.
              color=Int(color_value))
 
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
@@ -224,9 +227,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::WeaklyCompressibleSPHSyst
     end
 end
 
-@inline function Base.eltype(::WeaklyCompressibleSPHSystem{<:Any, ELTYPE}) where {ELTYPE}
-    return ELTYPE
-end
+@inline Base.eltype(::WeaklyCompressibleSPHSystem{<:Any, ELTYPE}) where {ELTYPE} = ELTYPE
 
 @inline function v_nvariables(system::WeaklyCompressibleSPHSystem)
     return v_nvariables(system, system.density_calculator)
@@ -244,7 +245,7 @@ end
 
 system_correction(system::WeaklyCompressibleSPHSystem) = system.correction
 
-@inline function current_velocity(v, system::WeaklyCompressibleSPHSystem)
+@propagate_inbounds function current_velocity(v, system::WeaklyCompressibleSPHSystem)
     return current_velocity(v, system.density_calculator, system)
 end
 
@@ -254,14 +255,14 @@ end
     return v
 end
 
-@inline function current_velocity(v, ::ContinuityDensity,
-                                  system::WeaklyCompressibleSPHSystem)
+@propagate_inbounds function current_velocity(v, ::ContinuityDensity,
+                                              system::WeaklyCompressibleSPHSystem)
     # When using `ContinuityDensity`, the velocity is stored
     # in the first `ndims(system)` rows of `v`.
     return view(v, 1:ndims(system), :)
 end
 
-@inline function current_density(v, system::WeaklyCompressibleSPHSystem)
+@propagate_inbounds function current_density(v, system::WeaklyCompressibleSPHSystem)
     return current_density(v, system.density_calculator, system)
 end
 
@@ -271,8 +272,8 @@ end
     return system.cache.density
 end
 
-@inline function current_density(v, ::ContinuityDensity,
-                                 system::WeaklyCompressibleSPHSystem)
+@propagate_inbounds function current_density(v, ::ContinuityDensity,
+                                             system::WeaklyCompressibleSPHSystem)
     # When using `ContinuityDensity`, the density is stored in the last row of `v`
     return view(v, size(v, 1), :)
 end
@@ -281,7 +282,7 @@ end
     return system.pressure
 end
 
-@inline system_sound_speed(system::WeaklyCompressibleSPHSystem) = system.state_equation.sound_speed
+@inline system_sound_speed(system::WeaklyCompressibleSPHSystem) = sound_speed(system.state_equation)
 
 @inline shifting_technique(system::WeaklyCompressibleSPHSystem) = system.shifting_technique
 
@@ -291,11 +292,31 @@ function update_quantities!(system::WeaklyCompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
     (; density_calculator, density_diffusion, correction) = system
 
+    # Update speed of sound when an adaptive state equation is used
+    update_speed_of_sound!(system, v, system.state_equation)
     compute_density!(system, u, u_ode, semi, density_calculator)
 
     @trixi_timeit timer() "update density diffusion" update!(density_diffusion, v, u,
                                                              system, semi)
 
+    return system
+end
+
+@inline update_speed_of_sound!(system, v, state_equation) = system
+
+@inline function update_speed_of_sound!(system::WeaklyCompressibleSPHSystem, v,
+                                        state_equation::StateEquationAdaptiveCole)
+    # This has similar performance to `maximum(..., eachparticle(system))`,
+    # but is GPU-compatible.
+    v_max2 = maximum(x -> dot(x, x),
+                     reinterpret(reshape, SVector{ndims(system), eltype(v)},
+                                 current_velocity(v, system)))
+    v_max = sqrt(v_max2)
+
+    state_equation.sound_speed_ref[] = min(state_equation.max_sound_speed,
+                                           max(state_equation.min_sound_speed,
+                                               v_max /
+                                               state_equation.mach_number_target))
     return system
 end
 
@@ -359,10 +380,7 @@ end
 function reinit_density!(vu_ode, semi)
     v_ode, u_ode = vu_ode.x
 
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         reinit_density!(system, v, u, v_ode, u_ode, semi)
     end
 

@@ -6,14 +6,22 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
+    # For `distance == 0`, the analytical gradient is zero, but the unsafe gradient
+    # and the density diffusion divide by zero.
+    # To account for rounding errors, we check if `distance` is almost zero.
+    # Since the coordinates are in the order of the radius `r`, `distance^2` is in
+    # the order of `r^2`, so we need to check `distance < sqrt(eps(r^2))`.
+    # Note that `sqrt(eps(r^2)) != eps(r)`.
+    r = maximum(particle_system.radius)
+    almostzero = sqrt(eps(r^2))
+
     foreach_point_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
                            semi;
                            points=each_integrated_particle(particle_system)) do particle,
                                                                                 neighbor,
                                                                                 pos_diff,
                                                                                 distance
-        # See `src/general/smoothing_kernels.jl` for more details.
-        distance^2 < eps(first(particle_system.radius)^2) && return
+        distance < almostzero && return
 
         # Retrieve particle properties
         m_a = particle_system.mass[particle]
@@ -26,7 +34,7 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
             # Compute the unit normal vector (from neighbor to particle)
             normal = pos_diff / distance
 
-            # Compute Normal Force by Dispatching on the Contact Model.
+            # Compute Normal Force by Dispatching on the Contact Model
             F_normal = collision_force_normal(particle_system.contact_model,
                                               particle_system, neighbor_system,
                                               overlap, normal,
@@ -46,7 +54,7 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
             end
 
             # Apply a simple position correction to mitigate overlap.
-            # TODO: use update callback
+            # TODO: use update callback, changing `u` is not allowed here.
             position_correction!(neighbor_system, u_particle_system, overlap, normal,
                                  particle)
         end
@@ -63,10 +71,14 @@ end
                                             overlap, normal,
                                             v_particle_system, v_neighbor_system,
                                             particle, neighbor, F_normal)
-    # Tangential force parameters
-    friction_coefficient = 0.5       # Coulomb friction coefficient [Cundall and Strack, 1979]
-    tangential_stiffness = 1e3       # Tangential spring constant
-    tangential_damping = 0.001       # Damping coefficient for tangential force
+    # Tangential force parameters. Avoid hardcoding double values.
+    ELTYPE = eltype(particle_system)
+    # Coulomb friction coefficient [Cundall and Strack, 1979]
+    friction_coefficient = convert(ELTYPE, 0.5)
+    # Tangential spring constant
+    tangential_stiffness = 1000
+    # Damping coefficient for tangential force
+    tangential_damping = convert(ELTYPE, 0.001)
 
     # Compute relative velocity and extract the tangential component.
     v_a = current_velocity(v_particle_system, particle_system, particle)
@@ -79,7 +91,7 @@ end
 
     # Coulomb friction: limit the tangential force to μ * |F_normal|
     max_tangent = friction_coefficient * norm(F_normal)
-    if norm(F_t) > max_tangent && norm(F_t) > 0.0
+    if norm(F_t) > max_tangent && norm(F_t) > 0
         F_t = F_t * (max_tangent / norm(F_t))
     end
 
@@ -94,6 +106,6 @@ end
 @inline function position_correction!(neighbor_system::BoundaryDEMSystem,
                                       u_particle_system, overlap, normal, particle)
     for i in 1:ndims(neighbor_system)
-        u_particle_system[i, particle] -= 0.5 * overlap * normal[i]
+        u_particle_system[i, particle] -= overlap * normal[i] / 2
     end
 end

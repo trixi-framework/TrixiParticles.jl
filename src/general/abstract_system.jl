@@ -52,28 +52,34 @@ end
 
 initialize!(system, semi) = system
 
-# This should not be dispatched by system type. We always expect to get a column of `A`.
-@propagate_inbounds function extract_svector(A, system, i)
-    extract_svector(A, Val(ndims(system)), i)
+# This should not be dispatched by system type. We always expect the first index of `A`
+# to enumerate spatial dimensions.
+@propagate_inbounds function extract_svector(A, system, i...)
+    extract_svector(A, Val(ndims(system)), i...)
 end
 
-# Return the `i`-th column of the array `A` as an `SVector`.
-@inline function extract_svector(A, ::Val{NDIMS}, i) where {NDIMS}
+# Return `A[:, i...]` as an `SVector`.
+@inline function extract_svector(A, ::Val{NDIMS}, i...) where {NDIMS}
     # Explicit bounds check, which can be removed by calling this function with `@inbounds`
-    @boundscheck checkbounds(A, NDIMS, i)
+    @boundscheck checkbounds(A, NDIMS, i...)
 
     # Assume inbounds access now
-    return SVector(ntuple(@inline(dim->@inbounds A[dim, i]), NDIMS))
+    return SVector(ntuple(@inline(dim->@inbounds A[dim, i...]), NDIMS))
 end
 
 # Return `A[:, :, i]` as an `SMatrix`.
-@inline function extract_smatrix(A, system, particle)
+@propagate_inbounds function extract_smatrix(A, system, particle)
+    return extract_smatrix(A, Val(ndims(system)), particle)
+end
+
+@inline function extract_smatrix(A, ::Val{NDIMS}, particle) where {NDIMS}
+    @boundscheck checkbounds(A, NDIMS, NDIMS, particle)
+
     # Extract the matrix elements for this particle as a tuple to pass to SMatrix
-    return SMatrix{ndims(system),
-                   ndims(system)}(ntuple(@inline(i->A[mod(i - 1, ndims(system)) + 1,
-                                                      div(i - 1, ndims(system)) + 1,
-                                                      particle]),
-                                         Val(ndims(system)^2)))
+    return SMatrix{NDIMS, NDIMS}(ntuple(@inline(i->@inbounds A[mod(i - 1, NDIMS) + 1,
+                                                               div(i - 1, NDIMS) + 1,
+                                                               particle]),
+                                        Val(NDIMS^2)))
 end
 
 # Specifically get the current coordinates of a particle for all system types.
@@ -86,12 +92,14 @@ end
 @inline current_coordinates(u, system) = u
 
 # Specifically get the initial coordinates of a particle for all system types
-@inline function initial_coords(system, particle)
+@propagate_inbounds function initial_coords(system, particle)
     return extract_svector(initial_coordinates(system), system, particle)
 end
 
 # This can be dispatched by system type
 @inline initial_coordinates(system) = system.initial_condition.coordinates
+
+@inline coordinates_eltype(system::AbstractSystem) = eltype(initial_coordinates(system))
 
 @propagate_inbounds function current_velocity(v, system, particle)
     return extract_svector(current_velocity(v, system), system, particle)
@@ -102,7 +110,7 @@ end
 # By default, try to extract it from `v`.
 @inline current_velocity(v, system) = v
 
-@inline function current_density(v, system::AbstractSystem, particle)
+@propagate_inbounds function current_density(v, system::AbstractSystem, particle)
     return current_density(v, system)[particle]
 end
 
@@ -123,10 +131,36 @@ end
     return kernel(smoothing_kernel, distance, smoothing_length(system, particle))
 end
 
+@inline function smoothing_kernel_unsafe(system, distance, particle)
+    (; smoothing_kernel) = system
+    return kernel_unsafe(smoothing_kernel, distance, smoothing_length(system, particle))
+end
+
+@inline function skip_zero_distance(system::AbstractSystem)
+    return skip_zero_distance(system_correction(system))
+end
+
+# Robust/safe version of the function below. In performance-critical code, manually check
+# the kernel support, call `skip_zero_distance` and then `smoothing_kernel_grad_unsafe`.
 @inline function smoothing_kernel_grad(system, pos_diff, distance, particle)
-    return corrected_kernel_grad(system_smoothing_kernel(system), pos_diff,
-                                 distance, smoothing_length(system, particle),
-                                 system_correction(system), system, particle)
+    h = smoothing_length(system, particle)
+    compact_support_ = compact_support(system_smoothing_kernel(system), h)
+
+    # Note that `sqrt(eps(h^2)) != eps(h)`
+    if distance >= compact_support_ ||
+       (skip_zero_distance(system) && distance^2 < eps(h^2))
+        return zero(pos_diff)
+    end
+
+    return smoothing_kernel_grad_unsafe(system, pos_diff, distance, particle)
+end
+
+# Skip the zero distance and compact support checks for maximum performance.
+# Only call this when you are sure that `0 < distance < compact_support`.
+@inline function smoothing_kernel_grad_unsafe(system, pos_diff, distance, particle)
+    return corrected_kernel_grad_unsafe(system_smoothing_kernel(system), pos_diff,
+                                        distance, smoothing_length(system, particle),
+                                        system_correction(system), system, particle)
 end
 
 # System updates do nothing by default, but can be dispatched if needed
@@ -147,6 +181,10 @@ function update_boundary_interpolation!(system, v, u, v_ode, u_ode, semi, t)
 end
 
 function update_final!(system, v, u, v_ode, u_ode, semi, t)
+    return system
+end
+
+function finalize_interaction!(system, dv, v, u, dv_ode, v_ode, u_ode, semi)
     return system
 end
 

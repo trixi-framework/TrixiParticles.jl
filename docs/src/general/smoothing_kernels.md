@@ -5,31 +5,143 @@ The following smoothing kernels are currently available:
 | :---------------------------------------- | :---------------- | :-------------------- | :---------------------- | :-------- |
 | [`SchoenbergCubicSplineKernel`](@ref)     | $[0, 2h]$         | $1.1$ to $1.3$        | General + sharp waves   | ++        |
 | [`SchoenbergQuarticSplineKernel`](@ref)   | $[0, 2.5h]$       | $1.1$ to $1.5$        | General                 | +++       |
-| [`SchoenbergQuinticSplineKernel`](@ref)   | $[0, 3h]$         | $1.1$ to $1.5$        | General                 | ++++      |
-| [`GaussianKernel`](@ref)                  | $[0, 3h]$         | $1.0$ to $1.5$        | Literature              | +++++     |
+| [`SchoenbergQuinticSplineKernel`](@ref)   | $[0, 3h]$         | $1.1$ to $1.5$        | General                 | +++       |
+| [`GaussianKernel`](@ref)                  | $[0, 3h]$         | $1.0$ to $1.5$        | Academic                | +++       |
 | [`WendlandC2Kernel`](@ref)                | $[0, 2h]$         | $1.2$ to $2.0$        | General (recommended)   | ++++      |
 | [`WendlandC4Kernel`](@ref)                | $[0, 2h]$         | $1.5$ to $2.3$        | General                 | +++++     |
 | [`WendlandC6Kernel`](@ref)                | $[0, 2h]$         | $1.7$ to $2.5$        | General                 | +++++     |
-| [`Poly6Kernel`](@ref)                     | $[0, 1h]$         | $1.5$ to $2.5$        | Literature              | +         |
-| [`SpikyKernel`](@ref)                     | $[0, 1h]$         | $1.5$ to $3.0$        | Sharp corners + waves   | +         |
+| [`Poly6Kernel`](@ref)                     | $[0, 1h]$         | $1.5$ to $2.5$        | Academic                | +         |
+| [`SpikyKernel`](@ref)                     | $[0, 1h]$         | $1.5$ to $3.0$        | Academic                | +         |
+| [`LaguerreGaussKernel`](@ref)             | $[0, 2h]$         | $1.3$ to $1.5$        | General                 | ++++      |
 
-We recommend to use the [`WendlandC2Kernel`](@ref) for most applications.
+Any Kernel with a stability rating of more than '+++' doesn't suffer from pairing-instability.
+
+We recommend using the [`WendlandC2Kernel`](@ref) for most applications.
 If less smoothing is needed, try [`SchoenbergCubicSplineKernel`](@ref), for more smoothing try [`WendlandC6Kernel`](@ref).
+
+```@eval
+using TrixiParticles
+using CairoMakie
+
+# --- Group the kernels for combined plotting ---
+wendland_kernels = [
+    ("Wendland C2", WendlandC2Kernel{2}()),
+    ("Wendland C4", WendlandC4Kernel{2}()),
+    ("Wendland C6", WendlandC6Kernel{2}()),
+]
+
+schoenberg_kernels = [
+    ("Cubic Spline",   SchoenbergCubicSplineKernel{2}()),
+    ("Quartic Spline", SchoenbergQuarticSplineKernel{2}()),
+    ("Quintic Spline", SchoenbergQuinticSplineKernel{2}()),
+]
+
+other_kernels = [
+    ("Gaussian",       GaussianKernel{2}()),
+    ("Poly6",          Poly6Kernel{2}()),
+    ("Laguerre-Gauss", LaguerreGaussKernel{2}()),
+]
+
+spiky_kernel_group = [
+    ("Spiky Kernel", SpikyKernel{2}()),
+]
+
+# A list of all kernel groups to be plotted
+# A boolean flag controls whether to apply the consistent y-range
+kernel_groups = [
+    (title="Wendland Kernels",          kernels=wendland_kernels,   use_consistent_range=true),
+    (title="Schoenberg Spline Kernels", kernels=schoenberg_kernels, use_consistent_range=true),
+    (title="Other Kernels",             kernels=other_kernels,      use_consistent_range=true),
+    (title="Spiky Kernel",              kernels=spiky_kernel_group, use_consistent_range=false),
+]
+
+# --- Pre-calculate global y-ranges for consistency ---
+kernels_for_range_calc = vcat(wendland_kernels, schoenberg_kernels, other_kernels)
+
+q_range = range(0, 3, length=300)
+h = 1.0
+min_val, max_val = Inf, -Inf
+min_deriv, max_deriv = Inf, -Inf
+
+for (_, kernel_obj) in kernels_for_range_calc
+    kernel_values = [TrixiParticles.kernel(kernel_obj, q, h) for q in q_range]
+    kernel_derivs = [TrixiParticles.kernel_deriv(kernel_obj, q, h) for q in q_range]
+
+    global min_val = min(min_val, minimum(kernel_values))
+    global max_val = max(max_val, maximum(kernel_values))
+    global min_deriv = min(min_deriv, minimum(kernel_derivs))
+    global max_deriv = max(max_deriv, maximum(kernel_derivs))
+end
+
+# Add 10% padding to the y-limits for better visuals
+y_range_val = (min_val - 0.1 * (max_val - min_val),
+               max_val + 0.1 * (max_val - min_val))
+y_range_deriv = (min_deriv - 0.1 * (max_deriv - min_deriv),
+                 max_deriv + 0.1 * (max_deriv - min_deriv))
+
+fig = Figure(size = (1000, 1200), fontsize=16)
+
+for (i, group) in enumerate(kernel_groups)
+    ax_val = Axis(fig[i, 1],
+                  xlabel = "q = r/h", ylabel = "w(q)",
+                  title = group.title)
+
+    ax_deriv = Axis(fig[i, 2],
+                    xlabel = "q = r/h", ylabel = "w'(q)",
+                    title = group.title)
+
+    if group.use_consistent_range
+        ylims!(ax_val, y_range_val)
+        ylims!(ax_deriv, y_range_deriv)
+    end
+
+    hlines!(ax_val, [0.0], linestyle = :dash)
+    hlines!(ax_deriv, [0.0], linestyle = :dash)
+
+    for (name, kernel_obj) in group.kernels
+        kernel_values = [TrixiParticles.kernel(kernel_obj, q, h) for q in q_range]
+        kernel_derivs = [TrixiParticles.kernel_deriv(kernel_obj, q, h) for q in q_range]
+
+        lines!(ax_val, q_range, kernel_values, label=name, linewidth=2.5)
+        lines!(ax_deriv, q_range, kernel_derivs, label=name, linewidth=2.5)
+    end
+
+    axislegend(ax_val, position = :rt)
+    axislegend(ax_deriv, position = :rt)
+end
+
+# Add row gaps between the 4 rows (3 gaps total)
+for i in 1:(length(kernel_groups) - 1)
+    rowgap!(fig.layout, i, 25)
+end
+
+CairoMakie.save("smoothing_kernels.png", fig)
+
+```
+
+![Radial profiles and derivatives of the available smoothing kernels](smoothing_kernels.png)
+
 
 !!! note "Usage"
     The kernel can be called as
-    ```
+    ```jldoctest kernels; output = false, setup = :(using TrixiParticles, LinearAlgebra; smoothing_kernel = WendlandC2Kernel{2}(); h = 1.0; r = 0.5)
     TrixiParticles.kernel(smoothing_kernel, r, h)
+
+    # output
+    0.35250333098869013
     ```
     The length of the compact support can be obtained as
-    ```
+    ```jldoctest kernels; output = false
     TrixiParticles.compact_support(smoothing_kernel, h)
+
+    # output
+    2.0
     ```
 
     Note that ``r`` has to be a scalar, so in the context of SPH, the kernel
     should be used as
     ```math
-    W(\Vert r_a - r_b \Vert, h).
+        W(\Vert r_a - r_b \Vert, h).
     ```
 
     The gradient required in SPH,
@@ -37,10 +149,61 @@ If less smoothing is needed, try [`SchoenbergCubicSplineKernel`](@ref), for more
         \nabla_{r_a} W(\Vert r_a - r_b \Vert, h)
     ```
     can be called as
-    ```
+    ```jldoctest kernels; output = false, setup = :(pos_diff = SVector(0.5, 0.5); distance = norm(pos_diff))
     TrixiParticles.kernel_grad(smoothing_kernel, pos_diff, distance, h)
+
+    # output
+    2-element SVector{2, Float64} with indices SOneTo(2):
+     -0.3762063922043116
+     -0.3762063922043116
     ```
-    where `pos_diff` is $r_a - r_b$ and `distance` is $\Vert r_a - r_b \Vert$.
+    where `pos_diff` is $r_a - r_b$ and `distance` is $\Vert r_a - r_b \Vert$,
+    although in most cases, it is recommended to use
+    ```jldoctest kernels; output = false, setup=:(trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing); system = fluid_system; particle = 1)
+    TrixiParticles.smoothing_kernel_grad(system, pos_diff, distance, particle)
+
+    # output
+    2-element SVector{2, Float64} with indices SOneTo(2):
+     0.0
+     0.0
+    ```
+    instead, which will also take into account if the system is using a corrected kernel.
+
+    The equivalent function to obtain the kernel value is
+    ```jldoctest kernels; output = false
+    TrixiParticles.smoothing_kernel(system, distance, particle)
+
+    # output
+    0.0
+    ```
+
+    In performance-critical code, it is recommended to use the `_unsafe` versions of these
+    functions, which skip the compact support and zero distance checks:
+    ```jldoctest kernels; output = false
+    TrixiParticles.smoothing_kernel_unsafe(system, distance, particle)
+    TrixiParticles.smoothing_kernel_grad_unsafe(system, pos_diff, distance, particle)
+
+    # output
+    2-element SVector{2, Float64} with indices SOneTo(2):
+     -106899.65266169122
+     -106899.65266169122
+    ```
+    These functions are only safe to use if compact support and zero distance have already
+    been checked.
+    The compact support is automatically checked when inside a `foreach_point_neighbor`
+    or `foreach_neighbor` loop.
+    For the zero distance check, use
+    ```jldoctest kernels; output = false, setup = :(almostzero = 1e-12)
+    TrixiParticles.skip_zero_distance(system) && distance < almostzero
+
+    # output
+    false
+    ```
+    where `skip_zero_distance` returns `true` if the kernel gradient is zero at zero
+    distance, which is not the case for some corrected kernels.
+    Here, `almostzero` is a small threshold, which should be chosen as `sqrt(eps(h^2))`,
+    where `h` is the smoothing length, since `distance^2` is in the order of `h^2`.
+    Note that `sqrt(eps(h^2)) != eps(h)`.
 
 ```@autodocs
 Modules = [TrixiParticles]

@@ -18,7 +18,7 @@ function write_meta_data(callback::SolutionSavingCallback, integrator)
                          "meta" * add_underscore_to_optional_postfix(prefix) * ".json")
 
     open(json_file, "w") do file
-        JSON.print(file, meta_data, 2)
+        JSON.json(file, meta_data; pretty=2)
     end
 end
 
@@ -121,6 +121,16 @@ function add_system_data!(system_data, system::TotalLagrangianSPHSystem)
     add_system_data!(system_data, system.penalty_force)
 end
 
+function add_system_data!(system_data, system::RigidBodySystem)
+    system_data["system_type"] = type2string(system)
+    system_data["particle_spacing"] = particle_spacing(system, 1)
+    system_data["acceleration"] = system.acceleration
+    system_data["adhesion_coefficient"] = system.adhesion_coefficient
+    system_data["color"] = system.cache.color
+    add_system_data!(system_data, system.boundary_model)
+    add_system_data!(system_data, system.contact_model)
+end
+
 function add_system_data!(system_data, system::WallBoundarySystem)
     system_data["system_type"] = type2string(system)
     system_data["particle_spacing"] = particle_spacing(system, 1)
@@ -210,12 +220,31 @@ function add_system_data!(system_data, contact_model::LinearContactModel)
     system_data["contact_model"]["normal_stiffness"] = contact_model.normal_stiffness
 end
 
+function add_system_data!(system_data, contact_model::RigidContactModel)
+    system_data["contact_model"] = Dict{String, Any}()
+    system_data["contact_model"]["model"] = type2string(contact_model)
+    system_data["contact_model"]["normal_stiffness"] = contact_model.normal_stiffness
+    system_data["contact_model"]["normal_damping"] = contact_model.normal_damping
+    system_data["contact_model"]["contact_distance"] = contact_model.contact_distance
+end
+
 function add_system_data!(system_data, state_equation::StateEquationCole)
     system_data["state_equation"] = Dict{String, Any}()
     system_data["state_equation"]["model"] = type2string(state_equation)
     system_data["state_equation"]["reference_density"] = state_equation.reference_density
     system_data["state_equation"]["background_pressure"] = state_equation.background_pressure
     system_data["state_equation"]["exponent"] = state_equation.exponent
+end
+
+function add_system_data!(system_data, state_equation::StateEquationAdaptiveCole)
+    system_data["state_equation"] = Dict{String, Any}()
+    system_data["state_equation"]["model"] = type2string(state_equation)
+    system_data["state_equation"]["reference_density"] = state_equation.reference_density
+    system_data["state_equation"]["background_pressure"] = state_equation.background_pressure
+    system_data["state_equation"]["exponent"] = state_equation.exponent
+    system_data["state_equation"]["mach_number_target"] = state_equation.mach_number_target
+    system_data["state_equation"]["min_sound_speed"] = state_equation.min_sound_speed
+    system_data["state_equation"]["max_sound_speed"] = state_equation.max_sound_speed
 end
 
 function add_system_data!(system_data, state_equation::StateEquationIdealGas)
@@ -329,4 +358,15 @@ end
 function add_system_data!(system_data, shifting_technique::ParticleShiftingTechnique)
     system_data["shifting_technique"] = Dict{String, Any}()
     system_data["shifting_technique"]["model"] = type2string(shifting_technique)
+end
+
+function add_system_data!(system_data, viscosity::ViscosityCarreauYasuda)
+    system_data["viscosity_model"] = Dict{String, Any}()
+    system_data["viscosity_model"]["model"] = type2string(viscosity)
+    system_data["viscosity_model"]["nu0"] = viscosity.nu0
+    system_data["viscosity_model"]["nu_inf"] = viscosity.nu_inf
+    system_data["viscosity_model"]["lambda"] = viscosity.lambda
+    system_data["viscosity_model"]["a"] = viscosity.a
+    system_data["viscosity_model"]["n"] = viscosity.n
+    system_data["viscosity_model"]["epsilon"] = viscosity.epsilon
 end

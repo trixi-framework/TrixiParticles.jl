@@ -71,7 +71,14 @@ function initialize_split_integration!(cb, u, t, integrator)
     # Create split integrator with TLSPH systems only
     systems = filter(i -> i isa TotalLagrangianSPHSystem, semi.systems)
 
+    if isempty(systems)
+        throw(ArgumentError("`SplitIntegrationCallback` must be used with a " *
+                            "`TotalLagrangianSPHSystem`"))
+    end
+
     # These neighborhood searches are never used
+    periodic_box = extract_periodic_box(semi.neighborhood_searches[1, 1])
+    neighborhood_search = TrivialNeighborhoodSearch{ndims(first(systems))}(; periodic_box)
     semi_split = Semidiscretization(systems...,
                                     neighborhood_search=TrivialNeighborhoodSearch{ndims(first(systems))}(),
                                     parallelization_backend=semi.parallelization_backend)
@@ -80,6 +87,10 @@ function initialize_split_integration!(cb, u, t, integrator)
     # for tlsph-neighbor interaction when neighbor is static.
     foreach_system(semi_split) do system
         foreach_system(semi) do neighbor
+            if system === neighbor
+                # TLSPH self-interaction is using its own NHS
+                return
+            end
             neighborhood_search = get_neighborhood_search(system, neighbor, semi)
             # The first element indicates if the NHS requires an update when the first
             # system (the TLSPH system) changed.
@@ -201,14 +212,11 @@ function drift_split!(du_ode, v_ode, u_ode, p, t)
     drift!(du_ode, v_ode, u_ode, p.semi_split, t)
 end
 
-# Update the systems before calling `interact!` to compute forces.
+# Update the systems before calling `interact!` to compute forces
 function update_systems_split!(semi, v_ode, u_ode, t)
     # First update step before updating the NHS
     # (for example for writing the current coordinates in the solid system)
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_positions!(system, v, u, v_ode, u_ode, semi, t)
     end
 
@@ -216,18 +224,12 @@ function update_systems_split!(semi, v_ode, u_ode, t)
     # This is used to calculate density and pressure of the fluid systems
     # before updating the boundary systems,
     # since the fluid pressure is needed by the Adami interpolation.
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_quantities!(system, v, u, v_ode, u_ode, semi, t)
     end
 
     # Perform correction and pressure calculation
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_pressure!(system, v, u, v_ode, u_ode, semi, t)
     end
 
@@ -237,10 +239,7 @@ function update_systems_split!(semi, v_ode, u_ode, t)
     # that the extrapolated pressure/density values can be treated as constant.
 
     # Final update step for all remaining systems
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_final!(system, v, u, v_ode, u_ode, semi, t)
     end
 end
@@ -278,11 +277,9 @@ end
 
 # Copy the solution from the large integrator to the split integrator
 @inline function copy_to_split!(v_ode, u_ode, v_ode_split, u_ode_split, semi, semi_split)
-    foreach_system(semi_split) do system
+    foreach_system_wrapped(semi_split, v_ode_split, u_ode_split) do system, v_split, u_split
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
-        v_split = wrap_v(v_ode_split, system, semi_split)
-        u_split = wrap_u(u_ode_split, system, semi_split)
 
         @threaded semi for particle in each_integrated_particle(system)
             for i in axes(v, 1)
@@ -298,11 +295,9 @@ end
 
 # Copy the solution from the split integrator to the large integrator
 @inline function copy_from_split!(v_ode, u_ode, v_ode_split, u_ode_split, semi, semi_split)
-    foreach_system(semi_split) do system
+    foreach_system_wrapped(semi_split, v_ode_split, u_ode_split) do system, v_split, u_split
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
-        v_split = wrap_v(v_ode_split, system, semi_split)
-        u_split = wrap_u(u_ode_split, system, semi_split)
 
         @threaded semi for particle in each_integrated_particle(system)
             for i in axes(v, 1)
@@ -314,6 +309,11 @@ end
             end
         end
     end
+end
+
+function calculate_dt(v_ode, u_ode, cfl_number, p::NamedTuple)
+    # The split integrator contains a `NamedTuple`
+    return calculate_dt(v_ode, u_ode, cfl_number, p.semi_split)
 end
 
 function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:SplitIntegrationCallback})
