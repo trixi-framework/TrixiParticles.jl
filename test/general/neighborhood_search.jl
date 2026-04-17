@@ -3,11 +3,6 @@
         buffer::TrixiParticles.SystemBuffer
     end
 
-    function TrixiParticles.get_neighborhood_search(system::MockSystemOutOfBounds,
-                                                    semi::DummySemidiscretization)
-        return (cell_size=(0.1, 0.1),)
-    end
-
     TrixiParticles.nparticles(system::MockSystemOutOfBounds) = length(system.buffer.active_particle)
     Base.eltype(system::MockSystemOutOfBounds) = Float64
 
@@ -22,12 +17,13 @@
         cell_list = TrixiParticles.FullGridCellList(; min_corner=(-1.0, -1.0),
                                                     max_corner=(1.0, 1.0),
                                                     search_radius=0.1)
+        dummy_nhs = (; cell_size=0.1)
         semi = DummySemidiscretization()
 
         # All particles should remain active
         initial_count = count(buffer.active_particle)
-        TrixiParticles.deactivate_out_of_bounds_particles!(system, buffer, cell_list, u,
-                                                           semi)
+        TrixiParticles.deactivate_out_of_bounds_particles!(system, buffer, dummy_nhs,
+                                                           cell_list, u, u, semi)
         @test count(buffer.active_particle) == initial_count
     end
 
@@ -43,10 +39,11 @@
         cell_list = TrixiParticles.FullGridCellList(; min_corner=(-1.0, -1.0),
                                                     max_corner=(1.0, 1.0),
                                                     search_radius=0.1)
+        dummy_nhs = (; cell_size=0.1)
         semi = DummySemidiscretization()
 
-        TrixiParticles.deactivate_out_of_bounds_particles!(system, buffer, cell_list, u,
-                                                           semi)
+        TrixiParticles.deactivate_out_of_bounds_particles!(system, buffer, dummy_nhs,
+                                                           cell_list, u, u, semi)
 
         # Particles 3 and 5 should be deactivated
         @test buffer.active_particle[3] == false
@@ -71,10 +68,11 @@
         cell_list = TrixiParticles.FullGridCellList(; min_corner=(-1.0, -1.0),
                                                     max_corner=(1.0, 1.0),
                                                     search_radius=0.1)
+        dummy_nhs = (; cell_size=0.1)
         semi = DummySemidiscretization()
 
-        TrixiParticles.deactivate_out_of_bounds_particles!(system, buffer, cell_list, u,
-                                                           semi)
+        TrixiParticles.deactivate_out_of_bounds_particles!(system, buffer, dummy_nhs,
+                                                           cell_list, u, u, semi)
 
         # All should still be active
         @test all(buffer.active_particle)
