@@ -1,21 +1,18 @@
 # ==========================================================================================
-# Restart Example
+# Restart Example: Poiseuille Flow 2D
 #
-# TODO
+# This example demonstrates how to restart a simulation.
+# We first run a simulation of 2D Poiseuille flow up to t=0.3s, then restart from the
+# saved state and continue the simulation until t=0.6s.
 # ==========================================================================================
 using TrixiParticles
 
-# Run full simulation
-# trixi_include(@__MODULE__,
-#               joinpath(examples_dir(), "fluid", "poiseuille_flow_2d.jl"),
-#               tspan=(0.0, 0.6), sound_speed_factor=10, particle_spacing=4e-5)
-
-# Run half simulation
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "poiseuille_flow_2d.jl"),
               tspan=(0.0, 0.3), sound_speed_factor=10, particle_spacing=4e-5)
 
-iter = round(Int, 0.3 / 0.02)
+# Get latest iteration
+iter = saving_callback.condition.index[] - 1
 
 restart_file_fluid = joinpath("out", "fluid_1_$iter.vtu")
 restart_file_open_boundary = joinpath("out", "open_boundary_1_$iter.vtu")
