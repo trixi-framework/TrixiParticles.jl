@@ -11,6 +11,12 @@ function PointNeighbors.foreach_point_neighbor(f, system, neighbor_system,
                            points, parallelization_backend)
 end
 
+@propagate_inbounds function foreach_neighbor(f, system_coords, neighbor_coords,
+                                              neighborhood_search, backend, particle)
+    PointNeighbors.foreach_neighbor(f, system_coords, neighbor_coords,
+                                    neighborhood_search, particle)
+end
+
 # === Compact support selection ===
 # -- Generic
 @inline function compact_support(system, neighbor)
