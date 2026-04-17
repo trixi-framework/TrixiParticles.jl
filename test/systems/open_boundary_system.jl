@@ -19,7 +19,8 @@
                               open_boundary_layers=4, boundary_type=InFlow())
         system = OpenBoundarySystem(inflow; buffer_size=0,
                                     boundary_model=BoundaryModelCharacteristicsLastiwka(),
-                                    fluid_system=FluidSystemMock2(nothing, nothing, nothing))
+                                    fluid_system=FluidSystemMock2(nothing, nothing,
+                                                                  nothing))
 
         show_compact = "OpenBoundarySystem{2}() with 80 particles"
         @test repr(system) == show_compact
@@ -42,7 +43,8 @@
                                boundary_type=OutFlow())
         system = OpenBoundarySystem(outflow; buffer_size=0,
                                     boundary_model=BoundaryModelMirroringTafuni(),
-                                    fluid_system=FluidSystemMock2(nothing, nothing, nothing))
+                                    fluid_system=FluidSystemMock2(nothing, nothing,
+                                                                  nothing))
 
         show_compact = "OpenBoundarySystem{2}() with 80 particles"
         @test repr(system) == show_compact
@@ -61,7 +63,8 @@
 
         system = OpenBoundarySystem(outflow, inflow; buffer_size=0,
                                     boundary_model=BoundaryModelMirroringTafuni(),
-                                    fluid_system=FluidSystemMock2(nothing, nothing, nothing))
+                                    fluid_system=FluidSystemMock2(nothing, nothing,
+                                                                  nothing))
 
         show_compact = "OpenBoundarySystem{2}() with 160 particles"
         @test repr(system) == show_compact
@@ -80,7 +83,8 @@
 
         system = OpenBoundarySystem(outflow, inflow; buffer_size=0,
                                     boundary_model=BoundaryModelDynamicalPressureZhang(),
-                                    fluid_system=FluidSystemMock2(nothing, nothing, nothing))
+                                    fluid_system=FluidSystemMock2(nothing, nothing,
+                                                                  nothing))
 
         show_compact = "OpenBoundarySystem{2}() with 160 particles"
         @test repr(system) == show_compact
@@ -109,8 +113,8 @@
                     "because `fluid_system` has no buffer. Pass `buffer_size=...` " *
                     "explicitly or construct `fluid_system` with `buffer_size=...`."
         @test_throws ArgumentError(error_str) OpenBoundarySystem(outflow;
-                                                             fluid_system=FluidSystemMock2(nothing,
-                                                                                           nothing,
-                                                                                           nothing))
+                                                                 fluid_system=FluidSystemMock2(nothing,
+                                                                                               nothing,
+                                                                                               nothing))
     end
 end
