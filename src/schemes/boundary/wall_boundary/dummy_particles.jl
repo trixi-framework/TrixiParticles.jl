@@ -50,18 +50,18 @@ BoundaryModelDummyParticles(AdamiPressureExtrapolation, ViscosityAdami)
 ```
 """
 struct BoundaryModelDummyParticles{DC, SE, CLIP, ELTYPE <: Real, VECTOR, K, V, COR, C}
-    pressure               :: VECTOR # Vector{ELTYPE}
-    hydrodynamic_mass      :: VECTOR # Vector{ELTYPE}
-    state_equation         :: SE
-    density_calculator     :: DC
-    smoothing_kernel       :: K
-    smoothing_length       :: ELTYPE
-    viscosity              :: V
-    correction             :: COR
-    cache                  :: C
+    pressure           :: VECTOR # Vector{ELTYPE}
+    hydrodynamic_mass  :: VECTOR # Vector{ELTYPE}
+    state_equation     :: SE
+    density_calculator :: DC
+    smoothing_kernel   :: K
+    smoothing_length   :: ELTYPE
+    viscosity          :: V
+    correction         :: COR
+    cache              :: C
     # Store this both as field and type parameter to avoid annoying hand-written
     # `adapt_structure` functions.
-    clip_negative_pressure :: Bool
+    clip_negative_pressure::Bool
 
     function BoundaryModelDummyParticles(pressure, hydrodynamic_mass, state_equation,
                                          density_calculator, smoothing_kernel,
