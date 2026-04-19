@@ -46,16 +46,18 @@ end
 # throw an error instead of silently (and non-deterministically) falling back to slower
 # regular loads.
 function can_use_aligned_load(A, n)
+    # Check that `n` is a power of 2, which is a requirement for aligned loads.
+    is_power_of_2 = n > 0 && (n & (n - 1)) == 0
     # Check if the beginning of `A` is aligned to the size of the vector we want to load.
     is_aligned = UInt(pointer(A)) % (n * sizeof(eltype(A))) == 0
     # Check if the stride of `A` in the last dimension is equal to `n`,
     # which means that there is no padding between the vectors we want to load.
     has_stride = stride(A, ndims(A)) == n
 
-    return is_aligned && has_stride
+    return is_power_of_2 && is_aligned && has_stride
 end
 
-@propagate_inbounds function extract_svector_aligned(A, system::AbstractSystem, particle)
+@propagate_inbounds function extract_svector_aligned(A, system, particle)
     return extract_svector_aligned(A, Val(ndims(system)), particle)
 end
 
@@ -80,12 +82,12 @@ end
     return SVector{N}(Tuple(vec))
 end
 
-@propagate_inbounds function extract_smatrix_aligned(A, system::AbstractSystem, particle)
+@propagate_inbounds function extract_smatrix_aligned(A, system, particle)
     return extract_smatrix_aligned(A, Val(ndims(system)), particle)
 end
 
 # For general N, fall back to the regular `extract_smatrix`.
-@propagate_inbounds function extract_smatrix_aligned(A, val_n, i)
+@propagate_inbounds function extract_smatrix_aligned(A, val_n::Val, i)
     return extract_smatrix(A, val_n, i)
 end
 

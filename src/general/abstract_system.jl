@@ -68,16 +68,17 @@ end
 end
 
 # Return `A[:, :, i]` as an `SMatrix`.
-@propagate_inbounds function extract_smatrix(A, system, particle)
-    return extract_smatrix(A, Val(ndims(system)), particle)
+@propagate_inbounds function extract_smatrix(A, system, i)
+    return extract_smatrix(A, Val(ndims(system)), i)
 end
 
 @inline function extract_smatrix(A::AbstractArray{T, 3}, ::Val{N}, i) where {T, N}
     @boundscheck checkbounds(A, N, N, i)
     # This function assumes that the first two dimensions of `A` have exactly the size `N`.
     @boundscheck if stride(A, 3) != N^2
-        error("extract_smatrix only works for 3D arrays where the first two dimensions " *
-              "have size N")
+        # WARNING: Don't split this string with `*`, or this function won't compile on GPUs,
+        # even when the error is never thrown.
+        error("extract_smatrix only works for 3D arrays where the first two dimensions each have size N")
     end
 
     # Extract the matrix elements for this `i` as a tuple to pass to SMatrix

@@ -86,7 +86,7 @@ end
 
     @testset verbose=true "use_aligned_vrho_load $T" for T in types
         # Aligned array
-        x = zeros(T, 16)
+        x = zeros(T, 4, 4)
 
         # Test different "systems" and density calculators
         @test !TrixiParticles.use_aligned_vrho_load(x, nothing)
@@ -109,19 +109,21 @@ end
 
         # Use aligned load on the GPU with 4-aligned arrays
         @test TrixiParticles.use_aligned_vrho_load(y, nothing, ContinuityDensity())
-        @test TrixiParticles.use_aligned_vrho_load(view(y, 5:16), nothing,
-                                                   ContinuityDensity())
+        @test TrixiParticles.use_aligned_vrho_load(TrixiParticles.wrap_array(y, 5:16,
+                                                                             (4, 3)),
+                                                   nothing, ContinuityDensity())
 
         # Unaligned array on the GPU should throw an error
-        @test_throws "illegal alignment" TrixiParticles.use_aligned_vrho_load(view(y, 2:16),
-                                                                              nothing,
-                                                                              ContinuityDensity())
-        @test_throws "illegal alignment" TrixiParticles.use_aligned_vrho_load(view(y, 3:16),
-                                                                              nothing,
-                                                                              ContinuityDensity())
-        @test_throws "illegal alignment" TrixiParticles.use_aligned_vrho_load(view(y, 4:16),
-                                                                              nothing,
-                                                                              ContinuityDensity())
+        str = "illegal alignment"
+        y2 = TrixiParticles.wrap_array(y, 2:13, (4, 3))
+        @test_throws str TrixiParticles.use_aligned_vrho_load(y2, nothing,
+                                                              ContinuityDensity())
+        y3 = TrixiParticles.wrap_array(y, 3:14, (4, 3))
+        @test_throws str TrixiParticles.use_aligned_vrho_load(y3, nothing,
+                                                              ContinuityDensity())
+        y4 = TrixiParticles.wrap_array(y, 4:15, (4, 3))
+        @test_throws str TrixiParticles.use_aligned_vrho_load(y4, nothing,
+                                                              ContinuityDensity())
     end
 
     @testset "velocity_and_density $T" for T in types
@@ -157,12 +159,13 @@ end
     end
 
     @testset verbose=true "$T" for T in types
-        @testset verbose=true "$(N)D" for N in 1:6
+        @testset verbose=true "$(N)D" for N in [2, 4, 8]
             A = Adapt.adapt(parallelization_backend, rand(T, N, 4))
             val = Val(N)
 
             @test TrixiParticles.can_use_aligned_load(A, N)
-            @test !TrixiParticles.can_use_aligned_load(view(A, 2:length(A)), N)
+            slice = TrixiParticles.wrap_array(A, 2:(3 * N + 1), (N, 3))
+            @test !TrixiParticles.can_use_aligned_load(slice, N)
 
             # Test that the aligned version is consistent with the non-aligned version.
             # In order to test this on the GPU, we need to use a kernel with `@threaded`.
@@ -172,6 +175,14 @@ end
                             TrixiParticles.extract_svector(A, val, i)
             end
             @test all(result)
+        end
+
+        @testset verbose=true "$(N)D" for N in [3, 5, 6, 7]
+            A = Adapt.adapt(parallelization_backend, rand(T, N, 4))
+            val = Val(N)
+
+            # Aligned loads are only support for powers of two.
+            @test !TrixiParticles.can_use_aligned_load(A, N)
         end
     end
 end
@@ -184,12 +195,13 @@ end
     end
 
     @testset verbose=true "$T" for T in types
-        @testset verbose=true "$(N)D" for N in 2:3
-            A = Adapt.adapt(parallelization_backend, rand(T, N, N, 4))
-            val = Val(N)
+        @testset verbose=true "2D" begin
+            A = Adapt.adapt(parallelization_backend, rand(T, 2, 2, 4))
+            val = Val(2)
 
-            @test TrixiParticles.can_use_aligned_load(A, N)
-            @test !TrixiParticles.can_use_aligned_load(view(A, 2:length(A)), N)
+            @test TrixiParticles.can_use_aligned_load(A, 2^2)
+            slice = TrixiParticles.wrap_array(A, 2:(3 * 4 + 1), (2, 2, 3))
+            @test !TrixiParticles.can_use_aligned_load(slice, 2^2)
 
             # Test that the aligned version is consistent with the non-aligned version.
             # In order to test this on the GPU, we need to use a kernel with `@threaded`.
