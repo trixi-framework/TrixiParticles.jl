@@ -1,3 +1,23 @@
+@testset verbose=true "extract_smatrix" begin
+    A = Float64.(collect(reshape(1:12, 2, 2, 3)))
+    @test TrixiParticles.extract_smatrix(A, Val(2), 1) == A[:, :, 1]
+    @test TrixiParticles.extract_smatrix(A, Val(2), 2) == A[:, :, 2]
+    @test TrixiParticles.extract_smatrix(A, Val(2), 3) == A[:, :, 3]
+    @test_throws "extract_smatrix only works" TrixiParticles.extract_smatrix(A, Val(1), 1)
+    @test_throws "BoundsError" TrixiParticles.extract_smatrix(A, Val(3), 1)
+end
+
+@testset verbose=true "extract_svector" begin
+    A = Float64.(collect(reshape(1:9, 3, 3)))
+    @test TrixiParticles.extract_svector(A, Val(3), 1) == A[:, 1]
+    @test TrixiParticles.extract_svector(A, Val(3), 2) == A[:, 2]
+    @test TrixiParticles.extract_svector(A, Val(3), 3) == A[:, 3]
+    @test TrixiParticles.extract_svector(A, Val(2), 1) == A[1:2, 1]
+    @test TrixiParticles.extract_svector(A, Val(2), 2) == A[1:2, 2]
+    @test TrixiParticles.extract_svector(A, Val(2), 3) == A[1:2, 3]
+    @test_throws "BoundsError" TrixiParticles.extract_svector(A, Val(4), 1)
+end
+
 @testset verbose=true "ThreadedBroadcastArray" begin
     A = TrixiParticles.ThreadedBroadcastArray(ones(3, 3))
     B = ones(3, 3)

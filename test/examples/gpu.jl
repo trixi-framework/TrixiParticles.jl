@@ -84,35 +84,35 @@ end
         types = [Float32]
     end
 
-    @testset verbose=true "use_simd_load $T" for T in types
+    @testset verbose=true "use_aligned_vrho_load $T" for T in types
         # Aligned array
         x = zeros(T, 16)
 
         # Test different "systems" and density calculators
-        @test !TrixiParticles.use_simd_load(x, nothing)
-        @test !TrixiParticles.use_simd_load(x, (; density_calculator=ContinuityDensity()))
-        @test !TrixiParticles.use_simd_load(x, nothing, SummationDensity())
+        @test !TrixiParticles.use_aligned_vrho_load(x, nothing)
+        @test !TrixiParticles.use_aligned_vrho_load(x, (; density_calculator=ContinuityDensity()))
+        @test !TrixiParticles.use_aligned_vrho_load(x, nothing, SummationDensity())
 
-        # No SIMD load on the CPU
-        @test !TrixiParticles.use_simd_load(x, nothing, ContinuityDensity())
+        # No aligned load on the CPU
+        @test !TrixiParticles.use_aligned_vrho_load(x, nothing, ContinuityDensity())
 
         y = Adapt.adapt(parallelization_backend, x)
 
         # Test different "systems" and density calculators
-        @test !TrixiParticles.use_simd_load(y, nothing)
-        @test !TrixiParticles.use_simd_load(y, (; density_calculator=ContinuityDensity()))
-        @test !TrixiParticles.use_simd_load(y, nothing, SummationDensity())
+        @test !TrixiParticles.use_aligned_vrho_load(y, nothing)
+        @test !TrixiParticles.use_aligned_vrho_load(y, (; density_calculator=ContinuityDensity()))
+        @test !TrixiParticles.use_aligned_vrho_load(y, nothing, SummationDensity())
 
-        # Use SIMD load on the GPU with 4-aligned arrays
-        @test TrixiParticles.use_simd_load(y, nothing, ContinuityDensity())
-        @test TrixiParticles.use_simd_load(view(y, 5:16), nothing, ContinuityDensity())
+        # Use aligned load on the GPU with 4-aligned arrays
+        @test TrixiParticles.use_aligned_vrho_load(y, nothing, ContinuityDensity())
+        @test TrixiParticles.use_aligned_vrho_load(view(y, 5:16), nothing, ContinuityDensity())
 
         # Unaligned array on the GPU should throw an error
-        @test_throws "on GPUs in 3D" TrixiParticles.use_simd_load(view(y, 2:16), nothing,
+        @test_throws "illegal alignment" TrixiParticles.use_aligned_vrho_load(view(y, 2:16), nothing,
                                                                   ContinuityDensity())
-        @test_throws "on GPUs in 3D" TrixiParticles.use_simd_load(view(y, 3:16), nothing,
+        @test_throws "illegal alignment" TrixiParticles.use_aligned_vrho_load(view(y, 3:16), nothing,
                                                                   ContinuityDensity())
-        @test_throws "on GPUs in 3D" TrixiParticles.use_simd_load(view(y, 4:16), nothing,
+        @test_throws "illegal alignment" TrixiParticles.use_aligned_vrho_load(view(y, 4:16), nothing,
                                                                   ContinuityDensity())
     end
 
@@ -127,7 +127,9 @@ end
         system = MockSystem()
         @inline TrixiParticles.current_density(v, ::MockSystem, i) = v[4, i]
 
-        # Test that the SIMD version is consistent with the non-SIMD version.
+        @test TrixiParticles.use_aligned_vrho_load(y, system, ContinuityDensity())
+
+        # Test that the aligned version is consistent with the non-aligned version.
         # We have 4 particles (with 4 values per particles).
         # In order to test this on the GPU, we need to use a kernel with `@threaded`.
         result = Adapt.adapt(parallelization_backend, zeros(Bool, 4))
@@ -136,6 +138,33 @@ end
                         TrixiParticles.velocity_and_density(y, system, Val(true), i)
         end
         @test all(result)
+    end
+end
+
+@testset verbose=true "extract_svector_aligned $TRIXIPARTICLES_TEST_" begin
+    if supports_double_precision
+        types = [Float64, Float32]
+    else
+        types = [Float32]
+    end
+
+    @testset verbose=true "$T" for T in types
+        @testset verbose=true "$(N)D" for N in 1:6
+            A = Adapt.adapt(parallelization_backend, rand(T, N, 4))
+            val = Val(N)
+
+            @test TrixiParticles.can_use_aligned_load(A, N)
+            @test !TrixiParticles.can_use_aligned_load(view(A, 2:length(A)), N)
+
+            # Test that the aligned version is consistent with the non-aligned version.
+            # In order to test this on the GPU, we need to use a kernel with `@threaded`.
+            result = Adapt.adapt(parallelization_backend, zeros(Bool, 4))
+            TrixiParticles.@threaded parallelization_backend for i in 1:4
+                result[i] = TrixiParticles.extract_svector_aligned(A, val, i) ==
+                            TrixiParticles.extract_svector(A, val, i)
+            end
+            @test all(result)
+        end
     end
 end
 
@@ -148,29 +177,20 @@ end
 
     @testset verbose=true "$T" for T in types
         @testset verbose=true "$(N)D" for N in 2:3
-            @testset "CPU" begin
-                A = rand(T, N, N, 4)
+            A = Adapt.adapt(parallelization_backend, rand(T, N, N, 4))
+            val = Val(N)
 
-                # Test that the SIMD version is consistent with the non-SIMD version.
-                for i in 1:4
-                    @test TrixiParticles.extract_smatrix_aligned(A, Val(N), i) ==
-                          TrixiParticles.extract_smatrix(A, Val(N), i)
-                end
+            @test TrixiParticles.can_use_aligned_load(A, N)
+            @test !TrixiParticles.can_use_aligned_load(view(A, 2:length(A)), N)
+
+            # Test that the aligned version is consistent with the non-aligned version.
+            # In order to test this on the GPU, we need to use a kernel with `@threaded`.
+            result = Adapt.adapt(parallelization_backend, zeros(Bool, 4))
+            TrixiParticles.@threaded parallelization_backend for i in 1:4
+                result[i] = TrixiParticles.extract_smatrix_aligned(A, val, i) ==
+                            TrixiParticles.extract_smatrix(A, val, i)
             end
-
-            @testset "GPU" begin
-                A = Adapt.adapt(parallelization_backend, rand(T, N, N, 4))
-                val = Val(N)
-
-                # Test that the SIMD version is consistent with the non-SIMD version.
-                # In order to test this on the GPU, we need to use a kernel with `@threaded`.
-                result = Adapt.adapt(parallelization_backend, zeros(Bool, 4))
-                TrixiParticles.@threaded parallelization_backend for i in 1:4
-                    result[i] = TrixiParticles.extract_smatrix_aligned(A, val, i) ==
-                                TrixiParticles.extract_smatrix(A, val, i)
-                end
-                @test all(result)
-            end
+            @test all(result)
         end
     end
 end

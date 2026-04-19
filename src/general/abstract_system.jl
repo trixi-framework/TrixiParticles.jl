@@ -75,7 +75,10 @@ end
 @inline function extract_smatrix(A::AbstractArray{T, 3}, ::Val{N}, i) where {T, N}
     @boundscheck checkbounds(A, N, N, i)
     # This function assumes that the first two dimensions of `A` have exactly the size `N`.
-    @boundscheck @assert stride(A, 3) == N^2
+    @boundscheck if stride(A, 3) != N^2
+        error("extract_smatrix only works for 3D arrays where the first two dimensions " *
+              "have size N")
+    end
 
     # Extract the matrix elements for this `i` as a tuple to pass to SMatrix
     return SMatrix{N, N}(ntuple(@inline(j->@inbounds A[N^2 * (i - 1) + j]), Val(N^2)))
