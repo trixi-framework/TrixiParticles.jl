@@ -107,8 +107,7 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
 
         # Align sizes to 64 bytes by adding padding if necessary.
         # This ensures that aligned loads can be used on the integration arrays, which can
-        # significantly improve performance on GPUs. Performance benefits on CPUs remain
-        # to be investigated.
+        # significantly improve performance on GPUs.
         block_size = div(64, sizeof(eltype(systems[i])))
         start_u += div(sizes_u[i], block_size, RoundUp) * block_size
         start_v += div(sizes_v[i], block_size, RoundUp) * block_size
