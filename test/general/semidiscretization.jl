@@ -25,12 +25,9 @@
     @testset verbose=true "Constructor" begin
         semi = Semidiscretization(system1, system2, neighborhood_search=nothing)
 
-        # Verification: These are the ranges that we would expect based on system sizes:
-        # semi.ranges_u == (1:6, 7:18)
-        # semi.ranges_v == (1:6, 7:12)
-        # Due to alignment to 64 bytes, the ranges are adjusted to be:
-        @test semi.ranges_u == (1:6, 9:20)
-        @test semi.ranges_v == (1:6, 9:14)
+        # Verification
+        semi.ranges_u == (1:6, 7:18)
+        semi.ranges_v == (1:6, 7:12)
 
         nhs = [TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
                eachpoint=1:2)

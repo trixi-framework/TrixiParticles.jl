@@ -97,6 +97,17 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     sizes_v = [v_nvariables(system) * n_integrated_particles(system)
                for system in systems]
 
+    ELTYPE = eltype(first(systems))
+    if parallelization_backend isa KernelAbstractions.GPU
+        # Align ranges to 64 bytes by adding padding if necessary.
+        # This ensures that aligned loads can be used on the wrapped integration arrays,
+        # which can significantly improve performance on GPUs.
+        block_size = div(64, sizeof(ELTYPE))
+    else
+        # There is no performance benefit to aligning ranges for CPU backends.
+        block_size = 1
+    end
+
     start_u = 1
     start_v = 1
     ranges_u_vec = Vector{UnitRange{Int}}(undef, length(systems))
@@ -105,10 +116,6 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
         ranges_u_vec[i] = start_u:(start_u + sizes_u[i] - 1)
         ranges_v_vec[i] = start_v:(start_v + sizes_v[i] - 1)
 
-        # Align sizes to 64 bytes by adding padding if necessary.
-        # This ensures that aligned loads can be used on the integration arrays, which can
-        # significantly improve performance on GPUs.
-        block_size = div(64, sizeof(eltype(systems[i])))
         start_u += div(sizes_u[i], block_size, RoundUp) * block_size
         start_v += div(sizes_v[i], block_size, RoundUp) * block_size
     end
