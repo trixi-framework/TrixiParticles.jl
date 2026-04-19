@@ -37,6 +37,8 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         # In 3D, this function can combine velocity and density load into one wide load,
         # which gives a significant speedup on GPUs.
+        # Note that we can only safely use `@inbounds` after checking alignment
+        # with `use_aligned_vrho_load` before the `@threaded` loop.
         (v_a,
          rho_a) = @inbounds velocity_and_density(v_particle_system, particle_system,
                                                  use_aligned_load_system, particle)
@@ -63,6 +65,8 @@ function interact!(dv, v_particle_system, u_particle_system,
 
             # `foreach_neighbor` makes sure that `neighbor` is in bounds of `neighbor_system`
             m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
+            # Note that we can only safely use `@inbounds` after checking alignment
+            # with `use_aligned_vrho_load` before the `@threaded` loop.
             (v_b,
              rho_b) = @inbounds velocity_and_density(v_neighbor_system, neighbor_system,
                                                      use_aligned_load_neighbor, neighbor)

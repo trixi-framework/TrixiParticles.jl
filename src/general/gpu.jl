@@ -55,6 +55,10 @@ function can_use_aligned_load(A, n)
     return is_aligned && has_stride
 end
 
+@propagate_inbounds function extract_svector_aligned(A, system::AbstractSystem, particle)
+    return extract_svector_aligned(A, Val(ndims(system)), particle)
+end
+
 # For N = 2 and N = 4, use the aligned vector loads.
 @propagate_inbounds function extract_svector_aligned(A::AbstractMatrix,
                                                      val_n::Union{Val{2}, Val{4}}, i)
@@ -69,28 +73,26 @@ end
 # This function only works for N = 2 and N = 4, because it requires a stride of 2^n.
 @inline function _extract_svector_aligned(A::AbstractMatrix{T}, ::Val{N}, i) where {T, N}
     @boundscheck checkbounds(A, 1:N, i)
-
-    # This function assumes alignment of the data, which means that the columns of `A`
-    # have exactly the size `N` and no padding between them.
-    @boundscheck @assert stride(A, 2) == N
+    @boundscheck can_use_aligned_load(A, N)
 
     vec = SIMD.vloada(SIMD.Vec{N, eltype(A)}, pointer(A, N * (i - 1) + 1))
 
     return SVector{N}(Tuple(vec))
 end
 
+@propagate_inbounds function extract_smatrix_aligned(A, system::AbstractSystem, particle)
+    return extract_smatrix_aligned(A, Val(ndims(system)), particle)
+end
+
 # For general N, fall back to the regular `extract_smatrix`.
-@propagate_inbounds function extract_matrix_aligned(A, val_n, i)
+@propagate_inbounds function extract_smatrix_aligned(A, val_n, i)
     return extract_smatrix(A, val_n, i)
 end
 
 # This function only works for 2x2 matrices, because it requires a stride of 2^n.
 @inline function extract_smatrix_aligned(A::AbstractArray{T, 3}, ::Val{2}, i) where {T}
     @boundscheck checkbounds(A, 2, 2, i)
-
-    # This function assumes alignment of the data, which means that the first two of `A`
-    # have exactly the size `2` and no padding between them.
-    @boundscheck @assert stride(A, 3) == 4
+    @boundscheck can_use_aligned_load(A, 4)
 
     vec = SIMD.vloada(SIMD.Vec{4, T}, pointer(A, 4 * (i - 1) + 1))
 
