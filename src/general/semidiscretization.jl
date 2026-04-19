@@ -97,20 +97,25 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     sizes_v = [v_nvariables(system) * n_integrated_particles(system)
                for system in systems]
 
-    # Align sizes to 64 bytes by adding padding if necessary.
-    # This ensures that aligned loads can be used on the integration arrays, which can
-    # significantly improve performance on GPUs. Performance benefits on CPUs remain
-    # to be investigated.
+    start_u = 1
+    start_v = 1
+    ranges_u_vec = Vector{UnitRange{Int}}(undef, length(systems))
+    ranges_v_vec = Vector{UnitRange{Int}}(undef, length(systems))
     for i in eachindex(systems)
+        ranges_u_vec[i] = start_u:(start_u + sizes_u[i] - 1)
+        ranges_v_vec[i] = start_v:(start_v + sizes_v[i] - 1)
+
+        # Align sizes to 64 bytes by adding padding if necessary.
+        # This ensures that aligned loads can be used on the integration arrays, which can
+        # significantly improve performance on GPUs. Performance benefits on CPUs remain
+        # to be investigated.
         block_size = div(64, sizeof(eltype(systems[i])))
-        sizes_u[i] = div(sizes_u[i], block_size, RoundUp) * block_size
-        sizes_v[i] = div(sizes_v[i], block_size, RoundUp) * block_size
+        start_u += div(sizes_u[i], block_size, RoundUp) * block_size
+        start_v += div(sizes_v[i], block_size, RoundUp) * block_size
     end
 
-    ranges_u = Tuple((sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])
-                     for i in eachindex(sizes_u))
-    ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
-                     for i in eachindex(sizes_v))
+    ranges_u = Tuple(ranges_u_vec)
+    ranges_v = Tuple(ranges_v_vec)
 
     # Create a n x n matrix of n neighborhood searches for each of the n systems.
     # We will need one neighborhood search for each pair of systems.
@@ -256,13 +261,13 @@ function semidiscretize(semi, tspan; reset_threads=true)
         Polyester.reset_threads!()
     end
 
-    sizes_u = (u_nvariables(system) * n_integrated_particles(system) for system in systems)
-    sizes_v = (v_nvariables(system) * n_integrated_particles(system) for system in systems)
+    size_u_ode = semi.ranges_u[end].stop
+    size_v_ode = semi.ranges_v[end].stop
 
     # Use either the specified backend, e.g., `CUDABackend` or `MetalBackend` or
     # use CPU vectors for all CPU backends.
-    u0_ode_ = allocate(semi.parallelization_backend, cELTYPE, sum(sizes_u))
-    v0_ode_ = allocate(semi.parallelization_backend, ELTYPE, sum(sizes_v))
+    u0_ode_ = allocate(semi.parallelization_backend, cELTYPE, size_u_ode)
+    v0_ode_ = allocate(semi.parallelization_backend, ELTYPE, size_v_ode)
 
     if semi.parallelization_backend isa KernelAbstractions.GPU
         u0_ode = u0_ode_
@@ -276,6 +281,9 @@ function semidiscretize(semi, tspan; reset_threads=true)
         v0_ode = ThreadedBroadcastArray(v0_ode_;
                                         parallelization_backend=semi.parallelization_backend)
     end
+
+    u0_ode .= 0
+    v0_ode .= 0
 
     # Set initial condition
     foreach_system_wrapped(semi, v0_ode, u0_ode) do system, v0_system, u0_system
@@ -367,8 +375,9 @@ end
     range = ranges_v[system_indices(system, semi)]
 
     @boundscheck begin
-        if length(range) != v_nvariables(system) * n_integrated_particles(system)
-            throw(DimensionMismatch("`v_ode` range length $range_length does not match " *
+        expected = v_nvariables(system) * n_integrated_particles(system)
+        if length(range) != expected
+            throw(DimensionMismatch("`v_ode` range length $(length(range)) does not match " *
                                     "expected number of entries $expected"))
         end
     end
