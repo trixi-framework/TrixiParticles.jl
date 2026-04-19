@@ -90,7 +90,9 @@ end
 
         # Test different "systems" and density calculators
         @test !TrixiParticles.use_aligned_vrho_load(x, nothing)
-        @test !TrixiParticles.use_aligned_vrho_load(x, (; density_calculator=ContinuityDensity()))
+        @test !TrixiParticles.use_aligned_vrho_load(x,
+                                                    (;
+                                                     density_calculator=ContinuityDensity()))
         @test !TrixiParticles.use_aligned_vrho_load(x, nothing, SummationDensity())
 
         # No aligned load on the CPU
@@ -100,20 +102,26 @@ end
 
         # Test different "systems" and density calculators
         @test !TrixiParticles.use_aligned_vrho_load(y, nothing)
-        @test !TrixiParticles.use_aligned_vrho_load(y, (; density_calculator=ContinuityDensity()))
+        @test !TrixiParticles.use_aligned_vrho_load(y,
+                                                    (;
+                                                     density_calculator=ContinuityDensity()))
         @test !TrixiParticles.use_aligned_vrho_load(y, nothing, SummationDensity())
 
         # Use aligned load on the GPU with 4-aligned arrays
         @test TrixiParticles.use_aligned_vrho_load(y, nothing, ContinuityDensity())
-        @test TrixiParticles.use_aligned_vrho_load(view(y, 5:16), nothing, ContinuityDensity())
+        @test TrixiParticles.use_aligned_vrho_load(view(y, 5:16), nothing,
+                                                   ContinuityDensity())
 
         # Unaligned array on the GPU should throw an error
-        @test_throws "illegal alignment" TrixiParticles.use_aligned_vrho_load(view(y, 2:16), nothing,
-                                                                  ContinuityDensity())
-        @test_throws "illegal alignment" TrixiParticles.use_aligned_vrho_load(view(y, 3:16), nothing,
-                                                                  ContinuityDensity())
-        @test_throws "illegal alignment" TrixiParticles.use_aligned_vrho_load(view(y, 4:16), nothing,
-                                                                  ContinuityDensity())
+        @test_throws "illegal alignment" TrixiParticles.use_aligned_vrho_load(view(y, 2:16),
+                                                                              nothing,
+                                                                              ContinuityDensity())
+        @test_throws "illegal alignment" TrixiParticles.use_aligned_vrho_load(view(y, 3:16),
+                                                                              nothing,
+                                                                              ContinuityDensity())
+        @test_throws "illegal alignment" TrixiParticles.use_aligned_vrho_load(view(y, 4:16),
+                                                                              nothing,
+                                                                              ContinuityDensity())
     end
 
     @testset "velocity_and_density $T" for T in types
