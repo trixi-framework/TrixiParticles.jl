@@ -63,7 +63,7 @@ smoothing_kernel = WendlandC2Kernel{2}()
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1, clip_negative_pressure=false)
 
-density_diffusion = DensityDiffusionAntuono(fluid, delta=0.1)
+density_diffusion = DensityDiffusionAntuono(delta=0.1)
 fluid_system = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(), state_equation,
                                            smoothing_kernel, smoothing_length,
                                            density_diffusion=density_diffusion,
