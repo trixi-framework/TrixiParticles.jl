@@ -32,6 +32,9 @@ function deactivate_out_of_bounds_particles!(system, ::SystemBuffer, nhs,
         @threaded semi for particle in each_integrated_particle(system)
             particle_position = current_coords(u, system, particle)
             cell = PointNeighbors.cell_coords(particle_position, nhs)
+
+            # This is the same code as is used in PointNeighbors.jl in `check_cell_bounds`.
+            # It tests that particles are inside the inner grid (without the padding layer for neighbor query).
             if !all(cell[i] in 2:(size(cell_list.linear_indices, i) - 1)
                     for i in eachindex(cell))
                 deactivate_particle!(system, particle, v, u)
