@@ -1,7 +1,7 @@
 using Test
-# Test that precompilation works without warnings (e.g. due to method overwites).
+# Test that precompilation works without warnings (e.g. due to method overwrites).
 # This is important because method overwrite warnings disable precompilation of the package.
-@test_nowarn using TrixiParticles
+@test_nowarn import TrixiParticles
 
 include("test_util.jl")
 
