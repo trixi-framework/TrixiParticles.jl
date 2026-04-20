@@ -23,6 +23,7 @@ Convert Trixi simulation data to VTK format.
 # Keywords
 - `iter=nothing`:           Iteration number when multiple iterations are to be stored in
                             separate files. This number is just appended to the filename.
+                            If `nothing`, no iteration number is appended (default).
 - `output_directory="out"`: Output directory path.
 - `prefix=""`:              Prefix for output files.
 - `max_coordinates=Inf`     The coordinates of particles will be clipped if their absolute
@@ -103,15 +104,21 @@ function trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
     v = wrap_v(v_ode, system, semi)
     u = wrap_u(u_ode, system, semi)
 
-    file = joinpath(output_directory,
-                    add_underscore_to_optional_prefix(prefix) * "$system_name"
-                    * add_underscore_to_optional_postfix(iter))
+    overwrite = isnothing(iter)
 
-    collection_file = joinpath(output_directory,
-                               add_underscore_to_optional_prefix(prefix) * "$system_name")
+    file_ = joinpath(output_directory,
+                     add_underscore_to_optional_prefix(prefix) * "$system_name")
+    if overwrite
+        file = file_ * "_current"
+    else
+        file = file_ * add_underscore_to_optional_postfix(iter)
+        collection_file = joinpath(output_directory,
+                                   add_underscore_to_optional_prefix(prefix) *
+                                   "$system_name")
 
-    # Reset the collection when the iteration is 0
-    pvd = paraview_collection(collection_file; append=iter > 0)
+        # Reset the collection when the iteration is 0
+        pvd = paraview_collection(collection_file; append=iter > 0)
+    end
 
     points = PointNeighbors.periodic_coords(active_coordinates(u, system),
                                             periodic_box)
@@ -152,10 +159,15 @@ function trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
             end
         end
 
-        # Add to collection
-        pvd[t] = vtk
+        if overwrite
+            # Add to collection
+            pvd[t] = vtk
+        end
     end
-    vtk_save(pvd)
+
+    overwrite || vtk_save(pvd)
+
+    return file
 end
 
 function transfer2cpu(semi::Semidiscretization)
