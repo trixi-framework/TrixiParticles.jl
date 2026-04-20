@@ -1,3 +1,8 @@
+using Test
+# Test that precompilation works without warnings (e.g. due to method overwites).
+# This is important because method overwrite warnings disable precompilation of the package.
+@test_nowarn using TrixiParticles
+
 include("test_util.jl")
 
 const TRIXIPARTICLES_TEST = lowercase(get(ENV, "TRIXIPARTICLES_TEST", "all"))
