@@ -120,6 +120,11 @@ function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing
         move_particles_to_end!(initial_condition_sorted, clamped_particles)
         move_particles_to_end!(young_modulus_sorted, clamped_particles)
         move_particles_to_end!(poisson_ratio_sorted, clamped_particles)
+    else
+        n_clamped_particles = 0
+        initial_condition_sorted = initial_condition
+        young_modulus_sorted = young_modulus
+        poisson_ratio_sorted = poisson_ratio
     end
 
     initial_coordinates = copy(initial_condition_sorted.coordinates)
