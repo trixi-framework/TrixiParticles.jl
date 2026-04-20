@@ -144,7 +144,10 @@ function use_aligned_matrix_load(deformation_grad::AbstractGPUArray,
     return true
 end
 
-# Don't use aligned vector loads on the CPU
+# Don't use aligned vector loads on the CPU. For large arrays, alignment to 32 bytes
+# (4 * Float64) is usually given, but it is not guaranteed, as Julia only guarantees
+# alignment to 16 bytes. However, the non-aligned `vload` used in `extract_smatrix` in 2D
+# has the same performance as the aligned `vloada` in `extract_smatrix_aligned` on the CPU.
 use_aligned_matrix_load(deformation_grad, pk1_rho2) = false
 
 # Aligned vector load versions for deformation gradient and `pk1_rho2`.
