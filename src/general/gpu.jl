@@ -68,7 +68,7 @@ end
 end
 
 # For other N, fall back to the regular `extract_svector`.
-@propagate_inbounds function extract_svector_aligned(A, val_n, i)
+@propagate_inbounds function extract_svector_aligned(A, val_n::Val, i)
     return extract_svector(A, val_n, i)
 end
 
