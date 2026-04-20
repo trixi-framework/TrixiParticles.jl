@@ -119,7 +119,8 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
         inverse_inertia = Ref(zero(SMatrix{3, 3, ELTYPE, 9}))
     end
 
-    cache = (;
+    cache = (; contact_count=Ref(0),
+             max_contact_penetration=Ref(zero(ELTYPE)),
              create_cache_contact_manifold(contact_model_, Val(NDIMS), ELTYPE,
                                            nparticles(initial_condition),
                                            max_manifolds_)...,
@@ -149,15 +150,17 @@ function create_cache_contact_manifold(::Nothing, ::Val{NDIMS}, ELTYPE,
     return (;)
 end
 
-# Allocate per-particle manifold scratch arrays for rigid-wall contact.
+# Allocate per-particle scratch arrays for rigid contact.
 #
-# The cache shape is `[dimension, manifold, particle]` for vector-valued sums and
+# The manifold cache shape is `[dimension, manifold, particle]` for vector-valued sums and
 # `[manifold, particle]` for scalar sums. It is rebuilt for each rigid-wall system pair in
-# the RHS and therefore acts purely as transient manifold assembly storage; the persistent
-# collision effect is the force accumulated in `force_per_particle`.
+# the RHS and therefore acts purely as transient manifold assembly storage. The per-particle
+# diagnostic scratch is reused for both rigid-wall and rigid-rigid contact reductions.
 function create_cache_contact_manifold(contact_model, ::Val{NDIMS}, ELTYPE,
                                        n_particles, max_manifolds) where {NDIMS}
-    return (; contact_manifold_count=zeros(Int, n_particles),
+    return (; contact_count_per_particle=zeros(Int, n_particles),
+            max_contact_penetration_per_particle=zeros(ELTYPE, n_particles),
+            contact_manifold_count=zeros(Int, n_particles),
             contact_manifold_weight_sum=zeros(ELTYPE, max_manifolds, n_particles),
             contact_manifold_penetration_sum=zeros(ELTYPE, max_manifolds, n_particles),
             contact_manifold_normal_sum=zeros(ELTYPE, NDIMS, max_manifolds, n_particles),
@@ -374,6 +377,14 @@ function update_boundary_interpolation!(boundary_model, system::RigidBodySystem,
     return system
 end
 
+function reset_interaction_caches!(system::RigidBodySystem)
+    set_zero!(system.force_per_particle)
+    system.cache.contact_count[] = 0
+    system.cache.max_contact_penetration[] = zero(eltype(system))
+
+    return system
+end
+
 function update_final!(system::RigidBodySystem, v, u, v_ode, u_ode, semi, t)
     system_coords = current_coordinates(u, system)
     system_velocity = current_velocity(v, system)
@@ -386,10 +397,6 @@ function update_final!(system::RigidBodySystem, v, u, v_ode, u_ode, semi, t)
                                                         center_of_mass,
                                                         center_of_mass_velocity;
                                                         relative_coordinates=system.relative_coordinates)
-
-    # Reset interaction caches before RHS assembly so pairwise rigid-fluid forces can
-    # accumulate from scratch and non-RHS update paths do not expose stale resultants.
-    set_zero!(system.force_per_particle)
 
     system.center_of_mass[] = center_of_mass
     system.center_of_mass_velocity[] = center_of_mass_velocity
@@ -555,6 +562,8 @@ function system_data(system::RigidBodySystem, dv_ode, du_ode, v_ode, u_ode, semi
     resultant_torque = system.resultant_torque[]
     angular_acceleration_force = system.angular_acceleration_force[]
     gyroscopic_acceleration = system.gyroscopic_acceleration[]
+    contact_count = system.cache.contact_count[]
+    max_contact_penetration = system.cache.max_contact_penetration[]
     relative_coordinates = system.relative_coordinates
 
     return (; coordinates, velocity, mass=system.mass,
@@ -564,6 +573,7 @@ function system_data(system::RigidBodySystem, dv_ode, du_ode, v_ode, u_ode, semi
             angular_velocity,
             resultant_force, resultant_torque,
             angular_acceleration_force, gyroscopic_acceleration,
+            contact_count, max_contact_penetration,
             density, pressure, acceleration)
 end
 
@@ -573,6 +583,7 @@ function available_data(::RigidBodySystem)
             :center_of_mass, :center_of_mass_velocity,
             :angular_velocity, :resultant_force, :resultant_torque,
             :angular_acceleration_force, :gyroscopic_acceleration,
+            :contact_count, :max_contact_penetration,
             :density, :pressure, :acceleration)
 end
 
