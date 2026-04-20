@@ -59,13 +59,12 @@ initialize!(system, semi) = system
 end
 
 # Return `A[:, i...]` as an `SVector`.
-@inline function extract_svector(A, ::Val{NDIMS}, i) where {NDIMS}
+@inline function extract_svector(A, ::Val{NDIMS}, i...) where {NDIMS}
     # Explicit bounds check, which can be removed by calling this function with `@inbounds`
     @boundscheck checkbounds(A, NDIMS, i...)
 
     # Assume inbounds access now
     return SVector(ntuple(@inline(dim->@inbounds A[dim, i...]), NDIMS))
-    # vec = SIMD.vload(SIMD.Vec{NDIMS, eltype(A)}, pointer(A, NDIMS * (i - 1) + 1))
 
     return SVector{NDIMS}(Tuple(vec))
 end
