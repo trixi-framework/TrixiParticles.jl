@@ -8,6 +8,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### API Changes
 
+- `DensityDiffusionAntuono` now only takes only one kwarg `delta` (#1142).
 - Return type of `vtk2trixi` changed to `NamedTuple` including an optional
   `:initial_condition` field if `create_initial_condition=true` is passed. (#959)
 

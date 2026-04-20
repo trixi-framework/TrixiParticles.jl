@@ -181,14 +181,8 @@ function create_cache_open_boundary(boundary_model, fluid_system, initial_condit
         # as it was already verified in `allocate_buffer` that the density array is constant.
         density_rest = first(initial_condition.density)
 
-        if density_diffusion isa DensityDiffusionAntuono
-            density_diffusion_ = DensityDiffusionAntuono(initial_condition;
-                                                         delta=density_diffusion.delta)
-        else
-            density_diffusion_ = density_diffusion
-        end
-
-        cache = (; density_diffusion=density_diffusion_,
+        cache = (; density_diffusion=density_diffusion,
+                 create_cache_density_diffusion(initial_condition, density_diffusion)...,
                  pressure_boundary=pressure_boundary,
                  density_rest=density_rest, cache...)
 
