@@ -127,7 +127,7 @@ boundary_model_structure = BoundaryModelDummyParticles(hydrodynamic_densities,
 structure_system = TotalLagrangianSPHSystem(structure_geometry, smoothing_kernel,
                                             smoothing_length_structure,
                                             E, nu, boundary_model=boundary_model_structure,
-                                            n_clamped_particles=nparticles(fixed_particles),
+                                            clamped_particles=1:nparticles(fixed_particles),
                                             acceleration=(0.0, -gravity))
 
 min_corner = min.(minimum(structure_geometry.coordinates, dims=2),
