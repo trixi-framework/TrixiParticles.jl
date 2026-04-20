@@ -310,7 +310,7 @@ end
 end
 
 function update_positions!(system::OpenBoundarySystem, v, u, v_ode, u_ode, semi, t)
-    nhs = get_neighborhood_search(system, semi)
+    nhs = get_neighborhood_search(system.fluid_system, system, semi)
 
     # `GridNeighborhoodSearch` with a `FullGridCellList` requires a bounding box.
     # This function deactivates particles that move outside this bounding box to prevent
