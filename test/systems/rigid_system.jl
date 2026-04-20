@@ -344,7 +344,11 @@
         @test data.resultant_torque == 0.0
         @test data.angular_acceleration_force == 0.0
         @test data.gyroscopic_acceleration == 0.0
+        @test data.contact_count == 0
+        @test data.max_contact_penetration == 0.0
         @test data.relative_coordinates == rigid_system.relative_coordinates
+        @test :contact_count in fields
+        @test :max_contact_penetration in fields
         @test !(:local_coordinates in fields)
     end
 
@@ -787,6 +791,7 @@
         TrixiParticles.update_final!(rigid_system_2, v_rigid_2, u_rigid_2,
                                      v_ode_rigid, u_ode_rigid, semi_rigid, 0.0)
 
+        TrixiParticles.reset_interaction_caches!(semi_rigid)
         TrixiParticles.interact!(dv_ode_rigid, v_ode_rigid, u_ode_rigid,
                                  rigid_system_1, rigid_system_2, semi_rigid)
         force_after_forward_1 = copy(rigid_system_1.force_per_particle)
@@ -816,6 +821,10 @@
 
         @test vec(force_after_forward_1[:, 1]) ≈ collect(expected_force)
         @test vec(rigid_system_2.force_per_particle[:, 1]) ≈ collect(-expected_force)
+        @test rigid_system_1.cache.contact_count[] == 1
+        @test rigid_system_2.cache.contact_count[] == 1
+        @test rigid_system_1.cache.max_contact_penetration[] ≈ pair_penetration
+        @test rigid_system_2.cache.max_contact_penetration[] ≈ pair_penetration
 
         @test TrixiParticles.compact_support(rigid_system_1, rigid_system_2) ≈
               pair_contact_distance
@@ -845,6 +854,34 @@
         @test TrixiParticles.calculate_dt(zero_velocity_ode, u_ode_rigid, 0.25,
                                           semi_rigid) ≈ 0.25 * pair_contact_dt
 
+        dv_ode_reset = zero(v_ode_rigid)
+        TrixiParticles.system_interaction!(dv_ode_reset, v_ode_rigid, u_ode_rigid,
+                                           semi_rigid)
+        @test rigid_system_1.cache.contact_count[] == 1
+        @test rigid_system_2.cache.contact_count[] == 1
+        @test rigid_system_1.cache.max_contact_penetration[] ≈ pair_penetration
+        @test rigid_system_2.cache.max_contact_penetration[] ≈ pair_penetration
+        @test vec(rigid_system_1.force_per_particle[:, 1]) ≈ collect(expected_force)
+        @test vec(rigid_system_2.force_per_particle[:, 1]) ≈ collect(-expected_force)
+
+        TrixiParticles.update_systems_and_nhs(v_ode_rigid, u_ode_rigid, semi_rigid, 0.0)
+        @test rigid_system_1.cache.contact_count[] == 1
+        @test rigid_system_2.cache.contact_count[] == 1
+        @test rigid_system_1.cache.max_contact_penetration[] ≈ pair_penetration
+        @test rigid_system_2.cache.max_contact_penetration[] ≈ pair_penetration
+        @test vec(rigid_system_1.force_per_particle[:, 1]) ≈ collect(expected_force)
+        @test vec(rigid_system_2.force_per_particle[:, 1]) ≈ collect(-expected_force)
+
+        TrixiParticles.set_zero!(dv_ode_reset)
+        TrixiParticles.system_interaction!(dv_ode_reset, v_ode_rigid, u_ode_rigid,
+                                           semi_rigid)
+        @test rigid_system_1.cache.contact_count[] == 1
+        @test rigid_system_2.cache.contact_count[] == 1
+        @test rigid_system_1.cache.max_contact_penetration[] ≈ pair_penetration
+        @test rigid_system_2.cache.max_contact_penetration[] ≈ pair_penetration
+        @test vec(rigid_system_1.force_per_particle[:, 1]) ≈ collect(expected_force)
+        @test vec(rigid_system_2.force_per_particle[:, 1]) ≈ collect(-expected_force)
+
         dv_rigid_1 = TrixiParticles.wrap_v(dv_ode_rigid, rigid_system_1, semi_rigid)
         dv_rigid_2 = TrixiParticles.wrap_v(dv_ode_rigid, rigid_system_2, semi_rigid)
         TrixiParticles.finalize_interaction!(rigid_system_1, dv_rigid_1, v_rigid_1,
@@ -860,6 +897,29 @@
         @test dv_rigid_2[1, 1] ≈ -expected_force[1] / rigid_mass_2[1]
         @test dv_rigid_1[2, 1] ≈ 0.0
         @test dv_rigid_2[2, 1] ≈ 0.0
+
+        mktempdir() do tmp_dir
+            du_ode_rigid = zero(u_ode_rigid)
+            dvdu_ode_rigid = (; x=(dv_ode_rigid, du_ode_rigid))
+            vu_ode_rigid = (; x=(v_ode_rigid, u_ode_rigid))
+            trixi2vtk(dvdu_ode_rigid, vu_ode_rigid, semi_rigid, 0.0;
+                      output_directory=tmp_dir, iter=1)
+
+            contact_filename = TrixiParticles.system_names(semi_rigid.systems)[1]
+            vtk_contact = TrixiParticles.ReadVTK.VTKFile(joinpath(tmp_dir,
+                                                                  "$(contact_filename)_1.vtu"))
+            point_data_contact = TrixiParticles.ReadVTK.get_point_data(vtk_contact)
+
+            @test only(Array(TrixiParticles.ReadVTK.get_data(point_data_contact["contact_count"]))) ==
+                  rigid_system_1.cache.contact_count[]
+            @test only(Array(TrixiParticles.ReadVTK.get_data(point_data_contact["contact_count"]))) >
+                  0
+            @test only(Array(TrixiParticles.ReadVTK.get_data(point_data_contact["max_contact_penetration"]))) ≈
+                  rigid_system_1.cache.max_contact_penetration[]
+            @test only(Array(TrixiParticles.ReadVTK.get_data(point_data_contact["max_contact_penetration"]))) >
+                  0
+        end
+
         rigid_coordinates = reshape([0.0, 0.05], 2, 1)
         rigid_velocity = reshape([0.0, -1.0], 2, 1)
         rigid_mass = [1.0]
@@ -948,6 +1008,12 @@
                                                    contact_model=contact_model,
                                                    max_manifolds=0)
 
+        system_meta_data = Dict{String, Any}()
+        TrixiParticles.add_system_data!(system_meta_data, rigid_system)
+        @test system_meta_data["contact_model"]["normal_stiffness"] ≈ 2.0e4
+        @test system_meta_data["contact_model"]["normal_damping"] ≈ 20.0
+        @test system_meta_data["contact_model"]["contact_distance"] ≈ 0.1
+
         semi = Semidiscretization(rigid_system, boundary_system)
         ode = semidiscretize(semi, (0.0, 0.01))
         v_ode, u_ode = ode.u0.x
@@ -977,6 +1043,7 @@
         @test kick_dv[2, 1] > 0
         @test kick_rigid_system.resultant_force[][2] > 0
 
+        TrixiParticles.reset_interaction_caches!(semi)
         TrixiParticles.interact!(dv_ode, v_ode, u_ode, rigid_system, boundary_system, semi)
         dv = TrixiParticles.wrap_v(dv_ode, rigid_system, semi)
         v_rigid = TrixiParticles.wrap_v(v_ode, rigid_system, semi)
@@ -985,6 +1052,35 @@
                                              dv_ode, v_ode, u_ode, semi)
 
         @test dv[2, 1] > 0
+        @test rigid_system.cache.contact_count[] == 1
+        @test rigid_system.cache.max_contact_penetration[] ≈ 0.05
+        direct_force = copy(rigid_system.force_per_particle)
+        direct_resultant_force = rigid_system.resultant_force[]
+
+        TrixiParticles.set_zero!(dv_ode)
+        TrixiParticles.update_final!(rigid_system, v_rigid, u_rigid, v_ode, u_ode, semi,
+                                     0.0)
+        TrixiParticles.reset_interaction_caches!(semi)
+        TrixiParticles.interact!(dv_ode, v_ode, u_ode, rigid_system, boundary_system, semi)
+        TrixiParticles.finalize_interaction!(rigid_system, dv, v_rigid, u_rigid,
+                                             dv_ode, v_ode, u_ode, semi)
+
+        @test rigid_system.cache.contact_count[] == 1
+        @test rigid_system.cache.max_contact_penetration[] ≈ 0.05
+        @test rigid_system.force_per_particle == direct_force
+        @test rigid_system.resultant_force[] ≈ direct_resultant_force
+
+        TrixiParticles.set_zero!(dv_ode)
+        TrixiParticles.update_final!(rigid_system, v_rigid, u_rigid, v_ode, u_ode, semi,
+                                     0.0)
+        TrixiParticles.reset_interaction_caches!(semi)
+        TrixiParticles.finalize_interaction!(rigid_system, dv, v_rigid, u_rigid,
+                                             dv_ode, v_ode, u_ode, semi)
+
+        @test all(iszero, dv)
+        @test iszero(rigid_system.resultant_force[])
+        @test iszero(rigid_system.resultant_torque[])
+        @test iszero(rigid_system.angular_acceleration_force[])
 
         far_rigid_ic = InitialCondition(; coordinates=reshape([0.0, 0.09], 2, 1),
                                         velocity=rigid_velocity,
@@ -1006,6 +1102,7 @@
         short_support_v_ode, short_support_u_ode = short_support_ode.u0.x
         short_support_dv_ode = zero(short_support_v_ode)
 
+        TrixiParticles.reset_interaction_caches!(short_support_semi)
         TrixiParticles.interact!(short_support_dv_ode, short_support_v_ode,
                                  short_support_u_ode, far_rigid_system,
                                  short_support_boundary, short_support_semi)
