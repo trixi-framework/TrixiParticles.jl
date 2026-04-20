@@ -59,12 +59,15 @@ initialize!(system, semi) = system
 end
 
 # Return `A[:, i...]` as an `SVector`.
-@inline function extract_svector(A, ::Val{NDIMS}, i...) where {NDIMS}
+@inline function extract_svector(A, ::Val{NDIMS}, i) where {NDIMS}
     # Explicit bounds check, which can be removed by calling this function with `@inbounds`
     @boundscheck checkbounds(A, NDIMS, i...)
 
     # Assume inbounds access now
     return SVector(ntuple(@inline(dim->@inbounds A[dim, i...]), NDIMS))
+    # vec = SIMD.vload(SIMD.Vec{NDIMS, eltype(A)}, pointer(A, NDIMS * (i - 1) + 1))
+
+    return SVector{NDIMS}(Tuple(vec))
 end
 
 # Return `A[:, :, i]` as an `SMatrix`.
@@ -81,8 +84,29 @@ end
         error("extract_smatrix only works for 3D arrays where the first two dimensions each have size N")
     end
 
-    # Extract the matrix elements for this `i` as a tuple to pass to SMatrix
-    return SMatrix{N, N}(ntuple(@inline(j->@inbounds A[N^2 * (i - 1) + j]), Val(N^2)))
+    # Extract the matrix elements as a tuple in column-major order,
+    # and construct an `SMatrix` from it.
+    return SMatrix{N, N}(ntuple(@inline(j->@inbounds A[(i - 1) * N^2 + j]), Val(N^2)))
+end
+
+@inline function extract_smatrix(A::AbstractArray{T, 3}, ::Val{2}, i) where {T}
+    @boundscheck checkbounds(A, 2, 2, i)
+    # This function assumes that the first two dimensions of `A` have exactly the size `2`.
+    @boundscheck if stride(A, 3) != 4
+        # WARNING: Don't split this string with `*`, or this function won't compile on GPUs,
+        # even when the error is never thrown.
+        error("extract_smatrix only works for 3D arrays where the first two dimensions each have size N")
+    end
+
+    # This is the same as
+    # `SMatrix{N, N}(ntuple(@inline(j->@inbounds A[(i - 1) * N^2 + j]), Val(N^2)))`,
+    # but it's slightly faster on CPUs in some cases. As opposed to the GPU-optimized
+    # version in `extract_smatrix_aligned`, we use `vload` and not `vloada` here, which
+    # does not require alignment and works if N^2 is not a power of 2.
+    # This is faster in the TLSPH RHS in 2D, but slower in 3D for some reason.
+    # See the benchmarks in https://github.com/trixi-framework/TrixiParticles.jl/pull/1147.
+    vec = SIMD.vload(SIMD.Vec{4, T}, pointer(A, 4 * (i - 1) + 1))
+    return SMatrix{2, 2}(Tuple(vec))
 end
 
 # Specifically get the current coordinates of a particle for all system types.
