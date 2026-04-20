@@ -175,6 +175,14 @@ end
 
 @inline foreach_system(f, systems) = foreach_noalloc(f, systems)
 
+# This is just for readability to loop over all systems with wrapped arrays.
+@inline function foreach_system_wrapped(f, semi::Union{NamedTuple, Semidiscretization},
+                                        v_ode, u_ode)
+    foreach_system(semi) do system
+        @inline f(system, wrap_v(v_ode, system, semi), wrap_u(u_ode, system, semi))
+    end
+end
+
 """
     semidiscretize(semi, tspan; reset_threads=true)
 
@@ -259,10 +267,7 @@ function semidiscretize(semi, tspan; reset_threads=true)
     end
 
     # Set initial condition
-    foreach_system(semi) do system
-        u0_system = wrap_u(u0_ode, system, semi)
-        v0_system = wrap_v(v0_ode, system, semi)
-
+    foreach_system_wrapped(semi, v0_ode, u0_ode) do system, v0_system, u0_system
         write_u0!(u0_system, system)
         write_v0!(v0_system, system)
     end
@@ -332,10 +337,8 @@ function restart_with!(semi, sol; reset_threads=true)
 
     initialize_neighborhood_searches!(semi)
 
-    foreach_system(semi) do system
-        v = wrap_v(sol.u[end].x[1], system, semi)
-        u = wrap_u(sol.u[end].x[2], system, semi)
-
+    v_ode, u_ode = sol.u[end].x
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         restart_with!(system, v, u)
     end
 
@@ -500,10 +503,7 @@ end
 function update_systems_and_nhs(v_ode, u_ode, semi, t)
     # First update step before updating the NHS
     # (for example for writing the current coordinates in the TLSPH system)
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_positions!(system, v, u, v_ode, u_ode, semi, t)
     end
 
@@ -514,39 +514,37 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
     # This is used to calculate density and pressure of the fluid systems
     # before updating the boundary systems,
     # since the fluid pressure is needed by the Adami interpolation.
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_quantities!(system, v, u, v_ode, u_ode, semi, t)
     end
 
     update_implicit_sph!(semi, v_ode, u_ode, t)
 
     # Perform correction and pressure calculation
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_pressure!(system, v, u, v_ode, u_ode, semi, t)
     end
 
     # This update depends on the computed quantities of the fluid system and therefore
     # needs to be after `update_quantities!`.
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_boundary_interpolation!(system, v, u, v_ode, u_ode, semi, t)
     end
 
     # Final update step for all remaining systems
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_final!(system, v, u, v_ode, u_ode, semi, t)
     end
+end
+
+# Some systems accumulate pairwise interaction state outside `dv_ode`. Reset that state once
+# at the beginning of every explicitly assembled interaction pass.
+function reset_interaction_caches!(semi::Union{NamedTuple, Semidiscretization})
+    foreach_system(semi) do system
+        reset_interaction_caches!(system)
+    end
+
+    return semi
 end
 
 # The `SplitIntegrationCallback` overwrites `semi_wrap` to use a different
@@ -698,6 +696,8 @@ end
 end
 
 function system_interaction!(dv_ode, v_ode, u_ode, semi)
+    reset_interaction_caches!(semi)
+
     # Call `interact!` for each pair of systems
     foreach_system(semi) do system
         foreach_system(semi) do neighbor
@@ -730,6 +730,8 @@ end
 # Function barrier to make benchmarking interactions easier.
 # One can benchmark, e.g. the fluid-fluid interaction, with:
 # dv_ode, du_ode = copy(sol.u[end]).x; v_ode, u_ode = copy(sol.u[end]).x;
+# For manual multi-pair interaction assembly, call `reset_interaction_caches!(semi)` once
+# before the first direct `interact!` call.
 # @btime TrixiParticles.interact!($dv_ode, $v_ode, $u_ode, $fluid_system, $fluid_system, $semi);
 @inline function interact!(dv_ode, v_ode, u_ode, system, neighbor, semi; timer_str="")
     dv = wrap_v(dv_ode, system, semi)
