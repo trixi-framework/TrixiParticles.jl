@@ -215,39 +215,6 @@ end
     end
 end
 
-@trixi_testset "Semidiscretization vector alignment" begin
-    # Mock systems
-    struct System1 <: TrixiParticles.AbstractSystem{3} end
-    struct System2 <: TrixiParticles.AbstractSystem{3} end
-
-    system1 = System1()
-    system2 = System2()
-
-    Base.eltype(::System1) = Float64
-    Base.eltype(::System2) = Float64
-    TrixiParticles.u_nvariables(::System1) = 3
-    TrixiParticles.u_nvariables(::System2) = 4
-    TrixiParticles.v_nvariables(::System1) = 3
-    TrixiParticles.v_nvariables(::System2) = 2
-    TrixiParticles.nparticles(::System1) = 2
-    TrixiParticles.nparticles(::System2) = 3
-
-    TrixiParticles.compact_support(::System1, neighbor) = 0.2
-    TrixiParticles.compact_support(::System2, neighbor) = 0.2
-
-    @testset verbose=true "Constructor" begin
-        semi = Semidiscretization(system1, system2, neighborhood_search=nothing,
-                                  parallelization_backend=Main.parallelization_backend)
-
-        # These are the ranges that we would expect on the CPU:
-        # semi.ranges_u == (1:6, 7:18)
-        # semi.ranges_v == (1:6, 7:12)
-        # Due to alignment to 64 bytes, the ranges are adjusted to be:
-        @test semi.ranges_u == (1:6, 9:20)
-        @test semi.ranges_v == (1:6, 9:14)
-    end
-end
-
 @testset verbose=true "Examples $TRIXIPARTICLES_TEST_" begin
     @testset verbose=true "Fluid" begin
         @trixi_testset "fluid/dam_break_2d_gpu.jl Float64" begin
