@@ -47,11 +47,9 @@ viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 
 # `pressure_acceleration=nothing` is the default and can be overwritten with `trixi_include`
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid;
-                                           smoothing_kernel=smoothing_kernel,
-                                           smoothing_length=smoothing_length,
+                                           smoothing_kernel, smoothing_length,
                                            density_calculator=fluid_density_calculator,
-                                           state_equation=state_equation,
-                                           viscosity=viscosity,
+                                           state_equation, viscosity,
                                            shifting_technique=nothing,
                                            pressure_acceleration=nothing)
 
@@ -63,8 +61,7 @@ viscosity_wall = nothing
 #viscosity_wall = ViscosityAdami(nu=0.0025 * smoothing_length * sound_speed / 8)
 
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=state_equation,
-                                             boundary_density_calculator,
+                                             state_equation, boundary_density_calculator,
                                              smoothing_kernel, smoothing_length,
                                              viscosity=viscosity_wall)
 

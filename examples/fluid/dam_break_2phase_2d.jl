@@ -77,8 +77,7 @@ air_eos = StateEquationCole(; sound_speed, reference_density=air_density, expone
 #air_eos = StateEquationIdealGas(; sound_speed, reference_density=air_density, gamma=1.4)
 
 air_system_system = WeaklyCompressibleSPHSystem(air_system;
-                                                smoothing_kernel=smoothing_kernel,
-                                                smoothing_length=smoothing_length,
+                                                smoothing_kernel, smoothing_length,
                                                 density_calculator=fluid_density_calculator,
                                                 state_equation=air_eos,
                                                 viscosity=air_viscosity,

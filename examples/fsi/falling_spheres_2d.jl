@@ -66,9 +66,7 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid;
                                            smoothing_kernel=fluid_smoothing_kernel,
                                            smoothing_length=fluid_smoothing_length,
                                            density_calculator=fluid_density_calculator,
-                                           state_equation=state_equation,
-                                           viscosity=viscosity,
-                                           density_diffusion=density_diffusion,
+                                           state_equation, viscosity, density_diffusion,
                                            acceleration=(0.0, -gravity))
 
 # ==========================================================================================

@@ -52,19 +52,16 @@ fluid_density_calculator = ContinuityDensity()
 viscosity = ArtificialViscosityMonaghan(alpha=0.1, beta=0.0)
 
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid;
-                                           smoothing_kernel=smoothing_kernel,
-                                           smoothing_length=smoothing_length,
+                                           smoothing_kernel, smoothing_length,
                                            density_calculator=fluid_density_calculator,
-                                           state_equation=state_equation,
-                                           viscosity=viscosity,
+                                           state_equation, viscosity,
                                            acceleration=(0.0, -gravity))
 
 # ==========================================================================================
 # ==== Boundary
 boundary_density_calculator = AdamiPressureExtrapolation()
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=state_equation,
-                                             boundary_density_calculator,
+                                             state_equation, boundary_density_calculator,
                                              smoothing_kernel, smoothing_length)
 
 boundary_system = WallBoundarySystem(tank.boundary, boundary_model,

@@ -65,11 +65,9 @@ state_equation = StateEquationCole(; sound_speed, reference_density=fluid_densit
 
 density_diffusion = DensityDiffusionAntuono(delta=0.1)
 fluid_system = WeaklyCompressibleSPHSystem(fluid;
-                                           smoothing_kernel=smoothing_kernel,
-                                           smoothing_length=smoothing_length,
+                                           smoothing_kernel, smoothing_length,
                                            density_calculator=ContinuityDensity(),
-                                           state_equation=state_equation,
-                                           density_diffusion=density_diffusion,
+                                           state_equation, density_diffusion,
                                            viscosity=ViscosityAdami(; nu),
                                            shifting_technique=ParticleShiftingTechnique(),
                                            pressure_acceleration=tensile_instability_control,
@@ -81,7 +79,7 @@ boundary_model = BoundaryModelDummyParticles(boundary.density, boundary.mass,
                                              AdamiPressureExtrapolation(),
                                              viscosity=ViscosityAdami(; nu),
                                              smoothing_kernel, smoothing_length,
-                                             state_equation=state_equation)
+                                             state_equation)
 
 boundary_system = WallBoundarySystem(boundary, boundary_model)
 

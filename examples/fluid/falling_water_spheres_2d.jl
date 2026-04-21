@@ -60,22 +60,18 @@ viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
 density_diffusion = DensityDiffusionAntuono(delta=0.1)
 
 sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1;
-                                                     smoothing_kernel=fluid_smoothing_kernel,
-                                                     smoothing_length=fluid_smoothing_length,
-                                                     sound_speed=sound_speed,
-                                                     viscosity=viscosity,
+                                                     fluid_smoothing_kernel,
+                                                     fluid_smoothing_length,
+                                                     sound_speed, viscosity,
                                                      density_calculator=ContinuityDensity(),
                                                      acceleration=(0.0, -gravity),
                                                      surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.05),
                                                      reference_particle_spacing=fluid_particle_spacing)
 
 sphere = WeaklyCompressibleSPHSystem(sphere2;
-                                     smoothing_kernel=fluid_smoothing_kernel,
-                                     smoothing_length=fluid_smoothing_length,
+                                     fluid_smoothing_kernel, fluid_smoothing_length,
                                      density_calculator=fluid_density_calculator,
-                                     state_equation=state_equation,
-                                     viscosity=viscosity,
-                                     density_diffusion=density_diffusion,
+                                     state_equation, viscosity, density_diffusion,
                                      acceleration=(0.0, -gravity))
 
 # ==========================================================================================
@@ -83,8 +79,7 @@ sphere = WeaklyCompressibleSPHSystem(sphere2;
 boundary_density_calculator = AdamiPressureExtrapolation()
 wall_viscosity = nu
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=state_equation,
-                                             boundary_density_calculator,
+                                             state_equation, boundary_density_calculator,
                                              fluid_smoothing_kernel, fluid_smoothing_length,
                                              viscosity=ViscosityAdami(nu=wall_viscosity),
                                              reference_particle_spacing=fluid_particle_spacing)

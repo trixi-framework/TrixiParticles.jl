@@ -83,12 +83,10 @@ if wcsph
     density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 
     fluid_system = WeaklyCompressibleSPHSystem(pipe.fluid;
-                                               smoothing_kernel=smoothing_kernel,
-                                               smoothing_length=smoothing_length,
+                                               smoothing_kernel, smoothing_length,
                                                density_calculator=fluid_density_calculator,
-                                               state_equation=state_equation,
-                                               density_diffusion=density_diffusion,
-                                               viscosity=viscosity,
+                                               state_equation, density_diffusion,
+                                               viscosity,
                                                shifting_technique=ParticleShiftingTechnique(v_max_factor=1.5),
                                                buffer_size=n_buffer_particles)
 else
@@ -96,10 +94,8 @@ else
     state_equation = nothing
 
     fluid_system = EntropicallyDampedSPHSystem(pipe.fluid;
-                                               smoothing_kernel=smoothing_kernel,
-                                               smoothing_length=smoothing_length,
-                                               sound_speed=sound_speed,
-                                               viscosity=viscosity,
+                                               smoothing_kernel, smoothing_length,
+                                               sound_speed, viscosity,
                                                density_calculator=fluid_density_calculator,
                                                shifting_technique=ParticleShiftingTechnique(),
                                                buffer_size=n_buffer_particles)

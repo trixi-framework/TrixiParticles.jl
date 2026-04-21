@@ -82,10 +82,8 @@ if wcsph
     state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                        exponent=1)
     fluid_system = WeaklyCompressibleSPHSystem(fluid;
-                                               smoothing_kernel=smoothing_kernel,
-                                               smoothing_length=smoothing_length,
-                                               density_calculator=density_calculator,
-                                               state_equation=state_equation,
+                                               smoothing_kernel, smoothing_length,
+                                               density_calculator, state_equation,
                                                pressure_acceleration=TrixiParticles.inter_particle_averaged_pressure,
                                                viscosity=ViscosityAdami(; nu),
                                                shifting_technique=TransportVelocityAdami(;
@@ -93,10 +91,8 @@ if wcsph
 else
     density_calculator = SummationDensity()
     fluid_system = EntropicallyDampedSPHSystem(fluid;
-                                               smoothing_kernel=smoothing_kernel,
-                                               smoothing_length=smoothing_length,
-                                               sound_speed=sound_speed,
-                                               density_calculator=density_calculator,
+                                               smoothing_kernel, smoothing_length,
+                                               sound_speed, density_calculator,
                                                shifting_technique=TransportVelocityAdami(;
                                                                                          background_pressure),
                                                viscosity=ViscosityAdami(; nu))

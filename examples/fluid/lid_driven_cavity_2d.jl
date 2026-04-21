@@ -62,12 +62,10 @@ if wcsph
     state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                        exponent=1)
     fluid_system = WeaklyCompressibleSPHSystem(cavity.fluid;
-                                               smoothing_kernel=smoothing_kernel,
-                                               smoothing_length=smoothing_length,
-                                               density_calculator=density_calculator,
-                                               state_equation=state_equation,
+                                               smoothing_kernel, smoothing_length,
+                                               density_calculator, state_equation,
                                                pressure_acceleration=TrixiParticles.inter_particle_averaged_pressure,
-                                               viscosity=viscosity,
+                                               viscosity,
                                                shifting_technique=TransportVelocityAdami(background_pressure=pressure))
 else
     state_equation = nothing

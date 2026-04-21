@@ -61,8 +61,7 @@ end
 oil_state_equation = StateEquationCole(; sound_speed, reference_density=oil_density,
                                        exponent=1, clip_negative_pressure=false)
 oil_system = WeaklyCompressibleSPHSystem(oil;
-                                         smoothing_kernel=smoothing_kernel,
-                                         smoothing_length=smoothing_length,
+                                         smoothing_kernel, smoothing_length,
                                          density_calculator=fluid_density_calculator,
                                          state_equation=oil_eos,
                                          viscosity=oil_viscosity,

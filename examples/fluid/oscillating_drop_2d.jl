@@ -57,13 +57,10 @@ viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 
 density_diffusion = DensityDiffusionAntuono(delta=0.1)
 fluid_system = WeaklyCompressibleSPHSystem(fluid;
-                                           smoothing_kernel=smoothing_kernel,
-                                           smoothing_length=smoothing_length,
+                                           smoothing_kernel, smoothing_length,
                                            density_calculator=fluid_density_calculator,
-                                           state_equation=state_equation,
-                                           viscosity=viscosity,
-                                           density_diffusion=density_diffusion,
-                                           source_terms=source_terms)
+                                           state_equation, viscosity, density_diffusion,
+                                           source_terms)
 
 # ==========================================================================================
 # ==== Simulation
