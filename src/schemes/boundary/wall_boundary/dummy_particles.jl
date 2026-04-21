@@ -616,7 +616,7 @@ end
     cache.volume[particle] += kernel_weight
 
     interpolate_fluid_velocity!(cache, viscosity, neighbor_system, v_neighbor_system,
-                               kernel_weight, particle, neighbor)
+                                kernel_weight, particle, neighbor)
 end
 
 @inline function dynamic_pressure(boundary_density_calculator, v,
