@@ -40,9 +40,9 @@
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
                 # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol, semi) < 200
+                @test count_rhs_allocations(sol) < 200
             else
-                @test count_rhs_allocations(sol, semi) == 0
+                @test count_rhs_allocations(sol) == 0
             end
         end
 
@@ -178,9 +178,9 @@
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
                 # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol2) < 200
+                @test count_rhs_allocations(sol2; split_integration) < 200
             else
-                @test count_rhs_allocations(sol2) == 0
+                @test count_rhs_allocations(sol2; split_integration) == 0
             end
 
             # Use stage-level coupling and verify that it is not compatible with
@@ -208,9 +208,9 @@
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
                 # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol2) < 200
+                @test count_rhs_allocations(sol2; split_integration) < 200
             else
-                @test count_rhs_allocations(sol2) == 0
+                @test count_rhs_allocations(sol2; split_integration) == 0
             end
 
             # Use split integration and verify that it is actually used for TLSPH

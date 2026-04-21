@@ -167,7 +167,8 @@ function initialize_split_integration!(cb, vu_ode, t, integrator)
     # and `p.split_integration_data`. The latter is usually `nothing`, but we can use it
     # to store another `NamedTuple` containing all split integration data.
     vu_ode_split = copy(split_integrator.u)
-    payload = (; stage_coupling, predict_positions, integrator=split_integrator,
+    payload = (; stage_coupling, predict_positions=Val(predict_positions),
+               integrator=split_integrator,
                large_integrator=integrator, vu_ode_split, t_ref=Ref(t), n_reject=Ref(0))
     integrator.p = (; semi, split_integration_data=payload)
 
@@ -284,12 +285,11 @@ function split_integrate!(v_ode, u_ode, t_new, data)
         # of the large integrator. To be sure, we assume that the split integrator part
         # of the large `v_ode` and `u_ode` can contain arbitrary values and overwrite them
         # with the current split integration values.
-        predict_positions = Val(data.predict_positions)
         @trixi_timeit timer() "copy back" copy_from_split!(v_ode, u_ode,
                                                            vu_ode_split.x...,
                                                            semi_large, semi_split,
                                                            t_new, t_previous;
-                                                           predict_positions)
+                                                           data.predict_positions)
     end
 
     if !rejected && isapprox(t_new, t_previous)
