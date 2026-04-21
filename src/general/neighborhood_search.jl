@@ -23,7 +23,7 @@ function deactivate_out_of_bounds_particles!(system, buffer, nhs, cell_list, v, 
 end
 
 # `GridNeighborhoodSearch` with a `FullGridCellList` requires a bounding box.
-# This function deactivates particles that move outside this bounding box to prevent
+# This function deactivates particles that move outside the bounding box to prevent
 # simulation crashes.
 # Note that simply deactivating particles is only possible in combination with a 'SystemBuffer'.
 function deactivate_out_of_bounds_particles!(system, ::SystemBuffer, nhs,

@@ -316,7 +316,7 @@ function update_positions!(system::OpenBoundarySystem, v, u, v_ode, u_ode, semi,
     nhs = get_neighborhood_search(system.fluid_system, system, semi)
 
     # `GridNeighborhoodSearch` with a `FullGridCellList` requires a bounding box.
-    # This function deactivates particles that move outside this bounding box to prevent
+    # This function deactivates particles that move outside the bounding box to prevent
     # simulation crashes.
     # Note that simply deactivating particles is only possible in combination with a 'SystemBuffer'.
     deactivate_out_of_bounds_particles!(system, buffer(system), nhs, v, u, semi)
