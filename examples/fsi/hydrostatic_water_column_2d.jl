@@ -65,7 +65,7 @@ right_wall = RectangularShape(structure_particle_spacing, (3, n_particles_plate_
                               place_on_shell=true)
 fixed_particles = union(left_wall, right_wall)
 
-structure_geometry = union(plate, fixed_particles)
+structure_geometry = union(fixed_particles, plate)
 
 # ==========================================================================================
 # ==== Smoothing Kernel, Boundary, and Related Quantities
