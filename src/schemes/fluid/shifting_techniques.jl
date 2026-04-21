@@ -416,7 +416,9 @@ function update_shifting_from_callback!(system,
     v = wrap_v(v_ode, system, semi)
     u = wrap_u(u_ode, system, semi)
 
-    update_shifting_inner!(system, shifting, v, u, v_ode, u_ode, semi)
+    @trixi_timeit timer() "update shifting" begin
+        update_shifting_inner!(system, shifting, v, u, v_ode, u_ode, semi)
+    end
 end
 
 # `ParticleShiftingTechnique{<:Any, <:Any, <:Any, true}`
