@@ -10,6 +10,10 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 - Added `StateEquationAdaptiveCole` an adaptive sound speed version of the Cole state equation (#875)
 
+### Important Bugfixes
+
+- Fixed a bug with no-slip boundary conditions when using any viscosity model other than `ViscosityAdami` (#1089)
+
 
 ## Version 0.4.3
 
@@ -34,7 +38,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 - Added GPU and FP32 support for DEM (#979).
 
-  
+
 ### Performance
 - Improved GPU performance with shifting up to a factor of 10x (#974, #993).
 
@@ -360,5 +364,3 @@ Features:
 #### TLSPH
 
 An implementation of TLSPH (Total Lagrangian Smoothed Particle Hydrodynamics) for solid bodies enabling FSI (Fluid Structure Interactions).
-
-
