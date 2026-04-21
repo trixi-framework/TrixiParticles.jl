@@ -105,7 +105,7 @@ if use_edac
 else
     fluid_density_calculator = ContinuityDensity()
     density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
-    # density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
+    # density_diffusion = DensityDiffusionAntuono(delta=0.1)
     fluid_system = WeaklyCompressibleSPHSystem(tank.fluid;
                                                smoothing_kernel=smoothing_kernel,
                                                smoothing_length=smoothing_length_fluid,

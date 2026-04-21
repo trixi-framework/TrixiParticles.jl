@@ -63,7 +63,7 @@ viscosity_fluid = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
 # free surface in long-running simulations, but is significantly faster than the model
 # by Antuono. This simulation is short enough to use the faster model.
 density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
-# density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
+# density_diffusion = DensityDiffusionAntuono(delta=0.1)
 
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid;
                                            smoothing_kernel=smoothing_kernel,

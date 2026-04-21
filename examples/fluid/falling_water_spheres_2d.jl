@@ -57,7 +57,7 @@ fluid_density_calculator = ContinuityDensity()
 nu = 0.005
 alpha = 8 * nu / (fluid_smoothing_length * sound_speed)
 viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
-density_diffusion = DensityDiffusionAntuono(sphere2, delta=0.1)
+density_diffusion = DensityDiffusionAntuono(delta=0.1)
 
 sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1;
                                                      smoothing_kernel=fluid_smoothing_kernel,

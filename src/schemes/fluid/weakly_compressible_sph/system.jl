@@ -166,6 +166,7 @@ function WeaklyCompressibleSPHSystem(initial_condition, density_calculator, stat
                                           n_particles)...,
              create_cache_refinement(initial_condition, particle_refinement,
                                      smoothing_length)...,
+             create_cache_density_diffusion(initial_condition, density_diffusion)...,
              create_cache_shifting(initial_condition, shifting_technique)...,
              # Per-system color tag for colorfield surface-normal logic and VTK output.
              color=Int(color_value))
@@ -352,7 +353,8 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_od
     return system
 end
 
-function update_final!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t)
+function update_final!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t;
+                       kwargs...)
     (; surface_tension) = system
 
     # Surface normal of neighbor and boundary needs to have been calculated already
