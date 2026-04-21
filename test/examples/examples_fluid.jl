@@ -498,7 +498,7 @@
         ]
         @test fluid_system isa WeaklyCompressibleSPHSystem
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/pulsative_channel_flow_3d.jl" begin
@@ -513,7 +513,7 @@
         ]
         @test fluid_system isa WeaklyCompressibleSPHSystem
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/lid_driven_cavity_2d.jl (EDAC)" begin
