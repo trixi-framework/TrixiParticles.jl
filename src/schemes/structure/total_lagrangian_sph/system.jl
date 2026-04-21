@@ -475,9 +475,6 @@ end
 @inline function calc_deformation_grad!(deformation_grad, system, semi)
     (; mass, material_density) = system
 
-    # Reset deformation gradient
-    set_zero!(deformation_grad)
-
     # For `distance == 0`, the analytical gradient is zero, but the unsafe gradient
     # and the density diffusion divide by zero.
     # To account for rounding errors, we check if `distance` is almost zero.
@@ -519,10 +516,11 @@ end
             grad_kernel = smoothing_kernel_grad_unsafe(system, initial_pos_diff,
                                                        initial_distance, particle)
 
-            volume = @inbounds mass[neighbor] / material_density[neighbor]
+            volume = @inbounds div_fast(mass[neighbor], material_density[neighbor])
             current_coords_b = @inbounds current_coords(system, neighbor)
+
             pos_diff_ = current_coords_a - current_coords_b
-            # On GPUs, convert `Float64` coordinates to `Float32` after computing the difference
+            # On GPUs, convert `Float64` to `Float32` after computing the difference
             pos_diff = convert.(eltype(system), pos_diff_)
 
             # The tensor product pos_diff ⊗ (L_{0a} * ∇W) is equivalent to multiplication
@@ -531,7 +529,7 @@ end
         end
 
         for j in 1:ndims(system), i in 1:ndims(system)
-            @inbounds deformation_grad[i, j, particle] += result[][i, j]
+            @inbounds deformation_grad[i, j, particle] = result[][i, j]
         end
     end
 
