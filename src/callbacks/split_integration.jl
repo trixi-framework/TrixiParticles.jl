@@ -196,14 +196,17 @@ function (split_integration_callback::SplitIntegrationCallback)(integrator)
 
     if data.stage_coupling
         # Tell OrdinaryDiffEq that `u` has NOT been modified.
-        # Theoretically, the TLSPH part has been modified, but in the FSAL case,
-        # the time at the last stage is the same as the step time, so the split integration
-        # above is skipped and `u` is not modified at all.
-        # Therefore, the derivative at the last stage can be reused for the next step.
+        # Usually, `u` is modified in the split integration above, but for FSAL schemes,
+        # the last stage occurs at the same time as the next step, so the split integrator
+        # has already been advanced to the new step time in the last stage of the previous
+        # step. This means that the split integration above is skipped and `u` is not
+        # modified.
+        # Therefore, the RHS from the last stage can be reused for the next step, which is
+        # what `u_modified!` is used for.
         # TODO is `u_modified` ever relevant for non-FSAL methods?
         u_modified!(integrator, false)
     else
-        # Tell OrdinaryDiffEq that `u` has been modified
+        # Tell OrdinaryDiffEq that `u` has been modified.
         u_modified!(integrator, true)
     end
 
@@ -274,9 +277,14 @@ function split_integrate!(v_ode, u_ode, t_new, data)
 
     @trixi_timeit timer() "split integration" begin
         # Copy the solutions back to the original integrator.
-        # We modify `v_ode` and `u_ode`, which is technically not allowed during stages,
-        # hence there are no guarantees about the structure part of `v_ode` and `u_ode`.
-        # By copying the current split integration values, we make sure that it's correct.
+        # Since the split integration part of the large integrator RHS is always zero,
+        # the split integrator part of the large `v_ode` and `u_ode` should not be modified
+        # by the large integrator.
+        # However, we cannot rely on this because we illegally modify `v_ode` and `u_ode`
+        # during stages (this is only allowed from callbacks), which might invalidate caches
+        # of the large integrator. To be sure, we assume that the split integrator part
+        # of the large `v_ode` and `u_ode` can contain arbitrary values and overwrite them
+        # with the current split integration values.
         predict_positions = Val(data.predict_positions)
         @trixi_timeit timer() "copy back" copy_from_split!(v_ode, u_ode,
                                                            vu_ode_split.x...,
@@ -289,7 +297,7 @@ function split_integrate!(v_ode, u_ode, t_new, data)
         # This stage time is the same as the previous stage time and we don't need to
         # re-initialize the split integrator due to a rejected step.
         # There is nothing to do here.
-        # IMPORTANT: This has to be after copying the solution to the large integrator.
+        # IMPORTANT: This has to be done after copying the solution to the large integrator.
         # Otherwise, the large integrator might contain arbitrary values since we
         # are modifying `v_ode` and `u_ode` during stages, which is not allowed.
         # IMPORTANT: If we try to `return` from within the `@trixi_timeit` block,
