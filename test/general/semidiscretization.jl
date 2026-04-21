@@ -25,7 +25,7 @@
     @testset verbose=true "Constructor" begin
         semi = Semidiscretization(system1, system2, neighborhood_search=nothing)
 
-        # These are the ranges that we would expect on the CPU:
+        # These are the ranges that we would expect without alignment padding:
         # semi.ranges_u == (1:6, 7:18)
         # semi.ranges_v == (1:6, 7:12)
         # Due to alignment to 64 bytes, the ranges are adjusted to be:

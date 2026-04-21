@@ -131,7 +131,7 @@ end
         x = rand(T, 4, 4)
         y = Adapt.adapt(parallelization_backend, x)
 
-        # Dummy system that will only be used for `ndims`.
+        # Dummy system that will only be used for `ndims` and `current_density`.
         struct MockSystem end
         Base.ndims(::MockSystem) = 3
         system = MockSystem()

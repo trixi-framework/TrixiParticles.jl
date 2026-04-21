@@ -65,8 +65,6 @@ end
 
     # Assume inbounds access now
     return SVector(ntuple(@inline(dim->@inbounds A[dim, i...]), NDIMS))
-
-    return SVector{NDIMS}(Tuple(vec))
 end
 
 # Return `A[:, :, i]` as an `SMatrix`.

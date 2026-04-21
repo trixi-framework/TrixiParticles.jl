@@ -281,6 +281,8 @@ function semidiscretize(semi, tspan; reset_threads=true)
                                         parallelization_backend=semi.parallelization_backend)
     end
 
+    # Initialize the arrays with zeros to initialize the padding values for alignment.
+    # The values that are actually used will be overwritten in `write_u0!` and `write_v0!`.
     u0_ode .= 0
     v0_ode .= 0
 

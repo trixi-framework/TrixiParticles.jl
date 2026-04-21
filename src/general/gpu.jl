@@ -38,13 +38,6 @@ end
 
 # This function checks if we can use aligned `SVector` or `SMatrix` loads for the given
 # array `A` and the size of the vector we want to load `n`.
-#
-# Note that it is not checked if the size `n` is legal (a power of 2).
-# If the size `n` is not legal, the aligned loads will fall back to regular loads.
-# This is because a regular load is expected for a problem that doesn't support aligned
-# loads (e.g. 3D matrices of 3x3), whereas an illegal alignment is unexpected and should
-# throw an error instead of silently (and non-deterministically) falling back to slower
-# regular loads.
 function can_use_aligned_load(A, n)
     # Check that `n` is a power of 2, which is a requirement for aligned loads.
     is_power_of_2 = n > 0 && (n & (n - 1)) == 0
@@ -76,6 +69,12 @@ end
 @inline function _extract_svector_aligned(A::AbstractMatrix{T}, ::Val{N}, i) where {T, N}
     @boundscheck checkbounds(A, 1:N, i)
     @boundscheck can_use_aligned_load(A, N)
+    # This function assumes a stride of N in the last dimension.
+    @boundscheck if stride(A, 2) != N
+        # WARNING: Don't split this string with `*`, or this function won't compile on GPUs,
+        # even when the error is never thrown.
+        error("extract_svector_aligned only works for 2D arrays where the stride in the last dimension is equal to N")
+    end
 
     vec = SIMD.vloada(SIMD.Vec{N, eltype(A)}, pointer(A, N * (i - 1) + 1))
 
@@ -95,6 +94,12 @@ end
 @inline function extract_smatrix_aligned(A::AbstractArray{T, 3}, ::Val{2}, i) where {T}
     @boundscheck checkbounds(A, 2, 2, i)
     @boundscheck can_use_aligned_load(A, 4)
+    # This function assumes that the first two dimensions of `A` have exactly the size `N`.
+    @boundscheck if stride(A, 3) != 4
+        # WARNING: Don't split this string with `*`, or this function won't compile on GPUs,
+        # even when the error is never thrown.
+        error("extract_smatrix_aligned only works for 3D arrays where the first two dimensions each have size N")
+    end
 
     vec = SIMD.vloada(SIMD.Vec{4, T}, pointer(A, 4 * (i - 1) + 1))
 
