@@ -111,7 +111,7 @@ else
                                                smoothing_kernel, smoothing_length,
                                                sound_speed, viscosity,
                                                density_calculator=fluid_density_calculator,
-                                               shifting_technique=shifting_technique,
+                                               shifting_technique,
                                                buffer_size=n_buffer_particles)
 end
 
@@ -157,9 +157,9 @@ wall_boundary = union(channel.boundary)
 
 boundary_model = BoundaryModelDummyParticles(wall_boundary.density, wall_boundary.mass,
                                              AdamiPressureExtrapolation(),
-                                             state_equation=state_equation,
-                                             viscosity=viscosity,
-                                             smoothing_kernel, smoothing_length)
+                                             smoothing_kernel, smoothing_length;
+                                             state_equation,
+                                             viscosity)
 
 boundary_system = WallBoundarySystem(wall_boundary, boundary_model)
 

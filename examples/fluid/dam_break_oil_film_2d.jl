@@ -71,8 +71,8 @@ oil_system = WeaklyCompressibleSPHSystem(oil;
                                          reference_particle_spacing=fluid_particle_spacing)
 
 # oil_system = WeaklyCompressibleSPHSystem(oil;
-#                                          smoothing_kernel=smoothing_kernel,
-#                                          smoothing_length=smoothing_length,
+#                                          smoothing_kernel,
+#                                          smoothing_length,
 #                                          density_calculator=fluid_density_calculator,
 #                                          state_equation=oil_eos,
 #                                          viscosity=oil_viscosity,

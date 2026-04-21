@@ -86,12 +86,13 @@ state_equation = use_edac ? nothing :
                                    exponent=7, clip_negative_pressure=false)
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, (plate_size[1], 3.0),
+                       fluid_density;
                        min_coordinates=(0.0, fluid_particle_spacing / 2),
-                       fluid_density, n_layers=boundary_layers,
-                       spacing_ratio=spacing_ratio,
+                       n_layers=boundary_layers,
+                       spacing_ratio,
                        faces=(true, true, false, false),
                        acceleration=(0.0, -gravity),
-                       state_equation=state_equation)
+                       state_equation)
 
 if use_edac
     fluid_system = EntropicallyDampedSPHSystem(tank.fluid;
@@ -115,19 +116,20 @@ else
 end
 
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=state_equation,
                                              boundary_density_calculator,
-                                             smoothing_kernel, smoothing_length_fluid)
+                                             smoothing_kernel, smoothing_length_fluid;
+                                             state_equation)
 boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
 boundary_model_structure = BoundaryModelDummyParticles(hydrodynamic_densities,
                                                        hydrodynamic_masses,
-                                                       state_equation=state_equation,
                                                        boundary_density_calculator,
                                                        smoothing_kernel,
-                                                       smoothing_length_structure)
+                                                       smoothing_length_structure;
+                                                       state_equation)
 structure_system = TotalLagrangianSPHSystem(structure_geometry, smoothing_kernel,
                                             smoothing_length_structure,
-                                            E, nu, boundary_model=boundary_model_structure,
+                                            E, nu;
+                                            boundary_model=boundary_model_structure,
                                             n_clamped_particles=nparticles(fixed_particles),
                                             acceleration=(0.0, -gravity))
 
@@ -141,8 +143,8 @@ max_corner = max.(maximum(structure_geometry.coordinates, dims=2),
 cell_list = FullGridCellList(; min_corner, max_corner)
 neighborhood_search = GridNeighborhoodSearch{2}(; update_strategy=ParallelUpdate(),
                                                 cell_list)
-semi = Semidiscretization(structure_system, fluid_system, boundary_system,
-                          neighborhood_search=neighborhood_search,
+semi = Semidiscretization(structure_system, fluid_system, boundary_system;
+                          neighborhood_search,
                           parallelization_backend=PolyesterBackend())
 ode = semidiscretize(semi, tspan)
 

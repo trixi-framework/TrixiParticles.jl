@@ -170,9 +170,9 @@ open_boundary = OpenBoundarySystem(inlet_zone, outlet_zone; fluid_system,
 # ==== Boundary
 boundary_model = BoundaryModelDummyParticles(wall_boundary.density, wall_boundary.mass,
                                              AdamiPressureExtrapolation(),
-                                             state_equation=state_equation,
-                                             viscosity=viscosity,
-                                             smoothing_kernel, smoothing_length)
+                                             smoothing_kernel, smoothing_length;
+                                             state_equation,
+                                             viscosity)
 
 boundary_system = WallBoundarySystem(wall_boundary, boundary_model)
 
@@ -187,8 +187,8 @@ neighborhood_search = GridNeighborhoodSearch{3}(;
                                                 update_strategy=ParallelUpdate())
 
 semi = Semidiscretization(fluid_system, open_boundary,
-                          boundary_system,
-                          neighborhood_search=neighborhood_search,
+                          boundary_system;
+                          neighborhood_search,
                           parallelization_backend=PolyesterBackend())
 
 ode_problem = semidiscretize(semi, tspan)

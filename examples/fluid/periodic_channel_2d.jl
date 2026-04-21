@@ -32,8 +32,8 @@ sound_speed = 10 * initial_velocity[1]
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=7)
 
-tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
-                       n_layers=boundary_layers, spacing_ratio=spacing_ratio,
+tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density;
+                       n_layers=boundary_layers, spacing_ratio,
                        faces=(false, false, true, true), velocity=initial_velocity,
                        coordinates_eltype=Float64)
 
@@ -61,8 +61,9 @@ viscosity_wall = nothing
 #viscosity_wall = ViscosityAdami(nu=0.0025 * smoothing_length * sound_speed / 8)
 
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation, boundary_density_calculator,
-                                             smoothing_kernel, smoothing_length,
+                                             boundary_density_calculator,
+                                             smoothing_kernel, smoothing_length;
+                                             state_equation,
                                              viscosity=viscosity_wall)
 
 boundary_system = WallBoundarySystem(tank.boundary, boundary_model)

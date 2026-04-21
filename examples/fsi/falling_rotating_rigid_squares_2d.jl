@@ -31,10 +31,10 @@ sound_speed = 100.0
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1)
 
-tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
-                       n_layers=boundary_layers, spacing_ratio=spacing_ratio,
+tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density;
+                       n_layers=boundary_layers, spacing_ratio,
                        faces=(true, true, true, false),
-                       acceleration=(0.0, -gravity), state_equation=state_equation)
+                       acceleration=(0.0, -gravity), state_equation)
 
 square1_side_length = 0.4
 square2_side_length = 0.3
@@ -85,9 +85,9 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid;
 # ==== Boundary
 boundary_density_calculator = AdamiPressureExtrapolation()
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=state_equation,
                                              boundary_density_calculator,
-                                             fluid_smoothing_kernel, fluid_smoothing_length)
+                                             fluid_smoothing_kernel, fluid_smoothing_length;
+                                             state_equation)
 
 boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
 
@@ -101,10 +101,10 @@ function structure_boundary_model(shape)
 
     return BoundaryModelDummyParticles(hydrodynamic_densities,
                                        hydrodynamic_masses,
-                                       state_equation=state_equation,
                                        boundary_density_calculator,
                                        fluid_smoothing_kernel,
-                                       fluid_smoothing_length)
+                                       fluid_smoothing_length;
+                                       state_equation)
 end
 
 boundary_model_structure_1 = structure_boundary_model(square1)

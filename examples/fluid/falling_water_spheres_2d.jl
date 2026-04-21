@@ -30,10 +30,10 @@ sound_speed = 100
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1)
 
-tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
-                       n_layers=boundary_layers, spacing_ratio=spacing_ratio,
+tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density;
+                       n_layers=boundary_layers, spacing_ratio,
                        faces=(true, true, true, false),
-                       acceleration=(0.0, -gravity), state_equation=state_equation)
+                       acceleration=(0.0, -gravity), state_equation)
 
 sphere_radius = 0.05
 
@@ -79,8 +79,9 @@ sphere = WeaklyCompressibleSPHSystem(sphere2;
 boundary_density_calculator = AdamiPressureExtrapolation()
 wall_viscosity = nu
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation, boundary_density_calculator,
-                                             fluid_smoothing_kernel, fluid_smoothing_length,
+                                             boundary_density_calculator,
+                                             fluid_smoothing_kernel, fluid_smoothing_length;
+                                             state_equation,
                                              viscosity=ViscosityAdami(nu=wall_viscosity),
                                              reference_particle_spacing=fluid_particle_spacing)
 

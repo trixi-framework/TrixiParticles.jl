@@ -147,9 +147,9 @@ wall = union(pipe.boundary, inlet.boundary, outlet.boundary)
 viscosity_boundary = viscosity
 boundary_model = BoundaryModelDummyParticles(wall.density, wall.mass,
                                              AdamiPressureExtrapolation(),
-                                             state_equation=state_equation,
-                                             viscosity=viscosity_boundary,
-                                             smoothing_kernel, smoothing_length)
+                                             smoothing_kernel, smoothing_length;
+                                             state_equation,
+                                             viscosity=viscosity_boundary)
 
 boundary_system = WallBoundarySystem(wall, boundary_model)
 

@@ -47,9 +47,9 @@ sound_speed = 10 * sqrt(2 * gravity * initial_fluid_size[2])
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=7)
 
-tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
-                       n_layers=boundary_layers, spacing_ratio=spacing_ratio,
-                       acceleration=(0.0, -gravity), state_equation=state_equation,
+tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density;
+                       n_layers=boundary_layers, spacing_ratio,
+                       acceleration=(0.0, -gravity), state_equation,
                        coordinates_eltype=Float64)
 
 # Make the gate slightly higher than the fluid
@@ -120,14 +120,14 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid;
 # ==== Boundary
 boundary_density_calculator = AdamiPressureExtrapolation()
 boundary_model_tank = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                                  state_equation=state_equation,
                                                   boundary_density_calculator,
-                                                  smoothing_kernel, smoothing_length)
+                                                  smoothing_kernel, smoothing_length;
+                                                  state_equation)
 
 boundary_model_gate = BoundaryModelDummyParticles(gate.density, gate.mass,
-                                                  state_equation=state_equation,
                                                   boundary_density_calculator,
-                                                  smoothing_kernel, smoothing_length)
+                                                  smoothing_kernel, smoothing_length;
+                                                  state_equation)
 
 boundary_system_tank = WallBoundarySystem(tank.boundary, boundary_model_tank)
 boundary_system_gate = WallBoundarySystem(gate, boundary_model_gate,
@@ -144,9 +144,9 @@ hydrodynamic_masses = hydrodynamic_densites * structure_particle_spacing^2
 
 boundary_model_structure = BoundaryModelDummyParticles(hydrodynamic_densites,
                                                        hydrodynamic_masses,
-                                                       state_equation=state_equation,
                                                        AdamiPressureExtrapolation(),
-                                                       smoothing_kernel, smoothing_length)
+                                                       smoothing_kernel, smoothing_length;
+                                                       state_equation)
 
 structure_system = TotalLagrangianSPHSystem(structure,
                                             structure_smoothing_kernel,

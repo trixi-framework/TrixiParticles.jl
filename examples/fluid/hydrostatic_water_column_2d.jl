@@ -29,9 +29,9 @@ sound_speed = 10.0
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=7, clip_negative_pressure=false)
 
-tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
+tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density;
                        n_layers=boundary_layers, acceleration=(0.0, -gravity),
-                       state_equation=state_equation)
+                       state_equation)
 
 # ==========================================================================================
 # ==== Fluid
@@ -61,9 +61,9 @@ boundary_density_calculator = AdamiPressureExtrapolation()
 # This is to set wall viscosity with `trixi_include`
 viscosity_wall = nothing
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=state_equation,
                                              boundary_density_calculator,
-                                             smoothing_kernel, smoothing_length,
+                                             smoothing_kernel, smoothing_length;
+                                             state_equation,
                                              viscosity=viscosity_wall)
 boundary_system = WallBoundarySystem(tank.boundary, boundary_model,
                                      prescribed_motion=nothing)

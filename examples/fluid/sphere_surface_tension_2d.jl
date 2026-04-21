@@ -54,7 +54,7 @@ source_terms = SourceTermDamping(; damping_coefficient=0.5)
 fluid_system = EntropicallyDampedSPHSystem(fluid;
                                            smoothing_kernel=fluid_smoothing_kernel,
                                            smoothing_length, sound_speed,
-                                           viscosity=ViscosityMorris(nu=nu),
+                                           viscosity=ViscosityMorris(; nu),
                                            density_calculator=ContinuityDensity(),
                                            reference_particle_spacing=particle_spacing,
                                            acceleration=zeros(length(fluid_size)),

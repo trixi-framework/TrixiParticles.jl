@@ -44,9 +44,9 @@ sound_speed = 20 * sqrt(gravity * H)
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1, clip_negative_pressure=false)
 
-tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
-                       n_layers=boundary_layers, spacing_ratio=spacing_ratio,
-                       acceleration=(0.0, -gravity), state_equation=state_equation,
+tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density;
+                       n_layers=boundary_layers, spacing_ratio,
+                       acceleration=(0.0, -gravity), state_equation,
                        coordinates_eltype=Float64)
 
 # ==========================================================================================
@@ -81,9 +81,9 @@ viscosity_wall = nothing
 # For a no-slip boundary condition, define a wall viscosity:
 # viscosity_wall = viscosity_fluid
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=state_equation,
                                              boundary_density_calculator,
-                                             smoothing_kernel, smoothing_length,
+                                             smoothing_kernel, smoothing_length;
+                                             state_equation,
                                              correction=nothing,
                                              reference_particle_spacing=0,
                                              viscosity=viscosity_wall)

@@ -37,13 +37,13 @@ contact_model = RigidContactModel(; normal_stiffness=2.0e4,
                                   contact_distance=2.0 * particle_spacing)
 
 structure_system_1 = RigidBodySystem(sphere_1;
-                                     contact_model=contact_model,
+                                     contact_model,
                                      acceleration=(0.0, 0.0),
-                                     particle_spacing=particle_spacing)
+                                     particle_spacing)
 structure_system_2 = RigidBodySystem(sphere_2;
-                                     contact_model=contact_model,
+                                     contact_model,
                                      acceleration=(0.0, 0.0),
-                                     particle_spacing=particle_spacing)
+                                     particle_spacing)
 
 # ==========================================================================================
 # ==== Simulation

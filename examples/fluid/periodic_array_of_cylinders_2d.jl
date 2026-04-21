@@ -47,8 +47,8 @@ pressure = sound_speed^2 * fluid_density
 particle_spacing = tank_size[1] / n_particles_x
 
 box = RectangularTank(particle_spacing, fluid_size, tank_size,
-                      fluid_density, n_layers=boundary_layers,
-                      pressure=pressure, faces=(false, false, true, true))
+                      fluid_density; n_layers=boundary_layers,
+                      pressure, faces=(false, false, true, true))
 
 cylinder = SphereShape(particle_spacing, cylinder_radius, tank_size ./ 2,
                        fluid_density, sphere_type=RoundSphere())

@@ -29,9 +29,9 @@ sound_speed = 10 * sqrt(gravity * initial_fluid_size[2])
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=7)
 
-tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
+tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density;
                        n_layers=boundary_layers, spacing_ratio=1.0,
-                       acceleration=(0.0, -gravity), state_equation=state_equation)
+                       acceleration=(0.0, -gravity), state_equation)
 
 reset_wall!(tank, (false, true, false, false), (0.0, tank.fluid_size[1], 0.0, 0.0))
 
@@ -61,8 +61,9 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid;
 # ==== Boundary
 boundary_density_calculator = AdamiPressureExtrapolation()
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation, boundary_density_calculator,
-                                             smoothing_kernel, smoothing_length)
+                                             boundary_density_calculator,
+                                             smoothing_kernel, smoothing_length;
+                                             state_equation)
 
 boundary_system = WallBoundarySystem(tank.boundary, boundary_model,
                                      prescribed_motion=boundary_movement)

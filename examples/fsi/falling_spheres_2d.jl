@@ -31,10 +31,10 @@ sound_speed = 10 * sqrt(gravity * initial_fluid_size[2])
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1)
 
-tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
-                       n_layers=boundary_layers, spacing_ratio=spacing_ratio,
+tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density;
+                       n_layers=boundary_layers, spacing_ratio,
                        faces=(true, true, true, false),
-                       acceleration=(0.0, -gravity), state_equation=state_equation)
+                       acceleration=(0.0, -gravity), state_equation)
 
 sphere1_radius = 0.3
 sphere2_radius = 0.2
@@ -73,9 +73,9 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid;
 # ==== Boundary
 boundary_density_calculator = BernoulliPressureExtrapolation()
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=state_equation,
                                              boundary_density_calculator,
-                                             fluid_smoothing_kernel, fluid_smoothing_length)
+                                             fluid_smoothing_kernel, fluid_smoothing_length;
+                                             state_equation)
 
 boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
 
@@ -91,10 +91,10 @@ hydrodynamic_masses_1 = hydrodynamic_densites_1 *
 
 structure_boundary_model_1 = BoundaryModelDummyParticles(hydrodynamic_densites_1,
                                                          hydrodynamic_masses_1,
-                                                         state_equation=state_equation,
                                                          boundary_density_calculator,
                                                          fluid_smoothing_kernel,
-                                                         fluid_smoothing_length)
+                                                         fluid_smoothing_length;
+                                                         state_equation)
 
 hydrodynamic_densites_2 = fluid_density * ones(size(sphere2.density))
 hydrodynamic_masses_2 = hydrodynamic_densites_2 *
@@ -102,10 +102,10 @@ hydrodynamic_masses_2 = hydrodynamic_densites_2 *
 
 structure_boundary_model_2 = BoundaryModelDummyParticles(hydrodynamic_densites_2,
                                                          hydrodynamic_masses_2,
-                                                         state_equation=state_equation,
                                                          boundary_density_calculator,
                                                          fluid_smoothing_kernel,
-                                                         fluid_smoothing_length)
+                                                         fluid_smoothing_length;
+                                                         state_equation)
 
 structure_system_1 = TotalLagrangianSPHSystem(sphere1,
                                               structure_smoothing_kernel,

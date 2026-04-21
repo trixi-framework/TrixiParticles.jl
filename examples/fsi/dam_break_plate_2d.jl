@@ -37,9 +37,9 @@ sound_speed = 20 * sqrt(gravity * initial_fluid_size[2])
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1)
 
-tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
-                       n_layers=boundary_layers, spacing_ratio=spacing_ratio,
-                       acceleration=(0.0, -gravity), state_equation=state_equation)
+tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density;
+                       n_layers=boundary_layers, spacing_ratio,
+                       acceleration=(0.0, -gravity), state_equation)
 
 # Elastic plate/beam
 length_beam = 0.08
@@ -90,9 +90,9 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid;
 # ==== Boundary
 boundary_density_calculator = AdamiPressureExtrapolation()
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=state_equation,
                                              boundary_density_calculator,
-                                             smoothing_kernel, smoothing_length)
+                                             smoothing_kernel, smoothing_length;
+                                             state_equation)
 
 boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
 
@@ -120,9 +120,9 @@ boundary_model_structure = BoundaryModelMonaghanKajtar(k_structure, spacing_rati
 #
 # boundary_model_structure = BoundaryModelDummyParticles(hydrodynamic_densites,
 #                                                    hydrodynamic_masses,
-#                                                    state_equation=state_equation,
 #                                                    boundary_density_calculator,
-#                                                    smoothing_kernel, smoothing_length)
+#                                                    smoothing_kernel, smoothing_length;
+#                                                    state_equation)
 
 structure_system = TotalLagrangianSPHSystem(structure,
                                             structure_smoothing_kernel,

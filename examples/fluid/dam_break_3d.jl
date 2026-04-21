@@ -33,9 +33,9 @@ fluid_density = 1000.0
 state_equation = StateEquationAdaptiveCole(; reference_density=fluid_density,
                                            exponent=7)
 
-tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
-                       n_layers=boundary_layers, spacing_ratio=spacing_ratio,
-                       acceleration=(0.0, -gravity, 0.0), state_equation=state_equation,
+tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density;
+                       n_layers=boundary_layers, spacing_ratio,
+                       acceleration=(0.0, -gravity, 0.0), state_equation,
                        coordinates_eltype=Float64)
 
 # ==========================================================================================
@@ -57,8 +57,9 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid;
 # ==== Boundary
 boundary_density_calculator = AdamiPressureExtrapolation()
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation, boundary_density_calculator,
-                                             smoothing_kernel, smoothing_length)
+                                             boundary_density_calculator,
+                                             smoothing_kernel, smoothing_length;
+                                             state_equation)
 
 boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
 

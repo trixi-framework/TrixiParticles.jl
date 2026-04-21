@@ -65,8 +65,8 @@ contact_model = LinearContactModel(1e6)
 damping_coefficient = 0.00001
 
 sand_system = DEMSystem(sand_particles, contact_model;
-                        damping_coefficient=damping_coefficient,
-                        acceleration=acceleration, radius=0.4 * particle_spacing)
+                        damping_coefficient,
+                        acceleration, radius=0.4 * particle_spacing)
 
 boundary_stiffness = 1.0e5
 boundary_system = BoundaryDEMSystem(boundary_particles, boundary_stiffness)
