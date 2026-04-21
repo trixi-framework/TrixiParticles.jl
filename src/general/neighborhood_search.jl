@@ -25,7 +25,7 @@ end
 # `GridNeighborhoodSearch` with a `FullGridCellList` requires a bounding box.
 # This function deactivates particles that move outside the bounding box to prevent
 # simulation crashes.
-# Note that simply deactivating particles is only possible in combination with a 'SystemBuffer'.
+# Note that deactivating particles is only possible in combination with a 'SystemBuffer'.
 function deactivate_out_of_bounds_particles!(system, ::SystemBuffer, nhs,
                                              cell_list::FullGridCellList, v, u, semi)
     @trixi_timeit timer() "deactivate out of bounds particle" begin
