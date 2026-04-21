@@ -412,14 +412,8 @@ function self_interaction_split!(dv_ode_split, v_ode_split, u_ode_split, semi_sp
     # Only loop over (TLSPH) systems in the split integrator
     foreach_system_wrapped(semi_split, v_ode_split, u_ode_split) do system, v, u
         # Construct string for the interactions timer.
-        # Avoid allocations from string construction when no timers are used.
-        # TODO do we need to disable timers in split integration?
-        if timeit_debug_enabled()
-            system_index = system_indices(system, semi)
-            timer_str = "$(timer_name(system))$system_index-$(timer_name(system))$system_index"
-        else
-            timer_str = ""
-        end
+        system_index = system_indices(system, semi)
+        timer_str = "$(timer_name(system))$system_index-$(timer_name(system))$system_index"
 
         dv = wrap_v(dv_ode_split, system, semi_split)
 
@@ -445,14 +439,9 @@ function other_interaction_split!(dv_ode_split, semi, v_ode, u_ode, semi_split)
             end
 
             # Construct string for the interactions timer.
-            # Avoid allocations from string construction when no timers are used.
-            if timeit_debug_enabled()
-                system_index = system_indices(system, semi)
-                neighbor_index = system_indices(neighbor, semi)
-                timer_str = "$(timer_name(system))$system_index-$(timer_name(neighbor))$neighbor_index"
-            else
-                timer_str = ""
-            end
+            system_index = system_indices(system, semi)
+            neighbor_index = system_indices(neighbor, semi)
+            timer_str = "$(timer_name(system))$system_index-$(timer_name(neighbor))$neighbor_index"
 
             @trixi_timeit timer() timer_str begin
                 interact!(dv, v_system, u_system, v_neighbor, u_neighbor,
