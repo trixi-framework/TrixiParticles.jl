@@ -410,7 +410,7 @@ end
 
 function self_interaction_split!(dv_ode_split, v_ode_split, u_ode_split, semi_split, semi)
     # Only loop over (TLSPH) systems in the split integrator
-    foreach_system(semi_split) do system
+    foreach_system_wrapped(semi_split, v_ode_split, u_ode_split) do system, v, u
         # Construct string for the interactions timer.
         # Avoid allocations from string construction when no timers are used.
         # TODO do we need to disable timers in split integration?
@@ -422,8 +422,6 @@ function self_interaction_split!(dv_ode_split, v_ode_split, u_ode_split, semi_sp
         end
 
         dv = wrap_v(dv_ode_split, system, semi_split)
-        v = wrap_v(v_ode_split, system, semi_split)
-        u = wrap_u(u_ode_split, system, semi_split)
 
         @trixi_timeit timer() timer_str begin
             interact!(dv, v, u, v, u, system, system, semi; integrate_tlsph=true)
@@ -432,10 +430,15 @@ function self_interaction_split!(dv_ode_split, v_ode_split, u_ode_split, semi_sp
 end
 
 function other_interaction_split!(dv_ode_split, semi, v_ode, u_ode, semi_split)
-    # Only loop over (TLSPH) systems in the split integrator
+    # Only loop over (TLSPH) systems in the split integrator.
+    # We wrap with `semi`, so we cannot use `foreach_system_wrapped` here.
     foreach_system(semi_split) do system
+        dv = wrap_v(dv_ode_split, system, semi_split)
+        v_system = wrap_v(v_ode, system, semi)
+        u_system = wrap_u(u_ode, system, semi)
+
         # Loop over all neighbors in the big integrator
-        foreach_system(semi) do neighbor
+        foreach_system_wrapped(semi, v_ode, u_ode) do neighbor, v_neighbor, u_neighbor
             if system === neighbor
                 # Only compute interaction with other systems
                 return
@@ -450,13 +453,6 @@ function other_interaction_split!(dv_ode_split, semi, v_ode, u_ode, semi_split)
             else
                 timer_str = ""
             end
-
-            dv = wrap_v(dv_ode_split, system, semi_split)
-            v_system = wrap_v(v_ode, system, semi)
-            u_system = wrap_u(u_ode, system, semi)
-
-            v_neighbor = wrap_v(v_ode, neighbor, semi)
-            u_neighbor = wrap_u(u_ode, neighbor, semi)
 
             @trixi_timeit timer() timer_str begin
                 interact!(dv, v_system, u_system, v_neighbor, u_neighbor,
