@@ -1,3 +1,9 @@
+using Test
+# Test that precompilation works without warnings (e.g. due to method overwrites).
+# This is important because method overwrite warnings disable precompilation of the package.
+# We need `@eval Main` before Julia 1.12 to avoid `import" expression not at top level`.
+@test_nowarn @eval Main import TrixiParticles
+
 include("test_util.jl")
 
 const TRIXIPARTICLES_TEST = lowercase(get(ENV, "TRIXIPARTICLES_TEST", "all"))

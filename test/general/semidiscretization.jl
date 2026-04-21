@@ -8,6 +8,7 @@
     system2 = System2()
 
     Base.eltype(::System1) = Float64
+    Base.eltype(::System2) = Float64
     TrixiParticles.coordinates_eltype(::System1) = Float32
     TrixiParticles.u_nvariables(::System1) = 3
     TrixiParticles.u_nvariables(::System2) = 4
@@ -24,9 +25,12 @@
     @testset verbose=true "Constructor" begin
         semi = Semidiscretization(system1, system2, neighborhood_search=nothing)
 
-        # Verification
-        @test semi.ranges_u == (1:6, 7:18)
-        @test semi.ranges_v == (1:6, 7:12)
+        # These are the ranges that we would expect without alignment padding:
+        # semi.ranges_u == (1:6, 7:18)
+        # semi.ranges_v == (1:6, 7:12)
+        # Due to alignment to 64 bytes, the ranges are adjusted to be:
+        @test semi.ranges_u == (1:6, 9:20)
+        @test semi.ranges_v == (1:6, 9:14)
 
         nhs = [TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
                eachpoint=1:2)
@@ -152,8 +156,8 @@
 
         semi = Semidiscretization(system1, system2, neighborhood_search=nothing)
 
-        dv_ode = zeros(3 * 2 + 2 * 3)
-        du_ode = zeros(3 * 2 + 4 * 3)
+        dv_ode = zeros(semi.ranges_v[end].stop)
+        du_ode = zeros(semi.ranges_u[end].stop)
         u_ode = zero(du_ode)
 
         v1 = [1.0 2.0
