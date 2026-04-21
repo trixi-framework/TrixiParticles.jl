@@ -246,7 +246,6 @@ function split_integrate!(v_ode, u_ode, t_new, data)
         # Make sure we don't have to go back before the last time step
         @assert t_new >= data.t_ref[]
     elseif t_new < t_previous - eps(t_previous)
-        # @info "" t_new - t_previous data.large_integrator.dt t_new - data.t_ref[]
         # The stage time is smaller than the previous stage/step time, but the last step
         # was not rejected. This means that either the RK scheme contains a negative
         # node value (requesting a stage time before the time of the last full step)
