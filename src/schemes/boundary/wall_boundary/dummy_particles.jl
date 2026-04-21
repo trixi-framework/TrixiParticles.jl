@@ -3,7 +3,7 @@
                                 density_calculator, smoothing_kernel,
                                 smoothing_length; viscosity=nothing,
                                 state_equation=nothing, correction=nothing,
-                                clip_negative_pressure=true,
+                                clip_negative_pressure=false,
                                 reference_particle_spacing=0.0)
 
 Boundary model for [`WallBoundarySystem`](@ref).
@@ -23,7 +23,7 @@ Boundary model for [`WallBoundarySystem`](@ref).
 - `correction`:                 Correction method of the adjacent fluid system (see [Corrections](@ref corrections)).
 - `viscosity`:                  Slip (default) or no-slip condition. See description below for further
                                 information.
-- `clip_negative_pressure=true`: Clip negative boundary pressures to avoid sticking
+- `clip_negative_pressure=false`: Clip negative boundary pressures to avoid sticking
                                 artifacts from attractive fluid-boundary forces at free
                                 surfaces. Note that this is not a correct formulation
                                 at interior boundaries (away from free surfaces).
@@ -80,7 +80,7 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                      density_calculator, smoothing_kernel,
                                      smoothing_length; viscosity=nothing,
                                      state_equation=nothing, correction=nothing,
-                                     clip_negative_pressure=true,
+                                     clip_negative_pressure=false,
                                      reference_particle_spacing=0.0)
     pressure = initial_boundary_pressure(initial_density, density_calculator,
                                          state_equation)
