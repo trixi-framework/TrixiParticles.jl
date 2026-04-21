@@ -35,15 +35,16 @@ end
 # `rho_mean` is the mean density of the fluid, which is used to determine correction values near the free surface.
 #  Return a tuple `(viscosity_correction, pressure_correction, surface_tension_correction)` representing the correction terms.
 @inline function free_surface_correction(correction::AkinciFreeSurfaceCorrection,
-                                         particle_system, rho_mean)
+                                         particle_system, rho_a, rho_b)
     # Equation 4 in ref
+    rho_mean = (rho_a + rho_b) / 2
     k = correction.rho0 / rho_mean
 
     # Viscosity, pressure, surface_tension
     return k, 1, k
 end
 
-@inline function free_surface_correction(correction, particle_system, rho_mean)
+@inline function free_surface_correction(correction, particle_system, rho_a, rho_b)
     return 1, 1, 1
 end
 
