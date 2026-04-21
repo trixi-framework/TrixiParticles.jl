@@ -302,7 +302,7 @@
             r"┌ Info: The desired tank length in y-direction .*\n",
             r"└ New tank length in y-direction.*\n"
         ]
-        @test semi.neighborhood_searches[1][1].cell_list isa FullGridCellList
+        @test semi.neighborhood_searches[1, 1].cell_list isa FullGridCellList
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
     end
@@ -470,7 +470,7 @@
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",
                                                   "poiseuille_flow_2d.jl"),
-                                         tspan=(0.0, 0.02))
+                                         tspan=(0.0, 0.05))
         @test fluid_system isa WeaklyCompressibleSPHSystem
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
@@ -480,8 +480,38 @@
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",
                                                   "poiseuille_flow_2d.jl"),
-                                         tspan=(0.0, 0.02), wcsph=false)
+                                         tspan=(0.0, 0.05), use_wcsph=false)
         @test fluid_system isa EntropicallyDampedSPHSystem
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol, semi) == 0
+    end
+
+    @trixi_testset "fluid/poiseuille_flow_3d.jl (WCSPH)" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "poiseuille_flow_3d.jl"),
+                                         tspan=(0.0, 0.05)) [
+            r"┌ Info: .*edge 2 length.*\n",
+            r"└ New edge 2 length.*\n",
+            r"┌ Warning: .*boundary face.*\n",
+            r"└ @ TrixiParticles .*boundary_zones\.jl:\d+\n"
+        ]
+        @test fluid_system isa WeaklyCompressibleSPHSystem
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol, semi) == 0
+    end
+
+    @trixi_testset "fluid/pulsative_channel_flow_3d.jl" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "pulsative_channel_flow_3d.jl"),
+                                         simulation_end_time=0.05) [
+            r"┌ Info: .*edge 2 length.*\n",
+            r"└ New edge 2 length.*\n",
+            r"┌ Warning: .*boundary face.*\n",
+            r"└ @ TrixiParticles .*boundary_zones\.jl:\d+\n"
+        ]
+        @test fluid_system isa WeaklyCompressibleSPHSystem
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
     end

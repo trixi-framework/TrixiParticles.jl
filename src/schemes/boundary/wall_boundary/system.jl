@@ -1,6 +1,7 @@
 """
     WallBoundarySystem(initial_condition, boundary_model;
-                       prescribed_motion=nothing, adhesion_coefficient=0.0)
+                       prescribed_motion=nothing, adhesion_coefficient=0.0,
+                       color_value=0)
 
 System for boundaries modeled by boundary particles.
 The interaction between fluid and boundary particles is specified by the boundary model.
@@ -13,6 +14,10 @@ The interaction between fluid and boundary particles is specified by the boundar
 - `prescribed_motion`: For moving boundaries, a [`PrescribedMotion`](@ref) can be passed.
 - `adhesion_coefficient`: Coefficient specifying the adhesion of a fluid to the surface.
    Note: currently it is assumed that all fluids have the same adhesion coefficient.
+- `color_value`: Integer label used for calculation of surface normals.
+   Currently this is only used together with [`BoundaryModelDummyParticles`](@ref) and
+   [`ColorfieldSurfaceNormal`](@ref): fluid-boundary normal evaluation
+   reads the resulting boundary colorfield to detect wall contact.
 """
 struct WallBoundarySystem{BM, ELTYPE <: Real, NDIMS, IC, CO, M, IM,
                           CA} <: AbstractBoundarySystem{NDIMS}
@@ -45,6 +50,7 @@ function WallBoundarySystem(initial_condition, model; prescribed_motion=nothing,
     initialize_prescribed_motion!(prescribed_motion, initial_condition)
 
     cache = create_cache_boundary(prescribed_motion, initial_condition)
+    # Boundary color tag used for dummy-particle colorfield initialization/contact tests.
     cache = (cache..., color=Int(color_value))
 
     return WallBoundarySystem(initial_condition, coordinates, model, prescribed_motion,
@@ -139,16 +145,21 @@ end
     return zero(SVector{ndims(system), eltype(system)})
 end
 
-@inline function viscous_velocity(v, system::WallBoundarySystem, particle)
-    return viscous_velocity(v, system.boundary_model.viscosity, system, particle)
+@propagate_inbounds function viscous_velocity(v, system::WallBoundarySystem,
+                                              particle, v_particle)
+    return viscous_velocity(v, system.boundary_model.viscosity, system,
+                            particle, v_particle)
 end
 
-@inline function viscous_velocity(v, viscosity, system::WallBoundarySystem, particle)
+@inline function viscous_velocity(v, ::Nothing, system, particle, v_particle)
+    # Regular particle velocity is used for the viscosity calculation by default
+    return v_particle
+end
+
+@propagate_inbounds function viscous_velocity(v, viscosity, system, particle, v_particle)
+    # Wall velocity in the viscosity calculation contains the physical wall velocity
+    # and an interpolated velocity when a wall viscosity (no-slip BC) is used.
     return extract_svector(system.boundary_model.cache.wall_velocity, system, particle)
-end
-
-@inline function viscous_velocity(v, ::Nothing, system::WallBoundarySystem, particle)
-    return current_velocity(v, system, particle)
 end
 
 @inline function current_density(v, system::WallBoundarySystem)
@@ -166,6 +177,11 @@ end
 @inline function smoothing_kernel(system::WallBoundarySystem, distance, particle)
     (; smoothing_kernel, smoothing_length) = system.boundary_model
     return kernel(smoothing_kernel, distance, smoothing_length)
+end
+
+@inline function smoothing_kernel_unsafe(system::WallBoundarySystem, distance, particle)
+    (; smoothing_kernel, smoothing_length) = system.boundary_model
+    return kernel_unsafe(smoothing_kernel, distance, smoothing_length)
 end
 
 @inline function smoothing_length(system::WallBoundarySystem, particle)
@@ -269,10 +285,13 @@ function initialize_colorfield!(system, boundary_model, semi)
 end
 
 function initialize_colorfield!(system, ::BoundaryModelDummyParticles, semi)
-    system_coords = system.coordinates
+    system_coords = initial_coordinates(system)
     (; smoothing_kernel, smoothing_length, cache) = system.boundary_model
 
     if haskey(cache, :initial_colorfield)
+        set_zero!(cache.initial_colorfield)
+        set_zero!(cache.neighbor_count)
+
         foreach_point_neighbor(system, system, system_coords, system_coords, semi,
                                points=eachparticle(system)) do particle, neighbor,
                                                                pos_diff, distance

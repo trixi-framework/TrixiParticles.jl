@@ -6,14 +6,31 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ## Version 0.4.4
 
+### API Changes
+
+- Custom quantities called in the `PostprocessCallback` are now passed CPU arrays when
+  the simulation is run on a GPU (#1065).
+
 ### Features
 
-- Added `StateEquationAdaptiveCole` an adaptive sound speed version of the Cole state equation (#875)
+- Added `StateEquationAdaptiveCole` an adaptive sound speed version of the Cole state equation (#875).
+- Added `RigidBodySystem` that supports rigid body dynamics for FSI (#1076).
+- Added `RigidContactModel` that supports rigid-wall and rigid-rigid collisions (#1090, #1091).
+- Added a specialized neighborhood search for TLSPH self-interaction (#1016).
+- Added CFL condition for TLSPH and split integration (#1030).
+- Added new validation case hydrostatic water column (#724).
+- Added Carreau–Yasuda non-Newtonian viscosity model (#1010).
 
 ### Important Bugfixes
 
-- Fixed a bug with no-slip boundary conditions when using any viscosity model other than `ViscosityAdami` (#1089)
+- Fixed the periodic array of cylinders example file (#975).
+- A `StepsizeCallback` can now be used with open boundaries (#1074).
+- Fixed a bug with no-slip boundary conditions when using any viscosity model other than `ViscosityAdami` (#1089).
 
+### Documentation
+
+- Added a new tutorial for rigid body dynamics (#1095).
+- Better overview page for tutorials (#1093).
 
 ## Version 0.4.3
 

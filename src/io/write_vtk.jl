@@ -23,6 +23,7 @@ Convert Trixi simulation data to VTK format.
 # Keywords
 - `iter=nothing`:           Iteration number when multiple iterations are to be stored in
                             separate files. This number is just appended to the filename.
+                            If `nothing`, no iteration number is appended (default).
 - `output_directory="out"`: Output directory path.
 - `prefix=""`:              Prefix for output files.
 - `max_coordinates=Inf`     The coordinates of particles will be clipped if their absolute
@@ -103,15 +104,21 @@ function trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
     v = wrap_v(v_ode, system, semi)
     u = wrap_u(u_ode, system, semi)
 
-    file = joinpath(output_directory,
-                    add_underscore_to_optional_prefix(prefix) * "$system_name"
-                    * add_underscore_to_optional_postfix(iter))
+    overwrite = isnothing(iter)
 
-    collection_file = joinpath(output_directory,
-                               add_underscore_to_optional_prefix(prefix) * "$system_name")
+    file_ = joinpath(output_directory,
+                     add_underscore_to_optional_prefix(prefix) * "$system_name")
+    if overwrite
+        file = file_ * "_current"
+    else
+        file = file_ * add_underscore_to_optional_postfix(iter)
+        collection_file = joinpath(output_directory,
+                                   add_underscore_to_optional_prefix(prefix) *
+                                   "$system_name")
 
-    # Reset the collection when the iteration is 0
-    pvd = paraview_collection(collection_file; append=iter > 0)
+        # Reset the collection when the iteration is 0
+        pvd = paraview_collection(collection_file; append=iter > 0)
+    end
 
     points = PointNeighbors.periodic_coords(active_coordinates(u, system),
                                             periodic_box)
@@ -152,19 +159,28 @@ function trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
             end
         end
 
-        # Add to collection
-        pvd[t] = vtk
+        if overwrite
+            # Add to collection
+            pvd[t] = vtk
+        end
     end
-    vtk_save(pvd)
+
+    overwrite || vtk_save(pvd)
+
+    return file
 end
 
 function transfer2cpu(semi::Semidiscretization)
-    # First move all data to the CPU
-    semi = Adapt.adapt(Array, semi)
+    # First move all systems and neighborhood searches to the CPU
+    systems = Adapt.adapt(Array, semi.systems)
+    neighborhood_searches = Adapt.adapt(Array, semi.neighborhood_searches)
+
+    semi_ = @set semi.systems = systems
+    semi__ = @set semi_.neighborhood_searches = neighborhood_searches
 
     # Now, set the parallelization backend to `PolyesterBackend` to make sure that
     # `@threaded` loops still work as expected with this semidiscretization.
-    return @set semi.parallelization_backend = PolyesterBackend()
+    return @set semi__.parallelization_backend = PolyesterBackend()
 end
 
 function transfer2cpu(v_::AbstractGPUArray, u_, semi_)
@@ -346,18 +362,13 @@ function write2vtk!(vtk, v, u, t, system::AbstractFluidSystem)
             rho_b = current_density(v, system, neighbor)
             grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
-            surface_tension[1:ndims(system),
-                            particle] .+= surface_tension_force(surface_tension_a,
-                                                                surface_tension_b,
-                                                                system,
-                                                                system,
-                                                                particle,
-                                                                neighbor,
-                                                                pos_diff,
-                                                                distance,
-                                                                rho_a,
-                                                                rho_b,
-                                                                grad_kernel)
+            dv_surface_tension = Ref(zero(pos_diff))
+            surface_tension_force!(dv_surface_tension,
+                                   surface_tension_a, surface_tension_b,
+                                   system, system, particle, neighbor,
+                                   pos_diff, distance, rho_a, rho_b, grad_kernel, 1)
+
+            surface_tension[1:ndims(system), particle] .+= dv_surface_tension[]
         end
         vtk["surface_tension"] = surface_tension
 
@@ -415,6 +426,27 @@ function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem)
     end
 
     vtk["material_density"] = system.material_density
+
+    write2vtk!(vtk, v, u, t, system.boundary_model, system)
+end
+
+function write2vtk!(vtk, v, u, t, system::RigidBodySystem)
+    vtk["velocity"] = [current_velocity(v, system, particle)
+                       for particle in eachparticle(system)]
+    vtk["color"] = system.cache.color
+    vtk["material_density"] = system.material_density
+    vtk["mass"] = system.mass
+    vtk["relative_coordinates"] = system.relative_coordinates
+    vtk["center_of_mass"] = [system.center_of_mass[]]
+    vtk["center_of_mass_velocity"] = [system.center_of_mass_velocity[]]
+    vtk["resultant_force"] = [system.resultant_force[]]
+
+    vtk["angular_velocity"] = [system.angular_velocity[]]
+    vtk["resultant_torque"] = [system.resultant_torque[]]
+    vtk["angular_acceleration_force"] = [system.angular_acceleration_force[]]
+    vtk["gyroscopic_acceleration"] = [system.gyroscopic_acceleration[]]
+    vtk["contact_count"] = [system.cache.contact_count[]]
+    vtk["max_contact_penetration"] = [system.cache.max_contact_penetration[]]
 
     write2vtk!(vtk, v, u, t, system.boundary_model, system)
 end
