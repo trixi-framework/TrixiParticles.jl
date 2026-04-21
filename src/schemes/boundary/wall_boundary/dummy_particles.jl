@@ -677,7 +677,7 @@ end
 # by computing the wall velocity as v_w = 2 * v_boundary - ṽ_fluid, where ṽ_fluid is the
 # kernel-weighted interpolation of the surrounding fluid velocities:
 #   ṽ_fluid = (Σ_b v_b W_ab) / (Σ_b W_ab)
-# The denominator Σ_b W_ab is stored as `volume` and accumulated elsewhere.
+# The denominator Σ_b W_ab is stored as `volume` and accumulated in `compute_wall_velocity!`.
 @propagate_inbounds function interpolate_fluid_velocity!(cache, viscosity,
                                                          neighbor_system, v_neighbor_system,
                                                          kernel_weight, particle, neighbor)
