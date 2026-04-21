@@ -516,6 +516,9 @@ end
             grad_kernel = smoothing_kernel_grad_unsafe(system, initial_pos_diff,
                                                        initial_distance, particle)
 
+            # Since this is one of the most performance critical functions, using fast
+            # divisions here gives a significant speedup on GPUs.
+            # See the docs page "Development" for more details on `div_fast`.
             volume = @inbounds div_fast(mass[neighbor], material_density[neighbor])
             current_coords_b = @inbounds current_coords(system, neighbor)
 
