@@ -17,6 +17,18 @@ end
                                     neighborhood_search, particle)
 end
 
+# We cannot dispatch by `AbstractGPUArray` because this is called from within
+# a kernel, where the arrays are device arrays (like `CuDeviceArray`),
+# which are not `AbstractGPUArray`s.
+@inline function foreach_neighbor(f, system_coords, neighbor_coords, neighborhood_search,
+                                  backend::KernelAbstractions.GPU, particle)
+    # On GPUs, remove all bounds checks for maximum performance.
+    # Note that this is not safe if the neighborhood search was not initialized correctly.
+    # For example, this is unsafe when benchmarking `interact!` with the wrong NHS.
+    PointNeighbors.foreach_neighbor_unsafe(f, system_coords, neighbor_coords,
+                                           neighborhood_search, particle)
+end
+
 # === Compact support selection ===
 # -- Generic
 @inline function compact_support(system, neighbor)
