@@ -75,13 +75,14 @@ with Julia v1.10 and newer. We recommend using the latest stable release of Juli
 ### For users
 TrixiParticles.jl is a registered Julia package.
 You can install TrixiParticles.jl,
-[OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl) (used for time integration)
-and [Plots.jl](https://github.com/JuliaPlots/Plots.jl) by executing the following commands
+time integration sub-packages of [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl)
+(for example `OrdinaryDiffEqLowStorageRK`), and [Plots.jl](https://github.com/JuliaPlots/Plots.jl)
+by executing the following commands
 in the Julia REPL:
 ```julia
 julia> using Pkg
 
-julia> Pkg.add(["TrixiParticles", "OrdinaryDiffEq", "Plots"])
+julia> Pkg.add(["TrixiParticles", "OrdinaryDiffEqLowStorageRK", "Plots"])
 ```
 
 ### For developers
@@ -92,7 +93,7 @@ git clone git@github.com:trixi-framework/TrixiParticles.jl.git
 cd TrixiParticles.jl
 mkdir run
 julia --project=run -e 'using Pkg; Pkg.develop(PackageSpec(path="."))' # Add TrixiParticles.jl to `run` project
-julia --project=run -e 'using Pkg; Pkg.add(["OrdinaryDiffEq", "Plots"])' # Add additional packages
+julia --project=run -e 'using Pkg; Pkg.add(["OrdinaryDiffEqLowStorageRK", "Plots"])' # Add additional packages
 ```
 
 If you installed TrixiParticles.jl this way, you always have to start Julia with the
@@ -183,4 +184,3 @@ or [create an issue](https://github.com/trixi-framework/TrixiParticles.jl/issues
 </p>
 
 The project has benefited from funding from [hereon](https://www.hereon.de/), [HiRSE](https://www.helmholtz-hirse.de/), and through [ScienceServe](https://www.helmholtz.de/en/research/current-calls-for-applications/article/scienceserve-boosting-research-software-at-helmholtz/) for the MATRIX project.
-

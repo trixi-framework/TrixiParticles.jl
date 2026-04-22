@@ -14,7 +14,7 @@
 # 4. Using a different geometry.
 
 using TrixiParticles
-using OrdinaryDiffEq
+using OrdinaryDiffEqLowStorageRK
 using Plots
 
 # ## Resolution and basic setup

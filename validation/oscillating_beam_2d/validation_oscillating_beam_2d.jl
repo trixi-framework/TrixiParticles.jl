@@ -12,7 +12,7 @@
 
 include("../validation_util.jl")
 using TrixiParticles
-using OrdinaryDiffEq
+using OrdinaryDiffEqLowStorageRK
 using JSON
 
 tspan = (0, 10)

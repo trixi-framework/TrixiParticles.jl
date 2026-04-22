@@ -4,11 +4,12 @@
 # of TrixiParticles.jl by custom implementations from within a simulation file,
 # without ever cloning the repository.
 
-# First, we import TrixiParticles.jl and
+# First, we import TrixiParticles.jl and the time integration sub-package
+# `OrdinaryDiffEqLowStorageRK` of
 # [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl), which we will
 # use at the very end for the time integration.
 using TrixiParticles
-using OrdinaryDiffEq
+using OrdinaryDiffEqLowStorageRK
 
 # ## Load a simulation file
 

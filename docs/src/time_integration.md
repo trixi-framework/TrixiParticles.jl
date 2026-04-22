@@ -4,7 +4,9 @@ TrixiParticles.jl uses a modular approach where time integration is just another
 that can be customized and exchanged.
 The function [`semidiscretize`](@ref) returns an `ODEProblem`
 (see [the OrdinaryDiffEq.jl docs](https://docs.sciml.ai/DiffEqDocs/stable/types/ode_types/)),
-which can be integrated with [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl).
+which can be integrated with solvers provides by
+[OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl) or its sub-packages
+(e.g., `OrdinaryDiffEqLowStorageRK`).
 
 In particular, a [`DynamicalODEProblem`](https://docs.sciml.ai/DiffEqDocs/stable/types/dynamical_types/)
 is returned, where the right-hand side is split into two functions, the `kick!`, which
@@ -23,18 +25,17 @@ After obtaining an `ODEProblem` from [`semidiscretize`](@ref), let us call it `o
 we can pass it to the function `solve` of OrdinaryDiffEq.jl.
 For most schemes, we do the following:
 ```julia
-using OrdinaryDiffEq
-sol = solve(ode, Euler(),
+using OrdinaryDiffEqLowStorageRK
+sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
             dt=1.0,
             save_everystep=false, callback=callbacks);
 ```
-Here, `Euler()` should in practice be replaced by a more useful scheme.
 `callbacks` should be a `CallbackSet` containing callbacks like the [`InfoCallback`](@ref).
 For callbacks, please refer to [the docs](@ref Callbacks) and the example files.
 In this case, we need to either set a reasonable, problem- and resolution-dependent
 step size `dt`, or use the [`StepsizeCallback`](@ref), which overwrites the step size
 dynamically during the simulation based on a CFL-number.
-We always set `save_everystep=false`, or OrdinaryDiffEq.jl would return the solution vector
+We always set `save_everystep=false`, or the solver would return the solution vector
 for every time step, writing massive amounts of data into the RAM for large simulations.
 To visualize data for every time step, [callbacks](@ref Callbacks) can be used.
 
@@ -81,7 +82,7 @@ in the inviscid case.
 Once we add viscosity, ``\operatorname{kick}`` depends on both ``u`` and ``v``.
 Then, the calculation of ``v^1`` requires ``v^1`` and becomes implicit.
 
-The way this scheme is implemented in OrdinaryDiffEq.jl as `VerletLeapfrog`,
+The way this scheme is implemented in `OrdinaryDiffEqSymplecticRK` as `VerletLeapfrog`,
 the intermediate velocity ``v^{1/2}`` is passed to ``\operatorname{kick}`` in the last stage,
 resulting in first-order convergence when the scheme is used in the viscid case.
 
@@ -109,7 +110,7 @@ v^1 &= v^0 + \Delta t\, \operatorname{kick} \left( v^{1/2}, u^{1/2}, t^0 + \frac
 u^1 &= u^{1/2} + \frac{1}{2} \Delta t\, \operatorname{drift}(v^{1}, u^{1}, t^0 + \Delta t).
 \end{align*}
 ```
-This scheme is implemented in OrdinaryDiffEq.jl as `LeapfrogDriftKickDrift` and yields
+This scheme is implemented in `OrdinaryDiffEqSymplecticRK` as `LeapfrogDriftKickDrift` and yields
 the desired second order as long as ``\operatorname{drift}`` does not depend on ``u``,
 which is always the case.
 
