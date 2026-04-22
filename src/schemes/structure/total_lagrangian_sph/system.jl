@@ -1,6 +1,9 @@
 @doc raw"""
-    TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing_length,
-                             young_modulus, poisson_ratio;
+    TotalLagrangianSPHSystem(initial_condition;
+                             smoothing_kernel,
+                             smoothing_length,
+                             young_modulus,
+                             poisson_ratio,
                              n_clamped_particles=0,
                              clamped_particles=Int[],
                              clamped_particles_motion=nothing,
@@ -18,14 +21,14 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
 
 # Arguments
 - `initial_condition`:  Initial condition representing the system's particles.
-- `young_modulus`:      Young's modulus.
-- `poisson_ratio`:      Poisson ratio.
+
+# Keywords
 - `smoothing_kernel`:   Smoothing kernel to be used for this system.
                         See [Smoothing Kernels](@ref smoothing_kernel).
 - `smoothing_length`:   Smoothing length to be used for this system.
                         See [Smoothing Kernels](@ref smoothing_kernel).
-
-# Keywords
+- `young_modulus`:      Young's modulus.
+- `poisson_ratio`:      Poisson ratio.
 - `n_clamped_particles` (deprecated): Number of clamped particles that are fixed and not integrated
                          to clamp the structure. Note that the clamped particles must be the **last**
                          particles in the `InitialCondition`. See the info box below.
@@ -110,6 +113,18 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
     clamped_particles_moving :: IM
     self_interaction_nhs     :: NHS
     cache                    :: C
+end
+
+# Keyword-only public front door used by the examples and docs.
+function TotalLagrangianSPHSystem(initial_condition;
+                                  smoothing_kernel,
+                                  smoothing_length,
+                                  young_modulus,
+                                  poisson_ratio,
+                                  kwargs...)
+    return TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
+                                    smoothing_length, young_modulus,
+                                    poisson_ratio; kwargs...)
 end
 
 function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing_length,

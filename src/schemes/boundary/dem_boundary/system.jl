@@ -1,8 +1,14 @@
 """
-    BoundaryDEMSystem(initial_condition, normal_stiffness)
+    BoundaryDEMSystem(initial_condition; normal_stiffness)
 
 System for boundaries modeled by boundary particles.
 The interaction between fluid and boundary particles is specified by the boundary model.
+
+# Arguments
+- `initial_condition`: Initial condition of the boundary particles.
+
+# Keywords
+- `normal_stiffness`: Normal stiffness used for DEM wall contact.
 
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in a future releases.
@@ -25,6 +31,11 @@ struct BoundaryDEMSystem{NDIMS, ELTYPE <: Real, IC,
                    typeof(coordinates)}(initial_condition, coordinates, radius,
                                         normal_stiffness, buffer)
     end
+end
+
+# Keyword-only public front door used by the examples and docs.
+function BoundaryDEMSystem(initial_condition; normal_stiffness)
+    return BoundaryDEMSystem(initial_condition, normal_stiffness)
 end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.

@@ -60,8 +60,11 @@ structure = union(clamped_particles, beam)
 smoothing_length = sqrt(2) * particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
-structure_system = TotalLagrangianSPHSystem(structure, smoothing_kernel, smoothing_length,
-                                            material.E, material.nu,
+structure_system = TotalLagrangianSPHSystem(structure;
+                                            smoothing_kernel,
+                                            smoothing_length,
+                                            young_modulus=material.E,
+                                            poisson_ratio=material.nu,
                                             clamped_particles=1:nparticles(clamped_particles),
                                             acceleration=(0.0, -gravity),
                                             penalty_force=nothing, viscosity=nothing,

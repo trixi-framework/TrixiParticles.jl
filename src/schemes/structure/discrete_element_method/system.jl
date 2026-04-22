@@ -1,6 +1,9 @@
 """
-    DEMSystem(initial_condition, contact_model; damping_coefficient=0.0001,
-              acceleration=ntuple(_ -> 0.0, ndims(initial_condition)), source_terms=nothing,
+    DEMSystem(initial_condition;
+              contact_model,
+              damping_coefficient=0.0001,
+              acceleration=ntuple(_ -> 0.0, NDIMS),
+              source_terms=nothing,
               radius=nothing)
 
 Constructs a Discrete Element Method (DEM) system for numerically simulating the dynamics of
@@ -13,9 +16,9 @@ specified material properties and contact mechanics.
 # Arguments
  - `initial_condition`: Initial condition of the system, encapsulating the initial positions,
     velocities, masses, and radii of particles.
- - `contact_model`: Contact model used for particle interactions.
 
 # Keywords
+- `contact_model`: Contact model used for particle interactions.
  - `acceleration`: Global acceleration vector applied to the system, such as gravity. Specified as
     an `SVector` of length `NDIMS`, with a default of zero in each dimension.
  - `source_terms`: Optional; additional forces or modifications to particle dynamics not
@@ -38,6 +41,11 @@ struct DEMSystem{NDIMS, ELTYPE <: Real, IC, ARRAY1D, ST,
     acceleration        :: SVector{NDIMS, ELTYPE}
     source_terms        :: ST
     contact_model       :: CM
+end
+
+# Keyword-only public front door used by the examples and docs.
+function DEMSystem(initial_condition; contact_model, kwargs...)
+    return DEMSystem(initial_condition, contact_model; kwargs...)
 end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.

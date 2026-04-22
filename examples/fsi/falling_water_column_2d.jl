@@ -66,9 +66,11 @@ hydrodynamic_masses = hydrodynamic_densites * particle_spacing^2
 boundary_model = BoundaryModelMonaghanKajtar(k, spacing_ratio, particle_spacing,
                                              hydrodynamic_masses)
 
-structure_system = TotalLagrangianSPHSystem(structure,
-                                            smoothing_kernel, smoothing_length,
-                                            material.E, material.nu;
+structure_system = TotalLagrangianSPHSystem(structure;
+                                            smoothing_kernel,
+                                            smoothing_length,
+                                            young_modulus=material.E,
+                                            poisson_ratio=material.nu,
                                             boundary_model,
                                             clamped_particles=1:nparticles(clamped_particles),
                                             acceleration=(0.0, -gravity))

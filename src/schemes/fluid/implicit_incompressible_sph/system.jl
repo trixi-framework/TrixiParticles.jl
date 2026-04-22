@@ -1,9 +1,10 @@
 """
-    ImplicitIncompressibleSPHSystem(initial_condition,
-                                    smoothing_kernel, smoothing_length,
-                                    reference_density;
+    ImplicitIncompressibleSPHSystem(initial_condition;
+                                    smoothing_kernel,
+                                    smoothing_length,
+                                    reference_density,
                                     viscosity=nothing,
-                                    acceleration=ntuple(_ -> 0.0, ndims(smoothing_kernel)),
+                                    acceleration=ntuple(_ -> 0.0, NDIMS),
                                     omega=0.5, max_error=0.1, min_iterations=2,
                                     max_iterations=20, time_step)
 
@@ -16,13 +17,13 @@ See [Implicit Incompressible SPH](@ref iisph) for more details on the method.
 
 # Arguments
 - `initial_condition`:  [`InitialCondition`](@ref) representing the system's particles.
-- `smoothing_kernel`:   Smoothing kernel to be used for this system.
-                        See [Smoothing Kernels](@ref smoothing_kernel).
-- `smoothing_length`:   Smoothing length to be used for this system.
-                        See [Smoothing Kernels](@ref smoothing_kernel).
-- `reference_density`:  Reference density used for the fluid particles
 
-# Keyword Arguments
+# Keywords
+- `smoothing_kernel`:            Smoothing kernel to be used for this system.
+                                 See [Smoothing Kernels](@ref smoothing_kernel).
+- `smoothing_length`:            Smoothing length to be used for this system.
+                                 See [Smoothing Kernels](@ref smoothing_kernel).
+- `reference_density`:           Reference density used for the fluid particles.
 - `viscosity`:                  Currently, only [`ViscosityMorris`](@ref)
                                 and [`ViscosityAdami`](@ref) are supported.
 - `acceleration`:               Acceleration vector for the system. (default: zero vector)
@@ -61,6 +62,17 @@ struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ARRAY2D,
     time_step                         :: ELTYPE
     artificial_sound_speed            :: ELTYPE  # TODO
     cache                             :: C
+end
+
+# Keyword-only public front door used by the examples and docs.
+function ImplicitIncompressibleSPHSystem(initial_condition;
+                                         smoothing_kernel,
+                                         smoothing_length,
+                                         reference_density,
+                                         kwargs...)
+    return ImplicitIncompressibleSPHSystem(initial_condition, smoothing_kernel,
+                                           smoothing_length, reference_density;
+                                           kwargs...)
 end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.

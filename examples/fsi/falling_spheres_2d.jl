@@ -107,18 +107,20 @@ structure_boundary_model_2 = BoundaryModelDummyParticles(hydrodynamic_densites_2
                                                          fluid_smoothing_length;
                                                          state_equation)
 
-structure_system_1 = TotalLagrangianSPHSystem(sphere1,
-                                              structure_smoothing_kernel,
-                                              structure_smoothing_length,
-                                              sphere1_E, nu,
+structure_system_1 = TotalLagrangianSPHSystem(sphere1;
+                                              smoothing_kernel=structure_smoothing_kernel,
+                                              smoothing_length=structure_smoothing_length,
+                                              young_modulus=sphere1_E,
+                                              poisson_ratio=nu,
                                               acceleration=(0.0, -gravity),
                                               boundary_model=structure_boundary_model_1,
                                               penalty_force=PenaltyForceGanzenmueller(alpha=0.3))
 
-structure_system_2 = TotalLagrangianSPHSystem(sphere2,
-                                              structure_smoothing_kernel,
-                                              structure_smoothing_length,
-                                              sphere2_E, nu,
+structure_system_2 = TotalLagrangianSPHSystem(sphere2;
+                                              smoothing_kernel=structure_smoothing_kernel,
+                                              smoothing_length=structure_smoothing_length,
+                                              young_modulus=sphere2_E,
+                                              poisson_ratio=nu,
                                               acceleration=(0.0, -gravity),
                                               boundary_model=structure_boundary_model_2,
                                               penalty_force=PenaltyForceGanzenmueller(alpha=0.3))
