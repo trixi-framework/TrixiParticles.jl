@@ -11,6 +11,9 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - `DensityDiffusionAntuono` now only takes only one kwarg `delta` (#1142).
 - Return type of `vtk2trixi` changed to `NamedTuple` including an optional
   `:initial_condition` field if `create_initial_condition=true` is passed. (#959)
+- The example files are now loading sub-packages of OrdinaryDiffEq.jl instead of
+  OrdinaryDiffEq.jl itself. For example, `using OrdinaryDiffEqLowStorageRK` instead of
+  `using OrdinaryDiffEq` (#1152).
 
 ## Version 0.4.4
 
