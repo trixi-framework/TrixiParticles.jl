@@ -55,6 +55,20 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
                     `transpose_backend` of the [`PrecomputedNeighborhoodSearch`](@ref)
                     is set to `true` when running on GPUs and `false` on CPUs.
                     Alternatively, a user-defined neighborhood search can be passed here.
+
+!!! note
+    To define `clamped_particles` conveniently, place the clamped block first and combine
+    initial conditions with `union`:
+    ```jldoctest; output = false, setup = :(clamped_particles = RectangularShape(0.1, (1, 4), (0.0, 0.0), density=1.0); beam = RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0))
+    structure = union(clamped_particles, beam)
+    clamped_particle_indices = 1:nparticles(clamped_particles)
+
+    # output
+    1:4
+    ```
+    Since `clamped_particles` is the first argument, these particles appear first in
+    `structure`, so their indices are `1:nparticles(clamped_particles)`.
+    (`beam` and `clamped_particles` are `InitialCondition`s.)
 """
 struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, ARRAY3D,
                                 YM, PR, LL, LM, K, PF, V, ST, M, IM, NHS,
