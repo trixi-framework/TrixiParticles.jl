@@ -9,6 +9,10 @@ trixi_include(@__MODULE__,
               fluid_particle_spacing,
               sol=nothing, ode=nothing)
 
+# Preserve the nested example default while still allowing `trixi_include(...; tspan=...)`
+# to override this wrapper example.
+tspan = tspan
+
 # IISPH doesn't require a large compact support like WCSPH and performs worse with a typical
 # smoothing length used for WCSPH.
 smoothing_length = 1.0 * fluid_particle_spacing

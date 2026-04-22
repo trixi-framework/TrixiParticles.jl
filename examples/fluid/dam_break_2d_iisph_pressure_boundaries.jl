@@ -6,6 +6,10 @@ trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "dam_break_2d.jl");
               sol=nothing, ode=nothing)
 
+# Preserve the nested example default while still allowing `trixi_include(...; tspan=...)`
+# to override this wrapper example.
+tspan = tspan
+
 # Change smoothing kernel and length
 smoothing_length = 1.2 * fluid_particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()

@@ -26,6 +26,16 @@ trixi_include(@__MODULE__,
               coordinates_eltype=Float64,
               sol=nothing, ode=nothing)
 
+# Preserve nested example defaults while still allowing `trixi_include` to override them.
+tspan = tspan
+fluid_particle_spacing = fluid_particle_spacing
+smoothing_length = smoothing_length
+density_diffusion = density_diffusion
+boundary_layers = boundary_layers
+spacing_ratio = spacing_ratio
+boundary_model = boundary_model
+boundary_density_calculator = boundary_density_calculator
+
 # Define a GPU-compatible neighborhood search
 min_corner = minimum(tank.boundary.coordinates, dims=2)
 max_corner = maximum(tank.boundary.coordinates, dims=2)

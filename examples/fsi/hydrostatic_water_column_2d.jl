@@ -96,7 +96,8 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, (plate_size[1
 
 if use_edac
     fluid_system = EntropicallyDampedSPHSystem(tank.fluid;
-                                               smoothing_kernel, smoothing_length_fluid,
+                                               smoothing_kernel,
+                                               smoothing_length=smoothing_length_fluid,
                                                sound_speed,
                                                acceleration=(0.0, -gravity),
                                                correction=ShepardKernelCorrection(),
@@ -107,7 +108,8 @@ else
     density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
     # density_diffusion = DensityDiffusionAntuono(delta=0.1)
     fluid_system = WeaklyCompressibleSPHSystem(tank.fluid;
-                                               smoothing_kernel, smoothing_length_fluid,
+                                               smoothing_kernel,
+                                               smoothing_length=smoothing_length_fluid,
                                                density_calculator=fluid_density_calculator,
                                                state_equation, density_diffusion,
                                                acceleration=(0.0, -gravity),
