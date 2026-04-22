@@ -125,8 +125,6 @@ Further details can be found in the [documentation](https://trixi-framework.gith
 You can find the documentation for the latest release
 [here](https://trixi-framework.github.io/TrixiParticles.jl/stable).
 
-## Publications
-
 ## Cite Us
 
 If you use TrixiParticles.jl in your own research or write a paper using results obtained
