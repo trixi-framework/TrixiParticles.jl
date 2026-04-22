@@ -22,13 +22,13 @@
                                                           SummationDensity(),
                                                           smoothing_kernel,
                                                           smoothing_length,
-                                                          state_equation=state_equation)
+                                                          state_equation=state_equation,
+                                                          clip_negative_pressure=true)
         boundary_model_no_clip = BoundaryModelDummyParticles([1000.0], [1.0],
                                                              SummationDensity(),
                                                              smoothing_kernel,
                                                              smoothing_length,
-                                                             state_equation=state_equation,
-                                                             clip_negative_pressure=false)
+                                                             state_equation=state_equation)
 
         @test TrixiParticles.clip_negative_pressure(boundary_model_clip)
         @test !TrixiParticles.clip_negative_pressure(boundary_model_no_clip)
@@ -49,13 +49,13 @@
                                                                 AdamiPressureExtrapolation(),
                                                                 smoothing_kernel,
                                                                 smoothing_length,
-                                                                state_equation=state_equation)
+                                                                state_equation=state_equation,
+                                                                clip_negative_pressure=true)
         boundary_model_adami_no_clip = BoundaryModelDummyParticles([1000.0], [1.0],
                                                                    AdamiPressureExtrapolation(),
                                                                    smoothing_kernel,
                                                                    smoothing_length,
-                                                                   state_equation=state_equation,
-                                                                   clip_negative_pressure=false)
+                                                                   state_equation=state_equation)
 
         for model in (boundary_model_adami_clip, boundary_model_adami_no_clip)
             model.cache.volume[1] = 1
