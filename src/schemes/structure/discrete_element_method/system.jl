@@ -43,14 +43,7 @@ struct DEMSystem{NDIMS, ELTYPE <: Real, IC, ARRAY1D, ST,
     contact_model       :: CM
 end
 
-# Keyword-only public front door used by the examples and docs.
-function DEMSystem(initial_condition; contact_model, kwargs...)
-    return DEMSystem(initial_condition, contact_model; kwargs...)
-end
-
-# The default constructor needs to be accessible for Adapt.jl to work with this struct.
-# See the comments in general/gpu.jl for more details.
-function DEMSystem(initial_condition, contact_model; damping_coefficient=0.0001,
+function DEMSystem(initial_condition; contact_model, damping_coefficient=0.0001,
                    acceleration=ntuple(_ -> 0.0,
                                        ndims(initial_condition)), source_terms=nothing,
                    radius=nothing)

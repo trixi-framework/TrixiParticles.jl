@@ -71,10 +71,10 @@
                                                                      density_calculator,
                                                                      pressure_acceleration)
                             elseif system_name == "IISPH"
-                                system = ImplicitIncompressibleSPHSystem(fluid,
+                                system = ImplicitIncompressibleSPHSystem(fluid;
                                                                          smoothing_kernel,
                                                                          smoothing_length,
-                                                                         1000.0,
+                                                                         reference_density=1000.0,
                                                                          time_step=0.001)
                             end
 
@@ -140,8 +140,10 @@
                                                           density_calculator=density_calculator,
                                                           smoothing_length, 0.0)
 
-                system_iisph = ImplicitIncompressibleSPHSystem(fluid, smoothing_kernel,
-                                                               smoothing_length, 1000.0,
+                system_iisph = ImplicitIncompressibleSPHSystem(fluid;
+                                                               smoothing_kernel,
+                                                               smoothing_length,
+                                                               reference_density=1000.0,
                                                                time_step=0.001)
 
                 n_particles = TrixiParticles.nparticles(system_edac)

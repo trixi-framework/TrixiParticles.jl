@@ -115,20 +115,11 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
     cache                    :: C
 end
 
-# Keyword-only public front door used by the examples and docs.
 function TotalLagrangianSPHSystem(initial_condition;
                                   smoothing_kernel,
                                   smoothing_length,
                                   young_modulus,
                                   poisson_ratio,
-                                  kwargs...)
-    return TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
-                                    smoothing_length, young_modulus,
-                                    poisson_ratio; kwargs...)
-end
-
-function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing_length,
-                                  young_modulus, poisson_ratio;
                                   n_clamped_particles=0,
                                   clamped_particles=Int[],
                                   clamped_particles_motion=nothing,

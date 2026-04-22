@@ -67,7 +67,11 @@
             model_c = BoundaryModelMock(zeros(3))
 
             # FSI without boundary model
-            structure_system1 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0)
+            structure_system1 = TotalLagrangianSPHSystem(ic;
+                                                         smoothing_kernel=kernel,
+                                                         smoothing_length=1.0,
+                                                         young_modulus=1.0,
+                                                         poisson_ratio=1.0)
 
             error_str = "a boundary model for `TotalLagrangianSPHSystem` must be " *
                         "specified when simulating a fluid-structure interaction."
@@ -76,7 +80,11 @@
                                                                      neighborhood_search=nothing)
 
             # FSI with boundary model
-            structure_system2 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0,
+            structure_system2 = TotalLagrangianSPHSystem(ic;
+                                                         smoothing_kernel=kernel,
+                                                         smoothing_length=1.0,
+                                                         young_modulus=1.0,
+                                                         poisson_ratio=1.0,
                                                          boundary_model=model_a)
             structure_system2 = TrixiParticles.initialize_self_interaction_nhs(structure_system2,
                                                                                nothing,
@@ -87,7 +95,11 @@
                                                             nothing)
 
             # FSI with wrong boundary model
-            structure_system3 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0,
+            structure_system3 = TotalLagrangianSPHSystem(ic;
+                                                         smoothing_kernel=kernel,
+                                                         smoothing_length=1.0,
+                                                         young_modulus=1.0,
+                                                         poisson_ratio=1.0,
                                                          boundary_model=model_b)
 
             error_str = "`BoundaryModelDummyParticles` with density calculator " *
@@ -97,7 +109,11 @@
                                                                      neighborhood_search=nothing)
 
             # FSI with wrong boundary model
-            structure_system4 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0,
+            structure_system4 = TotalLagrangianSPHSystem(ic;
+                                                         smoothing_kernel=kernel,
+                                                         smoothing_length=1.0,
+                                                         young_modulus=1.0,
+                                                         poisson_ratio=1.0,
                                                          boundary_model=model_c)
 
             error_str = "the boundary model was initialized with 3 particles, " *

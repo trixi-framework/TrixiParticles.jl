@@ -77,8 +77,11 @@
             v_boundary_continuity = copy(initial_condition.density')
 
             # TLSPH system
-            structure_system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
-                                                        smoothing_length, 0.0, 0.0,
+            structure_system = TotalLagrangianSPHSystem(initial_condition;
+                                                        smoothing_kernel,
+                                                        smoothing_length,
+                                                        young_modulus=0.0,
+                                                        poisson_ratio=0.0,
                                                         boundary_model=boundary_model_continuity)
 
             # Positions of the structure particles are not used here

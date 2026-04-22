@@ -33,14 +33,7 @@ struct BoundaryDEMSystem{NDIMS, ELTYPE <: Real, IC,
     end
 end
 
-# Keyword-only public front door used by the examples and docs.
 function BoundaryDEMSystem(initial_condition; normal_stiffness)
-    return BoundaryDEMSystem(initial_condition, normal_stiffness)
-end
-
-# The default constructor needs to be accessible for Adapt.jl to work with this struct.
-# See the comments in general/gpu.jl for more details.
-function BoundaryDEMSystem(initial_condition, normal_stiffness)
     ELTYPE = eltype(initial_condition)
     coordinates = initial_condition.coordinates
     radius = initial_condition.particle_spacing *
