@@ -5,11 +5,13 @@ if TRIXIPARTICLES_TEST_ == "cuda"
     CUDA.versioninfo()
     parallelization_backend = CUDABackend()
     supports_double_precision = true
+    fp64_fastdiv = true
 elseif TRIXIPARTICLES_TEST_ == "amdgpu"
     using AMDGPU
     AMDGPU.versioninfo()
     parallelization_backend = ROCBackend()
     supports_double_precision = true
+    fp64_fastdiv = false
 elseif TRIXIPARTICLES_TEST_ == "metal"
     using Metal
     Metal.versioninfo()
@@ -23,6 +25,56 @@ elseif TRIXIPARTICLES_TEST_ == "oneapi"
     supports_double_precision = false
 else
     error("Unknown GPU backend: $TRIXIPARTICLES_TEST_")
+end
+
+@testset verbose=true "div_fast $TRIXIPARTICLES_TEST_" begin
+    @testset verbose=true "CPU Float64" begin
+        x = Float64(pi)
+        y = rand(Float64, 1024) .+ 1
+
+        # We expect exact equality for `Float64` on the CPU
+        @test TrixiParticles.div_fast.(x, y) == x ./ y
+    end
+
+    @testset verbose=true "CPU Float32" begin
+        x = Float32(pi)
+        y = rand(Float32, 1024) .+ 1
+
+        # We don't test `max_error > 0`, since this might be exact on some CPUs
+        # (we observed this on ARM CPUs).
+        max_error = maximum(abs.(TrixiParticles.div_fast.(x, y) - x ./ y))
+        @test max_error < 1.0f-6
+    end
+
+    @testset verbose=true "GPU Float32" begin
+        x = Float32(pi)
+        y = Adapt.adapt(parallelization_backend, rand(Float32, 1024) .+ 1)
+
+        max_error = maximum(abs.(TrixiParticles.div_fast.(x, y) - x ./ y))
+        @test max_error < 1.0f-6
+
+        # Make sure that this is actually using a fast division
+        @test max_error > 0
+    end
+
+    if supports_double_precision
+        @testset verbose=true "GPU Float64" begin
+            x = Float64(pi)
+            y = Adapt.adapt(parallelization_backend, rand(Float64, 1024) .+ 1)
+
+            max_error = maximum(abs.(TrixiParticles.div_fast.(x, y) - x ./ y))
+
+            if fp64_fastdiv
+                @test max_error < 1e-15
+
+                # Make sure that this is actually using a fast division
+                @test max_error > 0
+            else
+                # If fast division for Float64 is not supported, we expect exact equality
+                @test max_error == 0
+            end
+        end
+    end
 end
 
 @testset verbose=true "Examples $TRIXIPARTICLES_TEST_" begin
@@ -279,10 +331,8 @@ end
                                                                      fluid_density_calculator=SummationDensity(),
                                                                      maxiters=38, # 38 time steps on CPU
                                                                      clip_negative_pressure=true),
-                # Broken due to https://github.com/JuliaGPU/CUDA.jl/issues/2681
-                # and https://github.com/JuliaGPU/Metal.jl/issues/550.
-                # "WCSPH with SchoenbergQuarticSplineKernel" => (smoothing_length=1.1,
-                #                                                smoothing_kernel=SchoenbergQuarticSplineKernel{2}()),
+                "WCSPH with SchoenbergQuarticSplineKernel" => (smoothing_length=1.1,
+                                                               smoothing_kernel=SchoenbergQuarticSplineKernel{2}()),
                 "WCSPH with SchoenbergQuinticSplineKernel" => (smoothing_length=1.1,
                                                                smoothing_kernel=SchoenbergQuinticSplineKernel{2}()),
                 "WCSPH with WendlandC2Kernel" => (smoothing_length=1.5,
@@ -394,7 +444,7 @@ end
                                                              joinpath(examples_dir(),
                                                                       "fluid",
                                                                       "poiseuille_flow_2d.jl"),
-                                                             wcsph=true,
+                                                             use_wcsph=true,
                                                              coordinates_eltype=Float32,
                                                              parallelization_backend=Main.parallelization_backend) [
                 r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
@@ -410,7 +460,7 @@ end
                                                              joinpath(examples_dir(),
                                                                       "fluid",
                                                                       "poiseuille_flow_2d.jl"),
-                                                             wcsph=false,
+                                                             use_wcsph=false,
                                                              coordinates_eltype=Float32,
                                                              parallelization_backend=Main.parallelization_backend) [
                 r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"

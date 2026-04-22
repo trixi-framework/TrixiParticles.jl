@@ -21,6 +21,31 @@
             end
         end
 
+        @trixi_testset "structure/oscillating_beam_2d.jl with penalty force" begin
+            @trixi_test_nowarn trixi_include(@__MODULE__,
+                                             joinpath(examples_dir(), "structure",
+                                                      "oscillating_beam_2d.jl"),
+                                             tspan=(0.0, 0.1),
+                                             penalty_force=PenaltyForceGanzenmueller(alpha=1.0),
+                                             sol=nothing) [
+                r"\[ Info: To create the self-interaction neighborhood search.*\n"
+            ]
+            # Use a fixed time step, tuned to the maximum stable step size for this example.
+            # Together with the very large penalty force alpha, this test will crash with
+            # "Instability detected" if the penalty force is not working correctly.
+            callbacks = CallbackSet((@__MODULE__).callbacks, StepsizeCallback(cfl=1.6))
+            sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false), dt=1.0,
+                        save_everystep=false, callback=callbacks)
+            @test sol.retcode == ReturnCode.Success
+            if VERSION < v"1.12"
+                # Older Julia versions produce allocations because `get_neighborhood_search`
+                # is not type-stable with TLSPH.
+                @test count_rhs_allocations(sol, semi) < 200
+            else
+                @test count_rhs_allocations(sol, semi) == 0
+            end
+        end
+
         @trixi_testset "structure/oscillating_beam_2d.jl with penalty force and viscosity" begin
             @trixi_test_nowarn trixi_include(@__MODULE__,
                                              joinpath(examples_dir(), "structure",
@@ -127,7 +152,8 @@
                                              E=1e7, # Stiffer plate
                                              maxiters=500) [
                 r"\[ Info: To create the self-interaction neighborhood search.*\n",
-                r"┌ Warning: Interrupted. Larger maxiters is needed.*\n",
+                "┌ Warning: Verbosity toggle: max_iters \n",
+                r".*Interrupted. Larger maxiters is needed.*\n",
                 r"└ @ SciMLBase.*\n"
             ]
             @test sol.retcode == ReturnCode.MaxIters
@@ -182,7 +208,8 @@
                                              maxiters=500,
                                              extra_callback=split_integration) [
                 r"\[ Info: To create the self-interaction neighborhood search.*\n",
-                "┌ Warning: Instability detected. Aborting\n",
+                "┌ Warning: Verbosity toggle: instability \n",
+                r".*Instability detected. Aborting\n",
                 r".*dt was forced below floating point epsilon.*\n",
                 r"└ @ SciMLBase.*\n"
             ]
