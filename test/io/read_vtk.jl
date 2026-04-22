@@ -275,6 +275,10 @@
                   rigid_system.angular_acceleration_force[]
             @test only(Array(TrixiParticles.ReadVTK.get_data(field_data["gyroscopic_acceleration"]))) ==
                   rigid_system.gyroscopic_acceleration[]
+            @test only(Array(TrixiParticles.ReadVTK.get_data(field_data["contact_count"]))) ==
+                  rigid_system.cache.contact_count[]
+            @test only(Array(TrixiParticles.ReadVTK.get_data(field_data["max_contact_penetration"]))) ==
+                  rigid_system.cache.max_contact_penetration[]
         end
     end
 end

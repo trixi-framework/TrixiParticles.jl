@@ -35,12 +35,12 @@ WriteVTK = "64499a7a-5c06-52f2-abe2-ccb03c286192"
 
 [weakdeps]
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
-OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
 OrdinaryDiffEqCore = "bbf590c4-e513-4bbe-9b18-05decba2e5d8"
+OrdinaryDiffEqSymplecticRK = "fa646aed-7ef9-47eb-84c4-9443fc8cbfa8"
 
 [extensions]
+TrixiParticlesOrdinaryDiffEqSymplecticRKExt = ["OrdinaryDiffEqSymplecticRK", "OrdinaryDiffEqCore"]
 TrixiParticlesCUDAExt = "CUDA"
-TrixiParticlesOrdinaryDiffEqExt = ["OrdinaryDiffEq", "OrdinaryDiffEqCore"]
 
 [compat]
 Accessors = "0.1.43"
@@ -56,9 +56,9 @@ ForwardDiff = "1"
 GPUArraysCore = "0.2"
 JSON = "1"
 KernelAbstractions = "0.9"
-OrdinaryDiffEq = "6.91"
+OrdinaryDiffEqSymplecticRK = "1.10"
 OrdinaryDiffEqCore = "2, 3"
-PointNeighbors = "0.6.5"
+PointNeighbors = "0.6.6"
 Polyester = "0.7.10"
 ReadVTK = "0.2"
 RecipesBase = "1"
