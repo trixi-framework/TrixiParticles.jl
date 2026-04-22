@@ -11,6 +11,44 @@ function PointNeighbors.foreach_point_neighbor(f, system, neighbor_system,
                            points, parallelization_backend)
 end
 
+deactivate_out_of_bounds_particles!(system, buffer, nhs, v, u, semi) = system
+
+function deactivate_out_of_bounds_particles!(system, buffer::SystemBuffer,
+                                             nhs::GridNeighborhoodSearch, v, u, semi)
+    deactivate_out_of_bounds_particles!(system, buffer, nhs, nhs.cell_list, v, u, semi)
+end
+
+function deactivate_out_of_bounds_particles!(system, buffer, nhs, cell_list, v, u, semi)
+    return system
+end
+
+# `GridNeighborhoodSearch` with a `FullGridCellList` requires a bounding box.
+# This function deactivates particles that move outside the bounding box to prevent
+# simulation crashes.
+# Note that deactivating particles is only possible in combination with a 'SystemBuffer'.
+function deactivate_out_of_bounds_particles!(system, ::SystemBuffer, nhs,
+                                             cell_list::FullGridCellList, v, u, semi)
+    @trixi_timeit timer() "deactivate out of bounds particle" begin
+        @threaded semi for particle in each_integrated_particle(system)
+            particle_position = current_coords(u, system, particle)
+            cell = PointNeighbors.cell_coords(particle_position, nhs)
+
+            # This is the same code as is used in PointNeighbors.jl in `check_cell_bounds`.
+            # It tests that particles are inside the inner grid (without the padding layer for neighbor query).
+            if !all(cell[i] in 2:(size(cell_list.linear_indices, i) - 1)
+                    for i in eachindex(cell))
+                deactivate_particle!(system, particle, v, u)
+            end
+        end
+
+        if count(system.buffer.active_particle) != system.buffer.active_particle_count[]
+            update_system_buffer!(system.buffer)
+        end
+    end
+
+    return system
+end
+
 @propagate_inbounds function foreach_neighbor(f, system_coords, neighbor_coords,
                                               neighborhood_search, backend, particle)
     PointNeighbors.foreach_neighbor(f, system_coords, neighbor_coords,

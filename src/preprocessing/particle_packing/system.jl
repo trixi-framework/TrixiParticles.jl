@@ -259,7 +259,13 @@ function kinetic_energy(system::ParticlePackingSystem, v_ode, u_ode, semi, t)
 end
 
 @inline source_terms(system::ParticlePackingSystem) = nothing
-@inline add_acceleration!(dv, particle, system::ParticlePackingSystem) = dv
+
+# Special case for `ParticlePackingSystem`, which is an `AbstractFluidSystem`
+# but doesn't have source terms or gravity/acceleration.
+function add_source_terms!(dv, v, u, system::ParticlePackingSystem,
+                           semi, t, integrate_tlsph)
+    return dv
+end
 
 # Update from `UpdateCallback` (between time steps)
 update_particle_packing(system, v_ode, u_ode, semi, integrator) = system
@@ -390,15 +396,19 @@ end
 end
 
 # Skip for fixed systems
-@inline function add_velocity!(du, v, u, particle,
-                               system::ParticlePackingSystem{<:Any, true}, t)
+@inline function set_velocity!(du, v, u,
+                               system::ParticlePackingSystem{<:Any, true},
+                               semi, t)
+    # Note that `du` is of size `(0, n_particles)`, so we don't have to set it to zero
     return du
 end
 
 # Add advection velocity
-@inline function add_velocity!(du, v, u, particle, system::ParticlePackingSystem, t)
-    for i in 1:ndims(system)
-        du[i, particle] = system.advection_velocity[i, particle]
+@inline function set_velocity!(du, v, u, system::ParticlePackingSystem, semi, t)
+    @threaded semi for particle in each_integrated_particle(system)
+        for i in 1:ndims(system)
+            @inbounds du[i, particle] = system.advection_velocity[i, particle]
+        end
     end
 
     return du
