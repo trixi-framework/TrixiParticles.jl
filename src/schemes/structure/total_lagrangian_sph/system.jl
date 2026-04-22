@@ -68,7 +68,6 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
     ```
     Since `clamped_particles` is the first argument, these particles appear first in
     `structure`, so their indices are `1:nparticles(clamped_particles)`.
-    (`beam` and `clamped_particles` are `InitialCondition`s.)
 """
 struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, ARRAY3D,
                                 YM, PR, LL, LM, K, PF, V, ST, M, IM, NHS,
