@@ -8,7 +8,7 @@
 # ==========================================================================================
 
 using TrixiParticles
-using OrdinaryDiffEq
+using OrdinaryDiffEqLowStorageRK
 
 filename = "sphere"
 file = pkgdir(TrixiParticles, "examples", "preprocessing", "data", filename * ".stl")

@@ -5,10 +5,10 @@
 # without ever cloning the repository.
 
 # First, we import TrixiParticles.jl and
-# [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl), which we will
+# [OrdinaryDiffEqLowStorageRK.jl](https://github.com/SciML/OrdinaryDiffEqLowStorageRK.jl), which we will
 # use at the very end for the time integration.
 using TrixiParticles
-using OrdinaryDiffEq
+using OrdinaryDiffEqLowStorageRK
 
 # ## Load a simulation file
 

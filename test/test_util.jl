@@ -8,6 +8,7 @@ using Printf
 using CSV: CSV
 using DataFrames: DataFrame
 using JSON: JSON
+using OrdinaryDiffEqSymplecticRK # Required to load extension that provides `SymplecticPositionVerlet`
 using QuadGK: quadgk # For integration in smoothing kernel tests
 using Random: Random # For rectangular patch
 using Polyester: disable_polyester_threads # For `count_rhs_allocations`

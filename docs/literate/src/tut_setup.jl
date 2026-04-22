@@ -7,10 +7,10 @@
 # For different setups and physics, take a look at [our other example files](@ref examples).
 
 # First, we import TrixiParticles.jl and
-# [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl), which we will
+# [OrdinaryDiffEqLowStorageRK.jl](https://github.com/SciML/OrdinaryDiffEqLowStorageRK.jl), which we will
 # use at the very end for the time integration.
 using TrixiParticles
-using OrdinaryDiffEq
+using OrdinaryDiffEqLowStorageRK
 
 # ## Resolution
 
@@ -158,10 +158,10 @@ nothing # hide
 # ## Time integration
 
 # We use the methods provided by
-# [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl),
+# [OrdinaryDiffEqLowStorageRK.jl](https://github.com/SciML/OrdinaryDiffEqLowStorageRK.jl),
 # but note that other packages or custom implementations can also be used.
 
-# OrdinaryDiffEq.jl supports callbacks, which are executed during the simulation.
+# OrdinaryDiffEqLowStorageRK.jl supports callbacks, which are executed during the simulation.
 # For this simulation, we use the [`InfoCallback`](@ref), which prints
 # information about the simulation setup at the beginning of the simulation,
 # information about the current simulation time and runtime during the simulation,
@@ -169,7 +169,7 @@ nothing # hide
 # We also want to save the current solution in regular intervals in terms of
 # simulation time as VTK, so that we can [look at the solution in ParaView](@ref Visualization).
 # The [`SolutionSavingCallback`](@ref) provides this functionality.
-# To pass the callbacks to OrdinaryDiffEq.jl, we have to bundle them into a
+# To pass the callbacks to OrdinaryDiffEqLowStorageRK.jl, we have to bundle them into a
 # `CallbackSet`.
 info_callback = InfoCallback(interval=50)
 saving_callback = SolutionSavingCallback(dt=0.02)
@@ -178,7 +178,7 @@ callbacks = CallbackSet(info_callback, saving_callback)
 nothing # hide
 
 # Finally, we can start the simulation by solving the `ODEProblem`.
-# We use the method `RDPK3SpFSAL35` of OrdinaryDiffEq.jl, which is a Runge-Kutta
+# We use the method `RDPK3SpFSAL35` of OrdinaryDiffEqLowStorageRK.jl, which is a Runge-Kutta
 # method with automatic (error based) time step size control.
 # This method is usually a good choice for prototyping, since we do not have to
 # worry about choosing a stable step size and can just run the simulation.
