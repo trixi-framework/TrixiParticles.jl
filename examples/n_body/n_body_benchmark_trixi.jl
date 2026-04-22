@@ -79,7 +79,7 @@ particle_system = NBodySystem(initial_condition, G)
 
 semi = Semidiscretization(particle_system, neighborhood_search=nothing)
 
-# This is significantly faster than using OrdinaryDiffEqLowStorageRK.
+# This is significantly faster than using OrdinaryDiffEq.
 function symplectic_euler!(velocity, coordinates, semi)
     v = vec(velocity)
     u = vec(coordinates)

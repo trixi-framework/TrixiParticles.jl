@@ -8,7 +8,8 @@ with Julia v1.10 and newer. We recommend using the latest stable release of Juli
 ## For users
 TrixiParticles.jl is a registered Julia package.
 You can install TrixiParticles.jl,
-[OrdinaryDiffEqLowStorageRK.jl](https://github.com/SciML/OrdinaryDiffEqLowStorageRK.jl) (used for time integration)
+time integration sub-packages of [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl)
+(e.g., `OrdinaryDiffEqLowStorageRK.jl`)
 and [Plots.jl](https://github.com/JuliaPlots/Plots.jl) by executing the following commands
 in the Julia REPL:
 ```julia
@@ -36,11 +37,14 @@ julia --project=run
 from the TrixiParticles.jl root directory.
 
 The advantage of using a separate `run` directory is that you can also add other
-related packages (e.g., OrdinaryDiffEqLowStorageRK.jl, see above) to the project in the `run` folder
+related packages (e.g., time integration sub-packages of OrdinaryDiffEq.jl, see above)
+to the project in the `run` folder
 and always have a reproducible environment at hand to share with others.
 
 ## Optional software/packages
-- [OrdinaryDiffEqLowStorageRK.jl](https://github.com/SciML/OrdinaryDiffEqLowStorageRK.jl) -- A Julia package of ordinary differential equation solvers that is used in the examples
+- [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl) sub-packages
+  (e.g., `OrdinaryDiffEqLowStorageRK.jl`) -- Julia packages of ordinary differential
+  equation solvers that are used in the examples
 - [Plots.jl](https://github.com/JuliaPlots/Plots.jl) -- Julia Plotting library that is used in some examples
 - [PythonPlot.jl](https://github.com/JuliaPy/PythonPlot.jl) -- Plotting library that can be used instead of Plots.jl
 - [ParaView](https://www.paraview.org/) -- Software that can be used for visualization of results

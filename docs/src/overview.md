@@ -10,7 +10,7 @@ The following page gives a rough overview of important parts of the code.
 ## Program flow
 
 To initiate a simulation, the goal is to solve an ordinary differential equation, for example,
-by employing the time integration schemes provided by OrdinaryDiffEqLowStorageRK.jl. These schemes are then
+by employing the time integration schemes provided by OrdinaryDiffEq.jl. These schemes are then
 utilized to integrate ``\mathrm{d}u/\mathrm{d}t`` and ``\mathrm{d}v/\mathrm{d}t``, where ``u``
 represents the particles' positions and ``v`` their properties such as velocity and density.
 During a single time step or an intermediate step of the time integration scheme, the functions
