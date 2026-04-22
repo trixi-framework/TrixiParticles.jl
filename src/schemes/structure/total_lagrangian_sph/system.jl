@@ -1,7 +1,6 @@
 @doc raw"""
     TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing_length,
                              young_modulus, poisson_ratio;
-                             n_clamped_particles=0,
                              clamped_particles=Int[],
                              clamped_particles_motion=nothing,
                              acceleration=ntuple(_ -> 0.0, NDIMS),
@@ -26,11 +25,6 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
                         See [Smoothing Kernels](@ref smoothing_kernel).
 
 # Keywords
-- `n_clamped_particles` (deprecated): Number of clamped particles that are fixed and not integrated
-                         to clamp the structure. Note that the clamped particles must be the **last**
-                         particles in the `InitialCondition`. See the info box below.
-                         This keyword is deprecated and will be removed in a future release.
-                         Instead pass `clamped_particles` with the explicit particle indices to be clamped.
 - `clamped_particles`: Indices specifying the clamped particles that are fixed
                        and not integrated to clamp the structure.
 - `clamped_particles_motion`: Prescribed motion of the clamped particles.
@@ -63,24 +57,17 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
                     Alternatively, a user-defined neighborhood search can be passed here.
 
 !!! note
-    If specifying the clamped particles manually (via `n_clamped_particles`),
-    the clamped particles must be the **last** particles in the `InitialCondition`.
-    To do so, e.g. use the `union` function:
+    To define `clamped_particles` conveniently, place the clamped block first and combine
+    initial conditions with `union`:
     ```jldoctest; output = false, setup = :(clamped_particles = RectangularShape(0.1, (1, 4), (0.0, 0.0), density=1.0); beam = RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0))
-    structure = union(beam, clamped_particles)
+    structure = union(clamped_particles, beam)
+    clamped_particle_indices = 1:nparticles(clamped_particles)
 
     # output
-    ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-    │ InitialCondition                                                                                 │
-    │ ════════════════                                                                                 │
-    │ #dimensions: ……………………………………………… 2                                                                │
-    │ #particles: ………………………………………………… 16                                                               │
-    │ particle spacing: ………………………………… 0.1                                                              │
-    │ eltype: …………………………………………………………… Float64                                                          │
-    │ coordinate eltype: ……………………………… Float64                                                          │
-    └──────────────────────────────────────────────────────────────────────────────────────────────────┘
+    1:4
     ```
-    where `beam` and `clamped_particles` are of type [`InitialCondition`](@ref).
+    Since `clamped_particles` is the first argument, these particles appear first in
+    `structure`, so their indices are `1:nparticles(clamped_particles)`.
 """
 struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, ARRAY3D,
                                 YM, PR, LL, LM, K, PF, V, ST, M, IM, NHS,
@@ -114,7 +101,6 @@ end
 
 function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing_length,
                                   young_modulus, poisson_ratio;
-                                  n_clamped_particles=0,
                                   clamped_particles=Int[],
                                   clamped_particles_motion=nothing,
                                   acceleration=ntuple(_ -> zero(eltype(initial_condition)),
@@ -136,20 +122,6 @@ function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing
         throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
     end
 
-    # Backwards compatibility: `n_clamped_particles` is deprecated.
-    # Emit a deprecation warning and (if the user didn't supply explicit indices)
-    # convert the old `n_clamped_particles` convention to `clamped_particles`.
-    if n_clamped_particles != 0
-        Base.depwarn("keyword `n_clamped_particles` is deprecated and will be removed in a future release; " *
-                     "pass `clamped_particles` (Vector{Int} of indices) instead.",
-                     :n_clamped_particles)
-        if isempty(clamped_particles)
-            clamped_particles = collect((n_particles - n_clamped_particles + 1):n_particles)
-        else
-            throw(ArgumentError("Either `n_clamped_particles` or `clamped_particles` can be specified, not both."))
-        end
-    end
-
     # Handle clamped particles
     if !isempty(clamped_particles)
         @assert allunique(clamped_particles) "`clamped_particles` contains duplicate particle indices"
@@ -162,6 +134,7 @@ function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing
         move_particles_to_end!(young_modulus_sorted, clamped_particles)
         move_particles_to_end!(poisson_ratio_sorted, clamped_particles)
     else
+        n_clamped_particles = 0
         initial_condition_sorted = initial_condition
         young_modulus_sorted = young_modulus
         poisson_ratio_sorted = poisson_ratio
