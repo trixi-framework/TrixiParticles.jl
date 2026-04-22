@@ -65,7 +65,7 @@ right_wall = RectangularShape(structure_particle_spacing, (3, n_particles_plate_
                               place_on_shell=true)
 fixed_particles = union(left_wall, right_wall)
 
-structure_geometry = union(plate, fixed_particles)
+structure_geometry = union(fixed_particles, plate)
 
 # ==========================================================================================
 # ==== Smoothing Kernel, Boundary, and Related Quantities
@@ -127,7 +127,7 @@ boundary_model_structure = BoundaryModelDummyParticles(hydrodynamic_densities,
 structure_system = TotalLagrangianSPHSystem(structure_geometry, smoothing_kernel,
                                             smoothing_length_structure,
                                             E, nu, boundary_model=boundary_model_structure,
-                                            n_clamped_particles=nparticles(fixed_particles),
+                                            clamped_particles=1:nparticles(fixed_particles),
                                             acceleration=(0.0, -gravity))
 
 min_corner = min.(minimum(structure_geometry.coordinates, dims=2),
