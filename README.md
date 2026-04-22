@@ -127,9 +127,9 @@ You can find the documentation for the latest release
 
 ## Publications
 
-* *Neher*, *Faulhaber*, *Berger*, Weißenfels, *Gassner*, *Schlottke-Lakemper*,
+* Neher, Faulhaber, Berger, Weißenfels, Gassner, Schlottke-Lakemper,
   **Robust and efficient pre-processing techniques for particle-based methods including dynamic boundary generation**,
-  Computer Physics Communications (318) 109898, 2026.\\
+  Computer Physics Communications (318) 109898, 2026.<br>
   [![arXiv:2506.21206](https://img.shields.io/badge/arXiv-2506.21206-yellow)](https://arxiv.org/abs/2506.21206)
   [![doi:10.1016/j.cpc.2025.109898](https://zenodo.org/badge/doi/10.1016/j.cpc.2025.109898.svg)](https://doi.org/10.1016/j.cpc.2025.109898)
   [![reproduce me!](https://img.shields.io/badge/reproduce-me!-brightgreen)](https://github.com/trixi-framework/paper-2025-particle-based_preprocessing)
