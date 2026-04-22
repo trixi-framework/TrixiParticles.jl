@@ -1,4 +1,4 @@
-module TrixiParticlesOrdinaryDiffEqExt
+module TrixiParticlesOrdinaryDiffEqSymplecticRKExt
 
 # This package extension defines the `SymplecticPositionVerlet` scheme from DualSPHysics.
 # The scheme is similar to the `LeapfrogDriftKickDrift` scheme, but with a different
