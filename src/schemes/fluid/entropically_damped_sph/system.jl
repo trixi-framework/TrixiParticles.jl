@@ -196,7 +196,7 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                                particle_refinement, cache)
 end
 
-create_cache_avg_pressure_reduction(initial_condition, ::Val{false}) = (; )
+create_cache_avg_pressure_reduction(initial_condition, ::Val{false}) = (;)
 
 function create_cache_avg_pressure_reduction(initial_condition, ::Val{true})
     pressure_average = copy(initial_condition.pressure)
