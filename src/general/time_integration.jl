@@ -1,7 +1,7 @@
 # Time integration is handled by the package OrdinaryDiffEq.jl.
 # See the docs for more details.
 # In this file, we define the structs for extra time integration schemes that
-# are implemented in the package extension TrixiParticlesOrdinaryDiffEqSymplecticRKExt.jl.
+# are implemented in the package extension TrixiParticlesOrdinaryDiffEqSymplecticRKExt.
 """
     SymplecticPositionVerlet()
 
