@@ -591,8 +591,8 @@ end
     delta_v_a = delta_v(system, particle)
     delta_v_b = delta_v(neighbor_system, neighbor)
 
-    A_a = rho_a * v_a * delta_v_a'
-    A_b = rho_b * v_b * delta_v_b'
+    A_a = rho_a * v_a * permutedims(delta_v_a)
+    A_b = rho_b * v_b * permutedims(delta_v_b)
 
     # The following term depends on the pressure acceleration formulation.
     # See the large comment below. In the original paper (Adami et al., 2013), this is
