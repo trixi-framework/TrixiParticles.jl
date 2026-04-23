@@ -28,7 +28,7 @@
                                               smoothing_length,
                                               young_modulus=E,
                                               poisson_ratio=nu,
-                                              boundary_model=boundary_model)
+                                              boundary_model)
 
             @test system isa TotalLagrangianSPHSystem
             @test ndims(system) == NDIMS
@@ -70,7 +70,7 @@
                                           smoothing_length,
                                           young_modulus=E,
                                           poisson_ratio=nu,
-                                          boundary_model=boundary_model)
+                                          boundary_model)
 
         show_compact = "TotalLagrangianSPHSystem{2}(Val{:smoothing_kernel}(), " *
                        "[0.0, 0.0], Val{:boundary_model}(), nothing, nothing) with 2 particles"
@@ -99,7 +99,7 @@
                                           smoothing_length,
                                           young_modulus=E,
                                           poisson_ratio=nu,
-                                          boundary_model=boundary_model)
+                                          boundary_model)
 
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -333,7 +333,7 @@
                                           smoothing_length,
                                           young_modulus=E,
                                           poisson_ratio=nu,
-                                          boundary_model=boundary_model)
+                                          boundary_model)
 
         u0 = zeros(TrixiParticles.u_nvariables(system),
                    TrixiParticles.n_integrated_particles(system))
@@ -363,7 +363,7 @@
                                           smoothing_length,
                                           young_modulus=E,
                                           poisson_ratio=nu,
-                                          boundary_model=boundary_model)
+                                          boundary_model)
 
         v0 = zeros(TrixiParticles.v_nvariables(system),
                    TrixiParticles.n_integrated_particles(system))

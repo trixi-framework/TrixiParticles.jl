@@ -52,33 +52,33 @@
                                               smoothing_kernel=WendlandC6Kernel{2}()),
             "EDAC with source term damping" => (source_terms=SourceTermDamping(damping_coefficient=1e-4),
                                                 fluid_system=EntropicallyDampedSPHSystem(tank.fluid;
-                                                                                         smoothing_kernel=smoothing_kernel,
-                                                                                         smoothing_length=smoothing_length,
-                                                                                         sound_speed=sound_speed,
+                                                                                         smoothing_kernel,
+                                                                                         smoothing_length,
+                                                                                         sound_speed,
                                                                                          viscosity=viscosity_fluid,
                                                                                          density_calculator=ContinuityDensity(),
                                                                                          acceleration=(0.0,
                                                                                                        -gravity))),
             "EDAC with SummationDensity" => (fluid_system=EntropicallyDampedSPHSystem(tank.fluid;
-                                                                                      smoothing_kernel=smoothing_kernel,
-                                                                                      smoothing_length=smoothing_length,
-                                                                                      sound_speed=sound_speed,
+                                                                                      smoothing_kernel,
+                                                                                      smoothing_length,
+                                                                                      sound_speed,
                                                                                       viscosity=viscosity_fluid,
                                                                                       density_calculator=SummationDensity(),
                                                                                       acceleration=(0.0,
                                                                                                     -gravity)),),
             "EDAC with ViscosityAdami" => (fluid_system=EntropicallyDampedSPHSystem(tank.fluid;
-                                                                                    smoothing_kernel=smoothing_kernel,
-                                                                                    smoothing_length=smoothing_length,
-                                                                                    sound_speed=sound_speed,
+                                                                                    smoothing_kernel,
+                                                                                    smoothing_length,
+                                                                                    sound_speed,
                                                                                     viscosity=ViscosityAdami(nu=0.0015),
                                                                                     density_calculator=ContinuityDensity(),
                                                                                     acceleration=(0.0,
                                                                                                   -gravity)),),
             "EDAC with ViscosityMorris" => (fluid_system=EntropicallyDampedSPHSystem(tank.fluid;
-                                                                                     smoothing_kernel=smoothing_kernel,
-                                                                                     smoothing_length=smoothing_length,
-                                                                                     sound_speed=sound_speed,
+                                                                                     smoothing_kernel,
+                                                                                     smoothing_length,
+                                                                                     sound_speed,
                                                                                      viscosity=ViscosityMorris(nu=0.0015),
                                                                                      density_calculator=ContinuityDensity(),
                                                                                      acceleration=(0.0,
@@ -593,7 +593,7 @@
                 # Prepare keyword arguments
                 kwargs = model_name == "SurfaceTensionNone" ?
                          (surface_tension=nothing,) :
-                         (surface_tension=surface_tension,)
+                         (surface_tensionn,)
 
                 # Execute the example script with the current surface tension model
                 @trixi_test_nowarn trixi_include(@__MODULE__,
@@ -626,7 +626,7 @@
                 # Prepare keyword arguments
                 kwargs = model_name == "SurfaceTensionNone" ?
                          (surface_tension=nothing,) :
-                         (surface_tension=surface_tension,)
+                         (surface_tensionn,)
 
                 # Execute the example script with the current surface tension model
                 @trixi_test_nowarn trixi_include(@__MODULE__,

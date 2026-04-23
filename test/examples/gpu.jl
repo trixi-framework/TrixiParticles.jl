@@ -229,7 +229,7 @@ end
                                                              coordinates_eltype=Float32,
                                                              boundary_layers=1,
                                                              spacing_ratio=3,
-                                                             boundary_model=boundary_model,
+                                                             boundary_model,
                                                              parallelization_backend=Main.parallelization_backend) [
                 r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n",
                 r"┌ Info: The desired tank length in y-direction.*\n",
@@ -267,12 +267,12 @@ end
             @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
                                                              joinpath(examples_dir(),
                                                                       "fluid",
-                                                                      "dam_break_3d.jl"),
+                                                                      "dam_break_3d.jl");
                                                              tspan=(0.0f0, 0.1f0),
                                                              coordinates_eltype=Float32,
                                                              fluid_particle_spacing=0.1,
                                                              semi=semi_fullgrid,
-                                                             maxiters=maxiters) [
+                                                             maxiters) [
                 r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
@@ -309,9 +309,9 @@ end
 
             # Create tank with Float32 coordinates
             tank = RectangularTank(fluid_particle_spacing, initial_fluid_size,
-                                   tank_size, fluid_density, n_layers=boundary_layers,
+                                   tank_size, fluid_density; n_layers=boundary_layers,
                                    acceleration=(0.0f0, -gravity),
-                                   state_equation=state_equation,
+                                   state_equation,
                                    coordinates_eltype=Float32)
 
             hydrostatic_water_column_tests = Dict(
@@ -343,17 +343,17 @@ end
                                                   smoothing_kernel=WendlandC6Kernel{2}()),
                 "EDAC with source term damping" => (source_terms=SourceTermDamping(damping_coefficient=1.0f-4),
                                                     fluid_system=EntropicallyDampedSPHSystem(tank.fluid;
-                                                                                             smoothing_kernel=smoothing_kernel,
-                                                                                             smoothing_length=smoothing_length,
-                                                                                             sound_speed=sound_speed,
+                                                                                             smoothing_kernel,
+                                                                                             smoothing_length,
+                                                                                             sound_speed,
                                                                                              viscosity=viscosity_fluid,
                                                                                              density_calculator=ContinuityDensity(),
                                                                                              acceleration=(0.0,
                                                                                                            -gravity))),
                 "EDAC with SummationDensity" => (fluid_system=EntropicallyDampedSPHSystem(tank.fluid;
-                                                                                          smoothing_kernel=smoothing_kernel,
-                                                                                          smoothing_length=smoothing_length,
-                                                                                          sound_speed=sound_speed,
+                                                                                          smoothing_kernel,
+                                                                                          smoothing_length,
+                                                                                          sound_speed,
                                                                                           viscosity=viscosity_fluid,
                                                                                           density_calculator=SummationDensity(),
                                                                                           acceleration=(0.0,
@@ -369,7 +369,7 @@ end
                     trixi_include_changeprecision(Float32, @__MODULE__,
                                                   joinpath(examples_dir(), "fluid",
                                                            "hydrostatic_water_column_2d.jl");
-                                                  sol=nothing, ode=nothing, tank=tank,
+                                                  sol=nothing, ode=nothing, tank,
                                                   kwargs...)
 
                     # Neighborhood search with `FullGridCellList` for GPU compatibility
@@ -388,7 +388,7 @@ end
                                                                               "fluid",
                                                                               "hydrostatic_water_column_2d.jl");
                                                                      semi=semi_fullgrid,
-                                                                     tank=tank,
+                                                                     tank,
                                                                      tspan=(0.0f0, 0.1f0),
                                                                      kwargs...) [
                         r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n",
@@ -667,10 +667,10 @@ end
 
             @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
                                                              joinpath(examples_dir(), "dem",
-                                                                      "rectangular_tank_2d.jl"),
+                                                                      "rectangular_tank_2d.jl");
                                                              tspan=(0.0f0, 0.05f0),
                                                              coordinates_eltype=Float32,
-                                                             neighborhood_search=neighborhood_search,
+                                                             neighborhood_search,
                                                              parallelization_backend=Main.parallelization_backend) [
                 r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
             ]

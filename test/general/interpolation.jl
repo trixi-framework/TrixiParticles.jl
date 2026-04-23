@@ -102,14 +102,14 @@
 
         fluid_system = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(),
                                                    state_equation, smoothing_kernel,
-                                                   smoothing_length, viscosity=viscosity,
+                                                   smoothing_length; viscosity,
                                                    acceleration=(0.0, -9.81))
 
         boundary_model = BoundaryModelDummyParticles(bnd.density, bnd.mass,
-                                                     state_equation=state_equation,
-                                                     viscosity=viscosity,
                                                      AdamiPressureExtrapolation(),
-                                                     smoothing_kernel, smoothing_length)
+                                                     smoothing_kernel, smoothing_length;
+                                                     state_equation,
+                                                     viscosity)
 
         boundary_system = WallBoundarySystem(bnd, boundary_model)
 
@@ -141,8 +141,8 @@
                                                                                   semi_no_boundary,
                                                                                   fluid_system,
                                                                                   v_no_bnd,
-                                                                                  u_no_bnd,
-                                                                                  cut_off_bnd=cut_off_bnd)
+                                                                                  u_no_bnd;
+                                                                                  cut_off_bnd)
 
                 # Top outside
                 distance_top_outside = binary_search_outside(ny * particle_spacing,
@@ -206,8 +206,8 @@
                 result_multipoint = TrixiParticles.interpolate_points(multi_point_coords,
                                                                       semi_no_boundary,
                                                                       fluid_system,
-                                                                      v_no_bnd, u_no_bnd,
-                                                                      cut_off_bnd=cut_off_bnd)
+                                                                      v_no_bnd, u_no_bnd;
+                                                                      cut_off_bnd)
 
                 expected_multi = (density=[666.0, 666.0000000000001, 666.0],
                                   neighbor_count=[2, 6, 5],
@@ -222,15 +222,15 @@
                 result_endpoint = TrixiParticles.interpolate_line([1.0, -0.05], [1.0, 1.0],
                                                                   5, semi_no_boundary,
                                                                   fluid_system,
-                                                                  v_no_bnd, u_no_bnd,
+                                                                  v_no_bnd, u_no_bnd;
                                                                   endpoint=true,
-                                                                  cut_off_bnd=cut_off_bnd)
+                                                                  cut_off_bnd)
 
                 result = TrixiParticles.interpolate_line([1.0, -0.05], [1.0, 1.0],
                                                          5, semi_no_boundary,
-                                                         fluid_system, v_no_bnd, u_no_bnd,
+                                                         fluid_system, v_no_bnd, u_no_bnd;
                                                          endpoint=false,
-                                                         cut_off_bnd=cut_off_bnd)
+                                                         cut_off_bnd)
 
                 expected_res = (density=[666.0, 666.0, 666.0], neighbor_count=[2, 2, 1],
                                 point_coords=[1.0 1.0 1.0;
@@ -354,8 +354,8 @@
                                                                                   semi_boundary,
                                                                                   fluid_system,
                                                                                   v_bnd,
-                                                                                  u_bnd,
-                                                                                  cut_off_bnd=cut_off_bnd)
+                                                                                  u_bnd;
+                                                                                  cut_off_bnd)
 
                 # Top outside
                 distance_top_outside = binary_search_outside(ny * particle_spacing,
@@ -441,8 +441,8 @@
                 result_multipoint = TrixiParticles.interpolate_points(multi_point_coords,
                                                                       semi_boundary,
                                                                       fluid_system,
-                                                                      v_bnd, u_bnd,
-                                                                      cut_off_bnd=cut_off_bnd)
+                                                                      v_bnd, u_bnd;
+                                                                      cut_off_bnd)
                 if cut_off_bnd
                     expected_multi = (density=[666.0, 666.0000000000001, 666.0],
                                       neighbor_count=[4, 6, 5],
@@ -475,15 +475,15 @@
                 result_endpoint = TrixiParticles.interpolate_line([1.0, -0.05], [1.0, 1.0],
                                                                   5, semi_boundary,
                                                                   fluid_system,
-                                                                  v_bnd, u_bnd,
+                                                                  v_bnd, u_bnd;
                                                                   endpoint=true,
-                                                                  cut_off_bnd=cut_off_bnd)
+                                                                  cut_off_bnd)
 
                 result = TrixiParticles.interpolate_line([1.0, -0.05], [1.0, 1.0],
                                                          5, semi_no_boundary,
-                                                         fluid_system, v_no_bnd, u_no_bnd,
+                                                         fluid_system, v_no_bnd, u_no_bnd;
                                                          endpoint=false,
-                                                         cut_off_bnd=cut_off_bnd)
+                                                         cut_off_bnd)
                 if cut_off_bnd
                     expected_res = (density=[666.0, 666.0, 666.0], neighbor_count=[2, 2, 1],
                                     point_coords=[1.0 1.0 1.0;
@@ -618,8 +618,8 @@
             const_pressure = [2 * new_wall_distance]
             const_velocity = [5; 0.1 * new_wall_distance^2+0.1; 0.0;;]
 
-            return (density=const_density,
-                    neighbor_count=neighbor_count,
+            return (; density=const_density,
+                    neighbor_count,
                     point_coords=[0.0; wall_distance; 0.0;;],
                     velocity=const_velocity,
                     pressure=const_pressure)
@@ -653,14 +653,14 @@
 
         fluid_system = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(),
                                                    state_equation, smoothing_kernel,
-                                                   smoothing_length, viscosity=viscosity,
+                                                   smoothing_length; viscosity,
                                                    acceleration=(0.0, -9.81, 0.0))
 
         boundary_model = BoundaryModelDummyParticles(bnd.density, bnd.mass,
-                                                     state_equation=state_equation,
-                                                     viscosity=viscosity,
                                                      AdamiPressureExtrapolation(),
-                                                     smoothing_kernel, smoothing_length)
+                                                     smoothing_kernel, smoothing_length;
+                                                     state_equation,
+                                                     viscosity)
 
         boundary_system = WallBoundarySystem(bnd, boundary_model)
 
@@ -694,8 +694,8 @@
                                                                                   semi_no_boundary,
                                                                                   fluid_system,
                                                                                   v_no_bnd,
-                                                                                  u_no_bnd,
-                                                                                  cut_off_bnd=cut_off_bnd)
+                                                                                  u_no_bnd;
+                                                                                  cut_off_bnd)
 
                 # Top outside
                 distance_top_outside = binary_search_outside(ny * particle_spacing,
@@ -763,8 +763,8 @@
                 result_multipoint = TrixiParticles.interpolate_points(multi_point_coords,
                                                                       semi_no_boundary,
                                                                       fluid_system,
-                                                                      v_no_bnd, u_no_bnd,
-                                                                      cut_off_bnd=cut_off_bnd)
+                                                                      v_no_bnd, u_no_bnd;
+                                                                      cut_off_bnd)
 
                 expected_multi = (density=[666.0, 666.0, 666.0], neighbor_count=[4, 4, 9],
                                   point_coords=multi_point_coords,
@@ -785,8 +785,8 @@
                                                                                   semi_boundary,
                                                                                   fluid_system,
                                                                                   v_no_bnd,
-                                                                                  u_no_bnd,
-                                                                                  cut_off_bnd=cut_off_bnd)
+                                                                                  u_no_bnd;
+                                                                                  cut_off_bnd)
 
                 # Top outside
                 distance_top_outside = binary_search_outside(ny * particle_spacing,
@@ -871,8 +871,8 @@
                 result_multipoint = TrixiParticles.interpolate_points(multi_point_coords,
                                                                       semi_no_boundary,
                                                                       fluid_system,
-                                                                      v_no_bnd, u_no_bnd,
-                                                                      cut_off_bnd=cut_off_bnd)
+                                                                      v_no_bnd, u_no_bnd;
+                                                                      cut_off_bnd)
 
                 expected_multi = (density=[666.0, 666.0, 666.0], neighbor_count=[4, 4, 9],
                                   point_coords=multi_point_coords,

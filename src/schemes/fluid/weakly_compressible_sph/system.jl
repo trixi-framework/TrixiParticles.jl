@@ -176,7 +176,7 @@ function WeaklyCompressibleSPHSystem(initial_condition, density_calculator, stat
         # `reference_particle_spacing` has to be set for surface normals to be determined
         cache = (;
                  cache...,  # Existing cache fields
-                 reference_particle_spacing=reference_particle_spacing)
+                 reference_particle_spacing)
     end
 
     return WeaklyCompressibleSPHSystem(initial_condition, mass, pressure,

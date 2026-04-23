@@ -21,7 +21,7 @@
         for seed in 1:3
             # A larger number of particles will increase accumulated errors in the
             # summation. A larger tolerance has to be used for the tests below.
-            ic = rectangular_patch(particle_spacing, (3, 3), seed=seed)
+            ic = rectangular_patch(particle_spacing, (3, 3); seed)
 
             min_coords = vec(minimum(ic.coordinates, dims=2)) .- particle_spacing
             max_coords = vec(maximum(ic.coordinates, dims=2)) .+ particle_spacing
@@ -36,9 +36,9 @@
                                                        smoothing_length)
 
             system_edac = EntropicallyDampedSPHSystem(ic, smoothing_kernel,
+                                                      smoothing_length, 0.0;
                                                       pressure_acceleration=nothing,
-                                                      density_calculator=density_calculator,
-                                                      smoothing_length, 0.0)
+                                                      density_calculator)
 
             open_boundary_wcsph = OpenBoundarySystem(bz; fluid_system=system_wcsph,
                                                      buffer_size=0,

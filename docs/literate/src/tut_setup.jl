@@ -80,8 +80,8 @@ nothing # hide
 # fluid inside a rectangular tank, and supports a hydrostatic pressure gradient
 # by passing a gravitational acceleration and a state equation (see above).
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size,
-                       fluid_density, n_layers=boundary_layers,
-                       acceleration=(0.0, -gravity), state_equation=state_equation)
+                       fluid_density; n_layers=boundary_layers,
+                       acceleration=(0.0, -gravity), state_equation)
 nothing # hide
 # A `RectangularTank` consists of two [`InitialCondition`](@ref)s, `tank.fluid` and `tank.boundary`.
 # We can plot these initial conditions to visualize the initial setup.
@@ -123,9 +123,9 @@ density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid;
                                            smoothing_kernel, smoothing_length,
                                            density_calculator=fluid_density_calculator,
-                                           state_equation=state_equation,
-                                           viscosity=viscosity,
-                                           density_diffusion=density_diffusion,
+                                           state_equation,
+                                           viscosity,
+                                           density_diffusion,
                                            acceleration=(0.0, -gravity))
 nothing # hide
 
@@ -138,9 +138,9 @@ nothing # hide
 # We will use the [`BoundaryModelDummyParticles`](@ref) with [`AdamiPressureExtrapolation`](@ref).
 # See [here](@ref boundary_models) for a comprehensive overview over boundary models.
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=state_equation,
                                              AdamiPressureExtrapolation(),
-                                             smoothing_kernel, smoothing_length)
+                                             smoothing_kernel, smoothing_length;
+                                             state_equation)
 boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
 nothing # hide
 

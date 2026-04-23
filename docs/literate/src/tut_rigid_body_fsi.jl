@@ -42,10 +42,10 @@ sound_speed = 100.0
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1)
 
-tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
-                       n_layers=boundary_layers, spacing_ratio=spacing_ratio,
+tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density;
+                       n_layers=boundary_layers, spacing_ratio,
                        faces=(true, true, true, false),
-                       acceleration=(0.0, -gravity), state_equation=state_equation)
+                       acceleration=(0.0, -gravity), state_equation)
 nothing # hide
 
 # ## Rigid body geometry
@@ -101,9 +101,9 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid;
                                            smoothing_kernel=fluid_smoothing_kernel,
                                            smoothing_length=fluid_smoothing_length,
                                            density_calculator=fluid_density_calculator,
-                                           state_equation=state_equation,
-                                           viscosity=viscosity,
-                                           density_diffusion=density_diffusion,
+                                           state_equation,
+                                           viscosity,
+                                           density_diffusion,
                                            acceleration=(0.0, -gravity))
 nothing # hide
 
@@ -169,10 +169,10 @@ nothing # hide
 boundary_density_calculator = AdamiPressureExtrapolation()
 tank_boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
                                                   tank.boundary.mass,
-                                                  state_equation=state_equation,
                                                   boundary_density_calculator,
                                                   fluid_smoothing_kernel,
-                                                  fluid_smoothing_length)
+                                                  fluid_smoothing_length;
+                                                  state_equation)
 
 boundary_system = WallBoundarySystem(tank.boundary, tank_boundary_model)
 nothing # hide
@@ -183,10 +183,10 @@ function rigid_body_boundary_model(shape)
                           structure_particle_spacing^ndims(fluid_system)
 
     return BoundaryModelDummyParticles(hydrodynamic_densities, hydrodynamic_masses,
-                                       state_equation=state_equation,
                                        boundary_density_calculator,
                                        fluid_smoothing_kernel,
-                                       fluid_smoothing_length)
+                                       fluid_smoothing_length;
+                                       state_equation)
 end
 
 square1_boundary_model = rigid_body_boundary_model(square1)
@@ -239,12 +239,12 @@ nothing # hide
 
 rigid_body_system_1_step3 = RigidBodySystem(square1;
                                             boundary_model=square1_boundary_model,
-                                            contact_model=contact_model,
+                                            contact_model,
                                             acceleration=(0.0, -gravity),
                                             particle_spacing=structure_particle_spacing)
 rigid_body_system_2_step3 = RigidBodySystem(square2;
                                             boundary_model=square2_boundary_model,
-                                            contact_model=contact_model,
+                                            contact_model,
                                             acceleration=(0.0, -gravity),
                                             particle_spacing=structure_particle_spacing)
 nothing # hide
@@ -306,12 +306,12 @@ nothing # hide
 
 rigid_body_system_1_step4 = RigidBodySystem(circle1;
                                             boundary_model=circle1_boundary_model,
-                                            contact_model=contact_model,
+                                            contact_model,
                                             acceleration=(0.0, -gravity),
                                             particle_spacing=structure_particle_spacing)
 rigid_body_system_2_step4 = RigidBodySystem(circle2;
                                             boundary_model=circle2_boundary_model,
-                                            contact_model=contact_model,
+                                            contact_model,
                                             acceleration=(0.0, -gravity),
                                             particle_spacing=structure_particle_spacing)
 nothing # hide
@@ -364,7 +364,7 @@ small_sphere_systems = [begin
                             sphere_boundary_model = rigid_body_boundary_model(sphere)
                             RigidBodySystem(sphere;
                                             boundary_model=sphere_boundary_model,
-                                            contact_model=contact_model,
+                                            contact_model,
                                             acceleration=(0.0, -gravity),
                                             particle_spacing=structure_particle_spacing)
                         end
@@ -423,7 +423,7 @@ hexagon_boundary_model = rigid_body_boundary_model(hexagon_shape)
 
 hexagon_system = RigidBodySystem(hexagon_shape;
                                  boundary_model=hexagon_boundary_model,
-                                 contact_model=contact_model,
+                                 contact_model,
                                  acceleration=(0.0, -gravity),
                                  particle_spacing=structure_particle_spacing)
 #

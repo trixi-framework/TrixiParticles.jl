@@ -51,8 +51,8 @@ function interpolated_velocity(system::TrixiParticles.AbstractFluidSystem,
 
         TrixiParticles.CSV.write(output_directory * "/interpolated_velocities.csv", df)
     else
-        df = TrixiParticles.DataFrame(pos=collect(LinRange(0.0, 1.0, n_particles_xy)),
-                                      counter=1, vy_y=vy_y, vy_x=vy_x, vx_y=vx_y, vx_x=vx_x)
+        df = TrixiParticles.DataFrame(; pos=collect(LinRange(0.0, 1.0, n_particles_xy)),
+                                      counter=1, vy_y, vy_x, vx_y, vx_x)
 
         TrixiParticles.CSV.write(output_directory * "/interpolated_velocities.csv", df)
         CAPTURE_STARTED[] = true
@@ -74,20 +74,20 @@ for reynolds_number in reynolds_numbers,
                                        name_density_calculator,
                                        "validation_run_lid_driven_cavity_2d_nparticles_$(n_particles_xy)x$(n_particles_xy)_Re_$Re")
 
-    saving_callback = SolutionSavingCallback(dt=0.02, output_directory=output_directory)
+    saving_callback = SolutionSavingCallback(; dt=0.02, output_directory)
 
     CAPTURE_STARTED[] = false
     pp_callback = PostprocessCallback(; dt=0.02,
-                                      interpolated_velocity=interpolated_velocity,
+                                      interpolated_velocity,
                                       filename="interpolated_velocities",
                                       write_file_interval=0)
 
     # Import variables into scope
     trixi_include(@__MODULE__,
-                  joinpath(examples_dir(), "fluid", "lid_driven_cavity_2d.jl"),
-                  wcsph=wcsph, density_calculator=density_calculator,
-                  saving_callback=saving_callback, tspan=tspan, pp_callback=pp_callback,
-                  particle_spacing=particle_spacing, reynolds_number=reynolds_number)
+                  joinpath(examples_dir(), "fluid", "lid_driven_cavity_2d.jl");
+                  wcsph, density_calculator,
+                  saving_callback, tspan, pp_callback,
+                  particle_spacing, reynolds_number)
 
     file = joinpath(output_directory, "interpolated_velocities.csv")
 

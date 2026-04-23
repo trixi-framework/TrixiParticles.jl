@@ -22,8 +22,8 @@ end
                                                  particle;
                                                  search_radius=PointNeighbors.search_radius(neighborhood_search.nhs))
     PointNeighbors.foreach_neighbor(f, system_coords, neighbor_coords,
-                                    neighborhood_search.nhs, particle,
-                                    search_radius=search_radius)
+                                    neighborhood_search.nhs, particle;
+                                    search_radius)
 end
 
 # No update

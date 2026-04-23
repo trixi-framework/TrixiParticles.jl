@@ -15,8 +15,8 @@
 
         fluid_system = WeaklyCompressibleSPHSystem(initial_condition, SummationDensity(),
                                                    state_equation,
-                                                   smoothing_kernel, smoothing_length,
-                                                   viscosity=viscosity)
+                                                   smoothing_kernel, smoothing_length;
+                                                   viscosity)
 
         (; cache) = fluid_system
         (; density) = cache # Density is in the cache for SummationDensity

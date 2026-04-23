@@ -40,9 +40,9 @@ function InfoCallback(; interval=0, reset_threads=true)
                                  reset_threads)
     end
 
-    DiscreteCallback(info_callback, info_callback,
+    DiscreteCallback(info_callback, info_callback;
                      save_positions=(false, false),
-                     initialize=initialize)
+                     initialize)
 end
 
 # condition
@@ -163,7 +163,7 @@ function format_key_value_line(key::AbstractString, value::AbstractString, key_w
     # Indent the key as requested (or not at all if `indentation_level == 0`)
     indentation = prefix^indentation_level
     reduced_key_width = key_width - length(indentation)
-    squeezed_key = indentation * squeeze(key, reduced_key_width, filler=filler)
+    squeezed_key = indentation * squeeze(key, reduced_key_width; filler)
     line *= squeezed_key
     line *= ": "
     short = key_width - length(squeezed_key)
@@ -173,7 +173,7 @@ function format_key_value_line(key::AbstractString, value::AbstractString, key_w
         line *= guide^(short - 1) * " "
     end
     value_width = total_width - length(prefix) - length(suffix) - key_width - 2
-    squeezed_value = squeeze(value, value_width, filler=filler)
+    squeezed_value = squeeze(value, value_width; filler)
     line *= squeezed_value
     short = value_width - length(squeezed_value)
     line *= " "^short
@@ -239,8 +239,8 @@ function summary_line(io, key, value; key_width=30, total_width=100, indentation
     total_width = get(io, :total_width, total_width)
     indentation_level = get(io, :indentation_level, indentation_level)
 
-    s = format_key_value_line(key, value, key_width, total_width,
-                              indentation_level=indentation_level)
+    s = format_key_value_line(key, value, key_width, total_width;
+                              indentation_level)
 
     println(io, s)
 end

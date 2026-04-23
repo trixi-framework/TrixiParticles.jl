@@ -49,7 +49,7 @@ signed_distance_field = SignedDistanceField(geometry, particle_spacing;
 # We can also visualize the SDF by simply creating an `InitialCondition` from the sampled points and plot it.
 # The color coding represents the signed distance to the geometry surface.
 sdf_ic = InitialCondition(; coordinates=stack(signed_distance_field.positions),
-                          density=1.0, particle_spacing=particle_spacing)
+                          density=1.0, particle_spacing)
 
 plot(sdf_ic, zcolor=signed_distance_field.distances, label=nothing, color=:coolwarm)
 plot!(geometry, linestyle=:dash, label=nothing, showaxis=false, color=:black,
@@ -64,7 +64,7 @@ signed_distance_field = SignedDistanceField(geometry, particle_spacing;
 
 # We can see in the plot that the SDF has been extended outwards to twice `max_signed_distance`.
 sdf_ic = InitialCondition(; coordinates=stack(signed_distance_field.positions),
-                          density=1.0, particle_spacing=particle_spacing)
+                          density=1.0, particle_spacing)
 
 plot(sdf_ic, zcolor=signed_distance_field.distances, label=nothing, color=:coolwarm)
 
@@ -105,7 +105,7 @@ point_in_geometry_algorithm = WindingNumberJacobson(; geometry)
 # This function creates an [`InitialCondition`](@ref InitialCondition) for the interior particles.
 # Here, we need to specify `particle_spacing` and `density`. For further arguments, please refer to
 # the documentation of [ComplexShape](@ref ComplexShape) or [InitialCondition](@ref InitialCondition).
-shape_sampled = ComplexShape(geometry; particle_spacing, density=density,
+shape_sampled = ComplexShape(geometry; particle_spacing, density,
                              point_in_geometry_algorithm)
 
 # If we want to assign the mass of each sampled particle consistently with its density,
@@ -147,8 +147,8 @@ smoothing_length = 0.8 * particle_spacing
 # Now we can create the packing system. For learning purposes, let’s first try
 # passing no signed distance field (SDF) and see what happens.
 packing_system = ParticlePackingSystem(shape_sampled;
-                                       smoothing_kernel=smoothing_kernel,
-                                       smoothing_length=smoothing_length,
+                                       smoothing_kernel,
+                                       smoothing_length,
                                        signed_distance_field=nothing, background_pressure)
 
 # We now proceed with the familiar steps
@@ -164,7 +164,7 @@ callbacks = CallbackSet(UpdateCallback())
 time_integrator = RDPK3SpFSAL35()
 
 sol = solve(ode, time_integrator;
-            abstol=1e-7, reltol=1e-4, save_everystep=false, maxiters=maxiters,
+            abstol=1e-7, reltol=1e-4, save_everystep=false, maxiters,
             callback=callbacks)
 
 packed_ic = InitialCondition(sol, packing_system, semi)
@@ -177,8 +177,8 @@ plot!(geometry, seriestype=:path, linewidth=2, color=:black, label=nothing)
 
 # We therefore add an SDF for the geometry and repeat the same procedure.
 packing_system = ParticlePackingSystem(shape_sampled;
-                                       smoothing_kernel=smoothing_kernel,
-                                       smoothing_length=smoothing_length,
+                                       smoothing_kernel,
+                                       smoothing_length,
                                        signed_distance_field,
                                        background_pressure)
 
@@ -193,7 +193,7 @@ callbacks = CallbackSet(UpdateCallback())
 time_integrator = RDPK3SpFSAL35()
 
 sol = solve(ode, time_integrator;
-            abstol=1e-7, reltol=1e-4, save_everystep=false, maxiters=maxiters,
+            abstol=1e-7, reltol=1e-4, save_everystep=false, maxiters,
             callback=callbacks)
 
 packed_ic = InitialCondition(sol, packing_system, semi)
@@ -216,8 +216,8 @@ plot!(geometry, seriestype=:path, color=:black, label=nothing, linewidth=2)
 # geometry size in this example, we will choose `0.7`.
 boundary_system = ParticlePackingSystem(boundary_sampled;
                                         is_boundary=true,
-                                        smoothing_kernel=smoothing_kernel,
-                                        smoothing_length=smoothing_length,
+                                        smoothing_kernel,
+                                        smoothing_length,
                                         boundary_compress_factor=0.7,
                                         signed_distance_field, background_pressure)
 
@@ -232,7 +232,7 @@ callbacks = CallbackSet(UpdateCallback())
 time_integrator = RDPK3SpFSAL35()
 
 sol = solve(ode, time_integrator;
-            abstol=1e-7, reltol=1e-4, save_everystep=false, maxiters=maxiters,
+            abstol=1e-7, reltol=1e-4, save_everystep=false, maxiters,
             callback=callbacks)
 
 packed_ic = InitialCondition(sol, packing_system, semi)
@@ -255,8 +255,8 @@ plot!(geometry, seriestype=:path, color=:black, linestyle=:dash, linewidth=2, la
 # Therefore, we set `fixed_system=true` so that this system is not integrated further
 # but instead serves as a static boundary for the packing of other domains.
 fixed_system = ParticlePackingSystem(packed_ic;
-                                     smoothing_kernel=smoothing_kernel,
-                                     smoothing_length=smoothing_length,
+                                     smoothing_kernel,
+                                     smoothing_length,
                                      signed_distance_field=nothing,
                                      background_pressure,
                                      fixed_system=true)
@@ -274,8 +274,8 @@ plot(sampled_outer_domain, packed_ic)
 
 # Next, we create a packing system for the outer domain.
 packing_system = ParticlePackingSystem(sampled_outer_domain;
-                                       smoothing_kernel=smoothing_kernel,
-                                       smoothing_length=smoothing_length,
+                                       smoothing_kernel,
+                                       smoothing_length,
                                        signed_distance_field=nothing,
                                        background_pressure)
 
@@ -294,7 +294,7 @@ callbacks = CallbackSet(UpdateCallback())
 time_integrator = RDPK3SpFSAL35()
 
 sol_1 = solve(ode, time_integrator; abstol=1e-7, reltol=1e-4,
-              save_everystep=false, maxiters=maxiters, callback=callbacks)
+              save_everystep=false, maxiters, callback=callbacks)
 
 packed_outer_domain = InitialCondition(sol_1, packing_system, semi)
 
@@ -324,21 +324,21 @@ plot(pack_domain, fixed_domain, packed_ic)
 # We can now treat the particles outside the window, along with the already
 # finalized configuration of the complex geometry, as fixed systems:
 fixed_system_1 = ParticlePackingSystem(fixed_domain;
-                                       smoothing_kernel=smoothing_kernel,
-                                       smoothing_length=smoothing_length,
+                                       smoothing_kernel,
+                                       smoothing_length,
                                        signed_distance_field=nothing,
                                        background_pressure, fixed_system=true)
 
 fixed_system_2 = ParticlePackingSystem(packed_ic;
-                                       smoothing_kernel=smoothing_kernel,
-                                       smoothing_length=smoothing_length,
+                                       smoothing_kernel,
+                                       smoothing_length,
                                        signed_distance_field=nothing,
                                        background_pressure, fixed_system=true)
 
 # The window that we want to pack is passed to a moving packing system:
 packing_system = ParticlePackingSystem(pack_domain;
-                                       smoothing_kernel=smoothing_kernel,
-                                       smoothing_length=smoothing_length,
+                                       smoothing_kernel,
+                                       smoothing_length,
                                        signed_distance_field=nothing,
                                        background_pressure)
 
@@ -352,7 +352,7 @@ callbacks = CallbackSet(UpdateCallback())
 time_integrator = RDPK3SpFSAL35()
 
 sol_2 = solve(ode, time_integrator; abstol=1e-7, reltol=1e-4,
-              save_everystep=false, maxiters=maxiters, callback=callbacks)
+              save_everystep=false, maxiters, callback=callbacks)
 
 packed_fluid_domain = InitialCondition(sol_2, packing_system, semi)
 

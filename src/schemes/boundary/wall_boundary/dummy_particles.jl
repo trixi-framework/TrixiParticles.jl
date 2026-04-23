@@ -74,7 +74,7 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
         # `reference_particle_spacing` has to be set for surface normals to be determined
         cache = (;
                  cache...,  # Existing cache fields
-                 reference_particle_spacing=reference_particle_spacing,
+                 reference_particle_spacing,
                  initial_colorfield=zeros(ELTYPE, n_particles),
                  colorfield=zeros(ELTYPE, n_particles),
                  neighbor_count=zeros(ELTYPE, n_particles))
@@ -201,7 +201,7 @@ struct PressureBoundaries{ELTYPE}
         return new{eltype(time_step)}(time_step, omega)
     end
 end
-@inline create_cache_model(correction, density, NDIMS, nparticles) = (;)
+@inline create_cache_model(correction, density, NDIMS, nparticles) = (; )
 
 function create_cache_model(::ShepardKernelCorrection, density, NDIMS, n_particles)
     return (; kernel_correction_coefficient=similar(density))
@@ -267,7 +267,7 @@ function create_cache_model(initial_density,
     return (; density, volume)
 end
 
-@inline create_cache_model(viscosity::Nothing, n_particles, n_dims) = (;)
+@inline create_cache_model(viscosity::Nothing, n_particles, n_dims) = (; )
 
 function create_cache_model(viscosity, n_particles, n_dims)
     ELTYPE = eltype(viscosity.epsilon)

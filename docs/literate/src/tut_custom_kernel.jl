@@ -117,13 +117,13 @@ nothing # hide
 # `examples/fluid/dam_break_2d.jl` with our custom kernel and the corresponding
 # smoothing length.
 # ```@cast @__NAME__; width=100, height=50, delay=0, loop=true, loop_delay=5
-# trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
+# trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl");
 #               smoothing_kernel=MyGaussianKernel(),
-#               smoothing_length=smoothing_length);
+#               smoothing_length);
 # ```
-trixi_include(joinpath(examples_dir(), "fluid", "dam_break_2d.jl"), #!md
+trixi_include(joinpath(examples_dir(), "fluid", "dam_break_2d.jl"); #!md
               smoothing_kernel=MyGaussianKernel(), #!md
-              smoothing_length=smoothing_length) #!md
+              smoothing_length) #!md
 
 # See [Visualization](@ref) for how to visualize the final solution.
 # For the simplest visualization, we can use [Plots.jl](https://docs.juliaplots.org/stable/):

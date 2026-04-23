@@ -129,7 +129,7 @@
             for seed in 1:3
                 # A larger number of particles will increase accumulated errors in the
                 # summation. A larger tolerance will have to be used for the tests below.
-                ic = rectangular_patch(particle_spacing, (3, 3), seed=seed)
+                ic = rectangular_patch(particle_spacing, (3, 3); seed)
 
                 # Split initial condition at center particle into two systems
                 center_particle = ceil(Int, TrixiParticles.nparticles(ic) / 2)

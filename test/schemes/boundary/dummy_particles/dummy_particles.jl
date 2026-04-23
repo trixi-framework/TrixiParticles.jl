@@ -52,28 +52,28 @@
         # Define pressure extrapolation methods to test
         boundary_model_adami = BoundaryModelDummyParticles(boundary.density,
                                                            boundary.mass,
-                                                           state_equation=state_equation,
                                                            AdamiPressureExtrapolation(),
                                                            smoothing_kernel,
-                                                           smoothing_length,
-                                                           viscosity=viscosity)
+                                                           smoothing_length;
+                                                           state_equation,
+                                                           viscosity)
         boundary_model_bernoulli = BoundaryModelDummyParticles(boundary.density,
                                                                boundary.mass,
-                                                               state_equation=state_equation,
                                                                BernoulliPressureExtrapolation(),
                                                                smoothing_kernel,
-                                                               smoothing_length,
-                                                               viscosity=viscosity)
+                                                               smoothing_length;
+                                                               state_equation,
+                                                               viscosity)
 
         boundary_systems = [
             WallBoundarySystem(boundary, boundary_model_adami),
             WallBoundarySystem(boundary, boundary_model_bernoulli),
             RigidBodySystem(boundary;
                             boundary_model=boundary_model_adami,
-                            particle_spacing=particle_spacing),
+                            particle_spacing),
             RigidBodySystem(boundary;
                             boundary_model=boundary_model_bernoulli,
-                            particle_spacing=particle_spacing),
+                            particle_spacing),
             TotalLagrangianSPHSystem(boundary;
                                      smoothing_kernel,
                                      smoothing_length,
@@ -237,14 +237,14 @@
                                            exponent=7)
 
         tank1 = RectangularTank(particle_spacing, (width, height), (width, height),
-                                density, n_layers=n_layers,
+                                density; n_layers,
                                 faces=(true, true, true, false))
 
         boundary_model = BoundaryModelDummyParticles(tank1.boundary.density,
                                                      tank1.boundary.mass,
-                                                     state_equation=state_equation,
                                                      AdamiPressureExtrapolation(),
-                                                     smoothing_kernel, smoothing_length)
+                                                     smoothing_kernel, smoothing_length;
+                                                     state_equation)
 
         boundary_system = WallBoundarySystem(tank1.boundary, boundary_model)
         viscosity = boundary_system.boundary_model.viscosity
@@ -291,7 +291,7 @@
         @testset "Constant Non-Zero Pressure" begin
             density = 260
             tank2 = RectangularTank(particle_spacing, (width, height), (width, height),
-                                    density, n_layers=n_layers,
+                                    density; n_layers,
                                     faces=(true, true, true, false))
 
             fluid_system2 = WeaklyCompressibleSPHSystem(tank2.fluid, SummationDensity(),
@@ -332,8 +332,8 @@
         @testset "Hydrostatic Pressure Gradient" begin
             for flipped_condition in (Val(true), Val(false))
                 tank3 = RectangularTank(particle_spacing, (width, height), (width, height),
-                                        density, acceleration=[0.0, -9.81],
-                                        state_equation=state_equation, n_layers=n_layers,
+                                        density; acceleration=[0.0, -9.81],
+                                        state_equation, n_layers,
                                         faces=(true, true, true, false))
 
                 fluid_system3 = WeaklyCompressibleSPHSystem(tank3.fluid, SummationDensity(),
@@ -375,8 +375,8 @@
                 tank_reference = RectangularTank(particle_spacing,
                                                  (width_reference, height_reference),
                                                  (width_reference, height_reference),
-                                                 density, acceleration=[0.0, -9.81],
-                                                 state_equation=state_equation, n_layers=0,
+                                                 density; acceleration=[0.0, -9.81],
+                                                 state_equation, n_layers=0,
                                                  faces=(true, true, true, false))
 
                 # Because it is a pain to deal with the linear indices of the pressure arrays,

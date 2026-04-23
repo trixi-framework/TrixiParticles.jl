@@ -20,7 +20,7 @@
 
         system_wcsph = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(),
                                                    state_equation, smoothing_kernel,
-                                                   smoothing_length, viscosity=viscosity)
+                                                   smoothing_length; viscosity)
 
         grad_kernel = TrixiParticles.smoothing_kernel_grad(system_wcsph, pos_diff,
                                                            distance, 1)
@@ -41,10 +41,10 @@
     end
     @testset verbose=true "`ViscosityMorris`" begin
         nu = 7e-3
-        viscosity = ViscosityMorris(nu=nu)
+        viscosity = ViscosityMorris(nuu)
         system_wcsph = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(),
                                                    state_equation, smoothing_kernel,
-                                                   smoothing_length, viscosity=viscosity)
+                                                   smoothing_length; viscosity)
 
         grad_kernel = TrixiParticles.smoothing_kernel_grad(system_wcsph, pos_diff,
                                                            distance, 1)
@@ -73,7 +73,7 @@
         viscosity = ViscosityAdami(nu=7e-3)
         system_wcsph = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(),
                                                    state_equation, smoothing_kernel,
-                                                   smoothing_length, viscosity=viscosity)
+                                                   smoothing_length; viscosity)
 
         grad_kernel = TrixiParticles.smoothing_kernel_grad(system_wcsph, pos_diff,
                                                            distance, 1)
@@ -100,10 +100,10 @@
     end
     @testset verbose=true "`ViscosityMorrisSGS`" begin
         nu = 7e-3
-        viscosity = ViscosityMorrisSGS(nu=nu)
+        viscosity = ViscosityMorrisSGS(nuu)
         system_wcsph = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(),
                                                    state_equation, smoothing_kernel,
-                                                   smoothing_length, viscosity=viscosity)
+                                                   smoothing_length; viscosity)
 
         grad_kernel = TrixiParticles.smoothing_kernel_grad(system_wcsph, pos_diff,
                                                            distance, 1)
@@ -133,7 +133,7 @@
         viscosity = ViscosityAdamiSGS(nu=7e-3)
         system_wcsph = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(),
                                                    state_equation, smoothing_kernel,
-                                                   smoothing_length, viscosity=viscosity)
+                                                   smoothing_length; viscosity)
 
         grad_kernel = TrixiParticles.smoothing_kernel_grad(system_wcsph, pos_diff,
                                                            distance, 1)
@@ -180,7 +180,7 @@
                                            epsilon=0.01)
         system_wcsph = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(),
                                                    state_equation, smoothing_kernel,
-                                                   smoothing_length; viscosity=viscosity)
+                                                   smoothing_length; viscosity)
 
         grad_kernel = TrixiParticles.smoothing_kernel_grad(system_wcsph, pos_diff,
                                                            distance, 1)
@@ -206,7 +206,7 @@
                                            epsilon=0.01)
         system_wcsph = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(),
                                                    state_equation, smoothing_kernel,
-                                                   smoothing_length; viscosity=viscosity)
+                                                   smoothing_length; viscosity)
 
         grad_kernel = TrixiParticles.smoothing_kernel_grad(system_wcsph, pos_diff,
                                                            distance, 1)

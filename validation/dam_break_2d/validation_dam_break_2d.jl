@@ -29,8 +29,8 @@ update_strategy = nothing
 # ==== WCSPH simulation
 trixi_include(@__MODULE__,
               joinpath(validation_dir(), "dam_break_2d",
-                       "setup_marrone_2011.jl"),
-              use_edac=false, update_strategy=update_strategy,
+                       "setup_marrone_2011.jl");
+              use_edac=false, update_strategy,
               particles_per_height=resolution,
               sound_speed=50 * sqrt(9.81 * 0.6), # This is used by De Courcy et al. (2024)
               alpha=0.01, # This is used by De Courcy et al. (2024)
@@ -58,8 +58,8 @@ error_wcsph_P2 = interpolated_mse(reference_data["pressure_P2_fluid_1"]["time"],
 # ==== EDAC simulation
 trixi_include(@__MODULE__,
               joinpath(validation_dir(), "dam_break_2d",
-                       "setup_marrone_2011.jl"),
-              use_edac=true, update_strategy=update_strategy,
+                       "setup_marrone_2011.jl");
+              use_edac=true, update_strategy,
               particles_per_height=resolution,
               sound_speed=50 * sqrt(9.81 * 0.6), # This is used by De Courcy et al. (2024)
               alpha=0.01, # This is used by De Courcy et al. (2024)

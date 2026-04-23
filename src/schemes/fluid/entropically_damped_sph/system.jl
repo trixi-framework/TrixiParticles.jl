@@ -176,7 +176,7 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
         # `reference_particle_spacing` has to be set for surface normals to be determined
         cache = (;
                  cache...,  # Existing cache fields
-                 reference_particle_spacing=reference_particle_spacing)
+                 reference_particle_spacing)
     end
 
     EntropicallyDampedSPHSystem{NDIMS, ELTYPE, typeof(initial_condition), typeof(mass),
@@ -196,7 +196,7 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                                particle_refinement, cache)
 end
 
-create_cache_avg_pressure_reduction(initial_condition, ::Val{false}) = (;)
+create_cache_avg_pressure_reduction(initial_condition, ::Val{false}) = (; )
 
 function create_cache_avg_pressure_reduction(initial_condition, ::Val{true})
     pressure_average = copy(initial_condition.pressure)

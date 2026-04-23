@@ -279,7 +279,7 @@ function trixi2vtk(geometry::Polygon; output_directory="out", prefix="",
     end
 
     return trixi2vtk(stack(vertices); output_directory, filename, prefix,
-                     vertex_normals=vertex_normals, custom_quantities...)
+                     vertex_normals, custom_quantities...)
 end
 
 function trixi2vtk(geometry::TriangleMesh; output_directory="out", prefix="",
@@ -288,5 +288,5 @@ function trixi2vtk(geometry::TriangleMesh; output_directory="out", prefix="",
                             for face in eachindex(geometry.vertices)])
 
     return trixi2vtk(stack(geometry.vertices); output_directory, filename, prefix,
-                     vertex_normals=vertex_normals, custom_quantities...)
+                     vertex_normals, custom_quantities...)
 end
