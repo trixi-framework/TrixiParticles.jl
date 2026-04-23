@@ -33,7 +33,7 @@ It offers intuitive configuration, robust pre- and post-processing, and vendor-a
     Implicit Incompressible SPH (IISPH)
   - Models: Surface Tension, Open Boundaries
 - Solid-body mechanics
-  - Methods:  Total Lagrangian SPH (TLSPH), Discrete Element Method (DEM)
+  - Methods:  Total Lagrangian SPH (TLSPH), Discrete Element Method (DEM), Rigid Body Dynamics (RBD)
 - Fluid-Structure Interaction
 - Particle sampling of complex geometries from `.stl` and `.asc` files.
 - Output formats:
@@ -127,6 +127,13 @@ You can find the documentation for the latest release
 
 ## Publications
 
+* Neher, Faulhaber, Berger, Weißenfels, Gassner, Schlottke-Lakemper,
+  **Robust and efficient pre-processing techniques for particle-based methods including dynamic boundary generation**,
+  Computer Physics Communications (318) 109898, 2026.<br>
+  [![arXiv:2506.21206](https://img.shields.io/badge/arXiv-2506.21206-yellow)](https://arxiv.org/abs/2506.21206)
+  [![doi:10.1016/j.cpc.2025.109898](https://zenodo.org/badge/doi/10.1016/j.cpc.2025.109898.svg)](https://doi.org/10.1016/j.cpc.2025.109898)
+  [![reproduce me!](https://img.shields.io/badge/reproduce-me!-brightgreen)](https://github.com/trixi-framework/paper-2025-particle-based_preprocessing)
+  
 ## Cite Us
 
 If you use TrixiParticles.jl in your own research or write a paper using results obtained
@@ -178,7 +185,9 @@ or [create an issue](https://github.com/trixi-framework/TrixiParticles.jl/issues
 ## Acknowledgments
 <p align="center">
   <img align="middle" src="https://github.com/trixi-framework/TrixiParticles.jl/assets/44124897/05132bf1-180f-4228-b30a-37dfb6e36ed5" width=20%/>&nbsp;&nbsp;&nbsp;
-  <img align="middle" src="https://github.com/trixi-framework/TrixiParticles.jl/assets/44124897/ae2a91d1-7c10-4e0f-8b92-6ed1c43ddc28" width=20%/>&nbsp;&nbsp;&nbsp;
+  <img align="middle" src="https://github.com/user-attachments/assets/480ceabe-b44c-4dc2-a4ce-d99ba49767f4" width=20%/>&nbsp;&nbsp;&nbsp;
+  <img align="middle" src="https://github.com/user-attachments/assets/80e897bd-c3fc-4bfc-aafb-a6d5810e0206" width=20%/>&nbsp;&nbsp;&nbsp;
 </p>
 
-The project has benefited from funding from [hereon](https://www.hereon.de/) and [HiRSE](https://www.helmholtz-hirse.de/).
+The project has benefited from funding from [hereon](https://www.hereon.de/), [HiRSE](https://www.helmholtz-hirse.de/), and through [ScienceServe](https://www.helmholtz.de/en/research/current-calls-for-applications/article/scienceserve-boosting-research-software-at-helmholtz/) for the MATRIX project.
+

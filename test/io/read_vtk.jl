@@ -73,6 +73,16 @@
                 @test eltype(test_ic) === Float32
                 @test eltype(test_ic.coordinates) === Float64
             end
+
+            @testset verbose=true "Exact Field Matches" begin
+                trixi2vtk(expected_ic; filename="tmp_initial_condition_exact_field_match",
+                          output_directory=tmp_dir,
+                          center_of_mass_velocity=fill(42.0, size(expected_ic.velocity)))
+                file = joinpath(tmp_dir, "tmp_initial_condition_exact_field_match.vtu")
+                test_ic = vtk2trixi(file)
+
+                @test isapprox(expected_ic.velocity, test_ic.velocity, rtol=1e-5)
+            end
         end
 
         @testset verbose=true "`AbstractFluidSystem`" begin
@@ -143,6 +153,56 @@
             @test isapprox(zeros(size(test.velocity)), test.velocity, rtol=1e-5)
             @test isapprox(boundary_model.pressure, test.pressure, rtol=1e-5)
             @test isapprox(boundary_model.cache.density, test.density, rtol=1e-5)
+        end
+
+        @testset verbose=true "`RigidBodySystem`" begin
+            coordinates_rigid = [-1.0 1.0
+                                 0.0 0.0]
+            velocity_rigid = [0.0 0.0
+                              -1.0 1.0]
+            rigid_ic = InitialCondition(; coordinates=coordinates_rigid,
+                                        velocity=velocity_rigid,
+                                        density=[1000.0, 1000.0],
+                                        mass=[1.0, 1.0])
+
+            rigid_system = RigidBodySystem(rigid_ic; acceleration=(0.0, 0.0))
+            semi = Semidiscretization(rigid_system)
+            ode = semidiscretize(semi, (0.0, 0.01))
+            v_ode, u_ode = ode.u0.x
+            v = TrixiParticles.wrap_v(v_ode, rigid_system, semi)
+            u = TrixiParticles.wrap_u(u_ode, rigid_system, semi)
+            TrixiParticles.update_final!(rigid_system, v, u, v_ode, u_ode, semi, 0.0)
+
+            vu_ode = (; x=(v_ode, u_ode))
+            trixi2vtk(rigid_system, nothing, vu_ode, semi, 0.0,
+                      nothing; system_name="tmp_file_rigid", output_directory=tmp_dir,
+                      iter=1)
+
+            vtk_file = TrixiParticles.ReadVTK.VTKFile(joinpath(tmp_dir,
+                                                               "tmp_file_rigid_1.vtu"))
+            point_data = TrixiParticles.ReadVTK.get_point_data(vtk_file)
+            field_data = TrixiParticles.ReadVTK.get_field_data(vtk_file)
+
+            @test Array(TrixiParticles.ReadVTK.get_data(point_data["relative_coordinates"])) ==
+                  rigid_system.relative_coordinates
+            @test vec(Array(TrixiParticles.ReadVTK.get_data(field_data["center_of_mass"]))) ==
+                  collect(rigid_system.center_of_mass[])
+            @test vec(Array(TrixiParticles.ReadVTK.get_data(field_data["center_of_mass_velocity"]))) ==
+                  collect(rigid_system.center_of_mass_velocity[])
+            @test vec(Array(TrixiParticles.ReadVTK.get_data(field_data["resultant_force"]))) ==
+                  collect(rigid_system.resultant_force[])
+            @test only(Array(TrixiParticles.ReadVTK.get_data(field_data["angular_velocity"]))) ==
+                  rigid_system.angular_velocity[]
+            @test only(Array(TrixiParticles.ReadVTK.get_data(field_data["resultant_torque"]))) ==
+                  rigid_system.resultant_torque[]
+            @test only(Array(TrixiParticles.ReadVTK.get_data(field_data["angular_acceleration_force"]))) ==
+                  rigid_system.angular_acceleration_force[]
+            @test only(Array(TrixiParticles.ReadVTK.get_data(field_data["gyroscopic_acceleration"]))) ==
+                  rigid_system.gyroscopic_acceleration[]
+            @test only(Array(TrixiParticles.ReadVTK.get_data(field_data["contact_count"]))) ==
+                  rigid_system.cache.contact_count[]
+            @test only(Array(TrixiParticles.ReadVTK.get_data(field_data["max_contact_penetration"]))) ==
+                  rigid_system.cache.max_contact_penetration[]
         end
     end
 end

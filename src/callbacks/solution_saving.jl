@@ -23,6 +23,14 @@ To ignore a custom quantity for a specific system, return `nothing`.
 - `save_times=[]`               List of times at which to save a solution.
 - `save_initial_solution=true`: Save the initial solution.
 - `save_final_solution=true`:   Save the final solution.
+- `overwrite=false`:            If `true`, previously written VTK files are overwritten
+                                instead of creating a new file set at each save interval.
+                                In this case, filenames receive the postfix `_current`.
+                                This option is useful for memory efficiency in large simulations where only
+                                the final results matters. Unlike `save_final_solution=true`, it
+                                still provides regular checkpoint backups at each save interval.
+                                If `false` (default), files are not overwritten and an iteration
+                                postfix is appended for each interval.
 - `output_directory="out"`:     Directory to save the VTK files.
 - `append_timestamp=false`:     Append current timestamp to the output directory.
 - `prefix=""`:                  Prefix added to the filename.
@@ -58,6 +66,7 @@ saving_callback = SolutionSavingCallback(dt=0.1, my_custom_quantity=kinetic_ener
 │ custom quantities: ……………………………… [:my_custom_quantity => TrixiParticles.kinetic_energy]           │
 │ save initial solution: …………………… yes                                                              │
 │ save final solution: ………………………… yes                                                              │
+│ overwrite solution: …………………………… no                                                               │
 │ output directory: ………………………………… *path ignored with filter regex above*                           │
 │ prefix: ……………………………………………………………                                                                  │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
@@ -71,6 +80,7 @@ mutable struct SolutionSavingCallback{I, CQ}
     verbose               :: Bool
     output_directory      :: String
     prefix                :: String
+    overwrite             :: Bool
     max_coordinates       :: Float64
     custom_quantities     :: CQ
     latest_saved_iter     :: Int
@@ -81,7 +91,7 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
                                 save_times=Float64[],
                                 save_initial_solution=true, save_final_solution=true,
                                 output_directory="out", append_timestamp=false,
-                                prefix="", verbose=false,
+                                prefix="", verbose=false, overwrite=false,
                                 max_coordinates=Float64(2^15),
                                 custom_quantities...)
     if (dt > 0 && interval > 0) || (length(save_times) > 0 && (dt > 0 || interval > 0))
@@ -99,7 +109,7 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
 
     solution_callback = SolutionSavingCallback(interval, Float64.(save_times),
                                                save_initial_solution, save_final_solution,
-                                               verbose, output_directory, prefix,
+                                               verbose, output_directory, prefix, overwrite,
                                                max_coordinates, custom_quantities,
                                                -1, Ref("UnknownVersion"))
 
@@ -127,6 +137,9 @@ function initialize_save_cb!(cb, u, t, integrator)
 end
 
 function initialize_save_cb!(solution_callback::SolutionSavingCallback, u, t, integrator)
+    semi = integrator.p
+    set_callbacks_used!(semi, integrator)
+
     # Reset `latest_saved_iter`
     solution_callback.latest_saved_iter = -1
     solution_callback.git_hash[] = compute_git_hash()
@@ -135,7 +148,7 @@ function initialize_save_cb!(solution_callback::SolutionSavingCallback, u, t, in
 
     # Save initial solution
     if solution_callback.save_initial_solution
-        solution_callback(integrator; from_initialize=true)
+        solution_callback(integrator)
     end
 
     return nothing
@@ -150,30 +163,21 @@ function (solution_callback::SolutionSavingCallback)(u, t, integrator)
 end
 
 # `affect!`
-function (solution_callback::SolutionSavingCallback)(integrator; from_initialize=false)
-    (; interval, output_directory, custom_quantities, git_hash, verbose,
-     prefix, latest_saved_iter, max_coordinates) = solution_callback
+function (solution_callback::SolutionSavingCallback)(integrator)
+    (; interval, output_directory, custom_quantities, git_hash, verbose, overwrite,
+     prefix, max_coordinates) = solution_callback
 
     @trixi_timeit timer() "save solution" begin
-        vu_ode = integrator.u
-        if from_initialize
-            # Avoid calling `get_du` here, since it will call the RHS function
-            # if it is called before the first time step.
-            # This would cause problems with `semi.update_callback_used`,
-            # which might not yet be set to `true` at this point if the `UpdateCallback`
-            # comes AFTER the `SolutionSavingCallback` in the `CallbackSet`.
-            dvdu_ode = zero(vu_ode)
-        else
-            # Depending on the time integration scheme, this might call the RHS function
-            @trixi_timeit timer() "update du" begin
-                # Don't create sub-timers here to avoid cluttering the timer output
-                @notimeit timer() dvdu_ode = get_du(integrator)
-            end
+        @trixi_timeit timer() "update dvdu" begin
+            # Don't create sub-timers here to avoid cluttering the timer output
+            @notimeit timer() dvdu_ode = get_dvdu(integrator)
         end
+
+        vu_ode = integrator.u
         semi = integrator.p
         iter = get_iter(interval, integrator)
 
-        if iter == latest_saved_iter
+        if iter == solution_callback.latest_saved_iter
             # This should only happen at the end of the simulation when using `dt` and the
             # final time is not a multiple of the saving interval.
             @assert isfinished(integrator)
@@ -182,15 +186,15 @@ function (solution_callback::SolutionSavingCallback)(integrator; from_initialize
             iter += 1
         end
 
-        latest_saved_iter = iter
+        solution_callback.latest_saved_iter = iter
 
         if verbose
             println("Writing solution to $output_directory at t = $(integrator.t)")
         end
 
         trixi2vtk(dvdu_ode, vu_ode, semi, integrator.t;
-                  iter, output_directory, prefix, git_hash=git_hash[],
-                  max_coordinates, custom_quantities...)
+                  iter=(overwrite ? nothing : iter), output_directory, prefix,
+                  git_hash=git_hash[], max_coordinates, custom_quantities...)
     end
 
     # Tell OrdinaryDiffEq that `u` has not been modified
@@ -271,6 +275,7 @@ function Base.show(io::IO, ::MIME"text/plain",
                                        "yes" : "no",
             "save final solution" => solution_saving.save_final_solution ? "yes" :
                                      "no",
+            "overwrite solution" => solution_saving.overwrite ? "yes" : "no",
             "output directory" => abspath(solution_saving.output_directory),
             "prefix" => solution_saving.prefix
         ]
@@ -297,6 +302,7 @@ function Base.show(io::IO, ::MIME"text/plain",
                                        "yes" : "no",
             "save final solution" => solution_saving.save_final_solution ? "yes" :
                                      "no",
+            "overwrite solution" => solution_saving.overwrite ? "yes" : "no",
             "output directory" => abspath(solution_saving.output_directory),
             "prefix" => solution_saving.prefix
         ]
@@ -322,6 +328,7 @@ function Base.show(io::IO, ::MIME"text/plain",
                                        "yes" : "no",
             "save final solution" => solution_saving.save_final_solution ? "yes" :
                                      "no",
+            "overwrite solution" => solution_saving.overwrite ? "yes" : "no",
             "output directory" => abspath(solution_saving.output_directory),
             "prefix" => solution_saving.prefix
         ]
