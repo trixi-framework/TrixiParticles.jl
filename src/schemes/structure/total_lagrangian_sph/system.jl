@@ -534,7 +534,8 @@ end
             current_coords_b = @inbounds current_coords(system, neighbor)
 
             pos_diff_ = current_coords_a - current_coords_b
-            # On GPUs, convert `Float64` to `Float32` after computing the difference
+            # In mixed-precision simulations, convert from `coordinates_eltype(system)`
+            # to `eltype(system)` immediately after computing the difference.
             pos_diff = convert.(eltype(system), pos_diff_)
 
             # The tensor product pos_diff ⊗ (L_{0a} * ∇W) is equivalent to multiplication
@@ -543,6 +544,7 @@ end
         end
 
         for j in 1:ndims(system), i in 1:ndims(system)
+            # We overwrite every entry of `deformation_grad`, so no `set_zero!` is required.
             @inbounds deformation_grad[i, j, particle] = result[][i, j]
         end
     end
