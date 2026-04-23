@@ -50,7 +50,7 @@
             "WCSPH with WendlandC2Kernel" => (smoothing_length=1.5 * fluid_particle_spacing,
                                               smoothing_kernel=WendlandC2Kernel{2}()),
             "WCSPH with WendlandC4Kernel" => (smoothing_length=1.7 *
-                                                               fluid_particle_spacing5,
+                                                               fluid_particle_spacing,
                                               smoothing_kernel=WendlandC4Kernel{2}()),
             "WCSPH with WendlandC6Kernel" => (smoothing_length=2.0 * fluid_particle_spacing,
                                               smoothing_kernel=WendlandC6Kernel{2}()),
