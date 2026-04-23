@@ -2,16 +2,14 @@
 using TrixiParticles
 
 fluid_particle_spacing = 0.6 / 40
+tspan = (0.0, 5.7 / sqrt(9.81 / 0.6))
 
 # Load setup from dam break example
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "dam_break_2d.jl");
               fluid_particle_spacing,
+              tspan,
               sol=nothing, ode=nothing)
-
-# Preserve the nested example default while still allowing `trixi_include(...; tspan=...)`
-# to override this wrapper example.
-tspan = tspan
 
 # IISPH doesn't require a large compact support like WCSPH and performs worse with a typical
 # smoothing length used for WCSPH.

@@ -1,14 +1,13 @@
 # 2D dam break simulation using implicit incompressible SPH (IISPH) with pressure boundaries
 using TrixiParticles
 
+tspan = (0.0, 5.7 / sqrt(9.81 / 0.6))
+
 # Load setup from dam break example
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "dam_break_2d.jl");
+              tspan,
               sol=nothing, ode=nothing)
-
-# Preserve the nested example default while still allowing `trixi_include(...; tspan=...)`
-# to override this wrapper example.
-tspan = tspan
 
 # Change smoothing kernel and length
 smoothing_length = 1.2 * fluid_particle_spacing
