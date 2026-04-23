@@ -112,7 +112,7 @@ function interact!(dv, v_particle_system, u_particle_system,
 
     return interact_structure_fluid!(dv, v_particle_system, u_particle_system,
                                      v_neighbor_system, u_neighbor_system,
-                                     particle_system, neighbor_system, semi)
+                                     particle_system, neighbor_system, semi; eachparticle)
 end
 
 # Structure-boundary interaction
