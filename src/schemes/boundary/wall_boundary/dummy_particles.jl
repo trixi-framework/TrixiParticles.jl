@@ -11,9 +11,9 @@ Boundary model for [`WallBoundarySystem`](@ref).
 # Arguments
 - `initial_density`: Vector holding the initial density of each boundary particle.
 - `hydrodynamic_mass`: Vector holding the "hydrodynamic mass" of each boundary particle.
-                       See description above for more information.
+                       See [the docs](@ref boundary_models) for more information.
 - `density_calculator`: Strategy to compute the hydrodynamic density of the boundary particles.
-                        See description below for more information.
+                        See [the docs](@ref boundary_models) for more information.
 - `smoothing_kernel`: Smoothing kernel should be the same as for the adjacent fluid system.
 - `smoothing_length`: Smoothing length should be the same as for the adjacent fluid system.
 
@@ -32,6 +32,15 @@ Boundary model for [`WallBoundarySystem`](@ref).
                                 pressures that cause larger gaps between fluid and boundary
                                 in areas of low pressure, against which the particle
                                 shifting technique is fighting.
+                                This option only controls clipping performed inside
+                                `BoundaryModelDummyParticles` itself. If the selected
+                                `state_equation` already clips negative pressures,
+                                then boundary pressures computed directly from that
+                                state equation are non-negative regardless of this setting.
+                                This does not apply to [`AdamiPressureExtrapolation`](@ref),
+                                which can still produce slightly negative pressures with
+                                a pressure-clipping state equation unless
+                                `clip_negative_pressure=true`.
 - `reference_particle_spacing`: The reference particle spacing used for weighting values at the boundary,
                                 which currently is only needed when using surface tension.
 # Examples
