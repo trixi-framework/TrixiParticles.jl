@@ -69,7 +69,7 @@ function create_fluid_system(coordinates, velocity, mass, density, particle_spac
                              smoothing_kernel=SchoenbergCubicSplineKernel{NDIMS}())
     tspan = (0.0, 0.01)
 
-    fluid = InitialCondition(coordinatess,
+    fluid = InitialCondition(coordinates,
                              velocity,
                              mass,
                              density,
