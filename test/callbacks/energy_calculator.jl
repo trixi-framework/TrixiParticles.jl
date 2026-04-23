@@ -87,15 +87,16 @@
             prescribed_motion = PrescribedMotion(movement_function, is_moving)
 
             # Create TLSPH system with energy calculator support
-            system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
-                                              smoothing_length, young_modulus,
-                                              poisson_ratio,
-                                              clamped_particles_motion=prescribed_motion,
-                                              n_clamped_particles=n_clamped_particles[i],
-                                              acceleration=(0.0, -2.0))
+            system_ = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
+                                               smoothing_length, young_modulus,
+                                               poisson_ratio,
+                                               clamped_particles_motion=prescribed_motion,
+                                               n_clamped_particles=n_clamped_particles[i],
+                                               acceleration=(0.0, -2.0))
 
-            semi = Semidiscretization(system)
+            semi = Semidiscretization(system_)
             ode = semidiscretize(semi, (0.0, 1.0))
+            system = ode.p.systems[1]
 
             # Create dummy ODE state vectors
             v = zeros(2, TrixiParticles.n_integrated_particles(system))

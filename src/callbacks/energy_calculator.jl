@@ -180,7 +180,7 @@ function update_energy_calculator!(energy, system, eachparticle,
 
         if !only_compute_force_on_fluid
             @threaded semi for particle in eachparticle
-                add_acceleration!(dv, particle, system)
+                add_acceleration!(dv, system, particle)
                 add_source_terms_inner!(dv, v, u, particle, system, source_terms(system), t)
             end
         end
