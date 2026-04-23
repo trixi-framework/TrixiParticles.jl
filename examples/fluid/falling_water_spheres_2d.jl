@@ -58,6 +58,7 @@ nu = 0.005
 alpha = 8 * nu / (fluid_smoothing_length * sound_speed)
 viscosity = ArtificialViscosityMonaghan(; alpha, beta=0.0)
 density_diffusion = DensityDiffusionAntuono(delta=0.1)
+surface_tension = SurfaceTensionAkinci(surface_tension_coefficient=0.05)
 
 sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1;
                                                      smoothing_kernel=fluid_smoothing_kernel,
@@ -65,7 +66,7 @@ sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1;
                                                      sound_speed, viscosity,
                                                      density_calculator=ContinuityDensity(),
                                                      acceleration=(0.0, -gravity),
-                                                     surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.05),
+                                                     surface_tension,
                                                      reference_particle_spacing=fluid_particle_spacing)
 
 sphere = WeaklyCompressibleSPHSystem(sphere2;
@@ -86,8 +87,9 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              viscosity=ViscosityAdami(nu=wall_viscosity),
                                              reference_particle_spacing=fluid_particle_spacing)
 
+adhesion_coefficient = 1.0
 boundary_system = WallBoundarySystem(tank.boundary, boundary_model,
-                                     adhesion_coefficient=1.0)
+                                     adhesion_coefficient)
 
 # ==========================================================================================
 # ==== Simulation

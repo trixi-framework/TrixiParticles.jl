@@ -33,6 +33,8 @@ sphere2 = SphereShape(fluid_particle_spacing, sphere1_radius, sphere2_center,
 # `compact_support` needs to be `2.0 * particle_spacing` to be correct
 fluid_smoothing_length = 1.0 * fluid_particle_spacing
 
+surface_tension = SurfaceTensionAkinci(surface_tension_coefficient=0.05)
+
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "falling_water_spheres_2d.jl");
               fluid_particle_spacing, tspan=(0.0, 0.1),
@@ -43,4 +45,4 @@ trixi_include(@__MODULE__,
               fluid_smoothing_length,
               fluid_smoothing_kernel=SchoenbergCubicSplineKernel{3}(),
               nu, alpha=10 * nu / (fluid_smoothing_length * sound_speed),
-              surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.05))
+              surface_tension)
