@@ -102,8 +102,18 @@ Get the current calculated energy from an [`EnergyCalculatorCallback`](@ref).
 
 # Examples
 ```jldoctest; output = false, setup = :(system = TotalLagrangianSPHSystem(RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0), WendlandC2Kernel{2}(), 1.0, 1.0, 1.0); semi = (; systems=(system,), parallelization_backend=SerialBackend()))
+semi = Semidiscretization(system)
+ode = semidiscretize(semi, (0.0, 1.0))
+
+# Note that `Semidiscretization` might create a deep copy of the system,
+# which means we have to extract the new system from `semi`.
+# When working with GPUs, `semidiscretize` also creates a deep copy of `semi` and another
+# copy of the system, so the clean way to get the correct new system is this:
+semi_new = ode.p
+system_new = semi_new.systems[1]
+
 # Create an energy calculator callback
-energy_cb = EnergyCalculatorCallback(system, semi)
+energy_cb = EnergyCalculatorCallback(system_new, semi)
 
 # After the simulation, retrieve the calculated energy
 total_energy = calculated_energy(energy_cb)
