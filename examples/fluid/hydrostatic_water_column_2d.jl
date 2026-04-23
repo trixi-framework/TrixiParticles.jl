@@ -39,7 +39,7 @@ smoothing_length = 1.2 * fluid_particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 alpha = 0.02
-viscosity_fluid = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
+viscosity_fluid = ArtificialViscosityMonaghan(; alpha, beta=0.0)
 
 fluid_density_calculator = ContinuityDensity()
 

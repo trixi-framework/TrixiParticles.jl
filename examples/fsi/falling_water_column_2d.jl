@@ -14,8 +14,8 @@ using OrdinaryDiffEq
 n_particles_y = 5
 
 # Load setup from oscillating beam example
-trixi_include(@__MODULE__, joinpath(examples_dir(), "structure", "oscillating_beam_2d.jl"),
-              thickness=0.05, n_particles_y=n_particles_y,
+trixi_include(@__MODULE__, joinpath(examples_dir(), "structure", "oscillating_beam_2d.jl");
+              thickness=0.05, n_particles_y,
               sol=nothing) # Don't run simulation, only include the setup part
 
 # Fluid resolution

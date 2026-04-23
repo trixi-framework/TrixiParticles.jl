@@ -43,7 +43,7 @@ pressure = coords -> Q * (1 - coords[1]^2 - coords[2]^2)
 density = coords -> TrixiParticles.inverse_state_equation(state_equation, pressure(coords))
 
 fluid = SphereShape(fluid_particle_spacing, radius, (0.0, 0.0),
-                    density, pressure=pressure,
+                    density; pressure,
                     sphere_type=RoundSphere(),
                     velocity=coords -> sigma .* (coords[1], -coords[2]))
 

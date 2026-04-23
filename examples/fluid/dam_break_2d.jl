@@ -57,7 +57,7 @@ smoothing_kernel = WendlandC2Kernel{2}()
 fluid_density_calculator = ContinuityDensity()
 
 alpha = 0.02
-viscosity_fluid = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
+viscosity_fluid = ArtificialViscosityMonaghan(; alpha, beta=0.0)
 
 # The density diffusion model by Molteni and Colagrossi shows unphysical effects at the
 # free surface in long-running simulations, but is significantly faster than the model
