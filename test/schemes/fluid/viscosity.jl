@@ -41,7 +41,7 @@
     end
     @testset verbose=true "`ViscosityMorris`" begin
         nu = 7e-3
-        viscosity = ViscosityMorris(nuu)
+        viscosity = ViscosityMorris(; nu)
         system_wcsph = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(),
                                                    state_equation, smoothing_kernel,
                                                    smoothing_length; viscosity)
@@ -100,7 +100,7 @@
     end
     @testset verbose=true "`ViscosityMorrisSGS`" begin
         nu = 7e-3
-        viscosity = ViscosityMorrisSGS(nuu)
+        viscosity = ViscosityMorrisSGS(; nu)
         system_wcsph = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(),
                                                    state_equation, smoothing_kernel,
                                                    smoothing_length; viscosity)

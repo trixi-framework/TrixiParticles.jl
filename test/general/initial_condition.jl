@@ -394,7 +394,7 @@
                 density = [10.0, 20.0, 30.0, 40.0, 50.0]
                 pressure = [100.0, 200.0, 300.0, 400.0, 500.0]
 
-                ic = InitialCondition(coordinates, velocity,
+                ic = InitialCondition(; coordinates, velocity,
                                       mass, density, pressure)
 
                 # Move particles 2 and 4 to the end
@@ -423,7 +423,7 @@
                 mass = [1.1, 2.2, 3.3, 4.4]
                 density = [10.0, 20.0, 30.0, 40.0]
 
-                ic = InitialCondition(coordinates, velocity,
+                ic = InitialCondition(; coordinates, velocity,
                                       mass, density)
 
                 # Move particle 2 multiple times (should only move once)
