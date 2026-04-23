@@ -155,7 +155,7 @@
     end
 
     @testset verbose=true "FSI" begin
-        @trixi_testset "fluid/hydrostatic_water_column_2d.jl with moving TLSPH walls" begin
+        @trixi_testset "fluid/hydrostatic_water_column_2d.jl with EnergyCalculatorCallback and moving TLSPH walls" begin
             # In this test, we move a water-filled tank up against gravity by 1 unit
             # and verify that the energy calculated by the `EnergyCalculatorCallback`
             # matches the expected potential energy.
@@ -196,10 +196,14 @@
             semi = Semidiscretization(fluid_system, tlsph_system,
                                       parallelization_backend=PolyesterBackend())
             ode = semidiscretize(semi, (0.0, 1.0))
+            fluid_system_new = ode.p.systems[1]
+            tlsph_system_new = ode.p.systems[2]
 
             # Energy calculators for fluid + tank and fluid only
-            energy_calculator1 = EnergyCalculatorCallback(tlsph_system, semi; interval=1)
-            energy_calculator2 = EnergyCalculatorCallback(tlsph_system, semi; interval=1,
+            energy_calculator1 = EnergyCalculatorCallback(tlsph_system_new, semi;
+                                                          interval=1)
+            energy_calculator2 = EnergyCalculatorCallback(tlsph_system_new, semi;
+                                                          interval=1,
                                                           only_compute_force_on_fluid=true)
 
             sol = @trixi_test_nowarn solve(ode, RDPK3SpFSAL35(), save_everystep=false,
@@ -213,8 +217,8 @@
             # Potential energy difference should be m * g * h and h = 1.
             # Since all particles are clamped, the energy added through clamped particles
             # should be the same as that added to the fluid.
-            expected_energy_fluid = sum(fluid_system.mass) * gravity * 1
-            expected_energy_tank = sum(tlsph_system.mass) * gravity * 1
+            expected_energy_fluid = sum(fluid_system_new.mass) * gravity * 1
+            expected_energy_tank = sum(tlsph_system_new.mass) * gravity * 1
 
             # We don't expect very accurate results here because the fluid is weakly
             # compressible and is deformed during the simulation.
