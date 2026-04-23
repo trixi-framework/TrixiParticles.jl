@@ -39,8 +39,8 @@ OrdinaryDiffEqCore = "bbf590c4-e513-4bbe-9b18-05decba2e5d8"
 OrdinaryDiffEqSymplecticRK = "fa646aed-7ef9-47eb-84c4-9443fc8cbfa8"
 
 [extensions]
-TrixiParticlesOrdinaryDiffEqSymplecticRKExt = ["OrdinaryDiffEqSymplecticRK", "OrdinaryDiffEqCore"]
 TrixiParticlesCUDAExt = "CUDA"
+TrixiParticlesOrdinaryDiffEqSymplecticRKExt = ["OrdinaryDiffEqSymplecticRK", "OrdinaryDiffEqCore"]
 
 [compat]
 Accessors = "0.1.43"
@@ -56,8 +56,8 @@ ForwardDiff = "1"
 GPUArraysCore = "0.2"
 JSON = "1"
 KernelAbstractions = "0.9"
+OrdinaryDiffEqCore = "2, 3, 4"
 OrdinaryDiffEqSymplecticRK = "1.10"
-OrdinaryDiffEqCore = "2, 3"
 PointNeighbors = "0.6.6"
 Polyester = "0.7.10"
 ReadVTK = "0.2"
