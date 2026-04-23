@@ -32,15 +32,6 @@ Boundary model for [`WallBoundarySystem`](@ref).
                                 pressures that cause larger gaps between fluid and boundary
                                 in areas of low pressure, against which the particle
                                 shifting technique is fighting.
-                                This option only controls clipping performed inside
-                                `BoundaryModelDummyParticles` itself. If the selected
-                                `state_equation` already clips negative pressures,
-                                then boundary pressures computed directly from that
-                                state equation are non-negative regardless of this setting.
-                                This does not apply to [`AdamiPressureExtrapolation`](@ref),
-                                which can still produce slightly negative pressures with
-                                a pressure-clipping state equation unless
-                                `clip_negative_pressure=true`.
 - `reference_particle_spacing`: The reference particle spacing used for weighting values at the boundary,
                                 which currently is only needed when using surface tension.
 # Examples
