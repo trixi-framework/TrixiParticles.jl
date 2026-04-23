@@ -126,8 +126,9 @@
 
                 semi = Semidiscretization(structure_system)
                 ode = semidiscretize(semi, (0.0, 1.0))
+                system = ode.p.systems[1]
 
-                energy_calculator = EnergyCalculatorCallback(structure_system, semi;
+                energy_calculator = EnergyCalculatorCallback(system, semi;
                                                              interval=1)
 
                 sol = @trixi_test_nowarn solve(ode, RDPK3SpFSAL49(), save_everystep=false,
@@ -138,11 +139,11 @@
 
                 # Potential energy difference should be m * g * h
                 @test isapprox(calculated_energy(energy_calculator),
-                               sum(structure_system.mass) * gravity * 1,
+                               sum(system.mass) * gravity * 1,
                                rtol=rtol[name])
             end
         end
-        
+
         @trixi_testset "structure/colliding_rigid_spheres_2d.jl" begin
             @trixi_test_nowarn trixi_include(@__MODULE__,
                                              joinpath(examples_dir(), "structure",
