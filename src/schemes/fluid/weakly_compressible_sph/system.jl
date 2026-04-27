@@ -9,7 +9,7 @@
                                 buffer_size=nothing,
                                 correction=nothing, source_terms=nothing,
                                 surface_tension=nothing, surface_normal_method=nothing,
-                                reference_particle_spacing=0.0, color_value=1))
+                                reference_particle_spacing=0.0, color_value=1)
 
 System for particles of a fluid.
 The weakly compressible SPH (WCSPH) scheme is used, wherein a stiff equation of state

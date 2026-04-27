@@ -2,7 +2,7 @@ abstract type AbstractSurfaceTension end
 abstract type AkinciTypeSurfaceTension <: AbstractSurfaceTension end
 
 @doc raw"""
-    CohesionForceAkinci(surface_tension_coefficient=1.0)
+    CohesionForceAkinci(; surface_tension_coefficient=1.0)
 
 This model only implements the cohesion force of the Akinci [Akinci2013](@cite) surface tension model.
 
@@ -21,7 +21,7 @@ struct CohesionForceAkinci{ELTYPE} <: AkinciTypeSurfaceTension
 end
 
 @doc raw"""
-    SurfaceTensionAkinci(surface_tension_coefficient=1.0)
+    SurfaceTensionAkinci(; surface_tension_coefficient=1.0)
 
 Implements a model for surface tension and adhesion effects drawing upon the
 principles outlined by Akinci [Akinci2013](@cite). This model is instrumental in capturing the nuanced
@@ -44,7 +44,7 @@ struct SurfaceTensionAkinci{ELTYPE} <: AkinciTypeSurfaceTension
 end
 
 @doc raw"""
-    SurfaceTensionMorris(surface_tension_coefficient=1.0)
+    SurfaceTensionMorris(; surface_tension_coefficient=1.0)
 
 This model implements the surface tension approach described by Morris [Morris2000](@cite).
 It calculates surface tension forces based on the curvature of the fluid interface
@@ -76,7 +76,7 @@ function create_cache_surface_tension(::SurfaceTensionMorris, ELTYPE, NDIMS, npa
 end
 
 @doc raw"""
-    SurfaceTensionMomentumMorris(surface_tension_coefficient=1.0)
+    SurfaceTensionMomentumMorris(; surface_tension_coefficient=1.0)
 
 This model implements the momentum-conserving surface tension approach outlined by Morris
 [Morris2000](@cite). It calculates surface tension forces using the divergence of a stress

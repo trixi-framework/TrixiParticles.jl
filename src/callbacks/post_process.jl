@@ -36,7 +36,7 @@ a fixed interval of simulation time (`dt`).
 - `output_directory="out"`: The path where the results of the post-processing will be saved.
 - `write_csv=true`: If set to `true`, write a csv file.
 - `write_json=true`: If set to `true`, write a json file.
-- `append_timestep=false`: If set to `true`, the current timestamp will be added to the filename.
+- `append_timestamp=false`: If set to `true`, the current timestamp will be added to the filename.
 - `write_file_interval=1`: Files will be written after every `write_file_interval` number of
                            postprocessing execution steps. A value of 0 indicates that files
                            are only written at the end of the simulation, eliminating I/O overhead.

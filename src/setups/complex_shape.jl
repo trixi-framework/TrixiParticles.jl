@@ -2,7 +2,7 @@
     ComplexShape(geometry::Union{TriangleMesh, Polygon}; particle_spacing, density,
                  pressure=0.0, mass=nothing, velocity=zeros(ndims(geometry)),
                  point_in_geometry_algorithm=WindingNumberJacobson(; geometry,
-                                                                   hierarchical_winding=false,
+                                                                   hierarchical_winding=true,
                                                                    winding_number_factor=sqrt(eps())),
                  grid_offset::Real=0.0, max_nparticles=10^7,
                  pad_initial_particle_grid=2particle_spacing)

@@ -420,7 +420,7 @@ The interpolation utilizes the same kernel function of the SPH simulation to wei
 contributions from nearby particles.
 
 See also: [`interpolate_line`](@ref), [`interpolate_plane_2d`](@ref),
-          [`interpolate_plane_2d_vtk`](@ref), [`interpolate_plane_3d`](@ref), .
+          [`interpolate_plane_2d_vtk`](@ref), [`interpolate_plane_3d`](@ref).
 
 # Arguments
 - `point_coords`:   A matrix of point coordinates, where the $i$-th column holds the

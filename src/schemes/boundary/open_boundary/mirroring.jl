@@ -17,7 +17,7 @@ struct FirstOrderMirroring{ELTYPE}
 end
 
 """
-    SimpleMirroring(; firstorder_tolerance=1f-3))
+    SimpleMirroring(; firstorder_tolerance=1f-3)
 
 This method is similar to [`FirstOrderMirroring`](@ref), but does not use
 the corrected gradient as proposed by [Negi et al. (2022)](@cite Negi2022).
