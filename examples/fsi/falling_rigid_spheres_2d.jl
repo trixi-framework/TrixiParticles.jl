@@ -32,8 +32,8 @@ state_equation = StateEquationCole(; sound_speed, reference_density=fluid_densit
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density;
                        n_layers=boundary_layers, spacing_ratio,
-                       faces=(true, true, true, false),
-                       acceleration=(0.0, -gravity), state_equation)
+                       faces=(true, true, true, false), acceleration=(0.0, -gravity),
+                       state_equation)
 
 sphere1_radius = 0.3
 sphere2_radius = 0.2
@@ -106,15 +106,11 @@ contact_model = RigidContactModel(; normal_stiffness=2.0e5,
                                   contact_distance=2.0 *
                                                    structure_particle_spacing)
 
-structure_system_1 = RigidBodySystem(sphere1;
-                                     boundary_model=boundary_model_structure_1,
-                                     contact_model,
-                                     acceleration=(0.0, -gravity),
+structure_system_1 = RigidBodySystem(sphere1; boundary_model=boundary_model_structure_1,
+                                     contact_model, acceleration=(0.0, -gravity),
                                      particle_spacing=structure_particle_spacing)
-structure_system_2 = RigidBodySystem(sphere2;
-                                     boundary_model=boundary_model_structure_2,
-                                     contact_model,
-                                     acceleration=(0.0, -gravity),
+structure_system_2 = RigidBodySystem(sphere2; boundary_model=boundary_model_structure_2,
+                                     contact_model, acceleration=(0.0, -gravity),
                                      particle_spacing=structure_particle_spacing)
 
 # ==========================================================================================

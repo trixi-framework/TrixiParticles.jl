@@ -26,9 +26,9 @@ include("pressure_model.jl")
     sample_points = RectangularShape(particle_spacing, (1, round(Int, n_particles_y / 2)),
                                      (0.0, 0.5), density=1.0).coordinates
 
-    zone = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, 2.0]),
-                        face_normal=(-1.0, 0.0), open_boundary_layers=10, density=1000.0,
-                        particle_spacing, sample_points,
+    zone = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, 2.0]), face_normal=(-1.0, 0.0),
+                        open_boundary_layers=10, density=1000.0, particle_spacing,
+                        sample_points,
                         reference_velocity=(pos, t) -> velocity_function(pos))
 
     open_boundary = OpenBoundarySystem(zone; fluid_system,

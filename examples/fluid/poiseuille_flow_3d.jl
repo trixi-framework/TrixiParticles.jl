@@ -113,8 +113,8 @@ shifting_technique = TransportVelocityAdami(; background_pressure)
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1)
 
-fluid_system = WeaklyCompressibleSPHSystem(fluid_particles;
-                                           smoothing_kernel, smoothing_length,
+fluid_system = WeaklyCompressibleSPHSystem(fluid_particles; smoothing_kernel,
+                                           smoothing_length,
                                            density_calculator=fluid_density_calculator,
                                            state_equation, buffer_size=n_buffer_particles,
                                            shifting_technique,
@@ -169,10 +169,8 @@ open_boundary = OpenBoundarySystem(inlet_zone, outlet_zone; fluid_system,
 # ==========================================================================================
 # ==== Boundary
 boundary_model = BoundaryModelDummyParticles(wall_boundary.density, wall_boundary.mass,
-                                             AdamiPressureExtrapolation(),
-                                             smoothing_kernel, smoothing_length;
-                                             state_equation,
-                                             viscosity)
+                                             AdamiPressureExtrapolation(), smoothing_kernel,
+                                             smoothing_length; state_equation, viscosity)
 
 boundary_system = WallBoundarySystem(wall_boundary, boundary_model)
 
@@ -186,9 +184,7 @@ neighborhood_search = GridNeighborhoodSearch{3}(;
                                                                            max_corner),
                                                 update_strategy=ParallelUpdate())
 
-semi = Semidiscretization(fluid_system, open_boundary,
-                          boundary_system;
-                          neighborhood_search,
+semi = Semidiscretization(fluid_system, open_boundary, boundary_system; neighborhood_search,
                           parallelization_backend=PolyesterBackend())
 
 ode_problem = semidiscretize(semi, tspan)

@@ -98,10 +98,7 @@
         mass = ones(2)
         density = ones(2)
 
-        ic = InitialCondition(; coordinates=coords,
-                              velocity,
-                              mass,
-                              density,
+        ic = InitialCondition(; coordinates=coords, velocity, mass, density,
                               particle_spacing=1.0)
 
         # 2. Define Density Calculator, State Equation, and Kernel

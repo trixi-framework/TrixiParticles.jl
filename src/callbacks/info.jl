@@ -40,8 +40,7 @@ function InfoCallback(; interval=0, reset_threads=true)
                                  reset_threads)
     end
 
-    DiscreteCallback(info_callback, info_callback;
-                     save_positions=(false, false),
+    DiscreteCallback(info_callback, info_callback; save_positions=(false, false),
                      initialize)
 end
 
@@ -239,8 +238,7 @@ function summary_line(io, key, value; key_width=30, total_width=100, indentation
     total_width = get(io, :total_width, total_width)
     indentation_level = get(io, :indentation_level, indentation_level)
 
-    s = format_key_value_line(key, value, key_width, total_width;
-                              indentation_level)
+    s = format_key_value_line(key, value, key_width, total_width; indentation_level)
 
     println(io, s)
 end

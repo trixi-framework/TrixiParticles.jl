@@ -41,10 +41,9 @@ air_viscosity = ViscosityMorris(nu=nu_sim_air)
 water_viscosity = ViscosityMorris(nu=nu_sim_water)
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl");
-              sol=nothing, fluid_particle_spacing,
-              viscosity_fluid=water_viscosity, smoothing_length,
-              gravity, tspan, density_diffusion=nothing,
-              sound_speed, exponent=7,
+              sol=nothing, fluid_particle_spacing, viscosity_fluid=water_viscosity,
+              smoothing_length, gravity, tspan, density_diffusion=nothing, sound_speed,
+              exponent=7,
               tank_size=(floor(5.366 * H / fluid_particle_spacing) * fluid_particle_spacing,
                          2.6 * H))
 

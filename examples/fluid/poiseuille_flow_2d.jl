@@ -96,8 +96,7 @@ shifting_technique = TransportVelocityAdami(; background_pressure)
 if use_wcsph
     state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                        exponent=1)
-    fluid_system = WeaklyCompressibleSPHSystem(fluid;
-                                               smoothing_kernel, smoothing_length,
+    fluid_system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel, smoothing_length,
                                                density_calculator=fluid_density_calculator,
                                                state_equation,
                                                buffer_size=n_buffer_particles,
@@ -107,8 +106,7 @@ if use_wcsph
 else
     state_equation = nothing
 
-    fluid_system = EntropicallyDampedSPHSystem(fluid;
-                                               smoothing_kernel, smoothing_length,
+    fluid_system = EntropicallyDampedSPHSystem(fluid; smoothing_kernel, smoothing_length,
                                                sound_speed, viscosity,
                                                density_calculator=fluid_density_calculator,
                                                shifting_technique,
@@ -156,10 +154,8 @@ open_boundary = OpenBoundarySystem(inlet_boundary_zone, outlet_boundary_zone; fl
 wall_boundary = union(channel.boundary)
 
 boundary_model = BoundaryModelDummyParticles(wall_boundary.density, wall_boundary.mass,
-                                             AdamiPressureExtrapolation(),
-                                             smoothing_kernel, smoothing_length;
-                                             state_equation,
-                                             viscosity)
+                                             AdamiPressureExtrapolation(), smoothing_kernel,
+                                             smoothing_length; state_equation, viscosity)
 
 boundary_system = WallBoundarySystem(wall_boundary, boundary_model)
 

@@ -143,8 +143,7 @@ function create_cache_open_boundary(boundary_model, fluid_system, initial_condit
     density_reference_values = map(ref -> ref.reference_density, reference_values)
     velocity_reference_values = map(ref -> ref.reference_velocity, reference_values)
 
-    cache = (; pressure_reference_values,
-             density_reference_values,
+    cache = (; pressure_reference_values, density_reference_values,
              velocity_reference_values)
 
     if calculate_flow_rate ||
@@ -164,8 +163,7 @@ function create_cache_open_boundary(boundary_model, fluid_system, initial_condit
         characteristics = zeros(ELTYPE, 3, nparticles(initial_condition))
         previous_characteristics = zeros(ELTYPE, 3, nparticles(initial_condition))
 
-        return (; characteristics,
-                previous_characteristics,
+        return (; characteristics, previous_characteristics,
                 pressure=copy(initial_condition.pressure),
                 density=copy(initial_condition.density), cache...)
 
@@ -180,8 +178,7 @@ function create_cache_open_boundary(boundary_model, fluid_system, initial_condit
 
         cache = (; density_diffusion,
                  create_cache_density_diffusion(initial_condition, density_diffusion)...,
-                 pressure_boundary,
-                 density_rest, cache...)
+                 pressure_boundary, density_rest, cache...)
 
         if fluid_system isa EntropicallyDampedSPHSystem
             # Density and pressure is stored in `v`

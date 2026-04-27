@@ -309,11 +309,11 @@ function trixi2vtk(initial_condition::InitialCondition; output_directory="out",
                    prefix="", filename="initial_condition", custom_quantities...)
     (; coordinates, velocity, density, mass, pressure) = initial_condition
 
-    return trixi2vtk(coordinates; output_directory, prefix, filename,
-                     density, initial_velocity=velocity, mass,
+    return trixi2vtk(coordinates; output_directory, prefix, filename, density,
+                     initial_velocity=velocity, mass,
                      particle_spacing=(initial_condition.particle_spacing .*
-                                       ones(nparticles(initial_condition))),
-                     pressure, custom_quantities...)
+                                       ones(nparticles(initial_condition))), pressure,
+                     custom_quantities...)
 end
 
 function write2vtk!(vtk, v, u, t, system)

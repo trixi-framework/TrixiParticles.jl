@@ -90,8 +90,7 @@ if wcsph
                                                                                          background_pressure))
 else
     density_calculator = SummationDensity()
-    fluid_system = EntropicallyDampedSPHSystem(fluid;
-                                               smoothing_kernel, smoothing_length,
+    fluid_system = EntropicallyDampedSPHSystem(fluid; smoothing_kernel, smoothing_length,
                                                sound_speed, density_calculator,
                                                shifting_technique=TransportVelocityAdami(;
                                                                                          background_pressure),

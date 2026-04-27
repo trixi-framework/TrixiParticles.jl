@@ -71,8 +71,7 @@ packing_system = ParticlePackingSystem(shape_sampled; smoothing_length,
 
 boundary_system = ParticlePackingSystem(boundary_sampled; smoothing_length,
                                         is_boundary=true, signed_distance_field,
-                                        place_on_shell,
-                                        boundary_compress_factor=0.8,
+                                        place_on_shell, boundary_compress_factor=0.8,
                                         background_pressure)
 
 # ==========================================================================================

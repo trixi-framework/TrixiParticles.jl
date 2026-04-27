@@ -122,8 +122,7 @@ nothing # hide
 #               smoothing_length);
 # ```
 trixi_include(joinpath(examples_dir(), "fluid", "dam_break_2d.jl"); #!md
-              smoothing_kernel=MyGaussianKernel(), #!md
-              smoothing_length) #!md
+              smoothing_kernel=MyGaussianKernel(), smoothing_length) #!md
 
 # See [Visualization](@ref) for how to visualize the final solution.
 # For the simplest visualization, we can use [Plots.jl](https://docs.juliaplots.org/stable/):

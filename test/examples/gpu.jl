@@ -271,8 +271,7 @@ end
                                                              tspan=(0.0f0, 0.1f0),
                                                              coordinates_eltype=Float32,
                                                              fluid_particle_spacing=0.1,
-                                                             semi=semi_fullgrid,
-                                                             maxiters) [
+                                                             semi=semi_fullgrid, maxiters) [
                 r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
@@ -308,10 +307,9 @@ end
                                           sol=nothing, ode=nothing)
 
             # Create tank with Float32 coordinates
-            tank = RectangularTank(fluid_particle_spacing, initial_fluid_size,
-                                   tank_size, fluid_density; n_layers=boundary_layers,
-                                   acceleration=(0.0f0, -gravity),
-                                   state_equation,
+            tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size,
+                                   fluid_density; n_layers=boundary_layers,
+                                   acceleration=(0.0f0, -gravity), state_equation,
                                    coordinates_eltype=Float32)
 
             hydrostatic_water_column_tests = Dict(
@@ -369,8 +367,7 @@ end
                     trixi_include_changeprecision(Float32, @__MODULE__,
                                                   joinpath(examples_dir(), "fluid",
                                                            "hydrostatic_water_column_2d.jl");
-                                                  sol=nothing, ode=nothing, tank,
-                                                  kwargs...)
+                                                  sol=nothing, ode=nothing, tank, kwargs...)
 
                     # Neighborhood search with `FullGridCellList` for GPU compatibility
                     min_corner = minimum(tank.boundary.coordinates, dims=2)

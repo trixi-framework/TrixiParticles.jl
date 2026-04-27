@@ -3,9 +3,8 @@
         coordinates = fill(1.0, 2, 12)
         velocity = fill(2.0, 2, 12)
 
-        expected_data = InitialCondition(; coordinates, velocity,
-                                         density=1000.0, pressure=900.0,
-                                         particle_spacing=0.1)
+        expected_data = InitialCondition(; coordinates, velocity, density=1000.0,
+                                         pressure=900.0, particle_spacing=0.1)
 
         expected_scalar = 3.0
         expected_vector = fill(expected_scalar, nparticles(expected_data))

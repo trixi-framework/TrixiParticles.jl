@@ -40,11 +40,6 @@ cell_list = FullGridCellList(; min_corner, max_corner)
 neighborhood_search = GridNeighborhoodSearch{2}(; cell_list)
 
 # Run the dam break simulation with this neighborhood search
-trixi_include(@__MODULE__,
-              joinpath(examples_dir(), "fluid", "dam_break_2d.jl");
-              neighborhood_search,
-              fluid_particle_spacing,
-              tspan,
-              boundary_layers, spacing_ratio,
-              parallelization_backend=PolyesterBackend(),
-              coordinates_eltype)
+trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl");
+              neighborhood_search, fluid_particle_spacing, tspan, boundary_layers,
+              spacing_ratio, parallelization_backend=PolyesterBackend(), coordinates_eltype)

@@ -27,14 +27,12 @@ update_strategy = nothing
 
 # ==========================================================================================
 # ==== WCSPH simulation
+# `sound_speed`, `alpha`, and `tspan` are used by De Courcy et al. (2024).
 trixi_include(@__MODULE__,
-              joinpath(validation_dir(), "dam_break_2d",
-                       "setup_marrone_2011.jl");
-              use_edac=false, update_strategy,
-              particles_per_height=resolution,
-              sound_speed=50 * sqrt(9.81 * 0.6), # This is used by De Courcy et al. (2024)
-              alpha=0.01, # This is used by De Courcy et al. (2024)
-              tspan=(0.0, 7 / sqrt(9.81 / 0.6))) # This is used by De Courcy et al. (2024)
+              joinpath(validation_dir(), "dam_break_2d", "setup_marrone_2011.jl");
+              use_edac=false, update_strategy, particles_per_height=resolution,
+              sound_speed=50 * sqrt(9.81 * 0.6), alpha=0.01,
+              tspan=(0.0, 7 / sqrt(9.81 / 0.6)))
 
 reference_file_wcsph_name = joinpath(validation_dir(), "dam_break_2d",
                                      "validation_reference_wcsph_$formatted_string.json")
@@ -56,14 +54,12 @@ error_wcsph_P2 = interpolated_mse(reference_data["pressure_P2_fluid_1"]["time"],
 
 # ==========================================================================================
 # ==== EDAC simulation
+# `sound_speed`, `alpha`, and `tspan` are used by De Courcy et al. (2024).
 trixi_include(@__MODULE__,
-              joinpath(validation_dir(), "dam_break_2d",
-                       "setup_marrone_2011.jl");
-              use_edac=true, update_strategy,
-              particles_per_height=resolution,
-              sound_speed=50 * sqrt(9.81 * 0.6), # This is used by De Courcy et al. (2024)
-              alpha=0.01, # This is used by De Courcy et al. (2024)
-              tspan=(0.0, 7 / sqrt(9.81 / 0.6))) # This is used by De Courcy et al. (2024)
+              joinpath(validation_dir(), "dam_break_2d", "setup_marrone_2011.jl");
+              use_edac=true, update_strategy, particles_per_height=resolution,
+              sound_speed=50 * sqrt(9.81 * 0.6), alpha=0.01,
+              tspan=(0.0, 7 / sqrt(9.81 / 0.6)))
 
 reference_file_edac_name = joinpath(validation_dir(), "dam_break_2d",
                                     "validation_reference_edac_$formatted_string.json")

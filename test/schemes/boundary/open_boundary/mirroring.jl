@@ -226,8 +226,8 @@
 
         inflow = BoundaryZone(; boundary_face=face_in, boundary_type=InFlow(),
                               face_normal=(i == 2 ? [1.0, 0.0] : [1.0, 0.0, 0.0]),
-                              open_boundary_layers, density=1000.0,
-                              particle_spacing, average_inflow_velocity=true)
+                              open_boundary_layers, density=1000.0, particle_spacing,
+                              average_inflow_velocity=true)
         open_boundary_in = OpenBoundarySystem(inflow; fluid_system,
                                               boundary_model=BoundaryModelMirroringTafuni(),
                                               buffer_size=0)

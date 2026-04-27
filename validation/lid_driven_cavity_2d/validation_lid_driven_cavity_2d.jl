@@ -77,16 +77,13 @@ for reynolds_number in reynolds_numbers,
     saving_callback = SolutionSavingCallback(; dt=0.02, output_directory)
 
     CAPTURE_STARTED[] = false
-    pp_callback = PostprocessCallback(; dt=0.02,
-                                      interpolated_velocity,
+    pp_callback = PostprocessCallback(; dt=0.02, interpolated_velocity,
                                       filename="interpolated_velocities",
                                       write_file_interval=0)
 
     # Import variables into scope
-    trixi_include(@__MODULE__,
-                  joinpath(examples_dir(), "fluid", "lid_driven_cavity_2d.jl");
-                  wcsph, density_calculator,
-                  saving_callback, tspan, pp_callback,
+    trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "lid_driven_cavity_2d.jl");
+                  wcsph, density_calculator, saving_callback, tspan, pp_callback,
                   particle_spacing, reynolds_number)
 
     file = joinpath(output_directory, "interpolated_velocities.csv")

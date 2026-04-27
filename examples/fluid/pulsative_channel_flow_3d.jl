@@ -39,8 +39,6 @@ extra_callback = nothing
 # a more full pulse is seen with a runtime of 3.0, which takes around 30m at particle_spacing_factor = 15 and around 6h at particle_spacing_factor = 30
 simulation_end_time = 0.5
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "poiseuille_flow_3d.jl");
-              tspan=(0.0, simulation_end_time),
-              particle_spacing_factor,
-              extra_callback, saving_callback, v_max,
-              inlet_reference_pressure=dynamic_pressure_drop,
+              tspan=(0.0, simulation_end_time), particle_spacing_factor, extra_callback,
+              saving_callback, v_max, inlet_reference_pressure=dynamic_pressure_drop,
               outlet_reference_pressure=dynamic_pressure_drop)

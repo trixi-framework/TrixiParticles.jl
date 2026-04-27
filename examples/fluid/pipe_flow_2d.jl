@@ -82,20 +82,18 @@ if wcsph
                                        exponent=1)
     density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 
-    fluid_system = WeaklyCompressibleSPHSystem(pipe.fluid;
-                                               smoothing_kernel, smoothing_length,
+    fluid_system = WeaklyCompressibleSPHSystem(pipe.fluid; smoothing_kernel,
+                                               smoothing_length,
                                                density_calculator=fluid_density_calculator,
-                                               state_equation, density_diffusion,
-                                               viscosity,
+                                               state_equation, density_diffusion, viscosity,
                                                shifting_technique=ParticleShiftingTechnique(v_max_factor=1.5),
                                                buffer_size=n_buffer_particles)
 else
     # Alternatively the EDAC scheme can be used
     state_equation = nothing
 
-    fluid_system = EntropicallyDampedSPHSystem(pipe.fluid;
-                                               smoothing_kernel, smoothing_length,
-                                               sound_speed, viscosity,
+    fluid_system = EntropicallyDampedSPHSystem(pipe.fluid; smoothing_kernel,
+                                               smoothing_length, sound_speed, viscosity,
                                                density_calculator=fluid_density_calculator,
                                                shifting_technique=ParticleShiftingTechnique(),
                                                buffer_size=n_buffer_particles)
@@ -146,9 +144,8 @@ open_boundary = OpenBoundarySystem(inflow, outflow; fluid_system,
 wall = union(pipe.boundary, inlet.boundary, outlet.boundary)
 viscosity_boundary = viscosity
 boundary_model = BoundaryModelDummyParticles(wall.density, wall.mass,
-                                             AdamiPressureExtrapolation(),
-                                             smoothing_kernel, smoothing_length;
-                                             state_equation,
+                                             AdamiPressureExtrapolation(), smoothing_kernel,
+                                             smoothing_length; state_equation,
                                              viscosity=viscosity_boundary)
 
 boundary_system = WallBoundarySystem(wall, boundary_model)

@@ -86,12 +86,9 @@ state_equation = use_edac ? nothing :
                                    exponent=7, clip_negative_pressure=false)
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, (plate_size[1], 3.0),
-                       fluid_density;
-                       min_coordinates=(0.0, fluid_particle_spacing / 2),
-                       n_layers=boundary_layers,
-                       spacing_ratio,
-                       faces=(true, true, false, false),
-                       acceleration=(0.0, -gravity),
+                       fluid_density; min_coordinates=(0.0, fluid_particle_spacing / 2),
+                       n_layers=boundary_layers, spacing_ratio,
+                       faces=(true, true, false, false), acceleration=(0.0, -gravity),
                        state_equation)
 
 if use_edac
@@ -107,8 +104,7 @@ else
     fluid_density_calculator = ContinuityDensity()
     density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
     # density_diffusion = DensityDiffusionAntuono(delta=0.1)
-    fluid_system = WeaklyCompressibleSPHSystem(tank.fluid;
-                                               smoothing_kernel,
+    fluid_system = WeaklyCompressibleSPHSystem(tank.fluid; smoothing_kernel,
                                                smoothing_length=smoothing_length_fluid,
                                                density_calculator=fluid_density_calculator,
                                                state_equation, density_diffusion,
@@ -148,8 +144,7 @@ cell_list = FullGridCellList(; min_corner, max_corner)
 neighborhood_search = GridNeighborhoodSearch{2}(; update_strategy=ParallelUpdate(),
                                                 cell_list)
 semi = Semidiscretization(structure_system, fluid_system, boundary_system;
-                          neighborhood_search,
-                          parallelization_backend=PolyesterBackend())
+                          neighborhood_search, parallelization_backend=PolyesterBackend())
 ode = semidiscretize(semi, tspan)
 
 split_integration = SplitIntegrationCallback(CarpenterKennedy2N54(williamson_condition=false),

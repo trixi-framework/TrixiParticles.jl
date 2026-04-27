@@ -44,8 +44,8 @@ state_equation = StateEquationCole(; sound_speed, reference_density=fluid_densit
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density;
                        n_layers=boundary_layers, spacing_ratio,
-                       faces=(true, true, true, false),
-                       acceleration=(0.0, -gravity), state_equation)
+                       faces=(true, true, true, false), acceleration=(0.0, -gravity),
+                       state_equation)
 nothing # hide
 
 # ## Rigid body geometry
@@ -101,9 +101,7 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid;
                                            smoothing_kernel=fluid_smoothing_kernel,
                                            smoothing_length=fluid_smoothing_length,
                                            density_calculator=fluid_density_calculator,
-                                           state_equation,
-                                           viscosity,
-                                           density_diffusion,
+                                           state_equation, viscosity, density_diffusion,
                                            acceleration=(0.0, -gravity))
 nothing # hide
 
@@ -237,15 +235,11 @@ contact_model = RigidContactModel(; normal_stiffness=2.0e5,
                                   contact_distance=2.0 * structure_particle_spacing)
 nothing # hide
 
-rigid_body_system_1_step3 = RigidBodySystem(square1;
-                                            boundary_model=square1_boundary_model,
-                                            contact_model,
-                                            acceleration=(0.0, -gravity),
+rigid_body_system_1_step3 = RigidBodySystem(square1; boundary_model=square1_boundary_model,
+                                            contact_model, acceleration=(0.0, -gravity),
                                             particle_spacing=structure_particle_spacing)
-rigid_body_system_2_step3 = RigidBodySystem(square2;
-                                            boundary_model=square2_boundary_model,
-                                            contact_model,
-                                            acceleration=(0.0, -gravity),
+rigid_body_system_2_step3 = RigidBodySystem(square2; boundary_model=square2_boundary_model,
+                                            contact_model, acceleration=(0.0, -gravity),
                                             particle_spacing=structure_particle_spacing)
 nothing # hide
 
@@ -304,15 +298,11 @@ circle1_boundary_model = rigid_body_boundary_model(circle1)
 circle2_boundary_model = rigid_body_boundary_model(circle2)
 nothing # hide
 
-rigid_body_system_1_step4 = RigidBodySystem(circle1;
-                                            boundary_model=circle1_boundary_model,
-                                            contact_model,
-                                            acceleration=(0.0, -gravity),
+rigid_body_system_1_step4 = RigidBodySystem(circle1; boundary_model=circle1_boundary_model,
+                                            contact_model, acceleration=(0.0, -gravity),
                                             particle_spacing=structure_particle_spacing)
-rigid_body_system_2_step4 = RigidBodySystem(circle2;
-                                            boundary_model=circle2_boundary_model,
-                                            contact_model,
-                                            acceleration=(0.0, -gravity),
+rigid_body_system_2_step4 = RigidBodySystem(circle2; boundary_model=circle2_boundary_model,
+                                            contact_model, acceleration=(0.0, -gravity),
                                             particle_spacing=structure_particle_spacing)
 nothing # hide
 
@@ -362,10 +352,8 @@ small_spheres = [SphereShape(structure_particle_spacing, small_sphere_radius,
 
 small_sphere_systems = [begin
                             sphere_boundary_model = rigid_body_boundary_model(sphere)
-                            RigidBodySystem(sphere;
-                                            boundary_model=sphere_boundary_model,
-                                            contact_model,
-                                            acceleration=(0.0, -gravity),
+                            RigidBodySystem(sphere; boundary_model=sphere_boundary_model,
+                                            contact_model, acceleration=(0.0, -gravity),
                                             particle_spacing=structure_particle_spacing)
                         end
                         for sphere in small_spheres]
@@ -421,10 +409,8 @@ hexagon_shape = TrixiParticles.@set hexagon_shape.particle_spacing = structure_p
 # just like the other shapes in this tutorial.
 hexagon_boundary_model = rigid_body_boundary_model(hexagon_shape)
 
-hexagon_system = RigidBodySystem(hexagon_shape;
-                                 boundary_model=hexagon_boundary_model,
-                                 contact_model,
-                                 acceleration=(0.0, -gravity),
+hexagon_system = RigidBodySystem(hexagon_shape; boundary_model=hexagon_boundary_model,
+                                 contact_model, acceleration=(0.0, -gravity),
                                  particle_spacing=structure_particle_spacing)
 #
 # You can then create a semidiscretization with this new system.

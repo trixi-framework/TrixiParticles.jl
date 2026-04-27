@@ -52,11 +52,8 @@ function run_simulation(method; n_particles_plate_y, tspan)
 
     trixi_include(@__MODULE__,
                   joinpath(examples_dir(), "fsi", "hydrostatic_water_column_2d.jl");
-                  use_edac=method.use_edac,
-                  n_particles_plate_y,
-                  update_strategy=SerialUpdate(),
-                  tspan,
-                  prefix=pp_filename,
+                  use_edac=method.use_edac, n_particles_plate_y,
+                  update_strategy=SerialUpdate(), tspan, prefix=pp_filename,
                   extra_callback=pp)
 
     # `@invokelatest` is required with Julia 1.12
@@ -69,9 +66,7 @@ errors = Dict{Symbol, Tuple{Float64, Float64}}()
 
 for method in methods
     pp_filename,
-    _ = run_simulation(method;
-                       n_particles_plate_y,
-                       tspan)
+    _ = run_simulation(method; n_particles_plate_y, tspan)
 
     # Load the run JSON file and add the analytical solution as a single point.
     run_filename = joinpath("out", pp_filename * ".json")

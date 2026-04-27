@@ -32,8 +32,8 @@ state_equation = StateEquationCole(; sound_speed, reference_density=fluid_densit
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density;
                        n_layers=boundary_layers, spacing_ratio,
-                       faces=(true, true, true, false),
-                       acceleration=(0.0, -gravity), state_equation)
+                       faces=(true, true, true, false), acceleration=(0.0, -gravity),
+                       state_equation)
 
 sphere_radius = 0.05
 
@@ -68,8 +68,7 @@ sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1;
                                                      surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.05),
                                                      reference_particle_spacing=fluid_particle_spacing)
 
-sphere = WeaklyCompressibleSPHSystem(sphere2;
-                                     smoothing_kernel=fluid_smoothing_kernel,
+sphere = WeaklyCompressibleSPHSystem(sphere2; smoothing_kernel=fluid_smoothing_kernel,
                                      smoothing_length=fluid_smoothing_length,
                                      density_calculator=fluid_density_calculator,
                                      state_equation, viscosity, density_diffusion,

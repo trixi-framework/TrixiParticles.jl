@@ -62,11 +62,8 @@ sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1;
                                                      correction=AkinciFreeSurfaceCorrection(fluid_density),
                                                      reference_particle_spacing=fluid_particle_spacing)
 
-trixi_include(@__MODULE__,
-              joinpath(examples_dir(), "fluid", "falling_water_spheres_2d.jl");
-              sphere=nothing, sphere1, adhesion_coefficient=0.001,
-              wall_viscosity=4.0 * nu, surface_tension_coefficient=0.9, alpha,
-              sound_speed, fluid_density, nu,
-              fluid_particle_spacing, tspan,
-              tank_size, fluid_smoothing_length,
+trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "falling_water_spheres_2d.jl");
+              sphere=nothing, sphere1, adhesion_coefficient=0.001, wall_viscosity=4.0 * nu,
+              surface_tension_coefficient=0.9, alpha, sound_speed, fluid_density, nu,
+              fluid_particle_spacing, tspan, tank_size, fluid_smoothing_length,
               sphere_surface_tension)

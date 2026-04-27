@@ -221,15 +221,13 @@
             @testset verbose=true "Interpolation Line no boundary - cut_off_bnd = $(cut_off_bnd)" begin
                 result_endpoint = TrixiParticles.interpolate_line([1.0, -0.05], [1.0, 1.0],
                                                                   5, semi_no_boundary,
-                                                                  fluid_system,
-                                                                  v_no_bnd, u_no_bnd;
-                                                                  endpoint=true,
+                                                                  fluid_system, v_no_bnd,
+                                                                  u_no_bnd; endpoint=true,
                                                                   cut_off_bnd)
 
-                result = TrixiParticles.interpolate_line([1.0, -0.05], [1.0, 1.0],
-                                                         5, semi_no_boundary,
-                                                         fluid_system, v_no_bnd, u_no_bnd;
-                                                         endpoint=false,
+                result = TrixiParticles.interpolate_line([1.0, -0.05], [1.0, 1.0], 5,
+                                                         semi_no_boundary, fluid_system,
+                                                         v_no_bnd, u_no_bnd; endpoint=false,
                                                          cut_off_bnd)
 
                 expected_res = (density=[666.0, 666.0, 666.0], neighbor_count=[2, 2, 1],
@@ -440,9 +438,8 @@
 
                 result_multipoint = TrixiParticles.interpolate_points(multi_point_coords,
                                                                       semi_boundary,
-                                                                      fluid_system,
-                                                                      v_bnd, u_bnd;
-                                                                      cut_off_bnd)
+                                                                      fluid_system, v_bnd,
+                                                                      u_bnd; cut_off_bnd)
                 if cut_off_bnd
                     expected_multi = (density=[666.0, 666.0000000000001, 666.0],
                                       neighbor_count=[4, 6, 5],
@@ -474,15 +471,13 @@
             @testset verbose=true "Interpolation Line boundary - cut_off_bnd = $(cut_off_bnd)" begin
                 result_endpoint = TrixiParticles.interpolate_line([1.0, -0.05], [1.0, 1.0],
                                                                   5, semi_boundary,
-                                                                  fluid_system,
-                                                                  v_bnd, u_bnd;
-                                                                  endpoint=true,
+                                                                  fluid_system, v_bnd,
+                                                                  u_bnd; endpoint=true,
                                                                   cut_off_bnd)
 
-                result = TrixiParticles.interpolate_line([1.0, -0.05], [1.0, 1.0],
-                                                         5, semi_no_boundary,
-                                                         fluid_system, v_no_bnd, u_no_bnd;
-                                                         endpoint=false,
+                result = TrixiParticles.interpolate_line([1.0, -0.05], [1.0, 1.0], 5,
+                                                         semi_no_boundary, fluid_system,
+                                                         v_no_bnd, u_no_bnd; endpoint=false,
                                                          cut_off_bnd)
                 if cut_off_bnd
                     expected_res = (density=[666.0, 666.0, 666.0], neighbor_count=[2, 2, 1],
@@ -618,10 +613,8 @@
             const_pressure = [2 * new_wall_distance]
             const_velocity = [5; 0.1 * new_wall_distance^2+0.1; 0.0;;]
 
-            return (; density=const_density,
-                    neighbor_count,
-                    point_coords=[0.0; wall_distance; 0.0;;],
-                    velocity=const_velocity,
+            return (; density=const_density, neighbor_count,
+                    point_coords=[0.0; wall_distance; 0.0;;], velocity=const_velocity,
                     pressure=const_pressure)
         end
 
@@ -688,9 +681,7 @@
 
         for cut_off_bnd in [true, false]
             @testset verbose=true "Interpolation Point no boundary - cut_off_bnd = $(cut_off_bnd)" begin
-                interpolation_walldistance(y) = TrixiParticles.interpolate_points([0.0;
-                                                                                   y;
-                                                                                   0.0;;],
+                interpolation_walldistance(y) = TrixiParticles.interpolate_points([0.0; y; 0.0;;],
                                                                                   semi_no_boundary,
                                                                                   fluid_system,
                                                                                   v_no_bnd,
@@ -779,9 +770,7 @@
 
         for cut_off_bnd in [true, false]
             @testset verbose=true "Interpolation Point boundary - cut_off_bnd = $(cut_off_bnd)" begin
-                interpolation_walldistance(y) = TrixiParticles.interpolate_points([0.0;
-                                                                                   y;
-                                                                                   0.0;;],
+                interpolation_walldistance(y) = TrixiParticles.interpolate_points([0.0; y; 0.0;;],
                                                                                   semi_boundary,
                                                                                   fluid_system,
                                                                                   v_no_bnd,

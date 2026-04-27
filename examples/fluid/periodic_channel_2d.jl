@@ -46,8 +46,7 @@ fluid_density_calculator = ContinuityDensity()
 viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 
 # `pressure_acceleration=nothing` is the default and can be overwritten with `trixi_include`
-fluid_system = WeaklyCompressibleSPHSystem(tank.fluid;
-                                           smoothing_kernel, smoothing_length,
+fluid_system = WeaklyCompressibleSPHSystem(tank.fluid; smoothing_kernel, smoothing_length,
                                            density_calculator=fluid_density_calculator,
                                            state_equation, viscosity,
                                            shifting_technique=nothing,

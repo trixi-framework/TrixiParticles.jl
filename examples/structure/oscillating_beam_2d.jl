@@ -99,8 +99,7 @@ function deflection_y(system, data, t)
     return data.coordinates[2, middle_particle_id] - STARTPOSITION_Y
 end
 
-saving_callback = SolutionSavingCallback(dt=0.02, prefix="";
-                                         deflection_x, deflection_y)
+saving_callback = SolutionSavingCallback(dt=0.02, prefix=""; deflection_x, deflection_y)
 
 callbacks = CallbackSet(info_callback, saving_callback)
 

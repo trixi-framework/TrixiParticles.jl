@@ -42,8 +42,7 @@ Q = (sigma^2 + OMEGA^2) * fluid_density / 2
 pressure = coords -> Q * (1 - coords[1]^2 - coords[2]^2)
 density = coords -> TrixiParticles.inverse_state_equation(state_equation, pressure(coords))
 
-fluid = SphereShape(fluid_particle_spacing, radius, (0.0, 0.0),
-                    density; pressure,
+fluid = SphereShape(fluid_particle_spacing, radius, (0.0, 0.0), density; pressure,
                     sphere_type=RoundSphere(),
                     velocity=coords -> sigma .* (coords[1], -coords[2]))
 
@@ -56,8 +55,7 @@ fluid_density_calculator = ContinuityDensity()
 viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 
 density_diffusion = DensityDiffusionAntuono(delta=0.1)
-fluid_system = WeaklyCompressibleSPHSystem(fluid;
-                                           smoothing_kernel, smoothing_length,
+fluid_system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel, smoothing_length,
                                            density_calculator=fluid_density_calculator,
                                            state_equation, viscosity, density_diffusion,
                                            source_terms)

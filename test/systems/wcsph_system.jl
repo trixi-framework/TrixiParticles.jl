@@ -209,11 +209,9 @@
         density_diffusion = Val(:density_diffusion)
 
         initial_condition = InitialCondition(; coordinates, mass, density)
-        system = WeaklyCompressibleSPHSystem(initial_condition,
-                                             density_calculator,
+        system = WeaklyCompressibleSPHSystem(initial_condition, density_calculator,
                                              state_equation, smoothing_kernel,
-                                             smoothing_length;
-                                             density_diffusion)
+                                             smoothing_length; density_diffusion)
 
         show_compact = "WeaklyCompressibleSPHSystem{2}(SummationDensity(), nothing, Val{:state_equation}(), Val{:smoothing_kernel}(), nothing, Val{:density_diffusion}(), nothing, nothing, nothing, [0.0, 0.0], nothing) with 2 particles"
         @test repr(system) == show_compact

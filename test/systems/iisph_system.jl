@@ -48,15 +48,10 @@
             smoothing_length = 0.362
 
             initial_condition = InitialCondition(; coordinates, mass, density)
-            system = ImplicitIncompressibleSPHSystem(initial_condition;
-                                                     smoothing_kernel,
-                                                     smoothing_length,
-                                                     reference_density,
-                                                     omega,
-                                                     max_error,
-                                                     min_iterations,
-                                                     max_iterations,
-                                                     time_step)
+            system = ImplicitIncompressibleSPHSystem(initial_condition; smoothing_kernel,
+                                                     smoothing_length, reference_density,
+                                                     omega, max_error, min_iterations,
+                                                     max_iterations, time_step)
 
             # Constructor copies input fields, applies defaults, and respects the requested dimensionality
             @test system isa ImplicitIncompressibleSPHSystem{NDIMS}

@@ -174,9 +174,8 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
     if reference_particle_spacing > 0
         # `reference_particle_spacing` has to be set for surface normals to be determined
-        cache = (;
-                 cache...,  # Existing cache fields
-                 reference_particle_spacing)
+        # Existing cache fields
+        cache = (; cache..., reference_particle_spacing)
     end
 
     EntropicallyDampedSPHSystem{NDIMS, ELTYPE, typeof(initial_condition), typeof(mass),

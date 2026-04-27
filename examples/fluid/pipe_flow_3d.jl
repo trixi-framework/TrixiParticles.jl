@@ -35,11 +35,9 @@ min_coords_outlet = (-open_boundary_layers * particle_spacing, 0.0, 0.0)
 
 # setup simulation
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "pipe_flow_2d.jl");
-              domain_size, open_boundary_size,
-              flow_direction, faces=(false, false, true, true, true, true),
-              tspan, prescribed_velocity,
-              open_boundary_layers, min_coords_inlet,
-              min_coords_outlet,
+              domain_size, open_boundary_size, flow_direction,
+              faces=(false, false, true, true, true, true), tspan, prescribed_velocity,
+              open_boundary_layers, min_coords_inlet, min_coords_outlet,
               face_in=([0.0, 0.0, 0.0], [0.0, domain_size[2], 0.0],
                        [0.0, 0.0, domain_size[3]]),
               face_out=([domain_size[1], 0.0, 0.0], [domain_size[1], domain_size[2], 0.0],

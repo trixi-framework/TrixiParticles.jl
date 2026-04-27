@@ -59,8 +59,7 @@ rectangular = RectangularShape(particle_spacing, (5, 4), (1.0, 2.0), density=100
 # 2D with hydrostatic pressure gradient.
 # `state_equation` has to be the same as for the WCSPH system.
 state_equation = StateEquationCole(sound_speed=20.0, exponent=7, reference_density=1000.0)
-rectangular = RectangularShape(particle_spacing, (5, 4), (1.0, 2.0);
-                               acceleration=(0.0, -9.81), state_equation)
+rectangular = RectangularShape(particle_spacing, (5, 4), (1.0, 2.0); acceleration=(0.0, -9.81), state_equation)
 
 # 3D
 rectangular = RectangularShape(particle_spacing, (5, 4, 7), (1.0, 2.0, 3.0), density=1000.0)
@@ -102,9 +101,8 @@ function RectangularShape(particle_spacing, n_particles_per_dimension, min_coord
 
     # The type of the particle spacing determines the eltype of the coordinates
     coordinates = rectangular_shape_coords(convert(coordinates_eltype, particle_spacing),
-                                           n_particles_per_dimension,
-                                           min_coordinates; place_on_shell,
-                                           loop_order)
+                                           n_particles_per_dimension, min_coordinates;
+                                           place_on_shell, loop_order)
 
     if !isnothing(coordinates_perturbation)
         seed!(1)

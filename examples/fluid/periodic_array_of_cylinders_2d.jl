@@ -46,9 +46,8 @@ pressure = sound_speed^2 * fluid_density
 
 particle_spacing = tank_size[1] / n_particles_x
 
-box = RectangularTank(particle_spacing, fluid_size, tank_size,
-                      fluid_density; n_layers=boundary_layers,
-                      pressure, faces=(false, false, true, true))
+box = RectangularTank(particle_spacing, fluid_size, tank_size, fluid_density;
+                      n_layers=boundary_layers, pressure, faces=(false, false, true, true))
 
 cylinder = SphereShape(particle_spacing, cylinder_radius, tank_size ./ 2,
                        fluid_density, sphere_type=RoundSphere())
@@ -64,8 +63,7 @@ state_equation = StateEquationCole(; sound_speed, reference_density=fluid_densit
                                    exponent=1, clip_negative_pressure=false)
 
 density_diffusion = DensityDiffusionAntuono(delta=0.1)
-fluid_system = WeaklyCompressibleSPHSystem(fluid;
-                                           smoothing_kernel, smoothing_length,
+fluid_system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel, smoothing_length,
                                            density_calculator=ContinuityDensity(),
                                            state_equation, density_diffusion,
                                            viscosity=ViscosityAdami(; nu),
@@ -76,10 +74,9 @@ fluid_system = WeaklyCompressibleSPHSystem(fluid;
 # ==========================================================================================
 # ==== Boundary
 boundary_model = BoundaryModelDummyParticles(boundary.density, boundary.mass,
-                                             AdamiPressureExtrapolation(),
-                                             smoothing_kernel, smoothing_length;
-                                             viscosity=ViscosityAdami(; nu),
-                                             state_equation)
+                                             AdamiPressureExtrapolation(), smoothing_kernel,
+                                             smoothing_length;
+                                             viscosity=ViscosityAdami(; nu), state_equation)
 
 boundary_system = WallBoundarySystem(boundary, boundary_model)
 

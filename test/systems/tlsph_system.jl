@@ -23,12 +23,9 @@
 
             initial_condition = InitialCondition(; coordinates, mass,
                                                  density=material_densities)
-            system = TotalLagrangianSPHSystem(initial_condition;
-                                              smoothing_kernel,
-                                              smoothing_length,
-                                              young_modulus=E,
-                                              poisson_ratio=nu,
-                                              boundary_model)
+            system = TotalLagrangianSPHSystem(initial_condition; smoothing_kernel,
+                                              smoothing_length, young_modulus=E,
+                                              poisson_ratio=nu, boundary_model)
 
             @test system isa TotalLagrangianSPHSystem
             @test ndims(system) == NDIMS
@@ -65,12 +62,9 @@
 
         initial_condition = InitialCondition(; coordinates, mass,
                                              density=material_densities)
-        system = TotalLagrangianSPHSystem(initial_condition;
-                                          smoothing_kernel,
-                                          smoothing_length,
-                                          young_modulus=E,
-                                          poisson_ratio=nu,
-                                          boundary_model)
+        system = TotalLagrangianSPHSystem(initial_condition; smoothing_kernel,
+                                          smoothing_length, young_modulus=E,
+                                          poisson_ratio=nu, boundary_model)
 
         show_compact = "TotalLagrangianSPHSystem{2}(Val{:smoothing_kernel}(), " *
                        "[0.0, 0.0], Val{:boundary_model}(), nothing, nothing) with 2 particles"
@@ -94,12 +88,9 @@
 
         E = [1.2, 3.4]
         nu = [0.2, 0.4]
-        system = TotalLagrangianSPHSystem(initial_condition;
-                                          smoothing_kernel,
-                                          smoothing_length,
-                                          young_modulus=E,
-                                          poisson_ratio=nu,
-                                          boundary_model)
+        system = TotalLagrangianSPHSystem(initial_condition; smoothing_kernel,
+                                          smoothing_length, young_modulus=E,
+                                          poisson_ratio=nu, boundary_model)
 
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -328,12 +319,9 @@
 
         initial_condition = InitialCondition(; coordinates, mass,
                                              density=material_densities)
-        system = TotalLagrangianSPHSystem(initial_condition;
-                                          smoothing_kernel,
-                                          smoothing_length,
-                                          young_modulus=E,
-                                          poisson_ratio=nu,
-                                          boundary_model)
+        system = TotalLagrangianSPHSystem(initial_condition; smoothing_kernel,
+                                          smoothing_length, young_modulus=E,
+                                          poisson_ratio=nu, boundary_model)
 
         u0 = zeros(TrixiParticles.u_nvariables(system),
                    TrixiParticles.n_integrated_particles(system))
@@ -358,12 +346,9 @@
 
         initial_condition = InitialCondition(; coordinates, velocity, mass,
                                              density=material_densities)
-        system = TotalLagrangianSPHSystem(initial_condition;
-                                          smoothing_kernel,
-                                          smoothing_length,
-                                          young_modulus=E,
-                                          poisson_ratio=nu,
-                                          boundary_model)
+        system = TotalLagrangianSPHSystem(initial_condition; smoothing_kernel,
+                                          smoothing_length, young_modulus=E,
+                                          poisson_ratio=nu, boundary_model)
 
         v0 = zeros(TrixiParticles.v_nvariables(system),
                    TrixiParticles.n_integrated_particles(system))

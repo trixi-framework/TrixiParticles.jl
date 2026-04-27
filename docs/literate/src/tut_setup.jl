@@ -79,9 +79,9 @@ nothing # hide
 # Here, we use the [`RectangularTank`](@ref) setup, which generates a rectangular
 # fluid inside a rectangular tank, and supports a hydrostatic pressure gradient
 # by passing a gravitational acceleration and a state equation (see above).
-tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size,
-                       fluid_density; n_layers=boundary_layers,
-                       acceleration=(0.0, -gravity), state_equation)
+tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density;
+                       n_layers=boundary_layers, acceleration=(0.0, -gravity),
+                       state_equation)
 nothing # hide
 # A `RectangularTank` consists of two [`InitialCondition`](@ref)s, `tank.fluid` and `tank.boundary`.
 # We can plot these initial conditions to visualize the initial setup.
@@ -120,12 +120,9 @@ nothing # hide
 # The simulation quality greatly benefits from using [density diffusion](@ref density_diffusion).
 fluid_density_calculator = ContinuityDensity()
 density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
-fluid_system = WeaklyCompressibleSPHSystem(tank.fluid;
-                                           smoothing_kernel, smoothing_length,
+fluid_system = WeaklyCompressibleSPHSystem(tank.fluid; smoothing_kernel, smoothing_length,
                                            density_calculator=fluid_density_calculator,
-                                           state_equation,
-                                           viscosity,
-                                           density_diffusion,
+                                           state_equation, viscosity, density_diffusion,
                                            acceleration=(0.0, -gravity))
 nothing # hide
 
