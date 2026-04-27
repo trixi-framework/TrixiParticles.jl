@@ -32,6 +32,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 - Fixed the periodic array of cylinders example file (#975).
 - A `StepsizeCallback` can now be used with open boundaries (#1074).
+- Fixed a bug with no-slip boundary conditions when using any viscosity model other than `ViscosityAdami` (#1089).
 
 ### Documentation
 
