@@ -430,8 +430,8 @@
         @trixi_test_nowarn trixi_include(@__MODULE__, tspan=(0.0, 0.5), wcsph=false,
                                          joinpath(examples_dir(), "fluid",
                                                   "pipe_flow_2d.jl"),
-                                         open_boundary_model = BoundaryModelMirroringTafuni(;
-                                                                                            mirror_method=ZerothOrderMirroring()),
+                                         open_boundary_model=BoundaryModelMirroringTafuni(;
+                                                                                          mirror_method=ZerothOrderMirroring()),
                                          boundary_type_in=BidirectionalFlow(),
                                          boundary_type_out=BidirectionalFlow())
         @test sol.retcode == ReturnCode.Success
@@ -442,8 +442,8 @@
         @trixi_test_nowarn trixi_include(@__MODULE__, tspan=(0.0, 0.5), wcsph=true,
                                          joinpath(examples_dir(), "fluid",
                                                   "pipe_flow_2d.jl"),
-                                         open_boundary_model = BoundaryModelMirroringTafuni(;
-                                                                                            mirror_method=ZerothOrderMirroring()),
+                                         open_boundary_model=BoundaryModelMirroringTafuni(;
+                                                                                          mirror_method=ZerothOrderMirroring()),
                                          boundary_type_in=BidirectionalFlow(),
                                          boundary_type_out=BidirectionalFlow())
         @test sol.retcode == ReturnCode.Success
