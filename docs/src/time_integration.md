@@ -4,7 +4,7 @@ TrixiParticles.jl uses a modular approach where time integration is just another
 that can be customized and exchanged.
 The function [`semidiscretize`](@ref) returns an `ODEProblem`
 (see [the OrdinaryDiffEq.jl docs](https://docs.sciml.ai/DiffEqDocs/stable/types/ode_types/)),
-which can be integrated with solvers provides by
+which can be integrated with solvers provided by
 [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl) or its sub-packages
 (e.g., `OrdinaryDiffEqLowStorageRK`).
 
