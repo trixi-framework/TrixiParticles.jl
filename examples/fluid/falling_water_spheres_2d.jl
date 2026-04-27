@@ -32,7 +32,9 @@ sound_speed = 100
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1)
 
-tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density; n_layers=boundary_layers, spacing_ratio, faces, acceleration, state_equation)
+tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density;
+                       n_layers=boundary_layers, spacing_ratio, faces, acceleration,
+                       state_equation)
 
 sphere_radius = 0.05
 
