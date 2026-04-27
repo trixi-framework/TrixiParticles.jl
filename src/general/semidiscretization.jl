@@ -416,58 +416,67 @@ end
 
 function drift!(du_ode, v_ode, u_ode, semi, t)
     @trixi_timeit timer() "drift!" begin
-        @trixi_timeit timer() "reset ∂u/∂t" set_zero!(du_ode)
+        foreach_system(semi) do system
+            du = wrap_u(du_ode, system, semi)
+            v = wrap_v(v_ode, system, semi)
+            u = wrap_u(u_ode, system, semi)
 
-        @trixi_timeit timer() "velocity" begin
-            # Set velocity and add acceleration for each system
-            foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
-                du = wrap_u(du_ode, system, semi)
-
-                integrate_tlsph = semi.integrate_tlsph[]
-                @threaded semi for particle in each_integrated_particle(system)
-                    # This can be dispatched per system
-                    add_velocity!(du, v, u, particle, system, integrate_tlsph, t)
-                end
-            end
+            set_velocity!(du, v, u, system, semi, t)
         end
     end
 
     return du_ode
 end
 
-@inline function add_velocity!(du, v, u, particle, system, integrate_tlsph, t)
-    add_velocity!(du, v, u, particle, system, t)
+# Generic fallback for all systems that don't define this function
+function set_velocity!(du, v, u, system, semi, t)
+    set_velocity_default!(du, v, u, system, semi, t)
 end
 
-@inline function add_velocity!(du, v, u, particle, system::TotalLagrangianSPHSystem,
-                               integrate_tlsph, t)
-    # Only add velocity for TLSPH systems if they are integrated
-    if integrate_tlsph
-        add_velocity!(du, v, u, particle, system, t)
-    end
-end
-
-@inline function add_velocity!(du, v, u, particle, system, t)
-    # Generic fallback for all systems that don't define this function
-    for i in 1:ndims(system)
-        @inbounds du[i, particle] = v[i, particle]
+# Only set velocity for TLSPH systems if they are integrated
+function set_velocity!(du, v, u, system::TotalLagrangianSPHSystem, semi, t)
+    if semi.integrate_tlsph[]
+        set_velocity_default!(du, v, u, system, semi, t)
+    else
+        set_zero!(du)
     end
 
     return du
 end
 
 # Solid wall boundary system doesn't integrate the particle positions
-@inline add_velocity!(du, v, u, particle, system::WallBoundarySystem, t) = du
+function set_velocity!(du, v, u, system::WallBoundarySystem, semi, t)
+    # Note that `du` is of length zero, so we don't have to set it to zero
+    return du
+end
 
-@inline function add_velocity!(du, v, u, particle, system::AbstractFluidSystem, t)
-    # This is zero unless a shifting technique is used
-    delta_v_ = delta_v(system, particle)
+# Fluid systems integrate the particle positions and can have a shifting velocity
+function set_velocity!(du, v, u, system::AbstractFluidSystem, semi, t)
+    @threaded semi for particle in each_integrated_particle(system)
+        delta_v_ = @inbounds delta_v(system, particle)
 
-    for i in 1:ndims(system)
-        @inbounds du[i, particle] = v[i, particle] + delta_v_[i]
+        for i in 1:ndims(system)
+            @inbounds du[i, particle] = v[i, particle] + delta_v_[i]
+        end
     end
 
     return du
+end
+
+function set_velocity_default!(du, v, u, system, semi, t)
+    @threaded semi for particle in each_integrated_particle(system)
+        for i in 1:ndims(system)
+            @inbounds du[i, particle] = v[i, particle]
+        end
+    end
+
+    return du
+end
+
+# This defaults to optimized GPU copy that is about 4x faster than the threaded version above
+function set_velocity_default!(du::AbstractGPUArray, v, u, system, semi, t)
+    indices = CartesianIndices(du)
+    copyto!(du, indices, v, indices)
 end
 
 function kick!(dv_ode, v_ode, u_ode, semi, t)
@@ -483,8 +492,7 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
         @trixi_timeit timer() "system interaction" system_interaction!(dv_ode, v_ode, u_ode,
                                                                        semi)
 
-        @trixi_timeit timer() "source terms" add_source_terms!(dv_ode, v_ode, u_ode,
-                                                               semi, t)
+        add_source_terms!(dv_ode, v_ode, u_ode, semi, t)
     end
 
     return dv_ode
@@ -529,8 +537,19 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
     end
 end
 
+# Some systems accumulate pairwise interaction state outside `dv_ode`. Reset that state once
+# at the beginning of every explicitly assembled interaction pass.
+function reset_interaction_caches!(semi::Union{NamedTuple, Semidiscretization})
+    foreach_system(semi) do system
+        reset_interaction_caches!(system)
+    end
+
+    return semi
+end
+
 # The `SplitIntegrationCallback` overwrites `semi_wrap` to use a different
 # semidiscretization for wrapping arrays.
+# `semi_wrap` is the small semidiscretization, `semi` is the large semidiscretization.
 # TODO `semi` is not used yet, but will be used when the source terms API is modified
 # to match the custom quantities API.
 function add_source_terms!(dv_ode, v_ode, u_ode, semi, t; semi_wrap=semi)
@@ -541,54 +560,63 @@ function add_source_terms!(dv_ode, v_ode, u_ode, semi, t; semi_wrap=semi)
 
         # `integrate_tlsph` is extracted from the `semi_wrap`, so that this function
         # can be used in the `SplitIntegrationCallback` as well.
-        integrate_tlsph = semi_wrap.integrate_tlsph[]
-
-        @threaded semi for particle in each_integrated_particle(system)
-            # Dispatch by system type to exclude boundary systems
-            add_acceleration!(dv, particle, system, integrate_tlsph)
-            add_source_terms_inner!(dv, v, u, particle, system, source_terms(system), t,
-                                    integrate_tlsph)
-        end
+        # In this case, `semi_wrap` will be the small sub-integration semidiscretization.
+        add_source_terms!(dv, v, u, system, semi, t, semi_wrap.integrate_tlsph[])
     end
 
     return dv_ode
 end
 
-@inline source_terms(system) = nothing
-@inline source_terms(system::Union{AbstractFluidSystem, AbstractStructureSystem}) = system.source_terms
-
-@inline function add_acceleration!(dv, particle, system, integrate_tlsph)
-    add_acceleration!(dv, particle, system)
+# This is a no-op by default but can be dispatched by system type
+function add_source_terms!(dv, v, u, system, semi, t, integrate_tlsph)
+    return dv
 end
 
-@inline function add_acceleration!(dv, particle, system::TotalLagrangianSPHSystem,
-                                   integrate_tlsph)
-    integrate_tlsph && add_acceleration!(dv, particle, system)
+function add_source_terms!(dv, v, u,
+                           system::Union{AbstractFluidSystem, AbstractStructureSystem},
+                           semi, t, integrate_tlsph)
+    add_source_terms_inner!(dv, v, u, system, semi, t)
 end
 
-@inline add_acceleration!(dv, particle, system) = dv
-
-@propagate_inbounds function add_acceleration!(dv, particle,
-                                               system::Union{AbstractFluidSystem,
-                                                             AbstractStructureSystem})
-    (; acceleration) = system
-
-    for i in 1:ndims(system)
-        dv[i, particle] += acceleration[i]
+function add_source_terms!(dv, v, u, system::TotalLagrangianSPHSystem,
+                           semi, t, integrate_tlsph)
+    if integrate_tlsph
+        add_source_terms_inner!(dv, v, u, system, semi, t)
     end
 
     return dv
 end
 
-@inline function add_source_terms_inner!(dv, v, u, particle, system, source_terms_, t,
-                                         integrate_tlsph)
-    add_source_terms_inner!(dv, v, u, particle, system, source_terms_, t)
+function add_source_terms_inner!(dv, v, u,
+                                 system::Union{AbstractFluidSystem,
+                                               AbstractStructureSystem},
+                                 semi, t)
+    if iszero(system.acceleration) && isnothing(source_terms(system))
+        # Nothing to do
+        return dv
+    end
+
+    @trixi_timeit timer() "source terms" begin
+        @threaded semi for particle in each_integrated_particle(system)
+            add_acceleration!(dv, system, particle)
+            add_source_terms_inner!(dv, v, u, particle, system, source_terms(system), t)
+        end
+    end
+
+    return dv
 end
 
-@inline function add_source_terms_inner!(dv, v, u, particle,
-                                         system::TotalLagrangianSPHSystem,
-                                         source_terms_, t, integrate_tlsph)
-    integrate_tlsph && add_source_terms_inner!(dv, v, u, particle, system, source_terms_, t)
+@inline source_terms(system) = nothing
+@inline source_terms(system::Union{AbstractFluidSystem, AbstractStructureSystem}) = system.source_terms
+
+@inline function add_acceleration!(dv, system, particle)
+    (; acceleration) = system
+
+    for i in 1:ndims(system)
+        @inbounds dv[i, particle] += acceleration[i]
+    end
+
+    return dv
 end
 
 @propagate_inbounds function add_source_terms_inner!(dv, v, u, particle,
@@ -668,6 +696,8 @@ end
 end
 
 function system_interaction!(dv_ode, v_ode, u_ode, semi)
+    reset_interaction_caches!(semi)
+
     # Call `interact!` for each pair of systems
     foreach_system(semi) do system
         foreach_system(semi) do neighbor
@@ -700,6 +730,8 @@ end
 # Function barrier to make benchmarking interactions easier.
 # One can benchmark, e.g. the fluid-fluid interaction, with:
 # dv_ode, du_ode = copy(sol.u[end]).x; v_ode, u_ode = copy(sol.u[end]).x;
+# For manual multi-pair interaction assembly, call `reset_interaction_caches!(semi)` once
+# before the first direct `interact!` call.
 # @btime TrixiParticles.interact!($dv_ode, $v_ode, $u_ode, $fluid_system, $fluid_system, $semi);
 @inline function interact!(dv_ode, v_ode, u_ode, system, neighbor, semi; timer_str="")
     dv = wrap_v(dv_ode, system, semi)

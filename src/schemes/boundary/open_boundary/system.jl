@@ -293,20 +293,33 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::OpenBoundarySystem, semi
     return Inf
 end
 
-@inline function add_velocity!(du, v, u, particle, system::OpenBoundarySystem, t)
-    boundary_zone = current_boundary_zone(system, particle)
+@inline function set_velocity!(du, v, u, system::OpenBoundarySystem, semi, t)
+    @threaded semi for particle in each_integrated_particle(system)
+        boundary_zone = current_boundary_zone(system, particle)
 
-    pos = current_coords(u, system, particle)
-    v_particle = reference_velocity(boundary_zone, v, system, particle, pos, t)
+        pos = @inbounds current_coords(u, system, particle)
+        v_particle = @inbounds reference_velocity(boundary_zone, v, system,
+                                                  particle, pos, t)
 
-    # This is zero unless a shifting technique is used
-    delta_v_ = delta_v(system, particle)
+        # This is zero unless a shifting technique is used
+        delta_v_ = @inbounds delta_v(system, particle)
 
-    for i in 1:ndims(system)
-        @inbounds du[i, particle] = v_particle[i] + delta_v_[i]
+        for i in 1:ndims(system)
+            @inbounds du[i, particle] = v_particle[i] + delta_v_[i]
+        end
     end
 
     return du
+end
+
+function update_positions!(system::OpenBoundarySystem, v, u, v_ode, u_ode, semi, t)
+    nhs = get_neighborhood_search(system.fluid_system, system, semi)
+
+    # `GridNeighborhoodSearch` with a `FullGridCellList` requires a bounding box.
+    # This function deactivates particles that move outside the bounding box to prevent
+    # simulation crashes.
+    # Note that deactivating particles is only possible in combination with a 'SystemBuffer'.
+    deactivate_out_of_bounds_particles!(system, buffer(system), nhs, v, u, semi)
 end
 
 function update_boundary_interpolation!(system::OpenBoundarySystem, v, u, v_ode, u_ode,
