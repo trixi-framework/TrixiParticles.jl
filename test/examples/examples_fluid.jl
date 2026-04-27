@@ -590,16 +590,11 @@
                 println("═"^100)
                 println("Running falling_water_spheres_2d.jl with $model_name")
 
-                # Prepare keyword arguments
-                kwargs = model_name == "SurfaceTensionNone" ?
-                         (surface_tension=nothing,) :
-                         (surface_tension=surface_tension,)
-
                 # Execute the example script with the current surface tension model
                 @trixi_test_nowarn trixi_include(@__MODULE__,
                                                  joinpath(examples_dir(), "fluid",
                                                           "falling_water_spheres_2d.jl");
-                                                 tspan=(0, 0.1), kwargs...)
+                                                 tspan=(0, 0.1), surface_tension)
 
                 # Assert that the simulation ran successfully
                 @test sol.retcode == ReturnCode.Success
@@ -623,18 +618,13 @@
                 println("═"^100)
                 println("Running falling_water_spheres_3d.jl with $model_name")
 
-                # Prepare keyword arguments
-                kwargs = model_name == "SurfaceTensionNone" ?
-                         (surface_tension=nothing,) :
-                         (surface_tension=surface_tension,)
-
                 # Execute the example script with the current surface tension model
                 @trixi_test_nowarn trixi_include(@__MODULE__,
                                                  joinpath(examples_dir(), "fluid",
                                                           "falling_water_spheres_3d.jl");
                                                  tspan=(0, 0.05),
                                                  fluid_particle_spacing=0.01,
-                                                 kwargs...) [
+                                                 surface_tension) [
                     # Optional: Add regex patterns to ignore specific warnings or logs
                     r"┌ Info: The desired tank length in x-direction .*\n",
                     r"└ New tank length in x-direction.*\n",
