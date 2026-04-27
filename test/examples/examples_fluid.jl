@@ -593,7 +593,7 @@
                 # Prepare keyword arguments
                 kwargs = model_name == "SurfaceTensionNone" ?
                          (surface_tension=nothing,) :
-                         (surface_tensionn,)
+                         (surface_tension=surface_tension,)
 
                 # Execute the example script with the current surface tension model
                 @trixi_test_nowarn trixi_include(@__MODULE__,
@@ -626,7 +626,7 @@
                 # Prepare keyword arguments
                 kwargs = model_name == "SurfaceTensionNone" ?
                          (surface_tension=nothing,) :
-                         (surface_tensionn,)
+                         (surface_tension=surface_tension,)
 
                 # Execute the example script with the current surface tension model
                 @trixi_test_nowarn trixi_include(@__MODULE__,
