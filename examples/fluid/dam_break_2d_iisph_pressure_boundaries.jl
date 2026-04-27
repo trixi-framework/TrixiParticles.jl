@@ -1,5 +1,6 @@
 # 2D dam break simulation using implicit incompressible SPH (IISPH) with pressure boundaries
 using TrixiParticles
+using OrdinaryDiffEqSymplecticRK
 
 # Load setup from dam break example
 trixi_include(@__MODULE__,
