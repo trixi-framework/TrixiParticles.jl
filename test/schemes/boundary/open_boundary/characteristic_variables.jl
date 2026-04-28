@@ -55,7 +55,8 @@
                 sign_ = (TrixiParticles.boundary_type_name(boundary_zone) == "inflow") ?
                         1 : -1
                 fluid = extrude_geometry(face_vertices; particle_spacing, n_extrude=4,
-                                         density, pressure, direction=(sign_ * flow_direction))
+                                         density, pressure,
+                                         direction=(sign_ * flow_direction))
 
                 fluid_system = EntropicallyDampedSPHSystem(fluid; smoothing_kernel,
                                                            smoothing_length,

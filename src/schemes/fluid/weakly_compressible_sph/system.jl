@@ -87,7 +87,8 @@ end
 
 function WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
                                      smoothing_length, density_calculator,
-                                     state_equation, acceleration=ntuple(_ -> zero(eltype(initial_condition)),
+                                     state_equation,
+                                     acceleration=ntuple(_ -> zero(eltype(initial_condition)),
                                                          ndims(smoothing_kernel)),
                                      viscosity=nothing, density_diffusion=nothing,
                                      pressure_acceleration=nothing,
