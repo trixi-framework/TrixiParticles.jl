@@ -140,8 +140,8 @@
                 mass = [2.0, 2.0]
                 density = 4.0
 
-                correction_matrix = [1 0; 0 1;;;
-                                     1 0; 0 1]
+                correction_matrix = [1.0 0.0; 0.0 1.0;;;
+                                     1.0 0.0; 0.0 1.0]
 
                 # This will cause the computed gradient
                 # to be equal to `initial_coords[particle] - initial_coords[neighbor]`
@@ -149,45 +149,36 @@
 
                 #### Mocking
                 # Mock the system
-                system = Val(:mock_system_tensor)
-                TrixiParticles.ndims(::Val{:mock_system_tensor}) = 2
-                Base.ntuple(f, ::Symbol) = ntuple(f, 2) # Make `extract_svector` work
-                function TrixiParticles.current_coords(system::Val{:mock_system_tensor},
-                                                       particle)
+                struct MockSystem <: TrixiParticles.AbstractStructureSystem{2}
+                    mass::Any
+                    correction_matrix::Any
+                    material_density::Any
+                    smoothing_length::Any
+                end
+                Base.eltype(::MockSystem) = Float64
+                system = MockSystem(mass, correction_matrix, Val(:mock_material_density),
+                                    0.12)
+
+                function TrixiParticles.current_coords(::MockSystem, particle)
                     return TrixiParticles.extract_svector(current_coordinates[i], Val(2),
                                                           particle)
                 end
 
-                function TrixiParticles.initial_coordinates(::Val{:mock_system_tensor})
+                function TrixiParticles.initial_coordinates(::MockSystem)
                     return initial_coordinates[i]
                 end
 
-                TrixiParticles.smoothing_length(::Val{:mock_system_tensor}, _) = 0.12
-
-                # All unpack calls should return another mock object
-                # of the type `Val{:mock_property_name}`, but we want to have some real matrices
-                # as properties as opposed to only mock objects.
-                function Base.getproperty(::Val{:mock_system_tensor}, f::Symbol)
-                    if f === :correction_matrix
-                        return correction_matrix
-                    elseif f === :mass
-                        return mass
-                    end
-
-                    # For all other properties, return mock objects.
-                    return Val(Symbol("mock_" * string(f)))
-                end
-                function TrixiParticles.compact_support(::Val{:mock_system_tensor},
-                                                        ::Val{:mock_system_tensor})
+                function TrixiParticles.compact_support(::MockSystem, ::MockSystem)
                     return Inf
                 end
 
                 Base.getindex(::Val{:mock_material_density}, ::Int64) = density
 
-                function TrixiParticles.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _)
-                    return kernel_derivative
+                function TrixiParticles.smoothing_kernel_grad_unsafe(::MockSystem,
+                                                                     pos_diff, distance,
+                                                                     particle)
+                    return kernel_derivative * pos_diff / distance
                 end
-                Base.eps(::Type{Val{:mock_smoothing_length}}) = eps()
                 semi = DummySemidiscretization()
 
                 # Compute deformation gradient

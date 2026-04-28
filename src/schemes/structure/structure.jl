@@ -17,10 +17,8 @@ end
     end
 end
 
-function interact_structure_fluid!(dv, v_particle_system,
-                                   u_particle_system,
-                                   v_neighbor_system,
-                                   u_neighbor_system,
+function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
+                                   v_neighbor_system, u_neighbor_system,
                                    particle_system,
                                    neighbor_system::AbstractFluidSystem,
                                    semi)
@@ -28,23 +26,40 @@ function interact_structure_fluid!(dv, v_particle_system,
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
+    # For `distance == 0`, the analytical gradient is zero, but the unsafe gradient
+    # and the density diffusion divide by zero.
+    # To account for rounding errors, we check if `distance` is almost zero.
+    # Since the coordinates are in the order of the smoothing length `h`, `distance^2` is in
+    # the order of `h^2`, so we need to check `distance < sqrt(eps(h^2))`.
+    # Note that `sqrt(eps(h^2)) != eps(h)`.
+    h = initial_smoothing_length(neighbor_system)
+    almostzero = sqrt(eps(h^2))
+
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
-    foreach_point_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
-                           semi;
+    foreach_point_neighbor(particle_system, neighbor_system,
+                           system_coords, neighbor_coords, semi;
                            points=each_integrated_particle(particle_system)) do particle,
                                                                                 neighbor,
                                                                                 pos_diff,
                                                                                 distance
-        # Only consider particles with a distance > 0.
-        # See `src/general/smoothing_kernels.jl` for more details.
-        distance^2 < eps(initial_smoothing_length(particle_system)^2) && return
+        # Skip neighbors with the same position because the kernel gradient is zero.
+        # Note that `return` only exits the closure, i.e., skips the current neighbor.
+        skip_zero_distance(neighbor_system) && distance < almostzero && return
 
-        grad_kernel = smoothing_kernel_grad(neighbor_system, pos_diff, distance, neighbor)
+        # Now that we know that `distance` is not zero, we can safely call the unsafe
+        # version of the kernel gradient to avoid redundant zero checks.
+        # Note that we use the `neighbor_system` to compute the kernel gradient
+        # to obtain the same force as in the fluid-structure interaction.
+        grad_kernel = smoothing_kernel_grad_unsafe(neighbor_system, pos_diff,
+                                                   distance, neighbor)
 
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
         rho_a = current_density(v_particle_system, particle_system, particle)
         rho_b = current_density(v_neighbor_system, neighbor_system, neighbor)
+
+        v_a = current_velocity(v_particle_system, particle_system, particle)
+        v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
         surface_tension = surface_tension_model(neighbor_system)
 
@@ -66,46 +81,58 @@ function interact_structure_fluid!(dv, v_particle_system,
                                             pos_diff, distance, grad_kernel,
                                             system_correction(neighbor_system))
 
-        dv_viscosity_ = dv_viscosity(neighbor_system, particle_system,
-                                     v_neighbor_system, v_particle_system,
-                                     neighbor, particle, pos_diff, distance,
-                                     sound_speed, m_b, m_a, rho_b, rho_a, grad_kernel)
+        dv_particle = Ref(dv_boundary)
+        dv_viscosity!(dv_particle, neighbor_system, particle_system,
+                      v_neighbor_system, v_particle_system,
+                      neighbor, particle, pos_diff, distance,
+                      sound_speed, m_b, m_a, rho_b, rho_a,
+                      v_b, v_a, grad_kernel)
 
-        dv_adhesion = adhesion_force(surface_tension, neighbor_system, particle_system,
-                                     neighbor, particle, pos_diff, distance)
+        adhesion_force!(dv_particle, surface_tension, neighbor_system, particle_system,
+                        neighbor, particle, pos_diff, distance)
 
-        dv_fs = dv_boundary + dv_viscosity_ + dv_adhesion
+        accumulate_structure_fluid_pair!(dv, dv_particle[], particle_system, particle, m_b)
 
-        accumulate_structure_fluid_pair!(dv, dv_fs, particle_system, particle, m_b)
-
-        continuity_equation!(dv, v_particle_system, v_neighbor_system,
+        drho_particle = Ref(zero(rho_a))
+        continuity_equation!(drho_particle, particle_system, neighbor_system,
                              particle, neighbor, pos_diff, distance,
-                             m_b, rho_a, rho_b,
-                             particle_system, neighbor_system, grad_kernel)
+                             m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+
+        @inbounds write_drho_particle!(dv, particle_system, drho_particle, particle)
     end
 
     return dv
 end
 
-@inline function continuity_equation!(dv, v_particle_system, v_neighbor_system,
-                                      particle, neighbor, pos_diff, distance,
-                                      m_b, rho_a, rho_b,
+@inline function continuity_equation!(drho_particle,
                                       particle_system::AbstractStructureSystem,
                                       neighbor_system::AbstractFluidSystem,
-                                      grad_kernel)
-    return dv
+                                      particle, neighbor, pos_diff, distance,
+                                      m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+    return drho_particle
 end
 
-@inline function continuity_equation!(dv, v_particle_system, v_neighbor_system,
-                                      particle, neighbor, pos_diff, distance,
-                                      m_b, rho_a, rho_b,
+@inline function continuity_equation!(drho_particle,
                                       particle_system::Union{RigidBodySystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
                                                              TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}}},
                                       neighbor_system::AbstractFluidSystem,
-                                      grad_kernel)
-    v_diff = current_velocity(v_particle_system, particle_system, particle) -
-             current_velocity(v_neighbor_system, neighbor_system, neighbor)
+                                      particle, neighbor, pos_diff, distance,
+                                      m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+    continuity_equation!(drho_particle, density_calculator(neighbor_system),
+                         m_b, rho_a, rho_b, v_a, v_b, grad_kernel, particle)
 
-    continuity_equation!(dv, density_calculator(neighbor_system), m_b, rho_a, rho_b, v_diff,
-                         grad_kernel, particle)
+    return drho_particle
+end
+
+@inline function write_drho_particle!(dv, ::AbstractSystem, drho_particle, particle)
+    return dv
+end
+
+@propagate_inbounds function write_drho_particle!(dv,
+                                                  ::Union{RigidBodySystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
+                                                          TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}}},
+                                                  drho_particle, particle)
+    dv[end, particle] += drho_particle[]
+
+    return dv
 end

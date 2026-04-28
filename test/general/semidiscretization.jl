@@ -1,8 +1,8 @@
 # Use `@trixi_testset` to isolate the mock functions in a separate namespace
 @trixi_testset "Semidiscretization" begin
     # Mock systems
-    struct System1 <: TrixiParticles.AbstractSystem{3} end
-    struct System2 <: TrixiParticles.AbstractSystem{3} end
+    struct System1 <: TrixiParticles.AbstractStructureSystem{3} end
+    struct System2 <: TrixiParticles.AbstractStructureSystem{3} end
 
     system1 = System1()
     system2 = System2()
@@ -10,9 +10,9 @@
     Base.eltype(::System1) = Float64
     TrixiParticles.coordinates_eltype(::System1) = Float32
     TrixiParticles.u_nvariables(::System1) = 3
-    TrixiParticles.u_nvariables(::System2) = 4
+    TrixiParticles.u_nvariables(::System2) = 3
     TrixiParticles.v_nvariables(::System1) = 3
-    TrixiParticles.v_nvariables(::System2) = 2
+    TrixiParticles.v_nvariables(::System2) = 4
     TrixiParticles.nparticles(::System1) = 2
     TrixiParticles.nparticles(::System2) = 3
     TrixiParticles.n_integrated_particles(::System1) = 2
@@ -25,8 +25,8 @@
         semi = Semidiscretization(system1, system2, neighborhood_search=nothing)
 
         # Verification
-        @test semi.ranges_u == (1:6, 7:18)
-        @test semi.ranges_v == (1:6, 7:12)
+        @test semi.ranges_u == (1:6, 7:15)
+        @test semi.ranges_v == (1:6, 7:18)
 
         nhs = [TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
                eachpoint=1:2)
@@ -146,14 +146,27 @@
     end
 
     @testset verbose=true "Source Terms" begin
+        function Base.getproperty(::System1, name::Symbol)
+            if name == :acceleration
+                return SVector(0.0, 0.0, 0.0)
+            end
+            error("property $name not defined for `System1`")
+        end
+        function Base.getproperty(::System2, name::Symbol)
+            if name == :acceleration
+                return SVector(0.0, 0.0, 1.0)
+            end
+            error("property $name not defined for `System2`")
+        end
         TrixiParticles.source_terms(::System1) = SourceTermDamping(damping_coefficient=0.1)
+        TrixiParticles.source_terms(::System2) = nothing
         TrixiParticles.current_density(v, system::System1, particle) = 0.0
         TrixiParticles.current_pressure(v, system::System1, particle) = 0.0
 
         semi = Semidiscretization(system1, system2, neighborhood_search=nothing)
 
-        dv_ode = zeros(3 * 2 + 2 * 3)
-        du_ode = zeros(3 * 2 + 4 * 3)
+        dv_ode = zeros(3 * 2 + 4 * 3)
+        du_ode = zeros(3 * 2 + 3 * 3)
         u_ode = zero(du_ode)
 
         v1 = [1.0 2.0
@@ -168,6 +181,31 @@
         @test dv1 == -0.1 * v1
 
         dv2 = TrixiParticles.wrap_v(dv_ode, system2, semi)
-        @test iszero(dv2)
+        @test dv2 == vcat(zeros(2, 3), ones(1, 3), zeros(1, 3))
+    end
+
+    @testset verbose=true "drift!" begin
+        semi = Semidiscretization(system1, system2, neighborhood_search=nothing)
+
+        du_ode = fill(NaN, 3 * 2 + 3 * 3)
+        u_ode = zeros(3 * 2 + 3 * 3)
+
+        v1 = [1.0 2.0
+              3.0 4.0
+              5.0 6.0]
+        v2 = [10.0 11.0 12.0
+              20.0 21.0 22.0
+              30.0 31.0 32.0
+              -999.0 -999.0 -999.0]
+        v_ode = vcat(vec(v1), vec(v2))
+
+        returned = TrixiParticles.drift!(du_ode, v_ode, u_ode, semi, 0.0)
+        @test returned === du_ode
+
+        du1 = TrixiParticles.wrap_u(du_ode, system1, semi)
+        @test du1 == v1
+
+        du2 = TrixiParticles.wrap_u(du_ode, system2, semi)
+        @test du2 == v2[1:3, :]
     end
 end

@@ -333,9 +333,12 @@ end
     return current_density(v, system.boundary_model, system)
 end
 
-@inline function viscous_velocity(v, system::TotalLagrangianSPHSystem, particle)
-    # This function is only used in fluid-structure interaction, so it is never called when `boundary_model` is `nothing`
-    return viscous_velocity(v, system.boundary_model.viscosity, system, particle)
+@propagate_inbounds function viscous_velocity(v, system::TotalLagrangianSPHSystem,
+                                              particle, v_particle)
+    # This function is only used in fluid-structure interaction,
+    # so it is never called when `boundary_model` is `nothing`
+    return viscous_velocity(v, system.boundary_model.viscosity, system,
+                            particle, v_particle)
 end
 
 # In fluid-structure interaction, use the "hydrodynamic pressure" of the structure particles
@@ -419,6 +422,17 @@ function update_tlsph_positions!(system::TotalLagrangianSPHSystem, u, semi)
     return system
 end
 
+# This defaults to optimized GPU copy that is about 4x faster than the threaded version above
+function update_tlsph_positions!(system::TotalLagrangianSPHSystem,
+                                 u::AbstractGPUArray, semi)
+    (; current_coordinates) = system
+
+    indices = CartesianIndices(u)
+    copyto!(current_coordinates, indices, u, indices)
+
+    return system
+end
+
 function apply_prescribed_motion!(system::TotalLagrangianSPHSystem,
                                   prescribed_motion::PrescribedMotion, semi, t)
     (; clamped_particles_moving, current_coordinates, cache) = system
@@ -472,33 +486,66 @@ end
 @inline function calc_deformation_grad!(deformation_grad, system, semi)
     (; mass, material_density) = system
 
-    # Reset deformation gradient
-    set_zero!(deformation_grad)
+    # For `distance == 0`, the analytical gradient is zero, but the unsafe gradient
+    # and the density diffusion divide by zero.
+    # To account for rounding errors, we check if `distance` is almost zero.
+    # Since the coordinates are in the order of the smoothing length `h`, `distance^2` is in
+    # the order of `h^2`, so we need to check `distance < sqrt(eps(h^2))`.
+    # Note that `sqrt(eps(h^2)) != eps(h)`.
+    h = initial_smoothing_length(system)
+    almostzero = sqrt(eps(h^2))
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     initial_coords = initial_coordinates(system)
-    foreach_point_neighbor(system, system, initial_coords, initial_coords,
-                           semi) do particle, neighbor, initial_pos_diff, initial_distance
-        # Only consider particles with a distance > 0.
-        # See `src/general/smoothing_kernels.jl` for more details.
-        initial_distance^2 < eps(initial_smoothing_length(system)^2) && return
+    neighborhood_search = get_neighborhood_search(system, semi)
+    backend = semi.parallelization_backend
 
-        volume = @inbounds mass[neighbor] / material_density[neighbor]
-        pos_diff_ = @inbounds current_coords(system, particle) -
-                              current_coords(system, neighbor)
-        # On GPUs, convert `Float64` coordinates to `Float32` after computing the difference
-        pos_diff = convert.(eltype(system), pos_diff_)
+    # The deformation gradient is computed for all particles, including the clamped ones
+    @threaded semi for particle in eachparticle(system)
+        # We are looping over the particles of `system`, so it is guaranteed
+        # that `particle` is in bounds of `system`.
+        current_coords_a = @inbounds current_coords(system, particle)
+        L_a = @inbounds correction_matrix(system, particle)
 
-        grad_kernel = smoothing_kernel_grad(system, initial_pos_diff,
-                                            initial_distance, particle)
+        # Accumulate the contributions over all neighbors before writing
+        # to `deformation_grad` to reduce the number of memory writes.
+        # Note that we need a `Ref` in order to be able to update these variables
+        # inside the closure in the `foreach_neighbor` loop.
+        result = Ref(zero(L_a))
 
-        # Multiply by L_{0a}
-        L = @inbounds correction_matrix(system, particle)
+        # Loop over all neighbors within the kernel cutoff
+        @inbounds foreach_neighbor(initial_coords, initial_coords,
+                                   neighborhood_search, backend,
+                                   particle) do particle, neighbor,
+                                                initial_pos_diff, initial_distance
+            # Skip neighbors with the same position because the kernel gradient is zero.
+            # Note that `return` only exits the closure, i.e., skips the current neighbor.
+            skip_zero_distance(system) && initial_distance < almostzero && return
 
-        result = volume * pos_diff * grad_kernel' * L'
+            # Now that we know that `distance` is not zero, we can safely call the unsafe
+            # version of the kernel gradient to avoid redundant zero checks.
+            grad_kernel = smoothing_kernel_grad_unsafe(system, initial_pos_diff,
+                                                       initial_distance, particle)
+
+            # Since this is one of the most performance critical functions, using fast
+            # divisions here gives a significant speedup on GPUs.
+            # See the docs page "Development" for more details on `div_fast`.
+            volume = @inbounds div_fast(mass[neighbor], material_density[neighbor])
+            current_coords_b = @inbounds current_coords(system, neighbor)
+
+            pos_diff_ = current_coords_a - current_coords_b
+            # In mixed-precision simulations, convert from `coordinates_eltype(system)`
+            # to `eltype(system)` immediately after computing the difference.
+            pos_diff = convert.(eltype(system), pos_diff_)
+
+            # The tensor product pos_diff ⊗ (L_{0a} * ∇W) is equivalent to multiplication
+            # by the transpose: pos_diff * (L_{0a} * ∇W)ᵀ = pos_diff * ∇Wᵀ * L_{0a}ᵀ.
+            result[] -= volume * pos_diff * grad_kernel' * L_a'
+        end
 
         for j in 1:ndims(system), i in 1:ndims(system)
-            @inbounds deformation_grad[i, j, particle] -= result[i, j]
+            # We overwrite every entry of `deformation_grad`, so no `set_zero!` is required.
+            @inbounds deformation_grad[i, j, particle] = result[][i, j]
         end
     end
 

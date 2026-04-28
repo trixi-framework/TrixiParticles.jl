@@ -48,7 +48,10 @@ end
 
 @inline function density_diffusion_psi(::DensityDiffusionMolteniColagrossi, rho_a, rho_b,
                                        pos_diff, distance, system, particle, neighbor)
-    return 2 * (rho_a - rho_b) * pos_diff / distance^2
+    # Since this is one of the most performance critical functions, using fast divisions
+    # here gives a significant speedup on GPUs.
+    # See the docs page "Development" for more details on `div_fast`.
+    return div_fast(2 * (rho_a - rho_b), distance^2) * pos_diff
 end
 
 @doc raw"""
@@ -77,9 +80,11 @@ end
 
 @inline function density_diffusion_psi(::DensityDiffusionFerrari, rho_a, rho_b,
                                        pos_diff, distance, system, particle, neighbor)
-    return ((rho_a - rho_b) /
-            (smoothing_length(system, particle) + smoothing_length(system, neighbor))) *
-           pos_diff / distance
+    # Since this is one of the most performance critical functions, using fast divisions
+    # here gives a significant speedup on GPUs.
+    # See the docs page "Development" for more details on `div_fast`.
+    h = smoothing_length(system, particle) + smoothing_length(system, neighbor)
+    return div_fast((rho_a - rho_b), h * distance) * pos_diff
 end
 
 @doc raw"""
@@ -154,21 +159,23 @@ function allocate_buffer(ic, dd::DensityDiffusionAntuono, buffer::SystemBuffer)
     return initial_condition, DensityDiffusionAntuono(initial_condition; delta=dd.delta)
 end
 
-@inline function density_diffusion_psi(density_diffusion::DensityDiffusionAntuono,
-                                       rho_a, rho_b, pos_diff, distance, system,
-                                       particle, neighbor)
+@propagate_inbounds function density_diffusion_psi(density_diffusion::DensityDiffusionAntuono,
+                                                   rho_a, rho_b, pos_diff, distance, system,
+                                                   particle, neighbor)
     (; normalized_density_gradient) = density_diffusion
 
-    normalized_gradient_a = extract_svector(normalized_density_gradient, system, particle)
-    normalized_gradient_b = extract_svector(normalized_density_gradient, system, neighbor)
-
-    # Fist term by Molteni & Colagrossi
+    # First term by Molteni & Colagrossi
     result = 2 * (rho_a - rho_b)
 
     # Second correction term
+    normalized_gradient_a = extract_svector(normalized_density_gradient, system, particle)
+    normalized_gradient_b = extract_svector(normalized_density_gradient, system, neighbor)
     result -= dot(normalized_gradient_a + normalized_gradient_b, pos_diff)
 
-    return result * pos_diff / distance^2
+    # Since this is one of the most performance critical functions, using fast divisions
+    # here gives a significant speedup on GPUs.
+    # See the docs page "Development" for more details on `div_fast`.
+    return div_fast(result, distance^2) * pos_diff
 end
 
 function update!(density_diffusion::DensityDiffusionAntuono, v, u, system, semi)
@@ -206,35 +213,38 @@ function update!(density_diffusion::DensityDiffusionAntuono, v, u, system, semi)
     return density_diffusion
 end
 
-@propagate_inbounds function density_diffusion!(dv,
+@propagate_inbounds function density_diffusion!(drho_particle,
                                                 density_diffusion::AbstractDensityDiffusion,
-                                                v_particle_system, particle, neighbor,
-                                                pos_diff, distance, m_b, rho_a, rho_b,
                                                 particle_system::Union{AbstractFluidSystem,
                                                                        OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}},
-                                                grad_kernel)
+                                                particle, neighbor, pos_diff, distance,
+                                                m_b, rho_a, rho_b, grad_kernel)
     # Density diffusion terms are all zero for distance zero.
-    # See `src/general/smoothing_kernels.jl` for more details.
-    distance^2 < eps(initial_smoothing_length(particle_system)^2) && return
+    # If `skip_zero_distance` is `true`, we can assume that this function isn't called
+    # for distance zero because these neighbors have already been skipped.
+    if !skip_zero_distance(particle_system)
+        distance^2 < eps(initial_smoothing_length(particle_system)^2) && return
+    end
 
-    (; delta) = density_diffusion
-    sound_speed = system_sound_speed(particle_system)
-
-    volume_b = m_b / rho_b
-
+    # Since this is one of the most performance critical functions, using fast divisions
+    # here gives a significant speedup on GPUs.
+    # See the docs page "Development" for more details on `div_fast`.
+    volume_b = div_fast(m_b, rho_b)
     psi = density_diffusion_psi(density_diffusion, rho_a, rho_b, pos_diff, distance,
                                 particle_system, particle, neighbor)
-    density_diffusion_term = dot(psi, grad_kernel) * volume_b
+    density_diffusion_term = volume_b * dot(psi, grad_kernel)
 
     smoothing_length_avg = (smoothing_length(particle_system, particle) +
                             smoothing_length(particle_system, neighbor)) / 2
-    dv[end, particle] += delta * smoothing_length_avg * sound_speed *
-                         density_diffusion_term
+
+    (; delta) = density_diffusion
+    sound_speed = system_sound_speed(particle_system)
+    drho_particle[] += delta * smoothing_length_avg * sound_speed * density_diffusion_term
 end
 
 # Density diffusion `nothing` or interaction other than fluid-fluid
-@inline function density_diffusion!(dv, density_diffusion, v_particle_system, particle,
-                                    neighbor, pos_diff, distance, m_b, rho_a, rho_b,
-                                    particle_system, grad_kernel)
-    return dv
+@inline function density_diffusion!(drho_particle, density_diffusion, particle_system,
+                                    particle, neighbor, pos_diff, distance,
+                                    m_b, rho_a, rho_b, grad_kernel)
+    return drho_particle
 end

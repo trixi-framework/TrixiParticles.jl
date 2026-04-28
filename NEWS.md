@@ -4,7 +4,7 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
-## Version 0.4.4
+## Version 0.5
 
 ### API Changes
 
@@ -21,10 +21,18 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Added new validation case hydrostatic water column (#724).
 - Added Carreau–Yasuda non-Newtonian viscosity model (#1010).
 
+### Performance
+
+- Greatly improved GPU performance of WCSPH and TLSPH
+  (#1128, #1117, #1124, #1125, #1130, #1116, #1139, #1149).
+  See [#1131](https://github.com/trixi-framework/TrixiParticles.jl/issues/1131)
+  for a detailed breakdown including benchmark results.
+
 ### Important Bugfixes
 
 - Fixed the periodic array of cylinders example file (#975).
 - A `StepsizeCallback` can now be used with open boundaries (#1074).
+- Fixed a bug with no-slip boundary conditions when using any viscosity model other than `ViscosityAdami` (#1089).
 
 ### Documentation
 
