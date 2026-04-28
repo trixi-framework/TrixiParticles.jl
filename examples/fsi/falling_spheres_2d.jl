@@ -6,7 +6,7 @@
 # ==========================================================================================
 
 using TrixiParticles
-using OrdinaryDiffEq
+using OrdinaryDiffEqLowStorageRK
 
 # ==========================================================================================
 # ==== Resolution
@@ -31,10 +31,10 @@ sound_speed = 10 * sqrt(gravity * initial_fluid_size[2])
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1)
 
-tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
-                       n_layers=boundary_layers, spacing_ratio=spacing_ratio,
-                       faces=(true, true, true, false),
-                       acceleration=(0.0, -gravity), state_equation=state_equation)
+tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density;
+                       n_layers=boundary_layers, spacing_ratio,
+                       faces=(true, true, true, false), acceleration=(0.0, -gravity),
+                       state_equation)
 
 sphere1_radius = 0.3
 sphere2_radius = 0.2
@@ -62,10 +62,11 @@ fluid_density_calculator = ContinuityDensity()
 viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 
-fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
-                                           state_equation, fluid_smoothing_kernel,
-                                           fluid_smoothing_length, viscosity=viscosity,
-                                           density_diffusion=density_diffusion,
+fluid_system = WeaklyCompressibleSPHSystem(tank.fluid;
+                                           smoothing_kernel=fluid_smoothing_kernel,
+                                           smoothing_length=fluid_smoothing_length,
+                                           density_calculator=fluid_density_calculator,
+                                           state_equation, viscosity, density_diffusion,
                                            acceleration=(0.0, -gravity))
 
 # ==========================================================================================
@@ -74,9 +75,9 @@ boundary_density_calculator = BernoulliPressureExtrapolation()
 
 # Clip negative boundary pressure values to avoid sticking artifacts at the boundary.
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=state_equation,
                                              boundary_density_calculator,
-                                             fluid_smoothing_kernel, fluid_smoothing_length,
+                                             fluid_smoothing_kernel, fluid_smoothing_length;
+                                             state_equation,
                                              clip_negative_pressure=true)
 
 boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
@@ -93,10 +94,10 @@ hydrodynamic_masses_1 = hydrodynamic_densites_1 *
 
 structure_boundary_model_1 = BoundaryModelDummyParticles(hydrodynamic_densites_1,
                                                          hydrodynamic_masses_1,
-                                                         state_equation=state_equation,
                                                          boundary_density_calculator,
                                                          fluid_smoothing_kernel,
-                                                         fluid_smoothing_length,
+                                                         fluid_smoothing_length;
+                                                         state_equation,
                                                          clip_negative_pressure=true)
 
 hydrodynamic_densites_2 = fluid_density * ones(size(sphere2.density))
@@ -105,24 +106,26 @@ hydrodynamic_masses_2 = hydrodynamic_densites_2 *
 
 structure_boundary_model_2 = BoundaryModelDummyParticles(hydrodynamic_densites_2,
                                                          hydrodynamic_masses_2,
-                                                         state_equation=state_equation,
                                                          boundary_density_calculator,
                                                          fluid_smoothing_kernel,
-                                                         fluid_smoothing_length,
+                                                         fluid_smoothing_length;
+                                                         state_equation,
                                                          clip_negative_pressure=true)
 
-structure_system_1 = TotalLagrangianSPHSystem(sphere1,
-                                              structure_smoothing_kernel,
-                                              structure_smoothing_length,
-                                              sphere1_E, nu,
+structure_system_1 = TotalLagrangianSPHSystem(sphere1;
+                                              smoothing_kernel=structure_smoothing_kernel,
+                                              smoothing_length=structure_smoothing_length,
+                                              young_modulus=sphere1_E,
+                                              poisson_ratio=nu,
                                               acceleration=(0.0, -gravity),
                                               boundary_model=structure_boundary_model_1,
                                               penalty_force=PenaltyForceGanzenmueller(alpha=0.3))
 
-structure_system_2 = TotalLagrangianSPHSystem(sphere2,
-                                              structure_smoothing_kernel,
-                                              structure_smoothing_length,
-                                              sphere2_E, nu,
+structure_system_2 = TotalLagrangianSPHSystem(sphere2;
+                                              smoothing_kernel=structure_smoothing_kernel,
+                                              smoothing_length=structure_smoothing_length,
+                                              young_modulus=sphere2_E,
+                                              poisson_ratio=nu,
                                               acceleration=(0.0, -gravity),
                                               boundary_model=structure_boundary_model_2,
                                               penalty_force=PenaltyForceGanzenmueller(alpha=0.3))

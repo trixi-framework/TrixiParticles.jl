@@ -5,7 +5,7 @@
 # ==========================================================================================
 
 using TrixiParticles
-using OrdinaryDiffEq
+using OrdinaryDiffEqLowStorageRK
 
 # ==========================================================================================
 # ==== Resolution
@@ -30,10 +30,10 @@ sound_speed = 100.0
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1)
 
-tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
-                       n_layers=boundary_layers, spacing_ratio=spacing_ratio,
-                       faces=(true, true, true, false),
-                       acceleration=(0.0, -gravity), state_equation=state_equation)
+tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density;
+                       n_layers=boundary_layers, spacing_ratio,
+                       faces=(true, true, true, false), acceleration=(0.0, -gravity),
+                       state_equation)
 
 sphere1_radius = 0.3
 sphere2_radius = 0.2
@@ -58,10 +58,11 @@ fluid_density_calculator = ContinuityDensity()
 viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 
-fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
-                                           state_equation, fluid_smoothing_kernel,
-                                           fluid_smoothing_length, viscosity=viscosity,
-                                           density_diffusion=density_diffusion,
+fluid_system = WeaklyCompressibleSPHSystem(tank.fluid;
+                                           smoothing_kernel=fluid_smoothing_kernel,
+                                           smoothing_length=fluid_smoothing_length,
+                                           density_calculator=fluid_density_calculator,
+                                           state_equation, viscosity, density_diffusion,
                                            acceleration=(0.0, -gravity))
 
 # ==========================================================================================
@@ -70,9 +71,9 @@ boundary_density_calculator = AdamiPressureExtrapolation()
 
 # Clip negative boundary pressure values to avoid sticking artifacts at the boundary.
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=state_equation,
                                              boundary_density_calculator,
-                                             fluid_smoothing_kernel, fluid_smoothing_length,
+                                             fluid_smoothing_kernel, fluid_smoothing_length;
+                                             state_equation,
                                              clip_negative_pressure=true)
 
 boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
@@ -86,10 +87,10 @@ hydrodynamic_masses_1 = hydrodynamic_densities_1 *
 
 boundary_model_structure_1 = BoundaryModelDummyParticles(hydrodynamic_densities_1,
                                                          hydrodynamic_masses_1,
-                                                         state_equation=state_equation,
                                                          boundary_density_calculator,
                                                          fluid_smoothing_kernel,
-                                                         fluid_smoothing_length)
+                                                         fluid_smoothing_length;
+                                                         state_equation)
 
 hydrodynamic_densities_2 = fluid_density * ones(size(sphere2.density))
 hydrodynamic_masses_2 = hydrodynamic_densities_2 *
@@ -97,10 +98,10 @@ hydrodynamic_masses_2 = hydrodynamic_densities_2 *
 
 boundary_model_structure_2 = BoundaryModelDummyParticles(hydrodynamic_densities_2,
                                                          hydrodynamic_masses_2,
-                                                         state_equation=state_equation,
                                                          boundary_density_calculator,
                                                          fluid_smoothing_kernel,
-                                                         fluid_smoothing_length)
+                                                         fluid_smoothing_length;
+                                                         state_equation)
 
 # Basic rigid contact model used for both rigid bodies.
 contact_model = RigidContactModel(; normal_stiffness=2.0e5,
@@ -108,15 +109,11 @@ contact_model = RigidContactModel(; normal_stiffness=2.0e5,
                                   contact_distance=2.0 *
                                                    structure_particle_spacing)
 
-structure_system_1 = RigidBodySystem(sphere1;
-                                     boundary_model=boundary_model_structure_1,
-                                     contact_model=contact_model,
-                                     acceleration=(0.0, -gravity),
+structure_system_1 = RigidBodySystem(sphere1; boundary_model=boundary_model_structure_1,
+                                     contact_model, acceleration=(0.0, -gravity),
                                      particle_spacing=structure_particle_spacing)
-structure_system_2 = RigidBodySystem(sphere2;
-                                     boundary_model=boundary_model_structure_2,
-                                     contact_model=contact_model,
-                                     acceleration=(0.0, -gravity),
+structure_system_2 = RigidBodySystem(sphere2; boundary_model=boundary_model_structure_2,
+                                     contact_model, acceleration=(0.0, -gravity),
                                      particle_spacing=structure_particle_spacing)
 
 # ==========================================================================================

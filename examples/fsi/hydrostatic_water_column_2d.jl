@@ -9,7 +9,7 @@
 # ==========================================================================================
 
 using TrixiParticles
-using OrdinaryDiffEq
+using OrdinaryDiffEqLowStorageRK
 using JSON
 
 # ==========================================================================================
@@ -86,16 +86,16 @@ state_equation = use_edac ? nothing :
                                    exponent=7, clip_negative_pressure=false)
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, (plate_size[1], 3.0),
-                       min_coordinates=(0.0, fluid_particle_spacing / 2),
-                       fluid_density, n_layers=boundary_layers,
-                       spacing_ratio=spacing_ratio,
-                       faces=(true, true, false, false),
-                       acceleration=(0.0, -gravity),
-                       state_equation=state_equation)
+                       fluid_density; min_coordinates=(0.0, fluid_particle_spacing / 2),
+                       n_layers=boundary_layers, spacing_ratio,
+                       faces=(true, true, false, false), acceleration=(0.0, -gravity),
+                       state_equation)
 
 if use_edac
-    fluid_system = EntropicallyDampedSPHSystem(tank.fluid, smoothing_kernel,
-                                               smoothing_length_fluid, sound_speed,
+    fluid_system = EntropicallyDampedSPHSystem(tank.fluid;
+                                               smoothing_kernel,
+                                               smoothing_length=smoothing_length_fluid,
+                                               sound_speed,
                                                acceleration=(0.0, -gravity),
                                                correction=ShepardKernelCorrection(),
                                                source_terms=SourceTermDamping(;
@@ -104,29 +104,31 @@ else
     fluid_density_calculator = ContinuityDensity()
     density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
     # density_diffusion = DensityDiffusionAntuono(delta=0.1)
-    fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
-                                               state_equation, smoothing_kernel,
-                                               smoothing_length_fluid,
-                                               density_diffusion=density_diffusion,
+    fluid_system = WeaklyCompressibleSPHSystem(tank.fluid; smoothing_kernel,
+                                               smoothing_length=smoothing_length_fluid,
+                                               density_calculator=fluid_density_calculator,
+                                               state_equation, density_diffusion,
                                                acceleration=(0.0, -gravity),
                                                source_terms=SourceTermDamping(;
                                                                               damping_coefficient=0.05))
 end
 
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=state_equation,
                                              boundary_density_calculator,
-                                             smoothing_kernel, smoothing_length_fluid)
+                                             smoothing_kernel, smoothing_length_fluid;
+                                             state_equation)
 boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
 boundary_model_structure = BoundaryModelDummyParticles(hydrodynamic_densities,
                                                        hydrodynamic_masses,
-                                                       state_equation=state_equation,
                                                        boundary_density_calculator,
                                                        smoothing_kernel,
-                                                       smoothing_length_structure)
-structure_system = TotalLagrangianSPHSystem(structure_geometry, smoothing_kernel,
-                                            smoothing_length_structure,
-                                            E, nu, boundary_model=boundary_model_structure,
+                                                       smoothing_length_structure;
+                                                       state_equation)
+structure_system = TotalLagrangianSPHSystem(structure_geometry;
+                                            smoothing_kernel,
+                                            smoothing_length=smoothing_length_structure,
+                                            young_modulus=E, poisson_ratio=nu,
+                                            boundary_model=boundary_model_structure,
                                             clamped_particles=1:nparticles(fixed_particles),
                                             acceleration=(0.0, -gravity))
 
@@ -140,9 +142,8 @@ max_corner = max.(maximum(structure_geometry.coordinates, dims=2),
 cell_list = FullGridCellList(; min_corner, max_corner)
 neighborhood_search = GridNeighborhoodSearch{2}(; update_strategy=ParallelUpdate(),
                                                 cell_list)
-semi = Semidiscretization(structure_system, fluid_system, boundary_system,
-                          neighborhood_search=neighborhood_search,
-                          parallelization_backend=PolyesterBackend())
+semi = Semidiscretization(structure_system, fluid_system, boundary_system;
+                          neighborhood_search, parallelization_backend=PolyesterBackend())
 ode = semidiscretize(semi, tspan)
 
 split_integration = SplitIntegrationCallback(CarpenterKennedy2N54(williamson_condition=false),

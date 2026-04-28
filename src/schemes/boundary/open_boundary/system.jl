@@ -143,9 +143,8 @@ function create_cache_open_boundary(boundary_model, fluid_system, initial_condit
     density_reference_values = map(ref -> ref.reference_density, reference_values)
     velocity_reference_values = map(ref -> ref.reference_velocity, reference_values)
 
-    cache = (; pressure_reference_values=pressure_reference_values,
-             density_reference_values=density_reference_values,
-             velocity_reference_values=velocity_reference_values)
+    cache = (; pressure_reference_values, density_reference_values,
+             velocity_reference_values)
 
     if calculate_flow_rate ||
        any(pr -> isa(pr, RCRWindkesselModel), cache.pressure_reference_values)
@@ -164,8 +163,7 @@ function create_cache_open_boundary(boundary_model, fluid_system, initial_condit
         characteristics = zeros(ELTYPE, 3, nparticles(initial_condition))
         previous_characteristics = zeros(ELTYPE, 3, nparticles(initial_condition))
 
-        return (; characteristics=characteristics,
-                previous_characteristics=previous_characteristics,
+        return (; characteristics, previous_characteristics,
                 pressure=copy(initial_condition.pressure),
                 density=copy(initial_condition.density), cache...)
 
@@ -178,10 +176,9 @@ function create_cache_open_boundary(boundary_model, fluid_system, initial_condit
         # as it was already verified in `allocate_buffer` that the density array is constant.
         density_rest = first(initial_condition.density)
 
-        cache = (; density_diffusion=density_diffusion,
+        cache = (; density_diffusion,
                  create_cache_density_diffusion(initial_condition, density_diffusion)...,
-                 pressure_boundary=pressure_boundary,
-                 density_rest=density_rest, cache...)
+                 pressure_boundary, density_rest, cache...)
 
         if fluid_system isa EntropicallyDampedSPHSystem
             # Density and pressure is stored in `v`
@@ -654,7 +651,7 @@ function interpolate_velocity!(system::OpenBoundarySystem, boundary_zone,
         # We can do this because we require the neighborhood search to support querying neighbors
         # of arbitrary positions (see `PointNeighbors.requires_update` and `check_configuration`).
         foreach_point_neighbor(system, neighbor_system, sample_points, neighbor_coords,
-                               semi, points=points) do point, neighbor, pos_diff, distance
+                               semi; points) do point, neighbor, pos_diff, distance
             m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
             rho_b = @inbounds current_density(v_neighbor, neighbor_system, neighbor)
             volume_b = m_b / rho_b

@@ -107,44 +107,40 @@
                                            exponent=7)
 
         # Define pressure extrapolation methods to test
-        boundary_model_adami = BoundaryModelDummyParticles(boundary.density,
-                                                           boundary.mass,
-                                                           state_equation=state_equation,
+        boundary_model_adami = BoundaryModelDummyParticles(boundary.density, boundary.mass,
                                                            AdamiPressureExtrapolation(),
                                                            smoothing_kernel,
-                                                           smoothing_length,
-                                                           viscosity=viscosity)
+                                                           smoothing_length; state_equation,
+                                                           viscosity)
         boundary_model_bernoulli = BoundaryModelDummyParticles(boundary.density,
                                                                boundary.mass,
-                                                               state_equation=state_equation,
                                                                BernoulliPressureExtrapolation(),
                                                                smoothing_kernel,
-                                                               smoothing_length,
-                                                               viscosity=viscosity)
+                                                               smoothing_length;
+                                                               state_equation, viscosity)
 
         boundary_systems = [
             WallBoundarySystem(boundary, boundary_model_adami),
             WallBoundarySystem(boundary, boundary_model_bernoulli),
-            RigidBodySystem(boundary;
-                            boundary_model=boundary_model_adami,
-                            particle_spacing=particle_spacing),
-            RigidBodySystem(boundary;
-                            boundary_model=boundary_model_bernoulli,
-                            particle_spacing=particle_spacing),
-            TotalLagrangianSPHSystem(boundary, smoothing_kernel,
-                                     smoothing_length, 1e6, 0.3;
+            RigidBodySystem(boundary; boundary_model=boundary_model_adami,
+                            particle_spacing),
+            RigidBodySystem(boundary; boundary_model=boundary_model_bernoulli,
+                            particle_spacing),
+            TotalLagrangianSPHSystem(boundary; smoothing_kernel,
+                                     smoothing_length, young_modulus=1e6,
+                                     poisson_ratio=0.3,
                                      boundary_model=boundary_model_adami),
-            TotalLagrangianSPHSystem(boundary, smoothing_kernel,
-                                     smoothing_length, 1e6, 0.3;
+            TotalLagrangianSPHSystem(boundary; smoothing_kernel,
+                                     smoothing_length, young_modulus=1e6,
+                                     poisson_ratio=0.3,
                                      boundary_model=boundary_model_bernoulli)
         ]
 
         # Create fluid system
-        fluid_system = WeaklyCompressibleSPHSystem(fluid,
-                                                   SummationDensity(),
-                                                   state_equation,
-                                                   smoothing_kernel,
-                                                   smoothing_length)
+        fluid_system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
+                                                   smoothing_length,
+                                                   density_calculator=SummationDensity(),
+                                                   state_equation)
 
         velocities = [
             [0.0; -1.0],
@@ -287,15 +283,14 @@
         state_equation = StateEquationCole(sound_speed=10, reference_density=257,
                                            exponent=7)
 
-        tank1 = RectangularTank(particle_spacing, (width, height), (width, height),
-                                density, n_layers=n_layers,
-                                faces=(true, true, true, false))
+        tank1 = RectangularTank(particle_spacing, (width, height), (width, height), density;
+                                n_layers, faces=(true, true, true, false))
 
         boundary_model = BoundaryModelDummyParticles(tank1.boundary.density,
                                                      tank1.boundary.mass,
-                                                     state_equation=state_equation,
                                                      AdamiPressureExtrapolation(),
-                                                     smoothing_kernel, smoothing_length)
+                                                     smoothing_kernel, smoothing_length;
+                                                     state_equation)
 
         boundary_system = WallBoundarySystem(tank1.boundary, boundary_model)
         viscosity = boundary_system.boundary_model.viscosity
@@ -306,9 +301,10 @@
         # Use constant density equal to the reference density of the state equation,
         # so that the pressure is constant zero. Then we test that the extrapolation also yields zero.
         @testset "Constant Zero Pressure" begin
-            fluid_system1 = WeaklyCompressibleSPHSystem(tank1.fluid, SummationDensity(),
-                                                        state_equation,
-                                                        smoothing_kernel, smoothing_length)
+            fluid_system1 = WeaklyCompressibleSPHSystem(tank1.fluid; smoothing_kernel,
+                                                        smoothing_length,
+                                                        density_calculator=SummationDensity(),
+                                                        state_equation)
             fluid_system1.cache.density .= tank1.fluid.density
             v_fluid = zeros(2, TrixiParticles.nparticles(fluid_system1))
 
@@ -342,12 +338,12 @@
         @testset "Constant Non-Zero Pressure" begin
             density = 260
             tank2 = RectangularTank(particle_spacing, (width, height), (width, height),
-                                    density, n_layers=n_layers,
-                                    faces=(true, true, true, false))
+                                    density; n_layers, faces=(true, true, true, false))
 
-            fluid_system2 = WeaklyCompressibleSPHSystem(tank2.fluid, SummationDensity(),
-                                                        state_equation,
-                                                        smoothing_kernel, smoothing_length)
+            fluid_system2 = WeaklyCompressibleSPHSystem(tank2.fluid; smoothing_kernel,
+                                                        smoothing_length,
+                                                        density_calculator=SummationDensity(),
+                                                        state_equation)
 
             fluid_system2.cache.density .= tank2.fluid.density
             v_fluid = zeros(2, TrixiParticles.nparticles(fluid_system2))
@@ -383,14 +379,14 @@
         @testset "Hydrostatic Pressure Gradient" begin
             for flipped_condition in (Val(true), Val(false))
                 tank3 = RectangularTank(particle_spacing, (width, height), (width, height),
-                                        density, acceleration=[0.0, -9.81],
-                                        state_equation=state_equation, n_layers=n_layers,
-                                        faces=(true, true, true, false))
+                                        density; acceleration=[0.0, -9.81], state_equation,
+                                        n_layers, faces=(true, true, true, false))
 
-                fluid_system3 = WeaklyCompressibleSPHSystem(tank3.fluid, SummationDensity(),
-                                                            state_equation,
+                fluid_system3 = WeaklyCompressibleSPHSystem(tank3.fluid;
                                                             smoothing_kernel,
                                                             smoothing_length,
+                                                            density_calculator=SummationDensity(),
+                                                            state_equation,
                                                             acceleration=[0.0, -9.81])
                 fluid_system3.cache.density .= tank3.fluid.density
                 v_fluid = zeros(2, TrixiParticles.nparticles(fluid_system3))
@@ -426,8 +422,8 @@
                 tank_reference = RectangularTank(particle_spacing,
                                                  (width_reference, height_reference),
                                                  (width_reference, height_reference),
-                                                 density, acceleration=[0.0, -9.81],
-                                                 state_equation=state_equation, n_layers=0,
+                                                 density; acceleration=[0.0, -9.81],
+                                                 state_equation, n_layers=0,
                                                  faces=(true, true, true, false))
 
                 # Because it is a pain to deal with the linear indices of the pressure arrays,

@@ -8,12 +8,62 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### API Changes
 
-- `DensityDiffusionAntuono` now has only the kwarg `delta` and no positional
-  arguments (#1142).
 - Clipping of negative pressure values in the `DummyParticleBoundaryModel` is now disabled
   by default and can be enabled with the keyword argument `clip_negative_pressure=true` (#1143).
+- The example files are now loading sub-packages of OrdinaryDiffEq.jl instead of
+  OrdinaryDiffEq.jl itself. For example, `using OrdinaryDiffEqLowStorageRK` instead of
+  `using OrdinaryDiffEq` (#1154).
+- `DensityDiffusionAntuono` now only has the kwarg `delta` and no positional
+  arguments (#1142).
 - Return type of `vtk2trixi` changed to `NamedTuple` including an optional
   `:initial_condition` field if `create_initial_condition=true` is passed (#959).
+- Public system constructors now use keyword arguments for configuration values.
+  This affects `WeaklyCompressibleSPHSystem`, `EntropicallyDampedSPHSystem`,
+  `ImplicitIncompressibleSPHSystem`, `TotalLagrangianSPHSystem`, `DEMSystem`,
+  and `BoundaryDEMSystem`.
+
+#### Migration Guide for Keyword-Based System Constructors
+
+The initial condition remains the only positional argument for the affected system
+constructors. All method, material, and configuration arguments that were previously
+passed positionally now need to be passed as keywords.
+Existing optional keyword arguments remain available. For example, the
+`density_calculator` keyword of `EntropicallyDampedSPHSystem` still defaults to
+`SummationDensity()`.
+
+Here are examples, where `ic` is the initial condition, `kernel` is the
+smoothing kernel, and `h` is the smoothing length:
+
+```julia
+WeaklyCompressibleSPHSystem(ic, density_calculator, state_equation, kernel, h;
+                            kwargs...)
+# becomes
+WeaklyCompressibleSPHSystem(ic; smoothing_kernel=kernel, smoothing_length=h,
+                            density_calculator, state_equation, kwargs...)
+
+EntropicallyDampedSPHSystem(ic, kernel, h, sound_speed; kwargs...)
+# becomes
+EntropicallyDampedSPHSystem(ic; smoothing_kernel=kernel, smoothing_length=h,
+                            sound_speed, kwargs...)
+
+ImplicitIncompressibleSPHSystem(ic, kernel, h, reference_density; kwargs...)
+# becomes
+ImplicitIncompressibleSPHSystem(ic; smoothing_kernel=kernel, smoothing_length=h,
+                                reference_density, kwargs...)
+
+TotalLagrangianSPHSystem(ic, kernel, h, young_modulus, poisson_ratio; kwargs...)
+# becomes
+TotalLagrangianSPHSystem(ic; smoothing_kernel=kernel, smoothing_length=h,
+                         young_modulus, poisson_ratio, kwargs...)
+
+DEMSystem(ic, contact_model; kwargs...)
+# becomes
+DEMSystem(ic; contact_model, kwargs...)
+
+BoundaryDEMSystem(ic, normal_stiffness)
+# becomes
+BoundaryDEMSystem(ic; normal_stiffness)
+```
 
 ### Performance
 

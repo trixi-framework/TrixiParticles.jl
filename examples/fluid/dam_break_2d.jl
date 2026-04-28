@@ -13,7 +13,7 @@
 # ==========================================================================================
 
 using TrixiParticles
-using OrdinaryDiffEq
+using OrdinaryDiffEqLowStorageRK
 
 # Size parameters
 H = 0.6
@@ -44,9 +44,9 @@ sound_speed = 20 * sqrt(gravity * H)
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1, clip_negative_pressure=false)
 
-tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
-                       n_layers=boundary_layers, spacing_ratio=spacing_ratio,
-                       acceleration=(0.0, -gravity), state_equation=state_equation,
+tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density;
+                       n_layers=boundary_layers, spacing_ratio,
+                       acceleration=(0.0, -gravity), state_equation,
                        coordinates_eltype=Float64)
 
 # ==========================================================================================
@@ -57,7 +57,7 @@ smoothing_kernel = WendlandC2Kernel{2}()
 fluid_density_calculator = ContinuityDensity()
 
 alpha = 0.02
-viscosity_fluid = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
+viscosity_fluid = ArtificialViscosityMonaghan(; alpha, beta=0.0)
 
 # The density diffusion model by Molteni and Colagrossi shows unphysical effects at the
 # free surface in long-running simulations, but is significantly faster than the model
@@ -65,12 +65,11 @@ viscosity_fluid = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
 density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 # density_diffusion = DensityDiffusionAntuono(delta=0.1)
 
-fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
-                                           state_equation, smoothing_kernel,
-                                           smoothing_length, viscosity=viscosity_fluid,
-                                           density_diffusion=density_diffusion,
-                                           acceleration=(0.0, -gravity), correction=nothing,
-                                           surface_tension=nothing,
+fluid_system = WeaklyCompressibleSPHSystem(tank.fluid; smoothing_kernel, smoothing_length,
+                                           density_calculator=fluid_density_calculator,
+                                           state_equation, viscosity=viscosity_fluid,
+                                           density_diffusion, acceleration=(0.0, -gravity),
+                                           correction=nothing, surface_tension=nothing,
                                            reference_particle_spacing=0)
 
 # ==========================================================================================
@@ -82,9 +81,9 @@ viscosity_wall = nothing
 
 # Clip negative boundary pressure values to avoid sticking artifacts at the boundary.
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=state_equation,
                                              boundary_density_calculator,
-                                             smoothing_kernel, smoothing_length,
+                                             smoothing_kernel, smoothing_length;
+                                             state_equation,
                                              correction=nothing,
                                              reference_particle_spacing=0,
                                              viscosity=viscosity_wall,

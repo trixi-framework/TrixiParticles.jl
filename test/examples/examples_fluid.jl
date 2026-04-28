@@ -55,7 +55,7 @@
             "WCSPH with WendlandC6Kernel" => (smoothing_length=2.0 * fluid_particle_spacing,
                                               smoothing_kernel=WendlandC6Kernel{2}()),
             "EDAC with source term damping" => (source_terms=SourceTermDamping(damping_coefficient=1e-4),
-                                                fluid_system=EntropicallyDampedSPHSystem(tank.fluid,
+                                                fluid_system=EntropicallyDampedSPHSystem(tank.fluid;
                                                                                          smoothing_kernel,
                                                                                          smoothing_length,
                                                                                          sound_speed,
@@ -63,7 +63,7 @@
                                                                                          density_calculator=ContinuityDensity(),
                                                                                          acceleration=(0.0,
                                                                                                        -gravity))),
-            "EDAC with SummationDensity" => (fluid_system=EntropicallyDampedSPHSystem(tank.fluid,
+            "EDAC with SummationDensity" => (fluid_system=EntropicallyDampedSPHSystem(tank.fluid;
                                                                                       smoothing_kernel,
                                                                                       smoothing_length,
                                                                                       sound_speed,
@@ -71,7 +71,7 @@
                                                                                       density_calculator=SummationDensity(),
                                                                                       acceleration=(0.0,
                                                                                                     -gravity)),),
-            "EDAC with ViscosityAdami" => (fluid_system=EntropicallyDampedSPHSystem(tank.fluid,
+            "EDAC with ViscosityAdami" => (fluid_system=EntropicallyDampedSPHSystem(tank.fluid;
                                                                                     smoothing_kernel,
                                                                                     smoothing_length,
                                                                                     sound_speed,
@@ -79,7 +79,7 @@
                                                                                     density_calculator=ContinuityDensity(),
                                                                                     acceleration=(0.0,
                                                                                                   -gravity)),),
-            "EDAC with ViscosityMorris" => (fluid_system=EntropicallyDampedSPHSystem(tank.fluid,
+            "EDAC with ViscosityMorris" => (fluid_system=EntropicallyDampedSPHSystem(tank.fluid;
                                                                                      smoothing_kernel,
                                                                                      smoothing_length,
                                                                                      sound_speed,
@@ -598,16 +598,11 @@
                 println("═"^100)
                 println("Running falling_water_spheres_2d.jl with $model_name")
 
-                # Prepare keyword arguments
-                kwargs = model_name == "SurfaceTensionNone" ?
-                         (surface_tension=nothing,) :
-                         (surface_tension=surface_tension,)
-
                 # Execute the example script with the current surface tension model
                 @trixi_test_nowarn trixi_include(@__MODULE__,
                                                  joinpath(examples_dir(), "fluid",
                                                           "falling_water_spheres_2d.jl");
-                                                 tspan=(0, 0.1), kwargs...)
+                                                 tspan=(0, 0.1), surface_tension)
 
                 # Assert that the simulation ran successfully
                 @test sol.retcode == ReturnCode.Success
@@ -631,18 +626,13 @@
                 println("═"^100)
                 println("Running falling_water_spheres_3d.jl with $model_name")
 
-                # Prepare keyword arguments
-                kwargs = model_name == "SurfaceTensionNone" ?
-                         (surface_tension=nothing,) :
-                         (surface_tension=surface_tension,)
-
                 # Execute the example script with the current surface tension model
                 @trixi_test_nowarn trixi_include(@__MODULE__,
                                                  joinpath(examples_dir(), "fluid",
                                                           "falling_water_spheres_3d.jl");
                                                  tspan=(0, 0.05),
                                                  fluid_particle_spacing=0.01,
-                                                 kwargs...) [
+                                                 surface_tension) [
                     # Optional: Add regex patterns to ignore specific warnings or logs
                     r"┌ Info: The desired tank length in x-direction .*\n",
                     r"└ New tank length in x-direction.*\n",
