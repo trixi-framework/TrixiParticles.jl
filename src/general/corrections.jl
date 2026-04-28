@@ -326,6 +326,8 @@ function compute_gradient_correction_matrix!(corr_matrix, system, coordinates, d
 
         volume = @inbounds mass[neighbor] / density_fun(neighbor)
 
+        # This is the same as using `transpose`, but it's faster due to
+        # https://github.com/JuliaLang/LinearAlgebra.jl/issues/1102.
         result = volume * grad_kernel * permutedims(pos_diff)
 
         for j in 1:ndims(system), i in 1:ndims(system)
@@ -380,6 +382,8 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
             volume = hydrodynamic_mass(neighbor_system, neighbor) /
                      current_density(v_neighbor_system, neighbor_system, neighbor)
 
+            # This is the same as using `transpose`, but it's faster due to
+            # https://github.com/JuliaLang/LinearAlgebra.jl/issues/1102.
             L = volume * grad_kernel * permutedims(pos_diff)
 
             # pos_diff is always x_a - x_b hence * -1 to switch the order to x_b - x_a
