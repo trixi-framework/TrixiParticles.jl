@@ -67,8 +67,7 @@ sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1;
                                                      smoothing_length=fluid_smoothing_length,
                                                      sound_speed, viscosity,
                                                      density_calculator=ContinuityDensity(),
-                                                     acceleration,
-                                                     surface_tension,
+                                                     acceleration, surface_tension,
                                                      reference_particle_spacing=fluid_particle_spacing)
 
 sphere = WeaklyCompressibleSPHSystem(sphere2; smoothing_kernel=fluid_smoothing_kernel,
