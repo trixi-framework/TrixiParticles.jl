@@ -64,7 +64,6 @@ end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
-
 function ImplicitIncompressibleSPHSystem(initial_condition; smoothing_kernel,
                                          smoothing_length, reference_density,
                                          viscosity=nothing,
