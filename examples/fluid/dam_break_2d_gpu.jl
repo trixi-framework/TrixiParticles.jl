@@ -22,7 +22,7 @@ tspan = (0.0, 5.7 / sqrt(9.81 / 0.6))
 
 # Load setup from dam break example
 trixi_include(@__MODULE__,
-              joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
+              joinpath(examples_dir(), "fluid", "dam_break_2d.jl");
               fluid_particle_spacing=0.6 / 40, spacing_ratio=1, boundary_layers=4,
               coordinates_eltype=Float64, tspan, sol=nothing, ode=nothing)
 
@@ -34,7 +34,7 @@ neighborhood_search = GridNeighborhoodSearch{2}(; cell_list)
 
 # Run the dam break simulation with this neighborhood search
 trixi_include(@__MODULE__,
-              joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
+              joinpath(examples_dir(), "fluid", "dam_break_2d.jl");
               neighborhood_search, fluid_particle_spacing,
               tspan, smoothing_length, density_diffusion,
               boundary_layers, spacing_ratio, boundary_model,
