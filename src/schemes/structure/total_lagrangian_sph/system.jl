@@ -1,6 +1,6 @@
 @doc raw"""
-    TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing_length,
-                             young_modulus, poisson_ratio;
+    TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing_length,
+                             young_modulus, poisson_ratio,
                              clamped_particles=Int[],
                              clamped_particles_motion=nothing,
                              acceleration=ntuple(_ -> 0.0, NDIMS),
@@ -17,16 +17,16 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
 
 # Arguments
 - `initial_condition`:  Initial condition representing the system's particles.
-- `young_modulus`:      Young's modulus.
-- `poisson_ratio`:      Poisson ratio.
+
+# Keywords
 - `smoothing_kernel`:   Smoothing kernel to be used for this system.
                         See [Smoothing Kernels](@ref smoothing_kernel).
 - `smoothing_length`:   Smoothing length to be used for this system.
                         See [Smoothing Kernels](@ref smoothing_kernel).
-
-# Keywords
-- `clamped_particles`: Indices specifying the clamped particles that are fixed
-                       and not integrated to clamp the structure.
+- `young_modulus`:      Young's modulus.
+- `poisson_ratio`:      Poisson ratio.
+- `clamped_particles`:  Indices specifying the clamped particles that are fixed
+                        and not integrated to clamp the structure.
 - `clamped_particles_motion`: Prescribed motion of the clamped particles.
                     If `nothing` (default), the clamped particles are fixed.
                     See [`PrescribedMotion`](@ref) for details.
@@ -99,9 +99,8 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
     cache                    :: C
 end
 
-function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing_length,
-                                  young_modulus, poisson_ratio;
-                                  clamped_particles=Int[],
+function TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing_length,
+                                  young_modulus, poisson_ratio, clamped_particles=Int[],
                                   clamped_particles_motion=nothing,
                                   acceleration=ntuple(_ -> zero(eltype(initial_condition)),
                                                       ndims(smoothing_kernel)),

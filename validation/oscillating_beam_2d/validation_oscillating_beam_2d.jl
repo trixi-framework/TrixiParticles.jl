@@ -25,9 +25,8 @@ tspan = (0, 10)
 n_particles_beam_y = 5
 
 # Overwrite `sol` assignment to skip time integration
-trixi_include(@__MODULE__,
-              joinpath(examples_dir(), "structure", "oscillating_beam_2d.jl"),
-              n_particles_y=n_particles_beam_y, sol=nothing, tspan=tspan,
+trixi_include(@__MODULE__, joinpath(examples_dir(), "structure", "oscillating_beam_2d.jl");
+              n_particles_y=n_particles_beam_y, sol=nothing, tspan,
               penalty_force=PenaltyForceGanzenmueller(alpha=0.01))
 
 pp_callback = PostprocessCallback(; deflection_x, deflection_y, dt=0.01,

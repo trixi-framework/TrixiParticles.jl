@@ -51,21 +51,18 @@ alpha = 8 * nu / (fluid_smoothing_length * sound_speed)
 # `adhesion_coefficient = 1.0` and `surface_tension_coefficient = 0.01` for perfect wetting
 # `adhesion_coefficient = 0.001` and `surface_tension_coefficient = 2.0` for no wetting
 
-viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
-sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, ContinuityDensity(),
-                                                     state_equation, fluid_smoothing_kernel,
-                                                     fluid_smoothing_length,
-                                                     viscosity=viscosity,
+viscosity = ArtificialViscosityMonaghan(; alpha, beta=0.0)
+sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1;
+                                                     smoothing_kernel=fluid_smoothing_kernel,
+                                                     smoothing_length=fluid_smoothing_length,
+                                                     density_calculator=ContinuityDensity(),
+                                                     state_equation, viscosity,
                                                      acceleration=(0.0, -gravity),
                                                      surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=2.0),
                                                      correction=AkinciFreeSurfaceCorrection(fluid_density),
                                                      reference_particle_spacing=fluid_particle_spacing)
 
-trixi_include(@__MODULE__,
-              joinpath(examples_dir(), "fluid", "falling_water_spheres_2d.jl"),
-              sphere=nothing, sphere1=sphere1, adhesion_coefficient=0.001,
-              wall_viscosity=4.0 * nu, surface_tension_coefficient=0.9, alpha=alpha,
-              sound_speed=sound_speed, fluid_density=fluid_density, nu=nu,
-              fluid_particle_spacing=fluid_particle_spacing, tspan=tspan,
-              tank_size=tank_size, fluid_smoothing_length=fluid_smoothing_length,
-              sphere_surface_tension=sphere_surface_tension)
+trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "falling_water_spheres_2d.jl");
+              sphere=nothing, sphere1, adhesion_coefficient=0.001, wall_viscosity=4.0 * nu,
+              alpha, sound_speed, fluid_density, nu, fluid_particle_spacing, tspan,
+              tank_size, fluid_smoothing_length, sphere_surface_tension)

@@ -129,9 +129,9 @@
         #
         # The solution is obtained using simple Euler integration over the time interval `tspan`.
         # Reference pressure values are evaluated at discrete time points (`validation_times`):
-        # params_RCR = (R_2=R2, R_1=R1, C=C, q_func=pulsatile_flow, dt=dt)
+        # params_RCR = (; R_2=R2, R_1=R1, C, q_func=pulsatile_flow, dt)
         # sol_RCR = solve(ODEProblem(pressure_RCR_ode!, [p0], tspan, params_RCR), Euler(),
-        #                 dt=dt, adaptive=false)
+        #                 dt, adaptive=false)
         # validation_times = collect(range(7T, 8T, step=50 * dt))
         # pressures_ref = vec(stack(sol_RCR(validation_times)))
         #

@@ -14,9 +14,8 @@ using OrdinaryDiffEqLowStorageRK
 n_particles_y = 5
 
 # Load setup from oscillating beam example
-trixi_include(@__MODULE__, joinpath(examples_dir(), "structure", "oscillating_beam_2d.jl"),
-              thickness=0.05, n_particles_y=n_particles_y,
-              sol=nothing) # Don't run simulation, only include the setup part
+trixi_include(@__MODULE__, joinpath(examples_dir(), "structure", "oscillating_beam_2d.jl");
+              thickness=0.05, n_particles_y, sol=nothing) # Don't run simulation, only include the setup part
 
 # Fluid resolution
 fluid_particle_spacing = 3 * particle_spacing
@@ -47,9 +46,10 @@ fluid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 fluid_density_calculator = ContinuityDensity()
 viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 
-fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
-                                           state_equation, fluid_smoothing_kernel,
-                                           fluid_smoothing_length, viscosity=viscosity,
+fluid_system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel=fluid_smoothing_kernel,
+                                           smoothing_length=fluid_smoothing_length,
+                                           density_calculator=fluid_density_calculator,
+                                           state_equation, viscosity,
                                            acceleration=(0.0, -gravity))
 
 # ==========================================================================================
@@ -64,10 +64,9 @@ hydrodynamic_masses = hydrodynamic_densites * particle_spacing^2
 boundary_model = BoundaryModelMonaghanKajtar(k, spacing_ratio, particle_spacing,
                                              hydrodynamic_masses)
 
-structure_system = TotalLagrangianSPHSystem(structure,
-                                            smoothing_kernel, smoothing_length,
-                                            material.E, material.nu,
-                                            boundary_model=boundary_model,
+structure_system = TotalLagrangianSPHSystem(structure; smoothing_kernel, smoothing_length,
+                                            young_modulus=material.E,
+                                            poisson_ratio=material.nu, boundary_model,
                                             clamped_particles=1:nparticles(clamped_particles),
                                             acceleration=(0.0, -gravity))
 

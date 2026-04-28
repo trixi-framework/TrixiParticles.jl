@@ -55,7 +55,7 @@
             "WCSPH with WendlandC6Kernel" => (smoothing_length=2.0 * fluid_particle_spacing,
                                               smoothing_kernel=WendlandC6Kernel{2}()),
             "EDAC with source term damping" => (source_terms=SourceTermDamping(damping_coefficient=1e-4),
-                                                fluid_system=EntropicallyDampedSPHSystem(tank.fluid,
+                                                fluid_system=EntropicallyDampedSPHSystem(tank.fluid;
                                                                                          smoothing_kernel,
                                                                                          smoothing_length,
                                                                                          sound_speed,
@@ -63,7 +63,7 @@
                                                                                          density_calculator=ContinuityDensity(),
                                                                                          acceleration=(0.0,
                                                                                                        -gravity))),
-            "EDAC with SummationDensity" => (fluid_system=EntropicallyDampedSPHSystem(tank.fluid,
+            "EDAC with SummationDensity" => (fluid_system=EntropicallyDampedSPHSystem(tank.fluid;
                                                                                       smoothing_kernel,
                                                                                       smoothing_length,
                                                                                       sound_speed,
@@ -71,7 +71,7 @@
                                                                                       density_calculator=SummationDensity(),
                                                                                       acceleration=(0.0,
                                                                                                     -gravity)),),
-            "EDAC with ViscosityAdami" => (fluid_system=EntropicallyDampedSPHSystem(tank.fluid,
+            "EDAC with ViscosityAdami" => (fluid_system=EntropicallyDampedSPHSystem(tank.fluid;
                                                                                     smoothing_kernel,
                                                                                     smoothing_length,
                                                                                     sound_speed,
@@ -79,7 +79,7 @@
                                                                                     density_calculator=ContinuityDensity(),
                                                                                     acceleration=(0.0,
                                                                                                   -gravity)),),
-            "EDAC with ViscosityMorris" => (fluid_system=EntropicallyDampedSPHSystem(tank.fluid,
+            "EDAC with ViscosityMorris" => (fluid_system=EntropicallyDampedSPHSystem(tank.fluid;
                                                                                      smoothing_kernel,
                                                                                      smoothing_length,
                                                                                      sound_speed,

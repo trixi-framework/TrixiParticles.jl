@@ -22,7 +22,6 @@ particle_spacing = 0.1
 # how many rows of boundary particles will be sampled.
 boundary_thickness = 8 * particle_spacing
 
-trixi_include(joinpath(examples_dir(), "preprocessing", "packing_2d.jl"),
-              density=1000.0, particle_spacing=particle_spacing, file=file,
-              boundary_thickness=boundary_thickness, place_on_shell=true,
+trixi_include(joinpath(examples_dir(), "preprocessing", "packing_2d.jl"); density=1000.0,
+              particle_spacing, file, boundary_thickness, place_on_shell=true,
               save_intervals=false)
