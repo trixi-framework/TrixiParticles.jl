@@ -140,8 +140,7 @@
                                                           pressure_acceleration=nothing,
                                                           density_calculator)
 
-                system_iisph = ImplicitIncompressibleSPHSystem(fluid;
-                                                               smoothing_kernel,
+                system_iisph = ImplicitIncompressibleSPHSystem(fluid; smoothing_kernel,
                                                                smoothing_length,
                                                                reference_density=1000.0,
                                                                time_step=0.001)
