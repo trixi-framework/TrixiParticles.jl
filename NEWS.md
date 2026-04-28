@@ -8,7 +8,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### API Changes
 
-- Clipping of negative pressure values in the `DummyParticleBoundaryModel` is now disabled
+- Clipping of negative pressure values in the `BoundaryModelDummyParticles` is now disabled
   by default and can be enabled with the keyword argument `clip_negative_pressure=true` (#1143).
 - The example files are now loading sub-packages of OrdinaryDiffEq.jl instead of
   OrdinaryDiffEq.jl itself. For example, `using OrdinaryDiffEqLowStorageRK` instead of
