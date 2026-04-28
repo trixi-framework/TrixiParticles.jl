@@ -1,6 +1,6 @@
 @testset verbose=true "SolutionSavingCallback" begin
     @testset verbose=true "show" begin
-        out = joinpath(pkgdir(TrixiParticles), "out")
+        out = joinpath(tempdir(), "trixi_out")
         output_directory_padded = out * " "^(65 - length(out))
 
         @testset verbose=true "dt" begin
