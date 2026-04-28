@@ -18,7 +18,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   `ImplicitIncompressibleSPHSystem`, `TotalLagrangianSPHSystem`, `DEMSystem`,
   and `BoundaryDEMSystem`.
 
-#### Migration Guide for Keyword-Only System Constructors
+#### Migration Guide for Keyword-Based System Constructors
 
 The initial condition remains the only positional argument for the affected system
 constructors. All method, material, and configuration arguments that were previously
