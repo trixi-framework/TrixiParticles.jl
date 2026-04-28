@@ -1,9 +1,6 @@
 @doc raw"""
-    TotalLagrangianSPHSystem(initial_condition;
-                             smoothing_kernel,
-                             smoothing_length,
-                             young_modulus,
-                             poisson_ratio,
+    TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing_length,
+                             young_modulus, poisson_ratio,
                              clamped_particles=Int[],
                              clamped_particles_motion=nothing,
                              acceleration=ntuple(_ -> 0.0, NDIMS),

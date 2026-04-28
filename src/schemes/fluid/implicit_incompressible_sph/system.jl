@@ -1,10 +1,8 @@
 """
-    ImplicitIncompressibleSPHSystem(initial_condition;
-                                    smoothing_kernel,
-                                    smoothing_length,
-                                    reference_density,
+    ImplicitIncompressibleSPHSystem(initial_condition; smoothing_kernel,
+                                    smoothing_length, reference_density,
                                     viscosity=nothing,
-                                    acceleration=ntuple(_ -> 0.0, NDIMS),
+                                    acceleration=ntuple(_ -> 0.0, ndims(smoothing_kernel)),
                                     omega=0.5, max_error=0.1, min_iterations=2,
                                     max_iterations=20, time_step)
 
@@ -19,11 +17,11 @@ See [Implicit Incompressible SPH](@ref iisph) for more details on the method.
 - `initial_condition`:  [`InitialCondition`](@ref) representing the system's particles.
 
 # Keywords
-- `smoothing_kernel`:            Smoothing kernel to be used for this system.
-                                 See [Smoothing Kernels](@ref smoothing_kernel).
-- `smoothing_length`:            Smoothing length to be used for this system.
-                                 See [Smoothing Kernels](@ref smoothing_kernel).
-- `reference_density`:           Reference density used for the fluid particles.
+- `smoothing_kernel`:           Smoothing kernel to be used for this system.
+                                See [Smoothing Kernels](@ref smoothing_kernel).
+- `smoothing_length`:           Smoothing length to be used for this system.
+                                See [Smoothing Kernels](@ref smoothing_kernel).
+- `reference_density`:          Reference density used for the fluid particles.
 - `viscosity`:                  Currently, only [`ViscosityMorris`](@ref)
                                 and [`ViscosityAdami`](@ref) are supported.
 - `acceleration`:               Acceleration vector for the system. (default: zero vector)

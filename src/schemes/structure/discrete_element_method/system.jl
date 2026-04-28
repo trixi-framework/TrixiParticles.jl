@@ -1,8 +1,6 @@
 """
-    DEMSystem(initial_condition;
-              contact_model,
-              damping_coefficient=0.0001,
-              acceleration=ntuple(_ -> 0.0, NDIMS),
+    DEMSystem(initial_condition; contact_model, damping_coefficient=0.0001,
+              acceleration=ntuple(_ -> 0.0, ndims(initial_condition)),
               source_terms=nothing,
               radius=nothing)
 
@@ -18,10 +16,10 @@ specified material properties and contact mechanics.
     velocities, masses, and radii of particles.
 
 # Keywords
-- `contact_model`: Contact model used for particle interactions.
- - `acceleration`: Global acceleration vector applied to the system, such as gravity. Specified as
+ - `contact_model`: Contact model used for particle interactions.
+ - `acceleration`:  Global acceleration vector applied to the system, such as gravity. Specified as
     an `SVector` of length `NDIMS`, with a default of zero in each dimension.
- - `source_terms`: Optional; additional forces or modifications to particle dynamics not
+ - `source_terms`:  Optional; additional forces or modifications to particle dynamics not
     captured by standard DEM interactions, such as electromagnetic forces or user-defined perturbations.
  - `damping_coefficient=0.0001`: Set a damping coefficient for the collision interactions.
  - `radius=nothing`: Specifies the radius of the particles, defaults to `initial_condition.particle_spacing / 2`.

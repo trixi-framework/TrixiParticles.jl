@@ -1,8 +1,6 @@
 @doc raw"""
-    EntropicallyDampedSPHSystem(initial_condition;
-                                smoothing_kernel,
-                                smoothing_length,
-                                sound_speed,
+    EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel,
+                                smoothing_length, sound_speed,
                                 pressure_acceleration=inter_particle_averaged_pressure,
                                 density_calculator=SummationDensity(),
                                 shifting_technique=nothing,
@@ -21,11 +19,11 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
 - `initial_condition`:  Initial condition representing the system's particles.
 
 # Keywords
-- `smoothing_kernel`:            Smoothing kernel to be used for this system.
-                                 See [Smoothing Kernels](@ref smoothing_kernel).
-- `smoothing_length`:            Smoothing length to be used for this system.
-                                 See [Smoothing Kernels](@ref smoothing_kernel).
 - `sound_speed`:                Speed of sound.
+- `smoothing_kernel`:           Smoothing kernel to be used for this system.
+                                See [Smoothing Kernels](@ref smoothing_kernel).
+- `smoothing_length`:           Smoothing length to be used for this system.
+                                See [Smoothing Kernels](@ref smoothing_kernel).
 - `viscosity`:                  Viscosity model for this system (default: no viscosity).
                                 Recommended: [`ViscosityAdami`](@ref).
 - `acceleration`:               Acceleration vector for the system. (default: zero vector)

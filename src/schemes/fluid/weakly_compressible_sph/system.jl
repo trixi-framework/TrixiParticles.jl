@@ -1,9 +1,6 @@
 """
-    WeaklyCompressibleSPHSystem(initial_condition;
-                                smoothing_kernel,
-                                smoothing_length,
-                                density_calculator,
-                                state_equation,
+    WeaklyCompressibleSPHSystem(initial_condition; density_calculator, state_equation,
+                                smoothing_kernel, smoothing_length,
                                 acceleration=ntuple(_ -> 0.0, NDIMS),
                                 viscosity=nothing, density_diffusion=nothing,
                                 pressure_acceleration=nothing,
@@ -22,13 +19,13 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
 - `initial_condition`:  [`InitialCondition`](@ref) representing the system's particles.
 
 # Keywords
-- `smoothing_kernel`:            Smoothing kernel to be used for this system.
-                                 See [Smoothing Kernels](@ref smoothing_kernel).
-- `smoothing_length`:            Smoothing length to be used for this system.
-                                 See [Smoothing Kernels](@ref smoothing_kernel).
-- `density_calculator`:          Density calculator for the system.
-                                 See [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
-- `state_equation`:              Equation of state for the system. See [`StateEquationCole`](@ref).
+- `density_calculator`:         Density calculator for the system.
+                                See [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
+- `state_equation`:             Equation of state for the system. See [`StateEquationCole`](@ref).
+- `smoothing_kernel`:           Smoothing kernel to be used for this system.
+                                See [Smoothing Kernels](@ref smoothing_kernel).
+- `smoothing_length`:           Smoothing length to be used for this system.
+                                See [Smoothing Kernels](@ref smoothing_kernel).
 - `acceleration`:               Acceleration vector for the system. (default: zero vector)
 - `viscosity`:                  Viscosity model for this system (default: no viscosity).
                                 See [`ArtificialViscosityMonaghan`](@ref) or [`ViscosityAdami`](@ref).
