@@ -1,5 +1,6 @@
 # 2D dam break simulation using implicit incompressible SPH (IISPH)
 using TrixiParticles
+using OrdinaryDiffEqSymplecticRK
 
 fluid_particle_spacing = 0.6 / 40
 tspan = (0.0, 5.7 / sqrt(9.81 / 0.6))

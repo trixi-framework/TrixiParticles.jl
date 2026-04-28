@@ -130,8 +130,9 @@ plot!(geometry, linestyle=:dash, label=nothing, showaxis=false, color=:black,
 # which does not represent any physical law. Instead, we only use the simulation framework to time-integrate
 # the packing process.
 
-# We first need to import [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl).
-using OrdinaryDiffEq
+# We first need to import `OrdinaryDiffEqLowStorageRK`, a time integration sub-package
+# of [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl).
+using OrdinaryDiffEqLowStorageRK
 
 # Next, we set a background pressure. This can be chosen arbitrarily.
 # A higher value results in smaller time steps, but the final packed state

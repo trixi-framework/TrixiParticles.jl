@@ -6,11 +6,12 @@
 # which is one of our simplest example simulations.
 # For different setups and physics, take a look at [our other example files](@ref examples).
 
-# First, we import TrixiParticles.jl and
+# First, we import TrixiParticles.jl and the time integration sub-package
+# `OrdinaryDiffEqLowStorageRK` of
 # [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl), which we will
 # use at the very end for the time integration.
 using TrixiParticles
-using OrdinaryDiffEq
+using OrdinaryDiffEqLowStorageRK
 
 # ## Resolution
 
@@ -168,7 +169,7 @@ nothing # hide
 # We also want to save the current solution in regular intervals in terms of
 # simulation time as VTK, so that we can [look at the solution in ParaView](@ref Visualization).
 # The [`SolutionSavingCallback`](@ref) provides this functionality.
-# To pass the callbacks to OrdinaryDiffEq.jl, we have to bundle them into a
+# To pass the callbacks to the solver, we have to bundle them into a
 # `CallbackSet`.
 info_callback = InfoCallback(interval=50)
 saving_callback = SolutionSavingCallback(dt=0.02)
@@ -177,7 +178,8 @@ callbacks = CallbackSet(info_callback, saving_callback)
 nothing # hide
 
 # Finally, we can start the simulation by solving the `ODEProblem`.
-# We use the method `RDPK3SpFSAL35` of OrdinaryDiffEq.jl, which is a Runge-Kutta
+# We use the method `RDPK3SpFSAL35` from `OrdinaryDiffEqLowStorageRK`,
+# which is a Runge-Kutta
 # method with automatic (error based) time step size control.
 # This method is usually a good choice for prototyping, since we do not have to
 # worry about choosing a stable step size and can just run the simulation.

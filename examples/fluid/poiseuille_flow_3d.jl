@@ -10,7 +10,7 @@
 # including open boundary conditions.
 # ==========================================================================================
 using TrixiParticles
-using OrdinaryDiffEq
+using OrdinaryDiffEqLowStorageRK
 
 # ==========================================================================================
 # ==== Resolution

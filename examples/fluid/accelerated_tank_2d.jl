@@ -6,7 +6,7 @@
 # ==========================================================================================
 
 using TrixiParticles
-using OrdinaryDiffEq
+using OrdinaryDiffEqLowStorageRK
 
 # Resolution
 fluid_particle_spacing = 0.05

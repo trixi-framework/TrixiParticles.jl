@@ -13,7 +13,7 @@
 # ==========================================================================================
 
 using TrixiParticles
-using OrdinaryDiffEq, Plots
+using OrdinaryDiffEqLowStorageRK, Plots
 
 filename = "circle"
 file = pkgdir(TrixiParticles, "examples", "preprocessing", "data", filename * ".asc")

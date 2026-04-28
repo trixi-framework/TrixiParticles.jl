@@ -8,9 +8,12 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### API Changes
 
-- `DensityDiffusionAntuono` now only takes only one kwarg `delta` (#1142).
 - Clipping of negative pressure values in the `DummyParticleBoundaryModel` is now disabled
   by default and can be enabled with the keyword argument `clip_negative_pressure=true` (#1143).
+- The example files are now loading sub-packages of OrdinaryDiffEq.jl instead of
+  OrdinaryDiffEq.jl itself. For example, `using OrdinaryDiffEqLowStorageRK` instead of
+  `using OrdinaryDiffEq` (#1154).
+- `DensityDiffusionAntuono` now only takes only one kwarg `delta` (#1142).
 - Return type of `vtk2trixi` changed to `NamedTuple` including an optional
   `:initial_condition` field if `create_initial_condition=true` is passed (#959).
 - Public system constructors now use keyword arguments for configuration values.

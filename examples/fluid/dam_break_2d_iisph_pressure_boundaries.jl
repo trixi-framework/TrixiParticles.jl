@@ -1,5 +1,6 @@
 # 2D dam break simulation using implicit incompressible SPH (IISPH) with pressure boundaries
 using TrixiParticles
+using OrdinaryDiffEqSymplecticRK
 
 tspan = (0.0, 5.7 / sqrt(9.81 / 0.6))
 

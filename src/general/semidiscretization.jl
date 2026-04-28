@@ -325,7 +325,7 @@ in the solution `sol`.
 
 # Arguments
 - `semi`:   The semidiscretization
-- `sol`:    The `ODESolution` returned by `solve` of `OrdinaryDiffEq`
+- `sol`:    The `ODESolution` returned by `solve` of OrdinaryDiffEq.jl
 """
 function restart_with!(semi, sol; reset_threads=true)
     # Optionally reset Polyester.jl threads. See
