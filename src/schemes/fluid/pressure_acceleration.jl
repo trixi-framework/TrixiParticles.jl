@@ -10,6 +10,7 @@
     # Since this is one of the most performance critical functions, using fast divisions
     # here gives a significant speedup on GPUs.
     # See the docs page "Development" for more details on `div_fast`.
+    # -m_b * (p_a / ρ_a^2 + p_b / ρ_b^2) * ∇W_ab
     return -m_b * (div_fast(p_a, rho_a^2) + div_fast(p_b, rho_b^2)) * W_a
 end
 
@@ -35,6 +36,7 @@ end
     # Since this is one of the most performance critical functions, using fast divisions
     # here gives a significant speedup on GPUs.
     # See the docs page "Development" for more details on `div_fast`.
+    # -m_b * (p_a + p_b) / (ρ_a * ρ_b) * ∇W_ab
     return -m_b * div_fast(p_a + p_b, rho_a * rho_b) * W_a
 end
 

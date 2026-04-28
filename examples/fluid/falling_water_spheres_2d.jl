@@ -7,7 +7,7 @@
 # ==========================================================================================
 
 using TrixiParticles
-using OrdinaryDiffEq
+using OrdinaryDiffEqLowStorageRK
 
 # ==========================================================================================
 # ==== Resolution
@@ -20,20 +20,21 @@ spacing_ratio = 1
 # ==== Experiment Setup
 gravity = 9.81
 tspan = (0.0, 0.3)
+acceleration = (0.0, -gravity)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (0.0, 0.0)
 tank_size = (2.0, 0.5)
+faces = (true, true, true, false)
 
 fluid_density = 1000.0
 sound_speed = 100
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1)
 
-tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
-                       n_layers=boundary_layers, spacing_ratio=spacing_ratio,
-                       faces=(true, true, true, false),
-                       acceleration=(0.0, -gravity), state_equation=state_equation)
+tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density;
+                       n_layers=boundary_layers, spacing_ratio, faces, acceleration,
+                       state_equation)
 
 sphere_radius = 0.05
 
@@ -56,35 +57,40 @@ fluid_density_calculator = ContinuityDensity()
 
 nu = 0.005
 alpha = 8 * nu / (fluid_smoothing_length * sound_speed)
-viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
+viscosity = ArtificialViscosityMonaghan(; alpha, beta=0.0)
 density_diffusion = DensityDiffusionAntuono(delta=0.1)
+surface_tension_coefficient = 0.05
+surface_tension = SurfaceTensionAkinci(; surface_tension_coefficient)
 
-sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1, fluid_smoothing_kernel,
-                                                     fluid_smoothing_length,
-                                                     sound_speed, viscosity=viscosity,
+sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1;
+                                                     smoothing_kernel=fluid_smoothing_kernel,
+                                                     smoothing_length=fluid_smoothing_length,
+                                                     sound_speed, viscosity,
                                                      density_calculator=ContinuityDensity(),
-                                                     acceleration=(0.0, -gravity),
-                                                     surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.05),
+                                                     acceleration, surface_tension,
                                                      reference_particle_spacing=fluid_particle_spacing)
 
-sphere = WeaklyCompressibleSPHSystem(sphere2, fluid_density_calculator,
-                                     state_equation, fluid_smoothing_kernel,
-                                     fluid_smoothing_length, viscosity=viscosity,
-                                     density_diffusion=density_diffusion,
-                                     acceleration=(0.0, -gravity))
+sphere = WeaklyCompressibleSPHSystem(sphere2; smoothing_kernel=fluid_smoothing_kernel,
+                                     smoothing_length=fluid_smoothing_length,
+                                     density_calculator=fluid_density_calculator,
+                                     state_equation, viscosity, density_diffusion,
+                                     acceleration)
 
 # ==========================================================================================
 # ==== Boundary
 boundary_density_calculator = AdamiPressureExtrapolation()
 wall_viscosity = nu
-boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=state_equation,
-                                             boundary_density_calculator,
-                                             fluid_smoothing_kernel, fluid_smoothing_length,
-                                             viscosity=ViscosityAdami(nu=wall_viscosity),
-                                             reference_particle_spacing=fluid_particle_spacing)
 
-boundary_system = WallBoundarySystem(tank.boundary, boundary_model,
+# Clip negative boundary pressure values to avoid sticking artifacts at the boundary.
+boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
+                                             boundary_density_calculator,
+                                             fluid_smoothing_kernel, fluid_smoothing_length;
+                                             state_equation,
+                                             viscosity=ViscosityAdami(nu=wall_viscosity),
+                                             reference_particle_spacing=fluid_particle_spacing,
+                                             clip_negative_pressure=true)
+
+boundary_system = WallBoundarySystem(tank.boundary, boundary_model;
                                      adhesion_coefficient=1.0)
 
 # ==========================================================================================

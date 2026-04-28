@@ -22,9 +22,10 @@
         fluid = rectangular_patch(particle_spacing, (3, 3), perturbation_factor=0.0,
                                   perturbation_factor_position=0.0,
                                   offset=(-1.5particle_spacing, 0.0))
-        fluid_system = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(),
-                                                   state_equation, smoothing_kernel,
-                                                   smoothing_length)
+        fluid_system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
+                                                   smoothing_length,
+                                                   density_calculator=ContinuityDensity(),
+                                                   state_equation)
 
         # Use double spacing for the boundary (exactly the opposite of what we would do
         # in a simulation) to test that forces grow infinitely when a fluid particle

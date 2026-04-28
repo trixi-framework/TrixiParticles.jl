@@ -63,7 +63,7 @@ for file_name in input_files
                           interpolated_mse(ref.time, ref.Uy, data["time"], displacements)
 
             label = "$label_prefix dp = $(@sprintf("%.8f", particle_spacing_)) mse=$(@sprintf("%.8f", mse_results))"
-            lines!(ax, times, displacements, label=label)
+            lines!(ax, times, displacements; label)
         end
     end
 end

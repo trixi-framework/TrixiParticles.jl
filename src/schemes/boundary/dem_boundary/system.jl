@@ -1,8 +1,14 @@
 """
-    BoundaryDEMSystem(initial_condition, normal_stiffness)
+    BoundaryDEMSystem(initial_condition; normal_stiffness)
 
 System for boundaries modeled by boundary particles.
 The interaction between fluid and boundary particles is specified by the boundary model.
+
+# Arguments
+- `initial_condition`: Initial condition of the boundary particles.
+
+# Keywords
+- `normal_stiffness`: Normal stiffness used for DEM wall contact.
 
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in a future releases.
@@ -16,6 +22,8 @@ struct BoundaryDEMSystem{NDIMS, ELTYPE <: Real, IC,
     normal_stiffness  :: ELTYPE
     buffer            :: Nothing
 
+    # This constructor is necessary for Adapt.jl to work with this struct.
+    # See the comments in general/gpu.jl for more details.
     function BoundaryDEMSystem(initial_condition, coordinates, radius,
                                normal_stiffness, buffer)
         NDIMS = ndims(initial_condition)
@@ -27,9 +35,7 @@ struct BoundaryDEMSystem{NDIMS, ELTYPE <: Real, IC,
     end
 end
 
-# The default constructor needs to be accessible for Adapt.jl to work with this struct.
-# See the comments in general/gpu.jl for more details.
-function BoundaryDEMSystem(initial_condition, normal_stiffness)
+function BoundaryDEMSystem(initial_condition; normal_stiffness)
     ELTYPE = eltype(initial_condition)
     coordinates = initial_condition.coordinates
     radius = initial_condition.particle_spacing *

@@ -3,9 +3,8 @@
         coordinates = fill(1.0, 2, 12)
         velocity = fill(2.0, 2, 12)
 
-        expected_data = InitialCondition(coordinates=coordinates, velocity=velocity,
-                                         density=1000.0, pressure=900.0,
-                                         particle_spacing=0.1)
+        expected_data = InitialCondition(; coordinates, velocity, density=1000.0,
+                                         pressure=900.0, particle_spacing=0.1)
 
         expected_scalar = 3.0
         expected_vector = fill(expected_scalar, nparticles(expected_data))
@@ -117,9 +116,10 @@
         end
 
         @testset verbose=true "`AbstractFluidSystem`" begin
-            fluid_system = EntropicallyDampedSPHSystem(expected_data,
-                                                       SchoenbergCubicSplineKernel{2}(),
-                                                       1.5, 1.5)
+            fluid_system = EntropicallyDampedSPHSystem(expected_data;
+                                                       smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
+                                                       smoothing_length=1.5,
+                                                       sound_speed=1.5)
 
             # Overwrite values because we skip the update step
             fluid_system.cache.density .= expected_data.density
