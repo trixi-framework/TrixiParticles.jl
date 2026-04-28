@@ -1,7 +1,5 @@
 """
-    DEMSystem(initial_condition;
-              contact_model,
-              damping_coefficient=0.0001,
+    DEMSystem(initial_condition; contact_model, damping_coefficient=0.0001,
               acceleration=ntuple(_ -> 0.0, NDIMS),
               source_terms=nothing,
               radius=nothing)
