@@ -590,7 +590,8 @@
                                                      reference_particle_spacing=particle_spacing)
 
         function run_setup(fluid_positions)
-            rigid_ic = InitialCondition(; coordinates=[-0.5 0.5 0.0 0.0],
+            rigid_ic = InitialCondition(; coordinates=[-0.5 0.5
+                                                        0.0 0.0],
                                         velocity=zeros(2, 2),
                                         mass=fill(particle_volume * rigid_density, 2),
                                         density=fill(rigid_density, 2), particle_spacing)
