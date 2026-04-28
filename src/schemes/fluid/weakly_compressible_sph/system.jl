@@ -1,9 +1,6 @@
 """
-    WeaklyCompressibleSPHSystem(initial_condition;
-                                smoothing_kernel,
-                                smoothing_length,
-                                density_calculator,
-                                state_equation,
+    WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
+                                smoothing_length, density_calculator, state_equation,
                                 acceleration=ntuple(_ -> 0.0, NDIMS),
                                 viscosity=nothing, density_diffusion=nothing,
                                 pressure_acceleration=nothing,
