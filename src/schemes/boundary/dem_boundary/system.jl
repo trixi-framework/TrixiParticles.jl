@@ -22,6 +22,8 @@ struct BoundaryDEMSystem{NDIMS, ELTYPE <: Real, IC,
     normal_stiffness  :: ELTYPE
     buffer            :: Nothing
 
+    # This constructor is necessary for Adapt.jl to work with this struct.
+    # See the comments in general/gpu.jl for more details.
     function BoundaryDEMSystem(initial_condition, coordinates, radius,
                                normal_stiffness, buffer)
         NDIMS = ndims(initial_condition)
