@@ -1,8 +1,6 @@
 """
-    ImplicitIncompressibleSPHSystem(initial_condition;
-                                    smoothing_kernel,
-                                    smoothing_length,
-                                    reference_density,
+    ImplicitIncompressibleSPHSystem(initial_condition; smoothing_kernel,
+                                    smoothing_length, reference_density,
                                     viscosity=nothing,
                                     acceleration=ntuple(_ -> 0.0, NDIMS),
                                     omega=0.5, max_error=0.1, min_iterations=2,
