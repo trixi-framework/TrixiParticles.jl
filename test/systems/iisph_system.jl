@@ -124,11 +124,11 @@
 
             # time_step must be strictly positive
             error_str7 = "`time_step must be a positive number"
-            @test_throws ArgumentError(error_str6) ImplicitIncompressibleSPHSystem(initial_condition;
+            @test_throws ArgumentError(error_str7) ImplicitIncompressibleSPHSystem(initial_condition;
                                                                                    smoothing_kernel,
                                                                                    smoothing_length,
                                                                                    reference_density,
-                                                                                   min_iterations=10,
+                                                                                   min_iterations=1,
                                                                                    max_iterations=5,
                                                                                    time_step=0)
         end
