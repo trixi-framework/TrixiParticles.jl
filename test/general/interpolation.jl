@@ -108,8 +108,7 @@
         boundary_model = BoundaryModelDummyParticles(bnd.density, bnd.mass,
                                                      AdamiPressureExtrapolation(),
                                                      smoothing_kernel, smoothing_length;
-                                                     state_equation,
-                                                     viscosity)
+                                                     state_equation, viscosity)
 
         boundary_system = WallBoundarySystem(bnd, boundary_model)
 
