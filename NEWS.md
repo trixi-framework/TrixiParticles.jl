@@ -13,7 +13,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   `:initial_condition` field if `create_initial_condition=true` is passed. (#959)
 - The example files are now loading sub-packages of OrdinaryDiffEq.jl instead of
   OrdinaryDiffEq.jl itself. For example, `using OrdinaryDiffEqLowStorageRK` instead of
-  `using OrdinaryDiffEq` (#1152).
+  `using OrdinaryDiffEq` (#1154).
 
 ## Version 0.4.4
 
