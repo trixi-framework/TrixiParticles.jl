@@ -75,10 +75,8 @@
                                      young_modulus=1e6,
                                      poisson_ratio=0.3,
                                      boundary_model=boundary_model_adami),
-            TotalLagrangianSPHSystem(boundary;
-                                     smoothing_kernel,
-                                     smoothing_length,
-                                     young_modulus=1e6,
+            TotalLagrangianSPHSystem(boundary; smoothing_kernel,
+                                     smoothing_length, young_modulus=1e6,
                                      poisson_ratio=0.3,
                                      boundary_model=boundary_model_bernoulli)
         ]
