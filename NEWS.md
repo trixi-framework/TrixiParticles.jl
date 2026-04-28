@@ -21,6 +21,18 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   See [#1131](https://github.com/trixi-framework/TrixiParticles.jl/issues/1131)
   for a detailed breakdown including benchmark results.
 
+### Features
+
+- Added a `SortingCallback` that can be used to sort particles by their spatial location
+  to improve performance (#1044).
+
+### Important Bugfixes
+
+- Fixed a bug where `DensityDiffusionAntuono` could not be used together with open
+  boundaries and `BoundaryModelDynamicalPressureZhang` (#1043).
+- Fixed a bug where no-slip boundary conditions were not applied correctly when not using
+  `ViscosityAdami` (#1089).
+
 ## Version 0.4.4
 
 ### API Changes
