@@ -13,7 +13,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - The example files are now loading sub-packages of OrdinaryDiffEq.jl instead of
   OrdinaryDiffEq.jl itself. For example, `using OrdinaryDiffEqLowStorageRK` instead of
   `using OrdinaryDiffEq` (#1154).
-- `DensityDiffusionAntuono` now only takes only one kwarg `delta` (#1142).
+- `DensityDiffusionAntuono` now only has the kwarg `delta` and no positional
+  arguments (#1142).
 - Return type of `vtk2trixi` changed to `NamedTuple` including an optional
   `:initial_condition` field if `create_initial_condition=true` is passed (#959).
 - Public system constructors now use keyword arguments for configuration values.
@@ -70,6 +71,18 @@ BoundaryDEMSystem(ic; normal_stiffness)
   (#1128, #1117, #1124, #1125, #1130, #1116, #1139, #1149).
   See [#1131](https://github.com/trixi-framework/TrixiParticles.jl/issues/1131)
   for a detailed breakdown including benchmark results.
+
+### Features
+
+- Added a `SortingCallback` that can be used to sort particles by their spatial location
+  to improve performance (#1044).
+
+### Important Bugfixes
+
+- Fixed a bug where `DensityDiffusionAntuono` could not be used together with open
+  boundaries and `BoundaryModelDynamicalPressureZhang` (#1043).
+- Fixed a bug where no-slip boundary conditions were not applied correctly when not using
+  `ViscosityAdami` (#1089).
 
 ## Version 0.4.4
 
