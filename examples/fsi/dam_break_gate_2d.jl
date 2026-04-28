@@ -118,15 +118,19 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
 # ==========================================================================================
 # ==== Boundary
 boundary_density_calculator = AdamiPressureExtrapolation()
+
+# Clip negative boundary pressure values to avoid sticking artifacts at the boundary.
 boundary_model_tank = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                                   state_equation=state_equation,
                                                   boundary_density_calculator,
-                                                  smoothing_kernel, smoothing_length)
+                                                  smoothing_kernel, smoothing_length,
+                                                  clip_negative_pressure=true)
 
 boundary_model_gate = BoundaryModelDummyParticles(gate.density, gate.mass,
                                                   state_equation=state_equation,
                                                   boundary_density_calculator,
-                                                  smoothing_kernel, smoothing_length)
+                                                  smoothing_kernel, smoothing_length,
+                                                  clip_negative_pressure=true)
 
 boundary_system_tank = WallBoundarySystem(tank.boundary, boundary_model_tank)
 boundary_system_gate = WallBoundarySystem(gate, boundary_model_gate,
@@ -145,7 +149,8 @@ boundary_model_structure = BoundaryModelDummyParticles(hydrodynamic_densites,
                                                        hydrodynamic_masses,
                                                        state_equation=state_equation,
                                                        AdamiPressureExtrapolation(),
-                                                       smoothing_kernel, smoothing_length)
+                                                       smoothing_kernel, smoothing_length,
+                                                       clip_negative_pressure=true)
 
 structure_system = TotalLagrangianSPHSystem(structure,
                                             structure_smoothing_kernel,

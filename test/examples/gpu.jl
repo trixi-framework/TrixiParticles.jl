@@ -508,14 +508,12 @@ end
                                                              joinpath(examples_dir(),
                                                                       "fluid",
                                                                       "pipe_flow_2d.jl"),
+                                                             wcsph=false,
                                                              coordinates_eltype=Float32,
-                                                             open_boundary_model=BoundaryModelMirroringTafuni(),
+                                                             open_boundary_model=BoundaryModelMirroringTafuni(;
+                                                                                                              mirror_method=ZerothOrderMirroring()),
                                                              boundary_type_in=BidirectionalFlow(),
                                                              boundary_type_out=BidirectionalFlow(),
-                                                             reference_density_in=nothing,
-                                                             reference_pressure_in=nothing,
-                                                             reference_density_out=nothing,
-                                                             reference_velocity_out=nothing,
                                                              parallelization_backend=Main.parallelization_backend) [
                 r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
             ]
@@ -530,17 +528,12 @@ end
                                                              joinpath(examples_dir(),
                                                                       "fluid",
                                                                       "pipe_flow_2d.jl"),
-                                                             wcsph=true, sound_speed=20.0f0,
+                                                             wcsph=true,
                                                              coordinates_eltype=Float32,
                                                              open_boundary_model=BoundaryModelMirroringTafuni(;
                                                                                                               mirror_method=ZerothOrderMirroring()),
                                                              boundary_type_in=BidirectionalFlow(),
                                                              boundary_type_out=BidirectionalFlow(),
-                                                             reference_density_in=nothing,
-                                                             reference_pressure_in=nothing,
-                                                             reference_density_out=nothing,
-                                                             reference_pressure_out=nothing,
-                                                             reference_velocity_out=nothing,
                                                              parallelization_backend=Main.parallelization_backend) [
                 r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
             ]
