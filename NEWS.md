@@ -27,7 +27,7 @@ Existing optional keyword arguments remain available. For example, the
 `density_calculator` keyword of `EntropicallyDampedSPHSystem` still defaults to
 `SummationDensity()`.
 
-Use these rewrites, where `ic` is the initial condition, `kernel` is the
+Here are examples, where `ic` is the initial condition, `kernel` is the
 smoothing kernel, and `h` is the smoothing length:
 
 ```julia
