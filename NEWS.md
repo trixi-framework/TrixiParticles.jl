@@ -15,7 +15,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   `using OrdinaryDiffEq` (#1154).
 - `DensityDiffusionAntuono` now only takes only one kwarg `delta` (#1142).
 - Return type of `vtk2trixi` changed to `NamedTuple` including an optional
-  `:initial_condition` field if `create_initial_condition=true` is passed. (#959)
+  `:initial_condition` field if `create_initial_condition=true` is passed (#959).
 
 ## Version 0.4.4
 
@@ -38,6 +38,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 - Fixed the periodic array of cylinders example file (#975).
 - A `StepsizeCallback` can now be used with open boundaries (#1074).
+- Fixed a bug with no-slip boundary conditions when using any viscosity model other than `ViscosityAdami` (#1089).
 
 ### Documentation
 
