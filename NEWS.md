@@ -8,7 +8,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### API Changes
 
-- `DensityDiffusionAntuono` now only takes only one kwarg `delta` (#1142).
+- `DensityDiffusionAntuono` now has only the kwarg `delta` and no positional
+  arguments (#1142).
 - Clipping of negative pressure values in the `DummyParticleBoundaryModel` is now disabled
   by default and can be enabled with the keyword argument `clip_negative_pressure=true` (#1143).
 - Return type of `vtk2trixi` changed to `NamedTuple` including an optional
