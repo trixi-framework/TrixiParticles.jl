@@ -101,8 +101,11 @@ function trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
     # Transfer to CPU if data is on the GPU. Do nothing if already on CPU.
     v_ode, u_ode, system, semi = transfer2cpu(v_ode_, u_ode_, system_, semi_)
 
-    v = wrap_v(v_ode, system, semi)
-    u = wrap_u(u_ode, system, semi)
+    system_index = system_indices(system, semi)
+    v = reshape(view(v_ode, semi.ranges_v[system_index]), v_nvariables(system),
+                n_integrated_particles(system))
+    u = reshape(view(u_ode, semi.ranges_u[system_index]), u_nvariables(system),
+                n_integrated_particles(system))
 
     overwrite = isnothing(iter)
 
