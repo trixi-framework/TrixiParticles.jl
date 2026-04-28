@@ -9,8 +9,17 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 ### API Changes
 
 - `DensityDiffusionAntuono` now only takes only one kwarg `delta` (#1142).
+- Clipping of negative pressure values in the `DummyParticleBoundaryModel` is now disabled
+  by default and can be enabled with the keyword argument `clip_negative_pressure=true` (#1143).
 - Return type of `vtk2trixi` changed to `NamedTuple` including an optional
-  `:initial_condition` field if `create_initial_condition=true` is passed. (#959)
+  `:initial_condition` field if `create_initial_condition=true` is passed (#959).
+
+### Performance
+
+- Greatly improved GPU performance of WCSPH and TLSPH
+  (#1128, #1117, #1124, #1125, #1130, #1116, #1139, #1149).
+  See [#1131](https://github.com/trixi-framework/TrixiParticles.jl/issues/1131)
+  for a detailed breakdown including benchmark results.
 
 ## Version 0.4.4
 
@@ -33,6 +42,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 - Fixed the periodic array of cylinders example file (#975).
 - A `StepsizeCallback` can now be used with open boundaries (#1074).
+- Fixed a bug with no-slip boundary conditions when using any viscosity model other than `ViscosityAdami` (#1089).
 
 ### Documentation
 

@@ -78,13 +78,16 @@ boundary_density_calculator = AdamiPressureExtrapolation()
 viscosity_wall = nothing
 # For a no-slip boundary condition, define a wall viscosity:
 # viscosity_wall = viscosity_fluid
+
+# Clip negative boundary pressure values to avoid sticking artifacts at the boundary.
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              boundary_density_calculator,
                                              smoothing_kernel, smoothing_length;
                                              state_equation,
                                              correction=nothing,
                                              reference_particle_spacing=0,
-                                             viscosity=viscosity_wall)
+                                             viscosity=viscosity_wall,
+                                             clip_negative_pressure=true)
 
 boundary_system = WallBoundarySystem(tank.boundary, boundary_model,
                                      adhesion_coefficient=0.0)

@@ -39,16 +39,20 @@
                                                                   viscosity_fluid=ViscosityMorris(nu=0.0015),
                                                                   fluid_density_calculator=SummationDensity(),
                                                                   clip_negative_pressure=true),
-            "WCSPH with smoothing_length=1.3" => (smoothing_length=1.3,),
-            "WCSPH with SchoenbergQuarticSplineKernel" => (smoothing_length=1.1,
+            "WCSPH with smoothing_length=1.3" => (smoothing_length=1.3 *
+                                                                   fluid_particle_spacing,),
+            "WCSPH with SchoenbergQuarticSplineKernel" => (smoothing_length=1.1 *
+                                                                            fluid_particle_spacing,
                                                            smoothing_kernel=SchoenbergQuarticSplineKernel{2}()),
-            "WCSPH with SchoenbergQuinticSplineKernel" => (smoothing_length=1.1,
+            "WCSPH with SchoenbergQuinticSplineKernel" => (smoothing_length=1.1 *
+                                                                            fluid_particle_spacing,
                                                            smoothing_kernel=SchoenbergQuinticSplineKernel{2}()),
-            "WCSPH with WendlandC2Kernel" => (smoothing_length=1.5,
+            "WCSPH with WendlandC2Kernel" => (smoothing_length=1.5 * fluid_particle_spacing,
                                               smoothing_kernel=WendlandC2Kernel{2}()),
-            "WCSPH with WendlandC4Kernel" => (smoothing_length=1.75,
+            "WCSPH with WendlandC4Kernel" => (smoothing_length=1.75 *
+                                                               fluid_particle_spacing,
                                               smoothing_kernel=WendlandC4Kernel{2}()),
-            "WCSPH with WendlandC6Kernel" => (smoothing_length=2.0,
+            "WCSPH with WendlandC6Kernel" => (smoothing_length=2.0 * fluid_particle_spacing,
                                               smoothing_kernel=WendlandC6Kernel{2}()),
             "EDAC with source term damping" => (source_terms=SourceTermDamping(damping_coefficient=1e-4),
                                                 fluid_system=EntropicallyDampedSPHSystem(tank.fluid;
@@ -426,6 +430,8 @@
         @trixi_test_nowarn trixi_include(@__MODULE__, tspan=(0.0, 0.5), wcsph=false,
                                          joinpath(examples_dir(), "fluid",
                                                   "pipe_flow_2d.jl"),
+                                         open_boundary_model=BoundaryModelMirroringTafuni(;
+                                                                                          mirror_method=ZerothOrderMirroring()),
                                          boundary_type_in=BidirectionalFlow(),
                                          boundary_type_out=BidirectionalFlow())
         @test sol.retcode == ReturnCode.Success
@@ -433,9 +439,11 @@
     end
 
     @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelMirroringTafuni (WCSPH)" begin
-        @trixi_test_nowarn trixi_include(@__MODULE__, tspan=(0.0, 0.5),
+        @trixi_test_nowarn trixi_include(@__MODULE__, tspan=(0.0, 0.5), wcsph=true,
                                          joinpath(examples_dir(), "fluid",
                                                   "pipe_flow_2d.jl"),
+                                         open_boundary_model=BoundaryModelMirroringTafuni(;
+                                                                                          mirror_method=ZerothOrderMirroring()),
                                          boundary_type_in=BidirectionalFlow(),
                                          boundary_type_out=BidirectionalFlow())
         @test sol.retcode == ReturnCode.Success
