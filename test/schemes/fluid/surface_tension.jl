@@ -110,11 +110,10 @@
         smoothing_length = 0.5
 
         # 3. Create the WeaklyCompressibleSPHSystem with Surface Tension
-        system = WeaklyCompressibleSPHSystem(ic,
-                                             density_calc,
-                                             eq_state,
-                                             kernel,
-                                             smoothing_length;
+        system = WeaklyCompressibleSPHSystem(ic; smoothing_kernel=kernel,
+                                             smoothing_length,
+                                             density_calculator=density_calc,
+                                             state_equation=eq_state,
                                              surface_tension=SurfaceTensionMomentumMorris(surface_tension_coefficient=1.0),
                                              surface_normal_method=ColorfieldSurfaceNormal(interface_threshold=0.1,
                                                                                            ideal_density_threshold=0.9),

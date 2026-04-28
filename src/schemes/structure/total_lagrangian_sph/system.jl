@@ -25,8 +25,8 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
                         See [Smoothing Kernels](@ref smoothing_kernel).
 - `young_modulus`:      Young's modulus.
 - `poisson_ratio`:      Poisson ratio.
-- `clamped_particles`: Indices specifying the clamped particles that are fixed
-                       and not integrated to clamp the structure.
+- `clamped_particles`:  Indices specifying the clamped particles that are fixed
+                        and not integrated to clamp the structure.
 - `clamped_particles_motion`: Prescribed motion of the clamped particles.
                     If `nothing` (default), the clamped particles are fixed.
                     See [`PrescribedMotion`](@ref) for details.
@@ -99,12 +99,8 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
     cache                    :: C
 end
 
-function TotalLagrangianSPHSystem(initial_condition;
-                                  smoothing_kernel,
-                                  smoothing_length,
-                                  young_modulus,
-                                  poisson_ratio,
-                                  clamped_particles=Int[],
+function TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing_length,
+                                  young_modulus, poisson_ratio, clamped_particles=Int[],
                                   clamped_particles_motion=nothing,
                                   acceleration=ntuple(_ -> zero(eltype(initial_condition)),
                                                       ndims(smoothing_kernel)),

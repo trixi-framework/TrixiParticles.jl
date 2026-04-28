@@ -16,8 +16,8 @@ include("pressure_model.jl")
 
     smoothing_length = 1.3 * particle_spacing
     smoothing_kernel = WendlandC2Kernel{ndims(fluid)}()
-    fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_length,
-                                               1.0)
+    fluid_system = EntropicallyDampedSPHSystem(fluid; smoothing_kernel,
+                                               smoothing_length, sound_speed=1.0)
     fluid_system.cache.density .= fluid.density
 
     # Use a smaller cross-sectional area to test user-defined area functionality

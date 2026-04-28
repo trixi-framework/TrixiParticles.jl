@@ -98,9 +98,8 @@ if use_wcsph
                                        exponent=1)
     fluid_system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel, smoothing_length,
                                                density_calculator=fluid_density_calculator,
-                                               state_equation,
+                                               state_equation, shifting_technique,
                                                buffer_size=n_buffer_particles,
-                                               shifting_technique,
                                                density_diffusion=DensityDiffusionMolteniColagrossi(delta=0.1),
                                                viscosity)
 else

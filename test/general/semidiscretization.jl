@@ -131,8 +131,10 @@
             boundary_model = BoundaryModelDummyParticles(ic.density, ic.mass,
                                                          SummationDensity(), kernel, 1.0)
             boundary_system = WallBoundarySystem(ic, boundary_model)
-            fluid_system = WeaklyCompressibleSPHSystem(ic, SummationDensity(), nothing,
-                                                       kernel, 1.0)
+            fluid_system = WeaklyCompressibleSPHSystem(ic; smoothing_kernel=kernel,
+                                                       smoothing_length=1.0,
+                                                       density_calculator=SummationDensity(),
+                                                       state_equation=nothing)
 
             error_str = "`WeaklyCompressibleSPHSystem` cannot be used without setting a " *
                         "`state_equation` for all boundary models"

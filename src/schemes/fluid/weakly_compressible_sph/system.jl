@@ -85,23 +85,9 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K, 
     cache                             :: C
 end
 
-# Keyword-only public front door used by the examples and docs.
-function WeaklyCompressibleSPHSystem(initial_condition;
-                                     smoothing_kernel,
-                                     smoothing_length,
-                                     density_calculator,
-                                     state_equation,
-                                     kwargs...)
-    return WeaklyCompressibleSPHSystem(initial_condition, density_calculator,
-                                       state_equation, smoothing_kernel,
-                                       smoothing_length; kwargs...)
-end
-
-# The default constructor needs to be accessible for Adapt.jl to work with this struct.
-# See the comments in general/gpu.jl for more details.
-function WeaklyCompressibleSPHSystem(initial_condition, density_calculator, state_equation,
-                                     smoothing_kernel, smoothing_length;
-                                     acceleration=ntuple(_ -> zero(eltype(initial_condition)),
+function WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
+                                     smoothing_length, density_calculator,
+                                     state_equation, acceleration=ntuple(_ -> zero(eltype(initial_condition)),
                                                          ndims(smoothing_kernel)),
                                      viscosity=nothing, density_diffusion=nothing,
                                      pressure_acceleration=nothing,

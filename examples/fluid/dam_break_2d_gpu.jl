@@ -18,20 +18,13 @@
 
 using TrixiParticles
 
-fluid_particle_spacing = 0.6 / 40
-spacing_ratio = 1
-boundary_layers = 4
-coordinates_eltype = Float64
 tspan = (0.0, 5.7 / sqrt(9.81 / 0.6))
 
 # Load setup from dam break example
 trixi_include(@__MODULE__,
-              joinpath(examples_dir(), "fluid", "dam_break_2d.jl");
-              fluid_particle_spacing,
-              spacing_ratio, boundary_layers,
-              coordinates_eltype,
-              tspan,
-              sol=nothing, ode=nothing)
+              joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
+              fluid_particle_spacing=0.6 / 40, spacing_ratio=1, boundary_layers=4,
+              coordinates_eltype=Float64, tspan, sol=nothing, ode=nothing)
 
 # Define a GPU-compatible neighborhood search
 min_corner = minimum(tank.boundary.coordinates, dims=2)
@@ -40,6 +33,10 @@ cell_list = FullGridCellList(; min_corner, max_corner)
 neighborhood_search = GridNeighborhoodSearch{2}(; cell_list)
 
 # Run the dam break simulation with this neighborhood search
-trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl");
-              neighborhood_search, fluid_particle_spacing, tspan, boundary_layers,
-              spacing_ratio, parallelization_backend=PolyesterBackend(), coordinates_eltype)
+trixi_include(@__MODULE__,
+              joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
+              neighborhood_search, fluid_particle_spacing,
+              tspan, smoothing_length, density_diffusion,
+              boundary_layers, spacing_ratio, boundary_model,
+              parallelization_backend=PolyesterBackend(), boundary_density_calculator,
+              coordinates_eltype=Float64)

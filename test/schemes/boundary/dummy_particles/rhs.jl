@@ -17,11 +17,11 @@
         # Create several neighbor systems to test fluid-neighbor interaction
         function second_systems(initial_condition, density_calculator, state_equation,
                                 smoothing_kernel, smoothing_length)
-            second_fluid_system = WeaklyCompressibleSPHSystem(initial_condition,
-                                                              density_calculator,
-                                                              state_equation,
+            second_fluid_system = WeaklyCompressibleSPHSystem(initial_condition;
                                                               smoothing_kernel,
-                                                              smoothing_length)
+                                                              smoothing_length,
+                                                              density_calculator,
+                                                              state_equation)
 
             # Overwrite `second_fluid_system.pressure` because we skip the update step
             second_fluid_system.pressure .= initial_condition.pressure
@@ -147,11 +147,11 @@
                                                        ic.pressure[(center_particle + 1):end],
                                                        ic.particle_spacing)
 
-                fluid_system = WeaklyCompressibleSPHSystem(fluid,
-                                                           density_calculator,
-                                                           state_equation,
+                fluid_system = WeaklyCompressibleSPHSystem(fluid;
                                                            smoothing_kernel,
-                                                           smoothing_length)
+                                                           smoothing_length,
+                                                           density_calculator,
+                                                           state_equation)
                 n_particles = TrixiParticles.nparticles(fluid_system)
 
                 # Overwrite `fluid_system.pressure` because we skip the update step

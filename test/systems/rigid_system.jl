@@ -451,9 +451,10 @@
         smoothing_length = 0.12
         state_equation = StateEquationCole(; sound_speed=10.0, reference_density=1000.0,
                                            exponent=7.0)
-        fluid_system = WeaklyCompressibleSPHSystem(rigid_ic, SummationDensity(),
-                                                   state_equation, smoothing_kernel,
-                                                   smoothing_length)
+        fluid_system = WeaklyCompressibleSPHSystem(rigid_ic; smoothing_kernel,
+                                                   smoothing_length,
+                                                   density_calculator=SummationDensity(),
+                                                   state_equation)
 
         @test_throws ArgumentError Semidiscretization(fluid_system, rigid_system)
 
@@ -463,11 +464,11 @@
                                                            smoothing_length)
         rigid_system_with_dummy = RigidBodySystem(rigid_ic;
                                                   boundary_model=rigid_boundary_model)
-        fluid_with_surface_tension = WeaklyCompressibleSPHSystem(rigid_ic,
-                                                                 SummationDensity(),
-                                                                 state_equation,
+        fluid_with_surface_tension = WeaklyCompressibleSPHSystem(rigid_ic;
                                                                  smoothing_kernel,
-                                                                 smoothing_length;
+                                                                 smoothing_length,
+                                                                 density_calculator=SummationDensity(),
+                                                                 state_equation,
                                                                  surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.072),
                                                                  reference_particle_spacing=0.1)
 
@@ -494,10 +495,10 @@
                                         mass=[particle_volume * fluid_density],
                                         density=[fluid_density], particle_spacing)
 
-            fluid_system = WeaklyCompressibleSPHSystem(fluid_ic, SummationDensity(),
+            fluid_system = WeaklyCompressibleSPHSystem(fluid_ic; smoothing_kernel,
+                                                       smoothing_length,
+                                                       density_calculator=SummationDensity(),
                                                        state_equation,
-                                                       smoothing_kernel,
-                                                       smoothing_length;
                                                        surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.05),
                                                        reference_particle_spacing=particle_spacing)
 
@@ -604,8 +605,10 @@
                                             mass=[particle_volume * fluid_density],
                                             density=[fluid_density], particle_spacing)
 
-                WeaklyCompressibleSPHSystem(fluid_ic, SummationDensity(), state_equation,
-                                            smoothing_kernel, smoothing_length)
+                WeaklyCompressibleSPHSystem(fluid_ic; smoothing_kernel,
+                                            smoothing_length,
+                                            density_calculator=SummationDensity(),
+                                            state_equation)
             end
 
             semi = Semidiscretization(fluid_systems..., rigid_system)
@@ -674,10 +677,10 @@
                                             velocity=zeros(2, 1),
                                             mass=[particle_volume * fluid_density],
                                             density=[fluid_density], particle_spacing)
-        fluid_system = WeaklyCompressibleSPHSystem(fluid_support_ic, SummationDensity(),
-                                                   state_equation,
-                                                   smoothing_kernel,
-                                                   smoothing_length)
+        fluid_system = WeaklyCompressibleSPHSystem(fluid_support_ic; smoothing_kernel,
+                                                   smoothing_length,
+                                                   density_calculator=SummationDensity(),
+                                                   state_equation)
 
         boundary_face = ([2.0, -0.5], [2.0, 0.5])
         zone = BoundaryZone(; boundary_face, face_normal=(1.0, 0.0), density=fluid_density,

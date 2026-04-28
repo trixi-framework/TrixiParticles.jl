@@ -58,16 +58,17 @@
                             "IISPH"
                         ]
                             if system_name == "WCSPH"
-                                system = WeaklyCompressibleSPHSystem(fluid,
+                                system = WeaklyCompressibleSPHSystem(fluid;
+                                                                     smoothing_kernel,
+                                                                     smoothing_length,
                                                                      density_calculator,
                                                                      state_equation,
-                                                                     smoothing_kernel,
-                                                                     smoothing_length;
                                                                      pressure_acceleration)
                             elseif system_name == "EDAC"
-                                system = EntropicallyDampedSPHSystem(fluid,
+                                system = EntropicallyDampedSPHSystem(fluid;
                                                                      smoothing_kernel,
-                                                                     smoothing_length, 0.0;
+                                                                     smoothing_length,
+                                                                     sound_speed=0.0,
                                                                      density_calculator,
                                                                      pressure_acceleration)
                             elseif system_name == "IISPH"
@@ -131,12 +132,14 @@
                 # A larger number of particles will increase accumulated errors in the
                 # summation. A larger tolerance has to be used for the tests below.
                 fluid = rectangular_patch(particle_spacing, (3, 3); seed)
-                system_wcsph = WeaklyCompressibleSPHSystem(fluid, density_calculator,
-                                                           state_equation, smoothing_kernel,
-                                                           smoothing_length)
+                system_wcsph = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
+                                                           smoothing_length,
+                                                           density_calculator,
+                                                           state_equation)
 
-                system_edac = EntropicallyDampedSPHSystem(fluid, smoothing_kernel,
-                                                          smoothing_length, 0.0;
+                system_edac = EntropicallyDampedSPHSystem(fluid; smoothing_kernel,
+                                                          smoothing_length,
+                                                          sound_speed=0.0,
                                                           pressure_acceleration=nothing,
                                                           density_calculator)
 

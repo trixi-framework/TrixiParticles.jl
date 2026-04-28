@@ -49,8 +49,8 @@
 
         smoothing_length = 1.5 * particle_spacing
         smoothing_kernel = WendlandC2Kernel{ndims(domain_fluid)}()
-        fluid_system = EntropicallyDampedSPHSystem(domain_fluid, smoothing_kernel,
-                                                   smoothing_length, 1.0)
+        fluid_system = EntropicallyDampedSPHSystem(domain_fluid; smoothing_kernel,
+                                                   smoothing_length, sound_speed=1.0)
 
         fluid_system.cache.density .= domain_fluid.density
 
@@ -145,8 +145,8 @@
 
         smoothing_length = 1.5 * particle_spacing
         smoothing_kernel = WendlandC2Kernel{ndims(domain_fluid)}()
-        fluid_system = EntropicallyDampedSPHSystem(domain_fluid, smoothing_kernel,
-                                                   smoothing_length, 1.0)
+        fluid_system = EntropicallyDampedSPHSystem(domain_fluid; smoothing_kernel,
+                                                   smoothing_length, sound_speed=1.0)
 
         fluid_system.cache.density .= domain_fluid.density
 
@@ -213,8 +213,8 @@
 
         smoothing_length = 1.5 * particle_spacing
         smoothing_kernel = WendlandC2Kernel{ndims(domain_fluid)}()
-        fluid_system = EntropicallyDampedSPHSystem(domain_fluid, smoothing_kernel,
-                                                   smoothing_length, 1.0)
+        fluid_system = EntropicallyDampedSPHSystem(domain_fluid; smoothing_kernel,
+                                                   smoothing_length, sound_speed=1.0)
         fluid_system.cache.density .= 1000.0
 
         if i == 2
@@ -269,8 +269,9 @@
 
             smoothing_length = 1.2 * particle_spacing
             smoothing_kernel = WendlandC2Kernel{2}()
-            fluid_system = EntropicallyDampedSPHSystem(domain_fluid, smoothing_kernel,
-                                                       smoothing_length, 1.0)
+            fluid_system = EntropicallyDampedSPHSystem(domain_fluid; smoothing_kernel,
+                                                       smoothing_length,
+                                                       sound_speed=1.0)
 
             fluid_system.cache.density .= domain_fluid.density
 
@@ -348,10 +349,11 @@
             smoothing_kernel = WendlandC2Kernel{2}()
 
             # Use a temporary fluid system just to interpolate the pressure
-            interpolation_system = WeaklyCompressibleSPHSystem(entire_domain,
-                                                               ContinuityDensity(),
-                                                               nothing, smoothing_kernel,
-                                                               smoothing_length)
+            interpolation_system = WeaklyCompressibleSPHSystem(entire_domain;
+                                                               smoothing_kernel,
+                                                               smoothing_length,
+                                                               density_calculator=ContinuityDensity(),
+                                                               state_equation=nothing)
             interpolation_system.pressure .= entire_domain.pressure
 
             semi = Semidiscretization(interpolation_system)
@@ -551,9 +553,11 @@
         inflow = BoundaryZone(; boundary_face, boundary_type=InFlow(), face_normal,
                               open_boundary_layers=10, density=1.0, particle_spacing)
 
-        system_wcsph = WeaklyCompressibleSPHSystem(initial_condition, ContinuityDensity(),
-                                                   nothing,
-                                                   SchoenbergCubicSplineKernel{n_dims}(), 1)
+        system_wcsph = WeaklyCompressibleSPHSystem(initial_condition;
+                                                   smoothing_kernel=SchoenbergCubicSplineKernel{n_dims}(),
+                                                   smoothing_length=1,
+                                                   density_calculator=ContinuityDensity(),
+                                                   state_equation=nothing)
 
         open_boundary_wcsph = OpenBoundarySystem(inflow; fluid_system=system_wcsph,
                                                  buffer_size=0,
@@ -561,10 +565,10 @@
 
         @test TrixiParticles.v_nvariables(open_boundary_wcsph) == n_dims
 
-        system_edac_1 = EntropicallyDampedSPHSystem(initial_condition,
-                                                    SchoenbergCubicSplineKernel{n_dims}(),
-                                                    1.0,
-                                                    1.0)
+        system_edac_1 = EntropicallyDampedSPHSystem(initial_condition;
+                                                    smoothing_kernel=SchoenbergCubicSplineKernel{n_dims}(),
+                                                    smoothing_length=1.0,
+                                                    sound_speed=1.0)
 
         open_boundary_edac_1 = OpenBoundarySystem(inflow; fluid_system=system_edac_1,
                                                   buffer_size=0,

@@ -69,7 +69,9 @@ setup = RectangularTank(particle_spacing, (water_width, water_height),
 # 2D with hydrostatic pressure gradient.
 # `state_equation` has to be the same as for the WCSPH system.
 state_equation = StateEquationCole(sound_speed=10.0, exponent=1, reference_density=1000.0)
-setup = RectangularTank(particle_spacing, (water_width, water_height), (container_width, container_height), fluid_density; acceleration=(0.0, -9.81), state_equation)
+setup = RectangularTank(particle_spacing, (water_width, water_height),
+                        (container_width, container_height), fluid_density;
+                        acceleration=(0.0, -9.81), state_equation)
 
 # 3D
 setup = RectangularTank(particle_spacing, (water_width, water_height, water_depth),

@@ -81,7 +81,7 @@ if use_edac
                                 fluid_density; n_layers=boundary_layers, spacing_ratio,
                                 acceleration=(0.0, -gravity), state_equation=nothing)
 
-    fluid_system = EntropicallyDampedSPHSystem(tank_edac.fluid, smoothing_kernel,
+    fluid_system = EntropicallyDampedSPHSystem(tank_edac.fluid; smoothing_kernel,
                                                smoothing_length,
                                                sound_speed, viscosity=viscosity_fluid,
                                                density_calculator=ContinuityDensity(),

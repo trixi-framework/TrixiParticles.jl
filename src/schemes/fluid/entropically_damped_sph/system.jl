@@ -83,24 +83,9 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, COR, 
     cache                             :: C
 end
 
-# Keyword-only public front door used by the examples and docs.
-function EntropicallyDampedSPHSystem(initial_condition;
-                                     smoothing_kernel,
-                                     smoothing_length,
-                                     sound_speed,
-                                     density_calculator=SummationDensity(),
-                                     kwargs...)
-    return EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
-                                       smoothing_length, sound_speed;
-                                       density_calculator, kwargs...)
-end
-
-# The default constructor needs to be accessible for Adapt.jl to work with this struct.
-# See the comments in general/gpu.jl for more details.
-function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
-                                     smoothing_length, sound_speed;
+function EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel, smoothing_length,
+                                     sound_speed, density_calculator=SummationDensity(),
                                      pressure_acceleration=inter_particle_averaged_pressure,
-                                     density_calculator=SummationDensity(),
                                      shifting_technique=nothing,
                                      average_pressure_reduction=(!isnothing(shifting_technique)),
                                      alpha=0.5, viscosity=nothing,

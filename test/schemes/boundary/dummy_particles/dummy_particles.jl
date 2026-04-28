@@ -80,11 +80,10 @@
         ]
 
         # Create fluid system
-        fluid_system = WeaklyCompressibleSPHSystem(fluid,
-                                                   SummationDensity(),
-                                                   state_equation,
-                                                   smoothing_kernel,
-                                                   smoothing_length)
+        fluid_system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
+                                                   smoothing_length,
+                                                   density_calculator=SummationDensity(),
+                                                   state_equation)
 
         velocities = [
             [0.0; -1.0],
@@ -245,9 +244,10 @@
         # Use constant density equal to the reference density of the state equation,
         # so that the pressure is constant zero. Then we test that the extrapolation also yields zero.
         @testset "Constant Zero Pressure" begin
-            fluid_system1 = WeaklyCompressibleSPHSystem(tank1.fluid, SummationDensity(),
-                                                        state_equation,
-                                                        smoothing_kernel, smoothing_length)
+            fluid_system1 = WeaklyCompressibleSPHSystem(tank1.fluid; smoothing_kernel,
+                                                        smoothing_length,
+                                                        density_calculator=SummationDensity(),
+                                                        state_equation)
             fluid_system1.cache.density .= tank1.fluid.density
             v_fluid = zeros(2, TrixiParticles.nparticles(fluid_system1))
 
@@ -283,9 +283,10 @@
             tank2 = RectangularTank(particle_spacing, (width, height), (width, height),
                                     density; n_layers, faces=(true, true, true, false))
 
-            fluid_system2 = WeaklyCompressibleSPHSystem(tank2.fluid, SummationDensity(),
-                                                        state_equation,
-                                                        smoothing_kernel, smoothing_length)
+            fluid_system2 = WeaklyCompressibleSPHSystem(tank2.fluid; smoothing_kernel,
+                                                        smoothing_length,
+                                                        density_calculator=SummationDensity(),
+                                                        state_equation)
 
             fluid_system2.cache.density .= tank2.fluid.density
             v_fluid = zeros(2, TrixiParticles.nparticles(fluid_system2))
@@ -324,10 +325,11 @@
                                         density; acceleration=[0.0, -9.81], state_equation,
                                         n_layers, faces=(true, true, true, false))
 
-                fluid_system3 = WeaklyCompressibleSPHSystem(tank3.fluid, SummationDensity(),
-                                                            state_equation,
+                fluid_system3 = WeaklyCompressibleSPHSystem(tank3.fluid;
                                                             smoothing_kernel,
                                                             smoothing_length,
+                                                            density_calculator=SummationDensity(),
+                                                            state_equation,
                                                             acceleration=[0.0, -9.81])
                 fluid_system3.cache.density .= tank3.fluid.density
                 v_fluid = zeros(2, TrixiParticles.nparticles(fluid_system3))

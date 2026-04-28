@@ -55,13 +55,13 @@
                 sign_ = (TrixiParticles.boundary_type_name(boundary_zone) == "inflow") ?
                         1 : -1
                 fluid = extrude_geometry(face_vertices; particle_spacing, n_extrude=4,
-                                         density, pressure,
-                                         direction=(sign_ * flow_direction))
+                                         density, pressure, direction=(sign_ * flow_direction))
 
-                fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel,
+                fluid_system = EntropicallyDampedSPHSystem(fluid; smoothing_kernel,
+                                                           smoothing_length,
+                                                           sound_speed,
                                                            buffer_size=0,
-                                                           density_calculator=ContinuityDensity(),
-                                                           smoothing_length, sound_speed)
+                                                           density_calculator=ContinuityDensity())
 
                 boundary_system = OpenBoundarySystem(boundary_zone;
                                                      fluid_system, buffer_size=0,
@@ -148,9 +148,11 @@
         inflow = BoundaryZone(; boundary_face, boundary_type=InFlow(), face_normal,
                               open_boundary_layers=10, density=1.0, particle_spacing)
 
-        system_wcsph = WeaklyCompressibleSPHSystem(initial_condition, ContinuityDensity(),
-                                                   nothing,
-                                                   SchoenbergCubicSplineKernel{n_dims}(), 1)
+        system_wcsph = WeaklyCompressibleSPHSystem(initial_condition;
+                                                   smoothing_kernel=SchoenbergCubicSplineKernel{n_dims}(),
+                                                   smoothing_length=1,
+                                                   density_calculator=ContinuityDensity(),
+                                                   state_equation=nothing)
 
         open_boundary_wcsph = OpenBoundarySystem(inflow; fluid_system=system_wcsph,
                                                  buffer_size=0,
@@ -158,9 +160,10 @@
 
         @test TrixiParticles.v_nvariables(open_boundary_wcsph) == n_dims
 
-        system_edac = EntropicallyDampedSPHSystem(initial_condition,
-                                                  SchoenbergCubicSplineKernel{n_dims}(),
-                                                  1.0, 1.0)
+        system_edac = EntropicallyDampedSPHSystem(initial_condition;
+                                                  smoothing_kernel=SchoenbergCubicSplineKernel{n_dims}(),
+                                                  smoothing_length=1.0,
+                                                  sound_speed=1.0)
 
         open_boundary_edac = OpenBoundarySystem(inflow; fluid_system=system_edac,
                                                 buffer_size=0,

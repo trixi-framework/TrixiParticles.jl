@@ -100,9 +100,10 @@
 
         viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 
-        fluid_system = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(),
-                                                   state_equation, smoothing_kernel,
-                                                   smoothing_length; viscosity,
+        fluid_system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
+                                                   smoothing_length,
+                                                   density_calculator=ContinuityDensity(),
+                                                   state_equation, viscosity,
                                                    acceleration=(0.0, -9.81))
 
         boundary_model = BoundaryModelDummyParticles(bnd.density, bnd.mass,
@@ -643,9 +644,10 @@
 
         viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 
-        fluid_system = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(),
-                                                   state_equation, smoothing_kernel,
-                                                   smoothing_length; viscosity,
+        fluid_system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
+                                                   smoothing_length,
+                                                   density_calculator=ContinuityDensity(),
+                                                   state_equation, viscosity,
                                                    acceleration=(0.0, -9.81, 0.0))
 
         boundary_model = BoundaryModelDummyParticles(bnd.density, bnd.mass,

@@ -18,9 +18,10 @@
     @testset verbose=true "`ArtificialViscosityMonaghan`" begin
         viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 
-        system_wcsph = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(),
-                                                   state_equation, smoothing_kernel,
-                                                   smoothing_length; viscosity)
+        system_wcsph = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
+                                                   smoothing_length,
+                                                   density_calculator=ContinuityDensity(),
+                                                   state_equation, viscosity)
 
         grad_kernel = TrixiParticles.smoothing_kernel_grad(system_wcsph, pos_diff,
                                                            distance, 1)
@@ -42,9 +43,10 @@
     @testset verbose=true "`ViscosityMorris`" begin
         nu = 7e-3
         viscosity = ViscosityMorris(; nu)
-        system_wcsph = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(),
-                                                   state_equation, smoothing_kernel,
-                                                   smoothing_length; viscosity)
+        system_wcsph = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
+                                                   smoothing_length,
+                                                   density_calculator=ContinuityDensity(),
+                                                   state_equation, viscosity)
 
         grad_kernel = TrixiParticles.smoothing_kernel_grad(system_wcsph, pos_diff,
                                                            distance, 1)
@@ -71,9 +73,10 @@
     end
     @testset verbose=true "`ViscosityAdami`" begin
         viscosity = ViscosityAdami(nu=7e-3)
-        system_wcsph = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(),
-                                                   state_equation, smoothing_kernel,
-                                                   smoothing_length; viscosity)
+        system_wcsph = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
+                                                   smoothing_length,
+                                                   density_calculator=ContinuityDensity(),
+                                                   state_equation, viscosity)
 
         grad_kernel = TrixiParticles.smoothing_kernel_grad(system_wcsph, pos_diff,
                                                            distance, 1)
@@ -101,9 +104,10 @@
     @testset verbose=true "`ViscosityMorrisSGS`" begin
         nu = 7e-3
         viscosity = ViscosityMorrisSGS(; nu)
-        system_wcsph = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(),
-                                                   state_equation, smoothing_kernel,
-                                                   smoothing_length; viscosity)
+        system_wcsph = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
+                                                   smoothing_length,
+                                                   density_calculator=ContinuityDensity(),
+                                                   state_equation, viscosity)
 
         grad_kernel = TrixiParticles.smoothing_kernel_grad(system_wcsph, pos_diff,
                                                            distance, 1)
@@ -131,9 +135,10 @@
     end
     @testset verbose=true "`ViscosityAdamiSGS`" begin
         viscosity = ViscosityAdamiSGS(nu=7e-3)
-        system_wcsph = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(),
-                                                   state_equation, smoothing_kernel,
-                                                   smoothing_length; viscosity)
+        system_wcsph = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
+                                                   smoothing_length,
+                                                   density_calculator=ContinuityDensity(),
+                                                   state_equation, viscosity)
 
         grad_kernel = TrixiParticles.smoothing_kernel_grad(system_wcsph, pos_diff,
                                                            distance, 1)
@@ -178,9 +183,10 @@
                                            a=2.0,
                                            n=1.0,
                                            epsilon=0.01)
-        system_wcsph = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(),
-                                                   state_equation, smoothing_kernel,
-                                                   smoothing_length; viscosity)
+        system_wcsph = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
+                                                   smoothing_length,
+                                                   density_calculator=ContinuityDensity(),
+                                                   state_equation, viscosity)
 
         grad_kernel = TrixiParticles.smoothing_kernel_grad(system_wcsph, pos_diff,
                                                            distance, 1)
@@ -204,9 +210,10 @@
                                            a=2.0,
                                            n=0.3,
                                            epsilon=0.01)
-        system_wcsph = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(),
-                                                   state_equation, smoothing_kernel,
-                                                   smoothing_length; viscosity)
+        system_wcsph = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
+                                                   smoothing_length,
+                                                   density_calculator=ContinuityDensity(),
+                                                   state_equation, viscosity)
 
         grad_kernel = TrixiParticles.smoothing_kernel_grad(system_wcsph, pos_diff,
                                                            distance, 1)

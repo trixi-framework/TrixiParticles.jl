@@ -62,10 +62,11 @@ struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ARRAY2D,
     cache                             :: C
 end
 
-function ImplicitIncompressibleSPHSystem(initial_condition;
-                                         smoothing_kernel,
-                                         smoothing_length,
-                                         reference_density,
+# The default constructor needs to be accessible for Adapt.jl to work with this struct.
+# See the comments in general/gpu.jl for more details.
+
+function ImplicitIncompressibleSPHSystem(initial_condition; smoothing_kernel,
+                                         smoothing_length, reference_density,
                                          viscosity=nothing,
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),

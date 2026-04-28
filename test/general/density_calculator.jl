@@ -13,9 +13,10 @@
                                            exponent=7)
         viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 
-        fluid_system = WeaklyCompressibleSPHSystem(initial_condition, SummationDensity(),
-                                                   state_equation, smoothing_kernel,
-                                                   smoothing_length; viscosity)
+        fluid_system = WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
+                                                   smoothing_length,
+                                                   density_calculator=SummationDensity(),
+                                                   state_equation, viscosity)
 
         (; cache) = fluid_system
         (; density) = cache # Density is in the cache for SummationDensity

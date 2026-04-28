@@ -63,9 +63,8 @@ if wcsph
                                        exponent=1)
     fluid_system = WeaklyCompressibleSPHSystem(cavity.fluid; smoothing_kernel,
                                                smoothing_length, density_calculator,
-                                               state_equation,
+                                               state_equation, viscosity,
                                                pressure_acceleration=TrixiParticles.inter_particle_averaged_pressure,
-                                               viscosity,
                                                shifting_technique=TransportVelocityAdami(background_pressure=pressure))
 else
     state_equation = nothing
