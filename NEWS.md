@@ -13,6 +13,18 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   by default and can be enabled with the keyword argument `clip_negative_pressure=true` (#1143).
 - Return type of `vtk2trixi` changed to `NamedTuple` including an optional
   `:initial_condition` field if `create_initial_condition=true` is passed (#959).
+
+### Performance
+
+- Greatly improved GPU performance of WCSPH and TLSPH
+  (#1128, #1117, #1124, #1125, #1130, #1116, #1139, #1149).
+  See [#1131](https://github.com/trixi-framework/TrixiParticles.jl/issues/1131)
+  for a detailed breakdown including benchmark results.
+
+## Version 0.4.4
+
+### API Changes
+
 - Custom quantities called in the `PostprocessCallback` are now passed CPU arrays when
   the simulation is run on a GPU (#1065).
 
@@ -25,13 +37,6 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Added CFL condition for TLSPH and split integration (#1030).
 - Added new validation case hydrostatic water column (#724).
 - Added Carreau–Yasuda non-Newtonian viscosity model (#1010).
-
-### Performance
-
-- Greatly improved GPU performance of WCSPH and TLSPH
-  (#1128, #1117, #1124, #1125, #1130, #1116, #1139, #1149).
-  See [#1131](https://github.com/trixi-framework/TrixiParticles.jl/issues/1131)
-  for a detailed breakdown including benchmark results.
 
 ### Important Bugfixes
 
