@@ -370,10 +370,8 @@
 
         initial_condition = InitialCondition(; coordinates, velocity, mass,
                                              density=material_densities)
-        system = TotalLagrangianSPHSystem(initial_condition;
-                                          smoothing_kernel,
-                                          smoothing_length,
-                                          young_modulus=E,
+        system = TotalLagrangianSPHSystem(initial_condition; smoothing_kernel,
+                                          smoothing_length, young_modulus=E,
                                           poisson_ratio=nu)
 
         # Initialize deformation_grad and pk1_rho2 with arbitrary values
