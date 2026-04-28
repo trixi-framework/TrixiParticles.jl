@@ -114,10 +114,9 @@ state_equation = StateEquationCole(; sound_speed, reference_density=fluid_densit
                                    exponent=1)
 
 fluid_system = WeaklyCompressibleSPHSystem(fluid_particles; smoothing_kernel,
-                                           smoothing_length,
+                                           smoothing_length, shifting_technique,
                                            density_calculator=fluid_density_calculator,
                                            state_equation, buffer_size=n_buffer_particles,
-                                           shifting_technique,
                                            density_diffusion=DensityDiffusionMolteniColagrossi(delta=0.1),
                                            viscosity)
 
