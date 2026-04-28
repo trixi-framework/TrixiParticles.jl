@@ -26,10 +26,8 @@
 
             system = EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                                  smoothing_length, sound_speed)
-            system_keywords = EntropicallyDampedSPHSystem(initial_condition;
-                                                          smoothing_kernel,
-                                                          smoothing_length,
-                                                          sound_speed)
+            system_keywords = EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel,
+                                                          smoothing_length, sound_speed)
 
             @test system isa EntropicallyDampedSPHSystem{NDIMS}
             @test system.initial_condition == initial_condition

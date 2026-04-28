@@ -6,8 +6,7 @@ tspan = (0.0, 5.7 / sqrt(9.81 / 0.6))
 # Load setup from dam break example
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "dam_break_2d.jl");
-              tspan,
-              sol=nothing, ode=nothing)
+              tspan, sol=nothing, ode=nothing)
 
 # Change smoothing kernel and length
 smoothing_length = 1.2 * fluid_particle_spacing

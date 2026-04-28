@@ -160,12 +160,10 @@
             smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
             initial_condition = InitialCondition(; coordinates, mass, density)
-            system = TotalLagrangianSPHSystem(initial_condition;
-                                              smoothing_kernel,
-                                              smoothing_length,
-                                              young_modulus=E,
+            system = TotalLagrangianSPHSystem(initial_condition; smoothing_kernel,
+                                              smoothing_length, young_modulus=E,
                                               poisson_ratio=nu)
-            tspan = (0.0, 1.0)
+tspan = (0.0, 1.0)
 
             names = ["CPU code", "GPU code emulated on the CPU"]
             backends = [SerialBackend(), TrixiParticles.KernelAbstractions.CPU()]

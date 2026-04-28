@@ -222,10 +222,8 @@
                                                                smoothing_length)
 
                 initial_condition = InitialCondition(; coordinates, mass, density)
-                system = TotalLagrangianSPHSystem(initial_condition;
-                                                  smoothing_kernel,
-                                                  smoothing_length,
-                                                  young_modulus=1.0,
+                system = TotalLagrangianSPHSystem(initial_condition; smoothing_kernel,
+                                                  smoothing_length, young_modulus=1.0,
                                                   poisson_ratio=1.0)
                 semi = DummySemidiscretization()
 
@@ -370,10 +368,8 @@
 
         initial_condition = InitialCondition(; coordinates, velocity, mass,
                                              density=material_densities)
-        system = TotalLagrangianSPHSystem(initial_condition;
-                                          smoothing_kernel,
-                                          smoothing_length,
-                                          young_modulus=E,
+        system = TotalLagrangianSPHSystem(initial_condition; smoothing_kernel,
+                                          smoothing_length, young_modulus=E,
                                           poisson_ratio=nu)
 
         # Initialize deformation_grad and pk1_rho2 with arbitrary values

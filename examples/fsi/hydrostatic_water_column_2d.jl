@@ -127,8 +127,7 @@ boundary_model_structure = BoundaryModelDummyParticles(hydrodynamic_densities,
 structure_system = TotalLagrangianSPHSystem(structure_geometry;
                                             smoothing_kernel,
                                             smoothing_length=smoothing_length_structure,
-                                            young_modulus=E,
-                                            poisson_ratio=nu,
+                                            young_modulus=E, poisson_ratio=nu,
                                             boundary_model=boundary_model_structure,
                                             clamped_particles=1:nparticles(fixed_particles),
                                             acceleration=(0.0, -gravity))
