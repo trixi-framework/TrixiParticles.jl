@@ -15,7 +15,7 @@ in the Julia REPL:
 ```julia
 julia> using Pkg
 
-julia> Pkg.add(["TrixiParticles", "OrdinaryDiffEqLowStorageRK", "Plots"])
+julia> Pkg.add(["TrixiParticles", "OrdinaryDiffEqLowStorageRK", "OrdinaryDiffEqSymplecticRK", "Plots"])
 ```
 
 ## [For developers](@id for-developers)
@@ -26,7 +26,7 @@ git clone git@github.com:trixi-framework/TrixiParticles.jl.git
 cd TrixiParticles.jl
 mkdir run
 julia --project=run -e 'using Pkg; Pkg.develop(PackageSpec(path="."))' # Add TrixiParticles.jl to `run` project
-julia --project=run -e 'using Pkg; Pkg.add(["OrdinaryDiffEqLowStorageRK", "Plots"])' # Add additional packages
+julia --project=run -e 'using Pkg; Pkg.add(["OrdinaryDiffEqLowStorageRK", "OrdinaryDiffEqSymplecticRK", "Plots"])' # Add additional packages
 ```
 
 If you installed TrixiParticles.jl this way, you always have to start Julia with the
