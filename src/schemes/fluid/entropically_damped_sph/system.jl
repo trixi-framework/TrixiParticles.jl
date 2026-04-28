@@ -1,8 +1,6 @@
 @doc raw"""
-    EntropicallyDampedSPHSystem(initial_condition;
-                                smoothing_kernel,
-                                smoothing_length,
-                                sound_speed,
+    EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel,
+                                smoothing_length, sound_speed,
                                 pressure_acceleration=inter_particle_averaged_pressure,
                                 density_calculator=SummationDensity(),
                                 shifting_technique=nothing,
