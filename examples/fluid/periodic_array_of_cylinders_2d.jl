@@ -13,7 +13,7 @@
 # ==========================================================================================
 
 using TrixiParticles
-using OrdinaryDiffEq
+using OrdinaryDiffEqLowStorageRK
 
 # ==========================================================================================
 # ==== Resolution
@@ -46,9 +46,8 @@ pressure = sound_speed^2 * fluid_density
 
 particle_spacing = tank_size[1] / n_particles_x
 
-box = RectangularTank(particle_spacing, fluid_size, tank_size,
-                      fluid_density, n_layers=boundary_layers,
-                      pressure=pressure, faces=(false, false, true, true))
+box = RectangularTank(particle_spacing, fluid_size, tank_size, fluid_density;
+                      n_layers=boundary_layers, pressure, faces=(false, false, true, true))
 
 cylinder = SphereShape(particle_spacing, cylinder_radius, tank_size ./ 2,
                        fluid_density, sphere_type=RoundSphere())
@@ -63,10 +62,10 @@ smoothing_kernel = WendlandC2Kernel{2}()
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1, clip_negative_pressure=false)
 
-density_diffusion = DensityDiffusionAntuono(fluid, delta=0.1)
-fluid_system = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(), state_equation,
-                                           smoothing_kernel, smoothing_length,
-                                           density_diffusion=density_diffusion,
+density_diffusion = DensityDiffusionAntuono(delta=0.1)
+fluid_system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel, smoothing_length,
+                                           density_calculator=ContinuityDensity(),
+                                           state_equation, density_diffusion,
                                            viscosity=ViscosityAdami(; nu),
                                            shifting_technique=ParticleShiftingTechnique(),
                                            pressure_acceleration=tensile_instability_control,
@@ -74,9 +73,10 @@ fluid_system = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(), state_equ
 
 # ==========================================================================================
 # ==== Boundary
-wall_boundary_model = BoundaryModelDummyParticles(boundary; fluid_system=fluid_system,
-                                                  viscosity=ViscosityAdami(; nu))
-boundary_system = WallBoundarySystem(boundary, wall_boundary_model)
+boundary_model = BoundaryModelDummyParticles(boundary; fluid_system=fluid_system,
+                                             viscosity=ViscosityAdami(; nu))
+
+boundary_system = WallBoundarySystem(boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation

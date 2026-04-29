@@ -32,7 +32,7 @@ of fluid to solid particles is large enough (e.g. 100:1 or more).
 
 # Examples
 ```jldoctest; output=false
-using OrdinaryDiffEq
+using OrdinaryDiffEqLowStorageRK
 
 # Low-storage RK method with fixed step size
 callback = SplitIntegrationCallback(CarpenterKennedy2N54(williamson_condition=false),
@@ -203,9 +203,8 @@ function kick_split!(dv_ode_split, v_ode_split, u_ode_split, p, t)
                                   v_ode_split, u_ode_split, semi_split)
     end
 
-    @trixi_timeit timer() "source terms" add_source_terms!(dv_ode_split, v_ode_split,
-                                                           u_ode_split, semi, t;
-                                                           semi_wrap=semi_split)
+    add_source_terms!(dv_ode_split, v_ode_split, u_ode_split, semi, t;
+                      semi_wrap=semi_split)
 end
 
 function drift_split!(du_ode, v_ode, u_ode, p, t)

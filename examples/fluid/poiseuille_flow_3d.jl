@@ -10,7 +10,7 @@
 # including open boundary conditions.
 # ==========================================================================================
 using TrixiParticles
-using OrdinaryDiffEq
+using OrdinaryDiffEqLowStorageRK
 
 # ==========================================================================================
 # ==== Resolution
@@ -113,12 +113,12 @@ shifting_technique = TransportVelocityAdami(; background_pressure)
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1)
 
-fluid_system = WeaklyCompressibleSPHSystem(fluid_particles, fluid_density_calculator,
-                                           state_equation, smoothing_kernel,
-                                           buffer_size=n_buffer_particles,
-                                           shifting_technique=shifting_technique,
+fluid_system = WeaklyCompressibleSPHSystem(fluid_particles; smoothing_kernel,
+                                           smoothing_length, shifting_technique,
+                                           density_calculator=fluid_density_calculator,
+                                           state_equation, buffer_size=n_buffer_particles,
                                            density_diffusion=DensityDiffusionMolteniColagrossi(delta=0.1),
-                                           smoothing_length, viscosity=viscosity)
+                                           viscosity)
 
 # ==========================================================================================
 # ==== Open Boundary
@@ -166,9 +166,10 @@ open_boundary = OpenBoundarySystem(inlet_zone, outlet_zone; fluid_system,
 
 # ==========================================================================================
 # ==== Boundary
-wall_boundary_model = BoundaryModelDummyParticles(wall_boundary; fluid_system=fluid_system,
-                                                  viscosity=viscosity)
-boundary_system = WallBoundarySystem(wall_boundary, wall_boundary_model)
+boundary_model = BoundaryModelDummyParticles(wall_boundary; fluid_system=fluid_system,
+                                             viscosity)
+
+boundary_system = WallBoundarySystem(wall_boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
@@ -180,9 +181,7 @@ neighborhood_search = GridNeighborhoodSearch{3}(;
                                                                            max_corner),
                                                 update_strategy=ParallelUpdate())
 
-semi = Semidiscretization(fluid_system, open_boundary,
-                          boundary_system,
-                          neighborhood_search=neighborhood_search,
+semi = Semidiscretization(fluid_system, open_boundary, boundary_system; neighborhood_search,
                           parallelization_backend=PolyesterBackend())
 
 ode_problem = semidiscretize(semi, tspan)

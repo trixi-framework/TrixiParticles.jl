@@ -162,9 +162,8 @@ function create_cache_open_boundary(boundary_model, fluid_system, initial_condit
     density_reference_values = map(ref -> ref.reference_density, reference_values)
     velocity_reference_values = map(ref -> ref.reference_velocity, reference_values)
 
-    cache = (; pressure_reference_values=pressure_reference_values,
-             density_reference_values=density_reference_values,
-             velocity_reference_values=velocity_reference_values)
+    cache = (; pressure_reference_values, density_reference_values,
+             velocity_reference_values)
 
     if calculate_flow_rate ||
        any(pr -> isa(pr, RCRWindkesselModel), cache.pressure_reference_values)
@@ -183,8 +182,7 @@ function create_cache_open_boundary(boundary_model, fluid_system, initial_condit
         characteristics = zeros(ELTYPE, 3, nparticles(initial_condition))
         previous_characteristics = zeros(ELTYPE, 3, nparticles(initial_condition))
 
-        return (; characteristics=characteristics,
-                previous_characteristics=previous_characteristics,
+        return (; characteristics, previous_characteristics,
                 pressure=copy(initial_condition.pressure),
                 density=copy(initial_condition.density), cache...)
 
@@ -197,16 +195,9 @@ function create_cache_open_boundary(boundary_model, fluid_system, initial_condit
         # as it was already verified in `allocate_buffer` that the density array is constant.
         density_rest = first(initial_condition.density)
 
-        if density_diffusion isa DensityDiffusionAntuono
-            density_diffusion_ = DensityDiffusionAntuono(initial_condition;
-                                                         delta=density_diffusion.delta)
-        else
-            density_diffusion_ = density_diffusion
-        end
-
-        cache = (; density_diffusion=density_diffusion_,
-                 pressure_boundary=pressure_boundary,
-                 density_rest=density_rest, cache...)
+        cache = (; density_diffusion,
+                 create_cache_density_diffusion(initial_condition, density_diffusion)...,
+                 pressure_boundary, density_rest, cache...)
 
         if fluid_system isa EntropicallyDampedSPHSystem
             # Density and pressure is stored in `v`
@@ -312,20 +303,33 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::OpenBoundarySystem, semi
     return Inf
 end
 
-@inline function add_velocity!(du, v, u, particle, system::OpenBoundarySystem, t)
-    boundary_zone = current_boundary_zone(system, particle)
+@inline function set_velocity!(du, v, u, system::OpenBoundarySystem, semi, t)
+    @threaded semi for particle in each_integrated_particle(system)
+        boundary_zone = current_boundary_zone(system, particle)
 
-    pos = current_coords(u, system, particle)
-    v_particle = reference_velocity(boundary_zone, v, system, particle, pos, t)
+        pos = @inbounds current_coords(u, system, particle)
+        v_particle = @inbounds reference_velocity(boundary_zone, v, system,
+                                                  particle, pos, t)
 
-    # This is zero unless a shifting technique is used
-    delta_v_ = delta_v(system, particle)
+        # This is zero unless a shifting technique is used
+        delta_v_ = @inbounds delta_v(system, particle)
 
-    for i in 1:ndims(system)
-        @inbounds du[i, particle] = v_particle[i] + delta_v_[i]
+        for i in 1:ndims(system)
+            @inbounds du[i, particle] = v_particle[i] + delta_v_[i]
+        end
     end
 
     return du
+end
+
+function update_positions!(system::OpenBoundarySystem, v, u, v_ode, u_ode, semi, t)
+    nhs = get_neighborhood_search(system.fluid_system, system, semi)
+
+    # `GridNeighborhoodSearch` with a `FullGridCellList` requires a bounding box.
+    # This function deactivates particles that move outside the bounding box to prevent
+    # simulation crashes.
+    # Note that deactivating particles is only possible in combination with a 'SystemBuffer'.
+    deactivate_out_of_bounds_particles!(system, buffer(system), nhs, v, u, semi)
 end
 
 function update_boundary_interpolation!(system::OpenBoundarySystem, v, u, v_ode, u_ode,
@@ -666,7 +670,7 @@ function interpolate_velocity!(system::OpenBoundarySystem, boundary_zone,
         # We can do this because we require the neighborhood search to support querying neighbors
         # of arbitrary positions (see `PointNeighbors.requires_update` and `check_configuration`).
         foreach_point_neighbor(system, neighbor_system, sample_points, neighbor_coords,
-                               semi, points=points) do point, neighbor, pos_diff, distance
+                               semi; points) do point, neighbor, pos_diff, distance
             m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
             rho_b = @inbounds current_density(v_neighbor, neighbor_system, neighbor)
             volume_b = m_b / rho_b

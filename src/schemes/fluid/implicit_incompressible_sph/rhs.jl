@@ -47,17 +47,14 @@ function interact!(dv, v_particle_system, u_particle_system,
         m_a = @inbounds hydrodynamic_mass(particle_system, particle)
         m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
 
+        p_a = @inbounds current_pressure(v_particle_system, particle_system, particle)
         # The following call is equivalent to
-        #     `p_a = particle_pressure(v_particle_system, particle_system, particle)`
-        #     `p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)`
-        # Only when the neighbor system is a `WallBoundarySystem` or a `TotalLagrangianSPHSystem`
-        # with the boundary model `PressureMirroring`, this will return `p_b = p_a`, which is
-        # the pressure of the fluid particle.
-        p_a,
-        p_b = @inbounds particle_neighbor_pressure(v_particle_system,
-                                                   v_neighbor_system,
-                                                   particle_system, neighbor_system,
-                                                   particle, neighbor)
+        #     `p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)`
+        # Only when the neighbor system is a `WallBoundarySystem`
+        # or a `TotalLagrangianSPHSystem` with the boundary model `PressureMirroring`,
+        # this will return `p_b = p_a`, which is the pressure of the fluid particle.
+        p_b = @inbounds neighbor_pressure(v_neighbor_system, neighbor_system,
+                                          neighbor, p_a)
 
         dv_pressure = pressure_acceleration(particle_system, neighbor_system,
                                             particle, neighbor,

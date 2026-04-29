@@ -8,7 +8,7 @@
 # ==========================================================================================
 
 using TrixiParticles
-using OrdinaryDiffEq
+using OrdinaryDiffEqLowStorageRK
 
 # ==========================================================================================
 # ==== Resolution
@@ -82,19 +82,18 @@ if wcsph
                                        exponent=1)
     density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 
-    fluid_system = WeaklyCompressibleSPHSystem(pipe.fluid, fluid_density_calculator,
-                                               state_equation, smoothing_kernel,
-                                               density_diffusion=density_diffusion,
-                                               smoothing_length, viscosity=viscosity,
+    fluid_system = WeaklyCompressibleSPHSystem(pipe.fluid; smoothing_kernel,
+                                               smoothing_length,
+                                               density_calculator=fluid_density_calculator,
+                                               state_equation, density_diffusion, viscosity,
                                                shifting_technique=ParticleShiftingTechnique(v_max_factor=1.5),
                                                buffer_size=n_buffer_particles)
 else
     # Alternatively the EDAC scheme can be used
     state_equation = nothing
 
-    fluid_system = EntropicallyDampedSPHSystem(pipe.fluid, smoothing_kernel,
-                                               smoothing_length, sound_speed,
-                                               viscosity=viscosity,
+    fluid_system = EntropicallyDampedSPHSystem(pipe.fluid; smoothing_kernel,
+                                               smoothing_length, sound_speed, viscosity,
                                                density_calculator=fluid_density_calculator,
                                                shifting_technique=ParticleShiftingTechnique(),
                                                buffer_size=n_buffer_particles)
@@ -143,9 +142,10 @@ open_boundary = OpenBoundarySystem(inflow, outflow; fluid_system,
 # ==== Boundary
 wall = union(pipe.boundary, inlet.boundary, outlet.boundary)
 viscosity_boundary = viscosity
-wall_boundary_model = BoundaryModelDummyParticles(wall; fluid_system=fluid_system,
-                                                  viscosity=viscosity_boundary)
-boundary_system = WallBoundarySystem(wall, wall_boundary_model)
+boundary_model = BoundaryModelDummyParticles(wall; fluid_system=fluid_system,
+                                             viscosity=viscosity_boundary)
+
+boundary_system = WallBoundarySystem(wall, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation

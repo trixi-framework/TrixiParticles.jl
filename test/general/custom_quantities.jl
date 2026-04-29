@@ -12,8 +12,8 @@
     smoothing_kernel = SchoenbergCubicSplineKernel{2}()
     smoothing_length = 1.2 * particle_spacing
 
-    fluid_system = EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
-                                               smoothing_length, 1.0)
+    fluid_system = EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel,
+                                               smoothing_length, sound_speed=1.0)
     fluid_system.cache.density .= initial_condition.density
 
     boundary_model = BoundaryModelDummyParticles(initial_condition.density,
