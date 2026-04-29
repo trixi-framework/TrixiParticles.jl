@@ -18,26 +18,35 @@
     @testset verbose=true "`ArtificialViscosityMonaghan`" begin
         viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 
-        system_wcsph = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(),
-                                                   state_equation, smoothing_kernel,
-                                                   smoothing_length, viscosity=viscosity)
+        system_wcsph = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
+                                                   smoothing_length,
+                                                   density_calculator=ContinuityDensity(),
+                                                   state_equation, viscosity)
 
         grad_kernel = TrixiParticles.smoothing_kernel_grad(system_wcsph, pos_diff,
                                                            distance, 1)
 
-        dv = viscosity(sound_speed, v_diff, pos_diff, distance,
-                       rho_mean, rho_a, rho_b, smoothing_length,
-                       grad_kernel, 0.0, 0.0)
+        v = nothing
+        v_a = v_diff
+        v_b = zeros(2)
+        m_a = 1.0
+        m_b = 1.0
 
-        @test isapprox(dv[1], -0.02049217623299368, atol=6e-15)
-        @test isapprox(dv[2], 0.03073826434949052, atol=6e-15)
+        dv = Ref(zero(v_diff))
+        viscosity(dv, system_wcsph, system_wcsph,
+                  v, v, 1, 2, pos_diff, distance,
+                  sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+
+        @test isapprox(dv[][1], -0.02049217623299368, atol=6e-15)
+        @test isapprox(dv[][2], 0.03073826434949052, atol=6e-15)
     end
     @testset verbose=true "`ViscosityMorris`" begin
         nu = 7e-3
-        viscosity = ViscosityMorris(nu=nu)
-        system_wcsph = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(),
-                                                   state_equation, smoothing_kernel,
-                                                   smoothing_length, viscosity=viscosity)
+        viscosity = ViscosityMorris(; nu)
+        system_wcsph = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
+                                                   smoothing_length,
+                                                   density_calculator=ContinuityDensity(),
+                                                   state_equation, viscosity)
 
         grad_kernel = TrixiParticles.smoothing_kernel_grad(system_wcsph, pos_diff,
                                                            distance, 1)
@@ -51,18 +60,23 @@
         v[1, 2] = 0.0
         v[2, 2] = 0.0
 
-        dv = viscosity(system_wcsph, system_wcsph,
-                       v, v, 1, 2, pos_diff, distance,
-                       sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
+        v_a = v[:, 1]
+        v_b = v[:, 2]
 
-        @test isapprox(dv[1], -1.0895602048035404e-5, atol=6e-15)
-        @test isapprox(dv[2], 3.631867349345135e-5, atol=6e-15)
+        dv = Ref(zero(pos_diff))
+        viscosity(dv, system_wcsph, system_wcsph,
+                  v, v, 1, 2, pos_diff, distance,
+                  sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+
+        @test isapprox(dv[][1], -1.0895602048035404e-5, atol=6e-15)
+        @test isapprox(dv[][2], 3.631867349345135e-5, atol=6e-15)
     end
     @testset verbose=true "`ViscosityAdami`" begin
         viscosity = ViscosityAdami(nu=7e-3)
-        system_wcsph = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(),
-                                                   state_equation, smoothing_kernel,
-                                                   smoothing_length, viscosity=viscosity)
+        system_wcsph = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
+                                                   smoothing_length,
+                                                   density_calculator=ContinuityDensity(),
+                                                   state_equation, viscosity)
 
         grad_kernel = TrixiParticles.smoothing_kernel_grad(system_wcsph, pos_diff,
                                                            distance, 1)
@@ -76,19 +90,24 @@
         v[1, 2] = 0.0
         v[2, 2] = 0.0
 
-        dv = viscosity(system_wcsph, system_wcsph,
-                       v, v, 1, 2, pos_diff, distance,
-                       sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
+        v_a = v[:, 1]
+        v_b = v[:, 2]
 
-        @test isapprox(dv[1], -1.089560204803541e-5, atol=6e-15)
-        @test isapprox(dv[2], 3.6318673493451364e-5, atol=6e-15)
+        dv = Ref(zero(pos_diff))
+        viscosity(dv, system_wcsph, system_wcsph,
+                  v, v, 1, 2, pos_diff, distance,
+                  sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+
+        @test isapprox(dv[][1], -1.089560204803541e-5, atol=6e-15)
+        @test isapprox(dv[][2], 3.6318673493451364e-5, atol=6e-15)
     end
     @testset verbose=true "`ViscosityMorrisSGS`" begin
         nu = 7e-3
-        viscosity = ViscosityMorrisSGS(nu=nu)
-        system_wcsph = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(),
-                                                   state_equation, smoothing_kernel,
-                                                   smoothing_length, viscosity=viscosity)
+        viscosity = ViscosityMorrisSGS(; nu)
+        system_wcsph = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
+                                                   smoothing_length,
+                                                   density_calculator=ContinuityDensity(),
+                                                   state_equation, viscosity)
 
         grad_kernel = TrixiParticles.smoothing_kernel_grad(system_wcsph, pos_diff,
                                                            distance, 1)
@@ -103,18 +122,23 @@
         v[1, 2] = 0.0
         v[2, 2] = 0.0
 
-        dv = viscosity(system_wcsph, system_wcsph,
-                       v, v, 1, 2, pos_diff, distance,
-                       sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
+        v_a = v[:, 1]
+        v_b = v[:, 2]
 
-        @test isapprox(dv[1], -2.032835697804103e-5, atol=6e-15)
-        @test isapprox(dv[2], 6.776118992680343e-5, atol=6e-15)
+        dv = Ref(zero(pos_diff))
+        viscosity(dv, system_wcsph, system_wcsph,
+                  v, v, 1, 2, pos_diff, distance,
+                  sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+
+        @test isapprox(dv[][1], -2.032835697804103e-5, atol=6e-15)
+        @test isapprox(dv[][2], 6.776118992680343e-5, atol=6e-15)
     end
     @testset verbose=true "`ViscosityAdamiSGS`" begin
         viscosity = ViscosityAdamiSGS(nu=7e-3)
-        system_wcsph = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(),
-                                                   state_equation, smoothing_kernel,
-                                                   smoothing_length, viscosity=viscosity)
+        system_wcsph = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
+                                                   smoothing_length,
+                                                   density_calculator=ContinuityDensity(),
+                                                   state_equation, viscosity)
 
         grad_kernel = TrixiParticles.smoothing_kernel_grad(system_wcsph, pos_diff,
                                                            distance, 1)
@@ -128,12 +152,16 @@
         v[1, 2] = 0.0
         v[2, 2] = 0.0
 
-        dv = viscosity(system_wcsph, system_wcsph,
-                       v, v, 1, 2, pos_diff, distance,
-                       sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
+        v_a = v[:, 1]
+        v_b = v[:, 2]
 
-        @test isapprox(dv[1], -2.0328356978041036e-5, atol=6e-15)
-        @test isapprox(dv[2], 6.776118992680346e-5, atol=6e-15)
+        dv = Ref(zero(pos_diff))
+        viscosity(dv, system_wcsph, system_wcsph,
+                  v, v, 1, 2, pos_diff, distance,
+                  sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+
+        @test isapprox(dv[][1], -2.0328356978041036e-5, atol=6e-15)
+        @test isapprox(dv[][2], 6.776118992680346e-5, atol=6e-15)
     end
 
     @testset verbose=true "`ViscosityCarreauYasuda`" begin
@@ -155,18 +183,23 @@
                                            a=2.0,
                                            n=1.0,
                                            epsilon=0.01)
-        system_wcsph = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(),
-                                                   state_equation, smoothing_kernel,
-                                                   smoothing_length; viscosity=viscosity)
+        system_wcsph = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
+                                                   smoothing_length,
+                                                   density_calculator=ContinuityDensity(),
+                                                   state_equation, viscosity)
 
         grad_kernel = TrixiParticles.smoothing_kernel_grad(system_wcsph, pos_diff,
                                                            distance, 1)
-        dv = viscosity(system_wcsph, system_wcsph,
-                       v, v, 1, 2, pos_diff, distance,
-                       sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
+        v_a = v[:, 1]
+        v_b = v[:, 2]
 
-        @test isapprox(dv[1], -1.0895602048035410e-5, atol=6e-15)
-        @test isapprox(dv[2], 3.6318673493451364e-5, atol=6e-15)
+        dv = Ref(zero(pos_diff))
+        viscosity(dv, system_wcsph, system_wcsph,
+                  v, v, 1, 2, pos_diff, distance,
+                  sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+
+        @test isapprox(dv[][1], -1.0895602048035410e-5, atol=6e-15)
+        @test isapprox(dv[][2], 3.6318673493451364e-5, atol=6e-15)
 
         # ------------------------------------------------------------------
         # 2) Shear-thinning case: fixed (precomputed) values
@@ -177,17 +210,22 @@
                                            a=2.0,
                                            n=0.3,
                                            epsilon=0.01)
-        system_wcsph = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(),
-                                                   state_equation, smoothing_kernel,
-                                                   smoothing_length; viscosity=viscosity)
+        system_wcsph = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
+                                                   smoothing_length,
+                                                   density_calculator=ContinuityDensity(),
+                                                   state_equation, viscosity)
 
         grad_kernel = TrixiParticles.smoothing_kernel_grad(system_wcsph, pos_diff,
                                                            distance, 1)
-        dv = viscosity(system_wcsph, system_wcsph,
-                       v, v, 1, 2, pos_diff, distance,
-                       sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
+        v_a = v[:, 1]
+        v_b = v[:, 2]
 
-        @test isapprox(dv[1], -5.33743497379846e-9, atol=6e-15)
-        @test isapprox(dv[2], 1.7791449912661534e-8, atol=6e-15)
+        dv = Ref(zero(pos_diff))
+        viscosity(dv, system_wcsph, system_wcsph,
+                  v, v, 1, 2, pos_diff, distance,
+                  sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+
+        @test isapprox(dv[][1], -5.33743497379846e-9, atol=6e-15)
+        @test isapprox(dv[][2], 1.7791449912661534e-8, atol=6e-15)
     end
 end

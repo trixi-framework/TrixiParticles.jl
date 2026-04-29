@@ -78,11 +78,10 @@ if use_edac
     state_equation = nothing
 
     tank_edac = RectangularTank(particle_spacing, initial_fluid_size, tank_size,
-                                fluid_density,
-                                n_layers=boundary_layers, spacing_ratio=spacing_ratio,
+                                fluid_density; n_layers=boundary_layers, spacing_ratio,
                                 acceleration=(0.0, -gravity), state_equation=nothing)
 
-    fluid_system = EntropicallyDampedSPHSystem(tank_edac.fluid, smoothing_kernel,
+    fluid_system = EntropicallyDampedSPHSystem(tank_edac.fluid; smoothing_kernel,
                                                smoothing_length,
                                                sound_speed, viscosity=viscosity_fluid,
                                                density_calculator=ContinuityDensity(),
@@ -114,12 +113,9 @@ saving_paper = SolutionSavingCallback(save_times=[0.0, 1.5, 2.36, 3.0, 5.7, 6.45
                                                  sqrt(gravity / H),
                                       prefix="marrone_times")
 
-trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
-              fluid_particle_spacing=particle_spacing,
-              boundary_density_calculator=boundary_density_calculator,
-              state_equation=state_equation,
-              solution_prefix="validation_" * method * "_" * formatted_string,
-              tspan=tspan, fluid_system=fluid_system,
-              update_strategy=nothing,
-              extra_callback=postprocessing_cb,
+trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl");
+              fluid_particle_spacing=particle_spacing, boundary_density_calculator,
+              state_equation,
+              solution_prefix="validation_" * method * "_" * formatted_string, tspan,
+              fluid_system, update_strategy=nothing, extra_callback=postprocessing_cb,
               extra_callback2=saving_paper)

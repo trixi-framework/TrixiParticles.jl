@@ -23,6 +23,7 @@ Convert Trixi simulation data to VTK format.
 # Keywords
 - `iter=nothing`:           Iteration number when multiple iterations are to be stored in
                             separate files. This number is just appended to the filename.
+                            If `nothing`, no iteration number is appended (default).
 - `output_directory="out"`: Output directory path.
 - `prefix=""`:              Prefix for output files.
 - `max_coordinates=Inf`     The coordinates of particles will be clipped if their absolute
@@ -103,15 +104,21 @@ function trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
     v = wrap_v(v_ode, system, semi)
     u = wrap_u(u_ode, system, semi)
 
-    file = joinpath(output_directory,
-                    add_underscore_to_optional_prefix(prefix) * "$system_name"
-                    * add_underscore_to_optional_postfix(iter))
+    overwrite = isnothing(iter)
 
-    collection_file = joinpath(output_directory,
-                               add_underscore_to_optional_prefix(prefix) * "$system_name")
+    file_ = joinpath(output_directory,
+                     add_underscore_to_optional_prefix(prefix) * "$system_name")
+    if overwrite
+        file = file_ * "_current"
+    else
+        file = file_ * add_underscore_to_optional_postfix(iter)
+        collection_file = joinpath(output_directory,
+                                   add_underscore_to_optional_prefix(prefix) *
+                                   "$system_name")
 
-    # Reset the collection when the iteration is 0
-    pvd = paraview_collection(collection_file; append=iter > 0)
+        # Reset the collection when the iteration is 0
+        pvd = paraview_collection(collection_file; append=iter > 0)
+    end
 
     points = PointNeighbors.periodic_coords(active_coordinates(u, system),
                                             periodic_box)
@@ -152,10 +159,15 @@ function trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
             end
         end
 
-        # Add to collection
-        pvd[t] = vtk
+        if overwrite
+            # Add to collection
+            pvd[t] = vtk
+        end
     end
-    vtk_save(pvd)
+
+    overwrite || vtk_save(pvd)
+
+    return file
 end
 
 function transfer2cpu(semi::Semidiscretization)
@@ -297,11 +309,11 @@ function trixi2vtk(initial_condition::InitialCondition; output_directory="out",
                    prefix="", filename="initial_condition", custom_quantities...)
     (; coordinates, velocity, density, mass, pressure) = initial_condition
 
-    return trixi2vtk(coordinates; output_directory, prefix, filename,
-                     density=density, initial_velocity=velocity, mass=mass,
+    return trixi2vtk(coordinates; output_directory, prefix, filename, density,
+                     initial_velocity=velocity, mass,
                      particle_spacing=(initial_condition.particle_spacing .*
-                                       ones(nparticles(initial_condition))),
-                     pressure=pressure, custom_quantities...)
+                                       ones(nparticles(initial_condition))), pressure,
+                     custom_quantities...)
 end
 
 function write2vtk!(vtk, v, u, t, system)
@@ -350,18 +362,13 @@ function write2vtk!(vtk, v, u, t, system::AbstractFluidSystem)
             rho_b = current_density(v, system, neighbor)
             grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
-            surface_tension[1:ndims(system),
-                            particle] .+= surface_tension_force(surface_tension_a,
-                                                                surface_tension_b,
-                                                                system,
-                                                                system,
-                                                                particle,
-                                                                neighbor,
-                                                                pos_diff,
-                                                                distance,
-                                                                rho_a,
-                                                                rho_b,
-                                                                grad_kernel)
+            dv_surface_tension = Ref(zero(pos_diff))
+            surface_tension_force!(dv_surface_tension,
+                                   surface_tension_a, surface_tension_b,
+                                   system, system, particle, neighbor,
+                                   pos_diff, distance, rho_a, rho_b, grad_kernel, 1)
+
+            surface_tension[1:ndims(system), particle] .+= dv_surface_tension[]
         end
         vtk["surface_tension"] = surface_tension
 
@@ -438,6 +445,8 @@ function write2vtk!(vtk, v, u, t, system::RigidBodySystem)
     vtk["resultant_torque"] = [system.resultant_torque[]]
     vtk["angular_acceleration_force"] = [system.angular_acceleration_force[]]
     vtk["gyroscopic_acceleration"] = [system.gyroscopic_acceleration[]]
+    vtk["contact_count"] = [system.cache.contact_count[]]
+    vtk["max_contact_penetration"] = [system.cache.max_contact_penetration[]]
 
     write2vtk!(vtk, v, u, t, system.boundary_model, system)
 end
