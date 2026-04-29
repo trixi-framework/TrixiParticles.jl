@@ -83,8 +83,8 @@ function EnergyCalculatorCallback(system::AbstractStructureSystem, semi; interva
     system_index = system_indices(system, semi)
 
     # Allocate buffer to write accelerations for all particles (including clamped ones)
-    dv = allocate(semi.parallelization_backend, ELTYPE, (v_nvariables(system),
-                                                         nparticles(system)))
+    dv = allocate(semi.parallelization_backend, ELTYPE,
+                  (v_nvariables(system), nparticles(system)))
 
     # Note that time and energy are initialized in `initialize_energy_calculator_callback`
     cb = EnergyCalculatorCallback(interval, Ref(zero(ELTYPE)), Ref(zero(ELTYPE)),
