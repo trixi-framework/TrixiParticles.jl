@@ -74,13 +74,14 @@ with Julia v1.10 and newer. We recommend using the latest stable release of Juli
 ### For users
 TrixiParticles.jl is a registered Julia package.
 You can install TrixiParticles.jl,
-[OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl) (used for time integration)
-and [Plots.jl](https://github.com/JuliaPlots/Plots.jl) by executing the following commands
+time integration sub-packages of [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl)
+(for example `OrdinaryDiffEqLowStorageRK`), and [Plots.jl](https://github.com/JuliaPlots/Plots.jl)
+by executing the following commands
 in the Julia REPL:
 ```julia
 julia> using Pkg
 
-julia> Pkg.add(["TrixiParticles", "OrdinaryDiffEq", "Plots"])
+julia> Pkg.add(["TrixiParticles", "OrdinaryDiffEqLowStorageRK", "OrdinaryDiffEqSymplecticRK", "Plots"])
 ```
 
 ### For developers
@@ -91,7 +92,7 @@ git clone git@github.com:trixi-framework/TrixiParticles.jl.git
 cd TrixiParticles.jl
 mkdir run
 julia --project=run -e 'using Pkg; Pkg.develop(PackageSpec(path="."))' # Add TrixiParticles.jl to `run` project
-julia --project=run -e 'using Pkg; Pkg.add(["OrdinaryDiffEq", "Plots"])' # Add additional packages
+julia --project=run -e 'using Pkg; Pkg.add(["OrdinaryDiffEqLowStorageRK", "OrdinaryDiffEqSymplecticRK", "Plots"])' # Add additional packages
 ```
 
 If you installed TrixiParticles.jl this way, you always have to start Julia with the
@@ -137,7 +138,7 @@ You can find the documentation for the latest release
   [![arXiv:2506.21206](https://img.shields.io/badge/arXiv-2506.21206-yellow)](https://arxiv.org/abs/2506.21206)
   [![doi:10.1016/j.cpc.2025.109898](https://zenodo.org/badge/doi/10.1016/j.cpc.2025.109898.svg)](https://doi.org/10.1016/j.cpc.2025.109898)
   [![reproduce me!](https://img.shields.io/badge/reproduce-me!-brightgreen)](https://github.com/trixi-framework/paper-2025-particle-based_preprocessing)
-  
+
 ## Cite Us
 
 If you use TrixiParticles.jl in your own research or write a paper using results obtained

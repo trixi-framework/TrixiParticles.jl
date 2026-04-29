@@ -8,6 +8,86 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### API Changes
 
+- Clipping of negative pressure values in the `BoundaryModelDummyParticles` is now disabled
+  by default and can be enabled with the keyword argument `clip_negative_pressure=true` (#1143).
+- The example files are now loading sub-packages of OrdinaryDiffEq.jl instead of
+  OrdinaryDiffEq.jl itself. For example, `using OrdinaryDiffEqLowStorageRK` instead of
+  `using OrdinaryDiffEq` (#1154).
+- `DensityDiffusionAntuono` now only has the kwarg `delta` and no positional
+  arguments (#1142).
+- Return type of `vtk2trixi` changed to `NamedTuple` including an optional
+  `:initial_condition` field if `create_initial_condition=true` is passed (#959).
+- Public system constructors now use keyword arguments for configuration values.
+  This affects `WeaklyCompressibleSPHSystem`, `EntropicallyDampedSPHSystem`,
+  `ImplicitIncompressibleSPHSystem`, `TotalLagrangianSPHSystem`, `DEMSystem`,
+  and `BoundaryDEMSystem`.
+
+#### Migration Guide for Keyword-Based System Constructors
+
+The initial condition remains the only positional argument for the affected system
+constructors. All method, material, and configuration arguments that were previously
+passed positionally now need to be passed as keywords.
+Existing optional keyword arguments remain available. For example, the
+`density_calculator` keyword of `EntropicallyDampedSPHSystem` still defaults to
+`SummationDensity()`.
+
+Here are examples, where `ic` is the initial condition, `kernel` is the
+smoothing kernel, and `h` is the smoothing length:
+
+```julia
+WeaklyCompressibleSPHSystem(ic, density_calculator, state_equation, kernel, h;
+                            kwargs...)
+# becomes
+WeaklyCompressibleSPHSystem(ic; smoothing_kernel=kernel, smoothing_length=h,
+                            density_calculator, state_equation, kwargs...)
+
+EntropicallyDampedSPHSystem(ic, kernel, h, sound_speed; kwargs...)
+# becomes
+EntropicallyDampedSPHSystem(ic; smoothing_kernel=kernel, smoothing_length=h,
+                            sound_speed, kwargs...)
+
+ImplicitIncompressibleSPHSystem(ic, kernel, h, reference_density; kwargs...)
+# becomes
+ImplicitIncompressibleSPHSystem(ic; smoothing_kernel=kernel, smoothing_length=h,
+                                reference_density, kwargs...)
+
+TotalLagrangianSPHSystem(ic, kernel, h, young_modulus, poisson_ratio; kwargs...)
+# becomes
+TotalLagrangianSPHSystem(ic; smoothing_kernel=kernel, smoothing_length=h,
+                         young_modulus, poisson_ratio, kwargs...)
+
+DEMSystem(ic, contact_model; kwargs...)
+# becomes
+DEMSystem(ic; contact_model, kwargs...)
+
+BoundaryDEMSystem(ic, normal_stiffness)
+# becomes
+BoundaryDEMSystem(ic; normal_stiffness)
+```
+
+### Performance
+
+- Greatly improved GPU performance of WCSPH and TLSPH
+  (#1128, #1117, #1124, #1125, #1130, #1116, #1139, #1149).
+  See [#1131](https://github.com/trixi-framework/TrixiParticles.jl/issues/1131)
+  for a detailed breakdown including benchmark results.
+
+### Features
+
+- Added a `SortingCallback` that can be used to sort particles by their spatial location
+  to improve performance (#1044).
+
+### Important Bugfixes
+
+- Fixed a bug where `DensityDiffusionAntuono` could not be used together with open
+  boundaries and `BoundaryModelDynamicalPressureZhang` (#1043).
+- Fixed a bug where no-slip boundary conditions were not applied correctly when not using
+  `ViscosityAdami` (#1089).
+
+## Version 0.4.4
+
+### API Changes
+
 - Custom quantities called in the `PostprocessCallback` are now passed CPU arrays when
   the simulation is run on a GPU (#1065).
 
@@ -21,17 +101,11 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Added new validation case hydrostatic water column (#724).
 - Added Carreau–Yasuda non-Newtonian viscosity model (#1010).
 
-### Performance
-
-- Greatly improved GPU performance of WCSPH and TLSPH
-  (#1128, #1117, #1124, #1125, #1130, #1116, #1139, #1149).
-  See [#1131](https://github.com/trixi-framework/TrixiParticles.jl/issues/1131)
-  for a detailed breakdown including benchmark results.
-
 ### Important Bugfixes
 
 - Fixed the periodic array of cylinders example file (#975).
 - A `StepsizeCallback` can now be used with open boundaries (#1074).
+- Fixed a bug with no-slip boundary conditions when using any viscosity model other than `ViscosityAdami` (#1089).
 
 ### Documentation
 
@@ -60,7 +134,6 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Added a new `LaguerreGaussKernel` smoothing kernel (#893).
 
 - Added GPU and FP32 support for DEM (#979).
-
 
 ### Performance
 - Improved GPU performance with shifting up to a factor of 10x (#974, #993).
