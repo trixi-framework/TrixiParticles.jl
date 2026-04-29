@@ -63,10 +63,10 @@
         # In the other tests, we clamp the top row of particles and offset them to create
         # stress. We can then test how much energy is required to pull the particles further
         # apart against the elastic forces.
-        n_clamped_particles = [4, 2, 2, 2]
+        clamped_particles = [1:4, 3:4, 3:4, 3:4]
         E = [1e6, 1e1, 1e6, 1e8]
-        @testset "n_clamped_particles = $(n_clamped_particles[i]), E = $(E[i])" for i in
-                                                                                    eachindex(E)
+        @testset "clamped_particles = $(clamped_particles[i]), E = $(E[i])" for i in
+                                                                                eachindex(E)
             # Create a simple 2D system with 2x2 particles
             coordinates = [0.0 1.0 0.0 1.0; 0.0 0.0 1.0 1.0]
             mass = [1.0, 1.0, 1.0, 1.0]
@@ -87,11 +87,11 @@
             prescribed_motion = PrescribedMotion(movement_function, is_moving)
 
             # Create TLSPH system with energy calculator support
-            system_ = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
+            system_ = TotalLagrangianSPHSystem(initial_condition; smoothing_kernel,
                                                smoothing_length, young_modulus,
                                                poisson_ratio,
                                                clamped_particles_motion=prescribed_motion,
-                                               n_clamped_particles=n_clamped_particles[i],
+                                               clamped_particles=clamped_particles[i],
                                                acceleration=(0.0, -2.0))
 
             semi = Semidiscretization(system_)
