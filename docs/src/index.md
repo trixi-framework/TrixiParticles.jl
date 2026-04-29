@@ -1,24 +1,26 @@
 # TrixiParticles.jl
 
-**TrixiParticles.jl** is a high-performance particle simulation framework designed to overcome challenges of particle-based numerical methods in multiphysics applications. Existing frameworks often lack user-friendliness, involve complex configuration, and are not easily extensible for development of new methods. In the future we also want to provide seamless scalability from CPU to Exascale-level computing with GPU support. **TrixiParticles.jl** addresses these limitations with an intuitive interface, straightforward configuration, and an extensible design, facilitating efficient simulation setup and execution.
+**TrixiParticles.jl** is a high-performance simulation framework for particle-based methods in complex multiphysics applications. It combines an accessible user interface with an extensible architecture for developing new methods, while also providing GPU-accelerated execution.
 
 TrixiParticles.jl focuses on the following use cases:
 
-- Development of new particle-based methods and models. By providing an extensible architecture to incorporate additional particle methods easily and not focusing on a single model or numerical method.
-- Accurate, reliable and efficient physics-based modelling of complex multiphysics problems by providing a flexible configuration system, tools, high performance and a wide range of validation and test cases.
-- Easy setup of accessible simulations for educational purposes, including student projects, coursework, and thesis work through extensive documentation, community engagement and readable configuration files.
+- Development of new particle-based methods and models through an extensible architecture that is not tied to a single numerical method.
+- Accurate, reliable, and efficient physics-based modeling of complex multiphysics problems through a flexible configuration system, high performance, and a broad set of validation and test cases.
+- Accessible simulation setup for educational purposes, including student projects, coursework, and thesis work, supported by extensive documentation and readable configuration files.
 
-Its features include:
+Its main features include:
 
 ## Features
-- Incompressible Navier-Stokes
-  - Methods: Weakly Compressible Smoothed Particle Hydrodynamics (WCSPH), Entropically Damped Artificial Compressibility (EDAC)
-  - Models: Surface Tension
-- Solid-body mechanics
-  - Methods: Total Lagrangian SPH (TLSPH)
+- Incompressible Navier-Stokes flows
+  - Methods: Weakly Compressible Smoothed Particle Hydrodynamics (WCSPH), Entropically Damped Artificial Compressibility (EDAC), Implicit Incompressible Smoothed Particle Hydrodynamics (IISPH)
+  - Models: Surface Tension, Open Boundaries
+- Structural mechanics
+  - Methods: Total Lagrangian SPH (TLSPH), Discrete Element Method (DEM)
 - Fluid-Structure Interaction
+- Particle sampling of complex geometries from `.stl`, `.asc`, and `.dxf` files
 - Output formats:
   - VTK
+- GPU support for NVIDIA, AMD, and Apple devices
 
 ## Examples
 ```@raw html
@@ -42,14 +44,14 @@ Its features include:
 </table>
 ```
 
-## Quickstart
+## Quick Start
 1. [Installation](@ref installation)
 2. [Getting started](@ref getting_started)
 
-If you have any questions concerning **TrixiParticles.jl** you can join our community [on Slack](https://join.slack.com/t/trixi-framework/shared_invite/zt-sgkc6ppw-6OXJqZAD5SPjBYqLd8MU~g) or open an issue with your question.
+If you have questions about **TrixiParticles.jl**, join our community [on Slack](https://join.slack.com/t/trixi-framework/shared_invite/zt-sgkc6ppw-6OXJqZAD5SPjBYqLd8MU~g) or open an issue.
 
-## Start with development
-To get started with development have a look at these pages:
+## Getting Started with Development
+If you want to contribute or extend the code, start with:
 
 1. [Installation](@ref installation)
 2. [Development](@ref development)
