@@ -405,13 +405,51 @@ end
 function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization)
     (; systems) = semi
 
-    return minimum(systems) do system
+    dt_systems = minimum(systems) do system
         if system isa TotalLagrangianSPHSystem && !semi.integrate_tlsph[]
             # Skip TLSPH systems if they are not integrated
             return Inf
         end
         return calculate_dt(v_ode, u_ode, cfl_number, system, semi)
     end
+
+    dt_interfaces = Inf
+    nsystems = length(systems)
+
+    for i in 1:(nsystems - 1)
+        system = systems[i]
+        if system isa TotalLagrangianSPHSystem && !semi.integrate_tlsph[]
+            continue
+        end
+
+        for j in (i + 1):nsystems
+            neighbor_system = systems[j]
+            if neighbor_system isa TotalLagrangianSPHSystem && !semi.integrate_tlsph[]
+                continue
+            end
+            should_calculate_interface_dt(system, neighbor_system) || continue
+
+            dt_interfaces = min(dt_interfaces,
+                                calculate_interface_dt(v_ode, u_ode, cfl_number,
+                                                       system, neighbor_system, semi))
+        end
+    end
+
+    return min(dt_systems, dt_interfaces)
+end
+
+@inline should_calculate_interface_dt(system, neighbor_system) = true
+
+@inline function should_calculate_interface_dt(system::WeaklyCompressibleSPHSystem,
+                                               neighbor_system::WeaklyCompressibleSPHSystem)
+    rho_system = system.state_equation.reference_density
+    rho_neighbor_system = neighbor_system.state_equation.reference_density
+    return !isapprox(rho_system, rho_neighbor_system)
+end
+
+@inline function calculate_interface_dt(v_ode, u_ode, cfl_number, system, neighbor_system,
+                                        semi)
+    return Inf
 end
 
 function drift!(du_ode, v_ode, u_ode, semi, t)
