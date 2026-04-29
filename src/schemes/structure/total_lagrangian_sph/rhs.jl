@@ -71,7 +71,8 @@ end
             F_b = @inbounds deformation_gradient(system, neighbor)
 
             current_pos_diff_ = current_coords_a - current_coords_b
-            # On GPUs, convert `Float64` coordinates to `Float32` after computing the difference
+            # In mixed-precision simulations, convert from `coordinates_eltype(system)`
+            # to `eltype(system)` immediately after computing the difference.
             current_pos_diff = convert.(eltype(system), current_pos_diff_)
             current_distance = norm(current_pos_diff)
 

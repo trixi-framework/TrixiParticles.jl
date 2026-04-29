@@ -416,7 +416,9 @@ function update_shifting_from_callback!(system,
     v = wrap_v(v_ode, system, semi)
     u = wrap_u(u_ode, system, semi)
 
-    update_shifting_inner!(system, shifting, v, u, v_ode, u_ode, semi)
+    @trixi_timeit timer() "update shifting" begin
+        update_shifting_inner!(system, shifting, v, u, v_ode, u_ode, semi)
+    end
 end
 
 # `ParticleShiftingTechnique{<:Any, <:Any, <:Any, true}`
@@ -589,8 +591,10 @@ end
     delta_v_a = delta_v(system, particle)
     delta_v_b = delta_v(neighbor_system, neighbor)
 
-    A_a = rho_a * v_a * delta_v_a'
-    A_b = rho_b * v_b * delta_v_b'
+    # This is the same as using `transpose`, but it's faster due to
+    # https://github.com/JuliaLang/LinearAlgebra.jl/issues/1102.
+    A_a = rho_a * v_a * permutedims(delta_v_a)
+    A_b = rho_b * v_b * permutedims(delta_v_b)
 
     # The following term depends on the pressure acceleration formulation.
     # See the large comment below. In the original paper (Adami et al., 2013), this is

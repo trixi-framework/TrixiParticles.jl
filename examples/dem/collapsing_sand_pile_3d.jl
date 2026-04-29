@@ -6,7 +6,7 @@
 # ==========================================================================================
 
 using TrixiParticles
-using OrdinaryDiffEq
+using OrdinaryDiffEqLowStorageRK
 
 # Physical parameters
 gravity = -9.81
@@ -64,12 +64,11 @@ boundary_particles = floor_particles
 contact_model = LinearContactModel(1e6)
 damping_coefficient = 0.00001
 
-sand_system = DEMSystem(sand_particles, contact_model;
-                        damping_coefficient=damping_coefficient,
-                        acceleration=acceleration, radius=0.4 * particle_spacing)
+sand_system = DEMSystem(sand_particles; contact_model, damping_coefficient, acceleration,
+                        radius=0.4 * particle_spacing)
 
 boundary_stiffness = 1.0e5
-boundary_system = BoundaryDEMSystem(boundary_particles, boundary_stiffness)
+boundary_system = BoundaryDEMSystem(boundary_particles; normal_stiffness=boundary_stiffness)
 
 # ==========================================================================================
 # ==== Simulation
