@@ -107,7 +107,8 @@ function structure_boundary_model(shape)
                                        boundary_density_calculator,
                                        fluid_smoothing_kernel,
                                        fluid_smoothing_length;
-                                       state_equation)
+                                       state_equation,
+                                       clip_negative_pressure=true)
 end
 
 boundary_model_structure_1 = structure_boundary_model(square1)
