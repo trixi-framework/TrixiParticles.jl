@@ -15,10 +15,8 @@
                                                      smoothing_kernel,
                                                      smoothing_length)
 
-        system = RigidBodySystem(initial_condition;
-                                 boundary_model=boundary_model,
-                                 acceleration=(0.0, -9.81),
-                                 particle_spacing=0.1)
+        system = RigidBodySystem(initial_condition; boundary_model,
+                                 acceleration=(0.0, -9.81), particle_spacing=0.1)
 
         @test ndims(system) == 2
         @test system.initial_condition == initial_condition
@@ -59,8 +57,7 @@
                                                      smoothing_kernel,
                                                      smoothing_length)
 
-        system = RigidBodySystem(initial_condition;
-                                 boundary_model=boundary_model,
+        system = RigidBodySystem(initial_condition; boundary_model,
                                  acceleration=(0.0, -9.81))
         @test !haskey(system.cache, :contact_manifold_count)
 
@@ -97,7 +94,7 @@
                                                      smoothing_kernel,
                                                      smoothing_length)
 
-        system = RigidBodySystem(initial_condition; boundary_model=boundary_model)
+        system = RigidBodySystem(initial_condition; boundary_model)
         v = zeros(TrixiParticles.v_nvariables(system),
                   TrixiParticles.n_integrated_particles(system))
 
@@ -122,7 +119,7 @@
 
         source_terms = (coords, velocity, density, pressure,
                         t) -> SVector(density, pressure)
-        system = RigidBodySystem(initial_condition; source_terms=source_terms)
+        system = RigidBodySystem(initial_condition; source_terms)
         semi = Semidiscretization(system, neighborhood_search=nothing)
         system = semi.systems[1]
         ode = semidiscretize(semi, (0.0, 0.0); reset_threads=false)
@@ -344,7 +341,11 @@
         @test data.resultant_torque == 0.0
         @test data.angular_acceleration_force == 0.0
         @test data.gyroscopic_acceleration == 0.0
+        @test data.contact_count == 0
+        @test data.max_contact_penetration == 0.0
         @test data.relative_coordinates == rigid_system.relative_coordinates
+        @test :contact_count in fields
+        @test :max_contact_penetration in fields
         @test !(:local_coordinates in fields)
     end
 
@@ -423,8 +424,7 @@
                                                      smoothing_kernel,
                                                      smoothing_length)
 
-        rigid_system = RigidBodySystem(initial_condition;
-                                       boundary_model=boundary_model)
+        rigid_system = RigidBodySystem(initial_condition; boundary_model)
         semi = Semidiscretization(rigid_system)
         ode = semidiscretize(semi, (0.0, 0.01))
         v_ode, u_ode = ode.u0.x
@@ -451,9 +451,10 @@
         smoothing_length = 0.12
         state_equation = StateEquationCole(; sound_speed=10.0, reference_density=1000.0,
                                            exponent=7.0)
-        fluid_system = WeaklyCompressibleSPHSystem(rigid_ic, SummationDensity(),
-                                                   state_equation, smoothing_kernel,
-                                                   smoothing_length)
+        fluid_system = WeaklyCompressibleSPHSystem(rigid_ic; smoothing_kernel,
+                                                   smoothing_length,
+                                                   density_calculator=SummationDensity(),
+                                                   state_equation)
 
         @test_throws ArgumentError Semidiscretization(fluid_system, rigid_system)
 
@@ -463,11 +464,11 @@
                                                            smoothing_length)
         rigid_system_with_dummy = RigidBodySystem(rigid_ic;
                                                   boundary_model=rigid_boundary_model)
-        fluid_with_surface_tension = WeaklyCompressibleSPHSystem(rigid_ic,
-                                                                 SummationDensity(),
-                                                                 state_equation,
+        fluid_with_surface_tension = WeaklyCompressibleSPHSystem(rigid_ic;
                                                                  smoothing_kernel,
-                                                                 smoothing_length;
+                                                                 smoothing_length,
+                                                                 density_calculator=SummationDensity(),
+                                                                 state_equation,
                                                                  surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.072),
                                                                  reference_particle_spacing=0.1)
 
@@ -489,16 +490,15 @@
                                            exponent=1.0)
 
         function run_setup(boundary_kind)
-            fluid_ic = InitialCondition(coordinates=reshape([0.0, 0.0], 2, 1),
+            fluid_ic = InitialCondition(; coordinates=reshape([0.0, 0.0], 2, 1),
                                         velocity=zeros(2, 1),
                                         mass=[particle_volume * fluid_density],
-                                        density=[fluid_density],
-                                        particle_spacing=particle_spacing)
+                                        density=[fluid_density], particle_spacing)
 
-            fluid_system = WeaklyCompressibleSPHSystem(fluid_ic, SummationDensity(),
+            fluid_system = WeaklyCompressibleSPHSystem(fluid_ic; smoothing_kernel,
+                                                       smoothing_length,
+                                                       density_calculator=SummationDensity(),
                                                        state_equation,
-                                                       smoothing_kernel,
-                                                       smoothing_length;
                                                        surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.05),
                                                        reference_particle_spacing=particle_spacing)
 
@@ -506,28 +506,22 @@
             boundary_model = BoundaryModelDummyParticles([fluid_density],
                                                          [particle_volume * fluid_density],
                                                          AdamiPressureExtrapolation(),
-                                                         smoothing_kernel,
-                                                         smoothing_length,
-                                                         state_equation=state_equation,
+                                                         smoothing_kernel, smoothing_length;
+                                                         state_equation,
                                                          reference_particle_spacing=particle_spacing)
 
             boundary_system = if boundary_kind == :wall
-                wall_ic = InitialCondition(coordinates=boundary_coordinates,
+                wall_ic = InitialCondition(; coordinates=boundary_coordinates,
                                            velocity=zeros(2, 1),
                                            mass=[particle_volume * fluid_density],
-                                           density=[fluid_density],
-                                           particle_spacing=particle_spacing)
-                WallBoundarySystem(wall_ic, boundary_model,
-                                   adhesion_coefficient=adhesion_coefficient)
+                                           density=[fluid_density], particle_spacing)
+                WallBoundarySystem(wall_ic, boundary_model; adhesion_coefficient)
             else
-                rigid_ic = InitialCondition(coordinates=boundary_coordinates,
+                rigid_ic = InitialCondition(; coordinates=boundary_coordinates,
                                             velocity=zeros(2, 1),
                                             mass=[particle_volume * rigid_density],
-                                            density=[rigid_density],
-                                            particle_spacing=particle_spacing)
-                RigidBodySystem(rigid_ic;
-                                boundary_model=boundary_model,
-                                adhesion_coefficient=adhesion_coefficient)
+                                            density=[rigid_density], particle_spacing)
+                RigidBodySystem(rigid_ic; boundary_model, adhesion_coefficient)
             end
 
             semi = Semidiscretization(fluid_system, boundary_system)
@@ -591,33 +585,30 @@
 
         boundary_model = BoundaryModelDummyParticles(fill(fluid_density, 2),
                                                      fill(particle_volume * fluid_density,
-                                                          2),
-                                                     AdamiPressureExtrapolation(),
-                                                     smoothing_kernel,
-                                                     smoothing_length,
-                                                     state_equation=state_equation,
+                                                          2), AdamiPressureExtrapolation(),
+                                                     smoothing_kernel, smoothing_length;
+                                                     state_equation,
                                                      reference_particle_spacing=particle_spacing)
 
         function run_setup(fluid_positions)
-            rigid_ic = InitialCondition(coordinates=[-0.5 0.5
-                                                     0.0 0.0],
+            rigid_ic = InitialCondition(; coordinates=[-0.5 0.5
+                                                       0.0 0.0],
                                         velocity=zeros(2, 2),
                                         mass=fill(particle_volume * rigid_density, 2),
-                                        density=fill(rigid_density, 2),
-                                        particle_spacing=particle_spacing)
-            rigid_system = RigidBodySystem(rigid_ic;
-                                           boundary_model=boundary_model,
+                                        density=fill(rigid_density, 2), particle_spacing)
+            rigid_system = RigidBodySystem(rigid_ic; boundary_model,
                                            acceleration=(0.0, 0.0))
 
             fluid_systems = map(fluid_positions) do position
-                fluid_ic = InitialCondition(coordinates=reshape(collect(position), 2, 1),
+                fluid_ic = InitialCondition(; coordinates=reshape(collect(position), 2, 1),
                                             velocity=zeros(2, 1),
                                             mass=[particle_volume * fluid_density],
-                                            density=[fluid_density],
-                                            particle_spacing=particle_spacing)
+                                            density=[fluid_density], particle_spacing)
 
-                WeaklyCompressibleSPHSystem(fluid_ic, SummationDensity(), state_equation,
-                                            smoothing_kernel, smoothing_length)
+                WeaklyCompressibleSPHSystem(fluid_ic; smoothing_kernel,
+                                            smoothing_length,
+                                            density_calculator=SummationDensity(),
+                                            state_equation)
             end
 
             semi = Semidiscretization(fluid_systems..., rigid_system)
@@ -667,43 +658,34 @@
         boundary_model = BoundaryModelDummyParticles([fluid_density],
                                                      [particle_volume * fluid_density],
                                                      AdamiPressureExtrapolation(),
-                                                     smoothing_kernel,
-                                                     smoothing_length,
-                                                     state_equation=state_equation,
+                                                     smoothing_kernel, smoothing_length;
+                                                     state_equation,
                                                      reference_particle_spacing=particle_spacing)
 
-        rigid_ic = InitialCondition(coordinates=reshape([0.0, 0.0], 2, 1),
+        rigid_ic = InitialCondition(; coordinates=reshape([0.0, 0.0], 2, 1),
                                     velocity=zeros(2, 1),
                                     mass=[particle_volume * rigid_density],
-                                    density=[rigid_density],
-                                    particle_spacing=particle_spacing)
-        rigid_system = RigidBodySystem(rigid_ic;
-                                       boundary_model=boundary_model,
-                                       acceleration=(0.0, 0.0))
+                                    density=[rigid_density], particle_spacing)
+        rigid_system = RigidBodySystem(rigid_ic; boundary_model, acceleration=(0.0, 0.0))
 
-        open_boundary_ic = InitialCondition(coordinates=reshape([1.5, 0.0], 2, 1),
+        open_boundary_ic = InitialCondition(; coordinates=reshape([1.5, 0.0], 2, 1),
                                             velocity=zeros(2, 1),
                                             mass=[particle_volume * fluid_density],
-                                            density=[fluid_density],
-                                            particle_spacing=particle_spacing)
+                                            density=[fluid_density], particle_spacing)
 
-        fluid_support_ic = InitialCondition(coordinates=reshape([10.0, 10.0], 2, 1),
+        fluid_support_ic = InitialCondition(; coordinates=reshape([10.0, 10.0], 2, 1),
                                             velocity=zeros(2, 1),
                                             mass=[particle_volume * fluid_density],
-                                            density=[fluid_density],
-                                            particle_spacing=particle_spacing)
-        fluid_system = WeaklyCompressibleSPHSystem(fluid_support_ic, SummationDensity(),
-                                                   state_equation,
-                                                   smoothing_kernel,
-                                                   smoothing_length)
+                                            density=[fluid_density], particle_spacing)
+        fluid_system = WeaklyCompressibleSPHSystem(fluid_support_ic; smoothing_kernel,
+                                                   smoothing_length,
+                                                   density_calculator=SummationDensity(),
+                                                   state_equation)
 
         boundary_face = ([2.0, -0.5], [2.0, 0.5])
-        zone = BoundaryZone(; boundary_face, face_normal=(1.0, 0.0),
-                            density=fluid_density,
-                            particle_spacing=particle_spacing,
-                            initial_condition=open_boundary_ic,
-                            open_boundary_layers=1,
-                            boundary_type=InFlow())
+        zone = BoundaryZone(; boundary_face, face_normal=(1.0, 0.0), density=fluid_density,
+                            particle_spacing, initial_condition=open_boundary_ic,
+                            open_boundary_layers=1, boundary_type=InFlow())
 
         open_boundary_system = OpenBoundarySystem(zone; fluid_system,
                                                   boundary_model=BoundaryModelDynamicalPressureZhang(),
@@ -783,6 +765,7 @@
         TrixiParticles.update_final!(rigid_system_2, v_rigid_2, u_rigid_2,
                                      v_ode_rigid, u_ode_rigid, semi_rigid, 0.0)
 
+        TrixiParticles.reset_interaction_caches!(semi_rigid)
         TrixiParticles.interact!(dv_ode_rigid, v_ode_rigid, u_ode_rigid,
                                  rigid_system_1, rigid_system_2, semi_rigid)
         force_after_forward_1 = copy(rigid_system_1.force_per_particle)
@@ -812,6 +795,10 @@
 
         @test vec(force_after_forward_1[:, 1]) ≈ collect(expected_force)
         @test vec(rigid_system_2.force_per_particle[:, 1]) ≈ collect(-expected_force)
+        @test rigid_system_1.cache.contact_count[] == 1
+        @test rigid_system_2.cache.contact_count[] == 1
+        @test rigid_system_1.cache.max_contact_penetration[] ≈ pair_penetration
+        @test rigid_system_2.cache.max_contact_penetration[] ≈ pair_penetration
 
         @test TrixiParticles.compact_support(rigid_system_1, rigid_system_2) ≈
               pair_contact_distance
@@ -841,6 +828,34 @@
         @test TrixiParticles.calculate_dt(zero_velocity_ode, u_ode_rigid, 0.25,
                                           semi_rigid) ≈ 0.25 * pair_contact_dt
 
+        dv_ode_reset = zero(v_ode_rigid)
+        TrixiParticles.system_interaction!(dv_ode_reset, v_ode_rigid, u_ode_rigid,
+                                           semi_rigid)
+        @test rigid_system_1.cache.contact_count[] == 1
+        @test rigid_system_2.cache.contact_count[] == 1
+        @test rigid_system_1.cache.max_contact_penetration[] ≈ pair_penetration
+        @test rigid_system_2.cache.max_contact_penetration[] ≈ pair_penetration
+        @test vec(rigid_system_1.force_per_particle[:, 1]) ≈ collect(expected_force)
+        @test vec(rigid_system_2.force_per_particle[:, 1]) ≈ collect(-expected_force)
+
+        TrixiParticles.update_systems_and_nhs(v_ode_rigid, u_ode_rigid, semi_rigid, 0.0)
+        @test rigid_system_1.cache.contact_count[] == 1
+        @test rigid_system_2.cache.contact_count[] == 1
+        @test rigid_system_1.cache.max_contact_penetration[] ≈ pair_penetration
+        @test rigid_system_2.cache.max_contact_penetration[] ≈ pair_penetration
+        @test vec(rigid_system_1.force_per_particle[:, 1]) ≈ collect(expected_force)
+        @test vec(rigid_system_2.force_per_particle[:, 1]) ≈ collect(-expected_force)
+
+        TrixiParticles.set_zero!(dv_ode_reset)
+        TrixiParticles.system_interaction!(dv_ode_reset, v_ode_rigid, u_ode_rigid,
+                                           semi_rigid)
+        @test rigid_system_1.cache.contact_count[] == 1
+        @test rigid_system_2.cache.contact_count[] == 1
+        @test rigid_system_1.cache.max_contact_penetration[] ≈ pair_penetration
+        @test rigid_system_2.cache.max_contact_penetration[] ≈ pair_penetration
+        @test vec(rigid_system_1.force_per_particle[:, 1]) ≈ collect(expected_force)
+        @test vec(rigid_system_2.force_per_particle[:, 1]) ≈ collect(-expected_force)
+
         dv_rigid_1 = TrixiParticles.wrap_v(dv_ode_rigid, rigid_system_1, semi_rigid)
         dv_rigid_2 = TrixiParticles.wrap_v(dv_ode_rigid, rigid_system_2, semi_rigid)
         TrixiParticles.finalize_interaction!(rigid_system_1, dv_rigid_1, v_rigid_1,
@@ -856,6 +871,29 @@
         @test dv_rigid_2[1, 1] ≈ -expected_force[1] / rigid_mass_2[1]
         @test dv_rigid_1[2, 1] ≈ 0.0
         @test dv_rigid_2[2, 1] ≈ 0.0
+
+        mktempdir() do tmp_dir
+            du_ode_rigid = zero(u_ode_rigid)
+            dvdu_ode_rigid = (; x=(dv_ode_rigid, du_ode_rigid))
+            vu_ode_rigid = (; x=(v_ode_rigid, u_ode_rigid))
+            trixi2vtk(dvdu_ode_rigid, vu_ode_rigid, semi_rigid, 0.0;
+                      output_directory=tmp_dir, iter=1)
+
+            contact_filename = TrixiParticles.system_names(semi_rigid.systems)[1]
+            vtk_contact = TrixiParticles.ReadVTK.VTKFile(joinpath(tmp_dir,
+                                                                  "$(contact_filename)_1.vtu"))
+            point_data_contact = TrixiParticles.ReadVTK.get_point_data(vtk_contact)
+
+            @test only(Array(TrixiParticles.ReadVTK.get_data(point_data_contact["contact_count"]))) ==
+                  rigid_system_1.cache.contact_count[]
+            @test only(Array(TrixiParticles.ReadVTK.get_data(point_data_contact["contact_count"]))) >
+                  0
+            @test only(Array(TrixiParticles.ReadVTK.get_data(point_data_contact["max_contact_penetration"]))) ≈
+                  rigid_system_1.cache.max_contact_penetration[]
+            @test only(Array(TrixiParticles.ReadVTK.get_data(point_data_contact["max_contact_penetration"]))) >
+                  0
+        end
+
         rigid_coordinates = reshape([0.0, 0.05], 2, 1)
         rigid_velocity = reshape([0.0, -1.0], 2, 1)
         rigid_mass = [1.0]
@@ -903,20 +941,13 @@
         @test_throws ArgumentError RigidContactModel(; normal_stiffness=1.0,
                                                      contact_distance=-1.0)
 
-        rigid_system = RigidBodySystem(rigid_ic;
-                                       acceleration=(0.0, 0.0),
-                                       contact_model=contact_model)
-        rigid_system_with_boundary = RigidBodySystem(rigid_ic;
-                                                     acceleration=(0.0, 0.0),
-                                                     boundary_model=boundary_model,
-                                                     contact_model=contact_model)
-        rigid_system_custom_manifolds = RigidBodySystem(rigid_ic;
-                                                        acceleration=(0.0, 0.0),
-                                                        contact_model=contact_model,
-                                                        max_manifolds=3)
-        rigid_system_without_contact = RigidBodySystem(rigid_ic;
-                                                       acceleration=(0.0, 0.0),
-                                                       boundary_model=boundary_model)
+        rigid_system = RigidBodySystem(rigid_ic; acceleration=(0.0, 0.0), contact_model)
+        rigid_system_with_boundary = RigidBodySystem(rigid_ic; acceleration=(0.0, 0.0),
+                                                     boundary_model, contact_model)
+        rigid_system_custom_manifolds = RigidBodySystem(rigid_ic; acceleration=(0.0, 0.0),
+                                                        contact_model, max_manifolds=3)
+        rigid_system_without_contact = RigidBodySystem(rigid_ic; acceleration=(0.0, 0.0),
+                                                       boundary_model)
         @test haskey(rigid_system.cache, :contact_manifold_count)
         @test rigid_system.contact_model.normal_stiffness ≈ contact_model.normal_stiffness
         @test rigid_system.contact_model.normal_damping ≈ contact_model.normal_damping
@@ -940,9 +971,13 @@
         @test iszero(TrixiParticles.compact_support(boundary_system, rigid_system))
         @test iszero(TrixiParticles.compact_support(rigid_system_without_contact,
                                                     boundary_system))
-        @test_throws ArgumentError RigidBodySystem(rigid_ic;
-                                                   contact_model=contact_model,
-                                                   max_manifolds=0)
+        @test_throws ArgumentError RigidBodySystem(rigid_ic; contact_model, max_manifolds=0)
+
+        system_meta_data = Dict{String, Any}()
+        TrixiParticles.add_system_data!(system_meta_data, rigid_system)
+        @test system_meta_data["contact_model"]["normal_stiffness"] ≈ 2.0e4
+        @test system_meta_data["contact_model"]["normal_damping"] ≈ 20.0
+        @test system_meta_data["contact_model"]["contact_distance"] ≈ 0.1
 
         semi = Semidiscretization(rigid_system, boundary_system)
         ode = semidiscretize(semi, (0.0, 0.01))
@@ -958,9 +993,8 @@
                                                           SummationDensity(),
                                                           smoothing_kernel,
                                                           smoothing_length)
-        kick_rigid_system = RigidBodySystem(rigid_ic;
-                                            acceleration=(0.0, 0.0),
-                                            contact_model=contact_model)
+        kick_rigid_system = RigidBodySystem(rigid_ic; acceleration=(0.0, 0.0),
+                                            contact_model)
         kick_boundary_system = WallBoundarySystem(boundary_ic, kick_boundary_model)
         kick_semi = Semidiscretization(kick_rigid_system, kick_boundary_system)
         kick_ode = semidiscretize(kick_semi, (0.0, 0.01))
@@ -973,6 +1007,7 @@
         @test kick_dv[2, 1] > 0
         @test kick_rigid_system.resultant_force[][2] > 0
 
+        TrixiParticles.reset_interaction_caches!(semi)
         TrixiParticles.interact!(dv_ode, v_ode, u_ode, rigid_system, boundary_system, semi)
         dv = TrixiParticles.wrap_v(dv_ode, rigid_system, semi)
         v_rigid = TrixiParticles.wrap_v(v_ode, rigid_system, semi)
@@ -981,6 +1016,35 @@
                                              dv_ode, v_ode, u_ode, semi)
 
         @test dv[2, 1] > 0
+        @test rigid_system.cache.contact_count[] == 1
+        @test rigid_system.cache.max_contact_penetration[] ≈ 0.05
+        direct_force = copy(rigid_system.force_per_particle)
+        direct_resultant_force = rigid_system.resultant_force[]
+
+        TrixiParticles.set_zero!(dv_ode)
+        TrixiParticles.update_final!(rigid_system, v_rigid, u_rigid, v_ode, u_ode, semi,
+                                     0.0)
+        TrixiParticles.reset_interaction_caches!(semi)
+        TrixiParticles.interact!(dv_ode, v_ode, u_ode, rigid_system, boundary_system, semi)
+        TrixiParticles.finalize_interaction!(rigid_system, dv, v_rigid, u_rigid,
+                                             dv_ode, v_ode, u_ode, semi)
+
+        @test rigid_system.cache.contact_count[] == 1
+        @test rigid_system.cache.max_contact_penetration[] ≈ 0.05
+        @test rigid_system.force_per_particle == direct_force
+        @test rigid_system.resultant_force[] ≈ direct_resultant_force
+
+        TrixiParticles.set_zero!(dv_ode)
+        TrixiParticles.update_final!(rigid_system, v_rigid, u_rigid, v_ode, u_ode, semi,
+                                     0.0)
+        TrixiParticles.reset_interaction_caches!(semi)
+        TrixiParticles.finalize_interaction!(rigid_system, dv, v_rigid, u_rigid,
+                                             dv_ode, v_ode, u_ode, semi)
+
+        @test all(iszero, dv)
+        @test iszero(rigid_system.resultant_force[])
+        @test iszero(rigid_system.resultant_torque[])
+        @test iszero(rigid_system.angular_acceleration_force[])
 
         far_rigid_ic = InitialCondition(; coordinates=reshape([0.0, 0.09], 2, 1),
                                         velocity=rigid_velocity,
@@ -994,14 +1058,14 @@
                                                                    0.04)
         short_support_boundary = WallBoundarySystem(boundary_ic,
                                                     short_support_boundary_model)
-        far_rigid_system = RigidBodySystem(far_rigid_ic;
-                                           acceleration=(0.0, 0.0),
-                                           contact_model=contact_model)
+        far_rigid_system = RigidBodySystem(far_rigid_ic; acceleration=(0.0, 0.0),
+                                           contact_model)
         short_support_semi = Semidiscretization(far_rigid_system, short_support_boundary)
         short_support_ode = semidiscretize(short_support_semi, (0.0, 0.01))
         short_support_v_ode, short_support_u_ode = short_support_ode.u0.x
         short_support_dv_ode = zero(short_support_v_ode)
 
+        TrixiParticles.reset_interaction_caches!(short_support_semi)
         TrixiParticles.interact!(short_support_dv_ode, short_support_v_ode,
                                  short_support_u_ode, far_rigid_system,
                                  short_support_boundary, short_support_semi)

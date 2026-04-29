@@ -23,9 +23,9 @@
 
             initial_condition = InitialCondition(; coordinates, mass,
                                                  density=material_densities)
-            system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
-                                              smoothing_length, E, nu,
-                                              boundary_model=boundary_model)
+            system = TotalLagrangianSPHSystem(initial_condition; smoothing_kernel,
+                                              smoothing_length, young_modulus=E,
+                                              poisson_ratio=nu, boundary_model)
 
             @test system isa TotalLagrangianSPHSystem
             @test ndims(system) == NDIMS
@@ -62,9 +62,9 @@
 
         initial_condition = InitialCondition(; coordinates, mass,
                                              density=material_densities)
-        system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
-                                          smoothing_length, E, nu,
-                                          boundary_model=boundary_model)
+        system = TotalLagrangianSPHSystem(initial_condition; smoothing_kernel,
+                                          smoothing_length, young_modulus=E,
+                                          poisson_ratio=nu, boundary_model)
 
         show_compact = "TotalLagrangianSPHSystem{2}(Val{:smoothing_kernel}(), " *
                        "[0.0, 0.0], Val{:boundary_model}(), nothing, nothing) with 2 particles"
@@ -88,9 +88,9 @@
 
         E = [1.2, 3.4]
         nu = [0.2, 0.4]
-        system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
-                                          smoothing_length, E, nu,
-                                          boundary_model=boundary_model)
+        system = TotalLagrangianSPHSystem(initial_condition; smoothing_kernel,
+                                          smoothing_length, young_modulus=E,
+                                          poisson_ratio=nu, boundary_model)
 
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -140,8 +140,8 @@
                 mass = [2.0, 2.0]
                 density = 4.0
 
-                correction_matrix = [1 0; 0 1;;;
-                                     1 0; 0 1]
+                correction_matrix = [1.0 0.0; 0.0 1.0;;;
+                                     1.0 0.0; 0.0 1.0]
 
                 # This will cause the computed gradient
                 # to be equal to `initial_coords[particle] - initial_coords[neighbor]`
@@ -149,42 +149,32 @@
 
                 #### Mocking
                 # Mock the system
-                system = Val(:mock_system_tensor)
-                TrixiParticles.ndims(::Val{:mock_system_tensor}) = 2
-                Base.ntuple(f, ::Symbol) = ntuple(f, 2) # Make `extract_svector` work
-                function TrixiParticles.current_coords(system::Val{:mock_system_tensor},
-                                                       particle)
+                struct MockSystem <: TrixiParticles.AbstractStructureSystem{2}
+                    mass::Any
+                    correction_matrix::Any
+                    material_density::Any
+                    smoothing_length::Any
+                end
+                Base.eltype(::MockSystem) = Float64
+                system = MockSystem(mass, correction_matrix, Val(:mock_material_density),
+                                    0.12)
+
+                function TrixiParticles.current_coords(::MockSystem, particle)
                     return TrixiParticles.extract_svector(current_coordinates[i], Val(2),
                                                           particle)
                 end
 
-                function TrixiParticles.initial_coordinates(::Val{:mock_system_tensor})
+                function TrixiParticles.initial_coordinates(::MockSystem)
                     return initial_coordinates[i]
                 end
 
-                TrixiParticles.smoothing_length(::Val{:mock_system_tensor}, _) = 0.12
-
-                # All unpack calls should return another mock object
-                # of the type `Val{:mock_property_name}`, but we want to have some real matrices
-                # as properties as opposed to only mock objects.
-                function Base.getproperty(::Val{:mock_system_tensor}, f::Symbol)
-                    if f === :correction_matrix
-                        return correction_matrix
-                    elseif f === :mass
-                        return mass
-                    end
-
-                    # For all other properties, return mock objects.
-                    return Val(Symbol("mock_" * string(f)))
-                end
-                function TrixiParticles.compact_support(::Val{:mock_system_tensor},
-                                                        ::Val{:mock_system_tensor})
+                function TrixiParticles.compact_support(::MockSystem, ::MockSystem)
                     return Inf
                 end
 
                 Base.getindex(::Val{:mock_material_density}, ::Int64) = density
 
-                function TrixiParticles.smoothing_kernel_grad_unsafe(::Val{:mock_system_tensor},
+                function TrixiParticles.smoothing_kernel_grad_unsafe(::MockSystem,
                                                                      pos_diff, distance,
                                                                      particle)
                     return kernel_derivative * pos_diff / distance
@@ -232,8 +222,9 @@
                                                                smoothing_length)
 
                 initial_condition = InitialCondition(; coordinates, mass, density)
-                system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
-                                                  smoothing_length, 1.0, 1.0)
+                system = TotalLagrangianSPHSystem(initial_condition; smoothing_kernel,
+                                                  smoothing_length, young_modulus=1.0,
+                                                  poisson_ratio=1.0)
                 semi = DummySemidiscretization()
 
                 TrixiParticles.initialize!(system, semi)
@@ -326,9 +317,9 @@
 
         initial_condition = InitialCondition(; coordinates, mass,
                                              density=material_densities)
-        system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
-                                          smoothing_length, E, nu,
-                                          boundary_model=boundary_model)
+        system = TotalLagrangianSPHSystem(initial_condition; smoothing_kernel,
+                                          smoothing_length, young_modulus=E,
+                                          poisson_ratio=nu, boundary_model)
 
         u0 = zeros(TrixiParticles.u_nvariables(system),
                    TrixiParticles.n_integrated_particles(system))
@@ -353,9 +344,9 @@
 
         initial_condition = InitialCondition(; coordinates, velocity, mass,
                                              density=material_densities)
-        system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
-                                          smoothing_length, E, nu,
-                                          boundary_model=boundary_model)
+        system = TotalLagrangianSPHSystem(initial_condition; smoothing_kernel,
+                                          smoothing_length, young_modulus=E,
+                                          poisson_ratio=nu, boundary_model)
 
         v0 = zeros(TrixiParticles.v_nvariables(system),
                    TrixiParticles.n_integrated_particles(system))
@@ -377,8 +368,9 @@
 
         initial_condition = InitialCondition(; coordinates, velocity, mass,
                                              density=material_densities)
-        system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
-                                          smoothing_length, E, nu)
+        system = TotalLagrangianSPHSystem(initial_condition; smoothing_kernel,
+                                          smoothing_length, young_modulus=E,
+                                          poisson_ratio=nu)
 
         # Initialize deformation_grad and pk1_rho2 with arbitrary values
         for particle in TrixiParticles.eachparticle(system)

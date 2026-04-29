@@ -88,7 +88,7 @@ end
 end
 
 @doc raw"""
-    DensityDiffusionAntuono(initial_condition; delta)
+    DensityDiffusionAntuono(; delta)
 
 The commonly used density diffusion terms by [Antuono (2010)](@cite Antuono2010), also referred to as
 δ-SPH. The density diffusion term by [Molteni (2009)](@cite Molteni2009) is extended by a second
@@ -115,32 +115,30 @@ where ``d`` is the number of dimensions.
 See [`AbstractDensityDiffusion`](@ref TrixiParticles.AbstractDensityDiffusion)
 for an overview and comparison of implemented density diffusion terms.
 """
-struct DensityDiffusionAntuono{NDIMS, ELTYPE, ARRAY2D, ARRAY3D} <: AbstractDensityDiffusion
-    delta                       :: ELTYPE
-    correction_matrix           :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
-    normalized_density_gradient :: ARRAY2D # Array{ELTYPE, 2}: [i, particle]
+struct DensityDiffusionAntuono{ELTYPE} <: AbstractDensityDiffusion
+    delta::ELTYPE
 
-    function DensityDiffusionAntuono(delta, correction_matrix, normalized_density_gradient)
-        new{size(correction_matrix, 1), typeof(delta),
-            typeof(normalized_density_gradient),
-            typeof(correction_matrix)}(delta, correction_matrix,
-                                       normalized_density_gradient)
+    function DensityDiffusionAntuono(; delta)
+        new{typeof(delta)}(delta)
     end
 end
 
-function DensityDiffusionAntuono(initial_condition; delta)
+create_cache_density_diffusion(initial_condition, density_diffusion) = (;)
+
+function create_cache_density_diffusion(initial_condition,
+                                        ::DensityDiffusionAntuono)
     NDIMS = ndims(initial_condition)
     ELTYPE = eltype(initial_condition)
-    correction_matrix = Array{ELTYPE, 3}(undef, NDIMS, NDIMS,
-                                         nparticles(initial_condition))
+    n_particles = nparticles(initial_condition)
 
-    normalized_density_gradient = Array{ELTYPE, 2}(undef, NDIMS,
-                                                   nparticles(initial_condition))
+    density_diffusion_correction_matrix = Array{ELTYPE, 3}(undef, NDIMS, NDIMS,
+                                                           n_particles)
+    density_diffusion_normalized_density_gradient = Array{ELTYPE, 2}(undef, NDIMS,
+                                                                     n_particles)
 
-    return DensityDiffusionAntuono(delta, correction_matrix, normalized_density_gradient)
+    return (; density_diffusion_correction_matrix,
+            density_diffusion_normalized_density_gradient)
 end
-
-@inline Base.ndims(::DensityDiffusionAntuono{NDIMS}) where {NDIMS} = NDIMS
 
 function Base.show(io::IO, density_diffusion::DensityDiffusionAntuono)
     @nospecialize density_diffusion # reduce precompilation time
@@ -154,22 +152,19 @@ function allocate_buffer(initial_condition, density_diffusion, buffer)
     return allocate_buffer(initial_condition, buffer), density_diffusion
 end
 
-function allocate_buffer(ic, dd::DensityDiffusionAntuono, buffer::SystemBuffer)
-    initial_condition = allocate_buffer(ic, buffer)
-    return initial_condition, DensityDiffusionAntuono(initial_condition; delta=dd.delta)
-end
-
 @propagate_inbounds function density_diffusion_psi(density_diffusion::DensityDiffusionAntuono,
                                                    rho_a, rho_b, pos_diff, distance, system,
                                                    particle, neighbor)
-    (; normalized_density_gradient) = density_diffusion
+    (; density_diffusion_normalized_density_gradient) = system.cache
 
     # First term by Molteni & Colagrossi
     result = 2 * (rho_a - rho_b)
 
     # Second correction term
-    normalized_gradient_a = extract_svector(normalized_density_gradient, system, particle)
-    normalized_gradient_b = extract_svector(normalized_density_gradient, system, neighbor)
+    normalized_gradient_a = extract_svector(density_diffusion_normalized_density_gradient,
+                                            system, particle)
+    normalized_gradient_b = extract_svector(density_diffusion_normalized_density_gradient,
+                                            system, neighbor)
     result -= dot(normalized_gradient_a + normalized_gradient_b, pos_diff)
 
     # Since this is one of the most performance critical functions, using fast divisions
@@ -179,13 +174,14 @@ end
 end
 
 function update!(density_diffusion::DensityDiffusionAntuono, v, u, system, semi)
-    (; normalized_density_gradient) = density_diffusion
+    density_diffusion_correction_matrix = system.cache.density_diffusion_correction_matrix
+    normalized_density_gradient = system.cache.density_diffusion_normalized_density_gradient
 
     # Compute correction matrix
     density_fun = @propagate_inbounds(particle->current_density(v, system, particle))
     system_coords = current_coordinates(u, system)
 
-    compute_gradient_correction_matrix!(density_diffusion.correction_matrix,
+    compute_gradient_correction_matrix!(density_diffusion_correction_matrix,
                                         system, system_coords, density_fun, semi)
 
     # Compute normalized density gradient
@@ -198,7 +194,8 @@ function update!(density_diffusion::DensityDiffusionAntuono, v, u, system, semi)
         rho_b = @inbounds current_density(v, system, neighbor)
 
         grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
-        L = @inbounds correction_matrix(density_diffusion, particle)
+        L = @inbounds extract_smatrix(density_diffusion_correction_matrix, system,
+                                      particle)
 
         m_b = @inbounds hydrodynamic_mass(system, neighbor)
         volume_b = m_b / rho_b

@@ -108,6 +108,10 @@ function interact!(dv, v_particle_system, u_particle_system,
 
     NDIMS = ndims(particle_system)
     ELTYPE = eltype(particle_system)
+    set_zero!(particle_system.cache.contact_count_per_particle)
+    set_zero!(particle_system.cache.max_contact_penetration_per_particle)
+    contact_count_per_particle = particle_system.cache.contact_count_per_particle
+    max_contact_penetration_per_particle = particle_system.cache.max_contact_penetration_per_particle
 
     # First gather all penetrating wall neighbors into a small set of contact manifolds per
     # rigid particle. This avoids applying one noisy contact force per wall particle.
@@ -128,6 +132,8 @@ function interact!(dv, v_particle_system, u_particle_system,
     # Apply one force contribution per manifold using the averaged normal, penetration, and
     # wall velocity stored in the cache.
     @threaded semi for particle in each_integrated_particle(particle_system)
+        local_contact_count = 0
+        local_max_contact_penetration = zero(ELTYPE)
         n_manifolds = particle_system.cache.contact_manifold_count[particle]
         if n_manifolds > 0
             v_particle = current_velocity(v_particle_system, particle_system, particle)
@@ -160,7 +166,6 @@ function interact!(dv, v_particle_system, u_particle_system,
                         relative_velocity = v_particle - v_boundary
                         normal_velocity = dot(relative_velocity, normal)
 
-                        # Only the normal spring-dashpot part is kept in the basic collision.
                         elastic_force = contact_model.normal_stiffness *
                                         penetration_effective
                         damping_force = -contact_model.normal_damping * normal_velocity
@@ -174,12 +179,23 @@ function interact!(dv, v_particle_system, u_particle_system,
                                 particle_system.force_per_particle[dim,
                                                                    particle] += interaction_force[dim]
                             end
+
+                            local_contact_count += 1
+                            local_max_contact_penetration = max(local_max_contact_penetration,
+                                                                penetration_effective)
                         end
                     end
                 end
             end
         end
+
+        contact_count_per_particle[particle] = local_contact_count
+        max_contact_penetration_per_particle[particle] = local_max_contact_penetration
     end
+
+    particle_system.cache.contact_count[] += sum(contact_count_per_particle)
+    particle_system.cache.max_contact_penetration[] = max(particle_system.cache.max_contact_penetration[],
+                                                          maximum(max_contact_penetration_per_particle))
 
     return dv
 end
@@ -331,6 +347,14 @@ function interact!(dv, v_particle_system, u_particle_system,
     ELTYPE = eltype(particle_system)
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
+    set_zero!(particle_system.cache.contact_count_per_particle)
+    set_zero!(particle_system.cache.max_contact_penetration_per_particle)
+    contact_count_per_particle = particle_system.cache.contact_count_per_particle
+    max_contact_penetration_per_particle = particle_system.cache.max_contact_penetration_per_particle
+    pair_normal_stiffness = (contact_model.normal_stiffness +
+                             neighbor_contact_model.normal_stiffness) / 2
+    pair_normal_damping = (contact_model.normal_damping +
+                           neighbor_contact_model.normal_damping) / 2
 
     foreach_point_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
                            semi;
@@ -354,10 +378,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         relative_velocity = particle_velocity - neighbor_velocity
         normal_velocity = dot(relative_velocity, normal)
 
-        elastic_force = (contact_model.normal_stiffness +
-                         neighbor_contact_model.normal_stiffness) / 2 * penetration
-        damping_force = -(contact_model.normal_damping +
-                          neighbor_contact_model.normal_damping) / 2 * normal_velocity
+        elastic_force = pair_normal_stiffness * penetration
+        damping_force = -pair_normal_damping * normal_velocity
         normal_force_magnitude = max(elastic_force + damping_force, zero(ELTYPE))
         normal_force_magnitude <= 0 && return dv
 
@@ -366,7 +388,17 @@ function interact!(dv, v_particle_system, u_particle_system,
         for dim in 1:ndims(particle_system)
             particle_system.force_per_particle[dim, particle] += interaction_force[dim]
         end
+
+        # `foreach_point_neighbor` parallelizes the outer loop over `points`, i.e. particles.
+        # This makes these per-particle reductions race-free under the regular backends.
+        contact_count_per_particle[particle] += 1
+        max_contact_penetration_per_particle[particle] = max(max_contact_penetration_per_particle[particle],
+                                                             penetration)
     end
+
+    particle_system.cache.contact_count[] += sum(contact_count_per_particle)
+    particle_system.cache.max_contact_penetration[] = max(particle_system.cache.max_contact_penetration[],
+                                                          maximum(max_contact_penetration_per_particle))
 
     return dv
 end
