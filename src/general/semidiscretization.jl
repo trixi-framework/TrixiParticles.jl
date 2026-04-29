@@ -773,7 +773,7 @@ function system_interaction!(dv_ode, v_ode, u_ode, semi)
             end
 
             interact!(dv_ode, v_ode, u_ode, system, neighbor, semi,
-                      system_index, neighbor_index; timer_str=timer_str)
+                      system_index, neighbor_index; timer_str)
         end
     end
 
