@@ -4,11 +4,12 @@
 # of TrixiParticles.jl by custom implementations from within a simulation file,
 # without ever cloning the repository.
 
-# First, we import TrixiParticles.jl and
+# First, we import TrixiParticles.jl and the time integration sub-package
+# `OrdinaryDiffEqLowStorageRK` of
 # [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl), which we will
 # use at the very end for the time integration.
 using TrixiParticles
-using OrdinaryDiffEq
+using OrdinaryDiffEqLowStorageRK
 
 # ## Load a simulation file
 
@@ -117,13 +118,12 @@ nothing # hide
 # `examples/fluid/dam_break_2d.jl` with our custom kernel and the corresponding
 # smoothing length.
 # ```@cast @__NAME__; width=100, height=50, delay=0, loop=true, loop_delay=5
-# trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
+# trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl");
 #               smoothing_kernel=MyGaussianKernel(),
-#               smoothing_length=smoothing_length);
+#               smoothing_length);
 # ```
-trixi_include(joinpath(examples_dir(), "fluid", "dam_break_2d.jl"), #!md
-              smoothing_kernel=MyGaussianKernel(), #!md
-              smoothing_length=smoothing_length) #!md
+trixi_include(joinpath(examples_dir(), "fluid", "dam_break_2d.jl"); #!md
+              smoothing_kernel=MyGaussianKernel(), smoothing_length) #!md
 
 # See [Visualization](@ref) for how to visualize the final solution.
 # For the simplest visualization, we can use [Plots.jl](https://docs.juliaplots.org/stable/):

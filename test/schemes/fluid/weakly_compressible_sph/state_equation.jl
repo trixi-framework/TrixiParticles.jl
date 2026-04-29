@@ -43,9 +43,9 @@
             background_pressures = [0.0, 10_000.0, 100_000.0, 200_000.0]
 
             for background_pressure in background_pressures
-                state_equation = StateEquationCole(sound_speed=10.0, exponent=7,
+                state_equation = StateEquationCole(; sound_speed=10.0, exponent=7,
                                                    reference_density=1000.0,
-                                                   background_pressure=background_pressure)
+                                                   background_pressure)
                 @test state_equation(1000.0) == background_pressure
                 @test state_equation(1001.0) > background_pressure + 10
                 # No pressure clipping
@@ -155,7 +155,7 @@
             # Work with pressures in ATM
             ATM = 101_325.0
 
-            state_equation = StateEquationIdealGas(; sound_speed, gamma=gamma,
+            state_equation = StateEquationIdealGas(; sound_speed, gamma,
                                                    reference_density=rest_density,
                                                    background_pressure=1ATM)
 
