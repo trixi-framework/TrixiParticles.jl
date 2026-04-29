@@ -731,8 +731,10 @@ end
     (; volume, wall_velocity) = cache
 
     # Prescribed velocity of the boundary particle.
-    # This velocity is zero when not using moving boundaries.
-    v_boundary = current_velocity(v, system, particle)
+    # This velocity is zero when not using moving boundaries or TLSPH.
+    # If not using TLSPH with velocity averaging, this function simply
+    # forwards to `current_velocity`.
+    v_boundary = velocity_for_viscosity(v, system, particle)
 
     for dim in eachindex(v_boundary)
         # Compute the no-slip wall velocity using the formula v_w = 2 * v_a - ṽ_fluid,

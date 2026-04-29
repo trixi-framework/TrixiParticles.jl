@@ -6,7 +6,8 @@
                              acceleration=ntuple(_ -> 0.0, NDIMS),
                              penalty_force=nothing, viscosity=nothing,
                              source_terms=nothing, boundary_model=nothing,
-                             self_interaction_nhs=:default)
+                             self_interaction_nhs=:default,
+                             velocity_averaging=nothing)
 
 System for particles of an elastic structure.
 
@@ -55,6 +56,9 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
                     `transpose_backend` of the [`PrecomputedNeighborhoodSearch`](@ref)
                     is set to `true` when running on GPUs and `false` on CPUs.
                     Alternatively, a user-defined neighborhood search can be passed here.
+- `velocity_averaging`: Velocity averaging technique to be applied on the velocity field
+                    to obtain an averaged velocity to be used in fluid-structure interaction.
+                    See [the docs](@ref velocity_averaging) for details.
 
 !!! note
     To define `clamped_particles` conveniently, place the clamped block first and combine
@@ -70,7 +74,7 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
     `structure`, so their indices are `1:nparticles(clamped_particles)`.
 """
 struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, ARRAY3D,
-                                YM, PR, LL, LM, K, PF, V, ST, M, IM, NHS,
+                                YM, PR, LL, LM, K, PF, V, ST, M, IM, NHS, VA,
                                 C} <: AbstractStructureSystem{NDIMS}
     initial_condition   :: IC
     initial_coordinates :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
@@ -96,6 +100,7 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
     clamped_particles_motion :: M
     clamped_particles_moving :: IM
     self_interaction_nhs     :: NHS
+    velocity_averaging       :: VA
     cache                    :: C
 end
 
@@ -106,7 +111,8 @@ function TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing
                                                       ndims(smoothing_kernel)),
                                   penalty_force=nothing, viscosity=nothing,
                                   source_terms=nothing, boundary_model=nothing,
-                                  self_interaction_nhs=:default)
+                                  self_interaction_nhs=:default,
+                                  velocity_averaging=nothing)
     NDIMS = ndims(initial_condition)
     ELTYPE = eltype(initial_condition)
     n_particles = nparticles(initial_condition)
@@ -158,7 +164,8 @@ function TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing
     initialize_prescribed_motion!(clamped_particles_motion, initial_condition_sorted,
                                   n_clamped_particles)
 
-    cache = create_cache_tlsph(clamped_particles_motion, initial_condition_sorted)
+    cache = (; create_cache_tlsph(clamped_particles_motion, initial_condition_sorted)...,
+             create_cache_tlsph(velocity_averaging, initial_condition_sorted)...)
 
     return TotalLagrangianSPHSystem(initial_condition_sorted, initial_coordinates,
                                     current_coordinates, mass, correction_matrix,
@@ -169,7 +176,7 @@ function TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing
                                     smoothing_length, acceleration_, boundary_model,
                                     penalty_force, viscosity, source_terms,
                                     clamped_particles_motion, ismoving,
-                                    self_interaction_nhs, cache)
+                                    self_interaction_nhs, velocity_averaging, cache)
 end
 
 # Initialize self-interaction neighborhood search if not provided by the user
@@ -231,7 +238,8 @@ function initialize_self_interaction_nhs(system::TotalLagrangianSPHSystem,
                                     system.viscosity, system.source_terms,
                                     system.clamped_particles_motion,
                                     system.clamped_particles_moving,
-                                    self_interaction_nhs, system.cache)
+                                    self_interaction_nhs, system.velocity_averaging,
+                                    system.cache)
 end
 
 extract_periodic_box(::Nothing) = nothing
@@ -244,6 +252,22 @@ function create_cache_tlsph(::PrescribedMotion, initial_condition)
     acceleration = zero(initial_condition.velocity)
 
     return (; velocity, acceleration)
+end
+
+function create_cache_tlsph(::VelocityAveraging, initial_condition)
+    averaged_velocity = zero(initial_condition.velocity)
+    t_last_averaging = Ref(zero(eltype(initial_condition)))
+
+    return (; averaged_velocity, t_last_averaging)
+end
+
+@inline function requires_update_callback(system::TotalLagrangianSPHSystem, semi)
+    # Velocity averaging used and `integrate_tlsph == false` means that split integration
+    # is used and the averaged velocity is updated there.
+    # Velocity averaging used, `integrate_tlsph == true`, and no fluid system in the semi
+    # means we are inside the split integration
+    return !isnothing(system.velocity_averaging) && semi.integrate_tlsph[] &&
+           any(system -> system isa AbstractFluidSystem, semi.systems)
 end
 
 @inline function Base.eltype(::TotalLagrangianSPHSystem{<:Any, <:Any, ELTYPE}) where {ELTYPE}
@@ -358,6 +382,10 @@ end
 @inline function poisson_ratio(::TotalLagrangianSPHSystem,
                                poisson_ratio::AbstractVector, particle)
     return poisson_ratio[particle]
+end
+
+@inline function velocity_averaging(system::TotalLagrangianSPHSystem)
+    return system.velocity_averaging
 end
 
 function initialize!(system::TotalLagrangianSPHSystem, semi)

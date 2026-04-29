@@ -129,3 +129,26 @@ density are present, instabilities in the fluid can be induced by the structure.
 In these cases, artificial viscosity is effective at stabilizing the fluid close to the
 structure, and we recommend using it in combination with penalty force to both
 prevent hourglass modes and stabilize the fluid close to the fluid-structure interface.
+
+
+## [Velocity Averaging](@id velocity_averaging)
+
+In challenging FSI cases with very stiff structures, the two techniques above might not be
+sufficient to prevent instabilities.
+High-frequency noise in the structure velocity can trigger instabilities or spurious
+pressure waves (due to aliasing) in the fluid.
+Another stabilization technique is an exponential moving average (EMA) of the structure
+velocity used **only** for the fluid-structure viscous coupling (no-slip boundary condition).
+
+The averaged velocity ``\bar v`` is updated (by the [`UpdateCallback`](@ref)
+or in every sub-step of the [`SplitIntegrationCallback`](@ref) if it is used) as
+```math
+\bar v^{n+1} = (1-\alpha)\,\bar v^n + \alpha\, v^{n+1}, \qquad
+\alpha = 1 - \exp(-\Delta t/\tau),
+```
+where ``\tau`` is the time constant.
+
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("schemes", "structure", "total_lagrangian_sph", "velocity_averaging.jl")]
+```

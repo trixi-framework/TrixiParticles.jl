@@ -178,6 +178,8 @@
                                              plate_position=(0.2, 0.0),
                                              tspan=(0.0, 0.2),
                                              E=1e7, # Stiffer plate
+                                             # Test velocity averaging as well
+                                             velocity_averaging=VelocityAveraging(time_constant=1e-4),
                                              maxiters=400,
                                              extra_callback=split_integration) [
                 r"\[ Info: To create the self-interaction neighborhood search.*\n"
@@ -190,6 +192,15 @@
             else
                 @test count_rhs_allocations(sol, semi) == 0
             end
+
+            # Verify that velocity averaging is actually used
+            system = sol.prob.p.systems[3]
+            @test system isa TotalLagrangianSPHSystem
+            # Test that `current_velocity` is not the same as `velocity_for_viscosity`.
+            # `current_velocity` should fail because it tries to access `v`, for which
+            # we passed `nothing`.
+            @test_throws "no method" TrixiParticles.current_velocity(nothing, system, 1)
+            @test !iszero(TrixiParticles.velocity_for_viscosity(nothing, system, 1))
 
             # Now use split integration and verify that it is actually used for TLSPH
             # by using a time step that is too large and verifying that it is crashing.
