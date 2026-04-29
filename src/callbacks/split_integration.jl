@@ -66,7 +66,7 @@ of fluid to solid particles is large enough (e.g. 100:1 or more).
 
 # Examples
 ```jldoctest; output=false
-using OrdinaryDiffEq
+using OrdinaryDiffEqLowStorageRK
 
 # Low-storage RK method with CFL condition for time step size
 callback = SplitIntegrationCallback(CarpenterKennedy2N54(williamson_condition=false),

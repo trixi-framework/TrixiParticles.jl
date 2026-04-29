@@ -284,9 +284,6 @@
                                                       "hydrostatic_water_column_2d.jl"),
                                              tspan=(0.0, 0.1), n_particles_plate_y=3) [
                 r"\[ Info: To create the self-interaction neighborhood search.*\n",
-                r"┌ Warning: keyword `n_clamped_particles` is deprecated.*\n",
-                r"│   caller = ip:0x0\n",
-                r"└ @ Core :-1\n"
             ]
             @test sol.retcode == ReturnCode.Success
             if VERSION < v"1.12"
@@ -337,9 +334,6 @@
                                              tspan=(0.0, 0.1), n_particles_plate_y=3,
                                              use_edac=true) [
                 r"\[ Info: To create the self-interaction neighborhood search.*\n",
-                r"┌ Warning: keyword `n_clamped_particles` is deprecated.*\n",
-                r"│   caller = ip:0x0\n",
-                r"└ @ Core :-1\n"
             ]
             @test sol.retcode == ReturnCode.Success
             if VERSION < v"1.12"

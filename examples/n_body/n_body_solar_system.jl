@@ -4,7 +4,7 @@
 # ==========================================================================================
 
 using TrixiParticles
-using OrdinaryDiffEq
+using OrdinaryDiffEqSymplecticRK
 using Printf
 
 include("n_body_system.jl")
