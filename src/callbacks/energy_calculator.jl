@@ -56,7 +56,7 @@ semi_new = ode.p
 system_new = semi_new.systems[1]
 
 # Create an energy calculator callback that is called every 2 time steps
-energy_cb = EnergyCalculatorCallback(system_new, semi; interval=2)
+energy_cb = EnergyCalculatorCallback(system_new, semi_new; interval=2)
 
 # After the simulation, retrieve the calculated energy
 total_energy = calculated_energy(energy_cb)
@@ -83,7 +83,8 @@ function EnergyCalculatorCallback(system::AbstractStructureSystem, semi; interva
     system_index = system_indices(system, semi)
 
     # Allocate buffer to write accelerations for all particles (including clamped ones)
-    dv = allocate(semi.parallelization_backend, ELTYPE, (ndims(system), nparticles(system)))
+    dv = allocate(semi.parallelization_backend, ELTYPE, (v_nvariables(system),
+                                                         nparticles(system)))
 
     # Note that time and energy are initialized in `initialize_energy_calculator_callback`
     cb = EnergyCalculatorCallback(interval, Ref(zero(ELTYPE)), Ref(zero(ELTYPE)),
