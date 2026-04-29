@@ -44,7 +44,7 @@ The accumulated value can be retrieved via [`calculated_energy`](@ref).
                 estimates.
 
 # Examples
-```jldoctest; output = false, setup = :(system = TotalLagrangianSPHSystem(RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0), WendlandC2Kernel{2}(), 1.0, 1.0, 1.0); semi = (; systems=(system,), parallelization_backend=SerialBackend()))
+```jldoctest; output = false, setup = :(system = TotalLagrangianSPHSystem(RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0); smoothing_kernel=WendlandC2Kernel{2}(), smoothing_length=1.0, young_modulus=1.0, poisson_ratio=1.0); semi = (; systems=(system,), parallelization_backend=SerialBackend()))
 semi = Semidiscretization(system)
 ode = semidiscretize(semi, (0.0, 1.0))
 
@@ -113,7 +113,7 @@ Get the current calculated energy from an [`EnergyCalculatorCallback`](@ref).
 - `cb`: The `DiscreteCallback` returned by [`EnergyCalculatorCallback`](@ref).
 
 # Examples
-```jldoctest; output = false, setup = :(system = TotalLagrangianSPHSystem(RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0), WendlandC2Kernel{2}(), 1.0, 1.0, 1.0); semi = (; systems=(system,), parallelization_backend=SerialBackend()))
+```jldoctest; output = false, setup = :(system = TotalLagrangianSPHSystem(RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0); smoothing_kernel=WendlandC2Kernel{2}(), smoothing_length=1.0, young_modulus=1.0, poisson_ratio=1.0); semi = (; systems=(system,), parallelization_backend=SerialBackend()))
 # Create an energy calculator callback
 energy_cb = EnergyCalculatorCallback(system, semi)
 
