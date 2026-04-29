@@ -186,6 +186,7 @@ function (split_integration_callback::SplitIntegrationCallback)(integrator)
     new_t = integrator.t
     v_ode, u_ode = integrator.u.x
     data = integrator.p.split_integration_data
+    old_t = data.t_ref[]
     data.n_reject[] = integrator.stats.nreject
 
     # Advance the split integrator to the new time
@@ -195,15 +196,14 @@ function (split_integration_callback::SplitIntegrationCallback)(integrator)
     data.vu_ode_split .= data.integrator.u
     data.t_ref[] = new_t
 
-    if data.stage_coupling
+    if isapprox(new_t, old_t)
         # Tell OrdinaryDiffEq that `u` has NOT been modified.
-        # Usually, `u` is modified in the split integration above, but for FSAL schemes,
-        # the last stage occurs at the same time as the next step, so the split integrator
-        # has already been advanced to the new step time in the last stage of the previous
-        # step. This means that the split integration above is skipped and `u` is not
-        # modified.
-        # Therefore, the RHS from the last stage can be reused for the next step, which is
-        # what `u_modified!` is used for.
+        # Usually, `u` is modified in the split integration above, but if the split
+        # integrator has already been advanced to the new step time in the last stage of the
+        # previous step, the split integration above is skipped and `u` is not modified.
+        # (Technically, the split integration `u` is copied to the large `u` to account for
+        # potential caching errors, but the RHS of the last stage of the previous step
+        # can be reused for FSAL methods, which is what `u_modified!` is for.)
         u_modified!(integrator, false)
     else
         # Tell OrdinaryDiffEq that `u` has been modified.
