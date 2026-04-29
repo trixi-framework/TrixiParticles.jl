@@ -76,6 +76,46 @@ struct BoundaryModelDummyParticles{DC, SE, CLIP, ELTYPE <: Real, VECTOR, K, V, C
     end
 end
 
+@doc raw"""
+    BoundaryModelDummyParticles(initial_condition;
+                                fluid_system::AbstractFluidSystem,
+                                initial_density=initial_condition.density,
+                                hydrodynamic_mass=initial_condition.mass,
+                                boundary_density_calculator=AdamiPressureExtrapolation(),
+                                smoothing_kernel=system_smoothing_kernel(fluid_system),
+                                smoothing_length=initial_smoothing_length(fluid_system),
+                                viscosity=nothing,
+                                state_equation=system_state_equation(fluid_system),
+                                correction=system_correction(fluid_system),
+                                clip_negative_pressure=false,
+                                reference_particle_spacing=default_reference_particle_spacing(fluid_system))
+
+High-level convenience constructor for dummy-particle wall models that infers the kernel,
+smoothing length, correction, and equation-of-state-related settings from the adjacent
+`fluid_system`.
+"""
+function BoundaryModelDummyParticles(initial_condition;
+                                     fluid_system::AbstractFluidSystem,
+                                     initial_density=initial_condition.density,
+                                     hydrodynamic_mass=initial_condition.mass,
+                                     boundary_density_calculator=AdamiPressureExtrapolation(),
+                                     smoothing_kernel=system_smoothing_kernel(fluid_system),
+                                     smoothing_length=initial_smoothing_length(fluid_system),
+                                     viscosity=nothing,
+                                     state_equation=system_state_equation(fluid_system),
+                                     correction=system_correction(fluid_system),
+                                     clip_negative_pressure=false,
+                                     reference_particle_spacing=default_reference_particle_spacing(fluid_system))
+    return BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
+                                       boundary_density_calculator, smoothing_kernel,
+                                       smoothing_length;
+                                       viscosity, state_equation, correction,
+                                       clip_negative_pressure,
+                                       reference_particle_spacing)
+end
+
+# The default constructor needs to be accessible for Adapt.jl to work with this struct.
+# See the comments in general/gpu.jl for more details.
 function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                      density_calculator, smoothing_kernel,
                                      smoothing_length; viscosity=nothing,
@@ -107,6 +147,15 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                        density_calculator, smoothing_kernel,
                                        smoothing_length, viscosity, correction, cache,
                                        clip_negative_pressure)
+end
+
+@inline function default_reference_particle_spacing(fluid_system)
+    if hasproperty(fluid_system, :cache) &&
+       hasproperty(fluid_system.cache, :reference_particle_spacing)
+        return fluid_system.cache.reference_particle_spacing
+    end
+
+    return zero(eltype(fluid_system))
 end
 
 @inline function Base.ndims(boundary_model::BoundaryModelDummyParticles)

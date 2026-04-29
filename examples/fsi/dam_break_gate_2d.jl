@@ -120,21 +120,16 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid; smoothing_kernel, smoothi
 boundary_density_calculator = AdamiPressureExtrapolation()
 
 # Clip negative boundary pressure values to avoid sticking artifacts at the boundary.
-boundary_model_tank = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
+tank_boundary_model = BoundaryModelDummyParticles(tank.boundary; fluid_system=fluid_system,
                                                   boundary_density_calculator,
-                                                  smoothing_kernel, smoothing_length;
-                                                  state_equation,
+                                                  clip_negative_pressure=true)
+gate_boundary_model = BoundaryModelDummyParticles(gate; fluid_system=fluid_system,
+                                                  boundary_density_calculator,
                                                   clip_negative_pressure=true)
 
-boundary_model_gate = BoundaryModelDummyParticles(gate.density, gate.mass,
-                                                  boundary_density_calculator,
-                                                  smoothing_kernel, smoothing_length;
-                                                  state_equation,
-                                                  clip_negative_pressure=true)
-
-boundary_system_tank = WallBoundarySystem(tank.boundary, boundary_model_tank)
-boundary_system_gate = WallBoundarySystem(gate, boundary_model_gate,
-                                          prescribed_motion=gate_movement)
+boundary_system_tank = WallBoundarySystem(tank.boundary, tank_boundary_model)
+boundary_system_gate = WallBoundarySystem(gate, gate_boundary_model,
+                                         prescribed_motion=gate_movement)
 
 # ==========================================================================================
 # ==== Structure
