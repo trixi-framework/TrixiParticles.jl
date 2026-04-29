@@ -204,7 +204,6 @@ function (split_integration_callback::SplitIntegrationCallback)(integrator)
         # modified.
         # Therefore, the RHS from the last stage can be reused for the next step, which is
         # what `u_modified!` is used for.
-        # TODO is `u_modified` ever relevant for non-FSAL methods?
         u_modified!(integrator, false)
     else
         # Tell OrdinaryDiffEq that `u` has been modified.
