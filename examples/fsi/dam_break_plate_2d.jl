@@ -37,9 +37,11 @@ sound_speed = 20 * sqrt(gravity * initial_fluid_size[2])
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1)
 
+# `coordinates_eltype=Float64` is the default and can be overwritten with `trixi_include`
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density;
                        n_layers=boundary_layers, spacing_ratio,
-                       acceleration=(0.0, -gravity), state_equation)
+                       acceleration=(0.0, -gravity), state_equation,
+                       coordinates_eltype=Float64)
 
 # Elastic plate/beam
 length_beam = 0.08
@@ -65,10 +67,12 @@ non_fixed_position = (plate_position[1],
 
 plate = RectangularShape(structure_particle_spacing,
                          (n_particles_x, n_particles_y - 1), non_fixed_position,
-                         density=structure_density, place_on_shell=true)
+                         density=structure_density, place_on_shell=true,
+                         coordinates_eltype=Float64)
 clamped_particles = RectangularShape(structure_particle_spacing,
                                      (n_particles_x, 1), plate_position,
-                                     density=structure_density, place_on_shell=true)
+                                     density=structure_density, place_on_shell=true,
+                                     coordinates_eltype=Float64)
 
 structure = union(clamped_particles, plate)
 
