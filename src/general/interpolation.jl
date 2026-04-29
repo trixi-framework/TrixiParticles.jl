@@ -405,8 +405,8 @@ function interpolate_line(start, end_, n_points, semi, ref_system, v_ode, u_ode;
     points_coords_ = collect(reinterpret(reshape, eltype(start_svector), points_coords))
 
     return interpolate_points(points_coords_, semi, ref_system, v_ode, u_ode;
-                              smoothing_length=smoothing_length, include_wall_velocity,
-                              cut_off_bnd=cut_off_bnd, clip_negative_pressure)
+                              smoothing_length, include_wall_velocity, cut_off_bnd,
+                              clip_negative_pressure)
 end
 
 @doc raw"""
@@ -593,7 +593,9 @@ end
                 other_density[point] += m_b * W_ab
 
                 if include_wall_velocity
-                    velocity_neighbor = viscous_velocity(v, neighbor_system, neighbor)
+                    velocity_neighbor_ = current_velocity(v, neighbor_system, neighbor)
+                    velocity_neighbor = viscous_velocity(v, neighbor_system, neighbor,
+                                                         velocity_neighbor_)
                     for i in axes(velocity_neighbor, 1)
                         cache.velocity[i, point] += velocity_neighbor[i] * volume_b * W_ab
                     end
@@ -635,8 +637,7 @@ end
         end
     end
 
-    return (; computed_density=computed_density, point_coords=point_coords,
-            neighbor_count=neighbor_count, cache...)
+    return (; computed_density, point_coords, neighbor_count, cache...)
 end
 
 @inline function create_cache_interpolation(ref_system::AbstractFluidSystem, n_points, semi)

@@ -21,6 +21,31 @@
             end
         end
 
+        @trixi_testset "structure/oscillating_beam_2d.jl with penalty force" begin
+            @trixi_test_nowarn trixi_include(@__MODULE__,
+                                             joinpath(examples_dir(), "structure",
+                                                      "oscillating_beam_2d.jl"),
+                                             tspan=(0.0, 0.1),
+                                             penalty_force=PenaltyForceGanzenmueller(alpha=1.0),
+                                             sol=nothing) [
+                r"\[ Info: To create the self-interaction neighborhood search.*\n"
+            ]
+            # Use a fixed time step, tuned to the maximum stable step size for this example.
+            # Together with the very large penalty force alpha, this test will crash with
+            # "Instability detected" if the penalty force is not working correctly.
+            callbacks = CallbackSet((@__MODULE__).callbacks, StepsizeCallback(cfl=1.6))
+            sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false), dt=1.0,
+                        save_everystep=false, callback=callbacks)
+            @test sol.retcode == ReturnCode.Success
+            if VERSION < v"1.12"
+                # Older Julia versions produce allocations because `get_neighborhood_search`
+                # is not type-stable with TLSPH.
+                @test count_rhs_allocations(sol, semi) < 200
+            else
+                @test count_rhs_allocations(sol, semi) == 0
+            end
+        end
+
         @trixi_testset "structure/oscillating_beam_2d.jl with penalty force and viscosity" begin
             @trixi_test_nowarn trixi_include(@__MODULE__,
                                              joinpath(examples_dir(), "structure",
@@ -256,9 +281,6 @@
                                                       "hydrostatic_water_column_2d.jl"),
                                              tspan=(0.0, 0.1), n_particles_plate_y=3) [
                 r"\[ Info: To create the self-interaction neighborhood search.*\n",
-                r"┌ Warning: keyword `n_clamped_particles` is deprecated.*\n",
-                r"│   caller = ip:0x0\n",
-                r"└ @ Core :-1\n"
             ]
             @test sol.retcode == ReturnCode.Success
             if VERSION < v"1.12"
@@ -309,9 +331,6 @@
                                              tspan=(0.0, 0.1), n_particles_plate_y=3,
                                              use_edac=true) [
                 r"\[ Info: To create the self-interaction neighborhood search.*\n",
-                r"┌ Warning: keyword `n_clamped_particles` is deprecated.*\n",
-                r"│   caller = ip:0x0\n",
-                r"└ @ Core :-1\n"
             ]
             @test sol.retcode == ReturnCode.Success
             if VERSION < v"1.12"

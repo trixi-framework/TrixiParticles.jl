@@ -5,10 +5,10 @@ abstract type AbstractRigidContactModel end
                       normal_damping=0.0,
                       contact_distance=0.0)
 
-Basic rigid contact model stored on a rigid body.
-It is currently used for both rigid-wall and rigid-rigid contact.
-The contact force consists of a linear normal spring-dashpot contribution only.
-If `contact_distance == 0`, the particle spacing of the `RigidBodySystem` will be used as contact distance.
+Shared rigid-contact model used by the active rigid-wall and rigid-rigid contact paths.
+The current contact force consists of a linear normal spring-dashpot contribution only.
+If `contact_distance == 0`, the particle spacing of the `RigidBodySystem` will be used
+as contact distance.
 
 !!! warning "Experimental implementation"
     This is an experimental feature and may change in future releases.

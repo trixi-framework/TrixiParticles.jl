@@ -21,7 +21,7 @@
         for seed in 1:3
             # A larger number of particles will increase accumulated errors in the
             # summation. A larger tolerance has to be used for the tests below.
-            ic = rectangular_patch(particle_spacing, (3, 3), seed=seed)
+            ic = rectangular_patch(particle_spacing, (3, 3); seed)
 
             min_coords = vec(minimum(ic.coordinates, dims=2)) .- particle_spacing
             max_coords = vec(maximum(ic.coordinates, dims=2)) .+ particle_spacing
@@ -31,14 +31,16 @@
                               density=1.0, particle_spacing)
             bz.initial_condition.mass .= ic.mass
 
-            system_wcsph = WeaklyCompressibleSPHSystem(ic, density_calculator,
-                                                       state_equation, smoothing_kernel,
-                                                       smoothing_length)
+            system_wcsph = WeaklyCompressibleSPHSystem(ic; smoothing_kernel,
+                                                       smoothing_length,
+                                                       density_calculator,
+                                                       state_equation)
 
-            system_edac = EntropicallyDampedSPHSystem(ic, smoothing_kernel,
+            system_edac = EntropicallyDampedSPHSystem(ic; smoothing_kernel,
+                                                      smoothing_length,
+                                                      sound_speed=0.0,
                                                       pressure_acceleration=nothing,
-                                                      density_calculator=density_calculator,
-                                                      smoothing_length, 0.0)
+                                                      density_calculator)
 
             open_boundary_wcsph = OpenBoundarySystem(bz; fluid_system=system_wcsph,
                                                      buffer_size=0,
@@ -126,9 +128,11 @@
         inflow = BoundaryZone(; boundary_face, boundary_type=InFlow(), face_normal,
                               open_boundary_layers=10, density=1.0, particle_spacing)
 
-        system_wcsph = WeaklyCompressibleSPHSystem(initial_condition, ContinuityDensity(),
-                                                   nothing,
-                                                   SchoenbergCubicSplineKernel{n_dims}(), 1)
+        system_wcsph = WeaklyCompressibleSPHSystem(initial_condition;
+                                                   smoothing_kernel=SchoenbergCubicSplineKernel{n_dims}(),
+                                                   smoothing_length=1,
+                                                   density_calculator=ContinuityDensity(),
+                                                   state_equation=nothing)
 
         open_boundary_wcsph = OpenBoundarySystem(inflow; fluid_system=system_wcsph,
                                                  buffer_size=0,
@@ -138,9 +142,10 @@
         @test TrixiParticles.v_nvariables(open_boundary_wcsph) == n_dims + 1
 
         # EDAC with `SummationDensity`
-        system_edac_1 = EntropicallyDampedSPHSystem(initial_condition,
-                                                    SchoenbergCubicSplineKernel{n_dims}(),
-                                                    1.0, 1.0)
+        system_edac_1 = EntropicallyDampedSPHSystem(initial_condition;
+                                                    smoothing_kernel=SchoenbergCubicSplineKernel{n_dims}(),
+                                                    smoothing_length=1.0,
+                                                    sound_speed=1.0)
 
         open_boundary_edac_1 = OpenBoundarySystem(inflow; fluid_system=system_edac_1,
                                                   buffer_size=0,
@@ -150,9 +155,10 @@
         @test TrixiParticles.v_nvariables(open_boundary_edac_1) == n_dims + 2
 
         # EDAC with `ContinuityDensity`
-        system_edac_2 = EntropicallyDampedSPHSystem(initial_condition,
-                                                    SchoenbergCubicSplineKernel{n_dims}(),
-                                                    1.0, 1.0,
+        system_edac_2 = EntropicallyDampedSPHSystem(initial_condition;
+                                                    smoothing_kernel=SchoenbergCubicSplineKernel{n_dims}(),
+                                                    smoothing_length=1.0,
+                                                    sound_speed=1.0,
                                                     density_calculator=ContinuityDensity())
 
         open_boundary_edac_2 = OpenBoundarySystem(inflow; fluid_system=system_edac_2,
