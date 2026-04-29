@@ -15,9 +15,17 @@ The semidiscretization couples the passed systems to one simulation.
                             and the examples below for more details.
                             To use a periodic domain, pass a [`PeriodicBox`](@ref) to the
                             neighborhood search.
-- `threaded_nhs_update=true`:   Can be used to deactivate thread parallelization in the neighborhood search update.
-                                This can be one of the largest sources of variations between simulations
-                                with different thread numbers due to particle ordering changes.
+- `parallelization_backend=PolyesterBackend()`: Backend used for thread-parallel loops,
+                            including the generic neighborhood-search update paths.
+                            Pass `SerialBackend()` to disable thread parallelization.
+- `system_interaction=(system_index, neighbor_index) -> true`: Predicate evaluated once
+                            during construction for each ordered pair of systems in the
+                            resulting semidiscretization after filtering out `nothing`
+                            systems.
+                            Returning `false` skips the generic pairwise RHS dispatch and
+                            the generic neighborhood-search update and traversal paths for
+                            that ordered pair. Scheme-specific helper logic that directly
+                            addresses explicit linked systems is unchanged.
 
 # Examples
 ```jldoctest; output = false, setup = :(trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing); ref_system = fluid_system)
@@ -49,11 +57,12 @@ semi = Semidiscretization(fluid_system, boundary_system,
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-struct Semidiscretization{BACKEND, S, RU, RV, NS, UCU, IT}
+struct Semidiscretization{BACKEND, S, RU, RV, NS, SI, UCU, IT}
     systems                 :: S
     ranges_u                :: RU
     ranges_v                :: RV
     neighborhood_searches   :: NS
+    system_interactions     :: SI
     parallelization_backend :: BACKEND
     update_callback_used    :: UCU
     integrate_tlsph         :: IT # `false` if TLSPH integration is decoupled
@@ -62,20 +71,39 @@ struct Semidiscretization{BACKEND, S, RU, RV, NS, UCU, IT}
     # 4 systems are passed.
     # This is an internal constructor only used in `test/count_allocations.jl`.
     function Semidiscretization(systems::Tuple, ranges_u, ranges_v, neighborhood_searches,
+                                system_interactions,
                                 parallelization_backend::PointNeighbors.ParallelizationBackend,
                                 update_callback_used, integrate_tlsph)
         new{typeof(parallelization_backend), typeof(systems), typeof(ranges_u),
             typeof(ranges_v), typeof(neighborhood_searches),
+            typeof(system_interactions),
             typeof(update_callback_used),
             typeof(integrate_tlsph)}(systems, ranges_u, ranges_v,
-                                     neighborhood_searches, parallelization_backend,
+                                     neighborhood_searches, system_interactions,
+                                     parallelization_backend,
                                      update_callback_used, integrate_tlsph)
     end
 end
 
+@inline default_system_interaction(system_index, neighbor_index) = true
+
+function create_system_interactions(system_interaction, systems::Tuple)
+    n_systems = length(systems)
+    system_interactions = falses(n_systems, n_systems)
+
+    for system_index in eachindex(systems), neighbor_index in eachindex(systems)
+        system_interactions[system_index,
+                            neighbor_index] = Bool(system_interaction(system_index,
+                                                                      neighbor_index))
+    end
+
+    return system_interactions
+end
+
 function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
                             neighborhood_search=GridNeighborhoodSearch{ndims(first(systems))}(),
-                            parallelization_backend=PolyesterBackend())
+                            parallelization_backend=PolyesterBackend(),
+                            system_interaction=default_system_interaction)
     systems = filter(system -> !isnothing(system), systems)
 
     if isempty(systems)
@@ -106,6 +134,7 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     searches = [create_neighborhood_search(neighborhood_search,
                                            system, neighbor)
                 for system in systems, neighbor in systems]
+    system_interactions = create_system_interactions(system_interaction, systems)
 
     @assert isconcretetype(eltype(searches)) "neighborhood searches are not type-stable"
 
@@ -119,7 +148,7 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     # with this set to false.
     integrate_tlsph = Ref(true)
 
-    return Semidiscretization(systems, ranges_u, ranges_v, searches,
+    return Semidiscretization(systems, ranges_u, ranges_v, searches, system_interactions,
                               parallelization_backend, update_callback_used,
                               integrate_tlsph)
 end
@@ -168,6 +197,17 @@ end
     return index
 end
 
+@inline function has_system_interaction(semi::Semidiscretization,
+                                        system_index::Integer, neighbor_index::Integer)
+    return semi.system_interactions[system_index, neighbor_index]
+end
+
+@inline function has_system_interaction(system, neighbor_system, semi::Semidiscretization)
+    return has_system_interaction(semi,
+                                  system_indices(system, semi),
+                                  system_indices(neighbor_system, semi))
+end
+
 # This is just for readability to loop over all systems without allocations
 @inline function foreach_system(f, semi::Union{NamedTuple, Semidiscretization})
     return foreach_noalloc(f, semi.systems)
@@ -175,14 +215,28 @@ end
 
 @inline foreach_system(f, systems) = foreach_noalloc(f, systems)
 
-# This is just for readability to loop over all systems with wrapped arrays.
-@inline function foreach_system_wrapped(f, semi::Union{NamedTuple, Semidiscretization},
-                                        v_ode, u_ode)
-    foreach_system(semi) do system
-        @inline f(system, wrap_v(v_ode, system, semi), wrap_u(u_ode, system, semi))
+# This is just for readability to loop over all systems with indices without allocations.
+@inline function foreach_system_indexed(f, semi::Union{NamedTuple, Semidiscretization})
+    return foreach_system_indexed(f, semi.systems)
+end
+
+@inline function foreach_system_indexed(f, systems::Tuple)
+    indices = ntuple(identity, Val(length(systems)))
+
+    return foreach_noalloc(indices, systems) do (index, system)
+        f(index, system)
     end
 end
 
+# This is just for readability to loop over all systems with wrapped arrays.
+@inline function foreach_system_wrapped(f, semi::Union{NamedTuple, Semidiscretization},
+                                        v_ode, u_ode)
+    return foreach_system_indexed(semi) do system_index, system
+        f(system,
+          wrap_v(v_ode, system, semi, system_index),
+          wrap_u(u_ode, system, semi, system_index))
+    end
+end
 """
     semidiscretize(semi, tspan; reset_threads=true)
 
@@ -351,15 +405,19 @@ end
 # We have to pass `system` here for type stability,
 # since the type of `system` determines the return type.
 @inline function wrap_v(v_ode, system, semi)
-    (; ranges_v) = semi
+    return wrap_v(v_ode, system, semi, system_indices(system, semi))
+end
 
-    range = ranges_v[system_indices(system, semi)]
+@inline function wrap_v(v_ode, system, semi, system_index::Integer)
+    return wrap_v(v_ode, system, semi.ranges_v[system_index])
+end
 
+@inline function wrap_v(v_ode, system, range::AbstractUnitRange)
     @boundscheck begin
-        if length(range) != v_nvariables(system) * n_integrated_particles(system)
-            throw(DimensionMismatch("`v_ode` range length $range_length does not match " *
-                                    "expected number of entries $expected"))
-        end
+        expected = v_nvariables(system) * n_integrated_particles(system)
+        range_length = length(range)
+        range_length == expected ||
+            throw(DimensionMismatch("v range length $range_length does not match expected $expected"))
     end
 
     return wrap_array(v_ode, range,
@@ -367,10 +425,14 @@ end
 end
 
 @inline function wrap_u(u_ode, system, semi)
-    (; ranges_u) = semi
+    return wrap_u(u_ode, system, semi, system_indices(system, semi))
+end
 
-    range = ranges_u[system_indices(system, semi)]
+@inline function wrap_u(u_ode, system, semi, system_index::Integer)
+    return wrap_u(u_ode, system, semi.ranges_u[system_index])
+end
 
+@inline function wrap_u(u_ode, system, range::AbstractUnitRange)
     @boundscheck begin
         expected = u_nvariables(system) * n_integrated_particles(system)
         range_length = length(range)
@@ -698,20 +760,20 @@ end
 function system_interaction!(dv_ode, v_ode, u_ode, semi)
     reset_interaction_caches!(semi)
 
-    # Call `interact!` for each pair of systems
-    foreach_system(semi) do system
-        foreach_system(semi) do neighbor
+    # Call `interact!` for each ordered pair of systems.
+    # Disabled pairs return immediately in the indexed wrapper below.
+    foreach_system_indexed(semi) do system_index, system
+        foreach_system_indexed(semi) do neighbor_index, neighbor
             # Construct string for the interactions timer.
             # Avoid allocations from string construction when no timers are used.
             if timeit_debug_enabled()
-                system_index = system_indices(system, semi)
-                neighbor_index = system_indices(neighbor, semi)
                 timer_str = "$(timer_name(system))$system_index-$(timer_name(neighbor))$neighbor_index"
             else
                 timer_str = ""
             end
 
-            interact!(dv_ode, v_ode, u_ode, system, neighbor, semi; timer_str)
+            interact!(dv_ode, v_ode, u_ode, system, neighbor, semi,
+                      system_index, neighbor_index; timer_str)
         end
     end
 
@@ -734,12 +796,23 @@ end
 # before the first direct `interact!` call.
 # @btime TrixiParticles.interact!($dv_ode, $v_ode, $u_ode, $fluid_system, $fluid_system, $semi);
 @inline function interact!(dv_ode, v_ode, u_ode, system, neighbor, semi; timer_str="")
-    dv = wrap_v(dv_ode, system, semi)
-    v_system = wrap_v(v_ode, system, semi)
-    u_system = wrap_u(u_ode, system, semi)
+    system_index = system_indices(system, semi)
+    neighbor_index = system_indices(neighbor, semi)
 
-    v_neighbor = wrap_v(v_ode, neighbor, semi)
-    u_neighbor = wrap_u(u_ode, neighbor, semi)
+    return interact!(dv_ode, v_ode, u_ode, system, neighbor, semi,
+                     system_index, neighbor_index; timer_str=timer_str)
+end
+
+@inline function interact!(dv_ode, v_ode, u_ode, system, neighbor, semi,
+                           system_index::Integer, neighbor_index::Integer; timer_str="")
+    has_system_interaction(semi, system_index, neighbor_index) || return dv_ode
+
+    dv = wrap_v(dv_ode, system, semi, system_index)
+    v_system = wrap_v(v_ode, system, semi, system_index)
+    u_system = wrap_u(u_ode, system, semi, system_index)
+
+    v_neighbor = wrap_v(v_ode, neighbor, semi, neighbor_index)
+    u_neighbor = wrap_u(u_ode, neighbor, semi, neighbor_index)
 
     @trixi_timeit timer() timer_str begin
         interact!(dv, v_system, u_system, v_neighbor, u_neighbor, system, neighbor, semi)

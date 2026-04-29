@@ -27,6 +27,7 @@
         # Verification
         @test semi.ranges_u == (1:6, 7:15)
         @test semi.ranges_v == (1:6, 7:18)
+        @test semi.system_interactions == trues(2, 2)
 
         nhs = [TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
                eachpoint=1:2)
@@ -140,6 +141,174 @@
                         "`state_equation` for all boundary models"
             @test_throws ArgumentError(error_str) Semidiscretization(fluid_system,
                                                                      boundary_system)
+        end
+    end
+
+    @testset verbose=true "Custom System Interactions" begin
+        kernel = SchoenbergCubicSplineKernel{2}()
+        state_equation = StateEquationCole(sound_speed=10.0,
+                                           reference_density=1000.0,
+                                           exponent=7)
+        smoothing_length = 1.0
+
+        function make_particle(x, density, velocity)
+            coordinates = reshape([x, 0.0], 2, 1)
+            velocity_matrix = reshape(collect(velocity), 2, 1)
+
+            return InitialCondition(; coordinates, velocity=velocity_matrix,
+                                    density=[density], particle_spacing=1.0)
+        end
+
+        function make_systems()
+            fluid_a_ic = make_particle(0.0, 1005.0, (0.4, -0.1))
+            fluid_b_ic = make_particle(0.5, 995.0, (-0.2, 0.3))
+            boundary_a_ic = make_particle(1.0, 1002.0, (0.0, 0.0))
+            boundary_b_ic = make_particle(1.5, 998.0, (0.0, 0.0))
+
+            fluid_a = WeaklyCompressibleSPHSystem(fluid_a_ic, ContinuityDensity(),
+                                                  state_equation, kernel,
+                                                  smoothing_length)
+            fluid_b = WeaklyCompressibleSPHSystem(fluid_b_ic, ContinuityDensity(),
+                                                  state_equation, kernel,
+                                                  smoothing_length)
+
+            boundary_model_a = BoundaryModelDummyParticles(boundary_a_ic.density,
+                                                           boundary_a_ic.mass,
+                                                           ContinuityDensity(), kernel,
+                                                           smoothing_length,
+                                                           state_equation=state_equation)
+            boundary_model_b = BoundaryModelDummyParticles(boundary_b_ic.density,
+                                                           boundary_b_ic.mass,
+                                                           ContinuityDensity(), kernel,
+                                                           smoothing_length,
+                                                           state_equation=state_equation)
+
+            boundary_a = WallBoundarySystem(boundary_a_ic, boundary_model_a)
+            boundary_b = WallBoundarySystem(boundary_b_ic, boundary_model_b)
+
+            return fluid_a, fluid_b, boundary_a, boundary_b
+        end
+
+        function create_ode_state(semi)
+            n_u = sum(TrixiParticles.u_nvariables(system) *
+                      TrixiParticles.n_integrated_particles(system)
+                      for system in semi.systems)
+            n_v = sum(TrixiParticles.v_nvariables(system) *
+                      TrixiParticles.n_integrated_particles(system)
+                      for system in semi.systems)
+
+            v_ode = zeros(n_v)
+            u_ode = zeros(n_u)
+
+            TrixiParticles.foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
+                TrixiParticles.write_v0!(v, system)
+                TrixiParticles.write_u0!(u, system)
+            end
+
+            return v_ode, u_ode
+        end
+
+        function kick_once(semi)
+            v_ode, u_ode = create_ode_state(semi)
+            dv_ode = similar(v_ode)
+
+            TrixiParticles.kick!(dv_ode, v_ode, u_ode, semi, 0.0)
+
+            return dv_ode
+        end
+
+        function system_dv(dv_ode, semi, system_index)
+            system = semi.systems[system_index]
+            return Array(TrixiParticles.wrap_v(dv_ode, system, semi, system_index))
+        end
+
+        matched_system_pairs(system_index,
+                             neighbor_index) = !((system_index == 1 &&
+                                                  neighbor_index == 4) ||
+                                                 (system_index == 4 &&
+                                                  neighbor_index == 1) ||
+                                                 (system_index == 2 &&
+                                                  neighbor_index == 3) ||
+                                                 (system_index == 3 &&
+                                                  neighbor_index == 2))
+
+        function make_semi(nhs_factory, systems...; filtered=false)
+            neighborhood_search = nhs_factory()
+
+            if filtered
+                return Semidiscretization(systems...; neighborhood_search,
+                                          system_interaction=matched_system_pairs)
+            end
+
+            return Semidiscretization(systems...; neighborhood_search)
+        end
+
+        # Disable only the cross-coupling between the mismatched fluid/boundary pairs:
+        # fluid A must ignore boundary B and fluid B must ignore boundary A.
+        # The filtered four-system RHS is compared against reduced semidiscretizations that
+        # keep only the allowed neighbors for each system, which makes the intended effect explicit.
+        for (test_name, nhs_factory) in (("without neighborhood search", () -> nothing),
+             ("with grid neighborhood search",
+              () -> GridNeighborhoodSearch{2}(update_strategy=SerialUpdate())))
+            @testset "$test_name" begin
+                semi_full = let
+                    fluid_a, fluid_b, boundary_a, boundary_b = make_systems()
+                    make_semi(nhs_factory, fluid_a, fluid_b, boundary_a, boundary_b)
+                end
+
+                semi_filtered = let
+                    fluid_a, fluid_b, boundary_a, boundary_b = make_systems()
+                    make_semi(nhs_factory, fluid_a, fluid_b, boundary_a, boundary_b;
+                              filtered=true)
+                end
+
+                semi_a = let
+                    fluid_a, fluid_b, boundary_a, boundary_b = make_systems()
+                    make_semi(nhs_factory, fluid_a, fluid_b, boundary_a)
+                end
+
+                semi_b = let
+                    fluid_a, fluid_b, boundary_a, boundary_b = make_systems()
+                    make_semi(nhs_factory, fluid_a, fluid_b, boundary_b)
+                end
+
+                semi_boundary_a = let
+                    fluid_a, fluid_b, boundary_a, boundary_b = make_systems()
+                    make_semi(nhs_factory, fluid_a, boundary_a)
+                end
+
+                semi_boundary_b = let
+                    fluid_a, fluid_b, boundary_a, boundary_b = make_systems()
+                    make_semi(nhs_factory, fluid_b, boundary_b)
+                end
+
+                @test !TrixiParticles.has_system_interaction(semi_filtered, 1, 4)
+                @test !TrixiParticles.has_system_interaction(semi_filtered, 4, 1)
+                @test !TrixiParticles.has_system_interaction(semi_filtered, 2, 3)
+                @test !TrixiParticles.has_system_interaction(semi_filtered, 3, 2)
+                @test TrixiParticles.has_system_interaction(semi_filtered, 1, 2)
+                @test TrixiParticles.has_system_interaction(semi_filtered, 3, 1)
+                @test TrixiParticles.has_system_interaction(semi_filtered, 4, 2)
+
+                dv_full = kick_once(semi_full)
+                dv_filtered = kick_once(semi_filtered)
+                dv_a = kick_once(semi_a)
+                dv_b = kick_once(semi_b)
+                dv_boundary_a = kick_once(semi_boundary_a)
+                dv_boundary_b = kick_once(semi_boundary_b)
+
+                @test system_dv(dv_filtered, semi_filtered, 1) ≈ system_dv(dv_a, semi_a, 1)
+                @test system_dv(dv_filtered, semi_filtered, 2) ≈ system_dv(dv_b, semi_b, 2)
+                @test system_dv(dv_filtered, semi_filtered, 3) ≈ system_dv(dv_boundary_a,
+                                semi_boundary_a, 2)
+                @test system_dv(dv_filtered, semi_filtered, 4) ≈ system_dv(dv_boundary_b,
+                                semi_boundary_b, 2)
+
+                @test !isapprox(system_dv(dv_filtered, semi_filtered, 3),
+                                system_dv(dv_full, semi_full, 3))
+                @test !isapprox(system_dv(dv_filtered, semi_filtered, 4),
+                                system_dv(dv_full, semi_full, 4))
+            end
         end
     end
 
