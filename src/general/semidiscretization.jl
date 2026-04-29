@@ -184,7 +184,7 @@ end
 end
 
 """
-    semidiscretize(semi, tspan; reset_threads=true)
+    semidiscretize(semi, tspan; reset_threads=true, restart_with=nothing)
 
 Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
 
@@ -193,6 +193,10 @@ Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
 - `tspan`: The time span over which the simulation will be run.
 
 # Keywords
+- `restart_with`: Can be used to restart the simulation from VTK solution files (see [`SolutionSavingCallback`](@ref)).
+  This has to be a tuple of filenames, one for each system in the [`Semidiscretization`](@ref).
+  The order of the filenames has to match the order of the systems in the [`Semidiscretization`](@ref).
+  If no restart is desired, use `nothing` (default).
 - `reset_threads`: A boolean flag to reset Polyester.jl threads before the simulation (default: `true`).
   After an error within a threaded loop, threading might be disabled. Resetting the threads before the simulation
   ensures that threading is enabled again for the simulation.
@@ -219,7 +223,7 @@ timespan: (0.0, 1.0)
 u0: ([...], [...]) *this line is ignored by filter*
 ```
 """
-function semidiscretize(semi, tspan; reset_threads=true)
+function semidiscretize(semi, tspan; reset_threads=true, restart_with=nothing)
     (; systems) = semi
 
     # Check that all systems have the same eltype
@@ -267,14 +271,11 @@ function semidiscretize(semi, tspan; reset_threads=true)
     end
 
     # Set initial condition
-    foreach_system_wrapped(semi, v0_ode, u0_ode) do system, v0_system, u0_system
-        write_u0!(u0_system, system)
-        write_v0!(v0_system, system)
-    end
+    set_initial_conditions!(v0_ode, u0_ode, semi, restart_with)
 
     # TODO initialize after adapting to the GPU.
     # Requires https://github.com/trixi-framework/PointNeighbors.jl/pull/86.
-    initialize_neighborhood_searches!(semi)
+    initialize_neighborhood_searches!(semi, u0_ode, restart_with)
 
     if semi.parallelization_backend isa KernelAbstractions.GPU
         # Convert all arrays in the systems to the correct array type.
@@ -304,15 +305,31 @@ function semidiscretize(semi, tspan; reset_threads=true)
     end
 
     # Initialize all particle systems
-    foreach_system(semi_new) do system
-        # Initialize this system
-        initialize!(system, semi_new)
-    end
+    initialize!(semi_new, restart_with)
 
     # Reset callback flag that will be set by the `UpdateCallback`
     semi_new.update_callback_used[] = false
 
-    return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode, tspan, semi_new)
+    return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode,
+                               time_span(tspan, restart_with), semi_new)
+end
+
+function set_initial_conditions!(v0_ode, u0_ode, semi, restart_with::Nothing)
+    foreach_system_wrapped(semi, v0_ode, u0_ode) do system, v0_system, u0_system
+        write_u0!(u0_system, system)
+        write_v0!(v0_system, system)
+    end
+end
+
+time_span(tspan, restart_with::Nothing) = tspan
+
+function initialize!(semi::Semidiscretization, restart_with::Nothing)
+    foreach_system(semi) do system
+        # Initialize this system
+        initialize!(system, semi)
+    end
+
+    return semi
 end
 
 """
@@ -345,6 +362,39 @@ function restart_with!(semi, sol; reset_threads=true)
     # Reset callback flag that will be set by the `UpdateCallback`
     semi.update_callback_used[] = false
 
+    return semi
+end
+
+function initialize_neighborhood_searches!(semi, u0_ode, restart_with::Nothing)
+    initialize_neighborhood_searches!(semi)
+end
+
+function initialize_neighborhood_searches!(semi)
+    foreach_system(semi) do system
+        foreach_system(semi) do neighbor
+            initialize_neighborhood_search!(semi, system, neighbor)
+        end
+    end
+
+    return semi
+end
+
+function initialize_neighborhood_search!(semi, system, neighbor)
+    # TODO Initialize after adapting to the GPU.
+    # Currently, this cannot use `semi.parallelization_backend`
+    # because data is still on the CPU.
+    PointNeighbors.initialize!(get_neighborhood_search(system, neighbor, semi),
+                               initial_coordinates(system),
+                               initial_coordinates(neighbor),
+                               eachindex_y=each_active_particle(neighbor),
+                               parallelization_backend=PolyesterBackend())
+
+    return semi
+end
+
+function initialize_neighborhood_search!(semi, system::TotalLagrangianSPHSystem,
+                                         neighbor::TotalLagrangianSPHSystem)
+    # For TLSPH, the self-interaction NHS is already initialized in the system constructor
     return semi
 end
 

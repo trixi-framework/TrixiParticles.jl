@@ -133,6 +133,9 @@ function initialize!(system::OpenBoundarySystem, semi)
     return system
 end
 
+# Skip during restart, as boundary zone indices are updated in `restore_previous_state!`
+initialize_restart!(system::OpenBoundarySystem, semi) = system
+
 function create_cache_open_boundary(boundary_model, fluid_system, initial_condition,
                                     density_diffusion, calculate_flow_rate, boundary_zones)
     reference_values = map(bz -> bz.reference_values, boundary_zones)
@@ -250,6 +253,8 @@ end
 @inline function shifting_technique(system::OpenBoundarySystem)
     return system.shifting_technique
 end
+
+@inline density_calculator(system::OpenBoundarySystem) = nothing
 
 system_sound_speed(system::OpenBoundarySystem) = system_sound_speed(system.fluid_system)
 
@@ -673,6 +678,66 @@ function interpolate_velocity!(system::OpenBoundarySystem, boundary_zone,
         if @inbounds shepard_coefficient[point] > eps(eltype(shepard_coefficient))
             for i in axes(sample_velocity, 1)
                 @inbounds sample_velocity[i, point] /= shepard_coefficient[point]
+            end
+        end
+    end
+
+    return system
+end
+
+function restart_u(system::OpenBoundarySystem, data)
+    coords_total = zeros(coordinates_eltype(system), u_nvariables(system),
+                         n_integrated_particles(system))
+    coords_total .= coordinates_eltype(system)(1e16)
+
+    coords_active = data.coordinates
+    for particle in axes(coords_active, 2)
+        for dim in 1:ndims(system)
+            coords_total[dim, particle] = coords_active[dim, particle]
+        end
+    end
+
+    system.buffer.active_particle .= false
+    system.buffer.active_particle[1:size(coords_active, 2)] .= true
+
+    update_system_buffer!(system.buffer)
+
+    return coords_total
+end
+
+function restart_v(system::OpenBoundarySystem, data)
+    v_total = zeros(eltype(system), v_nvariables(system),
+                    n_integrated_particles(system))
+
+    v_active = zeros(eltype(system), v_nvariables(system), size(data.velocity, 2))
+
+    v_active[1:ndims(system), :] = data.velocity
+    write_density_and_pressure!(v_active, system.fluid_system,
+                                density_calculator(system), data.pressure, data.density)
+
+    for particle in axes(v_active, 2)
+        for i in axes(v_active, 1)
+            v_total[i, particle] = v_active[i, particle]
+        end
+    end
+
+    return v_total
+end
+
+function restore_previous_state!(system::OpenBoundarySystem, file)
+    # We cannot simply use `update_boundary_zone_indices!` because rounding errors during file I/O
+    # may result in particles being located outside their intended boundary zone, even though they
+    # were written as active particles.
+    set_zero!(system.boundary_zone_indices)
+
+    values = vtk2trixi(file; create_initial_condition=false)
+    system.boundary_zone_indices[each_integrated_particle(system)] .= values.zone_id
+
+    if any(pm -> isa(pm, AbstractPressureModel), system.cache.pressure_reference_values)
+        for (i, pressure_model) in enumerate(system.cache.pressure_reference_values)
+            if pressure_model isa AbstractPressureModel
+                pressure_model.pressure[] = values[Symbol(:boundary_zone_pressure_, i)]
+                pressure_model.flow_rate[] = values[Symbol(:Q_, i)]
             end
         end
     end
