@@ -117,10 +117,11 @@
                 # We need a new `PrescribedMotion` for each test due to
                 # https://github.com/trixi-framework/TrixiParticles.jl/issues/1020
                 prescribed_motion = PrescribedMotion(movement_function, is_moving)
-                structure_system = TotalLagrangianSPHSystem(structure, smoothing_kernel,
+                structure_system = TotalLagrangianSPHSystem(structure; smoothing_kernel,
                                                             smoothing_length,
-                                                            material.E, material.nu,
-                                                            clamped_particles=clamped_particles,
+                                                            young_modulus=material.E,
+                                                            poisson_ratio=material.nu,
+                                                            clamped_particles,
                                                             acceleration=(0.0, -gravity),
                                                             clamped_particles_motion=prescribed_motion)
 
@@ -185,13 +186,15 @@
             tlsph_kernel = WendlandC2Kernel{2}()
             tlsph_smoothing_length = sqrt(2) * boundary_spacing
 
-            tlsph_system = TotalLagrangianSPHSystem(tank.boundary, tlsph_kernel,
-                                                    tlsph_smoothing_length,
-                                                    1.0e6, 0.3,
+            tlsph_system = TotalLagrangianSPHSystem(tank.boundary;
+                                                    smoothing_kernel=tlsph_kernel,
+                                                    smoothing_length=tlsph_smoothing_length,
+                                                    young_modulus=1.0e6,
+                                                    poisson_ratio=0.3,
                                                     clamped_particles=eachparticle(tank.boundary),
                                                     acceleration=(0.0, -gravity),
                                                     clamped_particles_motion=prescribed_motion,
-                                                    boundary_model=boundary_model)
+                                                    boundary_model)
 
             semi = Semidiscretization(fluid_system, tlsph_system,
                                       parallelization_backend=PolyesterBackend())
