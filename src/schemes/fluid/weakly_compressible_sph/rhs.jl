@@ -3,6 +3,7 @@
 # It takes into account pressure forces, viscosity, and for `ContinuityDensity` updates
 # the density using the continuity equation.
 using LoopVectorization
+using SIMD
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::WeaklyCompressibleSPHSystem, neighbor_system, semi)
@@ -24,23 +25,42 @@ function interact!(dv, v_particle_system, u_particle_system,
     almostzero = eps(compact_support_^2)
 
     search_radius2 = compact_support_^2
+    kernel_ = system_smoothing_kernel(particle_system)
 
-    @threaded semi for particle in each_integrated_particle(particle_system)
+    v1_neighbor = similar(v_neighbor_system, size(v_neighbor_system, 2))
+    v2_neighbor = similar(v_neighbor_system, size(v_neighbor_system, 2))
+    v3_neighbor = similar(v_neighbor_system, size(v_neighbor_system, 2))
+    rho_neighbor = similar(v_neighbor_system, size(v_neighbor_system, 2))
+    x1_neighbor = similar(neighbor_system_coords, size(neighbor_system_coords, 2))
+    x2_neighbor = similar(neighbor_system_coords, size(neighbor_system_coords, 2))
+    x3_neighbor = similar(neighbor_system_coords, size(neighbor_system_coords, 2))
+
+    Threads.@threads :static for i in axes(v_neighbor_system, 2)
+        v1_neighbor[i] = v_neighbor_system[1, i]
+        v2_neighbor[i] = v_neighbor_system[2, i]
+        v3_neighbor[i] = v_neighbor_system[3, i]
+        rho_neighbor[i] = v_neighbor_system[4, i]
+        x1_neighbor[i] = neighbor_system_coords[1, i]
+        x2_neighbor[i] = neighbor_system_coords[2, i]
+        x3_neighbor[i] = neighbor_system_coords[3, i]
+    end
+
+    Threads.@threads :static for particle in each_integrated_particle(particle_system)
         # We are looping over the particles of `particle_system`, so it is guaranteed
         # that `particle` is in bounds of `particle_system`.
-        coords_a = @inbounds extract_svector(system_coords, Val(ndims(neighborhood_search)),
+        coords_a1, coords_a2, coords_a3 = @inbounds extract_svector(system_coords, Val(ndims(neighborhood_search)),
                                         particle)
         m_a = @inbounds hydrodynamic_mass(particle_system, particle)
         p_a = @inbounds current_pressure(v_particle_system, particle_system, particle)
 
-        v_a = @inbounds current_velocity(v_particle_system, particle_system, particle)
+        v_a1, v_a2, v_a3 = @inbounds current_velocity(v_particle_system, particle_system, particle)
         rho_a = @inbounds current_density(v_particle_system, particle_system, particle)
 
         # Accumulate the RHS contributions over all neighbors before writing to `dv`,
         # to reduce the number of memory writes.
         # Note that we need a `Ref` in order to be able to update these variables
         # inside the closure in the `foreach_neighbor` loop.
-        dv_particle = zero(v_a)
+        dv_particle1, dv_particle2, dv_particle3 = zero(v_a1), zero(v_a2), zero(v_a3)
         drho_particle = zero(rho_a)
 
         neighbors = neighborhood_search.neighbor_lists[particle]
@@ -49,15 +69,20 @@ function interact!(dv, v_particle_system, u_particle_system,
         # for neighbor_cell_ in PointNeighbors.neighboring_cells(cell, neighborhood_search)
         #     neighbor_cell = Tuple(neighbor_cell_)
         #     neighbors = @inbounds PointNeighbors.points_in_cell(neighbor_cell, neighborhood_search)
+        (; alpha, beta, epsilon) = particle_system.viscosity
+        h = smoothing_length(particle_system, particle)
 
-        for neighbor_ in eachindex(neighbors)
-            neighbor = @inbounds neighbors[neighbor_]
+        @turbo for neighbor_ in eachindex(neighbors)
+            neighbor = neighbors[neighbor_]
 
-            coords_b = @inbounds extract_svector(neighbor_system_coords,
-                                                    Val(ndims(neighborhood_search)), neighbor)
+            coords_b1 = x1_neighbor[neighbor]
+            coords_b2 = x2_neighbor[neighbor]
+            coords_b3 = x3_neighbor[neighbor]
 
-            pos_diff = coords_a - coords_b
-            distance2 = dot(pos_diff, pos_diff)
+            pos_diff1 = coords_a1 - coords_b1
+            pos_diff2 = coords_a2 - coords_b2
+            pos_diff3 = coords_a3 - coords_b3
+            distance2 = pos_diff1^2 + pos_diff2^2 + pos_diff3^2
 
             # Only for grid NHS:
             # distance2 > search_radius2 && continue
@@ -69,47 +94,56 @@ function interact!(dv, v_particle_system, u_particle_system,
 
             # Now that we know that `distance` is not zero, we can safely call the unsafe
             # version of the kernel gradient to avoid redundant zero checks.
-            grad_kernel = smoothing_kernel_grad_unsafe(particle_system, pos_diff,
-                                                       distance, particle)
+            # grad_kernel = smoothing_kernel_grad_unsafe(particle_system, pos_diff,
+            #                                            distance, particle)
 
             # `foreach_neighbor` makes sure that `neighbor` is in bounds of `neighbor_system`
-            m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
-            v_b = @inbounds current_velocity(v_neighbor_system, neighbor_system, neighbor)
-            rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
-            p_b = @inbounds current_pressure(v_neighbor_system, neighbor_system, neighbor)
+            m_b = neighbor_system.mass[neighbor]
+            v_b1 = v1_neighbor[neighbor]
+            v_b2 = v2_neighbor[neighbor]
+            v_b3 = v3_neighbor[neighbor]
+            rho_b = rho_neighbor[neighbor]
+            p_b = neighbor_system.pressure[neighbor]
 
-            # For `ContinuityDensity` without correction, this is equivalent to
-            dv_pressure = -m_b * (p_a + p_b) / (rho_a * rho_b) * grad_kernel
-            dv_particle += dv_pressure
+            h_inv = 1 / h
+            q = distance * h_inv
+            kernel_grad_factor = -5 * normalization_factor(kernel_, h_inv) * (1 - q / 2)^3 * h_inv^2
+            # kernel_grad_factor = kernel_deriv_div_r_unsafe(kernel_, distance, h)
 
-            # Artificial viscosity
-            # v_ab ⋅ r_ab
-            v_diff = v_a - v_b
-            vr = dot(v_diff, pos_diff)
+            tmp = -m_b * (p_a + p_b) / (rho_a * rho_b) * kernel_grad_factor
+            dv_particle1 += tmp * pos_diff1
+            dv_particle2 += tmp * pos_diff2
+            dv_particle3 += tmp * pos_diff3
 
-            if vr < 0
+            # # Artificial viscosity
+            # # v_ab ⋅ r_ab
+            v_diff1 = v_a1 - v_b1
+            v_diff2 = v_a2 - v_b2
+            v_diff3 = v_a3 - v_b3
+            # vr = dot(v_diff, pos_diff)
+            vr = v_diff1 * pos_diff1 + v_diff2 * pos_diff2 + v_diff3 * pos_diff3
+
+            # # if vr < 0
                 h_a = smoothing_length(particle_system, particle)
                 h_b = smoothing_length(neighbor_system, neighbor)
                 h = (h_a + h_b) / 2
 
                 rho_mean = (rho_a + rho_b) / 2
-                (; alpha, beta, epsilon) = particle_system.viscosity
 
-                # Since this is one of the most performance critical functions, using fast divisions
-                # here gives a significant speedup on GPUs.
-                # See the docs page "Development" for more details on `div_fast`.
                 mu = h * vr / (distance^2 + epsilon * h^2)
                 c = sound_speed
                 # TODO why is m_b inside the `div_fast` faster on H100 than `m_b * div_fast(...)`?
-                dv_viscosity = (m_b * alpha * c * mu + m_b * beta * mu^2) / rho_mean *
-                            grad_kernel
-                dv_particle += dv_viscosity
-            end
+                dv_viscosity_factor = (m_b * alpha * c * mu + m_b * beta * mu^2) / rho_mean * kernel_grad_factor
+                dv_particle1 += ifelse(vr < 0, dv_viscosity_factor * pos_diff1, zero(dv_particle1))
+                dv_particle2 += ifelse(vr < 0, dv_viscosity_factor * pos_diff2, zero(dv_particle2))
+                dv_particle3 += ifelse(vr < 0, dv_viscosity_factor * pos_diff3, zero(dv_particle3))
+            # # end
 
-            drho_particle += rho_a / rho_b * m_b * dot(v_diff, grad_kernel)
+            drho_particle += rho_a / rho_b * m_b * (v_diff1 * pos_diff1 + v_diff2 * pos_diff2 + v_diff3 * pos_diff3) * kernel_grad_factor
         end
     # end
 
+        dv_particle = SVector(dv_particle1, dv_particle2, dv_particle3)
         for i in eachindex(dv_particle)
             @inbounds dv[i, particle] += dv_particle[i]
         end
