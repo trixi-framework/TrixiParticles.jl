@@ -50,25 +50,20 @@ function SteadyStateReachedCallback(; interval::Integer=0, dt=0.0,
     end
 end
 
-# `affect!` (`PeriodicCallback`)
+# `affect!` (`PeriodicCallback` and `DiscreteCallback`)
 function (cb::SteadyStateReachedCallback)(integrator)
-    steady_state_condition!(cb, integrator) || return nothing
+    if steady_state_condition!(cb, integrator)
+        print_summary(integrator)
 
-    print_summary(integrator)
-
-    terminate!(integrator)
-end
-
-# `affect!` (`DiscreteCallback`)
-function (cb::SteadyStateReachedCallback{Int})(integrator)
-    print_summary(integrator)
-
-    terminate!(integrator)
+        terminate!(integrator)
+    end
 end
 
 # `condition` (`DiscreteCallback`)
 function (steady_state_callback::SteadyStateReachedCallback)(vu_ode, t, integrator)
-    return steady_state_condition!(steady_state_callback, integrator)
+    (; interval) = steady_state_callback
+
+    return condition_integrator_interval(integrator, interval)
 end
 
 @inline function steady_state_condition!(cb, integrator)
