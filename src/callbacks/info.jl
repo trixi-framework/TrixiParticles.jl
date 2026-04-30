@@ -70,7 +70,7 @@ function (info_callback::InfoCallback)(integrator)
     end
 
     # Tell OrdinaryDiffEq that u has not been modified
-    u_modified!(integrator, false)
+    derivative_discontinuity!(integrator, false)
 
     return nothing
 end
@@ -128,7 +128,7 @@ function initialize_info_callback(discrete_callback, u, t, integrator;
         push!(setup,
               "abstol" => integrator.opts.abstol,
               "reltol" => integrator.opts.reltol,
-              "controller" => integrator.opts.controller)
+              "controller" => integrator.controller_cache.controller)
     end
     summary_box(io, "Time integration", setup)
     println()

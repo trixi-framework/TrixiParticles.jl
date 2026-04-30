@@ -197,7 +197,7 @@ function (solution_callback::SolutionSavingCallback)(integrator)
     end
 
     # Tell OrdinaryDiffEq that `u` has not been modified
-    u_modified!(integrator, false)
+    derivative_discontinuity!(integrator, false)
 
     return nothing
 end

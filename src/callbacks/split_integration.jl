@@ -184,7 +184,7 @@ function affect_inner!(integrator, split_integrator)
     end
 
     # Tell OrdinaryDiffEq that `u` has been modified
-    u_modified!(integrator, true)
+    derivative_discontinuity!(integrator, true)
 
     return integrator
 end
