@@ -196,7 +196,7 @@ function (solution_callback::SolutionSavingCallback)(integrator)
                   git_hash=git_hash[], max_coordinates, custom_quantities...)
     end
 
-    # Tell OrdinaryDiffEq that `u` has not been modified
+    # Saving does not introduce a derivative discontinuity.
     derivative_discontinuity!(integrator, false)
 
     return nothing

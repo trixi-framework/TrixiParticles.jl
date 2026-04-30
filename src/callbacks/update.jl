@@ -74,9 +74,8 @@ function (update_callback!::UpdateCallback)(integrator)
     semi = integrator.p
     v_ode, u_ode = integrator.u.x
 
-    # Tell OrdinaryDiffEq that `integrator.u` has NOT been modified.
-    # This will be set to `true` in any of the update functions below that modify
-    # either `v_ode` or `u_ode`.
+    # The update callback starts without a derivative discontinuity. Individual update
+    # functions below mark one when they change `v_ode` or `u_ode`.
     derivative_discontinuity!(integrator, false)
 
     @trixi_timeit timer() "update callback" begin

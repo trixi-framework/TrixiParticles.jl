@@ -195,7 +195,7 @@ function (pp::PostprocessCallback)(integrator)
             write_postprocess_callback(pp, integrator)
         end
 
-        # Tell OrdinaryDiffEq that `u` has not been modified
+        # Postprocessing does not introduce a derivative discontinuity.
         derivative_discontinuity!(integrator, false)
     end
 end

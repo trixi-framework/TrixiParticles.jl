@@ -72,7 +72,7 @@ function (stepsize_callback::StepsizeCallback)(integrator)
     integrator.opts.dtmax = dt
     integrator.dtcache = dt
 
-    # Tell OrdinaryDiffEq that `u` has not been modified
+    # Updating the proposed step size does not introduce a derivative discontinuity.
     derivative_discontinuity!(integrator, false)
 
     return stepsize_callback

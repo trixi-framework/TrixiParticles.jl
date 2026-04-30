@@ -69,7 +69,7 @@ function (info_callback::InfoCallback)(integrator)
                 @sprintf("│ run time: %.4e s", runtime_absolute))
     end
 
-    # Tell OrdinaryDiffEq that u has not been modified
+    # This callback only reports progress and does not introduce a derivative discontinuity.
     derivative_discontinuity!(integrator, false)
 
     return nothing

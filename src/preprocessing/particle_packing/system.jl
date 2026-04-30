@@ -277,7 +277,7 @@ function update_particle_packing(system::ParticlePackingSystem, v_ode, u_ode,
 
     @trixi_timeit timer() "update particle packing" update_position!(u, system, semi)
 
-    # Tell OrdinaryDiffEq that `integrator.u` has been modified
+    # Particle packing updates the ODE state and introduces a derivative discontinuity.
     derivative_discontinuity!(integrator, true)
 end
 
@@ -384,7 +384,7 @@ end
         end
     end
 
-    # Tell OrdinaryDiffEq that `integrator.u` has been modified
+    # Particle packing updates the ODE state and introduces a derivative discontinuity.
     derivative_discontinuity!(integrator, true)
 
     return system

@@ -183,7 +183,7 @@ function affect_inner!(integrator, split_integrator)
                                                            u_ode_split, semi, semi_split)
     end
 
-    # Tell OrdinaryDiffEq that `u` has been modified
+    # Split integration updates the ODE state and introduces a derivative discontinuity.
     derivative_discontinuity!(integrator, true)
 
     return integrator

@@ -93,7 +93,7 @@ function (sorting_callback!::SortingCallback)(integrator)
         end
     end
 
-    # Tell OrdinaryDiffEq that `integrator.u` has been modified
+    # Sorting changes the ODE state ordering and introduces a derivative discontinuity.
     derivative_discontinuity!(integrator, true)
 
     return integrator

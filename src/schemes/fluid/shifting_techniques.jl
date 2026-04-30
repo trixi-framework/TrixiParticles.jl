@@ -521,7 +521,7 @@ function particle_shifting_from_callback!(u_ode,
         apply_particle_shifting!(u_ode, shifting, system, semi, integrator.dt)
     end
 
-    # Tell OrdinaryDiffEq that `integrator.u` has been modified
+    # Particle shifting updates the ODE state and introduces a derivative discontinuity.
     derivative_discontinuity!(integrator, true)
 
     return u_ode
