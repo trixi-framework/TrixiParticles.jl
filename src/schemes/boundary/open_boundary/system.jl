@@ -346,7 +346,7 @@ function update_open_boundary_eachstep!(system::OpenBoundarySystem, v_ode, u_ode
     end
 
     # Tell OrdinaryDiffEq that `integrator.u` has been modified
-    u_modified!(integrator, true)
+    derivative_discontinuity!(integrator, true)
 
     return system
 end

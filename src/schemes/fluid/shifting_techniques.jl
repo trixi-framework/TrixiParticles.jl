@@ -522,7 +522,7 @@ function particle_shifting_from_callback!(u_ode,
     end
 
     # Tell OrdinaryDiffEq that `integrator.u` has been modified
-    u_modified!(integrator, true)
+    derivative_discontinuity!(integrator, true)
 
     return u_ode
 end

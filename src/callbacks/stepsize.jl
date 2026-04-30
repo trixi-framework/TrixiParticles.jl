@@ -73,7 +73,7 @@ function (stepsize_callback::StepsizeCallback)(integrator)
     integrator.dtcache = dt
 
     # Tell OrdinaryDiffEq that `u` has not been modified
-    u_modified!(integrator, false)
+    derivative_discontinuity!(integrator, false)
 
     return stepsize_callback
 end
