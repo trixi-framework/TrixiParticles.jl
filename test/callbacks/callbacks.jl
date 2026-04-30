@@ -56,4 +56,5 @@
     include("update.jl")
     include("solution_saving.jl")
     include("steady_state_reached.jl")
+    include("energy_calculator.jl")
 end
