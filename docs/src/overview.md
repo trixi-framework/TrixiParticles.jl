@@ -42,7 +42,7 @@ flowchart TD
         %% Horizontal layout within this subgraph
         direction LR;
 
-        subgraph updates["<div style='padding: 10px; font-weight: bold;'>update_systems_and_nhs</div>"]
+        subgraph updates["<div style='padding: 10px; font-weight: bold;'>update_systems!</div>"]
             %% Vertical layout within this subgraph
             direction TB;
 
