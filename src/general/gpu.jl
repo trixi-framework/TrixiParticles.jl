@@ -3,11 +3,10 @@
 # the `CuArray` type.
 # What this does is that it converts all `Array`s inside this system to `CuArray`s,
 # therefore copying them to the GPU.
-# In order to run a simulation on a GPU, we want to call `adapt(T, semi)` to adapt the
-# `Semidiscretization` `semi` to the GPU array type `T` (e.g. `CuArray`).
+# In order to run a simulation on a GPU, we want to call `adapt(T, systems)` to adapt
+# all systems in the `Semidiscretization` to the GPU array type `T` (e.g. `CuArray`).
 #
 # `Adapt.@adapt_structure` automatically generates the `adapt` function for our custom types.
-Adapt.@adapt_structure Semidiscretization
 Adapt.@adapt_structure InitialCondition
 Adapt.@adapt_structure WeaklyCompressibleSPHSystem
 Adapt.@adapt_structure DensityDiffusionAntuono

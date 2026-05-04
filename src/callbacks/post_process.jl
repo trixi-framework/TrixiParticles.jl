@@ -114,99 +114,6 @@ function PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=tru
     end
 end
 
-function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:PostprocessCallback})
-    @nospecialize cb # reduce precompilation time
-    callback = cb.affect!
-    print(io, "PostprocessCallback(interval=", callback.interval)
-    print(io, ", functions=[")
-    print(io, join(keys(callback.func), ", "))
-    print(io, "])")
-end
-
-function Base.show(io::IO,
-                   cb::DiscreteCallback{<:Any,
-                                        <:PeriodicCallbackAffect{<:PostprocessCallback}})
-    @nospecialize cb # reduce precompilation time
-    callback = cb.affect!.affect!
-    print(io, "PostprocessCallback(dt=", callback.interval)
-    print(io, ", functions=[")
-    print(io, join(keys(callback.func), ", "))
-    print(io, "])")
-end
-
-function Base.show(io::IO, ::MIME"text/plain",
-                   cb::DiscreteCallback{<:Any, <:PostprocessCallback})
-    @nospecialize cb # reduce precompilation time
-    if get(io, :compact, false)
-        show(io, cb)
-    else
-        callback = cb.affect!
-
-        function write_file_interval(interval)
-            if interval > 1
-                return "every $(interval) * interval"
-            elseif interval == 1
-                return "always"
-            elseif interval == 0
-                return "no"
-            end
-        end
-
-        setup = [
-            "interval" => string(callback.interval),
-            "write file" => write_file_interval(callback.write_file_interval),
-            "exclude boundary" => callback.exclude_boundary ? "yes" : "no",
-            "filename" => callback.filename,
-            "output directory" => callback.output_directory,
-            "append timestamp" => callback.append_timestamp ? "yes" : "no",
-            "write json file" => callback.write_csv ? "yes" : "no",
-            "write csv file" => callback.write_json ? "yes" : "no"
-        ]
-
-        for (i, key) in enumerate(keys(callback.func))
-            push!(setup, "function$i" => string(key))
-        end
-        summary_box(io, "PostprocessCallback", setup)
-    end
-end
-
-function Base.show(io::IO, ::MIME"text/plain",
-                   cb::DiscreteCallback{<:Any,
-                                        <:PeriodicCallbackAffect{<:PostprocessCallback}})
-    @nospecialize cb # reduce precompilation time
-    if get(io, :compact, false)
-        show(io, cb)
-    else
-        callback = cb.affect!.affect!
-
-        function write_file_interval(interval)
-            if interval > 1
-                return "every $(interval) * dt"
-            elseif interval == 1
-                return "always"
-            elseif interval == 0
-                return "no"
-            end
-        end
-
-        setup = [
-            "dt" => string(callback.interval),
-            "write file" => write_file_interval(callback.write_file_interval),
-            "exclude boundary" => callback.exclude_boundary ? "yes" : "no",
-            "filename" => callback.filename,
-            "output directory" => callback.output_directory,
-            "append timestamp" => callback.append_timestamp ? "yes" : "no",
-            "write json file" => callback.write_csv ? "yes" : "no",
-            "write csv file" => callback.write_json ? "yes" : "no"
-        ]
-
-        for (i, key) in enumerate(keys(callback.func))
-            push!(setup, "function$i" => string(key))
-        end
-        summary_box(io, "PostprocessCallback", setup)
-    end
-end
-
 function initialize_postprocess_callback!(cb, u, t, integrator)
     # The `PostprocessCallback` is either `cb.affect!` (with `DiscreteCallback`)
     # or `cb.affect!.affect!` (with `PeriodicCallback`).
@@ -215,10 +122,13 @@ function initialize_postprocess_callback!(cb, u, t, integrator)
 end
 
 function initialize_postprocess_callback!(cb::PostprocessCallback, u, t, integrator)
+    semi = integrator.p
+    set_callbacks_used!(semi, integrator)
+
     cb.git_hash[] = compute_git_hash()
 
     # Apply the callback
-    cb(integrator; from_initialize=true)
+    cb(integrator)
 
     return cb
 end
@@ -231,26 +141,17 @@ function (pp::PostprocessCallback)(u, t, integrator)
 end
 
 # `affect!`
-function (pp::PostprocessCallback)(integrator; from_initialize=false)
+function (pp::PostprocessCallback)(integrator)
     @trixi_timeit timer() "apply postprocess cb" begin
-        vu_ode = integrator.u
-        if from_initialize
-            # Avoid calling `get_du` here, since it will call the RHS function
-            # if it is called before the first time step.
-            # This would cause problems with `semi.update_callback_used`,
-            # which might not yet be set to `true` at this point if the `UpdateCallback`
-            # comes AFTER the `PostprocessCallback` in the `CallbackSet`.
-            dv_ode, du_ode = zero(vu_ode).x
-        else
-            # Depending on the time integration scheme, this might call the RHS function
-            @trixi_timeit timer() "update du" begin
-                # Don't create sub-timers here to avoid cluttering the timer output
-                @notimeit timer() dv_ode, du_ode = get_du(integrator).x
-            end
+        @trixi_timeit timer() "update dvdu" begin
+            # Don't create sub-timers here to avoid cluttering the timer output
+            @notimeit timer() dvdu_ode = get_dvdu(integrator)
+            dv_ode, du_ode = dvdu_ode.x
         end
-        v_ode, u_ode = vu_ode.x
+
         semi = integrator.p
         t = integrator.t
+        v_ode, u_ode = integrator.u.x
         filenames = system_names(semi.systems)
         new_data = false
 
@@ -400,4 +301,97 @@ function add_entry!(pp, entry_key, t, value, system_name)
 
     # Add the new entry to the list
     push!(entries, value)
+end
+
+function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:PostprocessCallback})
+    @nospecialize cb # reduce precompilation time
+    callback = cb.affect!
+    print(io, "PostprocessCallback(interval=", callback.interval)
+    print(io, ", functions=[")
+    print(io, join(keys(callback.func), ", "))
+    print(io, "])")
+end
+
+function Base.show(io::IO,
+                   cb::DiscreteCallback{<:Any,
+                                        <:PeriodicCallbackAffect{<:PostprocessCallback}})
+    @nospecialize cb # reduce precompilation time
+    callback = cb.affect!.affect!
+    print(io, "PostprocessCallback(dt=", callback.interval)
+    print(io, ", functions=[")
+    print(io, join(keys(callback.func), ", "))
+    print(io, "])")
+end
+
+function Base.show(io::IO, ::MIME"text/plain",
+                   cb::DiscreteCallback{<:Any, <:PostprocessCallback})
+    @nospecialize cb # reduce precompilation time
+    if get(io, :compact, false)
+        show(io, cb)
+    else
+        callback = cb.affect!
+
+        function write_file_interval(interval)
+            if interval > 1
+                return "every $(interval) * interval"
+            elseif interval == 1
+                return "always"
+            elseif interval == 0
+                return "no"
+            end
+        end
+
+        setup = [
+            "interval" => string(callback.interval),
+            "write file" => write_file_interval(callback.write_file_interval),
+            "exclude boundary" => callback.exclude_boundary ? "yes" : "no",
+            "filename" => callback.filename,
+            "output directory" => callback.output_directory,
+            "append timestamp" => callback.append_timestamp ? "yes" : "no",
+            "write json file" => callback.write_json ? "yes" : "no",
+            "write csv file" => callback.write_csv ? "yes" : "no"
+        ]
+
+        for (i, key) in enumerate(keys(callback.func))
+            push!(setup, "function$i" => string(key))
+        end
+        summary_box(io, "PostprocessCallback", setup)
+    end
+end
+
+function Base.show(io::IO, ::MIME"text/plain",
+                   cb::DiscreteCallback{<:Any,
+                                        <:PeriodicCallbackAffect{<:PostprocessCallback}})
+    @nospecialize cb # reduce precompilation time
+    if get(io, :compact, false)
+        show(io, cb)
+    else
+        callback = cb.affect!.affect!
+
+        function write_file_interval(interval)
+            if interval > 1
+                return "every $(interval) * dt"
+            elseif interval == 1
+                return "always"
+            elseif interval == 0
+                return "no"
+            end
+        end
+
+        setup = [
+            "dt" => string(callback.interval),
+            "write file" => write_file_interval(callback.write_file_interval),
+            "exclude boundary" => callback.exclude_boundary ? "yes" : "no",
+            "filename" => callback.filename,
+            "output directory" => callback.output_directory,
+            "append timestamp" => callback.append_timestamp ? "yes" : "no",
+            "write json file" => callback.write_json ? "yes" : "no",
+            "write csv file" => callback.write_csv ? "yes" : "no"
+        ]
+
+        for (i, key) in enumerate(keys(callback.func))
+            push!(setup, "function$i" => string(key))
+        end
+        summary_box(io, "PostprocessCallback", setup)
+    end
 end
