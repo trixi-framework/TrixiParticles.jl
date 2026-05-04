@@ -165,11 +165,13 @@
             boundary_a_ic = make_particle(1.0, 1002.0, (0.0, 0.0))
             boundary_b_ic = make_particle(1.5, 998.0, (0.0, 0.0))
 
-            fluid_a = WeaklyCompressibleSPHSystem(fluid_a_ic, ContinuityDensity(),
-                                                  state_equation, kernel,
+            fluid_a = WeaklyCompressibleSPHSystem(fluid_a_ic;
+                                                  density_calculator=ContinuityDensity(),
+                                                  state_equation, smoothing_kernel=kernel,
                                                   smoothing_length)
-            fluid_b = WeaklyCompressibleSPHSystem(fluid_b_ic, ContinuityDensity(),
-                                                  state_equation, kernel,
+            fluid_b = WeaklyCompressibleSPHSystem(fluid_b_ic;
+                                                  density_calculator=ContinuityDensity(),
+                                                  state_equation, smoothing_kernel=kernel,
                                                   smoothing_length)
 
             boundary_model_a = BoundaryModelDummyParticles(boundary_a_ic.density,
