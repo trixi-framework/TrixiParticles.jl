@@ -28,80 +28,9 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::RigidBodySystem,
                    neighbor_system::AbstractFluidSystem, semi)
-    sound_speed = system_sound_speed(neighbor_system)
-    surface_tension = surface_tension_model(neighbor_system)
-
-    system_coords = current_coordinates(u_particle_system, particle_system)
-    neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
-
-    # Accumulate pairwise fluid forces per rigid particle first, then reduce them to a
-    # single resultant force/torque after all rigid-fluid interactions have been processed.
-    (; force_per_particle) = particle_system
-
-    # Loop over all pairs of particles and neighbors within the kernel cutoff
-    foreach_point_neighbor(particle_system, neighbor_system,
-                           system_coords, neighbor_coords, semi;
-                           points=each_integrated_particle(particle_system)) do particle,
-                                                                                neighbor,
-                                                                                pos_diff,
-                                                                                distance
-
-        # Only consider particles with a distance > 0.
-        # See `src/general/smoothing_kernels.jl` for more details.
-        distance^2 < eps(initial_smoothing_length(particle_system)^2) && return
-
-        # Apply the same force to the structure particle that the fluid particle
-        # experiences due to the structure particle.
-        # In fluid-structure interaction, use the "hydrodynamic mass" of the structure
-        # particles corresponding to the rest density of the fluid.
-        m_a = @inbounds hydrodynamic_mass(particle_system, particle)
-        m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
-
-        rho_a = @inbounds current_density(v_particle_system, particle_system, particle)
-        rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
-
-        # Use the fluid kernel in order to get the same force as in
-        # fluid-structure interaction.
-        grad_kernel = smoothing_kernel_grad(neighbor_system, pos_diff, distance, neighbor)
-
-        # In fluid-structure interaction, use the "hydrodynamic pressure" of the
-        # structure particles corresponding to the chosen boundary model.
-        p_a = @inbounds current_pressure(v_particle_system, particle_system, particle)
-        p_b = @inbounds current_pressure(v_neighbor_system, neighbor_system, neighbor)
-
-        # Particle and neighbor are switched in the following two calls.
-        # This yields the opposite force of the fluid-structure interaction,
-        # because `pos_diff` is flipped.
-        dv_boundary = pressure_acceleration(neighbor_system, particle_system,
-                                            neighbor, particle,
-                                            m_b, m_a, p_b, p_a, rho_b, rho_a,
-                                            pos_diff, distance, grad_kernel,
-                                            system_correction(neighbor_system))
-
-        dv_viscosity_ = dv_viscosity(neighbor_system, particle_system,
-                                     v_neighbor_system, v_particle_system,
-                                     neighbor, particle, pos_diff, distance,
-                                     sound_speed, m_b, m_a, rho_b, rho_a,
-                                     grad_kernel)
-
-        dv_adhesion = adhesion_force(surface_tension, neighbor_system, particle_system,
-                                     neighbor, particle, pos_diff, distance)
-
-        dv_particle = dv_boundary + dv_viscosity_ + dv_adhesion
-
-        for i in 1:ndims(particle_system)
-            # `pressure_acceleration`/`dv_viscosity` return acceleration-like pair contributions.
-            # Multiply by the interacting fluid mass to recover the force on this rigid particle.
-            @inbounds force_per_particle[i, particle] += dv_particle[i] * m_b
-        end
-
-        continuity_equation!(dv, v_particle_system, v_neighbor_system,
-                             particle, neighbor, pos_diff, distance,
-                             m_b, rho_a, rho_b,
-                             particle_system, neighbor_system, grad_kernel)
-    end
-
-    return dv
+    return interact_structure_fluid!(dv, v_particle_system, u_particle_system,
+                                     v_neighbor_system, u_neighbor_system,
+                                     particle_system, neighbor_system, semi)
 end
 
 # Reduce the accumulated fluid forces to rigid-body resultants and apply the corresponding
@@ -151,32 +80,6 @@ function apply_resultant_force_and_torque!(dv, particle_system::RigidBodySystem,
     return dv
 end
 
-# Default rigid boundary models keep density fixed, so structure-fluid coupling does not
-# contribute to a density RHS entry.
-@inline function continuity_equation!(dv, v_particle_system, v_neighbor_system,
-                                      particle, neighbor, pos_diff, distance,
-                                      m_b, rho_a, rho_b,
-                                      particle_system::RigidBodySystem,
-                                      neighbor_system, grad_kernel)
-    # Most rigid boundary models keep their density fixed, so no continuity update is needed.
-    return dv
-end
-
-# Dummy-particle rigid boundaries with `ContinuityDensity` reuse the fluid-compatible
-# density update for the rigid particle.
-@inline function continuity_equation!(dv, v_particle_system, v_neighbor_system,
-                                      particle, neighbor, pos_diff, distance,
-                                      m_b, rho_a, rho_b,
-                                      particle_system::RigidBodySystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
-                                      neighbor_system, grad_kernel)
-    v_diff = current_velocity(v_particle_system, particle_system, particle) -
-             current_velocity(v_neighbor_system, neighbor_system, neighbor)
-
-    # Dummy rigid particles reuse the fluid-compatible density update of the neighbor system.
-    continuity_equation!(dv, density_calculator(neighbor_system), m_b, rho_a, rho_b, v_diff,
-                         grad_kernel, particle)
-end
-
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::RigidBodySystem,
@@ -205,6 +108,10 @@ function interact!(dv, v_particle_system, u_particle_system,
 
     NDIMS = ndims(particle_system)
     ELTYPE = eltype(particle_system)
+    set_zero!(particle_system.cache.contact_count_per_particle)
+    set_zero!(particle_system.cache.max_contact_penetration_per_particle)
+    contact_count_per_particle = particle_system.cache.contact_count_per_particle
+    max_contact_penetration_per_particle = particle_system.cache.max_contact_penetration_per_particle
 
     # First gather all penetrating wall neighbors into a small set of contact manifolds per
     # rigid particle. This avoids applying one noisy contact force per wall particle.
@@ -225,6 +132,8 @@ function interact!(dv, v_particle_system, u_particle_system,
     # Apply one force contribution per manifold using the averaged normal, penetration, and
     # wall velocity stored in the cache.
     @threaded semi for particle in each_integrated_particle(particle_system)
+        local_contact_count = 0
+        local_max_contact_penetration = zero(ELTYPE)
         n_manifolds = particle_system.cache.contact_manifold_count[particle]
         if n_manifolds > 0
             v_particle = current_velocity(v_particle_system, particle_system, particle)
@@ -257,7 +166,6 @@ function interact!(dv, v_particle_system, u_particle_system,
                         relative_velocity = v_particle - v_boundary
                         normal_velocity = dot(relative_velocity, normal)
 
-                        # Only the normal spring-dashpot part is kept in the basic collision.
                         elastic_force = contact_model.normal_stiffness *
                                         penetration_effective
                         damping_force = -contact_model.normal_damping * normal_velocity
@@ -271,12 +179,23 @@ function interact!(dv, v_particle_system, u_particle_system,
                                 particle_system.force_per_particle[dim,
                                                                    particle] += interaction_force[dim]
                             end
+
+                            local_contact_count += 1
+                            local_max_contact_penetration = max(local_max_contact_penetration,
+                                                                penetration_effective)
                         end
                     end
                 end
             end
         end
+
+        contact_count_per_particle[particle] = local_contact_count
+        max_contact_penetration_per_particle[particle] = local_max_contact_penetration
     end
+
+    particle_system.cache.contact_count[] += sum(contact_count_per_particle)
+    particle_system.cache.max_contact_penetration[] = max(particle_system.cache.max_contact_penetration[],
+                                                          maximum(max_contact_penetration_per_particle))
 
     return dv
 end
@@ -428,6 +347,14 @@ function interact!(dv, v_particle_system, u_particle_system,
     ELTYPE = eltype(particle_system)
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
+    set_zero!(particle_system.cache.contact_count_per_particle)
+    set_zero!(particle_system.cache.max_contact_penetration_per_particle)
+    contact_count_per_particle = particle_system.cache.contact_count_per_particle
+    max_contact_penetration_per_particle = particle_system.cache.max_contact_penetration_per_particle
+    pair_normal_stiffness = (contact_model.normal_stiffness +
+                             neighbor_contact_model.normal_stiffness) / 2
+    pair_normal_damping = (contact_model.normal_damping +
+                           neighbor_contact_model.normal_damping) / 2
 
     foreach_point_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
                            semi;
@@ -451,10 +378,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         relative_velocity = particle_velocity - neighbor_velocity
         normal_velocity = dot(relative_velocity, normal)
 
-        elastic_force = (contact_model.normal_stiffness +
-                         neighbor_contact_model.normal_stiffness) / 2 * penetration
-        damping_force = -(contact_model.normal_damping +
-                          neighbor_contact_model.normal_damping) / 2 * normal_velocity
+        elastic_force = pair_normal_stiffness * penetration
+        damping_force = -pair_normal_damping * normal_velocity
         normal_force_magnitude = max(elastic_force + damping_force, zero(ELTYPE))
         normal_force_magnitude <= 0 && return dv
 
@@ -463,7 +388,17 @@ function interact!(dv, v_particle_system, u_particle_system,
         for dim in 1:ndims(particle_system)
             particle_system.force_per_particle[dim, particle] += interaction_force[dim]
         end
+
+        # `foreach_point_neighbor` parallelizes the outer loop over `points`, i.e. particles.
+        # This makes these per-particle reductions race-free under the regular backends.
+        contact_count_per_particle[particle] += 1
+        max_contact_penetration_per_particle[particle] = max(max_contact_penetration_per_particle[particle],
+                                                             penetration)
     end
+
+    particle_system.cache.contact_count[] += sum(contact_count_per_particle)
+    particle_system.cache.max_contact_penetration[] = max(particle_system.cache.max_contact_penetration[],
+                                                          maximum(max_contact_penetration_per_particle))
 
     return dv
 end

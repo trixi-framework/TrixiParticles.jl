@@ -1,7 +1,6 @@
 """
-    WeaklyCompressibleSPHSystem(initial_condition,
-                                density_calculator, state_equation,
-                                smoothing_kernel, smoothing_length;
+    WeaklyCompressibleSPHSystem(initial_condition; density_calculator, state_equation,
+                                smoothing_kernel, smoothing_length,
                                 acceleration=ntuple(_ -> 0.0, NDIMS),
                                 viscosity=nothing, density_diffusion=nothing,
                                 pressure_acceleration=nothing,
@@ -18,15 +17,15 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
 
 # Arguments
 - `initial_condition`:  [`InitialCondition`](@ref) representing the system's particles.
-- `density_calculator`: Density calculator for the system.
-                        See [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
-- `state_equation`:     Equation of state for the system. See [`StateEquationCole`](@ref).
-- `smoothing_kernel`:   Smoothing kernel to be used for this system.
-                        See [Smoothing Kernels](@ref smoothing_kernel).
-- `smoothing_length`:   Smoothing length to be used for this system.
-                        See [Smoothing Kernels](@ref smoothing_kernel).
 
 # Keywords
+- `density_calculator`:         Density calculator for the system.
+                                See [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
+- `state_equation`:             Equation of state for the system. See [`StateEquationCole`](@ref).
+- `smoothing_kernel`:           Smoothing kernel to be used for this system.
+                                See [Smoothing Kernels](@ref smoothing_kernel).
+- `smoothing_length`:           Smoothing length to be used for this system.
+                                See [Smoothing Kernels](@ref smoothing_kernel).
 - `acceleration`:               Acceleration vector for the system. (default: zero vector)
 - `viscosity`:                  Viscosity model for this system (default: no viscosity).
                                 See [`ArtificialViscosityMonaghan`](@ref) or [`ViscosityAdami`](@ref).
@@ -88,8 +87,9 @@ end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
-function WeaklyCompressibleSPHSystem(initial_condition, density_calculator, state_equation,
-                                     smoothing_kernel, smoothing_length;
+function WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
+                                     smoothing_length, density_calculator,
+                                     state_equation,
                                      acceleration=ntuple(_ -> zero(eltype(initial_condition)),
                                                          ndims(smoothing_kernel)),
                                      viscosity=nothing, density_diffusion=nothing,
@@ -152,6 +152,7 @@ function WeaklyCompressibleSPHSystem(initial_condition, density_calculator, stat
                                           n_particles)...,
              create_cache_refinement(initial_condition, particle_refinement,
                                      smoothing_length)...,
+             create_cache_density_diffusion(initial_condition, density_diffusion)...,
              create_cache_shifting(initial_condition, shifting_technique)...,
              # Per-system color tag for colorfield surface-normal logic and VTK output.
              color=Int(color_value))
@@ -159,9 +160,8 @@ function WeaklyCompressibleSPHSystem(initial_condition, density_calculator, stat
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
     if reference_particle_spacing > 0
         # `reference_particle_spacing` has to be set for surface normals to be determined
-        cache = (;
-                 cache...,  # Existing cache fields
-                 reference_particle_spacing=reference_particle_spacing)
+        # Existing cache fields
+        cache = (; cache..., reference_particle_spacing)
     end
 
     return WeaklyCompressibleSPHSystem(initial_condition, mass, pressure,
@@ -338,7 +338,8 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_od
     return system
 end
 
-function update_final!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t)
+function update_final!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t;
+                       kwargs...)
     (; surface_tension) = system
 
     # Surface normal of neighbor and boundary needs to have been calculated already
@@ -380,10 +381,7 @@ end
 function reinit_density!(vu_ode, semi)
     v_ode, u_ode = vu_ode.x
 
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         reinit_density!(system, v, u, v_ode, u_ode, semi)
     end
 

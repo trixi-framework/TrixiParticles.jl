@@ -5,11 +5,13 @@ if TRIXIPARTICLES_TEST_ == "cuda"
     CUDA.versioninfo()
     parallelization_backend = CUDABackend()
     supports_double_precision = true
+    fp64_fastdiv = true
 elseif TRIXIPARTICLES_TEST_ == "amdgpu"
     using AMDGPU
     AMDGPU.versioninfo()
     parallelization_backend = ROCBackend()
     supports_double_precision = true
+    fp64_fastdiv = false
 elseif TRIXIPARTICLES_TEST_ == "metal"
     using Metal
     Metal.versioninfo()
@@ -23,6 +25,56 @@ elseif TRIXIPARTICLES_TEST_ == "oneapi"
     supports_double_precision = false
 else
     error("Unknown GPU backend: $TRIXIPARTICLES_TEST_")
+end
+
+@testset verbose=true "div_fast $TRIXIPARTICLES_TEST_" begin
+    @testset verbose=true "CPU Float64" begin
+        x = Float64(pi)
+        y = rand(Float64, 1024) .+ 1
+
+        # We expect exact equality for `Float64` on the CPU
+        @test TrixiParticles.div_fast.(x, y) == x ./ y
+    end
+
+    @testset verbose=true "CPU Float32" begin
+        x = Float32(pi)
+        y = rand(Float32, 1024) .+ 1
+
+        # We don't test `max_error > 0`, since this might be exact on some CPUs
+        # (we observed this on ARM CPUs).
+        max_error = maximum(abs.(TrixiParticles.div_fast.(x, y) - x ./ y))
+        @test max_error < 1.0f-6
+    end
+
+    @testset verbose=true "GPU Float32" begin
+        x = Float32(pi)
+        y = Adapt.adapt(parallelization_backend, rand(Float32, 1024) .+ 1)
+
+        max_error = maximum(abs.(TrixiParticles.div_fast.(x, y) - x ./ y))
+        @test max_error < 1.0f-6
+
+        # Make sure that this is actually using a fast division
+        @test max_error > 0
+    end
+
+    if supports_double_precision
+        @testset verbose=true "GPU Float64" begin
+            x = Float64(pi)
+            y = Adapt.adapt(parallelization_backend, rand(Float64, 1024) .+ 1)
+
+            max_error = maximum(abs.(TrixiParticles.div_fast.(x, y) - x ./ y))
+
+            if fp64_fastdiv
+                @test max_error < 1e-15
+
+                # Make sure that this is actually using a fast division
+                @test max_error > 0
+            else
+                # If fast division for Float64 is not supported, we expect exact equality
+                @test max_error == 0
+            end
+        end
+    end
 end
 
 @testset verbose=true "Examples $TRIXIPARTICLES_TEST_" begin
@@ -177,7 +229,7 @@ end
                                                              coordinates_eltype=Float32,
                                                              boundary_layers=1,
                                                              spacing_ratio=3,
-                                                             boundary_model=boundary_model,
+                                                             boundary_model,
                                                              parallelization_backend=Main.parallelization_backend) [
                 r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n",
                 r"┌ Info: The desired tank length in y-direction.*\n",
@@ -215,12 +267,11 @@ end
             @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
                                                              joinpath(examples_dir(),
                                                                       "fluid",
-                                                                      "dam_break_3d.jl"),
+                                                                      "dam_break_3d.jl");
                                                              tspan=(0.0f0, 0.1f0),
                                                              coordinates_eltype=Float32,
                                                              fluid_particle_spacing=0.1,
-                                                             semi=semi_fullgrid,
-                                                             maxiters=maxiters) [
+                                                             semi=semi_fullgrid, maxiters) [
                 r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
@@ -256,10 +307,9 @@ end
                                           sol=nothing, ode=nothing)
 
             # Create tank with Float32 coordinates
-            tank = RectangularTank(fluid_particle_spacing, initial_fluid_size,
-                                   tank_size, fluid_density, n_layers=boundary_layers,
-                                   acceleration=(0.0f0, -gravity),
-                                   state_equation=state_equation,
+            tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size,
+                                   fluid_density; n_layers=boundary_layers,
+                                   acceleration=(0.0f0, -gravity), state_equation,
                                    coordinates_eltype=Float32)
 
             hydrostatic_water_column_tests = Dict(
@@ -279,10 +329,8 @@ end
                                                                      fluid_density_calculator=SummationDensity(),
                                                                      maxiters=38, # 38 time steps on CPU
                                                                      clip_negative_pressure=true),
-                # Broken due to https://github.com/JuliaGPU/CUDA.jl/issues/2681
-                # and https://github.com/JuliaGPU/Metal.jl/issues/550.
-                # "WCSPH with SchoenbergQuarticSplineKernel" => (smoothing_length=1.1,
-                #                                                smoothing_kernel=SchoenbergQuarticSplineKernel{2}()),
+                "WCSPH with SchoenbergQuarticSplineKernel" => (smoothing_length=1.1,
+                                                               smoothing_kernel=SchoenbergQuarticSplineKernel{2}()),
                 "WCSPH with SchoenbergQuinticSplineKernel" => (smoothing_length=1.1,
                                                                smoothing_kernel=SchoenbergQuinticSplineKernel{2}()),
                 "WCSPH with WendlandC2Kernel" => (smoothing_length=1.5,
@@ -292,7 +340,7 @@ end
                 "WCSPH with WendlandC6Kernel" => (smoothing_length=2.0,
                                                   smoothing_kernel=WendlandC6Kernel{2}()),
                 "EDAC with source term damping" => (source_terms=SourceTermDamping(damping_coefficient=1.0f-4),
-                                                    fluid_system=EntropicallyDampedSPHSystem(tank.fluid,
+                                                    fluid_system=EntropicallyDampedSPHSystem(tank.fluid;
                                                                                              smoothing_kernel,
                                                                                              smoothing_length,
                                                                                              sound_speed,
@@ -300,7 +348,7 @@ end
                                                                                              density_calculator=ContinuityDensity(),
                                                                                              acceleration=(0.0,
                                                                                                            -gravity))),
-                "EDAC with SummationDensity" => (fluid_system=EntropicallyDampedSPHSystem(tank.fluid,
+                "EDAC with SummationDensity" => (fluid_system=EntropicallyDampedSPHSystem(tank.fluid;
                                                                                           smoothing_kernel,
                                                                                           smoothing_length,
                                                                                           sound_speed,
@@ -319,8 +367,7 @@ end
                     trixi_include_changeprecision(Float32, @__MODULE__,
                                                   joinpath(examples_dir(), "fluid",
                                                            "hydrostatic_water_column_2d.jl");
-                                                  sol=nothing, ode=nothing, tank=tank,
-                                                  kwargs...)
+                                                  sol=nothing, ode=nothing, tank, kwargs...)
 
                     # Neighborhood search with `FullGridCellList` for GPU compatibility
                     min_corner = minimum(tank.boundary.coordinates, dims=2)
@@ -338,7 +385,7 @@ end
                                                                               "fluid",
                                                                               "hydrostatic_water_column_2d.jl");
                                                                      semi=semi_fullgrid,
-                                                                     tank=tank,
+                                                                     tank,
                                                                      tspan=(0.0f0, 0.1f0),
                                                                      kwargs...) [
                         r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n",
@@ -394,7 +441,7 @@ end
                                                              joinpath(examples_dir(),
                                                                       "fluid",
                                                                       "poiseuille_flow_2d.jl"),
-                                                             wcsph=true,
+                                                             use_wcsph=true,
                                                              coordinates_eltype=Float32,
                                                              parallelization_backend=Main.parallelization_backend) [
                 r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
@@ -410,7 +457,7 @@ end
                                                              joinpath(examples_dir(),
                                                                       "fluid",
                                                                       "poiseuille_flow_2d.jl"),
-                                                             wcsph=false,
+                                                             use_wcsph=false,
                                                              coordinates_eltype=Float32,
                                                              parallelization_backend=Main.parallelization_backend) [
                 r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
@@ -458,14 +505,12 @@ end
                                                              joinpath(examples_dir(),
                                                                       "fluid",
                                                                       "pipe_flow_2d.jl"),
+                                                             wcsph=false,
                                                              coordinates_eltype=Float32,
-                                                             open_boundary_model=BoundaryModelMirroringTafuni(),
+                                                             open_boundary_model=BoundaryModelMirroringTafuni(;
+                                                                                                              mirror_method=ZerothOrderMirroring()),
                                                              boundary_type_in=BidirectionalFlow(),
                                                              boundary_type_out=BidirectionalFlow(),
-                                                             reference_density_in=nothing,
-                                                             reference_pressure_in=nothing,
-                                                             reference_density_out=nothing,
-                                                             reference_velocity_out=nothing,
                                                              parallelization_backend=Main.parallelization_backend) [
                 r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
             ]
@@ -480,17 +525,12 @@ end
                                                              joinpath(examples_dir(),
                                                                       "fluid",
                                                                       "pipe_flow_2d.jl"),
-                                                             wcsph=true, sound_speed=20.0f0,
+                                                             wcsph=true,
                                                              coordinates_eltype=Float32,
                                                              open_boundary_model=BoundaryModelMirroringTafuni(;
                                                                                                               mirror_method=ZerothOrderMirroring()),
                                                              boundary_type_in=BidirectionalFlow(),
                                                              boundary_type_out=BidirectionalFlow(),
-                                                             reference_density_in=nothing,
-                                                             reference_pressure_in=nothing,
-                                                             reference_density_out=nothing,
-                                                             reference_pressure_out=nothing,
-                                                             reference_velocity_out=nothing,
                                                              parallelization_backend=Main.parallelization_backend) [
                 r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
             ]
@@ -617,10 +657,10 @@ end
 
             @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
                                                              joinpath(examples_dir(), "dem",
-                                                                      "rectangular_tank_2d.jl"),
+                                                                      "rectangular_tank_2d.jl");
                                                              tspan=(0.0f0, 0.05f0),
                                                              coordinates_eltype=Float32,
-                                                             neighborhood_search=neighborhood_search,
+                                                             neighborhood_search,
                                                              parallelization_backend=Main.parallelization_backend) [
                 r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
             ]

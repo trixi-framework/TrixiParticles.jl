@@ -30,10 +30,11 @@
                 smoothing_length = 0.362
 
                 initial_condition = InitialCondition(; coordinates, mass, density)
-                system = WeaklyCompressibleSPHSystem(initial_condition,
+                system = WeaklyCompressibleSPHSystem(initial_condition;
+                                                     smoothing_kernel,
+                                                     smoothing_length,
                                                      density_calculator,
-                                                     state_equation, smoothing_kernel,
-                                                     smoothing_length)
+                                                     state_equation)
 
                 @test system isa WeaklyCompressibleSPHSystem{NDIMS}
                 @test system.initial_condition == initial_condition
@@ -44,25 +45,24 @@
                 @test TrixiParticles.initial_smoothing_length(system) == smoothing_length
                 @test system.viscosity === nothing
                 @test system.acceleration == [0.0 for _ in 1:NDIMS]
-
                 if density_calculator isa SummationDensity
                     @test length(system.cache.density) == size(coordinates, 2)
                 end
 
                 error_str1 = "`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"
-                @test_throws ArgumentError(error_str1) WeaklyCompressibleSPHSystem(initial_condition,
-                                                                                   density_calculator,
-                                                                                   state_equation,
+                @test_throws ArgumentError(error_str1) WeaklyCompressibleSPHSystem(initial_condition;
                                                                                    smoothing_kernel,
                                                                                    smoothing_length,
+                                                                                   density_calculator,
+                                                                                   state_equation,
                                                                                    acceleration=(0.0))
 
                 error_str2 = "smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"
-                @test_throws ArgumentError(error_str2) WeaklyCompressibleSPHSystem(initial_condition,
+                @test_throws ArgumentError(error_str2) WeaklyCompressibleSPHSystem(initial_condition;
+                                                                                   smoothing_kernel=smoothing_kernel2,
+                                                                                   smoothing_length,
                                                                                    density_calculator,
-                                                                                   state_equation,
-                                                                                   smoothing_kernel2,
-                                                                                   smoothing_length)
+                                                                                   state_equation)
             end
         end
     end
@@ -121,17 +121,18 @@
                 if density_calculator isa ContinuityDensity &&
                    corr isa ShepardKernelCorrection
                     error_str = "`ShepardKernelCorrection` cannot be used with `ContinuityDensity`"
-                    @test_throws ArgumentError(error_str) WeaklyCompressibleSPHSystem(setup,
-                                                                                      density_calculator,
-                                                                                      state_equation,
+                    @test_throws ArgumentError(error_str) WeaklyCompressibleSPHSystem(setup;
                                                                                       smoothing_kernel,
                                                                                       smoothing_length,
+                                                                                      density_calculator,
+                                                                                      state_equation,
                                                                                       correction=corr)
                     continue
                 end
-                system = WeaklyCompressibleSPHSystem(setup, density_calculator,
-                                                     state_equation, smoothing_kernel,
+                system = WeaklyCompressibleSPHSystem(setup; smoothing_kernel,
                                                      smoothing_length,
+                                                     density_calculator,
+                                                     state_equation,
                                                      correction=corr)
 
                 @test system isa WeaklyCompressibleSPHSystem{NDIMS}
@@ -169,11 +170,11 @@
                                                          density_calculators
 
                 error_str = "`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"
-                @test_throws ArgumentError(error_str) WeaklyCompressibleSPHSystem(setup,
-                                                                                  density_calculator,
-                                                                                  state_equation,
+                @test_throws ArgumentError(error_str) WeaklyCompressibleSPHSystem(setup;
                                                                                   smoothing_kernel,
                                                                                   smoothing_length,
+                                                                                  density_calculator,
+                                                                                  state_equation,
                                                                                   acceleration=(0.0))
             end
         end
@@ -193,11 +194,9 @@
         density_diffusion = Val(:density_diffusion)
 
         initial_condition = InitialCondition(; coordinates, mass, density)
-        system = WeaklyCompressibleSPHSystem(initial_condition,
-                                             density_calculator,
-                                             state_equation, smoothing_kernel,
-                                             smoothing_length,
-                                             density_diffusion=density_diffusion)
+        system = WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
+                                             smoothing_length, density_calculator,
+                                             state_equation, density_diffusion)
 
         show_compact = "WeaklyCompressibleSPHSystem{2}(SummationDensity(), nothing, Val{:state_equation}(), Val{:smoothing_kernel}(), nothing, Val{:density_diffusion}(), nothing, nothing, nothing, [0.0, 0.0], nothing) with 2 particles"
         @test repr(system) == show_compact
@@ -232,10 +231,9 @@
         density_calculator = SummationDensity()
 
         initial_condition = InitialCondition(; coordinates, mass, density)
-        system = WeaklyCompressibleSPHSystem(initial_condition,
-                                             density_calculator,
-                                             state_equation, smoothing_kernel,
-                                             smoothing_length)
+        system = WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
+                                             smoothing_length, density_calculator,
+                                             state_equation)
 
         u0 = zeros(TrixiParticles.u_nvariables(system),
                    TrixiParticles.n_integrated_particles(system))
@@ -257,10 +255,10 @@
         initial_condition = InitialCondition(; coordinates, velocity, mass, density)
 
         # SummationDensity
-        system = WeaklyCompressibleSPHSystem(initial_condition,
-                                             SummationDensity(),
-                                             state_equation, smoothing_kernel,
-                                             smoothing_length)
+        system = WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
+                                             smoothing_length,
+                                             density_calculator=SummationDensity(),
+                                             state_equation)
 
         v0 = zeros(TrixiParticles.v_nvariables(system),
                    TrixiParticles.n_integrated_particles(system))
@@ -275,10 +273,10 @@
         @test TrixiParticles.current_pressure(v0, system) == system.pressure
 
         # ContinuityDensity
-        system = WeaklyCompressibleSPHSystem(initial_condition,
-                                             ContinuityDensity(),
-                                             state_equation, smoothing_kernel,
-                                             smoothing_length)
+        system = WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
+                                             smoothing_length,
+                                             density_calculator=ContinuityDensity(),
+                                             state_equation)
 
         v0 = zeros(TrixiParticles.v_nvariables(system),
                    TrixiParticles.n_integrated_particles(system))
