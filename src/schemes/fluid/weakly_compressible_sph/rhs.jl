@@ -97,7 +97,7 @@ function interact_vec!(dv, v_particle_system, u_particle_system,
             p_b = neighbor_system.pressure[neighbor]
 
             q = distance * h_inv
-            kernel_grad_factor = (1 - q / 2)^3
+            kernel_grad_factor = (1 - q / 2)^3 * normalization_factor
             # kernel_grad_factor = kernel_deriv_div_r_unsafe(kernel_, distance, h)
 
             tmp = -m_b * (p_a + p_b) / (rho_a * rho_b) * kernel_grad_factor
