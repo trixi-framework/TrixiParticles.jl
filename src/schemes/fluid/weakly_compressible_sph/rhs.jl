@@ -4,6 +4,7 @@
 # the density using the continuity equation.
 using LoopVectorization
 using SIMD
+using LLVMLoopInfo
 function interact_vec!(dv, v_particle_system, u_particle_system,
                    v1_neighbor, v2_neighbor, v3_neighbor, rho_neighbor,
                      x1_neighbor, x2_neighbor, x3_neighbor,
@@ -27,7 +28,7 @@ function interact_vec!(dv, v_particle_system, u_particle_system,
     search_radius2 = compact_support_^2
     kernel_ = system_smoothing_kernel(particle_system)
 
-    for particle in each_integrated_particle(particle_system)
+    @threaded semi for particle in each_integrated_particle(particle_system)
         # We are looping over the particles of `particle_system`, so it is guaranteed
         # that `particle` is in bounds of `particle_system`.
         coords_a1, coords_a2, coords_a3 = @inbounds extract_svector(system_coords, Val(ndims(neighborhood_search)),
@@ -53,6 +54,8 @@ function interact_vec!(dv, v_particle_system, u_particle_system,
         #     neighbors = @inbounds PointNeighbors.points_in_cell(neighbor_cell, neighborhood_search)
         (; alpha, beta, epsilon) = particle_system.viscosity
         h = smoothing_length(particle_system, particle)
+        h_inv = 1 / h
+        @fastpow normalization_factor = -2.785211504108169 * h_inv^5
 
         # block_size = 8
         # # TODO remainder loop for when `length(neighbors)` is not divisible by `block_size`
@@ -60,7 +63,7 @@ function interact_vec!(dv, v_particle_system, u_particle_system,
         # @inbounds for partition in 1:n_partitions
         #     neighbor = vload(Vec{block_size, eltype(neighbors)}, pointer(neighbors, (partition - 1) * block_size + 1))
 
-        @turbo for neighbor_ in eachindex(neighbors)
+        @inbounds @simd for neighbor_ in eachindex(neighbors)
             neighbor = neighbors[neighbor_]
 
             coords_b1 = x1_neighbor[neighbor]
@@ -87,15 +90,14 @@ function interact_vec!(dv, v_particle_system, u_particle_system,
 
             # `foreach_neighbor` makes sure that `neighbor` is in bounds of `neighbor_system`
             m_b = neighbor_system.mass[neighbor]
-            v_b1 = v1_neighbor[neighbor]
-            v_b2 = v2_neighbor[neighbor]
-            v_b3 = v3_neighbor[neighbor]
+            # v_b1 = v1_neighbor[neighbor]
+            # v_b2 = v2_neighbor[neighbor]
+            # v_b3 = v3_neighbor[neighbor]
             rho_b = rho_neighbor[neighbor]
             p_b = neighbor_system.pressure[neighbor]
 
-            h_inv = 1 / h
             q = distance * h_inv
-            kernel_grad_factor = -5 * normalization_factor(kernel_, h_inv) * (1 - q / 2)^3 * h_inv^2
+            kernel_grad_factor = (1 - q / 2)^3
             # kernel_grad_factor = kernel_deriv_div_r_unsafe(kernel_, distance, h)
 
             tmp = -m_b * (p_a + p_b) / (rho_a * rho_b) * kernel_grad_factor
@@ -107,36 +109,36 @@ function interact_vec!(dv, v_particle_system, u_particle_system,
             # dv_particle2 += sum(tmp * pos_diff2)
             # dv_particle3 += sum(tmp * pos_diff3)
 
-            # Artificial viscosity
-            # v_ab ⋅ r_ab
-            v_diff1 = v_a1 - v_b1
-            v_diff2 = v_a2 - v_b2
-            v_diff3 = v_a3 - v_b3
-            # vr = dot(v_diff, pos_diff)
-            vr = v_diff1 * pos_diff1 + v_diff2 * pos_diff2 + v_diff3 * pos_diff3
+            # # Artificial viscosity
+            # # v_ab ⋅ r_ab
+            # v_diff1 = v_a1 - v_b1
+            # v_diff2 = v_a2 - v_b2
+            # v_diff3 = v_a3 - v_b3
+            # # vr = dot(v_diff, pos_diff)
+            # vr = v_diff1 * pos_diff1 + v_diff2 * pos_diff2 + v_diff3 * pos_diff3
 
-            # # if vr < 0
-                h_a = smoothing_length(particle_system, particle)
-                h_b = smoothing_length(neighbor_system, neighbor)
-                h = (h_a + h_b) / 2
+            # # # if vr < 0
+            #     h_a = smoothing_length(particle_system, particle)
+            #     h_b = smoothing_length(neighbor_system, neighbor)
+            #     h = (h_a + h_b) / 2
 
-                rho_mean = (rho_a + rho_b) / 2
+            #     rho_mean = (rho_a + rho_b) / 2
 
-                mu = h * vr / (distance^2 + epsilon * h^2)
-                c = sound_speed
-                # TODO why is m_b inside the `div_fast` faster on H100 than `m_b * div_fast(...)`?
-                dv_viscosity_factor = (m_b * alpha * c * mu + m_b * beta * mu^2) / rho_mean * kernel_grad_factor
-                # dv_viscosity_factor = ifelse(vr < 0, dv_viscosity_factor, zero(dv_viscosity_factor))
-                dv_particle1 += sum(dv_viscosity_factor * pos_diff1)
-                dv_particle2 += sum(dv_viscosity_factor * pos_diff2)
-                dv_particle3 += sum(dv_viscosity_factor * pos_diff3)
-                # dv_particle1 += dv_viscosity_factor * pos_diff1
-                # dv_particle2 += dv_viscosity_factor * pos_diff2
-                # dv_particle3 += dv_viscosity_factor * pos_diff3
+            #     mu = h * vr / (distance^2 + epsilon * h^2)
+            #     c = sound_speed
+            #     # TODO why is m_b inside the `div_fast` faster on H100 than `m_b * div_fast(...)`?
+            #     dv_viscosity_factor = (m_b * alpha * c * mu + m_b * beta * mu^2) / rho_mean * kernel_grad_factor
+            #     # dv_viscosity_factor = ifelse(vr < 0, dv_viscosity_factor, zero(dv_viscosity_factor))
+            #     # dv_particle1 += sum(dv_viscosity_factor * pos_diff1)
+            #     # dv_particle2 += sum(dv_viscosity_factor * pos_diff2)
+            #     # dv_particle3 += sum(dv_viscosity_factor * pos_diff3)
+            #     dv_particle1 += dv_viscosity_factor * pos_diff1
+            #     dv_particle2 += dv_viscosity_factor * pos_diff2
+            #     dv_particle3 += dv_viscosity_factor * pos_diff3
             # # end
 
-            drho_particle_ = rho_a / rho_b * m_b * (v_diff1 * pos_diff1 + v_diff2 * pos_diff2 + v_diff3 * pos_diff3) * kernel_grad_factor
-            drho_particle += sum(drho_particle_)
+            # drho_particle_ = rho_a / rho_b * m_b * (v_diff1 * pos_diff1 + v_diff2 * pos_diff2 + v_diff3 * pos_diff3) * kernel_grad_factor
+            # drho_particle += drho_particle_
         end
     # end
 
