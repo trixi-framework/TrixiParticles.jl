@@ -43,7 +43,8 @@
                                            exponent=1)
         viscosity = ViscosityAdami(nu=1e-6)
 
-        fluid_system = WeaklyCompressibleSPHSystem(fluid_ic, ContinuityDensity(),
+        fluid_system = WeaklyCompressibleSPHSystem(fluid_ic;
+                                                   density_calculator=ContinuityDensity(),
                                                    state_equation, smoothing_kernel,
                                                    smoothing_length,
                                                    correction=KernelCorrection(),
@@ -69,8 +70,8 @@
         @test system.adhesion_coefficient == 0.3
         @test system.cache.color == 2
 
-        edac_system = EntropicallyDampedSPHSystem(fluid_ic, smoothing_kernel,
-                                                  smoothing_length, 15.0)
+        edac_system = EntropicallyDampedSPHSystem(fluid_ic; smoothing_kernel,
+                                                  smoothing_length, sound_speed=15.0)
         edac_boundary_model = BoundaryModelDummyParticles(boundary_ic;
                                                           fluid_system=edac_system)
         @test edac_boundary_model.state_equation === nothing
