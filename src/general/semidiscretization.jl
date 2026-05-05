@@ -486,8 +486,10 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
 
         @trixi_timeit timer() "reset ∂v/∂t" set_zero!(dv_ode)
 
-        @trixi_timeit timer() "update systems and nhs" update_systems_and_nhs(v_ode, u_ode,
-                                                                              semi, t)
+        # Update the systems and neighborhood searches (NHS) for a simulation
+        # before calling `interact!` to compute forces.
+        @trixi_timeit timer() "update systems and nhs" update_systems!(v_ode, u_ode, semi,
+                                                                       t)
 
         @trixi_timeit timer() "system interaction" system_interaction!(dv_ode, v_ode, u_ode,
                                                                        semi)
@@ -500,17 +502,37 @@ end
 
 # Update the systems and neighborhood searches (NHS) for a simulation
 # before calling `interact!` to compute forces.
-function update_systems_and_nhs(v_ode, u_ode, semi, t)
+function update_systems!(v_ode, u_ode, semi, t)
+    _update_systems!(v_ode, u_ode, semi, t;
+                     update_nhs=true,
+                     update_boundary_interpolation=true,
+                     update_inter_system=true)
+end
+
+# Reduced system update used by split integration to avoid unnecessary work.
+function update_systems_split!(v_ode, u_ode, semi, t)
+    _update_systems!(v_ode, u_ode, semi, t;
+                     update_nhs=false,
+                     update_boundary_interpolation=false,
+                     update_inter_system=false)
+end
+
+# Internal helper to update the different derived quantities stored in the systems.
+function _update_systems!(v_ode, u_ode, semi, t;
+                          update_nhs,
+                          update_boundary_interpolation,
+                          update_inter_system)
     # First update step before updating the NHS
     # (for example for writing the current coordinates in the TLSPH system)
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_positions!(system, v, u, v_ode, u_ode, semi, t)
     end
 
-    # Update NHS
-    @trixi_timeit timer() "update nhs" update_nhs!(semi, u_ode)
+    if update_nhs
+        @trixi_timeit timer() "update nhs" update_nhs!(semi, u_ode)
+    end
 
-    # Second update step.
+    # Second update step depends on updated NHS.
     # This is used to calculate density and pressure of the fluid systems
     # before updating the boundary systems,
     # since the fluid pressure is needed by the Adami interpolation.
@@ -518,7 +540,9 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
         update_quantities!(system, v, u, v_ode, u_ode, semi, t)
     end
 
-    update_implicit_sph!(semi, v_ode, u_ode, t)
+    if update_inter_system
+        update_inter_system_quantities!(semi, v_ode, u_ode, t)
+    end
 
     # Perform correction and pressure calculation
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
@@ -527,8 +551,10 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
 
     # This update depends on the computed quantities of the fluid system and therefore
     # needs to be after `update_quantities!`.
-    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
-        update_boundary_interpolation!(system, v, u, v_ode, u_ode, semi, t)
+    if update_boundary_interpolation
+        foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
+            update_boundary_interpolation!(system, v, u, v_ode, u_ode, semi, t)
+        end
     end
 
     # Final update step for all remaining systems
