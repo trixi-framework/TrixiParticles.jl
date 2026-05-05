@@ -50,9 +50,9 @@ function deactivate_out_of_bounds_particles!(system, ::SystemBuffer, nhs,
 end
 
 @propagate_inbounds function foreach_neighbor(f, system_coords, neighbor_coords,
-                                              neighborhood_search, backend, particle)
-    PointNeighbors.foreach_neighbor(f, system_coords, neighbor_coords,
-                                    neighborhood_search, particle)
+                                              neighborhood_search, backend, particle, args...)
+    PointNeighbors.foreach_neighbor_unsafe(f, system_coords, neighbor_coords,
+                                    neighborhood_search, particle, args...)
 end
 
 # We cannot dispatch by `AbstractGPUArray` because this is called from within

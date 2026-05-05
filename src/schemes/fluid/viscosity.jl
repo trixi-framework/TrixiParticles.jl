@@ -86,7 +86,7 @@ end
     return alpha * smoothing_length * sound_speed / (2 * ndims(system) + 4)
 end
 
-@propagate_inbounds function (viscosity::ArtificialViscosityMonaghan)(dv_particle,
+@propagate_inbounds @fastmath function (viscosity::ArtificialViscosityMonaghan)(dv_particle,
                                                                       particle_system,
                                                                       neighbor_system,
                                                                       v_particle_system,
@@ -125,7 +125,7 @@ end
         # TODO why is m_b inside the `div_fast` faster on H100 than `m_b * div_fast(...)`?
         dv_viscosity = div_fast(m_b * alpha * c * mu + m_b * beta * mu^2, rho_mean) *
                        grad_kernel
-        dv_particle[] += viscosity_correction * dv_viscosity
+        dv_particle += viscosity_correction * dv_viscosity
     end
 
     return dv_particle
