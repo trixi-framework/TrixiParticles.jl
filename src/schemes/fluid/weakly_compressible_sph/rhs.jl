@@ -28,7 +28,6 @@ function interact!(dv, v_particle_system, u_particle_system,
     @threaded semi for particle in each_integrated_particle(particle_system)
         # We are looping over the particles of `particle_system`, so it is guaranteed
         # that `particle` is in bounds of `particle_system`.
-        coords_a = @inbounds extract_svector(system_coords, Val(ndims(neighborhood_search)), particle)
         m_a = @inbounds hydrodynamic_mass(particle_system, particle)
         p_a = @inbounds current_pressure(v_particle_system, particle_system, particle)
 

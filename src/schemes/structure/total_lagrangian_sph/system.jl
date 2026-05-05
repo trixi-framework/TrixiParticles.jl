@@ -483,16 +483,16 @@ end
         # to `deformation_grad` to reduce the number of memory writes.
         # Note that we need a `Ref` in order to be able to update these variables
         # inside the closure in the `foreach_neighbor` loop.
-        result = Ref(zero(L_a))
+        result = zero(L_a)
 
         # Loop over all neighbors within the kernel cutoff
-        @inbounds foreach_neighbor(initial_coords, initial_coords,
+        result = @inbounds foreach_neighbor(initial_coords, initial_coords,
                                    neighborhood_search, backend,
-                                   particle) do particle, neighbor,
-                                                initial_pos_diff, initial_distance
+                                   particle, result) do particle, neighbor,
+                                                initial_pos_diff, initial_distance, result
             # Skip neighbors with the same position because the kernel gradient is zero.
             # Note that `return` only exits the closure, i.e., skips the current neighbor.
-            skip_zero_distance(system) && initial_distance < almostzero && return
+            # skip_zero_distance(system) && initial_distance < almostzero && return result
 
             # Now that we know that `distance` is not zero, we can safely call the unsafe
             # version of the kernel gradient to avoid redundant zero checks.
@@ -512,12 +512,16 @@ end
 
             # The tensor product pos_diff ⊗ (L_{0a} * ∇W) is equivalent to multiplication
             # by the transpose: pos_diff * (L_{0a} * ∇W)ᵀ = pos_diff * ∇Wᵀ * L_{0a}ᵀ.
-            result[] -= volume * pos_diff * grad_kernel' * L_a'
+            tmp = L_a * grad_kernel
+            tmp2 = pos_diff * tmp'
+            result -= volume * tmp2
+
+            return result
         end
 
         for j in 1:ndims(system), i in 1:ndims(system)
             # We overwrite every entry of `deformation_grad`, so no `set_zero!` is required.
-            @inbounds deformation_grad[i, j, particle] = result[][i, j]
+            @inbounds deformation_grad[i, j, particle] = result[i, j]
         end
     end
 
