@@ -63,7 +63,9 @@ function interact_vec!(dv, v_particle_system, u_particle_system,
         # @inbounds for partition in 1:n_partitions
         #     neighbor = vload(Vec{block_size, eltype(neighbors)}, pointer(neighbors, (partition - 1) * block_size + 1))
 
-        @inbounds @simd for neighbor_ in eachindex(neighbors)
+        # @inbounds @fastmath @loopinfo vectorwidth=32 predicate unroll=false for neighbor_ in eachindex(neighbors)
+        # @turbo for neighbor_ in eachindex(neighbors)
+        @inbounds @fastmath @simd for neighbor_ in eachindex(neighbors)
             neighbor = neighbors[neighbor_]
 
             coords_b1 = x1_neighbor[neighbor]
