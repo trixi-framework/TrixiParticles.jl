@@ -222,15 +222,9 @@ end
     return index
 end
 
-@inline function has_system_interaction(semi::Semidiscretization,
-                                        system_index::Integer, neighbor_index::Integer)
-    return semi.interaction_matrix[system_index, neighbor_index] !== false
-end
-
 @inline function has_system_interaction(system, neighbor_system, semi::Semidiscretization)
-    return has_system_interaction(semi,
-                                  system_indices(system, semi),
-                                  system_indices(neighbor_system, semi))
+    return semi.interaction_matrix[system_indices(system, semi),
+                                   system_indices(neighbor_system, semi)] !== false
 end
 
 # This is just for readability to loop over all systems without allocations
@@ -239,19 +233,6 @@ end
 end
 
 @inline foreach_system(f, systems) = foreach_noalloc(f, systems)
-
-# This is just for readability to loop over all systems with indices without allocations.
-@inline function foreach_system_indexed(f, semi::Union{NamedTuple, Semidiscretization})
-    return foreach_system_indexed(f, semi.systems)
-end
-
-@inline function foreach_system_indexed(f, systems::Tuple)
-    indices = ntuple(identity, Val(length(systems)))
-
-    return foreach_noalloc(indices, systems) do (index, system)
-        f(index, system)
-    end
-end
 
 # This is just for readability to loop over all systems with wrapped arrays.
 @inline function foreach_system_wrapped(f, semi::Union{NamedTuple, Semidiscretization},
@@ -776,20 +757,21 @@ function system_interaction!(dv_ode, v_ode, u_ode, semi)
     reset_interaction_caches!(semi)
 
     # Call `interact!` for each ordered pair of systems.
-    foreach_system_indexed(semi) do system_index, system
-        foreach_system_indexed(semi) do neighbor_index, neighbor
-            has_system_interaction(semi, system_index, neighbor_index) || return
+    foreach_system(semi) do system
+        foreach_system(semi) do neighbor
+            has_system_interaction(system, neighbor, semi) || return
 
             # Construct string for the interactions timer.
             # Avoid allocations from string construction when no timers are used.
             if timeit_debug_enabled()
+                system_index = system_indices(system, semi)
+                neighbor_index = system_indices(neighbor, semi)
                 timer_str = "$(timer_name(system))$system_index-$(timer_name(neighbor))$neighbor_index"
             else
                 timer_str = ""
             end
 
-            interact!(dv_ode, v_ode, u_ode, system, neighbor, semi,
-                      system_index, neighbor_index; timer_str)
+            interact!(dv_ode, v_ode, u_ode, system, neighbor, semi; timer_str)
         end
     end
 
@@ -812,16 +794,8 @@ end
 # before the first direct `interact!` call.
 # @btime TrixiParticles.interact!($dv_ode, $v_ode, $u_ode, $fluid_system, $fluid_system, $semi);
 @inline function interact!(dv_ode, v_ode, u_ode, system, neighbor, semi; timer_str="")
-    system_index = system_indices(system, semi)
-    neighbor_index = system_indices(neighbor, semi)
-
-    return interact!(dv_ode, v_ode, u_ode, system, neighbor, semi,
-                     system_index, neighbor_index; timer_str=timer_str)
-end
-
-@inline function interact!(dv_ode, v_ode, u_ode, system, neighbor, semi,
-                           system_index::Integer, neighbor_index::Integer; timer_str="")
-    interaction = semi.interaction_matrix[system_index, neighbor_index]
+    interaction = semi.interaction_matrix[system_indices(system, semi),
+                                          system_indices(neighbor, semi)]
     interaction === false && return dv_ode
 
     dv = wrap_v(dv_ode, system, semi)

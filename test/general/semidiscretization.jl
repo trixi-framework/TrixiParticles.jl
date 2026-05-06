@@ -274,10 +274,10 @@
                 rho_b = TrixiParticles.current_density(v_neighbor, neighbor,
                                                        neighbor_particle)
                 m_b = TrixiParticles.hydrodynamic_mass(neighbor, neighbor_particle)
-                kernel = TrixiParticles.smoothing_kernel(system, distance, particle)
+                kernel_value = TrixiParticles.smoothing_kernel(system, distance, particle)
 
                 acceleration = drag.coefficient * m_b / (rho_a * rho_b) *
-                               kernel * (v_b - v_a)
+                               kernel_value * (v_b - v_a)
 
                 for i in 1:ndims(system)
                     dv[i, particle] += acceleration[i]
@@ -341,13 +341,28 @@
                     make_semi(nhs_factory, fluid_b, boundary_b)
                 end
 
-                @test !TrixiParticles.has_system_interaction(semi_filtered, 1, 4)
-                @test !TrixiParticles.has_system_interaction(semi_filtered, 4, 1)
-                @test !TrixiParticles.has_system_interaction(semi_filtered, 2, 3)
-                @test !TrixiParticles.has_system_interaction(semi_filtered, 3, 2)
-                @test TrixiParticles.has_system_interaction(semi_filtered, 1, 2)
-                @test TrixiParticles.has_system_interaction(semi_filtered, 3, 1)
-                @test TrixiParticles.has_system_interaction(semi_filtered, 4, 2)
+                filtered_systems = semi_filtered.systems
+                @test !TrixiParticles.has_system_interaction(filtered_systems[1],
+                                                             filtered_systems[4],
+                                                             semi_filtered)
+                @test !TrixiParticles.has_system_interaction(filtered_systems[4],
+                                                             filtered_systems[1],
+                                                             semi_filtered)
+                @test !TrixiParticles.has_system_interaction(filtered_systems[2],
+                                                             filtered_systems[3],
+                                                             semi_filtered)
+                @test !TrixiParticles.has_system_interaction(filtered_systems[3],
+                                                             filtered_systems[2],
+                                                             semi_filtered)
+                @test TrixiParticles.has_system_interaction(filtered_systems[1],
+                                                            filtered_systems[2],
+                                                            semi_filtered)
+                @test TrixiParticles.has_system_interaction(filtered_systems[3],
+                                                            filtered_systems[1],
+                                                            semi_filtered)
+                @test TrixiParticles.has_system_interaction(filtered_systems[4],
+                                                            filtered_systems[2],
+                                                            semi_filtered)
 
                 dv_full = kick_once(semi_full)
                 dv_filtered = kick_once(semi_filtered)
@@ -385,8 +400,13 @@
                         make_drag_semi(nhs_factory, fluid_a, fluid_b; drag=true)
                     end
 
-                    @test TrixiParticles.has_system_interaction(semi_drag, 1, 2)
-                    @test TrixiParticles.has_system_interaction(semi_drag, 2, 1)
+                    drag_systems = semi_drag.systems
+                    @test TrixiParticles.has_system_interaction(drag_systems[1],
+                                                                drag_systems[2],
+                                                                semi_drag)
+                    @test TrixiParticles.has_system_interaction(drag_systems[2],
+                                                                drag_systems[1],
+                                                                semi_drag)
                     @test semi_drag.interaction_matrix[1, 2] isa TestInterphaseDrag
                     @test semi_drag.interaction_matrix[2, 1] isa TestInterphaseDrag
 

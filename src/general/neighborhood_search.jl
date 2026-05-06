@@ -304,11 +304,11 @@ end
 # === Neighborhood search updates (per-system) ===
 function update_nhs!(semi, u_ode)
     # Update NHS for each enabled ordered pair of systems.
-    foreach_system_indexed(semi) do system_index, system
+    foreach_system(semi) do system
         u_system = wrap_u(u_ode, system, semi)
 
-        foreach_system_indexed(semi) do neighbor_index, neighbor
-            has_system_interaction(semi, system_index, neighbor_index) || return
+        foreach_system(semi) do neighbor
+            has_system_interaction(system, neighbor, semi) || return
 
             u_neighbor = wrap_u(u_ode, neighbor, semi)
             neighborhood_search = get_neighborhood_search(system, neighbor, semi)

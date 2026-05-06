@@ -102,14 +102,12 @@ function (drag::InterfacialTangentialDrag)(dv, v_system, u_system,
     return dv
 end
 
-drag = InterfacialTangentialDrag(1.0e3, (0.0, 1.0))
-
 # `true` keeps the default interaction, while a callable handles the interaction for that
 # ordered pair. This callable calls the default interaction before adding drag. Since the
 # matrix is ordered, reciprocal coupling needs both entries.
 interaction_matrix = Matrix{Any}(trues(2, 2))
-interaction_matrix[1, 2] = drag
-interaction_matrix[2, 1] = drag
+interaction_matrix[1, 2] = InterfacialTangentialDrag(1.0e3, (0.0, 1.0))
+interaction_matrix[2, 1] = InterfacialTangentialDrag(1.0e3, (0.0, 1.0))
 
 # ==========================================================================================
 # ==== Simulation
