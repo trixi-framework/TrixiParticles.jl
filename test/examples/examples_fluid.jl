@@ -332,9 +332,11 @@
             r"└ New tank length in y-direction.*\n"
         ]
         @test sol.retcode == ReturnCode.Success
-        # This example duplicates the wall geometry into water- and air-facing boundary
-        # systems so each phase can use matched wall properties. The resulting four-system
-        # setup is currently not allocation-free in the generic RHS helpers.
+        @test semi.interaction_matrix[1, 4] == false
+        @test semi.interaction_matrix[4, 1] == false
+        @test semi.interaction_matrix[2, 3] == false
+        @test semi.interaction_matrix[3, 2] == false
+        @test count_rhs_allocations(sol, semi) == 0
     end
 
     @trixi_testset "fluid/custom_interphase_drag_2d.jl" begin

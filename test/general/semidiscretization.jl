@@ -257,6 +257,10 @@
             coefficient::T
         end
 
+        struct TestKeywordInteraction
+            integrate_tlsph_seen::Base.RefValue{Bool}
+        end
+
         function (drag::TestInterphaseDrag)(dv, v_system, u_system, v_neighbor,
                                             u_neighbor, system, neighbor, semi)
             system_coords = TrixiParticles.current_coordinates(u_system, system)
@@ -287,6 +291,14 @@
             return dv
         end
 
+        function (interaction::TestKeywordInteraction)(dv, v_system, u_system,
+                                                       v_neighbor, u_neighbor,
+                                                       system, neighbor, semi;
+                                                       integrate_tlsph=false)
+            interaction.integrate_tlsph_seen[] = integrate_tlsph
+            return dv
+        end
+
         function make_drag_semi(nhs_factory, systems...; drag=false)
             neighborhood_search = nhs_factory()
 
@@ -300,6 +312,40 @@
 
             return Semidiscretization(systems...; neighborhood_search,
                                       interaction_matrix=interaction_matrix)
+        end
+
+        function make_pressure_interpolation_systems()
+            fluid_a_ic = make_particle(0.0, 1000.0, (0.0, 0.0))
+            fluid_b_ic = make_particle(0.25, 1030.0, (0.0, 0.0))
+            boundary_ic = make_particle(0.125, 1000.0, (0.0, 0.0))
+
+            fluid_a = WeaklyCompressibleSPHSystem(fluid_a_ic;
+                                                  density_calculator=ContinuityDensity(),
+                                                  state_equation, smoothing_kernel=kernel,
+                                                  smoothing_length)
+            fluid_b = WeaklyCompressibleSPHSystem(fluid_b_ic;
+                                                  density_calculator=ContinuityDensity(),
+                                                  state_equation, smoothing_kernel=kernel,
+                                                  smoothing_length)
+
+            boundary_model = BoundaryModelDummyParticles(boundary_ic.density,
+                                                         boundary_ic.mass,
+                                                         AdamiPressureExtrapolation(;
+                                                             allow_loop_flipping=false),
+                                                         kernel, smoothing_length;
+                                                         state_equation=state_equation,
+                                                         correction=nothing)
+            boundary = WallBoundarySystem(boundary_ic, boundary_model)
+
+            return fluid_a, fluid_b, boundary
+        end
+
+        function updated_boundary_pressure(semi)
+            v_ode, u_ode = create_ode_state(semi)
+
+            TrixiParticles.update_systems_and_nhs(v_ode, u_ode, semi, 0.0)
+
+            return copy(last(semi.systems).boundary_model.pressure)
         end
 
         # Disable only the cross-coupling between the mismatched fluid/boundary pairs:
@@ -385,6 +431,34 @@
             end
         end
 
+        @testset "dummy boundary pressure respects interaction matrix" begin
+            semi_filtered = let
+                fluid_a, fluid_b, boundary = make_pressure_interpolation_systems()
+                interaction_matrix = trues(3, 3)
+                interaction_matrix[3, 2] = false
+
+                Semidiscretization(fluid_a, fluid_b, boundary;
+                                   neighborhood_search=nothing, interaction_matrix)
+            end
+
+            semi_reduced = let
+                fluid_a, _, boundary = make_pressure_interpolation_systems()
+                Semidiscretization(fluid_a, boundary; neighborhood_search=nothing)
+            end
+
+            semi_full = let
+                fluid_a, fluid_b, boundary = make_pressure_interpolation_systems()
+                Semidiscretization(fluid_a, fluid_b, boundary; neighborhood_search=nothing)
+            end
+
+            pressure_filtered = updated_boundary_pressure(semi_filtered)
+            pressure_reduced = updated_boundary_pressure(semi_reduced)
+            pressure_full = updated_boundary_pressure(semi_full)
+
+            @test pressure_filtered ≈ pressure_reduced
+            @test !isapprox(pressure_filtered, pressure_full)
+        end
+
         @testset verbose=true "callable interphase drag" begin
             for (test_name, nhs_factory) in (("without neighborhood search", () -> nothing),
                                              ("with grid neighborhood search",
@@ -426,6 +500,27 @@
                     @test delta_fluid_b[2, 1] < 0
                 end
             end
+        end
+
+        @testset "split custom interaction receives keyword arguments" begin
+            integrate_tlsph_seen = Ref(false)
+            fluid_a, fluid_b, _, _ = make_systems()
+            interaction = TestKeywordInteraction(integrate_tlsph_seen)
+            interaction_matrix = Any[false interaction;
+                                     false false]
+
+            semi = Semidiscretization(fluid_a, fluid_b; neighborhood_search=nothing,
+                                      interaction_matrix)
+            semi_split = Semidiscretization(fluid_a; neighborhood_search=nothing)
+
+            v_ode, u_ode = create_ode_state(semi)
+            v_ode_split, u_ode_split = create_ode_state(semi_split)
+            dv_ode_split = zero(v_ode_split)
+
+            TrixiParticles.system_interaction_split!(dv_ode_split, v_ode, u_ode, semi,
+                                                     v_ode_split, u_ode_split, semi_split)
+
+            @test integrate_tlsph_seen[]
         end
     end
 

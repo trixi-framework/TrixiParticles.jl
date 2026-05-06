@@ -95,7 +95,8 @@ water_boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
                                                    state_equation=state_equation,
                                                    correction=nothing,
                                                    reference_particle_spacing=0,
-                                                   viscosity=viscosity_wall)
+                                                   viscosity=viscosity_wall,
+                                                   clip_negative_pressure=true)
 
 water_boundary_system = WallBoundarySystem(tank.boundary, water_boundary_model;
                                            adhesion_coefficient=0.0)
@@ -109,13 +110,16 @@ air_boundary_model = BoundaryModelDummyParticles(air_boundary_density, air_bound
                                                  state_equation=air_eos,
                                                  correction=nothing,
                                                  reference_particle_spacing=0,
-                                                 viscosity=viscosity_wall)
+                                                 viscosity=viscosity_wall,
+                                                 clip_negative_pressure=true)
 
 air_boundary_system = WallBoundarySystem(tank.boundary, air_boundary_model;
                                          adhesion_coefficient=0.0)
 
 # Semidiscretization order:
 # 1: water fluid, 2: air fluid, 3: water wall, 4: air wall
+# The matrix keeps water coupled to the water-density wall and air coupled to the
+# air-density wall while both phases still interact with each other.
 interaction_matrix = trues(4, 4)
 interaction_matrix[1, 4] = false # water fluid ignores air wall
 interaction_matrix[4, 1] = false # air wall ignores water fluid

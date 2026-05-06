@@ -87,6 +87,8 @@ function initialize_split_integration!(cb, u, t, integrator)
     # for tlsph-neighbor interaction when neighbor is static.
     foreach_system(semi_split) do system
         foreach_system(semi) do neighbor
+            has_system_interaction(system, neighbor, semi) || return
+
             if system === neighbor
                 # TLSPH self-interaction is using its own NHS
                 return

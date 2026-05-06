@@ -23,10 +23,11 @@ The semidiscretization couples the passed systems to one simulation.
                             to the system being updated and columns to the neighbor system.
                             Entries can be `true` to use the default interaction, `false`
                             to skip the generic pairwise RHS dispatch, neighborhood-search
-                            update, and traversal for that ordered pair, or a callable
+                            update, and dummy-particle boundary pressure extrapolation for
+                            that ordered pair, or a callable
                             custom interaction with signature
                             `(dv, v_system, u_system, v_neighbor, u_neighbor,
-                            system, neighbor, semi)`.
+                            system, neighbor, semi; kwargs...)`.
                             Scheme-specific helper logic that directly addresses explicit
                             linked systems is unchanged.
 
@@ -221,6 +222,8 @@ end
 
     return index
 end
+
+@inline has_system_interaction(system, neighbor_system, semi) = true
 
 @inline function has_system_interaction(system, neighbor_system, semi::Semidiscretization)
     return semi.interaction_matrix[system_indices(system, semi),
@@ -824,6 +827,15 @@ end
 @inline function apply_interaction!(interaction, dv, v_system, u_system,
                                     v_neighbor, u_neighbor, system, neighbor, semi;
                                     kwargs...)
+    argument_types = Tuple{typeof(dv), typeof(v_system), typeof(u_system),
+                           typeof(v_neighbor), typeof(u_neighbor), typeof(system),
+                           typeof(neighbor), typeof(semi)}
+
+    if hasmethod(interaction, argument_types, keys(kwargs))
+        return interaction(dv, v_system, u_system, v_neighbor, u_neighbor, system,
+                           neighbor, semi; kwargs...)
+    end
+
     return interaction(dv, v_system, u_system, v_neighbor, u_neighbor, system, neighbor,
                        semi)
 end

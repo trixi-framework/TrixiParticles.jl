@@ -1,17 +1,12 @@
 # === PointNeighbors integration ===
 # Loop over all pairs of particles and neighbors within the kernel cutoff.
 # `f(particle, neighbor, pos_diff, distance)` is called for every particle-neighbor pair.
-@inline has_system_interaction(system, neighbor_system, semi) = true
-
-# By default, loop over `eachparticle(system)`. If the semidiscretization disables this
-# ordered system pair via `has_system_interaction`, the traversal is skipped entirely.
+# By default, loop over `eachparticle(system)`.
 function PointNeighbors.foreach_point_neighbor(f, system::AbstractSystem,
                                                neighbor_system::AbstractSystem,
                                                system_coords, neighbor_coords, semi;
                                                points=eachparticle(system),
                                                parallelization_backend=semi.parallelization_backend)
-    has_system_interaction(system, neighbor_system, semi) || return nothing
-
     neighborhood_search = get_neighborhood_search(system, neighbor_system, semi)
     foreach_point_neighbor(f, system_coords, neighbor_coords, neighborhood_search;
                            points, parallelization_backend)
