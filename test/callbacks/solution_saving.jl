@@ -174,7 +174,8 @@ using OrdinaryDiffEqLowStorageRK
 
     @testset verbose=true "callback PVD collection tracks overwritten file" begin
         mktempdir() do tmp_dir
-            overwrite_callback = SolutionSavingCallback(interval=1, output_directory=tmp_dir,
+            overwrite_callback = SolutionSavingCallback(interval=1,
+                                                        output_directory=tmp_dir,
                                                         prefix="overwrite",
                                                         overwrite=true)
             run_solution_saving_test(overwrite_callback)

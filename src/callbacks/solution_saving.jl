@@ -116,7 +116,7 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
 
     if length(save_times) > 0
         return PresetTimeCallback(save_times, solution_callback;
-                                  initialize=initialize_save_times_cb!,
+                                  initialize=(initialize_save_times_cb!),
                                   save_positions=(false, false))
     elseif dt > 0
         # Add a `tstop` every `dt`, and save the final solution

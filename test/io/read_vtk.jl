@@ -198,7 +198,7 @@
                                       "tmp_file_fluid_default_fluid_1_current.vtu"))
                 @test occursin("timestep=\"0.75\"", collection)
                 @test occursin("tmp_file_fluid_default_fluid_1_current.vtu",
-                                collection)
+                               collection)
             end
 
             @testset verbose=true "PVD Collection Tracks Overwritten File" begin
@@ -216,7 +216,7 @@
                 @test length(collect(eachmatch(r"DataSet", current_collection))) == 1
                 @test occursin("timestep=\"0.5\"", current_collection)
                 @test occursin("tmp_file_fluid_overwrite_current.vtu",
-                                current_collection)
+                               current_collection)
             end
         end
 
