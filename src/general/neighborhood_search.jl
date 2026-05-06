@@ -1,9 +1,15 @@
 # === PointNeighbors integration ===
 # Loop over all pairs of particles and neighbors within the kernel cutoff.
 # `f(particle, neighbor, pos_diff, distance)` is called for every particle-neighbor pair.
+<<<<<<< more_semi_refactor
 # By default, loop over `eachparticle(system)`. If the semidiscretization disables this
 # ordered system pair via `has_system_interaction`, the traversal is skipped entirely.
 function PointNeighbors.foreach_point_neighbor(f, system, neighbor_system,
+=======
+# By default, loop over `eachparticle(system)`.
+function PointNeighbors.foreach_point_neighbor(f, system::AbstractSystem,
+                                               neighbor_system::AbstractSystem,
+>>>>>>> main
                                                system_coords, neighbor_coords, semi;
                                                points=eachparticle(system),
                                                parallelization_backend=semi.parallelization_backend)
