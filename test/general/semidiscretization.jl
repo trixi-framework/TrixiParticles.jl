@@ -27,7 +27,7 @@
         # Verification
         @test semi.ranges_u == (1:6, 7:15)
         @test semi.ranges_v == (1:6, 7:18)
-        @test semi.system_interactions == trues(2, 2)
+        @test semi.interaction_matrix == trues(2, 2)
 
         nhs = [TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
                eachpoint=1:2)
@@ -38,6 +38,14 @@
                TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
                eachpoint=1:3)]
         @test semi.neighborhood_searches == nhs
+
+        @test_throws ArgumentError Semidiscretization(system1, system2;
+                                                      neighborhood_search=nothing,
+                                                      interaction_matrix=trues(1, 1))
+        @test_throws ArgumentError Semidiscretization(system1, system2;
+                                                      neighborhood_search=nothing,
+                                                      interaction_matrix=Any[true 1;
+                                                                             true true])
     end
 
     @testset verbose=true "Check Configuration" begin
@@ -221,28 +229,77 @@
 
         function system_dv(dv_ode, semi, system_index)
             system = semi.systems[system_index]
-            return Array(TrixiParticles.wrap_v(dv_ode, system, semi, system_index))
+            return Array(TrixiParticles.wrap_v(dv_ode, system, semi))
         end
 
-        matched_system_pairs(system_index,
-                             neighbor_index) = !((system_index == 1 &&
-                                                  neighbor_index == 4) ||
-                                                 (system_index == 4 &&
-                                                  neighbor_index == 1) ||
-                                                 (system_index == 2 &&
-                                                  neighbor_index == 3) ||
-                                                 (system_index == 3 &&
-                                                  neighbor_index == 2))
+        function matched_phase_interaction_matrix()
+            interaction_matrix = trues(4, 4)
+            interaction_matrix[1, 4] = false
+            interaction_matrix[4, 1] = false
+            interaction_matrix[2, 3] = false
+            interaction_matrix[3, 2] = false
+
+            return interaction_matrix
+        end
 
         function make_semi(nhs_factory, systems...; filtered=false)
             neighborhood_search = nhs_factory()
 
             if filtered
                 return Semidiscretization(systems...; neighborhood_search,
-                                          system_interaction=matched_system_pairs)
+                                          interaction_matrix=matched_phase_interaction_matrix())
             end
 
             return Semidiscretization(systems...; neighborhood_search)
+        end
+
+        struct TestInterphaseDrag{T}
+            coefficient::T
+        end
+
+        function (drag::TestInterphaseDrag)(dv, v_system, u_system, v_neighbor,
+                                            u_neighbor, system, neighbor, semi)
+            system_coords = TrixiParticles.current_coordinates(u_system, system)
+            neighbor_coords = TrixiParticles.current_coordinates(u_neighbor, neighbor)
+
+            TrixiParticles.foreach_point_neighbor(system, neighbor, system_coords,
+                                                  neighbor_coords, semi) do particle,
+                                                                            neighbor_particle,
+                                                                            pos_diff,
+                                                                            distance
+                v_a = TrixiParticles.current_velocity(v_system, system, particle)
+                v_b = TrixiParticles.current_velocity(v_neighbor, neighbor,
+                                                      neighbor_particle)
+                rho_a = TrixiParticles.current_density(v_system, system, particle)
+                rho_b = TrixiParticles.current_density(v_neighbor, neighbor,
+                                                       neighbor_particle)
+                m_b = TrixiParticles.hydrodynamic_mass(neighbor, neighbor_particle)
+                kernel = TrixiParticles.smoothing_kernel(system, distance, particle)
+
+                acceleration = drag.coefficient * m_b / (rho_a * rho_b) *
+                               kernel * (v_b - v_a)
+
+                for i in 1:ndims(system)
+                    dv[i, particle] += acceleration[i]
+                end
+            end
+
+            return dv
+        end
+
+        function make_drag_semi(nhs_factory, systems...; drag=false)
+            neighborhood_search = nhs_factory()
+
+            if drag
+                interaction_matrix = Any[true TestInterphaseDrag(500.0);
+                                         TestInterphaseDrag(500.0) true]
+            else
+                interaction_matrix = Bool[true false;
+                                          false true]
+            end
+
+            return Semidiscretization(systems...; neighborhood_search,
+                                      interaction_matrix=interaction_matrix)
         end
 
         # Disable only the cross-coupling between the mismatched fluid/boundary pairs:
@@ -250,8 +307,8 @@
         # The filtered four-system RHS is compared against reduced semidiscretizations that
         # keep only the allowed neighbors for each system, which makes the intended effect explicit.
         for (test_name, nhs_factory) in (("without neighborhood search", () -> nothing),
-             ("with grid neighborhood search",
-              () -> GridNeighborhoodSearch{2}(update_strategy=SerialUpdate())))
+                                         ("with grid neighborhood search",
+                                          () -> GridNeighborhoodSearch{2}(update_strategy=SerialUpdate())))
             @testset "$test_name" begin
                 semi_full = let
                     fluid_a, fluid_b, boundary_a, boundary_b = make_systems()
@@ -310,6 +367,44 @@
                                 system_dv(dv_full, semi_full, 3))
                 @test !isapprox(system_dv(dv_filtered, semi_filtered, 4),
                                 system_dv(dv_full, semi_full, 4))
+            end
+        end
+
+        @testset verbose=true "callable interphase drag" begin
+            for (test_name, nhs_factory) in (("without neighborhood search", () -> nothing),
+                                             ("with grid neighborhood search",
+                                              () -> GridNeighborhoodSearch{2}(update_strategy=SerialUpdate())))
+                @testset "$test_name" begin
+                    semi_skipped = let
+                        fluid_a, fluid_b, _, _ = make_systems()
+                        make_drag_semi(nhs_factory, fluid_a, fluid_b)
+                    end
+
+                    semi_drag = let
+                        fluid_a, fluid_b, _, _ = make_systems()
+                        make_drag_semi(nhs_factory, fluid_a, fluid_b; drag=true)
+                    end
+
+                    @test TrixiParticles.has_system_interaction(semi_drag, 1, 2)
+                    @test TrixiParticles.has_system_interaction(semi_drag, 2, 1)
+                    @test semi_drag.interaction_matrix[1, 2] isa TestInterphaseDrag
+                    @test semi_drag.interaction_matrix[2, 1] isa TestInterphaseDrag
+
+                    dv_skipped = kick_once(semi_skipped)
+                    dv_drag = kick_once(semi_drag)
+
+                    delta_fluid_a = system_dv(dv_drag, semi_drag, 1) -
+                                    system_dv(dv_skipped, semi_skipped, 1)
+                    delta_fluid_b = system_dv(dv_drag, semi_drag, 2) -
+                                    system_dv(dv_skipped, semi_skipped, 2)
+
+                    # Fluid A starts with velocity (0.4, -0.1), fluid B with (-0.2, 0.3).
+                    # The drag interaction accelerates both phases toward each other.
+                    @test delta_fluid_a[1, 1] < 0
+                    @test delta_fluid_a[2, 1] > 0
+                    @test delta_fluid_b[1, 1] > 0
+                    @test delta_fluid_b[2, 1] < 0
+                end
             end
         end
     end

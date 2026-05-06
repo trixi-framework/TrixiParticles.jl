@@ -91,13 +91,13 @@ air_system_system = WeaklyCompressibleSPHSystem(air_system;
 water_boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
                                                    tank.boundary.mass,
                                                    boundary_density_calculator,
-                                                   smoothing_kernel, smoothing_length,
+                                                   smoothing_kernel, smoothing_length;
                                                    state_equation=state_equation,
                                                    correction=nothing,
                                                    reference_particle_spacing=0,
                                                    viscosity=viscosity_wall)
 
-water_boundary_system = WallBoundarySystem(tank.boundary, water_boundary_model,
+water_boundary_system = WallBoundarySystem(tank.boundary, water_boundary_model;
                                            adhesion_coefficient=0.0)
 
 air_boundary_density = fill(air_density, length(tank.boundary.density))
@@ -105,23 +105,22 @@ air_boundary_mass = tank.boundary.mass .* (air_density / fluid_density)
 
 air_boundary_model = BoundaryModelDummyParticles(air_boundary_density, air_boundary_mass,
                                                  boundary_density_calculator,
-                                                 smoothing_kernel, smoothing_length,
+                                                 smoothing_kernel, smoothing_length;
                                                  state_equation=air_eos,
                                                  correction=nothing,
                                                  reference_particle_spacing=0,
                                                  viscosity=viscosity_wall)
 
-air_boundary_system = WallBoundarySystem(tank.boundary, air_boundary_model,
+air_boundary_system = WallBoundarySystem(tank.boundary, air_boundary_model;
                                          adhesion_coefficient=0.0)
 
 # Semidiscretization order:
 # 1: water fluid, 2: air fluid, 3: water wall, 4: air wall
-function matched_phase_wall_interaction(system_index, neighbor_index)
-    !((system_index == 1 && neighbor_index == 4) ||
-      (system_index == 4 && neighbor_index == 1) ||
-      (system_index == 2 && neighbor_index == 3) ||
-      (system_index == 3 && neighbor_index == 2))
-end
+interaction_matrix = trues(4, 4)
+interaction_matrix[1, 4] = false # water fluid ignores air wall
+interaction_matrix[4, 1] = false # air wall ignores water fluid
+interaction_matrix[2, 3] = false # air fluid ignores water wall
+interaction_matrix[3, 2] = false # water wall ignores air fluid
 
 # ==========================================================================================
 # ==== Simulation
@@ -129,7 +128,7 @@ semi = Semidiscretization(fluid_system, air_system_system,
                           water_boundary_system, air_boundary_system,
                           neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=nothing),
                           parallelization_backend=PolyesterBackend(),
-                          system_interaction=matched_phase_wall_interaction)
+                          interaction_matrix=interaction_matrix)
 ode = semidiscretize(semi, tspan)
 
 sol = solve(ode, RDPK3SpFSAL35(),

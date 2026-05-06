@@ -79,7 +79,7 @@ function initialize_split_integration!(cb, u, t, integrator)
     # These neighborhood searches are never used
     periodic_box = extract_periodic_box(semi.neighborhood_searches[1, 1])
     neighborhood_search = TrivialNeighborhoodSearch{ndims(first(systems))}(; periodic_box)
-    semi_split = Semidiscretization(systems...,
+    semi_split = Semidiscretization(systems...;
                                     neighborhood_search=TrivialNeighborhoodSearch{ndims(first(systems))}(),
                                     parallelization_backend=semi.parallelization_backend)
 
@@ -249,11 +249,14 @@ function system_interaction_split!(dv_ode_split, v_ode, u_ode, semi,
     foreach_system(semi_split) do system
         # Loop over all neighbors in the big integrator
         foreach_system(semi) do neighbor
+            system_index = system_indices(system, semi)
+            neighbor_index = system_indices(neighbor, semi)
+            interaction = semi.interaction_matrix[system_index, neighbor_index]
+            interaction === false && return
+
             # Construct string for the interactions timer.
             # Avoid allocations from string construction when no timers are used.
             if timeit_debug_enabled()
-                system_index = system_indices(system, semi)
-                neighbor_index = system_indices(neighbor, semi)
                 timer_str = "$(timer_name(system))$system_index-$(timer_name(neighbor))$neighbor_index"
             else
                 timer_str = ""
@@ -267,8 +270,9 @@ function system_interaction_split!(dv_ode_split, v_ode, u_ode, semi,
             u_neighbor = wrap_u(u_ode, neighbor, semi)
 
             @trixi_timeit timer() timer_str begin
-                interact!(dv, v_system, u_system, v_neighbor, u_neighbor,
-                          system, neighbor, semi; integrate_tlsph=true)
+                apply_interaction!(interaction, dv, v_system, u_system, v_neighbor,
+                                   u_neighbor, system, neighbor, semi;
+                                   integrate_tlsph=true)
             end
         end
     end

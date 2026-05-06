@@ -1,15 +1,12 @@
 # === PointNeighbors integration ===
 # Loop over all pairs of particles and neighbors within the kernel cutoff.
 # `f(particle, neighbor, pos_diff, distance)` is called for every particle-neighbor pair.
-<<<<<<< more_semi_refactor
+@inline has_system_interaction(system, neighbor_system, semi) = true
+
 # By default, loop over `eachparticle(system)`. If the semidiscretization disables this
 # ordered system pair via `has_system_interaction`, the traversal is skipped entirely.
-function PointNeighbors.foreach_point_neighbor(f, system, neighbor_system,
-=======
-# By default, loop over `eachparticle(system)`.
 function PointNeighbors.foreach_point_neighbor(f, system::AbstractSystem,
                                                neighbor_system::AbstractSystem,
->>>>>>> main
                                                system_coords, neighbor_coords, semi;
                                                points=eachparticle(system),
                                                parallelization_backend=semi.parallelization_backend)
@@ -230,43 +227,42 @@ end
 
 # === Neighborhood search lookup ===
 @inline function get_neighborhood_search(system, semi)
-    return get_neighborhood_search(system, semi, system_indices(system, semi))
-end
+    (; neighborhood_searches) = semi
 
-@inline function get_neighborhood_search(system, neighbor_system, semi)
     system_index = system_indices(system, semi)
-    neighbor_index = system_indices(neighbor_system, semi)
 
-    return get_neighborhood_search(system, neighbor_system, semi, system_index,
-                                   neighbor_index)
+    return neighborhood_searches[system_index, system_index]
 end
 
-@inline function get_neighborhood_search(system, semi, system_index::Integer)
-    return semi.neighborhood_searches[system_index, system_index]
-end
-
-@inline function get_neighborhood_search(system::TotalLagrangianSPHSystem, semi,
-                                         system_index::Integer)
+@inline function get_neighborhood_search(system::TotalLagrangianSPHSystem, semi)
     # For TLSPH, use the specialized self-interaction neighborhood search
     # for finding neighbors in the initial configuration.
     return system.self_interaction_nhs
 end
 
-@inline function get_neighborhood_search(system, neighbor_system, semi,
-                                         system_index::Integer, neighbor_index::Integer)
-    return semi.neighborhood_searches[system_index, neighbor_index]
+@inline function get_neighborhood_search(system, neighbor_system, semi)
+    (; neighborhood_searches) = semi
+
+    system_index = system_indices(system, semi)
+    neighbor_index = system_indices(neighbor_system, semi)
+
+    return neighborhood_searches[system_index, neighbor_index]
 end
 
 @inline function get_neighborhood_search(system::TotalLagrangianSPHSystem,
-                                         neighbor_system::TotalLagrangianSPHSystem, semi,
-                                         system_index::Integer, neighbor_index::Integer)
+                                         neighbor_system::TotalLagrangianSPHSystem, semi)
+    (; neighborhood_searches) = semi
+
+    system_index = system_indices(system, semi)
+    neighbor_index = system_indices(neighbor_system, semi)
+
     if system_index == neighbor_index
         # For TLSPH, use the specialized self-interaction neighborhood search
         # for finding neighbors in the initial configuration.
         return system.self_interaction_nhs
     end
 
-    return semi.neighborhood_searches[system_index, neighbor_index]
+    return neighborhood_searches[system_index, neighbor_index]
 end
 
 # === Initialization ===
@@ -309,14 +305,13 @@ end
 function update_nhs!(semi, u_ode)
     # Update NHS for each enabled ordered pair of systems.
     foreach_system_indexed(semi) do system_index, system
-        u_system = wrap_u(u_ode, system, semi, system_index)
+        u_system = wrap_u(u_ode, system, semi)
 
         foreach_system_indexed(semi) do neighbor_index, neighbor
             has_system_interaction(semi, system_index, neighbor_index) || return
 
-            u_neighbor = wrap_u(u_ode, neighbor, semi, neighbor_index)
-            neighborhood_search = get_neighborhood_search(system, neighbor, semi,
-                                                          system_index, neighbor_index)
+            u_neighbor = wrap_u(u_ode, neighbor, semi)
+            neighborhood_search = get_neighborhood_search(system, neighbor, semi)
 
             update_nhs!(neighborhood_search, system, neighbor, u_system, u_neighbor, semi)
         end

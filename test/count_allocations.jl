@@ -13,7 +13,7 @@ function copy_semi_with_no_update_nhs(semi)
     neighborhood_searches = map(NoUpdateNeighborhoodSearch, semi.neighborhood_searches)
 
     return Semidiscretization(semi.systems, semi.ranges_u, semi.ranges_v,
-                              neighborhood_searches, semi.system_interactions,
+                              neighborhood_searches, semi.interaction_matrix,
                               SerialBackend(), Ref(true), Ref(true))
 end
 
