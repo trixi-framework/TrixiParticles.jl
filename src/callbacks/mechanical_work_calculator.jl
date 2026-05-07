@@ -76,6 +76,8 @@ struct MechanicalWorkCalculatorCallback{T, DV, EP}
     only_compute_force_on_fluid :: Bool
 end
 
+# This should dispatch on `TotalLagrangianSPHSystem`, but this name is not yet defined
+# due to the include order.
 function MechanicalWorkCalculatorCallback(system::AbstractStructureSystem, semi; interval=1,
                                           eachparticle=(n_integrated_particles(system) + 1):nparticles(system),
                                           only_compute_force_on_fluid=false)
