@@ -1,14 +1,14 @@
 """
-    EnergyCalculatorCallback(system, semi; interval=1,
+    EnergyCalculatorCallback(system::TotalLagrangianSPHSystem, semi; interval=1,
                              eachparticle=(n_integrated_particles(system) + 1):nparticles(system),
                              only_compute_force_on_fluid=false)
 
 Callback that accumulates the work done by a set of particles in a
 [`TotalLagrangianSPHSystem`](@ref) by integrating the instantaneous power over time.
 
-With the default arguments it tracks the energy contribution of the clamped particles
-that follow a [`PrescribedMotion`](@ref). By selecting different particles it can also be
-used to measure the work done by the structure on the surrounding fluid.
+With the default arguments it tracks the work done by the clamped particles
+that follow a [`PrescribedMotion`](@ref). By selecting a different particle set, it can also
+be used to measure the work done by the structure on the surrounding fluid.
 
 - **Prescribed/clamped motion energy** (default) -- monitor only the clamped particles by
     leaving `eachparticle` at its default range
@@ -31,9 +31,9 @@ The accumulated value can be retrieved via [`calculated_energy`](@ref).
 - `semi`: The [`Semidiscretization`](@ref) that contains `system`.
 
 # Keywords
-- `interval=1`: Interval (in number of time steps) at which to compute the energy.
+- `interval=1`: Interval (in number of time steps) at which to compute the instantaneous power.
                 It is recommended to keep this at `1` (every time step) or small (≤ 5)
-                to limit time integration errors in the energy integral.
+                to limit time integration errors in the integral.
 - `eachparticle=(n_integrated_particles(system) + 1):nparticles(system)`: Iterator
                 selecting which particles contribute. The default includes all clamped
                 particles in the system; pass `eachparticle(system)` to include every particle.
