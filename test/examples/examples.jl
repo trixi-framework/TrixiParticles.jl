@@ -91,7 +91,7 @@
             end
         end
 
-        @trixi_testset "structure/oscillating_beam_2d.jl with EnergyCalculatorCallback" begin
+        @trixi_testset "structure/oscillating_beam_2d.jl with MechanicalWorkCalculatorCallback" begin
             # Load variables from the example
             trixi_include(@__MODULE__,
                           joinpath(examples_dir(), "structure", "oscillating_beam_2d.jl"),
@@ -129,17 +129,17 @@
                 ode = semidiscretize(semi, (0.0, 1.0))
                 system = ode.p.systems[1]
 
-                energy_calculator = EnergyCalculatorCallback(system, semi;
-                                                             interval=1)
+                mechanical_work_calculator = MechanicalWorkCalculatorCallback(system, semi;
+                                                                              interval=1)
 
                 sol = @trixi_test_nowarn solve(ode, RDPK3SpFSAL49(), save_everystep=false,
-                                               callback=energy_calculator)
+                                               callback=mechanical_work_calculator)
 
                 @test sol.retcode == ReturnCode.Success
                 @test count_rhs_allocations(sol, semi) == 0
 
                 # Potential energy difference should be m * g * h
-                @test isapprox(calculated_energy(energy_calculator),
+                @test isapprox(calculated_mechanical_work(mechanical_work_calculator),
                                sum(system.mass) * gravity * 1,
                                rtol=rtol[name])
             end
@@ -156,10 +156,10 @@
     end
 
     @testset verbose=true "FSI" begin
-        @trixi_testset "fluid/hydrostatic_water_column_2d.jl with EnergyCalculatorCallback and moving TLSPH walls" begin
+        @trixi_testset "fluid/hydrostatic_water_column_2d.jl with MechanicalWorkCalculatorCallback and moving TLSPH walls" begin
             # In this test, we move a water-filled tank up against gravity by 1 unit
-            # and verify that the energy calculated by the `EnergyCalculatorCallback`
-            # matches the expected potential energy.
+            # and verify that the work accumulated by the `MechanicalWorkCalculatorCallback`
+            # matches the expected potential energy difference.
 
             # Load variables from the example
             @trixi_test_nowarn trixi_include(@__MODULE__,
@@ -181,7 +181,7 @@
 
             # Create TLSPH system for the tank walls and clamp all particles.
             # This is identical to a `WallBoundarySystem`, but now we can
-            # use the `EnergyCalculatorCallback` to compute the energy.
+            # use the `MechanicalWorkCalculatorCallback` to compute the mechanical work.
             boundary_spacing = tank.boundary.particle_spacing
             tlsph_kernel = WendlandC2Kernel{2}()
             tlsph_smoothing_length = sqrt(2) * boundary_spacing
@@ -202,24 +202,26 @@
             fluid_system_new = ode.p.systems[1]
             tlsph_system_new = ode.p.systems[2]
 
-            # Energy calculators for fluid + tank and fluid only
-            energy_calculator1 = EnergyCalculatorCallback(tlsph_system_new, semi;
-                                                          interval=1)
-            energy_calculator2 = EnergyCalculatorCallback(tlsph_system_new, semi;
-                                                          interval=1,
-                                                          only_compute_force_on_fluid=true)
+            # Mechanical work calculators for fluid + tank and fluid only
+            mechanical_work_calculator1 = MechanicalWorkCalculatorCallback(tlsph_system_new,
+                                                                           semi;
+                                                                           interval=1)
+            mechanical_work_calculator2 = MechanicalWorkCalculatorCallback(tlsph_system_new,
+                                                                           semi;
+                                                                           interval=1,
+                                                                           only_compute_force_on_fluid=true)
 
             sol = @trixi_test_nowarn solve(ode, RDPK3SpFSAL35(), save_everystep=false,
                                            callback=CallbackSet(info_callback,
-                                                                energy_calculator1,
-                                                                energy_calculator2))
+                                                                mechanical_work_calculator1,
+                                                                mechanical_work_calculator2))
 
             @test sol.retcode == ReturnCode.Success
             @test count_rhs_allocations(sol, semi) == 0
 
             # Potential energy difference should be m * g * h and h = 1.
-            # Since all particles are clamped, the energy added through clamped particles
-            # should be the same as that added to the fluid.
+            # Since all particles are clamped, the work done through clamped particles
+            # should be the same as that done on the fluid.
             expected_energy_fluid = sum(fluid_system_new.mass) * gravity * 1
             expected_energy_tank = sum(tlsph_system_new.mass) * gravity * 1
 
@@ -227,9 +229,10 @@
             # compressible and is deformed during the simulation.
             # A slower prescribed motion (e.g., over 2 seconds instead of 1) or a higher
             # speed of sound in the fluid would improve accuracy (and increase runtime).
-            @test isapprox(calculated_energy(energy_calculator1),
+            @test isapprox(calculated_mechanical_work(mechanical_work_calculator1),
                            expected_energy_fluid + expected_energy_tank, rtol=5e-4)
-            @test isapprox(calculated_energy(energy_calculator2), expected_energy_fluid,
+            @test isapprox(calculated_mechanical_work(mechanical_work_calculator2),
+                           expected_energy_fluid,
                            rtol=5e-4)
         end
 

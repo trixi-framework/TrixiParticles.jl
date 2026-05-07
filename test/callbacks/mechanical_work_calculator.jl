@@ -1,4 +1,4 @@
-@testset verbose=true "EnergyCalculatorCallback" begin
+@testset verbose=true "MechanicalWorkCalculatorCallback" begin
     # Mock system
     struct MockSystem <: TrixiParticles.AbstractStructureSystem{2}
         eltype::Type
@@ -18,50 +18,50 @@
 
     @testset "Constructor and Basic Properties" begin
         # Test default constructor
-        callback = EnergyCalculatorCallback(system64, semi64)
+        callback = MechanicalWorkCalculatorCallback(system64, semi64)
         @test callback.affect!.system_index == 1
         @test callback.affect!.interval == 1
         @test callback.affect!.t[] == 0.0
-        @test callback.affect!.energy[] == 0.0
+        @test callback.affect!.work[] == 0.0
         @test callback.affect!.dv isa Array{Float64, 2}
         @test size(callback.affect!.dv) == (2, 4)
         @test callback.affect!.eachparticle == 5:4
-        @test calculated_energy(callback) == 0.0
+        @test calculated_mechanical_work(callback) == 0.0
 
         # Test constructor with interval
-        callback = EnergyCalculatorCallback(system64, semi64; interval=5)
+        callback = MechanicalWorkCalculatorCallback(system64, semi64; interval=5)
         @test callback.affect!.interval == 5
-        @test eltype(callback.affect!.energy) == Float64
+        @test eltype(callback.affect!.work) == Float64
         @test eltype(callback.affect!.t) == Float64
 
         # Test with specific element type
-        callback = EnergyCalculatorCallback(system32, semi32; interval=2)
-        @test eltype(callback.affect!.energy) == Float32
+        callback = MechanicalWorkCalculatorCallback(system32, semi32; interval=2)
+        @test eltype(callback.affect!.work) == Float32
         @test eltype(callback.affect!.t) == Float32
     end
 
     @testset "show" begin
-        callback = EnergyCalculatorCallback(system64, semi64; interval=10)
+        callback = MechanicalWorkCalculatorCallback(system64, semi64; interval=10)
 
         # Test compact representation
-        show_compact = "EnergyCalculatorCallback{Float64}(interval=10)"
+        show_compact = "MechanicalWorkCalculatorCallback{Float64}(interval=10)"
         @test repr(callback) == show_compact
 
         # Test detailed representation - check against expected box format
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-        │ EnergyCalculatorCallback{Float64}                                                                │
-        │ ═════════════════════════════════                                                                │
+        │ MechanicalWorkCalculatorCallback{Float64}                                                        │
+        │ ═════════════════════════════════════════                                                        │
         │ interval: ……………………………………………………… 10                                                               │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", callback) == show_box
     end
 
-    @testset "update_energy_calculator!" begin
+    @testset "update_mechanical_work_calculator!" begin
         # In the first test, we just move the 2x2 grid of particles up against gravity
-        # and test that the energy calculated is just the potential energy difference.
+        # and test that the accumulated work is just the potential energy difference.
         # In the other tests, we clamp the top row of particles and offset them to create
-        # stress. We can then test how much energy is required to pull the particles further
+        # stress. We can then test how much work is required to pull the particles further
         # apart against the elastic forces.
         clamped_particles = [1:4, 3:4, 3:4, 3:4]
         E = [1e6, 1e1, 1e6, 1e8]
@@ -86,7 +86,7 @@
             is_moving(t) = true
             prescribed_motion = PrescribedMotion(movement_function, is_moving)
 
-            # Create TLSPH system with energy calculator support
+            # Create TLSPH system with mechanical work calculator support
             system_ = TotalLagrangianSPHSystem(initial_condition; smoothing_kernel,
                                                smoothing_length, young_modulus,
                                                poisson_ratio,
@@ -110,50 +110,56 @@
             TrixiParticles.update_quantities!(system, v, u, v_ode, u_ode, semi, 0.0)
 
             # Set up test parameters
-            energy1 = Ref(0.0)
+            work1 = Ref(0.0)
             dt1 = 0.1
 
-            # Test that energy is integrated, i.e., values of instantaneous power
-            # are accumulated over time. This initial energy should just be an offset.
-            # Also, half the step size means half the energy increase.
-            energy2 = Ref(1.0)
+            # Test that mechanical work is integrated, i.e., values of instantaneous
+            # power are accumulated over time. This initial work should just be an offset.
+            # Also, half the step size means half the work increase.
+            work2 = Ref(1.0)
             dt2 = 0.05
 
             # Test `only_compute_force_on_fluid`
-            energy3 = Ref(0.0)
+            work3 = Ref(0.0)
             dt3 = 0.1
 
             eachparticle = (TrixiParticles.n_integrated_particles(system) + 1):nparticles(system)
             dv = zeros(2, nparticles(system))
 
-            TrixiParticles.update_energy_calculator!(energy1, system, eachparticle, false,
-                                                     dv, v_ode, u_ode, semi, 0.0, dt1)
-            TrixiParticles.update_energy_calculator!(energy2, system, eachparticle, false,
-                                                     dv, v_ode, u_ode, semi, 0.0, dt2)
-            TrixiParticles.update_energy_calculator!(energy3, system, eachparticle, true,
-                                                     dv, v_ode, u_ode, semi, 0.0, dt3)
+            TrixiParticles.update_mechanical_work_calculator!(work1, system, eachparticle,
+                                                              false,
+                                                              dv, v_ode, u_ode, semi, 0.0,
+                                                              dt1)
+            TrixiParticles.update_mechanical_work_calculator!(work2, system, eachparticle,
+                                                              false,
+                                                              dv, v_ode, u_ode, semi, 0.0,
+                                                              dt2)
+            TrixiParticles.update_mechanical_work_calculator!(work3, system, eachparticle,
+                                                              true,
+                                                              dv, v_ode, u_ode, semi, 0.0,
+                                                              dt3)
 
             if i == 1
-                @test isapprox(energy1[], 0.8)
-                @test isapprox(energy2[], 1.0 + 0.4)
+                @test isapprox(work1[], 0.8)
+                @test isapprox(work2[], 1.0 + 0.4)
             elseif i == 2
                 # For very soft material, we can just pull up the top row of particles
-                # and the energy required is almost just the potential energy difference.
-                @test isapprox(energy1[], 0.4080357142857143)
-                @test isapprox(energy2[], 1.0 + 0.5 * 0.4080357142857143)
+                # and the work required is almost just the potential energy difference.
+                @test isapprox(work1[], 0.4080357142857143)
+                @test isapprox(work2[], 1.0 + 0.5 * 0.4080357142857143)
             elseif i == 3
                 # For a stiffer material, the stress from the offset creates larger forces
-                # pulling the clamped particles back down, so we need a lot of energy
+                # pulling the clamped particles back down, so we need a lot of work
                 # to pull the material apart.
-                @test isapprox(energy1[], 803.9714285714281)
-                @test isapprox(energy2[], 1.0 + 0.5 * 803.9714285714281)
+                @test isapprox(work1[], 803.9714285714281)
+                @test isapprox(work2[], 1.0 + 0.5 * 803.9714285714281)
             elseif i == 4
-                # For a very stiff material, the energy is even larger.
-                @test isapprox(energy1[], 80357.5428571428)
-                @test isapprox(energy2[], 1.0 + 0.5 * 80357.5428571428)
+                # For a very stiff material, the work is even larger.
+                @test isapprox(work1[], 80357.5428571428)
+                @test isapprox(work2[], 1.0 + 0.5 * 80357.5428571428)
             end
 
-            @test isapprox(energy3[], 0.0)
+            @test isapprox(work3[], 0.0)
         end
     end
 end

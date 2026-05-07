@@ -1,7 +1,7 @@
 """
-    EnergyCalculatorCallback(system::TotalLagrangianSPHSystem, semi; interval=1,
-                             eachparticle=(n_integrated_particles(system) + 1):nparticles(system),
-                             only_compute_force_on_fluid=false)
+    MechanicalWorkCalculatorCallback(system::TotalLagrangianSPHSystem, semi; interval=1,
+                                     eachparticle=(n_integrated_particles(system) + 1):nparticles(system),
+                                     only_compute_force_on_fluid=false)
 
 Callback that accumulates the work done by a set of particles in a
 [`TotalLagrangianSPHSystem`](@ref) by integrating the instantaneous power over time.
@@ -10,7 +10,7 @@ With the default arguments it tracks the work done by the clamped particles
 that follow a [`PrescribedMotion`](@ref). By selecting a different particle set, it can also
 be used to measure the work done by the structure on the surrounding fluid.
 
-- **Prescribed/clamped motion energy** (default) -- monitor only the clamped particles by
+- **Prescribed/clamped motion work** (default) -- monitor only the clamped particles by
     leaving `eachparticle` at its default range
     `(n_integrated_particles(system) + 1):nparticles(system)`.
 - **Fluid load measurement** -- set `eachparticle=eachparticle(system)` together with
@@ -21,7 +21,7 @@ Internally the callback integrates the instantaneous power, i.e. the dot product
 the force exerted by the particle and its prescribed velocity, using an explicit Euler
 time integration scheme.
 
-The accumulated value can be retrieved via [`calculated_energy`](@ref).
+The accumulated value can be retrieved via [`calculated_mechanical_work`](@ref).
 
 !!! warning "Experimental implementation"
     This is an experimental feature and may change in future releases.
@@ -55,30 +55,30 @@ ode = semidiscretize(semi, (0.0, 1.0))
 semi_new = ode.p
 system_new = semi_new.systems[1]
 
-# Create an energy calculator callback that is called every 2 time steps
-energy_cb = EnergyCalculatorCallback(system_new, semi_new; interval=2)
+# Create a mechanical work calculator callback that is called every 2 time steps
+mechanical_work_cb = MechanicalWorkCalculatorCallback(system_new, semi_new; interval=2)
 
-# After the simulation, retrieve the calculated energy
-total_energy = calculated_energy(energy_cb)
+# After the simulation, retrieve the accumulated mechanical work
+mechanical_work = calculated_mechanical_work(mechanical_work_cb)
 
 # output
 [ Info: To create the self-interaction neighborhood search of a `TotalLagrangianSPHSystem`, a deep copy of the system is created inside the `Semidiscretization`. Use `system = semi.systems[i]` to access simulation data.
 0.0
 ```
 """
-struct EnergyCalculatorCallback{T, DV, EP}
+struct MechanicalWorkCalculatorCallback{T, DV, EP}
     interval                    :: Int
     t                           :: T # Time of last call
-    energy                      :: T
+    work                        :: T
     system_index                :: Int
     dv                          :: DV
     eachparticle                :: EP
     only_compute_force_on_fluid :: Bool
 end
 
-function EnergyCalculatorCallback(system::AbstractStructureSystem, semi; interval=1,
-                                  eachparticle=(n_integrated_particles(system) + 1):nparticles(system),
-                                  only_compute_force_on_fluid=false)
+function MechanicalWorkCalculatorCallback(system::AbstractStructureSystem, semi; interval=1,
+                                          eachparticle=(n_integrated_particles(system) + 1):nparticles(system),
+                                          only_compute_force_on_fluid=false)
     ELTYPE = eltype(system)
     system_index = system_indices(system, semi)
 
@@ -86,57 +86,59 @@ function EnergyCalculatorCallback(system::AbstractStructureSystem, semi; interva
     dv = allocate(semi.parallelization_backend, ELTYPE,
                   (v_nvariables(system), nparticles(system)))
 
-    # Note that time and energy are initialized in `initialize_energy_calculator_callback`
-    cb = EnergyCalculatorCallback(interval, Ref(zero(ELTYPE)), Ref(zero(ELTYPE)),
-                                  system_index, dv, eachparticle,
-                                  only_compute_force_on_fluid)
+    # Note that time and work are initialized in
+    # `initialize_mechanical_work_calculator_callback`.
+    cb = MechanicalWorkCalculatorCallback(interval, Ref(zero(ELTYPE)), Ref(zero(ELTYPE)),
+                                          system_index, dv, eachparticle,
+                                          only_compute_force_on_fluid)
 
     # The first one is the `condition`, the second the `affect!`
     return DiscreteCallback(cb, cb, save_positions=(false, false),
-                            initialize=initialize_energy_calculator_callback)
+                            initialize=initialize_mechanical_work_calculator_callback)
 end
 
-function initialize_energy_calculator_callback(discrete_callback, u, t, integrator)
-    energy_callback = discrete_callback.affect!
+function initialize_mechanical_work_calculator_callback(discrete_callback, u, t, integrator)
+    work_callback = discrete_callback.affect!
 
-    # Reset time and energy
-    energy_callback.t[] = t
-    energy_callback.energy[] = zero(eltype(energy_callback.energy))
+    # Reset time and mechanical work
+    work_callback.t[] = t
+    work_callback.work[] = zero(eltype(work_callback.work))
 end
 
 """
-    calculated_energy(cb::DiscreteCallback{<:Any, <:EnergyCalculatorCallback})
+    calculated_mechanical_work(cb::DiscreteCallback{<:Any, <:MechanicalWorkCalculatorCallback})
 
-Get the current calculated energy from an [`EnergyCalculatorCallback`](@ref).
+Get the accumulated mechanical work from a [`MechanicalWorkCalculatorCallback`](@ref).
 
 # Arguments
-- `cb`: The `DiscreteCallback` returned by [`EnergyCalculatorCallback`](@ref).
+- `cb`: The `DiscreteCallback` returned by [`MechanicalWorkCalculatorCallback`](@ref).
 
 # Examples
 ```jldoctest; output = false, setup = :(system = TotalLagrangianSPHSystem(RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0); smoothing_kernel=WendlandC2Kernel{2}(), smoothing_length=1.0, young_modulus=1.0, poisson_ratio=1.0); semi = (; systems=(system,), parallelization_backend=SerialBackend()))
-# Create an energy calculator callback
-energy_cb = EnergyCalculatorCallback(system, semi)
+# Create a mechanical work calculator callback
+mechanical_work_cb = MechanicalWorkCalculatorCallback(system, semi)
 
-# After the simulation, retrieve the calculated energy
-total_energy = calculated_energy(energy_cb)
+# After the simulation, retrieve the accumulated mechanical work
+mechanical_work = calculated_mechanical_work(mechanical_work_cb)
 
 # output
 0.0
 ```
 """
-function calculated_energy(cb::DiscreteCallback{<:Any, <:EnergyCalculatorCallback})
-    return cb.affect!.energy[]
+function calculated_mechanical_work(cb::DiscreteCallback{<:Any,
+                                                         <:MechanicalWorkCalculatorCallback})
+    return cb.affect!.work[]
 end
 
 # `condition`
-function (callback::EnergyCalculatorCallback)(u, t, integrator)
+function (callback::MechanicalWorkCalculatorCallback)(u, t, integrator)
     (; interval) = callback
 
     return condition_integrator_interval(integrator, interval)
 end
 
 # `affect!`
-function (callback::EnergyCalculatorCallback)(integrator)
+function (callback::MechanicalWorkCalculatorCallback)(integrator)
     # Determine time step size as difference to last time this callback was called
     t = integrator.t
     dt = t - callback.t[]
@@ -146,12 +148,12 @@ function (callback::EnergyCalculatorCallback)(integrator)
 
     semi = integrator.p
     v_ode, u_ode = integrator.u.x
-    energy = callback.energy
+    work = callback.work
 
     system = semi.systems[callback.system_index]
-    update_energy_calculator!(energy, system, callback.eachparticle,
-                              callback.only_compute_force_on_fluid, callback.dv,
-                              v_ode, u_ode, semi, t, dt)
+    update_mechanical_work_calculator!(work, system, callback.eachparticle,
+                                       callback.only_compute_force_on_fluid, callback.dv,
+                                       v_ode, u_ode, semi, t, dt)
 
     # Tell OrdinaryDiffEq that `u` has not been modified
     u_modified!(integrator, false)
@@ -159,10 +161,10 @@ function (callback::EnergyCalculatorCallback)(integrator)
     return integrator
 end
 
-function update_energy_calculator!(energy, system, eachparticle,
-                                   only_compute_force_on_fluid, dv,
-                                   v_ode, u_ode, semi, t, dt)
-    @trixi_timeit timer() "calculate energy" begin
+function update_mechanical_work_calculator!(work, system, eachparticle,
+                                            only_compute_force_on_fluid, dv,
+                                            v_ode, u_ode, semi, t, dt)
+    @trixi_timeit timer() "calculate mechanical work" begin
         # Update quantities that are stored in the systems. These quantities (e.g. pressure)
         # still have the values from the last stage of the previous step if not updated here.
         @trixi_timeit timer() "update systems and nhs" begin
@@ -204,35 +206,36 @@ function update_energy_calculator!(energy, system, eachparticle,
             # The force on the clamped particle is mass times acceleration
             F_particle = system.mass[particle] * dv_particle
 
-            # To obtain energy, we need to integrate the instantaneous power.
+            # To obtain mechanical work, we need to integrate the instantaneous power.
             # Instantaneous power is force applied BY the particle times its velocity.
             # The force applied BY the particle is the negative of the force applied ON it.
-            energy[] += dot(-F_particle, velocity) * dt
+            work[] += dot(-F_particle, velocity) * dt
         end
     end
 
-    return energy
+    return work
 end
 
-function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:EnergyCalculatorCallback})
+function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:MechanicalWorkCalculatorCallback})
     @nospecialize cb # reduce precompilation time
 
-    ELTYPE = eltype(cb.affect!.energy)
-    print(io, "EnergyCalculatorCallback{$ELTYPE}(interval=", cb.affect!.interval, ")")
+    ELTYPE = eltype(cb.affect!.work)
+    print(io, "MechanicalWorkCalculatorCallback{$ELTYPE}(interval=", cb.affect!.interval,
+          ")")
 end
 
 function Base.show(io::IO, ::MIME"text/plain",
-                   cb::DiscreteCallback{<:Any, <:EnergyCalculatorCallback})
+                   cb::DiscreteCallback{<:Any, <:MechanicalWorkCalculatorCallback})
     @nospecialize cb # reduce precompilation time
 
     if get(io, :compact, false)
         show(io, cb)
     else
         update_cb = cb.affect!
-        ELTYPE = eltype(update_cb.energy)
+        ELTYPE = eltype(update_cb.work)
         setup = [
             "interval" => update_cb.interval
         ]
-        summary_box(io, "EnergyCalculatorCallback{$ELTYPE}", setup)
+        summary_box(io, "MechanicalWorkCalculatorCallback{$ELTYPE}", setup)
     end
 end
