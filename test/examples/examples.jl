@@ -312,7 +312,8 @@
             end
 
             @testset "split integration before UpdateCallback" begin
-                split_integration = SplitIntegrationCallback(RDPK3SpFSAL35(), adaptive=false,
+                split_integration = SplitIntegrationCallback(RDPK3SpFSAL35(),
+                                                             adaptive=false,
                                                              dt=5e-5)
                 test_velocity_averaging_example(;
                                                 extra_callback=CallbackSet(split_integration,
@@ -320,7 +321,8 @@
             end
 
             @testset "UpdateCallback before split integration" begin
-                split_integration = SplitIntegrationCallback(RDPK3SpFSAL35(), adaptive=false,
+                split_integration = SplitIntegrationCallback(RDPK3SpFSAL35(),
+                                                             adaptive=false,
                                                              dt=5e-5)
                 test_velocity_averaging_example(;
                                                 extra_callback=CallbackSet(UpdateCallback(),
