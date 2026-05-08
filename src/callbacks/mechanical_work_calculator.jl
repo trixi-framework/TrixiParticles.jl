@@ -148,7 +148,7 @@ function (callback::MechanicalWorkCalculatorCallback)(integrator)
     # Update time of last call
     callback.t[] = t
 
-    semi = integrator.p
+    semi = integrator.p.semi
     v_ode, u_ode = integrator.u.x
     work = callback.work
 

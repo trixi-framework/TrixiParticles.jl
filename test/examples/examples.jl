@@ -127,7 +127,7 @@
 
                 semi = Semidiscretization(structure_system)
                 ode = semidiscretize(semi, (0.0, 1.0))
-                system = ode.p.systems[1]
+                system = ode.p.semi.systems[1]
 
                 mechanical_work_calculator = MechanicalWorkCalculatorCallback(system, semi;
                                                                               interval=1)
@@ -136,7 +136,7 @@
                                                callback=mechanical_work_calculator)
 
                 @test sol.retcode == ReturnCode.Success
-                @test count_rhs_allocations(sol, semi) == 0
+                @test count_rhs_allocations(sol) == 0
 
                 # Potential energy difference should be m * g * h
                 @test isapprox(calculated_mechanical_work(mechanical_work_calculator),
@@ -199,8 +199,8 @@
             semi = Semidiscretization(fluid_system, tlsph_system,
                                       parallelization_backend=PolyesterBackend())
             ode = semidiscretize(semi, (0.0, 1.0))
-            fluid_system_new = ode.p.systems[1]
-            tlsph_system_new = ode.p.systems[2]
+            fluid_system_new = ode.p.semi.systems[1]
+            tlsph_system_new = ode.p.semi.systems[2]
 
             # Mechanical work calculators for fluid + tank and fluid only
             mechanical_work_calculator1 = MechanicalWorkCalculatorCallback(tlsph_system_new,
@@ -217,7 +217,7 @@
                                                                 mechanical_work_calculator2))
 
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            @test count_rhs_allocations(sol) == 0
 
             # Potential energy difference should be m * g * h and h = 1.
             # Since all particles are clamped, the work done through clamped particles
