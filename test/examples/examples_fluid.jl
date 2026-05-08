@@ -20,6 +20,7 @@
             "with Threads.@threads :dynamic" => (parallelization_backend=ThreadsDynamicBackend(),),
             "with SerialBackend" => (parallelization_backend=SerialBackend(),),
             "WCSPH with FullGridCellList" => (semi=semi_fullgrid,),
+            "WCSPH with SortingCallback" => (extra_callback=SortingCallback(dt=0.02)),
             "WCSPH with source term damping" => (source_terms=SourceTermDamping(damping_coefficient=1e-4),),
             "WCSPH with SummationDensity" => (fluid_density_calculator=SummationDensity(),
                                               clip_negative_pressure=true),
