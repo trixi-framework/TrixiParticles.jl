@@ -277,15 +277,14 @@
                 @trixi_test_nowarn trixi_include(@__MODULE__,
                                                  joinpath(examples_dir(), "fsi",
                                                           "dam_break_plate_2d.jl"),
-                                                 fluid_particle_spacing=0.03,
-                                                 n_particles_x=3,
                                                  # Use rounded dimensions to avoid warnings
                                                  initial_fluid_size=(0.15, 0.30),
+                                                 # Move plate closer to be able to use a shorter
+                                                 # tspan and make CI faster.
                                                  plate_position=(0.2, 0.0),
-                                                 tspan=(0.0, 1.0e-4),
+                                                 tspan=(0.0, 0.2),
                                                  velocity_averaging=VelocityAveraging(time_constant=1e-4),
                                                  saving_callback=nothing,
-                                                 maxiters=100,
                                                  extra_callback=extra_callback) [
                     r"\[ Info: To create the self-interaction neighborhood search.*\n"
                 ]
@@ -293,7 +292,7 @@
                 @test sol_.retcode == ReturnCode.Success
 
                 # Verify that velocity averaging is actually used.
-                system = sol_.prob.p.systems[3]
+                system = sol_.prob.p.semi.systems[3]
                 @test system isa TotalLagrangianSPHSystem
                 # Test that `current_velocity` is not the same as `velocity_for_viscosity`.
                 # `current_velocity` should fail because it tries to access `v`, for which
