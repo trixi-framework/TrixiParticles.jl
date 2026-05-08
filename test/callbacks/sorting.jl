@@ -93,7 +93,7 @@
         callback = SortingCallback(dt=0.02)
         @test callback.condition(nothing, 0.019, nothing) == false
         @test callback.condition(nothing, 0.021, nothing) == true
-        
+
         # Don't trigger again until the time has advanced by another 0.02.
         callback.affect!.last_t = 0.021
         @test callback.condition(nothing, 0.022, nothing) == false
