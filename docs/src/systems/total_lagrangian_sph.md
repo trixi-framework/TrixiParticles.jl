@@ -133,15 +133,15 @@ prevent hourglass modes and stabilize the fluid close to the fluid-structure int
 
 ## [Velocity Averaging](@id velocity_averaging)
 
-In challenging FSI cases with very stiff structures, the two techniques above might not be
+In FSI cases with very stiff structures, the two techniques above might not be
 sufficient to prevent instabilities.
 High-frequency noise in the structure velocity can trigger instabilities or spurious
-pressure waves (due to aliasing) in the fluid.
-Another stabilization technique is an exponential moving average (EMA) of the structure
-velocity used **only** for the fluid-structure viscous coupling (no-slip boundary condition).
+pressure waves in the fluid due to aliasing.
+Another stabilization technique is to use an exponential moving average (EMA) of the structure
+velocity used **only** for the fluid-structure viscous coupling (i.e., the no-slip boundary condition).
 
 The averaged velocity ``\bar v`` is updated (by the [`UpdateCallback`](@ref)
-or in every sub-step of the [`SplitIntegrationCallback`](@ref) if it is used) as
+or at every sub-step of the [`SplitIntegrationCallback`](@ref) if it is used) as
 ```math
 \bar v^{n+1} = (1-\alpha)\,\bar v^n + \alpha\, v^{n+1}, \qquad
 \alpha = 1 - \exp(-\Delta t/\tau),
