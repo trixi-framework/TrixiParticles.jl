@@ -158,7 +158,7 @@ if packing
     packed_foot.coordinates .+= center
     beam.coordinates .+= center
 
-    structure = union(beam, packed_foot)
+    structure = union(packed_foot, beam)
     fluid = setdiff(tank.fluid, structure)
 
     # Pack the fluid against the fin and the tank boundary
@@ -202,7 +202,7 @@ if packing
     fluid = InitialCondition(sol_packing, fluid_packing_system, semi_packing)
     fluid = union(fluid, fixed_fluid)
 else
-    structure = union(beam, fixed_particles)
+    structure = union(fixed_particles, beam)
     # Move the fin to the center of the tank
     structure.coordinates .+= center
 
@@ -251,11 +251,12 @@ boundary_model_structure = BoundaryModelDummyParticles(hydrodynamic_densites,
 #                                                    particle_spacing,
 #                                                    hydrodynamic_masses)
 
-structure_system = TotalLagrangianSPHSystem(structure, smoothing_kernel, smoothing_length_structure,
-                                        modulus, poisson_ratio;
-                                        n_clamped_particles, clamped_particles_motion=boundary_motion,
+structure_system = TotalLagrangianSPHSystem(structure; smoothing_kernel, smoothing_length=smoothing_length_structure,
+                                        young_modulus=modulus, poisson_ratio,
+                                        clamped_particles=1:n_clamped_particles,
+                                        clamped_particles_motion=boundary_motion,
                                         boundary_model=boundary_model_structure,
-                                        velocity_averaging=TrixiParticles.VelocityAveraging(5e-4),
+                                        velocity_averaging=TrixiParticles.VelocityAveraging(time_constant=5e-4),
                                         viscosity=ArtificialViscosityMonaghan(alpha=0.1),
                                         penalty_force=PenaltyForceGanzenmueller(alpha=0.1))
 
@@ -265,10 +266,11 @@ fluid_density_calculator = ContinuityDensity()
 # density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 density_diffusion = DensityDiffusionAntuono(fluid, delta=0.1)
 
-fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
+fluid_system = WeaklyCompressibleSPHSystem(fluid; density_calculator=fluid_density_calculator,
                                            state_equation, smoothing_kernel,
-                                           smoothing_length_fluid, viscosity=viscosity_fluid,
-                                           density_diffusion=density_diffusion,
+                                           smoothing_length=smoothing_length_fluid,
+                                           viscosity=viscosity_fluid,
+                                           density_diffusion,
                                            shifting_technique=ParticleShiftingTechnique(sound_speed_factor=0.2, v_max_factor=0.0),
                                            pressure_acceleration=tensile_instability_control,
                                            buffer_size=n_buffer_particles)
