@@ -24,7 +24,7 @@
 
         semi = (; systems=(:system1, :system2), parallelization_backend=PolyesterBackend())
 
-        integrator = (; p=semi,
+        integrator = (; p=(; semi),
                       opts=(;
                             callback=(; continuous_callbacks, discrete_callbacks),
                             adaptive=true, abstol=1e-2, reltol=1e-1,

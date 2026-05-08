@@ -11,7 +11,7 @@
             # and `semi.update_callback_used[]`.
             semi = (; integrate_tlsph=Ref(true), update_callback_used=Ref(false))
 
-            return (; opts=(; callback=(; discrete_callbacks)), p=semi)
+            return (; opts=(; callback=(; discrete_callbacks)), p=(; semi))
         end
 
         stepsize_cb = StepsizeCallback(cfl=1.2)
@@ -25,11 +25,11 @@
         integrator_with_update_periodic = make_integrator([stepsize_cb, update_cb_periodic])
         integrator_with_both = make_integrator([stepsize_cb, split_cb, update_cb])
 
-        semi_without_split = integrator_without_split.p
-        semi_with_split = integrator_with_split.p
-        semi_with_update = integrator_with_update.p
-        semi_with_update_periodic = integrator_with_update_periodic.p
-        semi_with_both = integrator_with_both.p
+        semi_without_split = integrator_without_split.p.semi
+        semi_with_split = integrator_with_split.p.semi
+        semi_with_update = integrator_with_update.p.semi
+        semi_with_update_periodic = integrator_with_update_periodic.p.semi
+        semi_with_both = integrator_with_both.p.semi
 
         TrixiParticles.set_callbacks_used!(semi_without_split, integrator_without_split)
         TrixiParticles.set_callbacks_used!(semi_with_split, integrator_with_split)

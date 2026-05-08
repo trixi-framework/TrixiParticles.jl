@@ -15,9 +15,9 @@
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
                 # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol, semi) < 200
+                @test count_rhs_allocations(sol) < 200
             else
-                @test count_rhs_allocations(sol, semi) == 0
+                @test count_rhs_allocations(sol) == 0
             end
         end
 
@@ -40,9 +40,9 @@
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
                 # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol, semi) < 200
+                @test count_rhs_allocations(sol) < 200
             else
-                @test count_rhs_allocations(sol, semi) == 0
+                @test count_rhs_allocations(sol) == 0
             end
         end
 
@@ -59,9 +59,9 @@
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
                 # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol, semi) < 200
+                @test count_rhs_allocations(sol) < 200
             else
-                @test count_rhs_allocations(sol, semi) == 0
+                @test count_rhs_allocations(sol) == 0
             end
         end
 
@@ -85,9 +85,9 @@
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
                 # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol, semi) < 200
+                @test count_rhs_allocations(sol) < 200
             else
-                @test count_rhs_allocations(sol, semi) == 0
+                @test count_rhs_allocations(sol) == 0
             end
         end
 
@@ -127,7 +127,7 @@
 
                 semi = Semidiscretization(structure_system)
                 ode = semidiscretize(semi, (0.0, 1.0))
-                system = ode.p.systems[1]
+                system = ode.p.semi.systems[1]
 
                 mechanical_work_calculator = MechanicalWorkCalculatorCallback(system, semi;
                                                                               interval=1)
@@ -136,7 +136,7 @@
                                                callback=mechanical_work_calculator)
 
                 @test sol.retcode == ReturnCode.Success
-                @test count_rhs_allocations(sol, semi) == 0
+                @test count_rhs_allocations(sol) == 0
 
                 # Potential energy difference should be m * g * h
                 @test isapprox(calculated_mechanical_work(mechanical_work_calculator),
@@ -151,7 +151,7 @@
                                                       "colliding_rigid_spheres_2d.jl"),
                                              tspan=(0.0, 0.6))
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            @test count_rhs_allocations(sol) == 0
         end
     end
 
@@ -199,8 +199,8 @@
             semi = Semidiscretization(fluid_system, tlsph_system,
                                       parallelization_backend=PolyesterBackend())
             ode = semidiscretize(semi, (0.0, 1.0))
-            fluid_system_new = ode.p.systems[1]
-            tlsph_system_new = ode.p.systems[2]
+            fluid_system_new = ode.p.semi.systems[1]
+            tlsph_system_new = ode.p.semi.systems[2]
 
             # Mechanical work calculators for fluid + tank and fluid only
             mechanical_work_calculator1 = MechanicalWorkCalculatorCallback(tlsph_system_new,
@@ -217,7 +217,7 @@
                                                                 mechanical_work_calculator2))
 
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            @test count_rhs_allocations(sol) == 0
 
             # Potential energy difference should be m * g * h and h = 1.
             # Since all particles are clamped, the work done through clamped particles
@@ -247,9 +247,9 @@
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
                 # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol, semi) < 200
+                @test count_rhs_allocations(sol) < 200
             else
-                @test count_rhs_allocations(sol, semi) == 0
+                @test count_rhs_allocations(sol) == 0
             end
         end
 
@@ -266,9 +266,9 @@
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
                 # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol, semi) < 200
+                @test count_rhs_allocations(sol) < 200
             else
-                @test count_rhs_allocations(sol, semi) == 0
+                @test count_rhs_allocations(sol) == 0
             end
         end
 
@@ -294,67 +294,70 @@
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
                 # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol, semi) < 200
+                @test count_rhs_allocations(sol) < 200
             else
-                @test count_rhs_allocations(sol, semi) == 0
+                @test count_rhs_allocations(sol) == 0
             end
 
-            # Now use split integration and verify that we need less than 400 iterations
-            split_integration = SplitIntegrationCallback(RDPK3SpFSAL35(), adaptive=false,
+            # Use split integration and verify that we need fewer than 400 iterations
+            split_integration = SplitIntegrationCallback(CarpenterKennedy2N54(williamson_condition=false),
                                                          dt=5e-5)
-            @trixi_test_nowarn trixi_include(@__MODULE__,
-                                             joinpath(examples_dir(), "fsi",
-                                                      "dam_break_plate_2d.jl"),
-                                             # Use rounded dimensions to avoid warnings
-                                             initial_fluid_size=(0.15, 0.29),
-                                             # Move plate closer to be able to use a shorter
-                                             # tspan and make CI faster.
-                                             plate_position=(0.2, 0.0),
-                                             tspan=(0.0, 0.2),
-                                             E=1e7, # Stiffer plate
-                                             maxiters=400,
-                                             extra_callback=split_integration) [
-                r"\[ Info: To create the self-interaction neighborhood search.*\n"
-            ]
-            @test sol.retcode == ReturnCode.Success
+            callbacks = CallbackSet(info_callback, saving_callback, split_integration)
+            # Don't use `sol` here, as this local variable would shadow the global `sol`
+            # from the `trixi_include` above and break the `sol.retcode` above.
+            sol2 = @trixi_test_nowarn solve(ode, RDPK3SpFSAL49(), maxiters=400,
+                                            save_everystep=false, callback=callbacks)
+
+            @test sol2.retcode == ReturnCode.Success
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
                 # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol, semi) < 200
+                @test count_rhs_allocations(sol2; split_integration) < 200
             else
-                @test count_rhs_allocations(sol, semi) == 0
+                @test count_rhs_allocations(sol2; split_integration) == 0
             end
 
-            # Now use split integration and verify that it is actually used for TLSPH
-            # by using a time step that is too large and verifying that it is crashing.
-            split_integration = SplitIntegrationCallback(RDPK3SpFSAL35(), adaptive=false,
-                                                         dt=2e-4)
-            @trixi_test_nowarn trixi_include(@__MODULE__,
-                                             joinpath(examples_dir(), "fsi",
-                                                      "dam_break_plate_2d.jl"),
-                                             # Use rounded dimensions to avoid warnings
-                                             initial_fluid_size=(0.15, 0.29),
-                                             # Move plate closer to be able to use a shorter
-                                             # tspan and make CI faster.
-                                             plate_position=(0.2, 0.0),
-                                             tspan=(0.0, 0.2),
-                                             E=1e7, # Stiffer plate
-                                             maxiters=500,
-                                             extra_callback=split_integration) [
-                r"\[ Info: To create the self-interaction neighborhood search.*\n",
-                "┌ Warning: Verbosity toggle: instability \n",
-                r".*Instability detected. Aborting\n",
-                r".*dt was forced below floating point epsilon.*\n",
-                r"└ @ SciMLBase.*\n"
-            ]
-            @test sol.retcode == ReturnCode.Unstable
+            # Use stage-level coupling and verify that it is not compatible with
+            # the fluid time integration scheme `RDPK3SpFSAL49`.
+            split_integration = SplitIntegrationCallback(CarpenterKennedy2N54(williamson_condition=false),
+                                                         dt=5e-5, stage_coupling=true)
+            callbacks = CallbackSet(info_callback, saving_callback, split_integration)
+
+            msg = "stage-level coupling with `SplitIntegrationCallback` requires that"
+            @test_throws msg solve(ode, RDPK3SpFSAL49(), maxiters=400,
+                                   save_everystep=false, callback=callbacks)
+
+            # Use stage-level coupling with a compatible fluid time integration scheme
+            split_integration = SplitIntegrationCallback(CarpenterKennedy2N54(williamson_condition=false),
+                                                         stage_coupling=true, dt=5e-5)
+            stepsize_callback = StepsizeCallback(cfl=1.2)
+            callbacks = CallbackSet(info_callback, saving_callback, split_integration,
+                                    stepsize_callback)
+            sol2 = @trixi_test_nowarn solve(ode,
+                                            CarpenterKennedy2N54(williamson_condition=false),
+                                            maxiters=400, dt=1.0,
+                                            save_everystep=false, callback=callbacks)
+
+            @test sol2.retcode == ReturnCode.Success
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
                 # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol, semi) < 200
+                @test count_rhs_allocations(sol2; split_integration) < 200
             else
-                @test count_rhs_allocations(sol, semi) == 0
+                @test count_rhs_allocations(sol2; split_integration) == 0
             end
+
+            # Use split integration and verify that it is actually used for TLSPH
+            # by using a time step that is too large and verifying that it is crashing.
+            split_integration = SplitIntegrationCallback(CarpenterKennedy2N54(williamson_condition=false),
+                                                         stage_coupling=true, dt=2e-4)
+            callbacks = CallbackSet(info_callback, saving_callback, split_integration,
+                                    stepsize_callback)
+
+            msg = "`SplitIntegrationCallback` failed with return code Unstable."
+            @test_throws msg solve(ode, CarpenterKennedy2N54(williamson_condition=false),
+                                   maxiters=400, dt=1.0,
+                                   save_everystep=false, callback=callbacks)
         end
 
         @trixi_testset "fsi/dam_break_gate_2d.jl" begin
@@ -369,9 +372,9 @@
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
                 # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol, semi) < 200
+                @test count_rhs_allocations(sol) < 200
             else
-                @test count_rhs_allocations(sol, semi) == 0
+                @test count_rhs_allocations(sol) == 0
             end
         end
 
@@ -386,11 +389,11 @@
             if VERSION > v"1.11"
                 # Newer Version than 1.11 produce more allocations
                 # todo: unclear where this is from
-                @test count_rhs_allocations(sol, semi) < 1000
+                @test count_rhs_allocations(sol) < 1000
             else
                 # Older Julia versions than 1.12 produce allocations because `get_neighborhood_search`
                 # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol, semi) < 200
+                @test count_rhs_allocations(sol) < 200
             end
         end
 
@@ -403,9 +406,9 @@
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
                 # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol, semi) < 500
+                @test count_rhs_allocations(sol) < 500
             else
-                @test count_rhs_allocations(sol, semi) == 0
+                @test count_rhs_allocations(sol) == 0
             end
         end
 
@@ -420,9 +423,9 @@
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
                 # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol, semi) < 500
+                @test count_rhs_allocations(sol) < 500
             else
-                @test count_rhs_allocations(sol, semi) == 0
+                @test count_rhs_allocations(sol) == 0
             end
         end
 
@@ -435,9 +438,9 @@
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
                 # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol, semi) < 500
+                @test count_rhs_allocations(sol) < 500
             else
-                @test count_rhs_allocations(sol, semi) == 0
+                @test count_rhs_allocations(sol) == 0
             end
         end
 
@@ -452,9 +455,9 @@
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
                 # is not type-stable with TLSPH or rigid.
-                @test count_rhs_allocations(sol, semi) < 2000
+                @test count_rhs_allocations(sol) < 2000
             else
-                @test count_rhs_allocations(sol, semi) == 0
+                @test count_rhs_allocations(sol) == 0
             end
         end
 
@@ -470,9 +473,9 @@
             if VERSION < v"1.12"
                 # Older Julia versions produce allocations because `get_neighborhood_search`
                 # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol, semi) < 500
+                @test count_rhs_allocations(sol) < 500
             else
-                @test count_rhs_allocations(sol, semi) == 0
+                @test count_rhs_allocations(sol) == 0
             end
         end
     end
@@ -483,7 +486,7 @@
                                              joinpath(examples_dir(), "n_body",
                                                       "n_body_solar_system.jl"))
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            @test count_rhs_allocations(sol) == 0
         end
 
         @trixi_testset "n_body/n_body_benchmark_trixi.jl" begin
@@ -568,7 +571,7 @@
                                                       "rectangular_tank_2d.jl"),
                                              tspan=(0.0, 0.1))
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            @test count_rhs_allocations(sol) == 0
         end
     end
     @trixi_testset "dem/collapsing_sand_pile_3d.jl" begin
@@ -577,6 +580,6 @@
                                                   "collapsing_sand_pile_3d.jl"),
                                          tspan=(0.0, 0.1))
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 end

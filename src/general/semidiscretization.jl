@@ -298,7 +298,7 @@ function semidiscretize(semi, tspan; reset_threads=true)
         semi_new = @set semi__.systems = set_system_links.(semi__.systems, Ref(semi__))
 
         @info "To move data to the GPU, `semidiscretize` creates a deep copy of the passed " *
-              "`Semidiscretization`. Use `semi = ode.p` to access simulation data."
+              "`Semidiscretization`. Use `semi = ode.p.semi` to access simulation data."
     else
         semi_new = semi
     end
@@ -312,7 +312,13 @@ function semidiscretize(semi, tspan; reset_threads=true)
     # Reset callback flag that will be set by the `UpdateCallback`
     semi_new.update_callback_used[] = false
 
-    return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode, tspan, semi_new)
+    # Store the semidiscretization in `p.semi` to make it accessible during time integration.
+    # In case that a `SplitIntegrationCallback` is used, we will also need to store
+    # extra split integration data in `p`, for which we create a placeholder (`nothing`)
+    # here, since we cannot change `p` from within the callback (only its contents).
+    p = @NamedTuple{semi::typeof(semi_new), split_integration_data::Any}((semi_new,
+                                                                          nothing))
+    return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode, tspan, p)
 end
 
 """
@@ -356,8 +362,9 @@ end
     range = ranges_v[system_indices(system, semi)]
 
     @boundscheck begin
+        expected = v_nvariables(system) * n_integrated_particles(system)
         if length(range) != v_nvariables(system) * n_integrated_particles(system)
-            throw(DimensionMismatch("`v_ode` range length $range_length does not match " *
+            throw(DimensionMismatch("`v_ode` range length $(length(range)) does not match " *
                                     "expected number of entries $expected"))
         end
     end
@@ -414,7 +421,9 @@ function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization)
     end
 end
 
-function drift!(du_ode, v_ode, u_ode, semi, t)
+function drift!(du_ode, v_ode, u_ode, p, t)
+    (; semi) = p
+
     @trixi_timeit timer() "drift!" begin
         foreach_system(semi) do system
             du = wrap_u(du_ode, system, semi)
@@ -479,7 +488,13 @@ function set_velocity_default!(du::AbstractGPUArray, v, u, system, semi, t)
     copyto!(du, indices, v, indices)
 end
 
-function kick!(dv_ode, v_ode, u_ode, semi, t)
+function kick!(dv_ode, v_ode, u_ode, p, t)
+    (; semi, split_integration_data) = p
+
+    # This is a no-op if no split integration
+    # or split integration without stage-coupling is used.
+    split_integrate_stage!(v_ode, u_ode, t, split_integration_data)
+
     @trixi_timeit timer() "kick!" begin
         # Check that the `UpdateCallback` is used if required
         check_update_callback(semi)

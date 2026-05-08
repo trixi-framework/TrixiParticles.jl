@@ -96,7 +96,7 @@
 
             semi = Semidiscretization(system_)
             ode = semidiscretize(semi, (0.0, 1.0))
-            system = ode.p.systems[1]
+            system = ode.p.semi.systems[1]
 
             # Create dummy ODE state vectors
             v = zeros(2, TrixiParticles.n_integrated_particles(system))
