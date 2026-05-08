@@ -59,8 +59,12 @@ function initial_update!(cb::UpdateCallback, vu_ode, t, integrator)
     # Tell the semidiscretization that the `UpdateCallback` is used
     semi.update_callback_used[] = true
 
-    foreach_system(semi) do system
-        initialize_averaged_velocity!(system, v_ode, semi, t)
+    # If TLSPH is not integrated, the averaged velocity will be initialized in the
+    # split integration.
+    if semi.integrate_tlsph[]
+        foreach_system(semi) do system
+            initialize_averaged_velocity!(system, v_ode, semi, t)
+        end
     end
 
     return cb(integrator)
@@ -111,8 +115,12 @@ function (update_callback!::UpdateCallback)(integrator)
                                              v_ode, semi, integrator)
         end
 
-        foreach_system(semi) do system
-            compute_averaged_velocity!(system, v_ode, semi, t)
+        # If TLSPH is not integrated, the averaged velocity will be updated in the
+        # split integration.
+        if semi.integrate_tlsph[]
+            foreach_system(semi) do system
+                compute_averaged_velocity!(system, v_ode, semi, t)
+            end
         end
     end
 

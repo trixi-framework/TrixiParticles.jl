@@ -272,6 +272,62 @@
             end
         end
 
+        @trixi_testset "fsi/dam_break_plate_2d.jl velocity averaging" begin
+            function test_velocity_averaging_example(; extra_callback)
+                @trixi_test_nowarn trixi_include(@__MODULE__,
+                                                 joinpath(examples_dir(), "fsi",
+                                                          "dam_break_plate_2d.jl"),
+                                                 fluid_particle_spacing=0.03,
+                                                 n_particles_x=3,
+                                                 # Use rounded dimensions to avoid warnings
+                                                 initial_fluid_size=(0.15, 0.30),
+                                                 plate_position=(0.2, 0.0),
+                                                 tspan=(0.0, 1.0e-4),
+                                                 velocity_averaging=VelocityAveraging(time_constant=1e-4),
+                                                 saving_callback=nothing,
+                                                 maxiters=100,
+                                                 extra_callback=extra_callback) [
+                    r"\[ Info: To create the self-interaction neighborhood search.*\n"
+                ]
+                sol_ = @invokelatest (@__MODULE__).sol
+                @test sol_.retcode == ReturnCode.Success
+
+                # Verify that velocity averaging is actually used.
+                system = sol_.prob.p.systems[3]
+                @test system isa TotalLagrangianSPHSystem
+                # Test that `current_velocity` is not the same as `velocity_for_viscosity`.
+                # `current_velocity` should fail because it tries to access `v`, for which
+                # we passed `nothing`.
+                @test_throws "no method" TrixiParticles.current_velocity(nothing, system, 1)
+                @test !iszero(TrixiParticles.velocity_for_viscosity(nothing, system, 1))
+            end
+
+            @testset "no update callback" begin
+                str = "`UpdateCallback` is required"
+                @test_throws str test_velocity_averaging_example(; extra_callback=nothing)
+            end
+
+            @testset "without split integration" begin
+                test_velocity_averaging_example(; extra_callback=UpdateCallback())
+            end
+
+            @testset "split integration before UpdateCallback" begin
+                split_integration = SplitIntegrationCallback(RDPK3SpFSAL35(), adaptive=false,
+                                                             dt=5e-5)
+                test_velocity_averaging_example(;
+                                                extra_callback=CallbackSet(split_integration,
+                                                                           UpdateCallback()))
+            end
+
+            @testset "UpdateCallback before split integration" begin
+                split_integration = SplitIntegrationCallback(RDPK3SpFSAL35(), adaptive=false,
+                                                             dt=5e-5)
+                test_velocity_averaging_example(;
+                                                extra_callback=CallbackSet(UpdateCallback(),
+                                                                           split_integration))
+            end
+        end
+
         @trixi_testset "fsi/dam_break_plate_2d.jl split integration" begin
             # Test that this example does not work with only 500 iterations
             @trixi_test_nowarn trixi_include(@__MODULE__,
