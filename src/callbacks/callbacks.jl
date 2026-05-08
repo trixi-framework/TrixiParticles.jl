@@ -63,6 +63,11 @@ function set_callbacks_used!(semi, integrator)
     return semi
 end
 
+function set_callbacks_used!(p::NamedTuple{(:v_ode, :u_ode, :semi, :semi_split)},
+                             integrator)
+    set_callbacks_used!(p.semi_split, integrator)
+end
+
 include("info.jl")
 include("solution_saving.jl")
 include("density_reinit.jl")
@@ -71,3 +76,5 @@ include("stepsize.jl")
 include("update.jl")
 include("steady_state_reached.jl")
 include("split_integration.jl")
+include("mechanical_work_calculator.jl")
+include("sorting.jl")

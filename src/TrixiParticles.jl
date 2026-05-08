@@ -17,7 +17,6 @@ using GPUArraysCore: AbstractGPUArray
 using JSON: JSON
 using KernelAbstractions: KernelAbstractions, @kernel, @index
 using LinearAlgebra: norm, normalize, cross, dot, I, tr, inv, pinv, det
-using MuladdMacro: @muladd
 using Polyester: Polyester, @batch
 using Printf: @printf, @sprintf
 using ReadVTK: ReadVTK
@@ -65,14 +64,17 @@ include("io/io.jl")
 include("visualization/recipes_plots.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
-export InitialCondition
+export InitialCondition, apply_angular_velocity
 export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangianSPHSystem,
-       WallBoundarySystem, DEMSystem, BoundaryDEMSystem, OpenBoundarySystem,
+       RigidBodySystem, WallBoundarySystem, DEMSystem, BoundaryDEMSystem,
+       OpenBoundarySystem,
        ImplicitIncompressibleSPHSystem
 export BoundaryZone, InFlow, OutFlow, BidirectionalFlow
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
        PostprocessCallback, StepsizeCallback, UpdateCallback, SteadyStateReachedCallback,
-       SplitIntegrationCallback
+       SplitIntegrationCallback, MechanicalWorkCalculatorCallback,
+       calculated_mechanical_work,
+       SortingCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller, TransportVelocityAdami, ParticleShiftingTechnique,
        ParticleShiftingTechniqueSun2017, ConsistentShiftingSun2019,
@@ -90,7 +92,7 @@ export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureEx
        BoundaryModelMirroringTafuni, BoundaryModelDynamicalPressureZhang,
        BernoulliPressureExtrapolation, PressureBoundaries
 export FirstOrderMirroring, ZerothOrderMirroring, SimpleMirroring
-export HertzContactModel, LinearContactModel
+export HertzContactModel, LinearContactModel, RigidContactModel
 export PrescribedMotion, OscillatingMotion2D
 export RCRWindkesselModel
 export examples_dir, validation_dir
@@ -103,7 +105,7 @@ export VoxelSphere, RoundSphere, reset_wall!, extrude_geometry, load_geometry,
 export SourceTermDamping
 export ShepardKernelCorrection, KernelCorrection, AkinciFreeSurfaceCorrection,
        GradientCorrection, BlendedGradientCorrection, MixedKernelGradientCorrection
-export nparticles
+export nparticles, eachparticle
 export available_data, kinetic_energy, total_mass, max_pressure, min_pressure, avg_pressure,
        max_density, min_density, avg_density
 export interpolate_line, interpolate_points, interpolate_plane_3d, interpolate_plane_2d,
