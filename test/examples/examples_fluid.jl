@@ -347,6 +347,7 @@
         @test sol.retcode == ReturnCode.Success
         @test semi.interaction_matrix[1, 2] isa InterfacialTangentialDrag
         @test semi.interaction_matrix[2, 1] isa InterfacialTangentialDrag
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/dam_break_3d.jl" begin

@@ -265,6 +265,10 @@
             integrate_tlsph_seen::Base.RefValue{Bool}
         end
 
+        struct TestDefaultWrapperInteraction
+            integrate_tlsph_seen::Base.RefValue{Bool}
+        end
+
         function (drag::TestInterphaseDrag)(dv, v_system, u_system, v_neighbor,
                                             u_neighbor, system, neighbor, semi; kwargs...)
             system_coords = TrixiParticles.current_coordinates(u_system, system)
@@ -304,12 +308,25 @@
             return dv
         end
 
+        function (interaction::TestDefaultWrapperInteraction)(dv, v_system, u_system,
+                                                              v_neighbor, u_neighbor,
+                                                              system, neighbor, semi;
+                                                              integrate_tlsph=false,
+                                                              kwargs...)
+            interaction.integrate_tlsph_seen[] = integrate_tlsph
+            return TrixiParticles.interact!(dv, v_system, u_system, v_neighbor,
+                                            u_neighbor, system, neighbor, semi;
+                                            integrate_tlsph, kwargs...)
+        end
+
         function make_drag_semi(nhs_factory, systems...; drag=false)
             neighborhood_search = nhs_factory()
 
             if drag
-                interaction_matrix = Any[true TestInterphaseDrag(500.0);
-                                         TestInterphaseDrag(500.0) true]
+                interaction = TestInterphaseDrag(500.0)
+                interaction_matrix = Matrix{Union{Bool, typeof(interaction)}}(trues(2, 2))
+                interaction_matrix[1, 2] = interaction
+                interaction_matrix[2, 1] = interaction
             else
                 interaction_matrix = Bool[true false;
                                           false true]
@@ -395,7 +412,7 @@
                                                  poisson_ratio=0.3,
                                                  boundary_model)
 
-            fluid_ic = make_particle(0.5, 1000.0, (0.0, 0.0))
+            fluid_ic = make_particle(0.5, 1030.0, (0.0, 0.0))
             fluid = WeaklyCompressibleSPHSystem(fluid_ic;
                                                 density_calculator=ContinuityDensity(),
                                                 state_equation,
@@ -648,8 +665,8 @@
             integrate_tlsph_seen = Ref(false)
             structure, fluid = make_tlsph_fluid_systems()
             interaction = TestKeywordInteraction(integrate_tlsph_seen)
-            interaction_matrix = Any[false interaction;
-                                     false false]
+            interaction_matrix = Matrix{Union{Bool, typeof(interaction)}}(falses(2, 2))
+            interaction_matrix[1, 2] = interaction
 
             semi = Semidiscretization(structure, fluid; neighborhood_search=nothing,
                                       interaction_matrix)
@@ -660,6 +677,28 @@
 
             @test sol.retcode == ReturnCode.Success
             @test integrate_tlsph_seen[]
+        end
+
+        @testset "split wrapped default interaction forwards keyword arguments" begin
+            integrate_tlsph_seen = Ref(false)
+            structure, fluid = make_tlsph_fluid_systems()
+            interaction = TestDefaultWrapperInteraction(integrate_tlsph_seen)
+            interaction_matrix = Matrix{Union{Bool, typeof(interaction)}}(falses(2, 2))
+            interaction_matrix[1, 2] = interaction
+
+            semi = Semidiscretization(structure, fluid; neighborhood_search=nothing,
+                                      interaction_matrix)
+            ode = semidiscretize(semi, (0.0, 1.0e-3))
+            split_integration = SplitIntegrationCallback(RDPK3SpFSAL35(); dt=1.0e-4)
+            sol = solve(ode, RDPK3SpFSAL35(); dt=1.0e-3, adaptive=false,
+                        save_everystep=false, callback=split_integration)
+
+            @test sol.retcode == ReturnCode.Success
+            @test integrate_tlsph_seen[]
+
+            v_ode, _ = sol.u[end].x
+            v_structure = TrixiParticles.wrap_v(v_ode, first(semi.systems), semi)
+            @test maximum(abs, Array(v_structure)) > 0
         end
     end
 

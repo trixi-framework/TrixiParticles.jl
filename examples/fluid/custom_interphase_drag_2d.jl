@@ -67,7 +67,7 @@ function (drag::InterfacialTangentialDrag)(dv, v_system, u_system,
     # Preserve the default WCSPH pressure, viscosity, and continuity coupling between the
     # phases, then add the custom drag term below.
     TrixiParticles.interact!(dv, v_system, u_system, v_neighbor, u_neighbor,
-                             system, neighbor, semi)
+                             system, neighbor, semi; kwargs...)
 
     system_coords = TrixiParticles.current_coordinates(u_system, system)
     neighbor_coords = TrixiParticles.current_coordinates(u_neighbor, neighbor)
@@ -106,9 +106,10 @@ end
 # `true` keeps the default interaction, while a callable handles the interaction for that
 # ordered pair. This callable calls the default interaction before adding drag. Since the
 # matrix is ordered, reciprocal coupling needs both entries.
-interaction_matrix = Matrix{Any}(trues(2, 2))
-interaction_matrix[1, 2] = InterfacialTangentialDrag(1.0e3, (0.0, 1.0))
-interaction_matrix[2, 1] = InterfacialTangentialDrag(1.0e3, (0.0, 1.0))
+interfacial_drag = InterfacialTangentialDrag(1.0e3, (0.0, 1.0))
+interaction_matrix = Matrix{Union{Bool, typeof(interfacial_drag)}}(trues(2, 2))
+interaction_matrix[1, 2] = interfacial_drag
+interaction_matrix[2, 1] = interfacial_drag
 
 # ==========================================================================================
 # ==== Simulation
