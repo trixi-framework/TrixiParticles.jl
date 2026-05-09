@@ -12,7 +12,7 @@ trixi_include(@__MODULE__,
               tspan=(0.0, 0.3), sound_speed_factor=10, particle_spacing=4e-5)
 
 # Get latest iteration
-iter = saving_callback.condition.index[] - 1
+iter = saving_callback.affect!.affect!.latest_saved_iter
 
 restart_file_fluid = joinpath("out", "fluid_1_$iter.vtu")
 restart_file_open_boundary = joinpath("out", "open_boundary_1_$iter.vtu")

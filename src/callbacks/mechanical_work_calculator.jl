@@ -52,7 +52,7 @@ ode = semidiscretize(semi, (0.0, 1.0))
 # which means we have to extract the new system from `semi`.
 # When working with GPUs, `semidiscretize` also creates a deep copy of `semi` and another
 # copy of the system, so the clean way to get the correct new system is this:
-semi_new = ode.p
+semi_new = ode.p.semi
 system_new = semi_new.systems[1]
 
 # Create a mechanical work calculator callback that is called every 2 time steps
@@ -148,7 +148,7 @@ function (callback::MechanicalWorkCalculatorCallback)(integrator)
     # Update time of last call
     callback.t[] = t
 
-    semi = integrator.p
+    semi = integrator.p.semi
     v_ode, u_ode = integrator.u.x
     work = callback.work
 
