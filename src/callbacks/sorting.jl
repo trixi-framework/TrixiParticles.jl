@@ -32,7 +32,7 @@ See [#1044](https://github.com/trixi-framework/TrixiParticles.jl/pull/1044) for 
                        than sorting by NHS cell index.
 """
 function SortingCallback(; interval::Integer=-1, dt=0.0, initial_sort=true)
-    if dt > 0 && interval !== -1
+    if dt > 0 && interval != -1
         throw(ArgumentError("Setting both interval and dt is not supported!"))
     end
 
@@ -88,7 +88,7 @@ end
 
 # `affect!`
 function (sorting_callback!::SortingCallback)(integrator)
-    semi = integrator.p
+    semi = integrator.p.semi
     v_ode, u_ode = integrator.u.x
 
     @trixi_timeit timer() "sorting callback" begin

@@ -61,7 +61,7 @@
         callback = SortingCallback(initial_sort=false)
         system = SortingCallbackMockSystem(Ref(0))
         semi = (; systems=(system,), ranges_v=(1:2,), ranges_u=(1:2,))
-        integrator = (; p=semi, u=(; x=(zeros(2), zeros(2))), t=0.0)
+        integrator = (; p=(; semi), u=(; x=(zeros(2), zeros(2))), t=0.0)
 
         callback.initialize(callback, nothing, 0.0, integrator)
 
