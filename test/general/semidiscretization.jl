@@ -153,6 +153,9 @@
     end
 
     @testset verbose=true "Custom System Interactions" begin
+        using OrdinaryDiffEqCore: ReturnCode, solve
+        using OrdinaryDiffEqLowStorageRK: RDPK3SpFSAL35
+
         kernel = SchoenbergCubicSplineKernel{2}()
         state_equation = StateEquationCole(sound_speed=10.0,
                                            reference_density=1000.0,
@@ -222,7 +225,8 @@
             v_ode, u_ode = create_ode_state(semi)
             dv_ode = similar(v_ode)
 
-            TrixiParticles.kick!(dv_ode, v_ode, u_ode, semi, 0.0)
+            p = (; semi, split_integration_data=nothing)
+            TrixiParticles.kick!(dv_ode, v_ode, u_ode, p, 0.0)
 
             return dv_ode
         end
@@ -262,15 +266,16 @@
         end
 
         function (drag::TestInterphaseDrag)(dv, v_system, u_system, v_neighbor,
-                                            u_neighbor, system, neighbor, semi)
+                                            u_neighbor, system, neighbor, semi; kwargs...)
             system_coords = TrixiParticles.current_coordinates(u_system, system)
             neighbor_coords = TrixiParticles.current_coordinates(u_neighbor, neighbor)
 
             TrixiParticles.foreach_point_neighbor(system, neighbor, system_coords,
-                                                  neighbor_coords, semi) do particle,
-                                                                            neighbor_particle,
-                                                                            pos_diff,
-                                                                            distance
+                                                  neighbor_coords,
+                                                  semi) do particle,
+                                                           neighbor_particle,
+                                                           pos_diff,
+                                                           distance
                 v_a = TrixiParticles.current_velocity(v_system, system, particle)
                 v_b = TrixiParticles.current_velocity(v_neighbor, neighbor,
                                                       neighbor_particle)
@@ -331,13 +336,73 @@
             boundary_model = BoundaryModelDummyParticles(boundary_ic.density,
                                                          boundary_ic.mass,
                                                          AdamiPressureExtrapolation(;
-                                                             allow_loop_flipping=false),
+                                                                                    allow_loop_flipping=false),
                                                          kernel, smoothing_length;
                                                          state_equation=state_equation,
                                                          correction=nothing)
             boundary = WallBoundarySystem(boundary_ic, boundary_model)
 
             return fluid_a, fluid_b, boundary
+        end
+
+        function make_moving_pressure_interpolation_systems()
+            fluid_ic = make_particle(10.0, 1030.0, (0.0, 0.0))
+            boundary_ic = make_particle(0.0, 1000.0, (0.0, 0.0))
+
+            fluid = WeaklyCompressibleSPHSystem(fluid_ic;
+                                                density_calculator=ContinuityDensity(),
+                                                state_equation, smoothing_kernel=kernel,
+                                                smoothing_length)
+
+            boundary_model = BoundaryModelDummyParticles(boundary_ic.density,
+                                                         boundary_ic.mass,
+                                                         AdamiPressureExtrapolation(),
+                                                         kernel, smoothing_length;
+                                                         state_equation=state_equation,
+                                                         correction=nothing)
+            boundary = WallBoundarySystem(boundary_ic, boundary_model)
+
+            return fluid, boundary
+        end
+
+        function make_summation_density_systems()
+            fluid_a_ic = make_particle(0.0, 1000.0, (0.0, 0.0))
+            fluid_b_ic = make_particle(0.2, 1000.0, (0.0, 0.0))
+
+            fluid_a = WeaklyCompressibleSPHSystem(fluid_a_ic;
+                                                  density_calculator=SummationDensity(),
+                                                  state_equation, smoothing_kernel=kernel,
+                                                  smoothing_length)
+            fluid_b = WeaklyCompressibleSPHSystem(fluid_b_ic;
+                                                  density_calculator=SummationDensity(),
+                                                  state_equation, smoothing_kernel=kernel,
+                                                  smoothing_length)
+
+            return fluid_a, fluid_b
+        end
+
+        function make_tlsph_fluid_systems()
+            structure_ic = make_particle(0.0, 1000.0, (0.0, 0.0))
+            boundary_model = BoundaryModelDummyParticles(structure_ic.density,
+                                                         structure_ic.mass,
+                                                         SummationDensity(), kernel,
+                                                         smoothing_length;
+                                                         state_equation)
+            structure = TotalLagrangianSPHSystem(structure_ic;
+                                                 smoothing_kernel=kernel,
+                                                 smoothing_length,
+                                                 young_modulus=1.0,
+                                                 poisson_ratio=0.3,
+                                                 boundary_model)
+
+            fluid_ic = make_particle(0.5, 1000.0, (0.0, 0.0))
+            fluid = WeaklyCompressibleSPHSystem(fluid_ic;
+                                                density_calculator=ContinuityDensity(),
+                                                state_equation,
+                                                smoothing_kernel=kernel,
+                                                smoothing_length)
+
+            return structure, fluid
         end
 
         function updated_boundary_pressure(semi)
@@ -348,13 +413,37 @@
             return copy(last(semi.systems).boundary_model.pressure)
         end
 
+        function updated_boundary_pressure_after_moving_fluid(semi)
+            v_ode, u_ode = create_ode_state(semi)
+            TrixiParticles.initialize_neighborhood_searches!(semi)
+
+            fluid = first(semi.systems)
+            u_fluid = TrixiParticles.wrap_u(u_ode, fluid, semi)
+            u_fluid[:, 1] .= (0.1, 0.0)
+
+            TrixiParticles.update_systems_and_nhs(v_ode, u_ode, semi, 0.0)
+
+            return copy(last(semi.systems).boundary_model.pressure)
+        end
+
+        function updated_system_density(semi, system_index)
+            v_ode, u_ode = create_ode_state(semi)
+
+            TrixiParticles.update_systems_and_nhs(v_ode, u_ode, semi, 0.0)
+
+            system = semi.systems[system_index]
+            v = TrixiParticles.wrap_v(v_ode, system, semi)
+
+            return TrixiParticles.current_density(v, system, 1)
+        end
+
         # Disable only the cross-coupling between the mismatched fluid/boundary pairs:
         # fluid A must ignore boundary B and fluid B must ignore boundary A.
         # The filtered four-system RHS is compared against reduced semidiscretizations that
         # keep only the allowed neighbors for each system, which makes the intended effect explicit.
         for (test_name, nhs_factory) in (("without neighborhood search", () -> nothing),
-                                         ("with grid neighborhood search",
-                                          () -> GridNeighborhoodSearch{2}(update_strategy=SerialUpdate())))
+             ("with grid neighborhood search",
+              () -> GridNeighborhoodSearch{2}(update_strategy=SerialUpdate())))
             @testset "$test_name" begin
                 semi_full = let
                     fluid_a, fluid_b, boundary_a, boundary_b = make_systems()
@@ -459,10 +548,63 @@
             @test !isapprox(pressure_filtered, pressure_full)
         end
 
+        @testset "asymmetric boundary pressure updates reverse neighborhood search" begin
+            semi_filtered = let
+                fluid, boundary = make_moving_pressure_interpolation_systems()
+                interaction_matrix = trues(2, 2)
+                interaction_matrix[1, 2] = false
+
+                Semidiscretization(fluid, boundary;
+                                   neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=SerialUpdate()),
+                                   interaction_matrix)
+            end
+
+            semi_full = let
+                fluid, boundary = make_moving_pressure_interpolation_systems()
+                Semidiscretization(fluid, boundary;
+                                   neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=SerialUpdate()))
+            end
+
+            pressure_filtered = updated_boundary_pressure_after_moving_fluid(semi_filtered)
+            pressure_full = updated_boundary_pressure_after_moving_fluid(semi_full)
+
+            @test only(pressure_filtered) > 0
+            @test pressure_filtered ≈ pressure_full
+        end
+
+        @testset "summation density respects interaction matrix" begin
+            semi_filtered = let
+                fluid_a, fluid_b = make_summation_density_systems()
+                interaction_matrix = trues(2, 2)
+                interaction_matrix[1, 2] = false
+
+                Semidiscretization(fluid_a, fluid_b; neighborhood_search=nothing,
+                                   interaction_matrix)
+            end
+
+            semi_reduced = let
+                fluid_a, _ = make_summation_density_systems()
+                Semidiscretization(fluid_a; neighborhood_search=nothing)
+            end
+
+            semi_full = let
+                fluid_a, fluid_b = make_summation_density_systems()
+                Semidiscretization(fluid_a, fluid_b; neighborhood_search=nothing)
+            end
+
+            density_filtered = updated_system_density(semi_filtered, 1)
+            density_reduced = updated_system_density(semi_reduced, 1)
+            density_full = updated_system_density(semi_full, 1)
+
+            @test density_filtered ≈ density_reduced
+            @test !isapprox(density_filtered, density_full)
+        end
+
         @testset verbose=true "callable interphase drag" begin
-            for (test_name, nhs_factory) in (("without neighborhood search", () -> nothing),
-                                             ("with grid neighborhood search",
-                                              () -> GridNeighborhoodSearch{2}(update_strategy=SerialUpdate())))
+            for (test_name, nhs_factory) in
+                (("without neighborhood search", () -> nothing),
+                 ("with grid neighborhood search",
+                  () -> GridNeighborhoodSearch{2}(update_strategy=SerialUpdate())))
                 @testset "$test_name" begin
                     semi_skipped = let
                         fluid_a, fluid_b, _, _ = make_systems()
@@ -502,24 +644,21 @@
             end
         end
 
-        @testset "split custom interaction receives keyword arguments" begin
+        @testset "split custom interaction receives keyword arguments through callback" begin
             integrate_tlsph_seen = Ref(false)
-            fluid_a, fluid_b, _, _ = make_systems()
+            structure, fluid = make_tlsph_fluid_systems()
             interaction = TestKeywordInteraction(integrate_tlsph_seen)
             interaction_matrix = Any[false interaction;
                                      false false]
 
-            semi = Semidiscretization(fluid_a, fluid_b; neighborhood_search=nothing,
+            semi = Semidiscretization(structure, fluid; neighborhood_search=nothing,
                                       interaction_matrix)
-            semi_split = Semidiscretization(fluid_a; neighborhood_search=nothing)
+            ode = semidiscretize(semi, (0.0, 1.0e-3))
+            split_integration = SplitIntegrationCallback(RDPK3SpFSAL35(); dt=1.0e-4)
+            sol = solve(ode, RDPK3SpFSAL35(); dt=1.0e-3, adaptive=false,
+                        save_everystep=false, callback=split_integration)
 
-            v_ode, u_ode = create_ode_state(semi)
-            v_ode_split, u_ode_split = create_ode_state(semi_split)
-            dv_ode_split = zero(v_ode_split)
-
-            TrixiParticles.system_interaction_split!(dv_ode_split, v_ode, u_ode, semi,
-                                                     v_ode_split, u_ode_split, semi_split)
-
+            @test sol.retcode == ReturnCode.Success
             @test integrate_tlsph_seen[]
         end
     end

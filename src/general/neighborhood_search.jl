@@ -303,7 +303,7 @@ function update_nhs!(semi, u_ode)
         u_system = wrap_u(u_ode, system, semi)
 
         foreach_system(semi) do neighbor
-            has_system_interaction(system, neighbor, semi) || return
+            needs_neighborhood_search_update(system, neighbor, semi) || return
 
             u_neighbor = wrap_u(u_ode, neighbor, semi)
             neighborhood_search = get_neighborhood_search(system, neighbor, semi)

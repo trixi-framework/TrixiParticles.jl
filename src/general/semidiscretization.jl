@@ -22,14 +22,19 @@ The semidiscretization couples the passed systems to one simulation.
                             interactions after filtering out `nothing` systems. Rows refer
                             to the system being updated and columns to the neighbor system.
                             Entries can be `true` to use the default interaction, `false`
-                            to skip the generic pairwise RHS dispatch, neighborhood-search
-                            update, and dummy-particle boundary pressure extrapolation for
-                            that ordered pair, or a callable
+                            to skip generic pairwise RHS dispatch and pairwise state-update
+                            contributions for that ordered pair, or a callable
                             custom interaction with signature
                             `(dv, v_system, u_system, v_neighbor, u_neighbor,
                             system, neighbor, semi; kwargs...)`.
-                            Scheme-specific helper logic that directly addresses explicit
-                            linked systems is unchanged.
+                            Custom interactions used with callbacks must accept forwarded
+                            keyword arguments such as `integrate_tlsph`.
+                            Neighborhood searches are updated when needed by at least one
+                            enabled direction, since some update kernels use a reverse query
+                            order for performance.
+                            Pairwise density and boundary-pressure state updates use the
+                            same ordered-pair filter. Helper logic outside those paths is
+                            unchanged.
 
 # Examples
 ```jldoctest; output = false, setup = :(trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing); ref_system = fluid_system)
@@ -214,13 +219,16 @@ end
 @inline function system_indices(system, semi)
     # Note that this takes only about 5 ns, while mapping systems to indices with a `Dict`
     # is ~30x slower because `hash(::System)` is very slow.
-    index = findfirst(s -> s === system, semi.systems)
+    return system_index(system, semi.systems)
+end
 
-    if isnothing(index)
-        throw(ArgumentError("system is not in the semidiscretization"))
-    end
+@inline function system_index(system, systems::Tuple{}, index=1)
+    throw(ArgumentError("system is not in the semidiscretization"))
+end
 
-    return index
+@inline function system_index(system, systems::Tuple, index=1)
+    first(systems) === system && return index
+    return system_index(system, Base.tail(systems), index + 1)
 end
 
 @inline has_system_interaction(system, neighbor_system, semi) = true
@@ -228,6 +236,14 @@ end
 @inline function has_system_interaction(system, neighbor_system, semi::Semidiscretization)
     return semi.interaction_matrix[system_indices(system, semi),
                                    system_indices(neighbor_system, semi)] !== false
+end
+
+@inline needs_neighborhood_search_update(system, neighbor_system, semi) = true
+
+@inline function needs_neighborhood_search_update(system, neighbor_system,
+                                                  semi::Semidiscretization)
+    return has_system_interaction(system, neighbor_system, semi) ||
+           has_system_interaction(neighbor_system, system, semi)
 end
 
 # This is just for readability to loop over all systems without allocations
@@ -842,17 +858,8 @@ end
 @inline function apply_interaction!(interaction, dv, v_system, u_system,
                                     v_neighbor, u_neighbor, system, neighbor, semi;
                                     kwargs...)
-    argument_types = Tuple{typeof(dv), typeof(v_system), typeof(u_system),
-                           typeof(v_neighbor), typeof(u_neighbor), typeof(system),
-                           typeof(neighbor), typeof(semi)}
-
-    if hasmethod(interaction, argument_types, keys(kwargs))
-        return interaction(dv, v_system, u_system, v_neighbor, u_neighbor, system,
-                           neighbor, semi; kwargs...)
-    end
-
     return interaction(dv, v_system, u_system, v_neighbor, u_neighbor, system, neighbor,
-                       semi)
+                       semi; kwargs...)
 end
 
 function check_update_callback(semi)

@@ -63,7 +63,7 @@ end
 
 function (drag::InterfacialTangentialDrag)(dv, v_system, u_system,
                                            v_neighbor, u_neighbor,
-                                           system, neighbor, semi)
+                                           system, neighbor, semi; kwargs...)
     # Preserve the default WCSPH pressure, viscosity, and continuity coupling between the
     # phases, then add the custom drag term below.
     TrixiParticles.interact!(dv, v_system, u_system, v_neighbor, u_neighbor,
@@ -73,10 +73,11 @@ function (drag::InterfacialTangentialDrag)(dv, v_system, u_system,
     neighbor_coords = TrixiParticles.current_coordinates(u_neighbor, neighbor)
 
     TrixiParticles.foreach_point_neighbor(system, neighbor, system_coords,
-                                          neighbor_coords, semi) do particle,
-                                                                    neighbor_particle,
-                                                                    pos_diff,
-                                                                    distance
+                                          neighbor_coords,
+                                          semi) do particle,
+                                                   neighbor_particle,
+                                                   pos_diff,
+                                                   distance
         v_a = TrixiParticles.current_velocity(v_system, system, particle)
         v_b = TrixiParticles.current_velocity(v_neighbor, neighbor, neighbor_particle)
         velocity_difference = v_b - v_a

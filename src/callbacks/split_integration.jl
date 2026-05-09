@@ -427,7 +427,6 @@ end
 
 function other_interaction_split!(dv_ode_split, semi, v_ode, u_ode, semi_split)
     # Only loop over (TLSPH) systems in the split integrator.
-    # We wrap with `semi`, so we cannot use `foreach_system_wrapped` here.
     foreach_system(semi_split) do system
         dv = wrap_v(dv_ode_split, system, semi_split)
         v_system = wrap_v(v_ode, system, semi)
