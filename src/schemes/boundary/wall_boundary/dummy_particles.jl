@@ -613,7 +613,8 @@ end
     @boundscheck checkbounds(pressure, eachparticle(system))
 
     # This needs to be serial to avoid race conditions when writing into `system`
-    foreach_point_neighbor(neighbor_system, system, neighbor_coords, system_coords, semi;
+    neighborhood_search = get_neighborhood_search(neighbor_system, system, semi)
+    foreach_point_neighbor(neighbor_coords, system_coords, neighborhood_search;
                            points=each_integrated_particle(neighbor_system),
                            parallelization_backend=SerialBackend()) do neighbor, particle,
                                                                        pos_diff, distance

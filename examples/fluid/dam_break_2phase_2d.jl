@@ -125,6 +125,8 @@ interaction_matrix[1, 4] = false # water fluid ignores air wall
 interaction_matrix[4, 1] = false # air wall ignores water fluid
 interaction_matrix[2, 3] = false # air fluid ignores water wall
 interaction_matrix[3, 2] = false # water wall ignores air fluid
+interaction_matrix[3, 4] = false # water wall ignores air wall
+interaction_matrix[4, 3] = false # air wall ignores water wall
 
 # ==========================================================================================
 # ==== Simulation

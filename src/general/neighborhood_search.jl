@@ -2,12 +2,15 @@
 # Loop over all pairs of particles and neighbors within the kernel cutoff.
 # `f(particle, neighbor, pos_diff, distance)` is called for every particle-neighbor pair.
 # By default, loop over `eachparticle(system)`.
-function PointNeighbors.foreach_point_neighbor(f, system::AbstractSystem,
-                                               neighbor_system::AbstractSystem,
-                                               system_coords, neighbor_coords, semi;
-                                               points=eachparticle(system),
-                                               parallelization_backend=semi.parallelization_backend)
-    neighborhood_search = get_neighborhood_search(system, neighbor_system, semi)
+@inline function PointNeighbors.foreach_point_neighbor(f, system::AbstractSystem,
+                                                       neighbor_system::AbstractSystem,
+                                                       system_coords, neighbor_coords, semi;
+                                                       points=eachparticle(system),
+                                                       parallelization_backend=semi.parallelization_backend)
+    has_system_interaction(system, neighbor_system, semi) || return nothing
+
+    neighborhood_search = get_interaction_neighborhood_search(system, neighbor_system,
+                                                              semi)
     foreach_point_neighbor(f, system_coords, neighbor_coords, neighborhood_search;
                            points, parallelization_backend)
 end
@@ -193,6 +196,11 @@ end
     return zero(eltype(system))
 end
 
+@inline function compact_support(interaction, system::AbstractSystem,
+                                 neighbor::AbstractSystem)
+    return max(compact_support(system, neighbor), compact_support(neighbor, system))
+end
+
 # === Neighborhood search creation ===
 function create_neighborhood_search(::Nothing, system, neighbor)
     nhs = TrivialNeighborhoodSearch{ndims(system)}()
@@ -211,6 +219,37 @@ end
 function create_neighborhood_search(neighborhood_search, system, neighbor)
     return copy_neighborhood_search(neighborhood_search, compact_support(system, neighbor),
                                     nparticles(neighbor))
+end
+
+@inline neighborhood_search_template(neighborhood_search, system) = neighborhood_search
+@inline neighborhood_search_template(::Nothing, system) = TrivialNeighborhoodSearch{ndims(system)}()
+
+function create_neighborhood_search(neighborhood_search, system, neighbor,
+                                    interaction::Bool)
+    neighborhood_search = neighborhood_search_template(neighborhood_search, system)
+    interaction && return create_neighborhood_search(neighborhood_search, system, neighbor)
+
+    return copy_neighborhood_search(neighborhood_search, zero(eltype(system)),
+                                    nparticles(neighbor))
+end
+
+function create_neighborhood_search(neighborhood_search, system, neighbor, interaction,
+                                    reverse_interaction)
+    neighborhood_search = neighborhood_search_template(neighborhood_search, system)
+    search_radius = max(interaction_search_radius(interaction, system, neighbor),
+                        interaction_search_radius(reverse_interaction, neighbor, system))
+
+    return copy_neighborhood_search(neighborhood_search, search_radius, nparticles(neighbor))
+end
+
+@inline function interaction_search_radius(interaction::Bool, system, neighbor)
+    interaction && return compact_support(system, neighbor)
+
+    return zero(eltype(system))
+end
+
+@inline function interaction_search_radius(interaction, system, neighbor)
+    return compact_support(interaction, system, neighbor)
 end
 
 function create_neighborhood_search(neighborhood_search, system::TotalLagrangianSPHSystem,
@@ -260,6 +299,24 @@ end
     return neighborhood_searches[system_index, neighbor_index]
 end
 
+@inline function get_interaction_neighborhood_search(system, neighbor_system, semi)
+    return get_neighborhood_search(system, neighbor_system, semi)
+end
+
+@inline function get_interaction_neighborhood_search(system::TotalLagrangianSPHSystem,
+                                                     neighbor_system::TotalLagrangianSPHSystem,
+                                                     semi)
+    system_index = system_indices(system, semi)
+    neighbor_index = system_indices(neighbor_system, semi)
+
+    if system_index == neighbor_index &&
+       has_custom_system_interaction(system, neighbor_system, semi)
+        return semi.neighborhood_searches[system_index, neighbor_index]
+    end
+
+    return get_neighborhood_search(system, neighbor_system, semi)
+end
+
 # === Initialization ===
 function initialize_neighborhood_searches!(semi)
     foreach_system(semi) do system
@@ -286,6 +343,15 @@ end
 
 function initialize_neighborhood_search!(semi, system::TotalLagrangianSPHSystem,
                                          neighbor::TotalLagrangianSPHSystem)
+    if has_custom_system_interaction(system, neighbor, semi)
+        PointNeighbors.initialize!(get_interaction_neighborhood_search(system, neighbor,
+                                                                       semi),
+                                   initial_coordinates(system),
+                                   initial_coordinates(neighbor),
+                                   eachindex_y=each_active_particle(neighbor),
+                                   parallelization_backend=PolyesterBackend())
+    end
+
     # For TLSPH, the self-interaction NHS is already initialized in the system constructor
     return semi
 end
@@ -306,11 +372,33 @@ function update_nhs!(semi, u_ode)
             needs_neighborhood_search_update(system, neighbor, semi) || return
 
             u_neighbor = wrap_u(u_ode, neighbor, semi)
-            neighborhood_search = get_neighborhood_search(system, neighbor, semi)
+            neighborhood_search = get_interaction_neighborhood_search(system, neighbor,
+                                                                      semi)
 
-            update_nhs!(neighborhood_search, system, neighbor, u_system, u_neighbor, semi)
+            update_neighborhood_search_for_interaction!(neighborhood_search, system,
+                                                        neighbor, u_system, u_neighbor,
+                                                        semi)
         end
     end
+end
+
+@inline function update_neighborhood_search_for_interaction!(neighborhood_search, system,
+                                                             neighbor, u_system,
+                                                             u_neighbor, semi)
+    if needs_custom_neighborhood_search_update(system, neighbor, semi)
+        update_custom_interaction_nhs!(neighborhood_search, system, neighbor,
+                                       u_system, u_neighbor, semi)
+    else
+        update_nhs!(neighborhood_search, system, neighbor, u_system, u_neighbor, semi)
+    end
+end
+
+function update_custom_interaction_nhs!(neighborhood_search, system, neighbor,
+                                        u_system, u_neighbor, semi)
+    update!(neighborhood_search,
+            current_coordinates(u_system, system),
+            current_coordinates(u_neighbor, neighbor),
+            semi, points_moving=(true, true), eachindex_y=each_active_particle(neighbor))
 end
 
 # === Neighborhood search updates (per-pair dispatch) ===

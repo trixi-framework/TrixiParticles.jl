@@ -28,13 +28,18 @@ The semidiscretization couples the passed systems to one simulation.
                             `(dv, v_system, u_system, v_neighbor, u_neighbor,
                             system, neighbor, semi; kwargs...)`.
                             Custom interactions used with callbacks must accept forwarded
-                            keyword arguments such as `integrate_tlsph`.
+                            keyword arguments such as `integrate_tlsph` or `eachparticle`.
+                            Custom interactions use
+                            `compact_support(interaction, system, neighbor)` to size the
+                            pair neighborhood search. The fallback uses the larger of the
+                            built-in radii for both ordered directions.
+                            Callable entries count as enabled interactions for built-in
+                            pair-compatibility checks and pair state updates.
                             Neighborhood searches are updated when needed by at least one
                             enabled direction, since some update kernels use a reverse query
                             order for performance.
-                            Pairwise density and boundary-pressure state updates use the
-                            same ordered-pair filter. Helper logic outside those paths is
-                            unchanged.
+                            Particle-neighbor iteration through the semidiscretization uses
+                            the same ordered-pair filter.
 
 # Examples
 ```jldoctest; output = false, setup = :(trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing); ref_system = fluid_system)
@@ -90,8 +95,7 @@ struct Semidiscretization{BACKEND, S, RU, RV, NS, IM, UCU, IT}
                                 update_callback_used, integrate_tlsph)
         new{typeof(parallelization_backend), typeof(systems), typeof(ranges_u),
             typeof(ranges_v), typeof(neighborhood_searches),
-            typeof(interaction_matrix),
-            typeof(update_callback_used),
+            typeof(interaction_matrix), typeof(update_callback_used),
             typeof(integrate_tlsph)}(systems, ranges_u, ranges_v,
                                      neighborhood_searches, interaction_matrix,
                                      parallelization_backend,
@@ -122,7 +126,7 @@ function create_interaction_matrix(interaction_matrix, systems::Tuple)
                                 "`$(typeof(entry))`"))
     end
 
-    return interaction_matrix
+    return copy(interaction_matrix)
 end
 
 @inline is_interaction_entry(entry::Bool) = true
@@ -130,6 +134,9 @@ end
 function is_interaction_entry(entry)
     return !isempty(methods(entry))
 end
+
+@inline is_enabled_interaction_entry(entry::Bool) = entry
+@inline is_enabled_interaction_entry(entry) = true
 
 function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
                             neighborhood_search=GridNeighborhoodSearch{ndims(first(systems))}(),
@@ -146,10 +153,11 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     systems = map(system -> initialize_self_interaction_nhs(system, neighborhood_search,
                                                             parallelization_backend),
                   systems)
+    interaction_matrix = create_interaction_matrix(interaction_matrix, systems)
 
     # Check e.g. that the boundary systems are using a state equation if EDAC is not used.
     # Other checks might be added here later.
-    check_configuration(systems, neighborhood_search)
+    check_configuration(systems, neighborhood_search, interaction_matrix)
 
     sizes_u = [u_nvariables(system) * n_integrated_particles(system)
                for system in systems]
@@ -163,9 +171,10 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     # Create a n x n matrix of n neighborhood searches for each of the n systems.
     # We will need one neighborhood search for each pair of systems.
     searches = [create_neighborhood_search(neighborhood_search,
-                                           system, neighbor)
-                for system in systems, neighbor in systems]
-    interaction_matrix = create_interaction_matrix(interaction_matrix, systems)
+                                           systems[i], systems[j],
+                                           interaction_matrix[i, j],
+                                           interaction_matrix[j, i])
+                for i in eachindex(systems), j in eachindex(systems)]
 
     @assert isconcretetype(eltype(searches)) "neighborhood searches are not type-stable"
 
@@ -233,9 +242,22 @@ end
 
 @inline has_system_interaction(system, neighbor_system, semi) = true
 
+@inline system_interaction(system, neighbor_system, semi) = true
+
+@inline has_custom_system_interaction(system, neighbor_system, semi) = false
+
 @inline function has_system_interaction(system, neighbor_system, semi::Semidiscretization)
+    return is_enabled_interaction_entry(system_interaction(system, neighbor_system, semi))
+end
+
+@inline function system_interaction(system, neighbor_system, semi::Semidiscretization)
     return semi.interaction_matrix[system_indices(system, semi),
-                                   system_indices(neighbor_system, semi)] !== false
+                                   system_indices(neighbor_system, semi)]
+end
+
+@inline function has_custom_system_interaction(system, neighbor_system,
+                                               semi::Semidiscretization)
+    return !(system_interaction(system, neighbor_system, semi) isa Bool)
 end
 
 @inline needs_neighborhood_search_update(system, neighbor_system, semi) = true
@@ -246,12 +268,27 @@ end
            has_system_interaction(neighbor_system, system, semi)
 end
 
+@inline needs_custom_neighborhood_search_update(system, neighbor_system, semi) = false
+
+@inline function needs_custom_neighborhood_search_update(system, neighbor_system,
+                                                         semi::Semidiscretization)
+    return has_custom_system_interaction(system, neighbor_system, semi) ||
+           has_custom_system_interaction(neighbor_system, system, semi)
+end
+
 # This is just for readability to loop over all systems without allocations
 @inline function foreach_system(f, semi::Union{NamedTuple, Semidiscretization})
     return foreach_noalloc(f, semi.systems)
 end
 
 @inline foreach_system(f, systems) = foreach_noalloc(f, systems)
+
+@inline function foreach_interacting_system(f, system, semi)
+    foreach_system(semi) do neighbor_system
+        has_system_interaction(system, neighbor_system, semi) || return
+        f(neighbor_system)
+    end
+end
 
 # This is just for readability to loop over all systems with wrapped arrays.
 @inline function foreach_system_wrapped(f, semi::Union{NamedTuple, Semidiscretization},
@@ -828,8 +865,7 @@ end
 # before the first direct `interact!` call.
 # @btime TrixiParticles.interact!($dv_ode, $v_ode, $u_ode, $fluid_system, $fluid_system, $semi);
 @inline function interact!(dv_ode, v_ode, u_ode, system, neighbor, semi; timer_str="")
-    interaction = semi.interaction_matrix[system_indices(system, semi),
-                                          system_indices(neighbor, semi)]
+    interaction = system_interaction(system, neighbor, semi)
     interaction === false && return dv_ode
 
     dv = wrap_v(dv_ode, system, semi)
@@ -840,11 +876,27 @@ end
     u_neighbor = wrap_u(u_ode, neighbor, semi)
 
     @trixi_timeit timer() timer_str begin
-        apply_interaction!(interaction, dv, v_system, u_system, v_neighbor, u_neighbor,
-                           system, neighbor, semi)
+        apply_system_interaction!(interaction, dv, v_system, u_system, v_neighbor,
+                                  u_neighbor, system, neighbor, semi)
     end
 
     return dv_ode
+end
+
+@inline function apply_system_interaction!(interaction, dv, v_system, u_system,
+                                           v_neighbor, u_neighbor, system, neighbor, semi)
+    return apply_interaction!(interaction, dv, v_system, u_system, v_neighbor, u_neighbor,
+                              system, neighbor, semi)
+end
+
+@inline function apply_system_interaction!(interaction, dv, v_system, u_system,
+                                           v_neighbor, u_neighbor,
+                                           system::TotalLagrangianSPHSystem, neighbor, semi)
+    semi.integrate_tlsph[] || return dv
+
+    return apply_interaction!(interaction, dv, v_system, u_system, v_neighbor, u_neighbor,
+                              system, neighbor, semi;
+                              integrate_tlsph=true)
 end
 
 @inline function apply_interaction!(interaction::Bool, dv, v_system, u_system,
@@ -874,14 +926,51 @@ end
 
 function check_configuration(systems,
                              nhs::Union{Nothing, PointNeighbors.AbstractNeighborhoodSearch})
-    foreach_system(systems) do system
-        check_configuration(system, systems, nhs)
+    return check_configuration(systems, nhs, default_interaction_matrix(systems))
+end
+
+function check_configuration(systems,
+                             nhs::Union{Nothing, PointNeighbors.AbstractNeighborhoodSearch},
+                             interaction_matrix)
+    for system_index in eachindex(systems)
+        system = systems[system_index]
+        check_configuration(system, systems, nhs, interaction_matrix, system_index)
     end
 
-    check_system_color(systems)
+    check_system_color(systems, interaction_matrix)
+end
+
+function check_configuration(system::AbstractSystem, systems, nhs, interaction_matrix,
+                             system_index)
+    return check_configuration(system,
+                               interacting_systems(system_index, systems,
+                                                   interaction_matrix),
+                               nhs)
+end
+
+function check_configuration(system::OpenBoundarySystem, systems, nhs, interaction_matrix,
+                             system_index)
+    # This stores the index of the linked fluid in `systems`, so it must see the full tuple.
+    return check_configuration(system, systems, nhs)
 end
 
 check_configuration(system::AbstractSystem, systems, nhs) = nothing
+
+function interacting_systems(system_index, systems, interaction_matrix)
+    return Tuple(systems[neighbor_index] for neighbor_index in eachindex(systems)
+                 if neighbor_index == system_index ||
+                    is_enabled_interaction_entry(interaction_matrix[system_index,
+                                                                    neighbor_index]) ||
+                    is_enabled_interaction_entry(interaction_matrix[neighbor_index,
+                                                                    system_index]))
+end
+
+function check_system_color(systems, interaction_matrix)
+    for system_index in eachindex(systems)
+        check_system_color(interacting_systems(system_index, systems,
+                                               interaction_matrix))
+    end
+end
 
 function check_system_color(systems)
     requires_color_check = any(systems) do system

@@ -336,6 +336,8 @@
         @test semi.interaction_matrix[4, 1] == false
         @test semi.interaction_matrix[2, 3] == false
         @test semi.interaction_matrix[3, 2] == false
+        @test semi.interaction_matrix[3, 4] == false
+        @test semi.interaction_matrix[4, 3] == false
         @test count_rhs_allocations(sol) == 0
     end
 
