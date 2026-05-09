@@ -100,7 +100,7 @@
                                                  kwargs...)
 
                 @test sol.retcode == ReturnCode.Success
-                @test count_rhs_allocations(sol, semi) == 0
+                @test count_rhs_allocations(sol) == 0
             end
         end
     end
@@ -112,7 +112,7 @@
         @test sol.retcode == ReturnCode.Success
         # This error varies between serial and multithreaded runs
         @test isapprox(error_A, 0, atol=2e-4)
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/hydrostatic_water_column_3d.jl" begin
@@ -121,7 +121,7 @@
                                                   "hydrostatic_water_column_3d.jl"),
                                          tspan=(0.0, 0.1))
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/hydrostatic_water_column_3d.jl with SummationDensity" begin
@@ -132,7 +132,7 @@
                                          fluid_density_calculator=SummationDensity(),
                                          clip_negative_pressure=true)
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/accelerated_tank_2d.jl" begin
@@ -140,7 +140,7 @@
                                          joinpath(examples_dir(), "fluid",
                                                   "accelerated_tank_2d.jl"))
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/dam_break_2d.jl" begin
@@ -188,7 +188,7 @@
                 ]
 
                 @test sol.retcode == ReturnCode.Success
-                @test count_rhs_allocations(sol, semi) == 0
+                @test count_rhs_allocations(sol) == 0
             end
         end
 
@@ -203,7 +203,7 @@
                 r"└ New tank length in y-direction.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            @test count_rhs_allocations(sol) == 0
             v_ode, u_ode = sol[end].x
             @test eltype(v_ode) == Float32
             @test eltype(u_ode) == Float64
@@ -221,9 +221,9 @@
         @test sol.retcode == ReturnCode.Success
         if VERSION < v"1.11"
             # For some reason, 1.10 produces allocations here
-            @test count_rhs_allocations(sol, semi) <= 32
+            @test count_rhs_allocations(sol) <= 32
         else
-            @test count_rhs_allocations(sol, semi) == 0
+            @test count_rhs_allocations(sol) == 0
         end
     end
 
@@ -239,9 +239,9 @@
         @test sol.retcode == ReturnCode.Success
         if VERSION < v"1.11"
             # For some reason, 1.10 produces allocations here
-            @test count_rhs_allocations(sol, semi) <= 32
+            @test count_rhs_allocations(sol) <= 32
         else
-            @test count_rhs_allocations(sol, semi) == 0
+            @test count_rhs_allocations(sol) == 0
         end
     end
 
@@ -257,9 +257,9 @@
         @test sol.retcode == ReturnCode.Success
         if VERSION < v"1.11"
             # For some reason, 1.10 produces allocations here
-            @test count_rhs_allocations(sol, semi) <= 32
+            @test count_rhs_allocations(sol) <= 32
         else
-            @test count_rhs_allocations(sol, semi) == 0
+            @test count_rhs_allocations(sol) == 0
         end
     end
 
@@ -275,9 +275,9 @@
         @test sol.retcode == ReturnCode.Success
         if VERSION < v"1.11"
             # For some reason, 1.10 produces allocations here
-            @test count_rhs_allocations(sol, semi) <= 32
+            @test count_rhs_allocations(sol) <= 32
         else
-            @test count_rhs_allocations(sol, semi) == 0
+            @test count_rhs_allocations(sol) == 0
         end
     end
 
@@ -292,9 +292,9 @@
         @test sol.retcode == ReturnCode.Success
         if VERSION < v"1.11"
             # For some reason, 1.10 produces allocations here
-            @test count_rhs_allocations(sol, semi) <= 32
+            @test count_rhs_allocations(sol) <= 32
         else
-            @test count_rhs_allocations(sol, semi) == 0
+            @test count_rhs_allocations(sol) == 0
         end
     end
 
@@ -308,7 +308,7 @@
         ]
         @test semi.neighborhood_searches[1, 1].cell_list isa FullGridCellList
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/dam_break_oil_film_2d.jl" begin
@@ -320,7 +320,7 @@
             r"└ New tank length in y-direction.*\n"
         ]
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/dam_break_2phase_2d.jl" begin
@@ -336,7 +336,7 @@
         @test semi.interaction_matrix[4, 1] == false
         @test semi.interaction_matrix[2, 3] == false
         @test semi.interaction_matrix[3, 2] == false
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/custom_interphase_drag_2d.jl" begin
@@ -355,7 +355,7 @@
                                                   "dam_break_3d.jl"),
                                          tspan=(0.0, 0.1), fluid_particle_spacing=0.1)
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/falling_water_column_2d.jl" begin
@@ -364,7 +364,7 @@
                                                   "falling_water_column_2d.jl"),
                                          tspan=(0.0, 0.4))
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/periodic_channel_2d.jl" begin
@@ -373,7 +373,7 @@
                                                   "periodic_channel_2d.jl"),
                                          tspan=(0.0, 0.4))
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/periodic_channel_2d.jl with PST" begin
@@ -384,7 +384,7 @@
                                          shifting_technique=ParticleShiftingTechniqueSun2017(),
                                          extra_callback=UpdateCallback())
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/periodic_channel_2d.jl with TVF" begin
@@ -395,7 +395,7 @@
                                          shifting_technique=TransportVelocityAdami(background_pressure=50_000.0),
                                          extra_callback=UpdateCallback())
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/periodic_channel_2d.jl with PST and TIC" begin
@@ -407,7 +407,7 @@
                                          pressure_acceleration=tensile_instability_control,
                                          extra_callback=UpdateCallback())
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/periodic_channel_2d.jl with consistent PST and TIC" begin
@@ -419,7 +419,7 @@
                                          pressure_acceleration=tensile_instability_control,
                                          extra_callback=UpdateCallback())
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelCharacteristicsLastiwka (WCSPH)" begin
@@ -428,7 +428,7 @@
                                          joinpath(examples_dir(), "fluid",
                                                   "pipe_flow_2d.jl"))
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelCharacteristicsLastiwka (EDAC)" begin
@@ -437,7 +437,7 @@
                                          joinpath(examples_dir(), "fluid",
                                                   "pipe_flow_2d.jl"))
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelMirroringTafuni (EDAC)" begin
@@ -449,7 +449,7 @@
                                          boundary_type_in=BidirectionalFlow(),
                                          boundary_type_out=BidirectionalFlow())
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelMirroringTafuni (WCSPH)" begin
@@ -461,7 +461,7 @@
                                          boundary_type_in=BidirectionalFlow(),
                                          boundary_type_out=BidirectionalFlow())
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/pipe_flow_2d.jl - steady state reached (`dt`)" begin
@@ -485,7 +485,7 @@
                                          joinpath(examples_dir(), "fluid",
                                                   "pipe_flow_3d.jl"))
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/poiseuille_flow_2d.jl (WCSPH)" begin
@@ -495,7 +495,7 @@
                                          tspan=(0.0, 0.05))
         @test fluid_system isa WeaklyCompressibleSPHSystem
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/poiseuille_flow_2d.jl (EDAC)" begin
@@ -505,7 +505,7 @@
                                          tspan=(0.0, 0.05), use_wcsph=false)
         @test fluid_system isa EntropicallyDampedSPHSystem
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/poiseuille_flow_3d.jl (WCSPH)" begin
@@ -520,7 +520,7 @@
         ]
         @test fluid_system isa WeaklyCompressibleSPHSystem
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/pulsative_channel_flow_3d.jl" begin
@@ -535,7 +535,7 @@
         ]
         @test fluid_system isa WeaklyCompressibleSPHSystem
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/lid_driven_cavity_2d.jl (EDAC)" begin
@@ -544,7 +544,7 @@
                                                   "lid_driven_cavity_2d.jl"),
                                          tspan=(0.0, 0.1))
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/lid_driven_cavity_2d.jl (WCSPH)" begin
@@ -553,7 +553,7 @@
                                                   "lid_driven_cavity_2d.jl"),
                                          tspan=(0.0, 0.1), wcsph=true)
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/taylor_green_vortex_2d.jl (EDAC)" begin
@@ -562,7 +562,7 @@
                                                   "taylor_green_vortex_2d.jl"),
                                          tspan=(0.0, 0.1))
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/taylor_green_vortex_2d.jl (WCSPH)" begin
@@ -571,7 +571,7 @@
                                                   "taylor_green_vortex_2d.jl"),
                                          tspan=(0.0, 0.1), wcsph=true)
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/sphere_surface_tension_2d.jl" begin
@@ -579,7 +579,7 @@
                                          joinpath(examples_dir(), "fluid",
                                                   "sphere_surface_tension_2d.jl"))
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/periodic_array_of_cylinders_2d.jl" begin
@@ -588,7 +588,7 @@
                                                   "periodic_array_of_cylinders_2d.jl"),
                                          tspan=(0.0, 20.0))
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/sphere_surface_tension_3d.jl" begin
@@ -596,7 +596,7 @@
                                          joinpath(examples_dir(), "fluid",
                                                   "sphere_surface_tension_3d.jl"))
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/falling_water_spheres_2d.jl" begin
@@ -622,7 +622,7 @@
                 @test sol.retcode == ReturnCode.Success
 
                 # Optionally, verify no unexpected RHS allocations
-                @test count_rhs_allocations(sol, semi) == 0
+                @test count_rhs_allocations(sol) == 0
             end
         end
     end
@@ -660,7 +660,7 @@
                 @test sol.retcode == ReturnCode.Success
 
                 # Optionally, verify no unexpected RHS allocations
-                @test count_rhs_allocations(sol, semi) == 0
+                @test count_rhs_allocations(sol) == 0
             end
         end
     end
@@ -676,7 +676,7 @@
                                          joinpath(examples_dir(), "fluid",
                                                   "moving_wall_2d.jl"))
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 
     include("dam_break_2d_corrections.jl")
@@ -694,7 +694,7 @@
                         dt=1.0, # This is overwritten by the stepsize callback
                         save_everystep=false, callback=callbacks)
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            @test count_rhs_allocations(sol) == 0
 
             # Unstable with this CFL
             @test maximum(abs, sol.u[end]) > 2^15
@@ -713,7 +713,7 @@
                         dt=1.0, # This is overwritten by the stepsize callback
                         save_everystep=false, callback=callbacks)
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            @test count_rhs_allocations(sol) == 0
 
             # Stable with this CFL
             @test maximum(abs, sol.u[end]) < 2^15
@@ -732,7 +732,7 @@
                         dt=1.0, # This is overwritten by the stepsize callback
                         save_everystep=false, callback=callbacks)
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            @test count_rhs_allocations(sol) == 0
             @test maximum(abs, sol.u[end]) < 2^15
         end
     end
