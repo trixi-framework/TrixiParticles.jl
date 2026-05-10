@@ -354,10 +354,10 @@ function kick_split!(dv_ode_split, v_ode_split, u_ode_split, p, t)
 
     # Update the TLSPH systems
     @trixi_timeit timer() "update systems and nhs" begin
-        update_systems_split!(semi_split, semi_large, v_ode_split, u_ode_split, t)
+        update_systems_split!(semi_split, v_ode_split, u_ode_split, t)
     end
 
-    # Compute interactions between TLSPH systems in the split integrator.
+    # Compute TLSPH self-interactions in the split integrator.
     # Interactions with systems outside the split integrator are computed once before
     # the split time integration loop and are applied below.
     @trixi_timeit timer() "system interaction" begin
@@ -365,7 +365,7 @@ function kick_split!(dv_ode_split, v_ode_split, u_ode_split, p, t)
                                 semi_split, semi_large)
     end
 
-    # Add forces from interactions with systems outside the split integrator.
+    # Add structure-fluid interaction forces
     dv_ode_split .+= p.dv_ode_split
 
     @trixi_timeit timer() "source terms" add_source_terms!(dv_ode_split, v_ode_split,
@@ -383,14 +383,12 @@ function drift_split!(du_ode, v_ode, u_ode, p, t)
 end
 
 # Update the systems before calling `interact!` to compute forces
-function update_systems_split!(semi_split, semi, v_ode_split, u_ode_split, t)
+function update_systems_split!(semi_split, v_ode_split, u_ode_split, t)
     # First update step before updating the NHS.
     # This is used for writing the current coordinates into the TLSPH system.
     foreach_system_wrapped(semi_split, v_ode_split, u_ode_split) do system, v, u
         update_positions!(system, v, u, v_ode_split, u_ode_split, semi_split, t)
     end
-
-    update_custom_neighborhood_searches_split!(semi_split, semi, u_ode_split)
 
     # Second update step.
     # This is used to calculate the deformation gradient and stress tensor.
@@ -408,46 +406,27 @@ function update_systems_split!(semi_split, semi, v_ode_split, u_ode_split, t)
     # The `TotalLagrangianSPHSystem` doesn't have an `update_final!` method
 end
 
-function update_custom_neighborhood_searches_split!(semi_split, semi, u_ode_split)
-    foreach_system(semi_split) do system
-        u = wrap_u(u_ode_split, system, semi_split)
-
-        foreach_system(semi_split) do neighbor
-            needs_custom_neighborhood_search_update(system, neighbor, semi) || return
-
-            u_neighbor = wrap_u(u_ode_split, neighbor, semi_split)
-            neighborhood_search = get_interaction_neighborhood_search(system, neighbor, semi)
-            update_custom_interaction_nhs!(neighborhood_search, system, neighbor, u,
-                                           u_neighbor, semi)
-        end
-    end
-end
-
 function self_interaction_split!(dv_ode_split, v_ode_split, u_ode_split, semi_split, semi)
-    # Only loop over (TLSPH) systems in the split integrator.
+    # Only loop over (TLSPH) systems in the split integrator
     foreach_system_wrapped(semi_split, v_ode_split, u_ode_split) do system, v, u
+        has_system_interaction(system, system, semi) || return
+
+        # Construct string for the interactions timer.
+        system_index = system_indices(system, semi)
+        timer_str = "$(timer_name(system))$system_index-$(timer_name(system))$system_index"
+
         dv = wrap_v(dv_ode_split, system, semi_split)
 
-        foreach_system_wrapped(semi_split, v_ode_split, u_ode_split) do neighbor, v_neighbor,
-                                                                             u_neighbor
-            # Construct string for the interactions timer.
-            system_index = system_indices(system, semi)
-            neighbor_index = system_indices(neighbor, semi)
-            interaction = semi.interaction_matrix[system_index, neighbor_index]
-            interaction === false && return
-
-            timer_str = "$(timer_name(system))$system_index-$(timer_name(neighbor))$neighbor_index"
-
-            @trixi_timeit timer() timer_str begin
-                apply_interaction!(interaction, dv, v, u, v_neighbor, u_neighbor, system,
-                                   neighbor, semi; integrate_tlsph=true)
-            end
+        @trixi_timeit timer() timer_str begin
+            apply_system_interaction!(dv, v, u, v, u, system, system, semi;
+                                      integrate_tlsph=true)
         end
     end
 end
 
 function other_interaction_split!(dv_ode_split, semi, v_ode, u_ode, semi_split)
     # Only loop over (TLSPH) systems in the split integrator.
+    # We wrap with `semi`, so we cannot use `foreach_system_wrapped` here.
     foreach_system(semi_split) do system
         dv = wrap_v(dv_ode_split, system, semi_split)
         v_system = wrap_v(v_ode, system, semi)
@@ -456,22 +435,19 @@ function other_interaction_split!(dv_ode_split, semi, v_ode, u_ode, semi_split)
         # Loop over all neighbors in the big integrator
         foreach_system_wrapped(semi, v_ode, u_ode) do neighbor, v_neighbor, u_neighbor
             if neighbor isa TotalLagrangianSPHSystem
-                # TLSPH/TLSPH interactions are integrated with the split state.
+                # TLSPH self-interactions are integrated with the split state.
                 return
             end
+            has_system_interaction(system, neighbor, semi) || return
 
             # Construct string for the interactions timer.
             system_index = system_indices(system, semi)
             neighbor_index = system_indices(neighbor, semi)
-            interaction = semi.interaction_matrix[system_index, neighbor_index]
-            interaction === false && return
-
             timer_str = "$(timer_name(system))$system_index-$(timer_name(neighbor))$neighbor_index"
 
             @trixi_timeit timer() timer_str begin
-                apply_interaction!(interaction, dv, v_system, u_system, v_neighbor,
-                                   u_neighbor, system, neighbor, semi;
-                                   integrate_tlsph=true)
+                apply_system_interaction!(dv, v_system, u_system, v_neighbor, u_neighbor,
+                                          system, neighbor, semi; integrate_tlsph=true)
             end
         end
     end

@@ -261,7 +261,7 @@ function calculate_predicted_velocity_and_d_ii_values!(system::ImplicitIncompres
     end
 
     # Compute predicted velocity
-    foreach_interacting_system(system, semi) do neighbor_system
+    foreach_system(semi) do neighbor_system
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
         v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
         system_coords = current_coordinates(u, system)
@@ -320,7 +320,7 @@ function calculate_diagonal_elements_and_predicted_density!(system::ImplicitInco
     set_zero!(a_ii)
     predicted_density .= density
 
-    foreach_interacting_system(system, semi) do neighbor_system
+    foreach_system(semi) do neighbor_system
         calculate_diagonal_elements_and_predicted_density(a_ii, predicted_density, system,
                                                           neighbor_system, v, u, v_ode,
                                                           u_ode, semi, time_step)
@@ -472,7 +472,7 @@ function calculate_sum_d_ij_pj!(system::ImplicitIncompressibleSPHSystem, u, u_od
 
     set_zero!(sum_d_ij_pj)
 
-    foreach_interacting_system(system, semi) do neighbor_system
+    foreach_system(semi) do neighbor_system
         calculate_sum_d_ij_pj!(sum_d_ij_pj, system, neighbor_system, u, u_ode, semi)
     end
 end
@@ -521,7 +521,7 @@ function calculate_sum_term_values!(system::ImplicitIncompressibleSPHSystem, u, 
 
     set_zero!(sum_term)
 
-    foreach_interacting_system(system, semi) do neighbor_system
+    foreach_system(semi) do neighbor_system
         calculate_sum_term!(sum_term, system, neighbor_system, u, u_ode, semi, time_step)
     end
 end

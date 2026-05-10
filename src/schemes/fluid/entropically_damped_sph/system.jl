@@ -335,8 +335,7 @@ function update_average_pressure!(system, ::Val{true}, v_ode, u_ode, semi)
     u = wrap_u(u_ode, system, semi)
 
     # Use all other systems for the average pressure
-    @trixi_timeit timer() "compute average pressure" foreach_interacting_system(system,
-                                                                                semi) do neighbor_system
+    @trixi_timeit timer() "compute average pressure" foreach_system(semi) do neighbor_system
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
         v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
 

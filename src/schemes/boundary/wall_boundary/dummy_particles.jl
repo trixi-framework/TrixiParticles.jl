@@ -496,10 +496,8 @@ function compute_pressure!(boundary_model,
 
     system_coords = current_coordinates(u, system)
 
-    # Use interacting systems for the pressure extrapolation
+    # Use all other systems for the pressure extrapolation
     @trixi_timeit timer() "compute boundary pressure" foreach_system(semi) do neighbor_system
-        has_system_interaction(system, neighbor_system, semi) || return
-
         v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
 
@@ -613,8 +611,7 @@ end
     @boundscheck checkbounds(pressure, eachparticle(system))
 
     # This needs to be serial to avoid race conditions when writing into `system`
-    neighborhood_search = get_neighborhood_search(neighbor_system, system, semi)
-    foreach_point_neighbor(neighbor_coords, system_coords, neighborhood_search;
+    foreach_point_neighbor(neighbor_system, system, neighbor_coords, system_coords, semi;
                            points=each_integrated_particle(neighbor_system),
                            parallelization_backend=SerialBackend()) do neighbor, particle,
                                                                        pos_diff, distance

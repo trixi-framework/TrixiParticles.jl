@@ -461,7 +461,6 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::RigidBodySystem, semi)
     # this body.
     foreach_system(semi) do neighbor
         neighbor === system && return
-        has_system_interaction(system, neighbor, semi) || return
 
         if neighbor isa Union{RigidBodySystem, WallBoundarySystem}
             contact_dt = min(contact_dt, cfl_number * contact_time_step(system, neighbor))

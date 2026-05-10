@@ -460,7 +460,7 @@ end
     Wdx = smoothing_kernel(system, dx, 1)
     h = smoothing_length(system, 1)
 
-    foreach_interacting_system(system, semi) do neighbor_system
+    foreach_system(semi) do neighbor_system
         u_neighbor = wrap_u(u_ode, neighbor_system, semi)
         v_neighbor = wrap_v(v_ode, neighbor_system, semi)
 
@@ -637,7 +637,7 @@ function update_shifting!(system, shifting::TransportVelocityAdami, v, u, v_ode,
 
     set_zero!(delta_v)
 
-    foreach_interacting_system(system, semi) do neighbor_system
+    foreach_system(semi) do neighbor_system
         v_neighbor = wrap_v(v_ode, neighbor_system, semi)
         u_neighbor = wrap_u(u_ode, neighbor_system, semi)
 

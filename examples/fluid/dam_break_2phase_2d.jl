@@ -83,58 +83,10 @@ air_system_system = WeaklyCompressibleSPHSystem(air_system;
                                                 acceleration=(0.0, -gravity))
 
 # ==========================================================================================
-# ==== Setup phase-specific wall boundaries
-
-# Use two copies of the wall geometry with hydrodynamic properties matched to the adjacent
-# fluid phase. This avoids exposing the light air phase to water-density wall particles and
-# vice versa, while keeping the physical wall coordinates unchanged.
-water_boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
-                                                   tank.boundary.mass,
-                                                   boundary_density_calculator,
-                                                   smoothing_kernel, smoothing_length;
-                                                   state_equation=state_equation,
-                                                   correction=nothing,
-                                                   reference_particle_spacing=0,
-                                                   viscosity=viscosity_wall,
-                                                   clip_negative_pressure=true)
-
-water_boundary_system = WallBoundarySystem(tank.boundary, water_boundary_model;
-                                           adhesion_coefficient=0.0)
-
-air_boundary_density = fill(air_density, length(tank.boundary.density))
-air_boundary_mass = tank.boundary.mass .* (air_density / fluid_density)
-
-air_boundary_model = BoundaryModelDummyParticles(air_boundary_density, air_boundary_mass,
-                                                 boundary_density_calculator,
-                                                 smoothing_kernel, smoothing_length;
-                                                 state_equation=air_eos,
-                                                 correction=nothing,
-                                                 reference_particle_spacing=0,
-                                                 viscosity=viscosity_wall,
-                                                 clip_negative_pressure=true)
-
-air_boundary_system = WallBoundarySystem(tank.boundary, air_boundary_model;
-                                         adhesion_coefficient=0.0)
-
-# Semidiscretization order:
-# 1: water fluid, 2: air fluid, 3: water wall, 4: air wall
-# The matrix keeps water coupled to the water-density wall and air coupled to the
-# air-density wall while both phases still interact with each other.
-interaction_matrix = trues(4, 4)
-interaction_matrix[1, 4] = false # water fluid ignores air wall
-interaction_matrix[4, 1] = false # air wall ignores water fluid
-interaction_matrix[2, 3] = false # air fluid ignores water wall
-interaction_matrix[3, 2] = false # water wall ignores air fluid
-interaction_matrix[3, 4] = false # water wall ignores air wall
-interaction_matrix[4, 3] = false # air wall ignores water wall
-
-# ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(fluid_system, air_system_system,
-                          water_boundary_system, air_boundary_system,
+semi = Semidiscretization(fluid_system, air_system_system, boundary_system,
                           neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=nothing),
-                          parallelization_backend=PolyesterBackend(),
-                          interaction_matrix=interaction_matrix)
+                          parallelization_backend=PolyesterBackend())
 ode = semidiscretize(semi, tspan)
 
 sol = solve(ode, RDPK3SpFSAL35(),

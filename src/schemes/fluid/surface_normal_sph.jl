@@ -79,8 +79,6 @@ end
 # with serious deficits in accuracy especially at corners, small neighborhoods and boundaries
 function calc_boundary_normal!(system::AbstractFluidSystem, neighbor_system, u_system, v,
                                u_neighbor_system, semi, surface_normal_method)
-    has_system_interaction(system, neighbor_system, semi) || return system
-
     (; cache) = system
     (; colorfield, initial_colorfield) = neighbor_system.boundary_model.cache
     (; boundary_contact_threshold) = surface_normal_method
@@ -96,13 +94,9 @@ function calc_boundary_normal!(system::AbstractFluidSystem, neighbor_system, u_s
     colorfield .= initial_colorfield
 
     # Accumulate fluid neighbors
-    neighborhood_search = get_neighborhood_search(neighbor_system, system, semi)
-    foreach_point_neighbor(neighbor_system_coords, system_coords,
-                           neighborhood_search;
-                           parallelization_backend=semi.parallelization_backend) do particle,
-                                                                                    neighbor,
-                                                                                    pos_diff,
-                                                                                    distance
+    foreach_point_neighbor(neighbor_system, system,
+                           neighbor_system_coords, system_coords,
+                           semi) do particle, neighbor, pos_diff, distance
         colorfield[particle] += hydrodynamic_mass(system, neighbor) /
                                 current_density(v, system, neighbor) * system.cache.color *
                                 smoothing_kernel(system, distance, particle)
@@ -208,8 +202,7 @@ function compute_surface_normal!(system::AbstractFluidSystem,
     set_zero!(cache.neighbor_count)
 
     # TODO: if color values are set only different systems need to be called
-    @trixi_timeit timer() "compute surface normal" foreach_interacting_system(system,
-                                                                              semi) do neighbor_system
+    @trixi_timeit timer() "compute surface normal" foreach_system(semi) do neighbor_system
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
         v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
 
@@ -282,8 +275,7 @@ function compute_curvature!(system::AbstractFluidSystem,
     # Reset surface curvature
     set_zero!(cache.curvature)
 
-    @trixi_timeit timer() "compute surface curvature" foreach_interacting_system(system,
-                                                                                 semi) do neighbor_system
+    @trixi_timeit timer() "compute surface curvature" foreach_system(semi) do neighbor_system
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
         v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
 

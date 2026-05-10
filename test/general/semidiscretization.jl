@@ -21,6 +21,30 @@
     TrixiParticles.compact_support(::System1, neighbor) = 0.2
     TrixiParticles.compact_support(::System2, neighbor) = 0.2
 
+    function TrixiParticles.interact!(dv, v_system, u_system, v_neighbor, u_neighbor,
+                                      system::System1, neighbor::System1, semi; kwargs...)
+        dv[1, 1] += 1
+        return dv
+    end
+
+    function TrixiParticles.interact!(dv, v_system, u_system, v_neighbor, u_neighbor,
+                                      system::System1, neighbor::System2, semi; kwargs...)
+        dv[1, 1] += 10
+        return dv
+    end
+
+    function TrixiParticles.interact!(dv, v_system, u_system, v_neighbor, u_neighbor,
+                                      system::System2, neighbor::System1, semi; kwargs...)
+        dv[1, 1] += 100
+        return dv
+    end
+
+    function TrixiParticles.interact!(dv, v_system, u_system, v_neighbor, u_neighbor,
+                                      system::System2, neighbor::System2, semi; kwargs...)
+        dv[1, 1] += 1000
+        return dv
+    end
+
     @testset verbose=true "Constructor" begin
         semi = Semidiscretization(system1, system2, neighborhood_search=nothing)
 
@@ -46,6 +70,25 @@
                                                       neighborhood_search=nothing,
                                                       interaction_matrix=Any[true 1;
                                                                              true true])
+        @test_throws ArgumentError Semidiscretization(system1, system2;
+                                                      neighborhood_search=nothing,
+                                                      interaction_matrix=Any[true false;
+                                                                             false true])
+        abstract_union_matrix = Matrix{Union{Bool, Function}}(trues(2, 2))
+        @test_throws ArgumentError Semidiscretization(system1, system2;
+                                                      neighborhood_search=nothing,
+                                                      interaction_matrix=abstract_union_matrix)
+
+        closure_interaction = let calls = Ref(0)
+            (dv, v_system, u_system, v_neighbor, u_neighbor, system, neighbor, semi;
+             kwargs...) -> (calls[] += 1; dv)
+        end
+        closure_matrix = Matrix{Union{Bool, typeof(closure_interaction)}}(trues(2, 2))
+        closure_matrix[1, 2] = closure_interaction
+        semi_closure = Semidiscretization(system1, system2;
+                                          neighborhood_search=nothing,
+                                          interaction_matrix=closure_matrix)
+        @test semi_closure.interaction_matrix[1, 2] === closure_interaction
 
         interaction_matrix = trues(2, 2)
         semi_copied_matrix = Semidiscretization(system1, system2;
@@ -160,9 +203,6 @@
     end
 
     @testset verbose=true "Custom System Interactions" begin
-        using OrdinaryDiffEqCore: ReturnCode, solve
-        using OrdinaryDiffEqLowStorageRK: RDPK3SpFSAL35
-
         kernel = SchoenbergCubicSplineKernel{2}()
         state_equation = StateEquationCole(sound_speed=10.0,
                                            reference_density=1000.0,
@@ -243,82 +283,17 @@
             return Array(TrixiParticles.wrap_v(dv_ode, system, semi))
         end
 
-        function matched_phase_interaction_matrix()
-            interaction_matrix = trues(4, 4)
-            interaction_matrix[1, 4] = false
-            interaction_matrix[4, 1] = false
-            interaction_matrix[2, 3] = false
-            interaction_matrix[3, 2] = false
-
-            return interaction_matrix
-        end
-
-        function make_semi(nhs_factory, systems...; filtered=false)
-            neighborhood_search = nhs_factory()
-
-            if filtered
-                return Semidiscretization(systems...; neighborhood_search,
-                                          interaction_matrix=matched_phase_interaction_matrix())
-            end
-
-            return Semidiscretization(systems...; neighborhood_search)
-        end
-
         struct TestInterphaseDrag{T}
             coefficient::T
         end
 
-        struct TestKeywordInteraction
-            integrate_tlsph_seen::Base.RefValue{Bool}
-        end
-
-        struct TestDefaultWrapperInteraction
-            integrate_tlsph_seen::Base.RefValue{Bool}
-        end
-
-        struct TestSplitSuppressedInteraction
-            called::Base.RefValue{Bool}
-        end
-
-        struct TestSelfNeighborCountingInteraction
-            neighbor_count::Base.RefValue{Int}
-        end
-
-        struct TestNoOpNHSSystem <: TrixiParticles.AbstractFluidSystem{2}
-            initial_condition::InitialCondition
-            surface_tension::Nothing
-            surface_normal_method::Nothing
-        end
-
         struct TestNoOpInteraction end
 
-        Base.eltype(system::TestNoOpNHSSystem) = eltype(system.initial_condition)
-        TrixiParticles.nparticles(system::TestNoOpNHSSystem) = 1
-        TrixiParticles.n_integrated_particles(system::TestNoOpNHSSystem) = 1
-        TrixiParticles.u_nvariables(::TestNoOpNHSSystem) = 2
-        TrixiParticles.v_nvariables(::TestNoOpNHSSystem) = 0
-        TrixiParticles.compact_support(::TestNoOpNHSSystem,
-                                       ::TestNoOpNHSSystem) = 0.0
-        TrixiParticles.compact_support(::TestNoOpInteraction,
-                                       ::TestNoOpNHSSystem,
-                                       ::TestNoOpNHSSystem) = 0.75
-        TrixiParticles.compact_support(::TestNoOpInteraction,
-                                       ::TrixiParticles.AbstractFluidSystem,
-                                       ::TotalLagrangianSPHSystem) = 0.0
-
-        function TrixiParticles.write_u0!(u0, system::TestNoOpNHSSystem)
-            u0[:, :] .= system.initial_condition.coordinates
-            return u0
+        struct TestCountingInteraction
+            calls::Base.RefValue{Int}
+            integrate_tlsph_seen::Base.RefValue{Bool}
         end
-
-        TrixiParticles.write_v0!(v0, ::TestNoOpNHSSystem) = v0
-
-        function TrixiParticles.update_nhs!(neighborhood_search,
-                                            ::TestNoOpNHSSystem,
-                                            ::TestNoOpNHSSystem,
-                                            u_system, u_neighbor, semi)
-            return neighborhood_search
-        end
+        TestCountingInteraction(calls) = TestCountingInteraction(calls, Ref(false))
 
         function (drag::TestInterphaseDrag)(dv, v_system, u_system, v_neighbor,
                                             u_neighbor, system, neighbor, semi; kwargs...)
@@ -351,56 +326,17 @@
             return dv
         end
 
-        function (interaction::TestKeywordInteraction)(dv, v_system, u_system,
-                                                       v_neighbor, u_neighbor,
-                                                       system, neighbor, semi;
-                                                       integrate_tlsph=false)
-            interaction.integrate_tlsph_seen[] = integrate_tlsph
-            return dv
-        end
-
-        function (interaction::TestDefaultWrapperInteraction)(dv, v_system, u_system,
-                                                              v_neighbor, u_neighbor,
-                                                              system, neighbor, semi;
-                                                              integrate_tlsph=false,
-                                                              kwargs...)
-            interaction.integrate_tlsph_seen[] = integrate_tlsph
-            return TrixiParticles.interact!(dv, v_system, u_system, v_neighbor,
-                                            u_neighbor, system, neighbor, semi;
-                                            integrate_tlsph, kwargs...)
-        end
-
-        function (interaction::TestSplitSuppressedInteraction)(dv, v_system, u_system,
-                                                               v_neighbor, u_neighbor,
-                                                               system, neighbor, semi;
-                                                               kwargs...)
-            interaction.called[] = true
-            dv[1, 1] += 1
-            return dv
-        end
-
         function (::TestNoOpInteraction)(dv, v_system, u_system, v_neighbor,
                                          u_neighbor, system, neighbor, semi; kwargs...)
             return dv
         end
 
-        function (interaction::TestSelfNeighborCountingInteraction)(dv, v_system, u_system,
-                                                                    v_neighbor, u_neighbor,
-                                                                    system, neighbor, semi;
-                                                                    kwargs...)
-            interaction.neighbor_count[] = 0
-            system_coords = TrixiParticles.current_coordinates(u_system, system)
-            neighbor_coords = TrixiParticles.current_coordinates(u_neighbor, neighbor)
-
-            TrixiParticles.foreach_point_neighbor(system, neighbor, system_coords,
-                                                  neighbor_coords, semi;
-                                                  parallelization_backend=SerialBackend()) do particle,
-                                                                                                neighbor_particle,
-                                                                                                pos_diff,
-                                                                                                distance
-                system === neighbor && particle == neighbor_particle && return
-                interaction.neighbor_count[] += 1
-            end
+        function (interaction::TestCountingInteraction)(dv, v_system, u_system, v_neighbor,
+                                                        u_neighbor, system, neighbor, semi;
+                                                        integrate_tlsph=false, kwargs...)
+            interaction.calls[] += 1
+            interaction.integrate_tlsph_seen[] |= integrate_tlsph
+            dv[1, 1] += 1
 
             return dv
         end
@@ -484,30 +420,6 @@
             return fluid_a, fluid_b
         end
 
-        function make_tlsph_fluid_systems()
-            structure_ic = make_particle(0.0, 1000.0, (0.0, 0.0))
-            boundary_model = BoundaryModelDummyParticles(structure_ic.density,
-                                                         structure_ic.mass,
-                                                         SummationDensity(), kernel,
-                                                         smoothing_length;
-                                                         state_equation)
-            structure = TotalLagrangianSPHSystem(structure_ic;
-                                                 smoothing_kernel=kernel,
-                                                 smoothing_length,
-                                                 young_modulus=1.0,
-                                                 poisson_ratio=0.3,
-                                                 boundary_model)
-
-            fluid_ic = make_particle(0.5, 1030.0, (0.0, 0.0))
-            fluid = WeaklyCompressibleSPHSystem(fluid_ic;
-                                                density_calculator=ContinuityDensity(),
-                                                state_equation,
-                                                smoothing_kernel=kernel,
-                                                smoothing_length)
-
-            return structure, fluid
-        end
-
         function make_unlinked_tlsph_fluid_systems()
             structure_ic = make_particle(0.0, 1000.0, (0.0, 0.0))
             structure = TotalLagrangianSPHSystem(structure_ic;
@@ -526,44 +438,29 @@
             return structure, fluid
         end
 
-        function make_tlsph_single_particle_system(x)
-            initial_condition = make_particle(x, 1000.0, (0.0, 0.0))
+        function make_tlsph_fluid_systems()
+            structure_ic = make_particle(0.0, 1000.0, (0.0, 0.0))
+            boundary_model = BoundaryModelDummyParticles(structure_ic.density,
+                                                         structure_ic.mass,
+                                                         SummationDensity(), kernel,
+                                                         smoothing_length;
+                                                         state_equation,
+                                                         correction=nothing)
+            structure = TotalLagrangianSPHSystem(structure_ic;
+                                                 smoothing_kernel=kernel,
+                                                 smoothing_length,
+                                                 young_modulus=1.0,
+                                                 poisson_ratio=0.3,
+                                                 boundary_model)
 
-            return TotalLagrangianSPHSystem(initial_condition;
-                                            smoothing_kernel=kernel,
-                                            smoothing_length,
-                                            young_modulus=1.0,
-                                            poisson_ratio=0.3)
-        end
+            fluid_ic = make_particle(0.5, 1030.0, (0.0, 0.0))
+            fluid = WeaklyCompressibleSPHSystem(fluid_ic;
+                                                density_calculator=ContinuityDensity(),
+                                                state_equation,
+                                                smoothing_kernel=kernel,
+                                                smoothing_length)
 
-        function make_tlsph_pair_system()
-            coordinates = [0.0 0.25
-                           0.0 0.0]
-            velocity = zeros(2, 2)
-            density = fill(1000.0, 2)
-            initial_condition = InitialCondition(; coordinates, velocity, density,
-                                                 particle_spacing=0.25)
-
-            return TotalLagrangianSPHSystem(initial_condition;
-                                            smoothing_kernel=kernel,
-                                            smoothing_length,
-                                            young_modulus=1.0,
-                                            poisson_ratio=0.3)
-        end
-
-        function make_tlsph_far_pair_system()
-            coordinates = [0.0 10.0
-                           0.0 0.0]
-            velocity = zeros(2, 2)
-            density = fill(1000.0, 2)
-            initial_condition = InitialCondition(; coordinates, velocity, density,
-                                                 particle_spacing=0.25)
-
-            return TotalLagrangianSPHSystem(initial_condition;
-                                            smoothing_kernel=kernel,
-                                            smoothing_length,
-                                            young_modulus=1.0,
-                                            poisson_ratio=0.3)
+            return structure, fluid
         end
 
         function make_edac_average_pressure_system(x, pressure)
@@ -623,146 +520,53 @@
             return system.cache.pressure_average[1], system.cache.neighbor_counter[1]
         end
 
-        function count_neighbors_after_moving_second_system(semi)
-            _, u_ode = create_ode_state(semi)
-            TrixiParticles.initialize_neighborhood_searches!(semi)
+        @testset "disabled pairs skip ordered RHS dispatch" begin
+            interaction_matrix = Bool[true false
+                                      true true]
+            semi = Semidiscretization(system1, system2; neighborhood_search=nothing,
+                                      interaction_matrix)
 
-            first_system, second_system = semi.systems
-            u_first = TrixiParticles.wrap_u(u_ode, first_system, semi)
-            u_second = TrixiParticles.wrap_u(u_ode, second_system, semi)
-            u_second[:, 1] .= (0.25, 0.0)
+            v_ode = zeros(sum(TrixiParticles.v_nvariables(system) *
+                              TrixiParticles.n_integrated_particles(system)
+                              for system in semi.systems))
+            u_ode = zeros(sum(TrixiParticles.u_nvariables(system) *
+                              TrixiParticles.n_integrated_particles(system)
+                              for system in semi.systems))
+            dv_ode = zero(v_ode)
 
-            TrixiParticles.update_nhs!(semi, u_ode)
+            TrixiParticles.system_interaction!(dv_ode, v_ode, u_ode, semi)
 
-            count = Ref(0)
-            TrixiParticles.foreach_point_neighbor(first_system, second_system,
-                                                  TrixiParticles.current_coordinates(u_first,
-                                                                                     first_system),
-                                                  TrixiParticles.current_coordinates(u_second,
-                                                                                     second_system),
-                                                  semi) do particle, neighbor,
-                                                           pos_diff, distance
-                count[] += 1
-            end
-
-            return count[]
+            @test system_dv(dv_ode, semi, 1)[1, 1] == 1
+            @test system_dv(dv_ode, semi, 2)[1, 1] == 1100
         end
 
-        function count_tlsph_initial_self_neighbors(system)
-            coordinates = TrixiParticles.initial_coordinates(system)
-            count = Ref(0)
+        @testset "generic neighbor iteration ignores interaction matrix" begin
+            fluid_a, fluid_b = make_summation_density_systems()
+            interaction_matrix = Bool[true false
+                                      false true]
+            semi = Semidiscretization(fluid_a, fluid_b; neighborhood_search=nothing,
+                                      interaction_matrix)
+            v_ode, u_ode = create_ode_state(semi)
 
-            for particle in TrixiParticles.each_integrated_particle(system)
-                TrixiParticles.foreach_neighbor(coordinates, coordinates,
-                                                system.self_interaction_nhs,
-                                                SerialBackend(), particle) do particle,
-                                                                                neighbor,
-                                                                                pos_diff,
-                                                                                distance
-                    count[] += 1
-                end
+            system, neighbor = semi.systems
+            u = TrixiParticles.wrap_u(u_ode, system, semi)
+            u_neighbor = TrixiParticles.wrap_u(u_ode, neighbor, semi)
+            system_coords = TrixiParticles.current_coordinates(u, system)
+            neighbor_coords = TrixiParticles.current_coordinates(u_neighbor, neighbor)
+            counter = Ref(0)
+
+            TrixiParticles.foreach_point_neighbor(system, neighbor, system_coords,
+                                                  neighbor_coords, semi) do particle,
+                                                                              neighbor_particle,
+                                                                              pos_diff,
+                                                                              distance
+                counter[] += 1
             end
 
-            return count[]
+            @test counter[] == 1
         end
 
-        function count_tlsph_current_self_neighbors(semi, system, u)
-            coordinates = TrixiParticles.current_coordinates(u, system)
-            count = Ref(0)
-
-            TrixiParticles.foreach_point_neighbor(system, system, coordinates, coordinates,
-                                                  semi) do particle, neighbor, pos_diff,
-                                                           distance
-                count[] += 1
-            end
-
-            return count[]
-        end
-
-        # Disable only the cross-coupling between the mismatched fluid/boundary pairs:
-        # fluid A must ignore boundary B and fluid B must ignore boundary A.
-        # The filtered four-system RHS is compared against reduced semidiscretizations that
-        # keep only the allowed neighbors for each system, which makes the intended effect explicit.
-        for (test_name, nhs_factory) in (("without neighborhood search", () -> nothing),
-             ("with grid neighborhood search",
-              () -> GridNeighborhoodSearch{2}(update_strategy=SerialUpdate())))
-            @testset "$test_name" begin
-                semi_full = let
-                    fluid_a, fluid_b, boundary_a, boundary_b = make_systems()
-                    make_semi(nhs_factory, fluid_a, fluid_b, boundary_a, boundary_b)
-                end
-
-                semi_filtered = let
-                    fluid_a, fluid_b, boundary_a, boundary_b = make_systems()
-                    make_semi(nhs_factory, fluid_a, fluid_b, boundary_a, boundary_b;
-                              filtered=true)
-                end
-
-                semi_a = let
-                    fluid_a, fluid_b, boundary_a, boundary_b = make_systems()
-                    make_semi(nhs_factory, fluid_a, fluid_b, boundary_a)
-                end
-
-                semi_b = let
-                    fluid_a, fluid_b, boundary_a, boundary_b = make_systems()
-                    make_semi(nhs_factory, fluid_a, fluid_b, boundary_b)
-                end
-
-                semi_boundary_a = let
-                    fluid_a, fluid_b, boundary_a, boundary_b = make_systems()
-                    make_semi(nhs_factory, fluid_a, boundary_a)
-                end
-
-                semi_boundary_b = let
-                    fluid_a, fluid_b, boundary_a, boundary_b = make_systems()
-                    make_semi(nhs_factory, fluid_b, boundary_b)
-                end
-
-                filtered_systems = semi_filtered.systems
-                @test !TrixiParticles.has_system_interaction(filtered_systems[1],
-                                                             filtered_systems[4],
-                                                             semi_filtered)
-                @test !TrixiParticles.has_system_interaction(filtered_systems[4],
-                                                             filtered_systems[1],
-                                                             semi_filtered)
-                @test !TrixiParticles.has_system_interaction(filtered_systems[2],
-                                                             filtered_systems[3],
-                                                             semi_filtered)
-                @test !TrixiParticles.has_system_interaction(filtered_systems[3],
-                                                             filtered_systems[2],
-                                                             semi_filtered)
-                @test TrixiParticles.has_system_interaction(filtered_systems[1],
-                                                            filtered_systems[2],
-                                                            semi_filtered)
-                @test TrixiParticles.has_system_interaction(filtered_systems[3],
-                                                            filtered_systems[1],
-                                                            semi_filtered)
-                @test TrixiParticles.has_system_interaction(filtered_systems[4],
-                                                            filtered_systems[2],
-                                                            semi_filtered)
-
-                dv_full = kick_once(semi_full)
-                dv_filtered = kick_once(semi_filtered)
-                dv_a = kick_once(semi_a)
-                dv_b = kick_once(semi_b)
-                dv_boundary_a = kick_once(semi_boundary_a)
-                dv_boundary_b = kick_once(semi_boundary_b)
-
-                @test system_dv(dv_filtered, semi_filtered, 1) ≈ system_dv(dv_a, semi_a, 1)
-                @test system_dv(dv_filtered, semi_filtered, 2) ≈ system_dv(dv_b, semi_b, 2)
-                @test system_dv(dv_filtered, semi_filtered, 3) ≈ system_dv(dv_boundary_a,
-                                semi_boundary_a, 2)
-                @test system_dv(dv_filtered, semi_filtered, 4) ≈ system_dv(dv_boundary_b,
-                                semi_boundary_b, 2)
-
-                @test !isapprox(system_dv(dv_filtered, semi_filtered, 3),
-                                system_dv(dv_full, semi_full, 3))
-                @test !isapprox(system_dv(dv_filtered, semi_filtered, 4),
-                                system_dv(dv_full, semi_full, 4))
-            end
-        end
-
-        @testset "dummy boundary pressure respects interaction matrix" begin
+        @testset "dummy boundary pressure ignores interaction matrix" begin
             semi_filtered = let
                 fluid_a, fluid_b, boundary = make_pressure_interpolation_systems()
                 interaction_matrix = trues(3, 3)
@@ -772,22 +576,15 @@
                                    neighborhood_search=nothing, interaction_matrix)
             end
 
-            semi_reduced = let
-                fluid_a, _, boundary = make_pressure_interpolation_systems()
-                Semidiscretization(fluid_a, boundary; neighborhood_search=nothing)
-            end
-
             semi_full = let
                 fluid_a, fluid_b, boundary = make_pressure_interpolation_systems()
                 Semidiscretization(fluid_a, fluid_b, boundary; neighborhood_search=nothing)
             end
 
             pressure_filtered = updated_boundary_pressure(semi_filtered)
-            pressure_reduced = updated_boundary_pressure(semi_reduced)
             pressure_full = updated_boundary_pressure(semi_full)
 
-            @test pressure_filtered ≈ pressure_reduced
-            @test !isapprox(pressure_filtered, pressure_full)
+            @test pressure_filtered ≈ pressure_full
         end
 
         @testset "asymmetric boundary pressure updates reverse neighborhood search" begin
@@ -814,7 +611,7 @@
             @test pressure_filtered ≈ pressure_full
         end
 
-        @testset "summation density respects interaction matrix" begin
+        @testset "summation density ignores interaction matrix" begin
             semi_filtered = let
                 fluid_a, fluid_b = make_summation_density_systems()
                 interaction_matrix = trues(2, 2)
@@ -824,25 +621,18 @@
                                    interaction_matrix)
             end
 
-            semi_reduced = let
-                fluid_a, _ = make_summation_density_systems()
-                Semidiscretization(fluid_a; neighborhood_search=nothing)
-            end
-
             semi_full = let
                 fluid_a, fluid_b = make_summation_density_systems()
                 Semidiscretization(fluid_a, fluid_b; neighborhood_search=nothing)
             end
 
             density_filtered = updated_system_density(semi_filtered, 1)
-            density_reduced = updated_system_density(semi_reduced, 1)
             density_full = updated_system_density(semi_full, 1)
 
-            @test density_filtered ≈ density_reduced
-            @test !isapprox(density_filtered, density_full)
+            @test density_filtered ≈ density_full
         end
 
-        @testset "average pressure reduction respects ordered interaction matrix" begin
+        @testset "average pressure reduction ignores interaction matrix" begin
             semi_filtered = let
                 system_a = make_edac_average_pressure_system(0.0, 10.0)
                 system_b = make_edac_average_pressure_system(0.25, 100.0)
@@ -864,62 +654,17 @@
                                                                1)
             pressure_full, neighbor_count_full = updated_average_pressure(semi_full, 1)
 
-            @test neighbor_count_filtered == 1
-            @test pressure_filtered ≈ 10.0
+            @test neighbor_count_filtered == neighbor_count_full
+            @test pressure_filtered ≈ pressure_full
             @test neighbor_count_full == 2
             @test pressure_full ≈ 55.0
         end
 
-        @testset "callable interaction updates otherwise unused neighborhood search" begin
-            first_ic = InitialCondition(; coordinates=reshape([0.0, 0.0], 2, 1),
-                                        density=[1000.0], particle_spacing=1.0)
-            second_ic = InitialCondition(; coordinates=reshape([10.0, 0.0], 2, 1),
-                                         density=[1000.0], particle_spacing=1.0)
-
-            first_system = TestNoOpNHSSystem(first_ic, nothing, nothing)
-            second_system = TestNoOpNHSSystem(second_ic, nothing, nothing)
-            interaction = TestNoOpInteraction()
-            interaction_matrix = Matrix{Union{Bool, typeof(interaction)}}(falses(2, 2))
-            interaction_matrix[1, 2] = interaction
-
-            semi = Semidiscretization(first_system, second_system;
-                                      neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=SerialUpdate()),
-                                      interaction_matrix)
-
-            @test count_neighbors_after_moving_second_system(semi) == 1
-        end
-
-        @testset "pair neighborhood search uses largest enabled support" begin
-            first_ic = InitialCondition(; coordinates=reshape([0.0, 0.0], 2, 1),
-                                        density=[1000.0], particle_spacing=1.0)
-            second_ic = InitialCondition(; coordinates=reshape([10.0, 0.0], 2, 1),
-                                         density=[1000.0], particle_spacing=1.0)
-
-            first_system = TestNoOpNHSSystem(first_ic, nothing, nothing)
-            second_system = TestNoOpNHSSystem(second_ic, nothing, nothing)
-            interaction = TestNoOpInteraction()
-            interaction_matrix = Matrix{Union{Bool, typeof(interaction)}}(trues(2, 2))
-            interaction_matrix[2, 1] = interaction
-
-            semi = Semidiscretization(first_system, second_system;
-                                      neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=SerialUpdate()),
-                                      interaction_matrix)
-
-            search = TrixiParticles.get_neighborhood_search(first_system, second_system,
-                                                            semi)
-            @test TrixiParticles.PointNeighbors.search_radius(search) ≈ 0.75
-        end
-
-        @testset "disabled pairs skip configuration and neighborhood setup" begin
+        @testset "disabled pairs do not bypass normal configuration" begin
             structure, fluid = make_unlinked_tlsph_fluid_systems()
             interaction_matrix = Bool[true false
                                       false true]
 
-            semi = Semidiscretization(structure, fluid; neighborhood_search=nothing,
-                                      interaction_matrix)
-            @test length(semi.systems) == 2
-
-            interaction_matrix[2, 1] = true
             @test_throws ArgumentError Semidiscretization(structure, fluid;
                                                           neighborhood_search=nothing,
                                                           interaction_matrix)
@@ -932,125 +677,61 @@
                                                           interaction_matrix)
         end
 
-        @testset "custom tlsph self interaction preserves initial self search" begin
-            structure = make_tlsph_pair_system()
-            interaction = TestNoOpInteraction()
-            interaction_matrix = Matrix{Union{Bool, typeof(interaction)}}(falses(1, 1))
+        @testset "custom TLSPH interactions use split-aware dispatch paths" begin
+            structure, _ = make_unlinked_tlsph_fluid_systems()
+            calls = Ref(0)
+            integrate_tlsph_seen = Ref(false)
+            interaction = TestCountingInteraction(calls, integrate_tlsph_seen)
+            interaction_matrix = Matrix{Union{Bool, typeof(interaction)}}(trues(1, 1))
             interaction_matrix[1, 1] = interaction
 
-            semi = Semidiscretization(structure;
-                                      neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=SerialUpdate()),
+            semi = Semidiscretization(structure; neighborhood_search=nothing,
                                       interaction_matrix)
-            system = only(semi.systems)
-            initial_neighbor_count = count_tlsph_initial_self_neighbors(system)
-            @test initial_neighbor_count > 2
+            v_ode, u_ode = create_ode_state(semi)
+            dv_ode = zero(v_ode)
 
-            TrixiParticles.initialize_neighborhood_searches!(semi)
-            _, u_ode = create_ode_state(semi)
-            u = TrixiParticles.wrap_u(u_ode, system, semi)
-            system.current_coordinates[:, 2] .= (10.0, 0.0)
-
-            TrixiParticles.update_nhs!(semi, u_ode)
-
-            @test count_tlsph_initial_self_neighbors(system) == initial_neighbor_count
-            @test count_tlsph_current_self_neighbors(semi, system, u) <
-                  initial_neighbor_count
-        end
-
-        @testset "large integrator suppresses split custom structure interaction" begin
-            structure, fluid = make_tlsph_fluid_systems()
-            interaction = TestSplitSuppressedInteraction(Ref(false))
-            interaction_matrix = Matrix{Union{Bool, typeof(interaction)}}(falses(2, 2))
-            interaction_matrix[1, 2] = interaction
-
-            semi = Semidiscretization(structure, fluid; neighborhood_search=nothing,
-                                      interaction_matrix)
             semi.integrate_tlsph[] = false
+            TrixiParticles.system_interaction!(dv_ode, v_ode, u_ode, semi)
+            @test calls[] == 0
+            @test !integrate_tlsph_seen[]
+            @test iszero(dv_ode)
 
-            dv_ode = kick_once(semi)
+            TrixiParticles.self_interaction_split!(dv_ode, v_ode, u_ode, semi, semi)
+            @test calls[] == 1
+            @test integrate_tlsph_seen[]
+            @test system_dv(dv_ode, semi, 1)[1, 1] == 1
 
-            @test !interaction.called[]
-            @test iszero(maximum(abs, system_dv(dv_ode, semi, 1)))
+            work = Ref(0.0)
+            dv = zeros(TrixiParticles.v_nvariables(semi.systems[1]),
+                       TrixiParticles.nparticles(semi.systems[1]))
+            TrixiParticles.update_mechanical_work_calculator!(work, semi.systems[1],
+                                                              1:1, false, dv, v_ode,
+                                                              u_ode, semi, 0.0, 1.0)
+            @test calls[] == 2
         end
 
-        @testset "split custom tlsph self interaction updates current self search" begin
-            structure = make_tlsph_far_pair_system()
-            interaction = TestSelfNeighborCountingInteraction(Ref(0))
-            interaction_matrix = Matrix{Union{Bool, typeof(interaction)}}(falses(1, 1))
-            interaction_matrix[1, 1] = interaction
-
-            semi = Semidiscretization(structure;
-                                      neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=SerialUpdate()),
-                                      interaction_matrix)
-            ode = semidiscretize(semi, (0.0, 1.0e-3))
-            semi = ode.p.semi
-            system = only(semi.systems)
-            semi_split = Semidiscretization(system; neighborhood_search=nothing,
-                                            parallelization_backend=semi.parallelization_backend)
-            v_ode_split, u_ode_split = map(Array, ode.u0.x)
-            u_split = TrixiParticles.wrap_u(u_ode_split, system, semi_split)
-            u_split[:, 2] .= (0.25, 0.0)
-
-            TrixiParticles.update_systems_split!(semi_split, semi, v_ode_split,
-                                                 u_ode_split, 0.0)
-            dv_ode_split = zero(v_ode_split)
-            TrixiParticles.self_interaction_split!(dv_ode_split, v_ode_split,
-                                                   u_ode_split, semi_split, semi)
-
-            @test interaction.neighbor_count[] > 0
-        end
-
-        @testset "split custom tlsph cross interaction is not frozen" begin
-            structure_a = make_tlsph_single_particle_system(0.0)
-            structure_b = make_tlsph_single_particle_system(0.5)
-            interaction = TestSplitSuppressedInteraction(Ref(false))
-            interaction_matrix = Matrix{Union{Bool, typeof(interaction)}}(falses(2, 2))
+        @testset "custom TLSPH-fluid interaction is called by split callback" begin
+            structure, fluid = make_tlsph_fluid_systems()
+            calls = Ref(0)
+            integrate_tlsph_seen = Ref(false)
+            interaction = TestCountingInteraction(calls, integrate_tlsph_seen)
+            interaction_matrix = Matrix{Union{Bool, typeof(interaction)}}(trues(2, 2))
             interaction_matrix[1, 2] = interaction
 
-            semi = Semidiscretization(structure_a, structure_b;
+            semi = Semidiscretization(structure, fluid;
                                       neighborhood_search=nothing,
                                       interaction_matrix)
-            ode = semidiscretize(semi, (0.0, 1.0e-3))
-            semi = ode.p.semi
-            semi_split = Semidiscretization(semi.systems...; neighborhood_search=nothing,
-                                            parallelization_backend=semi.parallelization_backend)
-            v_ode, u_ode = map(Array, ode.u0.x)
-            dv_ode_split = zero(v_ode)
+            ode = semidiscretize(semi, (0.0, 1.0e-4))
 
-            TrixiParticles.other_interaction_split!(dv_ode_split, semi, v_ode, u_ode,
-                                                    semi_split)
-            @test !interaction.called[]
+            split_integration = SplitIntegrationCallback(SymplecticPositionVerlet();
+                                                         dt=1.0e-5)
+            sol = TrixiParticles.SciMLBase.solve(ode, SymplecticPositionVerlet();
+                                                 dt=1.0e-4, save_everystep=false,
+                                                 maxiters=10, callback=split_integration)
 
-            TrixiParticles.self_interaction_split!(dv_ode_split, v_ode, u_ode,
-                                                   semi_split, semi)
-            @test interaction.called[]
-        end
-
-        @testset "split custom tlsph cross interaction updates current search" begin
-            structure_a = make_tlsph_single_particle_system(0.0)
-            structure_b = make_tlsph_single_particle_system(10.0)
-            interaction = TestSelfNeighborCountingInteraction(Ref(0))
-            interaction_matrix = Matrix{Union{Bool, typeof(interaction)}}(falses(2, 2))
-            interaction_matrix[1, 2] = interaction
-
-            semi = Semidiscretization(structure_a, structure_b;
-                                      neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=SerialUpdate()),
-                                      interaction_matrix)
-            ode = semidiscretize(semi, (0.0, 1.0e-3))
-            semi = ode.p.semi
-            semi_split = Semidiscretization(semi.systems...; neighborhood_search=nothing,
-                                            parallelization_backend=semi.parallelization_backend)
-            v_ode_split, u_ode_split = map(Array, ode.u0.x)
-            u_b = TrixiParticles.wrap_u(u_ode_split, semi.systems[2], semi_split)
-            u_b[:, 1] .= (0.25, 0.0)
-
-            TrixiParticles.update_systems_split!(semi_split, semi, v_ode_split,
-                                                 u_ode_split, 0.0)
-            dv_ode_split = zero(v_ode_split)
-            TrixiParticles.self_interaction_split!(dv_ode_split, v_ode_split,
-                                                   u_ode_split, semi_split, semi)
-
-            @test interaction.neighbor_count[] > 0
+            @test sol.retcode == TrixiParticles.SciMLBase.ReturnCode.Success
+            @test calls[] > 0
+            @test integrate_tlsph_seen[]
         end
 
         @testset verbose=true "callable interphase drag" begin
@@ -1095,46 +776,6 @@
                     @test delta_fluid_b[2, 1] < 0
                 end
             end
-        end
-
-        @testset "split custom interaction receives keyword arguments through callback" begin
-            integrate_tlsph_seen = Ref(false)
-            structure, fluid = make_tlsph_fluid_systems()
-            interaction = TestKeywordInteraction(integrate_tlsph_seen)
-            interaction_matrix = Matrix{Union{Bool, typeof(interaction)}}(falses(2, 2))
-            interaction_matrix[1, 2] = interaction
-
-            semi = Semidiscretization(structure, fluid; neighborhood_search=nothing,
-                                      interaction_matrix)
-            ode = semidiscretize(semi, (0.0, 1.0e-3))
-            split_integration = SplitIntegrationCallback(RDPK3SpFSAL35(); dt=1.0e-4)
-            sol = solve(ode, RDPK3SpFSAL35(); dt=1.0e-3, adaptive=false,
-                        save_everystep=false, callback=split_integration)
-
-            @test sol.retcode == ReturnCode.Success
-            @test integrate_tlsph_seen[]
-        end
-
-        @testset "split wrapped default interaction forwards keyword arguments" begin
-            integrate_tlsph_seen = Ref(false)
-            structure, fluid = make_tlsph_fluid_systems()
-            interaction = TestDefaultWrapperInteraction(integrate_tlsph_seen)
-            interaction_matrix = Matrix{Union{Bool, typeof(interaction)}}(falses(2, 2))
-            interaction_matrix[1, 2] = interaction
-
-            semi = Semidiscretization(structure, fluid; neighborhood_search=nothing,
-                                      interaction_matrix)
-            ode = semidiscretize(semi, (0.0, 1.0e-3))
-            split_integration = SplitIntegrationCallback(RDPK3SpFSAL35(); dt=1.0e-4)
-            sol = solve(ode, RDPK3SpFSAL35(); dt=1.0e-3, adaptive=false,
-                        save_everystep=false, callback=split_integration)
-
-            @test sol.retcode == ReturnCode.Success
-            @test integrate_tlsph_seen[]
-
-            v_ode, _ = sol.u[end].x
-            v_structure = TrixiParticles.wrap_v(v_ode, first(semi.systems), semi)
-            @test maximum(abs, Array(v_structure)) > 0
         end
     end
 
