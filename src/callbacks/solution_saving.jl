@@ -23,7 +23,9 @@ specific system, return `nothing`.
 
 # Keywords
 - `interval=0`:                 Save the solution every `interval` accepted time steps.
-                                A value of `0` saves after every accepted time step,
+                                A value of `0` disables step-interval saves, so only
+                                the initial and final solution are saved based on
+                                `save_initial_solution` and `save_final_solution`,
                                 unless `save_times` or `dt` are used.
 - `dt`:                         Save the solution in regular intervals of `dt` in terms
                                 of integration time by adding additional `tstops`
@@ -207,10 +209,6 @@ end
 # `condition`
 function (solution_callback::SolutionSavingCallback)(u, t, integrator)
     (; interval, save_final_solution) = solution_callback
-
-    if interval == 0
-        return true
-    end
 
     return condition_integrator_interval(integrator, interval; save_final_solution)
 end
