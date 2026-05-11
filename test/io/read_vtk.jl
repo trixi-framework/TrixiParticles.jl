@@ -201,6 +201,19 @@
                                collection)
             end
 
+            @testset verbose=true "VTK Metadata Contains Solver Version" begin
+                ode = semidiscretize(semi, (0.0, 1.0))
+                trixi2vtk(ode.u0, semi, 0.75; output_directory=tmp_dir,
+                          prefix="tmp_file_fluid_metadata")
+
+                vtk_output = read(joinpath(tmp_dir,
+                                           "tmp_file_fluid_metadata_fluid_1_current.vtu"),
+                                  String)
+
+                @test occursin("solver_version=\"$(TrixiParticles.compute_git_hash())\"",
+                               vtk_output)
+            end
+
             @testset verbose=true "PVD Collection Tracks Overwritten File" begin
                 trixi2vtk(fluid_system, dvdu_ode, vu_ode, semi, 0.25,
                           nothing; system_name="tmp_file_fluid_overwrite",

@@ -15,6 +15,7 @@ end
               output_directory="out", prefix="", max_coordinates=Inf, custom_quantities...)
 
 Convert Trixi simulation data to VTK format.
+The VTK output includes `solver_version` metadata with the current solver version.
 
 # Arguments
 - `dvdu_ode`: Time derivative of the TrixiParticles ODE system at one time step.
@@ -61,23 +62,23 @@ trixi2vtk(sol.u[end], semi, 0.0, iter=1, my_custom_quantity=kinetic_energy)
 ```
 """
 function trixi2vtk(vu_ode, semi, t; iter=nothing, overwrite=isnothing(iter),
-                   output_directory="out", prefix="", git_hash=compute_git_hash(),
-                   max_coordinates=Inf, custom_quantities...)
+                   output_directory="out", prefix="", max_coordinates=Inf,
+                   custom_quantities...)
 
     # `dvdu_ode` is not necessary in most cases. Since it is usually not available to the
     # user, this API wrapper makes it optional.
     # Note that custom quantities using the fluid acceleration will not work and return NaN acceleration.
     return _trixi2vtk(fill!(similar(vu_ode), NaN), vu_ode, semi, t; iter, overwrite,
                       append_collection=_default_append_collection(iter), output_directory,
-                      prefix, git_hash, max_coordinates, custom_quantities...)
+                      prefix, max_coordinates, custom_quantities...)
 end
 
 function trixi2vtk(dvdu_ode, vu_ode, semi, t; iter=nothing, overwrite=isnothing(iter),
-                   output_directory="out", prefix="", git_hash=compute_git_hash(),
-                   max_coordinates=Inf, custom_quantities...)
+                   output_directory="out", prefix="", max_coordinates=Inf,
+                   custom_quantities...)
     return _trixi2vtk(dvdu_ode, vu_ode, semi, t; iter, overwrite,
                       append_collection=_default_append_collection(iter), output_directory,
-                      prefix, git_hash, max_coordinates, custom_quantities...)
+                      prefix, max_coordinates, custom_quantities...)
 end
 
 _default_append_collection(iter) = !isnothing(iter) && iter > 0
@@ -114,11 +115,11 @@ function trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
                    output_directory="out", prefix="", iter=nothing,
                    overwrite=isnothing(iter),
                    system_name=vtkname(system_), max_coordinates=Inf,
-                   git_hash=compute_git_hash(), custom_quantities...)
+                   custom_quantities...)
     return _trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
                       output_directory, prefix, iter, overwrite,
                       append_collection=_default_append_collection(iter), system_name,
-                      max_coordinates, git_hash, custom_quantities...)
+                      max_coordinates, custom_quantities...)
 end
 
 function _trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
@@ -180,6 +181,7 @@ function _trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
         vtk["index"] = eachparticle(system)
         vtk["time"] = t
         vtk["ndims"] = ndims(system)
+        vtk[VTKFieldData()] = "solver_version" => git_hash
 
         vtk["particle_spacing"] = [particle_spacing(system, particle)
                                    for particle in each_active_particle(system)]
