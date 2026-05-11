@@ -16,6 +16,39 @@ abstract type AbstractBoundarySystem{NDIMS} <: AbstractSystem{NDIMS} end
 timer_name(::AbstractBoundarySystem) = "boundary"
 vtkname(system::AbstractBoundarySystem) = "boundary"
 
+# Helpers for iterating system collections without allocations.
+@inline function system_indices(system, systems_or_semi)
+    # Note that this takes only about 5 ns, while mapping systems to indices with a `Dict`
+    # is ~30x slower because `hash(::System)` is very slow.
+    systems = hasfield(typeof(systems_or_semi), :systems) ? systems_or_semi.systems :
+              systems_or_semi
+    index = findfirst(==(system), systems)
+
+    if isnothing(index)
+        throw(ArgumentError("system is not in the semidiscretization"))
+    end
+
+    return index
+end
+
+# This is just for readability to loop over all systems without allocations.
+@inline function foreach_system(f, systems_or_semi)
+    systems = hasfield(typeof(systems_or_semi), :systems) ? systems_or_semi.systems :
+              systems_or_semi
+    return foreach_noalloc(f, systems)
+end
+
+# This is just for readability to loop over all systems with indices without allocations.
+@inline function foreach_system_indexed(f, systems_or_semi)
+    systems = hasfield(typeof(systems_or_semi), :systems) ? systems_or_semi.systems :
+              systems_or_semi
+    indices = ntuple(identity, Val(length(systems)))
+
+    return foreach_noalloc(indices, systems) do (index, system)
+        f(index, system)
+    end
+end
+
 # Number of integrated variables in the first component of the ODE system (coordinates)
 @inline u_nvariables(system) = ndims(system)
 

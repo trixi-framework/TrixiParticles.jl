@@ -36,8 +36,8 @@ function create_meta_data_dict(callback, integrator)
 
     systems = Dict{String, Any}()
     foreach_system(semi) do system
-        idx = system_indices(system, semi)
-        name = add_underscore_to_optional_prefix(prefix) * names[idx]
+        system_index = system_indices(system, semi)
+        name = add_underscore_to_optional_prefix(prefix) * names[system_index]
 
         system_data = Dict{String, Any}()
         add_system_data!(system_data, system)

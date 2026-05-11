@@ -116,10 +116,9 @@ function initialize_split_integration!(cb, vu_ode, t, integrator)
     # These neighborhood searches are never used
     periodic_box = extract_periodic_box(semi.neighborhood_searches[1, 1])
     neighborhood_search = TrivialNeighborhoodSearch{ndims(first(systems))}(; periodic_box)
-    semi_split = Semidiscretization(systems...,
+    semi_split = Semidiscretization(systems...;
                                     neighborhood_search=neighborhood_search,
                                     parallelization_backend=semi.parallelization_backend)
-
     sizes_u = (u_nvariables(system) * n_integrated_particles(system) for system in systems)
     sizes_v = (v_nvariables(system) * n_integrated_particles(system) for system in systems)
 
@@ -358,9 +357,9 @@ function kick_split!(dv_ode_split, v_ode_split, u_ode_split, p, t)
         update_systems_split!(semi_split, v_ode_split, u_ode_split, t)
     end
 
-    # Only compute structure-structure self-interaction.
-    # structure-fluid interaction forces are computed once
-    # before the split time integration loop and are applied below.
+    # Compute TLSPH self-interactions in the split integrator.
+    # Interactions with systems outside the split integrator are computed once before
+    # the split time integration loop and are applied below.
     @trixi_timeit timer() "system interaction" begin
         self_interaction_split!(dv_ode_split, v_ode_split, u_ode_split,
                                 semi_split, semi_large)
@@ -410,6 +409,8 @@ end
 function self_interaction_split!(dv_ode_split, v_ode_split, u_ode_split, semi_split, semi)
     # Only loop over (TLSPH) systems in the split integrator
     foreach_system_wrapped(semi_split, v_ode_split, u_ode_split) do system, v, u
+        has_system_interaction(system, system, semi) || return
+
         # Construct string for the interactions timer.
         system_index = system_indices(system, semi)
         timer_str = "$(timer_name(system))$system_index-$(timer_name(system))$system_index"
@@ -417,7 +418,8 @@ function self_interaction_split!(dv_ode_split, v_ode_split, u_ode_split, semi_sp
         dv = wrap_v(dv_ode_split, system, semi_split)
 
         @trixi_timeit timer() timer_str begin
-            interact!(dv, v, u, v, u, system, system, semi; integrate_tlsph=true)
+            apply_system_interaction!(dv, v, u, v, u, system, system, semi;
+                                      integrate_tlsph=true)
         end
     end
 end
@@ -432,10 +434,11 @@ function other_interaction_split!(dv_ode_split, semi, v_ode, u_ode, semi_split)
 
         # Loop over all neighbors in the big integrator
         foreach_system_wrapped(semi, v_ode, u_ode) do neighbor, v_neighbor, u_neighbor
-            if system === neighbor
-                # Only compute interaction with other systems
+            if neighbor isa TotalLagrangianSPHSystem
+                # TLSPH self-interactions are integrated with the split state.
                 return
             end
+            has_system_interaction(system, neighbor, semi) || return
 
             # Construct string for the interactions timer.
             system_index = system_indices(system, semi)
@@ -443,8 +446,8 @@ function other_interaction_split!(dv_ode_split, semi, v_ode, u_ode, semi_split)
             timer_str = "$(timer_name(system))$system_index-$(timer_name(neighbor))$neighbor_index"
 
             @trixi_timeit timer() timer_str begin
-                interact!(dv, v_system, u_system, v_neighbor, u_neighbor,
-                          system, neighbor, semi; integrate_tlsph=true)
+                apply_system_interaction!(dv, v_system, u_system, v_neighbor, u_neighbor,
+                                          system, neighbor, semi; integrate_tlsph=true)
             end
         end
     end
