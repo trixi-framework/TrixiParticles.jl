@@ -184,10 +184,51 @@ To get in touch with the developers,
 or [create an issue](https://github.com/trixi-framework/TrixiParticles.jl/issues/new).
 
 ## Acknowledgments
+
+The project has benefited from funding from [hereon](https://www.hereon.de/),
+[HiRSE](https://www.helmholtz-hirse.de/), and through
+[ScienceServe](https://www.helmholtz.de/en/research/current-calls-for-applications/article/scienceserve-boosting-research-software-at-helmholtz/)
+for the MATRIX project.
+
 <p align="center">
-  <img align="middle" src="https://github.com/trixi-framework/TrixiParticles.jl/assets/44124897/05132bf1-180f-4228-b30a-37dfb6e36ed5" width=20%/>&nbsp;&nbsp;&nbsp;
-  <img align="middle" src="https://github.com/user-attachments/assets/480ceabe-b44c-4dc2-a4ce-d99ba49767f4" width=20%/>&nbsp;&nbsp;&nbsp;
-  <img align="middle" src="https://github.com/user-attachments/assets/80e897bd-c3fc-4bfc-aafb-a6d5810e0206" width=20%/>&nbsp;&nbsp;&nbsp;
+  <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/44124897/05132bf1-180f-4228-b30a-37dfb6e36ed5" height="65" alt="hereon"/>&nbsp;&nbsp;&nbsp;
+  <img src="https://github.com/user-attachments/assets/480ceabe-b44c-4dc2-a4ce-d99ba49767f4" height="65" alt="HiRSE"/>&nbsp;&nbsp;&nbsp;
+  <img src="https://github.com/user-attachments/assets/80e897bd-c3fc-4bfc-aafb-a6d5810e0206" height="65" alt="ScienceServe"/>
 </p>
 
-The project has benefited from funding from [hereon](https://www.hereon.de/), [HiRSE](https://www.helmholtz-hirse.de/), and through [ScienceServe](https://www.helmholtz.de/en/research/current-calls-for-applications/article/scienceserve-boosting-research-software-at-helmholtz/) for the MATRIX project.
+Work on TrixiParticles.jl has also been supported by the Federal Ministry of
+Research, Technology and Space (BMFTR) under funding code **01QE2614C** as
+part of the EUREKA project **RESIST**. The responsibility for the content of
+this publication lies with the authors.
+
+<p align="center">
+  <a href="https://www.bmftr.bund.de/EN/Home/home_node.html">
+    <img
+      src="https://www.bibliothek.kit.edu/img/400%20Forschen%20%20Publizieren/Foerderhinweis_BMFTR_ENG.jpg"
+      alt="With funding from the Federal Ministry of Research, Technology and Space"
+      height="120"
+    />
+  </a>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="https://www.eurekanetwork.org/programmes-and-calls/eurostars/">
+    <img
+      src="https://cerneu.web.cern.ch/sites/default/files/inline-images/Eurostars.jpg"
+      alt="Eurostars"
+      height="120"
+    />
+  </a>
+</p>
+
+This project is co-funded by the European Union. Views and opinions expressed
+are however those of the authors only and do not necessarily reflect those of
+the European Union or the granting authorities.
+
+<p align="center">
+  <a href="https://ec.europa.eu/regional_policy/information-sources/logo-download-center_en">
+    <img
+      src="https://www.eacea.ec.europa.eu/sites/default/files/styles/embed_large/public/2022-11/EN%20Co-Funded%20by%20the%20EU_POS.png?itok=wassLT3O"
+      alt="Co-funded by the European Union"
+      height="75"
+    />
+  </a>
+</p>
