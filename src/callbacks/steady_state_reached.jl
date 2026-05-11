@@ -26,12 +26,15 @@ end
 
 function SteadyStateReachedCallback(; interval::Integer=0, dt=0.0,
                                     interval_size::Integer=10, abstol=1.0e-8, reltol=1.0e-6)
-    ELTYPE = eltype(abstol)
-    abstol, reltol = promote(abstol, reltol)
-
     if dt > 0 && interval > 0
         throw(ArgumentError("setting both `interval` and `dt` is not supported"))
     end
+
+    interval_size > 0 ||
+        throw(ArgumentError("`interval_size` must be positive"))
+
+    abstol, reltol = float.(promote(abstol, reltol))
+    ELTYPE = typeof(abstol)
 
     if dt > 0
         interval = convert(ELTYPE, dt)
@@ -67,8 +70,19 @@ function (cb::SteadyStateReachedCallback{Int})(integrator)
 end
 
 # `condition` (`DiscreteCallback`)
+function (steady_state_callback::SteadyStateReachedCallback{Int})(vu_ode, t, integrator)
+    condition_steady_state_interval(steady_state_callback, integrator) || return false
+
+    return steady_state_condition!(steady_state_callback, integrator)
+end
+
 function (steady_state_callback::SteadyStateReachedCallback)(vu_ode, t, integrator)
     return steady_state_condition!(steady_state_callback, integrator)
+end
+
+@inline function condition_steady_state_interval(cb::SteadyStateReachedCallback{Int}, integrator)
+    return cb.interval == 0 ||
+           condition_integrator_interval(integrator, cb.interval; save_final_solution=false)
 end
 
 @inline function steady_state_condition!(cb, integrator)
