@@ -5,7 +5,7 @@
 
         callback1 = SortingCallback(interval=11)
 
-        show_compact = "SortingCallback(interval=11)"
+        show_compact = "SortingCallback(interval=11, initial_sort=true)"
         @test repr(callback1) == show_compact
 
         show_box = """
@@ -13,13 +13,13 @@
         │ SortingCallback                                                                                  │
         │ ═══════════════                                                                                  │
         │ interval: ……………………………………………………… 11                                                               │
-        | initial_sort: …………………………………………… true                                                             │
+        │ initial_sort: …………………………………………… yes                                                              │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", callback1) == show_box
 
         callback2 = SortingCallback(dt=1.2)
 
-        show_compact = "SortingCallback(dt=1.2)"
+        show_compact = "SortingCallback(dt=1.2, initial_sort=true)"
         @test repr(callback2) == show_compact
 
         show_box = """
@@ -27,7 +27,7 @@
         │ SortingCallback                                                                                  │
         │ ═══════════════                                                                                  │
         │ dt: ……………………………………………………………………… 1.2                                                              │
-        | initial_sort: …………………………………………… true                                                             │
+        │ initial_sort: …………………………………………… yes                                                              │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", callback2) == show_box
     end

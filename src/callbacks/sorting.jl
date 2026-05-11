@@ -189,7 +189,7 @@ function Base.show(io::IO, ::MIME"text/plain",
         sorting_cb = cb.affect!
         setup = [
             "interval" => sorting_cb.interval,
-            "initial_sort" => initial_sort(cb)
+            "initial_sort" => initial_sort(cb) ? "yes" : "no"
         ]
         summary_box(io, "SortingCallback", setup)
     end
@@ -205,7 +205,7 @@ function Base.show(io::IO, ::MIME"text/plain",
         sorting_cb = cb.affect!
         setup = [
             "dt" => sorting_cb.interval,
-            "initial_sort" => initial_sort(cb)
+            "initial_sort" => initial_sort(cb) ? "yes" : "no"
         ]
         summary_box(io, "SortingCallback", setup)
     end
