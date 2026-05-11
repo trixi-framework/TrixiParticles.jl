@@ -71,11 +71,13 @@ shape = extrude_geometry(shape; direction, particle_spacing=0.1, n_extrude=4, de
 ┌ Info: The desired edge 2 length 0.9198039027185568 is not a multiple of the particle spacing 0.1.
 └ New edge 2 length is set to 0.9.
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ InitialCondition{Float64}                                                                        │
-│ ═════════════════════════                                                                        │
+│ InitialCondition                                                                                 │
+│ ════════════════                                                                                 │
 │ #dimensions: ……………………………………………… 3                                                                │
 │ #particles: ………………………………………………… 144                                                              │
 │ particle spacing: ………………………………… 0.1                                                              │
+│ eltype: …………………………………………………………… Float64                                                          │
+│ coordinate eltype: ……………………………… Float64                                                          │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -101,7 +103,7 @@ function extrude_geometry(geometry; particle_spacing=-1, direction, n_extrude::I
 
     geometry = shift_plane_corners(geometry, direction_, particle_spacing, place_on_shell)
 
-    face_coords = sample_plane(geometry, particle_spacing; place_on_shell=place_on_shell)
+    face_coords = sample_plane(geometry, particle_spacing; place_on_shell)
 
     coords = (face_coords .+ i * particle_spacing * direction_ for i in 0:(n_extrude - 1))
 
@@ -113,7 +115,7 @@ function extrude_geometry(geometry; particle_spacing=-1, direction, n_extrude::I
     end
 
     return InitialCondition(; coordinates, velocity, density, mass, pressure,
-                            particle_spacing=particle_spacing)
+                            particle_spacing)
 end
 
 # For corners/endpoints of a plane/line, sample the plane/line with particles.

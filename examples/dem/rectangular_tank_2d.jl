@@ -7,7 +7,7 @@
 # ==========================================================================================
 
 using TrixiParticles
-using OrdinaryDiffEq
+using OrdinaryDiffEqLowStorageRK
 
 gravity = -9.81
 
@@ -24,7 +24,7 @@ tank_height = 4.0
 # and a "boundary" region for the container walls.
 tank = RectangularTank(particle_spacing, (rock_width, rock_height),
                        (tank_width, tank_height), rock_density,
-                       n_layers=2)
+                       n_layers=2, coordinates_eltype=Float64)
 
 # ==========================================================================================
 # ==== Systems
@@ -47,11 +47,11 @@ contact_model = HertzContactModel(10e9, 0.3)
 # contact_model = LinearContactModel(2 * 10e5)
 
 # Construct the rock system using the new DEMSystem signature.
-rock_system = DEMSystem(tank.fluid, contact_model; damping_coefficient=0.0001,
+rock_system = DEMSystem(tank.fluid; contact_model, damping_coefficient=0.0001,
                         acceleration=(0.0, gravity), radius=0.4 * particle_spacing)
 
 # Construct the boundary system for the tank walls.
-boundary_system = BoundaryDEMSystem(tank.boundary, 10e7)
+boundary_system = BoundaryDEMSystem(tank.boundary; normal_stiffness=10e7)
 
 # ==========================================================================================
 # ==== Simulation

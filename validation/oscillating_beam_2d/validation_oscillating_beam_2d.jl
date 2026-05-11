@@ -12,7 +12,7 @@
 
 include("../validation_util.jl")
 using TrixiParticles
-using OrdinaryDiffEq
+using OrdinaryDiffEqLowStorageRK
 using JSON
 
 tspan = (0, 10)
@@ -25,9 +25,8 @@ tspan = (0, 10)
 n_particles_beam_y = 5
 
 # Overwrite `sol` assignment to skip time integration
-trixi_include(@__MODULE__,
-              joinpath(examples_dir(), "structure", "oscillating_beam_2d.jl"),
-              n_particles_y=n_particles_beam_y, sol=nothing, tspan=tspan,
+trixi_include(@__MODULE__, joinpath(examples_dir(), "structure", "oscillating_beam_2d.jl");
+              n_particles_y=n_particles_beam_y, sol=nothing, tspan,
               penalty_force=PenaltyForceGanzenmueller(alpha=0.01))
 
 pp_callback = PostprocessCallback(; deflection_x, deflection_y, dt=0.01,
@@ -58,3 +57,7 @@ error_deflection_y = interpolated_mse(reference_data["deflection_y_structure_1"]
                                       reference_data["deflection_y_structure_1"]["values"],
                                       run_data["deflection_y_structure_1"]["time"],
                                       run_data["deflection_y_structure_1"]["values"])
+
+println("Validation results for oscillating beam 2D with $n_particles_beam_y particles in beam thickness:")
+println("  MSE deflection x: $error_deflection_x")
+println("  MSE deflection y: $error_deflection_y")

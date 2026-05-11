@@ -81,15 +81,13 @@
                                         boundary_model=nothing,
                                         fluid_system=FluidSystemMockRCR(nothing, nothing))
             system.boundary_zone_indices .= 1
-
-            u = system.initial_condition.coordinates
             v = system.initial_condition.velocity
 
             times = collect(tspan[1]:dt:tspan[2])
             p_calculated = empty(times)
             for t in times
-                v[1, :] .= func(t)
-                TrixiParticles.calculate_flow_rate_and_pressure!(system, v, u, dt)
+                system.cache.boundary_zones_flow_rate[1][] = func(t)
+                TrixiParticles.calculate_pressure!(system, dt)
 
                 # Store only values after the seventh cycle
                 if t >= 7T
@@ -131,9 +129,9 @@
         #
         # The solution is obtained using simple Euler integration over the time interval `tspan`.
         # Reference pressure values are evaluated at discrete time points (`validation_times`):
-        # params_RCR = (R_2=R2, R_1=R1, C=C, q_func=pulsatile_flow, dt=dt)
+        # params_RCR = (; R_2=R2, R_1=R1, C, q_func=pulsatile_flow, dt)
         # sol_RCR = solve(ODEProblem(pressure_RCR_ode!, [p0], tspan, params_RCR), Euler(),
-        #                 dt=dt, adaptive=false)
+        #                 dt, adaptive=false)
         # validation_times = collect(range(7T, 8T, step=50 * dt))
         # pressures_ref = vec(stack(sol_RCR(validation_times)))
         #

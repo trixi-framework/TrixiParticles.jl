@@ -70,8 +70,7 @@ function ComplexShape(geometry; particle_spacing, density,
 
     # This is most likely only useful for debugging. Note that this is not public API.
     if store_winding_number
-        return (; initial_condition=initial_condition, winding_numbers=winding_numbers,
-                grid=grid)
+        return (; initial_condition, winding_numbers, grid)
     end
 
     return initial_condition
@@ -109,11 +108,13 @@ boundary_sampled = sample_boundary(signed_distance_field; boundary_density=1.0,
 
 # output
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ InitialCondition{Float64}                                                                        │
-│ ═════════════════════════                                                                        │
+│ InitialCondition                                                                                 │
+│ ════════════════                                                                                 │
 │ #dimensions: ……………………………………………… 2                                                                │
 │ #particles: ………………………………………………… 889                                                              │
 │ particle spacing: ………………………………… 0.03                                                             │
+│ eltype: …………………………………………………………… Float64                                                          │
+│ coordinate eltype: ……………………………… Float64                                                          │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
@@ -159,5 +160,5 @@ function particle_grid(geometry, particle_spacing;
 
     grid = rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
                                     min_corner; place_on_shell=true)
-    return reinterpret(reshape, SVector{ndims(geometry), eltype(geometry)}, grid)
+    return reinterpret(reshape, SVector{ndims(geometry), eltype(grid)}, grid)
 end

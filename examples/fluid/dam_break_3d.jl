@@ -6,7 +6,7 @@
 # ==========================================================================================
 
 using TrixiParticles
-using OrdinaryDiffEq
+using OrdinaryDiffEqLowStorageRK
 
 # ==========================================================================================
 # ==== Resolution
@@ -28,13 +28,15 @@ initial_fluid_size = (2.0, 1.0, 1.0)
 tank_size = (floor(5.366 / boundary_particle_spacing) * boundary_particle_spacing, 4.0, 1.0)
 
 fluid_density = 1000.0
-sound_speed = 20 * sqrt(gravity * initial_fluid_size[2])
-state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
-                                   exponent=7)
 
-tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
-                       n_layers=boundary_layers, spacing_ratio=spacing_ratio,
-                       acceleration=(0.0, -gravity, 0.0), state_equation=state_equation)
+# We use an adaptive state equation to reduce runtime
+state_equation = StateEquationAdaptiveCole(; reference_density=fluid_density,
+                                           exponent=7)
+
+tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density;
+                       n_layers=boundary_layers, spacing_ratio,
+                       acceleration=(0.0, -gravity, 0.0), state_equation,
+                       coordinates_eltype=Float64)
 
 # ==========================================================================================
 # ==== Fluid
@@ -45,19 +47,21 @@ fluid_density_calculator = ContinuityDensity()
 viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 
-fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
-                                           state_equation, smoothing_kernel,
-                                           smoothing_length, viscosity=viscosity,
-                                           density_diffusion=density_diffusion,
+fluid_system = WeaklyCompressibleSPHSystem(tank.fluid; smoothing_kernel, smoothing_length,
+                                           density_calculator=fluid_density_calculator,
+                                           state_equation, viscosity, density_diffusion,
                                            acceleration=(0.0, -gravity, 0.0))
 
 # ==========================================================================================
 # ==== Boundary
 boundary_density_calculator = AdamiPressureExtrapolation()
+
+# Clip negative boundary pressure values to avoid sticking artifacts at the boundary.
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=state_equation,
                                              boundary_density_calculator,
-                                             smoothing_kernel, smoothing_length)
+                                             smoothing_kernel, smoothing_length;
+                                             state_equation,
+                                             clip_negative_pressure=true)
 
 boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
 
@@ -67,8 +71,8 @@ semi = Semidiscretization(fluid_system, boundary_system,
                           parallelization_backend=PolyesterBackend())
 ode = semidiscretize(semi, tspan)
 
-info_callback = InfoCallback(interval=10)
-saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
+info_callback = InfoCallback(interval=100)
+saving_callback = SolutionSavingCallback(dt=0.1, prefix="")
 callbacks = CallbackSet(info_callback, saving_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.

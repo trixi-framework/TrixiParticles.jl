@@ -11,10 +11,10 @@
         contact_model = HertzContactModel(1.0e10, 0.3)
 
         # Construct the DEM system.
-        system = DEMSystem(initial_condition, contact_model, acceleration=(0.0, 10.0))
+        system = DEMSystem(initial_condition; contact_model, acceleration=(0.0, 10.0))
 
         # Expected compact representation.
-        show_compact = "DEMSystem{2}(InitialCondition{Float64}(), HertzContactModel: elastic_modulus = 1.0e10, poissons_ratio = 0.3, damping_coefficient = 0.0001) with 2 particles"
+        show_compact = "DEMSystem{2}(InitialCondition{Float64, Float64}(), HertzContactModel: elastic_modulus = 1.0e10, poissons_ratio = 0.3, damping_coefficient = 0.0001) with 2 particles"
         @test repr(system) == show_compact
 
         # Expected full text/plain representation.
@@ -44,10 +44,10 @@ end
         contact_model = LinearContactModel(200000.0)
 
         # Construct the DEM system.
-        system = DEMSystem(initial_condition, contact_model, acceleration=(0.0, 10.0))
+        system = DEMSystem(initial_condition; contact_model, acceleration=(0.0, 10.0))
 
         # Expected compact representation.
-        show_compact = "DEMSystem{2}(InitialCondition{Float64}(), LinearContactModel: normal_stiffness = 200000.0, damping_coefficient = 0.0001) with 2 particles"
+        show_compact = "DEMSystem{2}(InitialCondition{Float64, Float64}(), LinearContactModel: normal_stiffness = 200000.0, damping_coefficient = 0.0001) with 2 particles"
         @test repr(system) == show_compact
 
         # Expected full text/plain representation.

@@ -155,6 +155,47 @@ The inter-particle-averaged shear stress is defined as:
 
 with the dynamic viscosity of each particle given by `` \eta_a = \rho_a \nu_a ``, where `` \nu_a `` is the kinematic viscosity.
 
+#### ViscosityCarreauYasuda
+
+`ViscosityCarreauYasuda` implements the Carreau–Yasuda non-Newtonian viscosity model,
+originally proposed by [Carreau (1972)](@cite Carreau1972) and extended by
+[Yasuda et al. (1981)](@cite Yasuda1981). In this model, the kinematic viscosity
+depends on the local shear rate. This makes it suitable for shear-thinning and
+shear-thickening fluids, such as polymer solutions or blood-like fluids.
+Instead of prescribing a single constant viscosity, the apparent viscosity
+smoothly transitions between a low-shear plateau and a high-shear plateau.
+
+In SPH, this can be incorporated by evaluating a shear-rate-dependent
+viscosity locally and using it in the standard viscous discretization. A Newtonian
+fluid is recovered as a special case when the parameters are chosen such that the
+viscosity becomes independent of the shear rate. ([Zhang et al. (2017)](@cite Zhang2017);
+[Vahabi & Sadeghy (2014)](@cite VahabiSadeghy2014)).
+
+
+##### Mathematical Formulation
+
+In the Carreau–Yasuda model, the kinematic viscosity ``\nu`` depends on the shear-rate magnitude ``\dot\gamma`` as
+```math
+\nu(\dot\gamma) = \nu_\infty + (\nu_0 - \nu_\infty)
+\left[ 1 + (\lambda \dot\gamma)^a \right]^{\frac{n-1}{a}}.
+```
+where
+
+- ``\nu_0``: zero-shear kinematic viscosity,
+- ``\nu_\infty``: infinite-shear kinematic viscosity,
+- ``\lambda``: time constant,
+- ``a``: Yasuda parameter,
+- ``n``: power-law index (``n < 1`` for shear-thinning, ``n > 1`` for shear-thickening),
+- ``\dot\gamma``: shear-rate magnitude.
+
+In this implementation the shear-rate magnitude is approximated per particle pair as
+``\dot\gamma \approx \frac{\lVert \mathbf{v}_{ab} \rVert}{\lVert \mathbf{r}_{ab} \rVert + \epsilon}``,
+with ``\mathbf{v}_{ab}`` the relative velocity, ``\mathbf{r}_{ab}`` the position difference,
+and ``\epsilon`` a small regularization parameter.
+
+All viscosities here are kinematic viscosities (m²/s); dynamic viscosity is obtained internally
+via ``\eta = \rho \nu``. A Newtonian fluid is recovered for ``n = 1`` and
+``\nu_0 = \nu_\infty``
 
 ```@autodocs
 Modules = [TrixiParticles]

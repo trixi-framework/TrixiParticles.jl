@@ -63,7 +63,7 @@ for file_name in input_files
                           interpolated_mse(ref.time, ref.Uy, data["time"], displacements)
 
             label = "$label_prefix dp = $(@sprintf("%.8f", particle_spacing_)) mse=$(@sprintf("%.8f", mse_results))"
-            lines!(ax, times, displacements, label=label)
+            lines!(ax, times, displacements; label)
         end
     end
 end
@@ -76,4 +76,6 @@ lines!(ax2, ref.time, ref.Uy, color=:black, linestyle=:dash,
 
 legend_ax1 = Legend(fig[1, 2], ax1)
 legend_ax2 = Legend(fig[2, 2], ax2)
+
+# save("validation_osc_beam.png", fig)
 fig

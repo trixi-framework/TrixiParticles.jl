@@ -1,7 +1,7 @@
 @testset verbose=true "Boundary Zone" begin
     @testset "`show`" begin
         inflow = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, 1.0]),
-                              particle_spacing=0.05,
+                              particle_spacing=0.05, sample_points=nothing,
                               face_normal=(1.0, 0.0), density=1.0,
                               reference_density=0.0,
                               reference_pressure=0.0,
@@ -22,7 +22,7 @@
         @test repr("text/plain", inflow) == show_box
 
         outflow = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, 1.0]),
-                               particle_spacing=0.05,
+                               particle_spacing=0.05, sample_points=nothing,
                                reference_density=0.0,
                                reference_pressure=0.0,
                                reference_velocity=[0.0, 0.0],
@@ -41,6 +41,48 @@
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
 
         @test repr("text/plain", outflow) == show_box
+
+        bidirectional = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, 1.0]),
+                                     particle_spacing=0.05, sample_points=nothing,
+                                     reference_density=0.0,
+                                     reference_pressure=0.0,
+                                     reference_velocity=[0.0, 0.0],
+                                     face_normal=(1.0, 0.0), density=1.0,
+                                     open_boundary_layers=4)
+
+        show_compact = "BoundaryZone() with 80 particles"
+        @test repr(bidirectional) == show_compact
+        show_box = """
+        ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+        │ BoundaryZone                                                                                     │
+        │ ════════════                                                                                     │
+        │ boundary type: ………………………………………… bidirectional_flow                                               │
+        │ #particles: ………………………………………………… 80                                                               │
+        │ width: ……………………………………………………………… 0.2                                                              │
+        └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
+
+        @test repr("text/plain", bidirectional) == show_box
+
+        zone = BoundaryZone(; boundary_face=([0.0, 0.0], [1 / sqrt(2), 1 / sqrt(2)]),
+                            particle_spacing=0.05, reference_density=0.0,
+                            reference_pressure=0.0,
+                            reference_velocity=[0.0, 0.0],
+                            face_normal=normalize([-1.0, 1.0]), density=1.0,
+                            open_boundary_layers=4)
+
+        show_compact = "BoundaryZone() with 80 particles"
+        @test repr(zone) == show_compact
+        show_box = """
+        ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+        │ BoundaryZone                                                                                     │
+        │ ════════════                                                                                     │
+        │ boundary type: ………………………………………… bidirectional_flow                                               │
+        │ #particles: ………………………………………………… 80                                                               │
+        │ width: ……………………………………………………………… 0.2                                                              │
+        │ cross sectional area: ……………………… 1.0                                                              │
+        └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
+
+        @test repr("text/plain", zone) == show_box
     end
 
     @testset verbose=true "Illegal Inputs" begin
