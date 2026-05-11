@@ -404,9 +404,7 @@ function interpolate_line(start, end_, n_points, semi, ref_system, v_ode, u_ode;
     # Convert to coordinate matrix
     points_coords_ = collect(reinterpret(reshape, eltype(start_svector), points_coords))
 
-    points_coords = Adapt.adapt(semi.parallelization_backend, points_coords_)
-
-    return interpolate_points(points_coords, semi, ref_system, v_ode, u_ode;
+    return interpolate_points(points_coords_, semi, ref_system, v_ode, u_ode;
                               smoothing_length, include_wall_velocity, cut_off_bnd,
                               clip_negative_pressure)
 end
@@ -513,17 +511,23 @@ function process_neighborhood_searches(semi, u_ode, ref_system, smoothing_length
         u = wrap_u(u_ode, system, semi)
         system_coords = current_coordinates(u, system)
         old_nhs = get_neighborhood_search(ref_system, system, semi)
-        nhs = PointNeighbors.copy_neighborhood_search(old_nhs, search_radius,
+        point_coords_ = point_coords
+        system_coords_ = system_coords
+        old_nhs_ = old_nhs
+        # `PointNeighbors.initialize!` builds grid metadata with host-side indexing.
+        # For GPU runs, initialize the copied search on CPU data and adapt it back below.
+        if semi.parallelization_backend isa KernelAbstractions.GPU
+            point_coords_ = Adapt.adapt(Array, point_coords)
+            system_coords_ = Adapt.adapt(Array, system_coords)
+            old_nhs_ = Adapt.adapt(Array, old_nhs)
+        end
+
+        nhs = PointNeighbors.copy_neighborhood_search(old_nhs_, search_radius,
                                                       nparticles(system))
 
-        # In case of GPU backends, we need to move the internal data structures
-        # of the neighborhood search to the GPU as well.
-        # On the CPU, this is a no-op.
-        nhs_ = Adapt.adapt(semi.parallelization_backend, nhs)
+        PointNeighbors.initialize!(nhs, point_coords_, system_coords_)
 
-        PointNeighbors.initialize!(nhs_, point_coords, system_coords)
-
-        return nhs_
+        return Adapt.adapt(semi.parallelization_backend, nhs)
     end
 
     return neighborhood_searches
