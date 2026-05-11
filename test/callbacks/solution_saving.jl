@@ -176,6 +176,25 @@ using OrdinaryDiffEqLowStorageRK
         end
     end
 
+    @testset verbose=true "interval zero saves every accepted time step" begin
+        mktempdir() do tmp_dir
+            callback = SolutionSavingCallback(output_directory=tmp_dir)
+            run_solution_saving_test(callback; tspan=(0.0, 0.01), dt=0.005)
+
+            collection = read(joinpath(tmp_dir, "fluid_1.pvd"), String)
+            filenames = pvd_filenames(collection)
+
+            @test length(collect(eachmatch(r"DataSet", collection))) == 3
+            @test all(file -> isfile(joinpath(tmp_dir, file)), filenames)
+            @test occursin("timestep=\"0.0\"", collection)
+            @test occursin("timestep=\"0.005\"", collection)
+            @test occursin("timestep=\"0.01\"", collection)
+            @test occursin("fluid_1_0.vtu", collection)
+            @test occursin("fluid_1_1.vtu", collection)
+            @test occursin("fluid_1_2.vtu", collection)
+        end
+    end
+
     @testset verbose=true "interval saves initial and final solution" begin
         mktempdir() do tmp_dir
             callback = SolutionSavingCallback(interval=10,
