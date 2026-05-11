@@ -145,8 +145,7 @@ function _trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
 
     file_ = joinpath(output_directory,
                      add_underscore_to_optional_prefix(prefix) * "$system_name")
-    collection_file = joinpath(output_directory,
-                               add_underscore_to_optional_prefix(prefix) * "$system_name")
+    collection_file = file_
     has_collection = overwrite || !isnothing(iter)
     if overwrite
         file = file_ * "_current"
