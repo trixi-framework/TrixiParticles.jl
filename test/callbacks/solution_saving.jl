@@ -153,6 +153,51 @@ using OrdinaryDiffEqLowStorageRK
         end
     end
 
+    @testset verbose=true "interval saves initial and final solution" begin
+        mktempdir() do tmp_dir
+            callback = SolutionSavingCallback(interval=10,
+                                              save_initial_solution=true,
+                                              save_final_solution=true,
+                                              output_directory=tmp_dir)
+            run_solution_saving_test(callback)
+
+            collection = read(joinpath(tmp_dir, "fluid_1.pvd"), String)
+            filenames = pvd_filenames(collection)
+
+            @test length(collect(eachmatch(r"DataSet", collection))) == 2
+            @test all(file -> isfile(joinpath(tmp_dir, file)), filenames)
+            @test occursin("timestep=\"0.0\"", collection)
+            @test occursin("timestep=\"0.01\"", collection)
+            @test occursin("fluid_1_0.vtu", collection)
+            @test occursin("fluid_1_2.vtu", collection)
+            @test !occursin("fluid_1_1.vtu", collection)
+        end
+    end
+
+    @testset verbose=true "dt saves initial, periodic, and final solution" begin
+        mktempdir() do tmp_dir
+            callback = SolutionSavingCallback(dt=0.004,
+                                              save_initial_solution=true,
+                                              save_final_solution=true,
+                                              output_directory=tmp_dir)
+            run_solution_saving_test(callback)
+
+            collection = read(joinpath(tmp_dir, "fluid_1.pvd"), String)
+            filenames = pvd_filenames(collection)
+
+            @test length(collect(eachmatch(r"DataSet", collection))) == 4
+            @test all(file -> isfile(joinpath(tmp_dir, file)), filenames)
+            @test occursin("timestep=\"0.0\"", collection)
+            @test occursin("timestep=\"0.004\"", collection)
+            @test occursin("timestep=\"0.008\"", collection)
+            @test occursin("timestep=\"0.01\"", collection)
+            @test occursin("fluid_1_0.vtu", collection)
+            @test occursin("fluid_1_1.vtu", collection)
+            @test occursin("fluid_1_2.vtu", collection)
+            @test occursin("fluid_1_3.vtu", collection)
+        end
+    end
+
     @testset verbose=true "callback PVD collection resets stale entries" begin
         mktempdir() do tmp_dir
             stale_callback = SolutionSavingCallback(interval=1, output_directory=tmp_dir,

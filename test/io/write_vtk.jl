@@ -26,6 +26,95 @@
         vu_ode = (; x)
         dvdu_ode = (; x=(; v_ode=dv_ode, u_ode=du_ode))
 
+        @testset verbose=true "Public Wrapper Without Iteration Does Not Write PVD" begin
+            ode = semidiscretize(semi, (0.0, 1.0))
+            trixi2vtk(ode.u0, semi, 0.75; output_directory=tmp_dir,
+                      prefix="tmp_file_fluid_no_collection", overwrite=false)
+
+            @test isfile(joinpath(tmp_dir,
+                                  "tmp_file_fluid_no_collection_fluid_1.vtu"))
+            @test !isfile(joinpath(tmp_dir,
+                                   "tmp_file_fluid_no_collection_fluid_1_current.vtu"))
+            @test !isfile(joinpath(tmp_dir,
+                                   "tmp_file_fluid_no_collection_fluid_1.pvd"))
+        end
+
+        @testset verbose=true "Coordinates Writer Stores Spacing And Custom Quantities" begin
+            coordinate_data = [0.0 1.0 2.0; 0.0 1.0 2.0]
+            spacing = [0.1, 0.2, 0.3]
+            file = trixi2vtk(coordinate_data; output_directory=tmp_dir,
+                             prefix="tmp_coordinates", filename="points",
+                             particle_spacing=spacing, scalar=2.5,
+                             ignored=nothing)
+
+            vtk_file = TrixiParticles.ReadVTK.VTKFile(file * ".vtu")
+            point_data = TrixiParticles.ReadVTK.get_point_data(vtk_file)
+            field_data = TrixiParticles.ReadVTK.get_field_data(vtk_file)
+
+            @test isfile(file * ".vtu")
+            @test Array(TrixiParticles.ReadVTK.get_data(point_data["particle_spacing"])) ==
+                  spacing
+            @test only(Array(TrixiParticles.ReadVTK.get_data(field_data["scalar"]))) ==
+                  2.5
+            @test !("ignored" in keys(point_data))
+            @test !("ignored" in keys(field_data))
+        end
+
+        @testset verbose=true "Max Coordinates Clips Output Points" begin
+            output_path = joinpath(tmp_dir, "max_coordinates_stdout.txt")
+            open(output_path, "w") do io
+                redirect_stdout(io) do
+                    trixi2vtk(fluid_system, dvdu_ode, vu_ode, semi, 0.0,
+                              nothing; system_name="tmp_file_fluid_clipped",
+                              output_directory=tmp_dir, iter=1, max_coordinates=0.5)
+                end
+            end
+            output = read(output_path, String)
+
+            vtk_file = TrixiParticles.ReadVTK.VTKFile(joinpath(tmp_dir,
+                                                               "tmp_file_fluid_clipped_1.vtu"))
+            points = TrixiParticles.ReadVTK.get_points(vtk_file)
+
+            @test occursin("exceed `max_coordinates`", output)
+            @test maximum(abs.(points[1:ndims(fluid_system), :])) <= 0.5
+        end
+
+        @testset verbose=true "Custom Quantity Dispatch Supports Both Signatures" begin
+            data_quantity(system, data, t) = fill(t, nparticles(system))
+            function full_quantity(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
+                return fill(first(dv_ode), nparticles(system))
+            end
+
+            trixi2vtk(fluid_system, dvdu_ode, vu_ode, semi, 0.25,
+                      nothing; system_name="tmp_file_fluid_custom_dispatch",
+                      output_directory=tmp_dir, iter=1, data_quantity, full_quantity)
+
+            test_data = vtk2trixi(joinpath(tmp_dir,
+                                           "tmp_file_fluid_custom_dispatch_1.vtu"))
+
+            @test isapprox(test_data.data_quantity,
+                           fill(0.25, nparticles(fluid_system)), rtol=1e-5)
+            @test isapprox(test_data.full_quantity,
+                           fill(0.0, nparticles(fluid_system)), rtol=1e-5)
+        end
+
+        @testset verbose=true "Public Wrapper Uses NaN Derivatives For Full Custom Quantities" begin
+            ode = semidiscretize(semi, (0.0, 1.0))
+            function acceleration_quantity(system, dv_ode, du_ode, v_ode, u_ode, semi,
+                                           t)
+                return fill(first(dv_ode), nparticles(system))
+            end
+
+            trixi2vtk(ode.u0, semi, 0.0; output_directory=tmp_dir,
+                      prefix="tmp_file_fluid_no_derivative", iter=1,
+                      acceleration_quantity)
+
+            test_data = vtk2trixi(joinpath(tmp_dir,
+                                           "tmp_file_fluid_no_derivative_fluid_1_1.vtu"))
+
+            @test all(isnan, test_data.acceleration_quantity)
+        end
+
         @testset verbose=true "PVD Collection Appends Iterations" begin
             trixi2vtk(fluid_system, dvdu_ode, vu_ode, semi, 0.0,
                       nothing; system_name="tmp_file_fluid_collection",
