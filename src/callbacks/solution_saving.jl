@@ -273,9 +273,9 @@ end
 #                   DiffEqCallbacks.var"#100#104"{...}}`.
 #
 # When `save_times` is used, this is
-# `DiscreteCallback{DiffEqCallbacks.var"#115#117"{...},
+# `DiscreteCallback{<:DiffEqCallbacks.PresetTimeFunction,
 #                   <:SolutionSavingCallback,
-#                   typeof(TrixiParticles.initialize_save_times_cb!)}`.
+#                   <:DiffEqCallbacks.PresetTimeFunction}`.
 #
 # So we can unambiguously dispatch on
 # - `DiscreteCallback{<:SolutionSavingCallback, <:SolutionSavingCallback}`,
