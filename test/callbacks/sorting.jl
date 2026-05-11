@@ -1,18 +1,7 @@
 @testset verbose=true "SortingCallback" begin
     @testset verbose=true "show" begin
         # Default
-        callback0 = SortingCallback()
-
-        show_compact = "SortingCallback(interval=1)"
-        @test repr(callback0) == show_compact
-
-        show_box = """
-        ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-        │ SortingCallback                                                                                  │
-        │ ═══════════════                                                                                  │
-        │ interval: ……………………………………………………… 1                                                                │
-        └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
-        @test repr("text/plain", callback0) == show_box
+        @test_throws "either `interval` or `dt` must be set to" SortingCallback()
 
         callback1 = SortingCallback(interval=11)
 
@@ -24,6 +13,7 @@
         │ SortingCallback                                                                                  │
         │ ═══════════════                                                                                  │
         │ interval: ……………………………………………………… 11                                                               │
+        | initial_sort: …………………………………………… true                                                             │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", callback1) == show_box
 
@@ -37,6 +27,7 @@
         │ SortingCallback                                                                                  │
         │ ═══════════════                                                                                  │
         │ dt: ……………………………………………………………………… 1.2                                                              │
+        | initial_sort: …………………………………………… true                                                             │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", callback2) == show_box
     end
@@ -58,7 +49,7 @@
         end
 
         # Test that `initial_sort=false` doesn't trigger sorting.
-        callback = SortingCallback(initial_sort=false)
+        callback = SortingCallback(interval=1, initial_sort=false)
         system = SortingCallbackMockSystem(Ref(0))
         semi = (; systems=(system,), ranges_v=(1:2,), ranges_u=(1:2,))
         integrator = (; p=(; semi), u=(; x=(zeros(2), zeros(2))), t=0.0)
@@ -68,7 +59,7 @@
         @test system.sorted_count[] == 0
 
         # Test that `initial_sort=true` triggers sorting.
-        callback = SortingCallback(initial_sort=true)
+        callback = SortingCallback(interval=1, initial_sort=true)
         callback.initialize(callback, nothing, 0.0, integrator)
         @test system.sorted_count[] == 1
     end
@@ -136,7 +127,7 @@
     end
 
     @testset "Illegal Input" begin
-        error_str = "Setting both interval and dt is not supported!"
+        error_str = "setting both `interval` and `dt` is not supported"
         @test_throws ArgumentError(error_str) SortingCallback(dt=0.1, interval=1)
     end
 end
