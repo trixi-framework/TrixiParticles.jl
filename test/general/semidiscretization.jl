@@ -556,10 +556,11 @@
             counter = Ref(0)
 
             TrixiParticles.foreach_point_neighbor(system, neighbor, system_coords,
-                                                  neighbor_coords, semi) do particle,
-                                                                              neighbor_particle,
-                                                                              pos_diff,
-                                                                              distance
+                                                  neighbor_coords,
+                                                  semi) do particle,
+                                                           neighbor_particle,
+                                                           pos_diff,
+                                                           distance
                 counter[] += 1
             end
 

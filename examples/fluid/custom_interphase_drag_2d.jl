@@ -78,9 +78,9 @@ function (drag::InterfacialTangentialDrag)(dv, v_system, u_system,
                                           neighbor_coords,
                                           semi;
                                           points=eachparticle) do particle,
-                                                                 neighbor_particle,
-                                                                 pos_diff,
-                                                                 distance
+                                                                  neighbor_particle,
+                                                                  pos_diff,
+                                                                  distance
         v_a = TrixiParticles.current_velocity(v_system, system, particle)
         v_b = TrixiParticles.current_velocity(v_neighbor, neighbor, neighbor_particle)
         velocity_difference = v_b - v_a
