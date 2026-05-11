@@ -103,7 +103,7 @@ function extrude_geometry(geometry; particle_spacing=-1, direction, n_extrude::I
 
     geometry = shift_plane_corners(geometry, direction_, particle_spacing, place_on_shell)
 
-    face_coords = sample_plane(geometry, particle_spacing; place_on_shell=place_on_shell)
+    face_coords = sample_plane(geometry, particle_spacing; place_on_shell)
 
     coords = (face_coords .+ i * particle_spacing * direction_ for i in 0:(n_extrude - 1))
 
@@ -115,7 +115,7 @@ function extrude_geometry(geometry; particle_spacing=-1, direction, n_extrude::I
     end
 
     return InitialCondition(; coordinates, velocity, density, mass, pressure,
-                            particle_spacing=particle_spacing)
+                            particle_spacing)
 end
 
 # For corners/endpoints of a plane/line, sample the plane/line with particles.

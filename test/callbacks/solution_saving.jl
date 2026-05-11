@@ -1,6 +1,6 @@
 @testset verbose=true "SolutionSavingCallback" begin
     @testset verbose=true "show" begin
-        out = joinpath(pkgdir(TrixiParticles), "out")
+        out = joinpath(tempdir(), "trixi_out")
         output_directory_padded = out * " "^(65 - length(out))
 
         @testset verbose=true "dt" begin
@@ -17,6 +17,7 @@
             │ custom quantities: ……………………………… nothing                                                          │
             │ save initial solution: …………………… yes                                                              │
             │ save final solution: ………………………… yes                                                              │
+            │ overwrite solution: …………………………… no                                                               │
             │ output directory: ………………………………… $(output_directory_padded)│
             │ prefix: …………………………………………………………… test                                                             │
             └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
@@ -24,7 +25,7 @@
         end
 
         @testset verbose=true "interval" begin
-            callback = SolutionSavingCallback(interval=100, prefix="test",
+            callback = SolutionSavingCallback(interval=100, prefix="test", overwrite=true,
                                               output_directory=out)
 
             show_compact = "SolutionSavingCallback(interval=100)"
@@ -38,6 +39,7 @@
             │ custom quantities: ……………………………… nothing                                                          │
             │ save initial solution: …………………… yes                                                              │
             │ save final solution: ………………………… yes                                                              │
+            │ overwrite solution: …………………………… yes                                                              │
             │ output directory: ………………………………… $(output_directory_padded)│
             │ prefix: …………………………………………………………… test                                                             │
             └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
@@ -59,6 +61,7 @@
             │ custom quantities: ……………………………… nothing                                                          │
             │ save initial solution: …………………… yes                                                              │
             │ save final solution: ………………………… yes                                                              │
+            │ overwrite solution: …………………………… no                                                               │
             │ output directory: ………………………………… $(output_directory_padded)│
             │ prefix: …………………………………………………………… test                                                             │
             └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""

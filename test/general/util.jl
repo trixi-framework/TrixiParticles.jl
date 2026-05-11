@@ -13,11 +13,26 @@
     @trixi_test_nowarn A .= B .+ A
     @trixi_test_nowarn A .= A .* 2
     @trixi_test_nowarn A .= B .* 2
+    @trixi_test_nowarn copyto!(A, B)
+    @trixi_test_nowarn copyto!(A, TrixiParticles.ThreadedBroadcastArray(B))
+
+    copyto!(A, TrixiParticles.ThreadedBroadcastArray(fill(2.0, 3, 3)))
+    @test all(parent(A) .== 2)
 
     # Test that the resulting type of broadcasting is correct
     @test typeof(A .* 2) == typeof(A)
     @test typeof(A .+ B) == typeof(A)
     @test typeof(B .+ A) == typeof(A)
+
+    # Test that the resulting type of `similar` is correct
+    C = similar(A, Float64, (2, 2))
+    @test typeof(C) == typeof(A)
+    @test size(C) == (2, 2)
+    @test typeof(similar(A, Float64)) == typeof(A)
+    C = similar(A, (2, 2))
+    @test typeof(C) == typeof(A)
+    @test size(C) == (2, 2)
+    @test typeof(similar(A)) == typeof(A)
 
     # Test that these operations all use the correct backend
     struct FailingBackend end
@@ -41,4 +56,6 @@
     @test_throws "test1" A2 .= B .+ A2
     @test_throws "test1" A2 .= A2 .* 2
     @test_throws "test1" A2 .= B .* 2
+    @test_throws "test1" copyto!(A2, B)
+    @test_throws "test1" copyto!(A2, A)
 end

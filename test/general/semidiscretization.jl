@@ -1,8 +1,8 @@
 # Use `@trixi_testset` to isolate the mock functions in a separate namespace
 @trixi_testset "Semidiscretization" begin
     # Mock systems
-    struct System1 <: TrixiParticles.AbstractSystem{3} end
-    struct System2 <: TrixiParticles.AbstractSystem{3} end
+    struct System1 <: TrixiParticles.AbstractStructureSystem{3} end
+    struct System2 <: TrixiParticles.AbstractStructureSystem{3} end
 
     system1 = System1()
     system2 = System2()
@@ -10,9 +10,9 @@
     Base.eltype(::System1) = Float64
     TrixiParticles.coordinates_eltype(::System1) = Float32
     TrixiParticles.u_nvariables(::System1) = 3
-    TrixiParticles.u_nvariables(::System2) = 4
+    TrixiParticles.u_nvariables(::System2) = 3
     TrixiParticles.v_nvariables(::System1) = 3
-    TrixiParticles.v_nvariables(::System2) = 2
+    TrixiParticles.v_nvariables(::System2) = 4
     TrixiParticles.nparticles(::System1) = 2
     TrixiParticles.nparticles(::System2) = 3
     TrixiParticles.n_integrated_particles(::System1) = 2
@@ -21,33 +21,98 @@
     TrixiParticles.compact_support(::System1, neighbor) = 0.2
     TrixiParticles.compact_support(::System2, neighbor) = 0.2
 
+    function TrixiParticles.interact!(dv, v_system, u_system, v_neighbor, u_neighbor,
+                                      system::System1, neighbor::System1, semi; kwargs...)
+        dv[1, 1] += 1
+        return dv
+    end
+
+    function TrixiParticles.interact!(dv, v_system, u_system, v_neighbor, u_neighbor,
+                                      system::System1, neighbor::System2, semi; kwargs...)
+        dv[1, 1] += 10
+        return dv
+    end
+
+    function TrixiParticles.interact!(dv, v_system, u_system, v_neighbor, u_neighbor,
+                                      system::System2, neighbor::System1, semi; kwargs...)
+        dv[1, 1] += 100
+        return dv
+    end
+
+    function TrixiParticles.interact!(dv, v_system, u_system, v_neighbor, u_neighbor,
+                                      system::System2, neighbor::System2, semi; kwargs...)
+        dv[1, 1] += 1000
+        return dv
+    end
+
+    struct TestInteraction
+        calls::Base.RefValue{Int}
+        integrate_tlsph_seen::Base.RefValue{Bool}
+    end
+    TestInteraction() = TestInteraction(Ref(0), Ref(false))
+
+    function (interaction::TestInteraction)(dv, v_system, u_system, v_neighbor,
+                                            u_neighbor, system, neighbor, semi;
+                                            integrate_tlsph=false, kwargs...)
+        interaction.calls[] += 1
+        interaction.integrate_tlsph_seen[] |= integrate_tlsph
+        dv[1, 1] += 50
+        return dv
+    end
+
     @testset verbose=true "Constructor" begin
         semi = Semidiscretization(system1, system2, neighborhood_search=nothing)
 
         # Verification
-        @test semi.ranges_u == (1:6, 7:18)
-        @test semi.ranges_v == (1:6, 7:12)
+        @test semi.ranges_u == (1:6, 7:15)
+        @test semi.ranges_v == (1:6, 7:18)
+        @test semi.interaction_matrix == trues(2, 2)
 
-        nhs = ((TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
-                                                            eachpoint=1:2),
-                TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
-                                                            eachpoint=1:3)),
-               (TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
-                                                            eachpoint=1:2),
-                TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
-                                                            eachpoint=1:3)))
+        nhs = [TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
+               eachpoint=1:2)
+               TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
+               eachpoint=1:2);;
+               TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
+               eachpoint=1:3)
+               TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
+               eachpoint=1:3)]
         @test semi.neighborhood_searches == nhs
+
+        @test_throws ArgumentError Semidiscretization(system1, system2;
+                                                      neighborhood_search=nothing,
+                                                      interaction_matrix=trues(1, 1))
+        @test_throws ArgumentError Semidiscretization(system1, system2;
+                                                      neighborhood_search=nothing,
+                                                      interaction_matrix=Any[true false;
+                                                                             false true])
+        abstract_union_matrix = Matrix{Union{Bool, Function}}(trues(2, 2))
+        @test_throws ArgumentError Semidiscretization(system1, system2;
+                                                      neighborhood_search=nothing,
+                                                      interaction_matrix=abstract_union_matrix)
+
+        interaction = TestInteraction()
+        interaction_matrix = Matrix{Union{Bool, typeof(interaction)}}(trues(2, 2))
+        interaction_matrix[1, 2] = interaction
+        semi_custom = Semidiscretization(system1, system2;
+                                         neighborhood_search=nothing,
+                                         interaction_matrix)
+        interaction_matrix[1, 2] = false
+
+        @test semi_custom.interaction_matrix[1, 2] === interaction
     end
 
     @testset verbose=true "Check Configuration" begin
         @testset verbose=true "Structure-Fluid Interaction" begin
             # Mock boundary model
-            struct BoundaryModelMock end
+            struct BoundaryModelMock
+                hydrodynamic_mass::Any
+            end
 
             # Mock fluid system
             struct FluidSystemMock <: TrixiParticles.AbstractFluidSystem{2}
                 surface_tension::Nothing
-                FluidSystemMock() = new(nothing)
+                surface_normal_method::Nothing
+                FluidSystemMock() = new(nothing, nothing)
             end
 
             kernel = Val(:smoothing_kernel)
@@ -58,12 +123,17 @@
                                   density=[1.0, 1.0])
 
             fluid_system = FluidSystemMock()
-            model_a = BoundaryModelMock()
-            model_b = BoundaryModelDummyParticles([1.0], [1.0], ContinuityDensity(), kernel,
-                                                  1.0)
+            model_a = BoundaryModelMock(zeros(2))
+            model_b = BoundaryModelDummyParticles([1.0, 1.0], [1.0, 1.0],
+                                                  ContinuityDensity(), kernel, 1.0)
+            model_c = BoundaryModelMock(zeros(3))
 
-            # FSI without boundary model.
-            structure_system1 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0)
+            # FSI without boundary model
+            structure_system1 = TotalLagrangianSPHSystem(ic;
+                                                         smoothing_kernel=kernel,
+                                                         smoothing_length=1.0,
+                                                         young_modulus=1.0,
+                                                         poisson_ratio=1.0)
 
             error_str = "a boundary model for `TotalLagrangianSPHSystem` must be " *
                         "specified when simulating a fluid-structure interaction."
@@ -72,7 +142,11 @@
                                                                      neighborhood_search=nothing)
 
             # FSI with boundary model
-            structure_system2 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0,
+            structure_system2 = TotalLagrangianSPHSystem(ic;
+                                                         smoothing_kernel=kernel,
+                                                         smoothing_length=1.0,
+                                                         young_modulus=1.0,
+                                                         poisson_ratio=1.0,
                                                          boundary_model=model_a)
             structure_system2 = TrixiParticles.initialize_self_interaction_nhs(structure_system2,
                                                                                nothing,
@@ -83,12 +157,30 @@
                                                             nothing)
 
             # FSI with wrong boundary model
-            structure_system3 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0,
+            structure_system3 = TotalLagrangianSPHSystem(ic;
+                                                         smoothing_kernel=kernel,
+                                                         smoothing_length=1.0,
+                                                         young_modulus=1.0,
+                                                         poisson_ratio=1.0,
                                                          boundary_model=model_b)
 
             error_str = "`BoundaryModelDummyParticles` with density calculator " *
                         "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"
             @test_throws ArgumentError(error_str) Semidiscretization(structure_system3,
+                                                                     fluid_system,
+                                                                     neighborhood_search=nothing)
+
+            # FSI with wrong boundary model
+            structure_system4 = TotalLagrangianSPHSystem(ic;
+                                                         smoothing_kernel=kernel,
+                                                         smoothing_length=1.0,
+                                                         young_modulus=1.0,
+                                                         poisson_ratio=1.0,
+                                                         boundary_model=model_c)
+
+            error_str = "the boundary model was initialized with 3 particles, " *
+                        "but the `TotalLagrangianSPHSystem` has 2 particles."
+            @test_throws ArgumentError(error_str) Semidiscretization(structure_system4,
                                                                      fluid_system,
                                                                      neighborhood_search=nothing)
         end
@@ -101,13 +193,144 @@
             boundary_model = BoundaryModelDummyParticles(ic.density, ic.mass,
                                                          SummationDensity(), kernel, 1.0)
             boundary_system = WallBoundarySystem(ic, boundary_model)
-            fluid_system = WeaklyCompressibleSPHSystem(ic, SummationDensity(), nothing,
-                                                       kernel, 1.0)
+            fluid_system = WeaklyCompressibleSPHSystem(ic; smoothing_kernel=kernel,
+                                                       smoothing_length=1.0,
+                                                       density_calculator=SummationDensity(),
+                                                       state_equation=nothing)
 
             error_str = "`WeaklyCompressibleSPHSystem` cannot be used without setting a " *
                         "`state_equation` for all boundary models"
             @test_throws ArgumentError(error_str) Semidiscretization(fluid_system,
                                                                      boundary_system)
+        end
+    end
+
+    @testset verbose=true "Interaction Matrix" begin
+        function zero_ode_state(semi)
+            n_u = sum(TrixiParticles.u_nvariables(system) *
+                      TrixiParticles.n_integrated_particles(system)
+                      for system in semi.systems)
+            n_v = sum(TrixiParticles.v_nvariables(system) *
+                      TrixiParticles.n_integrated_particles(system)
+                      for system in semi.systems)
+
+            v_ode = zeros(n_v)
+            u_ode = zeros(n_u)
+            dv_ode = zero(v_ode)
+
+            return v_ode, u_ode, dv_ode
+        end
+
+        function initialized_ode_state(semi)
+            v_ode, u_ode, dv_ode = zero_ode_state(semi)
+
+            TrixiParticles.foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
+                TrixiParticles.write_v0!(v, system)
+                TrixiParticles.write_u0!(u, system)
+            end
+
+            return v_ode, u_ode, dv_ode
+        end
+
+        function system_dv(dv_ode, semi, system_index)
+            system = semi.systems[system_index]
+            return Array(TrixiParticles.wrap_v(dv_ode, system, semi))
+        end
+
+        function make_tlsph_fluid_systems()
+            kernel = SchoenbergCubicSplineKernel{2}()
+            smoothing_length = 1.0
+            state_equation = StateEquationCole(sound_speed=10.0,
+                                               reference_density=1000.0,
+                                               exponent=7)
+
+            structure_ic = InitialCondition(; coordinates=reshape([0.0, 0.0], 2, 1),
+                                            velocity=reshape([0.0, 0.0], 2, 1),
+                                            density=[1000.0],
+                                            particle_spacing=1.0)
+            boundary_model = BoundaryModelDummyParticles(structure_ic.density,
+                                                         structure_ic.mass,
+                                                         SummationDensity(), kernel,
+                                                         smoothing_length;
+                                                         state_equation,
+                                                         correction=nothing)
+            structure = TotalLagrangianSPHSystem(structure_ic;
+                                                 smoothing_kernel=kernel,
+                                                 smoothing_length,
+                                                 young_modulus=1.0,
+                                                 poisson_ratio=0.3,
+                                                 boundary_model)
+
+            fluid_ic = InitialCondition(; coordinates=reshape([0.5, 0.0], 2, 1),
+                                        velocity=reshape([0.0, 0.0], 2, 1),
+                                        density=[1000.0],
+                                        particle_spacing=1.0)
+            fluid = WeaklyCompressibleSPHSystem(fluid_ic;
+                                                density_calculator=ContinuityDensity(),
+                                                state_equation,
+                                                smoothing_kernel=kernel,
+                                                smoothing_length)
+
+            return structure, fluid
+        end
+
+        @testset "disabled pairs skip ordered RHS dispatch" begin
+            interaction_matrix = Bool[true false
+                                      true true]
+            semi = Semidiscretization(system1, system2; neighborhood_search=nothing,
+                                      interaction_matrix)
+            v_ode, u_ode, dv_ode = zero_ode_state(semi)
+
+            TrixiParticles.system_interaction!(dv_ode, v_ode, u_ode, semi)
+
+            @test !TrixiParticles.has_system_interaction(semi.systems[1],
+                                                         semi.systems[2], semi)
+            @test TrixiParticles.has_system_interaction(semi.systems[2],
+                                                        semi.systems[1], semi)
+            @test system_dv(dv_ode, semi, 1)[1, 1] == 1
+            @test system_dv(dv_ode, semi, 2)[1, 1] == 1100
+        end
+
+        @testset "callable entries replace ordered RHS dispatch" begin
+            interaction = TestInteraction()
+            interaction_matrix = Matrix{Union{Bool, typeof(interaction)}}(trues(2, 2))
+            interaction_matrix[1, 2] = interaction
+            interaction_matrix[2, 1] = false
+
+            semi = Semidiscretization(system1, system2; neighborhood_search=nothing,
+                                      interaction_matrix)
+            v_ode, u_ode, dv_ode = zero_ode_state(semi)
+
+            TrixiParticles.system_interaction!(dv_ode, v_ode, u_ode, semi)
+
+            @test interaction.calls[] == 1
+            @test semi.interaction_matrix[1, 2] === interaction
+            @test system_dv(dv_ode, semi, 1)[1, 1] == 51
+            @test system_dv(dv_ode, semi, 2)[1, 1] == 1000
+        end
+
+        @testset "split interaction uses original interaction matrix" begin
+            structure, fluid = make_tlsph_fluid_systems()
+            interaction = TestInteraction()
+            interaction_matrix = Matrix{Union{Bool, typeof(interaction)}}(trues(2, 2))
+            interaction_matrix[1, 2] = interaction
+
+            semi = Semidiscretization(structure, fluid; neighborhood_search=nothing,
+                                      interaction_matrix)
+            semi_split = Semidiscretization(semi.systems[1]; neighborhood_search=nothing)
+            v_ode, u_ode, _ = initialized_ode_state(semi)
+            _, _, dv_ode_split = initialized_ode_state(semi_split)
+
+            semi.integrate_tlsph[] = false
+            TrixiParticles.system_interaction!(zero(v_ode), v_ode, u_ode, semi)
+            @test interaction.calls[] == 0
+
+            TrixiParticles.other_interaction_split!(dv_ode_split, semi, v_ode, u_ode,
+                                                    semi_split)
+
+            @test interaction.calls[] == 1
+            @test interaction.integrate_tlsph_seen[]
+            @test system_dv(dv_ode_split, semi_split, 1)[1, 1] == 50
         end
     end
 
@@ -132,14 +355,27 @@
     end
 
     @testset verbose=true "Source Terms" begin
+        function Base.getproperty(::System1, name::Symbol)
+            if name == :acceleration
+                return SVector(0.0, 0.0, 0.0)
+            end
+            error("property $name not defined for `System1`")
+        end
+        function Base.getproperty(::System2, name::Symbol)
+            if name == :acceleration
+                return SVector(0.0, 0.0, 1.0)
+            end
+            error("property $name not defined for `System2`")
+        end
         TrixiParticles.source_terms(::System1) = SourceTermDamping(damping_coefficient=0.1)
+        TrixiParticles.source_terms(::System2) = nothing
         TrixiParticles.current_density(v, system::System1, particle) = 0.0
         TrixiParticles.current_pressure(v, system::System1, particle) = 0.0
 
         semi = Semidiscretization(system1, system2, neighborhood_search=nothing)
 
-        dv_ode = zeros(3 * 2 + 2 * 3)
-        du_ode = zeros(3 * 2 + 4 * 3)
+        dv_ode = zeros(3 * 2 + 4 * 3)
+        du_ode = zeros(3 * 2 + 3 * 3)
         u_ode = zero(du_ode)
 
         v1 = [1.0 2.0
@@ -154,6 +390,31 @@
         @test dv1 == -0.1 * v1
 
         dv2 = TrixiParticles.wrap_v(dv_ode, system2, semi)
-        @test iszero(dv2)
+        @test dv2 == vcat(zeros(2, 3), ones(1, 3), zeros(1, 3))
+    end
+
+    @testset verbose=true "drift!" begin
+        semi = Semidiscretization(system1, system2, neighborhood_search=nothing)
+
+        du_ode = fill(NaN, 3 * 2 + 3 * 3)
+        u_ode = zeros(3 * 2 + 3 * 3)
+
+        v1 = [1.0 2.0
+              3.0 4.0
+              5.0 6.0]
+        v2 = [10.0 11.0 12.0
+              20.0 21.0 22.0
+              30.0 31.0 32.0
+              -999.0 -999.0 -999.0]
+        v_ode = vcat(vec(v1), vec(v2))
+
+        returned = TrixiParticles.drift!(du_ode, v_ode, u_ode, (; semi), 0.0)
+        @test returned === du_ode
+
+        du1 = TrixiParticles.wrap_u(du_ode, system1, semi)
+        @test du1 == v1
+
+        du2 = TrixiParticles.wrap_u(du_ode, system2, semi)
+        @test du2 == v2[1:3, :]
     end
 end
