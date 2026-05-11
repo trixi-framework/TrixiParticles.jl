@@ -45,7 +45,6 @@
                                        signed_distance_field=nothing,
                                        background_pressure=1.0)
         show_box = """
-        [ Info: No `SignedDistanceField` provided. Particles will not be constraint onto a geoemtric surface.
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
         │ ParticlePackingSystem{2}                                                                         │
         │ ════════════════════════                                                                         │
@@ -55,5 +54,6 @@
         │ place_on_shell: ……………………………………… no                                                               │
         │ boundary: ……………………………………………………… no                                                               │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
+        @test repr("text/plain", system) == show_box
     end
 end
