@@ -9,8 +9,9 @@ Callback to reinitialize the density field when using [`ContinuityDensity`](@ref
                              of integration time.
 - `reinit_initial_solution`: Reinitialize the initial solution (default=false)
 """
-mutable struct DensityReinitializationCallback{I}
+mutable struct DensityReinitializationCallback{I, PS}
     interval::I
+    particle_system::PS
     last_t::Float64
     reinit_initial_solution::Bool
 end
@@ -29,7 +30,7 @@ function Base.show(io::IO, ::MIME"text/plain",
         show(io, cb)
     else
         callback = cb.affect!
-        setup = [
+        setup = Pair{String, Any}[
             "interval" => callback.interval,
             "reinit_initial_solution" => callback.reinit_initial_solution
         ]
@@ -53,7 +54,8 @@ function DensityReinitializationCallback(particle_system; interval::Integer=0, d
 
     last_t = -Inf
 
-    reinit_cb = DensityReinitializationCallback(interval, last_t, reinit_initial_solution)
+    reinit_cb = DensityReinitializationCallback(interval, particle_system, last_t,
+                                                reinit_initial_solution)
 
     return DiscreteCallback(reinit_cb, reinit_cb, save_positions=(false, false),
                             initialize=(initialize_reinit_cb!))
@@ -91,7 +93,7 @@ end
 function (reinit_callback::DensityReinitializationCallback)(u, t, integrator)
     (; interval, last_t) = reinit_callback
 
-    return (t - last_t) > interval
+    return (t - last_t) >= interval
 end
 
 # affect!
@@ -99,7 +101,25 @@ function (reinit_callback::DensityReinitializationCallback)(integrator)
     vu_ode = integrator.u
     semi = integrator.p
 
-    @trixi_timeit timer() "reinit density" reinit_density!(vu_ode, semi)
+    @trixi_timeit timer() "reinit density" reinitialize_density!(reinit_callback, vu_ode,
+                                                                 semi)
 
     reinit_callback.last_t = integrator.t
+
+    # Tell OrdinaryDiffEq that `integrator.u` has been modified
+    u_modified!(integrator, true)
+
+    return integrator
+end
+
+function reinitialize_density!(reinit_callback::DensityReinitializationCallback,
+                               vu_ode, semi)
+    (; particle_system) = reinit_callback
+    v_ode, u_ode = vu_ode.x
+    v = wrap_v(v_ode, particle_system, semi)
+    u = wrap_u(u_ode, particle_system, semi)
+
+    reinit_density!(particle_system, v, u, v_ode, u_ode, semi)
+
+    return reinit_callback
 end
