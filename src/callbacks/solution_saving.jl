@@ -125,7 +125,7 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
                                                false, -1, Ref("UnknownVersion"))
 
     if length(save_times) > 0
-        return PresetTimeCallback(save_times, solution_callback;
+        return PresetTimeCallback(copy(save_times), solution_callback;
                                   initialize=(initialize_save_times_cb!),
                                   save_positions=(false, false))
     elseif dt > 0
@@ -176,6 +176,7 @@ end
 
 function initialize_save_times_cb!(cb, u, t, integrator)
     solution_callback = cb.affect!
+    reset_save_times!(cb.condition.tstops, solution_callback.save_times)
     add_final_save_time!(cb.condition.tstops, solution_callback, integrator)
 
     # `PresetTimeCallback` calls `affect!` after this initializer when `t` is in
@@ -183,6 +184,14 @@ function initialize_save_times_cb!(cb, u, t, integrator)
     save_initial_solution = solution_callback.save_initial_solution &&
                             !insorted(t, cb.condition.tstops)
     initialize_save_cb!(solution_callback, u, t, integrator, save_initial_solution)
+end
+
+function reset_save_times!(tstops, save_times)
+    empty!(tstops)
+    append!(tstops, save_times)
+    sort!(unique!(tstops))
+
+    return tstops
 end
 
 function add_final_save_time!(save_times, solution_callback, integrator)

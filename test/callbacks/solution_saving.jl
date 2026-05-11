@@ -153,6 +153,29 @@ using OrdinaryDiffEqLowStorageRK
         end
     end
 
+    @testset verbose=true "save_times callback resets final time on reuse" begin
+        mktempdir() do tmp_dir
+            callback = SolutionSavingCallback(save_times=[0.003],
+                                              output_directory=tmp_dir)
+
+            run_solution_saving_test(callback; tspan=(0.0, 0.006), dt=0.001)
+            first_collection = read(joinpath(tmp_dir, "fluid_1.pvd"), String)
+            @test occursin("timestep=\"0.006\"", first_collection)
+
+            run_solution_saving_test(callback; tspan=(0.0, 0.01), dt=0.001)
+
+            collection = read(joinpath(tmp_dir, "fluid_1.pvd"), String)
+            filenames = pvd_filenames(collection)
+
+            @test length(collect(eachmatch(r"DataSet", collection))) == 3
+            @test all(file -> isfile(joinpath(tmp_dir, file)), filenames)
+            @test occursin("timestep=\"0.0\"", collection)
+            @test occursin("timestep=\"0.003\"", collection)
+            @test occursin("timestep=\"0.01\"", collection)
+            @test !occursin("timestep=\"0.006\"", collection)
+        end
+    end
+
     @testset verbose=true "interval saves initial and final solution" begin
         mktempdir() do tmp_dir
             callback = SolutionSavingCallback(interval=10,
