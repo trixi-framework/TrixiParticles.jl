@@ -159,6 +159,12 @@ using OrdinaryDiffEqLowStorageRK
                                                     save_final_solution=false)
             run_solution_saving_test(stale_callback)
 
+            stale_collection = read(joinpath(tmp_dir, "fluid_1.pvd"), String)
+            @test length(collect(eachmatch(r"DataSet", stale_collection))) == 3
+            @test occursin("fluid_1_0.vtu", stale_collection)
+            @test occursin("fluid_1_1.vtu", stale_collection)
+            @test occursin("fluid_1_2.vtu", stale_collection)
+
             reset_callback = SolutionSavingCallback(interval=1, output_directory=tmp_dir,
                                                     save_initial_solution=false,
                                                     save_final_solution=false)

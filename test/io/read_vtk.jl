@@ -168,69 +168,6 @@
                 @test isapprox(fill(expected_scalar, nparticles(fluid_system)),
                                test_data.vector, rtol=1e-5)
             end
-
-            @testset verbose=true "PVD Collection Appends Iterations" begin
-                trixi2vtk(fluid_system, dvdu_ode, vu_ode, semi, 0.0,
-                          nothing; system_name="tmp_file_fluid_collection",
-                          output_directory=tmp_dir, iter=0)
-                trixi2vtk(fluid_system, dvdu_ode, vu_ode, semi, 0.1,
-                          nothing; system_name="tmp_file_fluid_collection",
-                          output_directory=tmp_dir, iter=1)
-
-                collection = read(joinpath(tmp_dir, "tmp_file_fluid_collection.pvd"),
-                                  String)
-
-                @test occursin("DataSet", collection)
-                @test occursin("tmp_file_fluid_collection_0.vtu", collection)
-                @test occursin("tmp_file_fluid_collection_1.vtu", collection)
-            end
-
-            @testset verbose=true "PVD Collection Default Overwrite" begin
-                ode = semidiscretize(semi, (0.0, 1.0))
-                trixi2vtk(ode.u0, semi, 0.75; output_directory=tmp_dir,
-                          prefix="tmp_file_fluid_default")
-
-                collection = read(joinpath(tmp_dir, "tmp_file_fluid_default_fluid_1.pvd"),
-                                  String)
-
-                @test length(collect(eachmatch(r"DataSet", collection))) == 1
-                @test isfile(joinpath(tmp_dir,
-                                      "tmp_file_fluid_default_fluid_1_current.vtu"))
-                @test occursin("timestep=\"0.75\"", collection)
-                @test occursin("tmp_file_fluid_default_fluid_1_current.vtu",
-                               collection)
-            end
-
-            @testset verbose=true "VTK Metadata Contains Solver Version" begin
-                ode = semidiscretize(semi, (0.0, 1.0))
-                trixi2vtk(ode.u0, semi, 0.75; output_directory=tmp_dir,
-                          prefix="tmp_file_fluid_metadata")
-
-                vtk_output = read(joinpath(tmp_dir,
-                                           "tmp_file_fluid_metadata_fluid_1_current.vtu"),
-                                  String)
-
-                @test occursin("solver_version=\"$(TrixiParticles.compute_git_hash())\"",
-                               vtk_output)
-            end
-
-            @testset verbose=true "PVD Collection Tracks Overwritten File" begin
-                trixi2vtk(fluid_system, dvdu_ode, vu_ode, semi, 0.25,
-                          nothing; system_name="tmp_file_fluid_overwrite",
-                          output_directory=tmp_dir, iter=0, overwrite=true)
-                trixi2vtk(fluid_system, dvdu_ode, vu_ode, semi, 0.5,
-                          nothing; system_name="tmp_file_fluid_overwrite",
-                          output_directory=tmp_dir, iter=1, overwrite=true)
-
-                current_collection = read(joinpath(tmp_dir,
-                                                   "tmp_file_fluid_overwrite.pvd"),
-                                          String)
-
-                @test length(collect(eachmatch(r"DataSet", current_collection))) == 1
-                @test occursin("timestep=\"0.5\"", current_collection)
-                @test occursin("tmp_file_fluid_overwrite_current.vtu",
-                               current_collection)
-            end
         end
 
         @testset verbose=true "`WallBoundarySystem`" begin

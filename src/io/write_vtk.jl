@@ -42,11 +42,13 @@ The VTK output includes `solver_version` metadata with the current solver versio
                             values exceed this threshold.
 - `custom_quantities...`:   Additional custom quantities to include in the VTK output.
                             Each custom quantity can be an array or a function. Functions
-                            are called as `(system, dv_ode, du_ode, v_ode, u_ode, semi, t)`
-                            when that method exists, otherwise as `(system, data, t)`.
-                            In the latter case, `data` is a named tuple with fields
-                            depending on the system type. Check the available data for
-                            each system with `available_data(system)`.
+                            should usually use the signature `(system, data, t)`, where
+                            `data` is a named tuple with fields depending on the system
+                            type. For more complex functions where this data is not
+                            sufficient, define a method with signature
+                            `(system, dv_ode, du_ode, v_ode, u_ode, semi, t)`.
+                            Check the available data for each system with
+                            `available_data(system)`.
                             See [Custom Quantities](@ref custom_quantities)
                             for a list of pre-defined custom quantities that can be used here.
 

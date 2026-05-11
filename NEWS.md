@@ -6,7 +6,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ## Version 0.5.1
 
-### Highlights
+### Important Bugfixes
 
 Fix empty PVD collections in `SolutionSavingCallback` output and incorrect metadata
 when using `save_times`.

@@ -81,18 +81,19 @@ saving_callback = SolutionSavingCallback(dt=0.1, my_custom_quantity=kinetic_ener
 ```
 """
 mutable struct SolutionSavingCallback{I, CQ}
-    interval              :: I
-    save_times            :: Vector{Float64}
-    save_initial_solution :: Bool
-    save_final_solution   :: Bool
-    verbose               :: Bool
-    output_directory      :: String
-    prefix                :: String
-    overwrite             :: Bool
-    max_coordinates       :: Float64
-    custom_quantities     :: CQ
-    latest_saved_iter     :: Int
-    git_hash              :: Ref{String}
+    interval               :: I
+    save_times             :: Vector{Float64}
+    save_initial_solution  :: Bool
+    save_final_solution    :: Bool
+    verbose                :: Bool
+    output_directory       :: String
+    prefix                 :: String
+    overwrite              :: Bool
+    max_coordinates        :: Float64
+    custom_quantities      :: CQ
+    collection_initialized :: Bool
+    latest_saved_iter      :: Int
+    git_hash               :: Ref{String}
 end
 
 function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
@@ -121,7 +122,7 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
                                                save_initial_solution, save_final_solution,
                                                verbose, output_directory, prefix, overwrite,
                                                max_coordinates, custom_quantities,
-                                               -1, Ref("UnknownVersion"))
+                                               false, -1, Ref("UnknownVersion"))
 
     if length(save_times) > 0
         return PresetTimeCallback(save_times, solution_callback;
@@ -158,7 +159,8 @@ function initialize_save_cb!(solution_callback::SolutionSavingCallback, u, t, in
     semi = integrator.p
     set_callbacks_used!(semi, integrator)
 
-    # Reset `latest_saved_iter`
+    # Reset collection state
+    solution_callback.collection_initialized = false
     solution_callback.latest_saved_iter = -1
     solution_callback.git_hash[] = compute_git_hash()
 
@@ -213,7 +215,6 @@ function (solution_callback::SolutionSavingCallback)(integrator)
         vu_ode = integrator.u
         semi = integrator.p
         iter = get_iter(interval, integrator)
-        append_collection = solution_callback.latest_saved_iter >= 0
 
         if iter == solution_callback.latest_saved_iter
             # This should only happen at the end of the simulation when using `dt` and the
@@ -228,10 +229,15 @@ function (solution_callback::SolutionSavingCallback)(integrator)
             println("Writing solution to $output_directory at t = $(integrator.t)")
         end
 
+        # Reset the collection on the first write of each callback run to drop stale
+        # PVD entries. Later writes append, including writes after an initial solution.
         _trixi2vtk(dvdu_ode, vu_ode, semi, integrator.t;
-                   iter, overwrite, append_collection, output_directory, prefix,
+                   iter, overwrite,
+                   append_collection=solution_callback.collection_initialized,
+                   output_directory, prefix,
                    git_hash=git_hash[], max_coordinates, custom_quantities...)
 
+        solution_callback.collection_initialized = true
         solution_callback.latest_saved_iter = iter
     end
 
