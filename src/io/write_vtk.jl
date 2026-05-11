@@ -11,10 +11,15 @@ end
 """
     trixi2vtk(vu_ode, semi, t; iter=nothing, overwrite=isnothing(iter),
               output_directory="out", prefix="", max_coordinates=Inf, custom_quantities...)
+    trixi2vtk(dvdu_ode, vu_ode, semi, t; iter=nothing, overwrite=isnothing(iter),
+              output_directory="out", prefix="", max_coordinates=Inf, custom_quantities...)
 
 Convert Trixi simulation data to VTK format.
 
 # Arguments
+- `dvdu_ode`: Time derivative of the TrixiParticles ODE system at one time step.
+              If omitted, custom quantities that depend on acceleration data will receive
+              `NaN` values for the derivative data.
 - `vu_ode`: Solution of the TrixiParticles ODE system at one time step.
             This expects an `ArrayPartition` as returned in the examples as `sol.u[end]`.
 - `semi`:   Semidiscretization of the TrixiParticles simulation.
@@ -22,14 +27,17 @@ Convert Trixi simulation data to VTK format.
 
 # Keywords
 - `iter=nothing`:           Iteration number when multiple iterations are to be stored in
-                            separate files. This number is appended to the filename.
-                            If set, a PVD collection is written. By default, `iter=0`
-                            starts a new collection and later iterations append to it.
+                            separate files. This number is appended to the filename when
+                            `overwrite=false`. If set, a PVD collection is written. By
+                            default, `iter=0` starts a new collection and later iterations
+                            append to it.
 - `overwrite=isnothing(iter)`: If `true`, write to a `_current` file and keep the
-                            PVD collection pointed at this file.
+                            PVD collection pointed at this file. This is the default when
+                            `iter` is omitted. If `false` and `iter=nothing`, write a
+                            single VTK file without a PVD collection.
 - `output_directory="out"`: Output directory path.
 - `prefix=""`:              Prefix for output files.
-- `max_coordinates=Inf`     The coordinates of particles will be clipped if their absolute
+- `max_coordinates=Inf`:    The coordinates of particles will be clipped if their absolute
                             values exceed this threshold.
 - `custom_quantities...`:   Additional custom quantities to include in the VTK output.
                             Each custom quantity can be an array or a function. Functions
@@ -276,7 +284,7 @@ end
 
 """
     trixi2vtk(coordinates; output_directory="out", prefix="", filename="coordinates",
-              custom_quantities...)
+              particle_spacing=-ones(size(coordinates, 2)), custom_quantities...)
 
 Convert coordinate data to VTK format.
 
@@ -287,6 +295,7 @@ Convert coordinate data to VTK format.
 - `output_directory="out"`: Output directory path.
 - `prefix=""`:              Prefix for the output file.
 - `filename="coordinates"`: Name of the output file.
+- `particle_spacing`:       Particle spacing values to include in the VTK output.
 - `custom_quantities...`:   Additional custom quantities to include in the VTK output.
 
 # Returns
@@ -330,7 +339,7 @@ Convert [`InitialCondition`](@ref) data to VTK format.
 # Keywords
 - `output_directory="out"`: Output directory path.
 - `prefix=""`:              Prefix for the output file.
-- `filename="coordinates"`: Name of the output file.
+- `filename="initial_condition"`: Name of the output file.
 - `custom_quantities...`:   Additional custom quantities to include in the VTK output.
 
 # Returns

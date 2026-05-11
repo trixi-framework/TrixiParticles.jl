@@ -1,5 +1,5 @@
 @doc raw"""
-    SolutionSavingCallback(; interval::Integer=0, dt=0.0, save_times=Array{Float64, 1}([]),
+    SolutionSavingCallback(; interval::Integer=0, dt=0.0, save_times=Float64[],
                            save_initial_solution=true, save_final_solution=true,
                            output_directory="out", append_timestamp=false, prefix="",
                            verbose=false, overwrite=false, max_coordinates=2^15,
@@ -7,9 +7,12 @@
 
 
 Callback to save the current numerical solution in VTK format.
-Pass `interval` to save every `interval` time steps, `dt` to save in intervals of
-`dt` in terms of integration time by adding additional `tstops` (note that this
-may change the solution), or `save_times` to save at specific times.
+Use at most one of `interval`, `dt`, and `save_times`: pass `interval` to save
+every `interval` accepted time steps, `dt` to save in intervals of `dt` in terms
+of integration time by adding additional `tstops` (note that this may change the
+solution), or `save_times` to save at specific times. The initial and final
+solution can be added independently with `save_initial_solution` and
+`save_final_solution`.
 
 Additional user-defined quantities can be saved by passing keyword arguments.
 A custom quantity can be an array or a function. Functions are called as
@@ -19,21 +22,27 @@ with fields depending on the system type. To ignore a custom quantity for a
 specific system, return `nothing`.
 
 # Keywords
-- `interval=0`:                 Save the solution every `interval` time steps.
+- `interval=0`:                 Save the solution every `interval` accepted time steps.
+                                A value of `0` disables step-interval saves.
 - `dt`:                         Save the solution in regular intervals of `dt` in terms
                                 of integration time by adding additional `tstops`
                                 (note that this may change the solution).
-- `save_times=[]`:              List of times at which to save a solution.
-- `save_initial_solution=true`: Save the initial solution.
-- `save_final_solution=true`:   Save the final solution.
+- `save_times=Float64[]`:       Specific times at which to save a solution. These times
+                                are mutually exclusive with `interval` and `dt`.
+- `save_initial_solution=true`: Save the initial solution. Setting this to `false`
+                                does not suppress an initial time explicitly listed in
+                                `save_times`.
+- `save_final_solution=true`:   Save the final solution. Setting this to `false`
+                                does not suppress a final time explicitly listed in
+                                `save_times`.
 - `overwrite=false`:            If `true`, previously written VTK files are overwritten
                                 instead of creating a new file set at each save interval.
                                 In this case, filenames receive the postfix `_current`.
-                                This option is useful for memory efficiency in large simulations where only
-                                the final results matter. It provides a rolling checkpoint at
-                                each save interval.
-                                If `false` (default), files are not overwritten and an iteration
-                                postfix is appended for each interval.
+                                This option is useful for memory efficiency in large
+                                simulations where only the final results matter. It
+                                provides a rolling checkpoint at each save interval.
+                                If `false` (default), files are not overwritten and an
+                                iteration postfix is appended for each interval.
 - `output_directory="out"`:     Directory to save the VTK files.
 - `append_timestamp=false`:     Append current timestamp to the output directory.
 - `prefix=""`:                  Prefix added to the filename.
