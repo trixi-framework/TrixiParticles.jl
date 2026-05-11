@@ -20,7 +20,7 @@ Its main features include:
 - Particle sampling of complex geometries from `.stl`, `.asc`, and `.dxf` files
 - Output formats:
   - VTK
-- Experimental GPU support for NVIDIA, AMD, and Apple devices
+- GPU support for NVIDIA, AMD, and Apple devices
 
 ## Examples
 ```@raw html
