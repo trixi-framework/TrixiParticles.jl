@@ -217,7 +217,7 @@
               -999.0 -999.0 -999.0]
         v_ode = vcat(vec(v1), vec(v2))
 
-        returned = TrixiParticles.drift!(du_ode, v_ode, u_ode, semi, 0.0)
+        returned = TrixiParticles.drift!(du_ode, v_ode, u_ode, (; semi), 0.0)
         @test returned === du_ode
 
         du1 = TrixiParticles.wrap_u(du_ode, system1, semi)
