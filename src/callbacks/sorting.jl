@@ -33,8 +33,8 @@ See [#1044](https://github.com/trixi-framework/TrixiParticles.jl/pull/1044) for 
                        than sorting by NHS cell index.
 """
 function SortingCallback(; interval::Integer=-1, dt=0.0, initial_sort=true)
-    if dt > 0 && interval != -1
-        throw(ArgumentError("Setting both interval and dt is not supported!"))
+    if dt > 0 && interval > 0
+        throw(ArgumentError("Setting both `interval` and `dt` is not supported"))
     end
 
     # Sort in intervals in terms of simulation time
@@ -43,7 +43,7 @@ function SortingCallback(; interval::Integer=-1, dt=0.0, initial_sort=true)
 
         # Sort every time step (default)
     elseif interval <= 0
-        interval = 1
+        throw(ArgumentError("either `interval` or `dt` must be set to a positive value"))
     end
 
     sorting_callback! = SortingCallback(interval, 0.0)
