@@ -47,7 +47,7 @@
                           pressure=expected_data.pressure)
                 file = joinpath(tmp_dir, "tmp_coordinates_variable_spacing.vtu")
                 data = vtk2trixi(file; element_type=Float64,
-                                  create_initial_condition=false)
+                                 create_initial_condition=false)
 
                 @test isapprox(data.particle_spacing, spacing, rtol=1e-5)
             end
