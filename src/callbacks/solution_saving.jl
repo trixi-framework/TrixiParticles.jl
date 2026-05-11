@@ -156,7 +156,7 @@ end
 
 function initialize_save_cb!(solution_callback::SolutionSavingCallback, u, t, integrator,
                              save_initial_solution)
-    semi = integrator.p
+    semi = integrator.p.semi
     set_callbacks_used!(semi, integrator)
 
     # Reset collection state
@@ -213,7 +213,7 @@ function (solution_callback::SolutionSavingCallback)(integrator)
         end
 
         vu_ode = integrator.u
-        semi = integrator.p
+        semi = integrator.p.semi
         iter = get_iter(interval, integrator)
 
         if iter == solution_callback.latest_saved_iter

@@ -164,7 +164,7 @@
                                                        system_2d, semi_2d)
         @test isapprox(dt_2d_larger_cfl, 0.5 * 0.1 / 1.0)
         dt_2d_semi = TrixiParticles.calculate_dt(ode_2d.u0.x[1], ode_2d.u0.x[2], 0.25,
-                                                 ode_2d.p)
+                                                 ode_2d.p.semi)
         @test isapprox(dt_2d_semi, dt_2d)
 
         TrixiParticles.update_final!(system_2d, v0_2d, u0_2d, nothing, nothing, nothing,
@@ -524,16 +524,17 @@
                 RigidBodySystem(rigid_ic; boundary_model, adhesion_coefficient)
             end
 
-            semi = Semidiscretization(fluid_system, boundary_system)
-            ode = semidiscretize(semi, (0.0, 0.01))
+            semi_ = Semidiscretization(fluid_system, boundary_system)
+            ode = semidiscretize(semi_, (0.0, 0.01))
+            semi = ode.p.semi
 
             v_ode, u_ode = ode.u0.x
             dv_ode = zero(v_ode)
             TrixiParticles.kick!(dv_ode, v_ode, u_ode, ode.p, 0.0)
 
-            fluid = ode.p.systems[1]
-            boundary = ode.p.systems[2]
-            dv_fluid = TrixiParticles.wrap_v(dv_ode, fluid, ode.p)
+            fluid = semi.systems[1]
+            boundary = semi.systems[2]
+            dv_fluid = TrixiParticles.wrap_v(dv_ode, fluid, semi)
 
             return fluid, boundary, copy(dv_fluid[:, 1])
         end
@@ -555,15 +556,16 @@
                                     particle_spacing=1.0)
         rigid_system = RigidBodySystem(rigid_ic; acceleration=(0.0, 0.0))
 
-        semi = Semidiscretization(rigid_system)
-        ode = semidiscretize(semi, (0.0, 0.01))
+        semi_ = Semidiscretization(rigid_system)
+        ode = semidiscretize(semi_, (0.0, 0.01))
+        semi = ode.p.semi
 
         v_ode, u_ode = ode.u0.x
         dv_ode = zero(v_ode)
         TrixiParticles.kick!(dv_ode, v_ode, u_ode, ode.p, 0.0)
 
-        rigid = only(ode.p.systems)
-        dv_rigid = TrixiParticles.wrap_v(dv_ode, rigid, ode.p)
+        rigid = only(semi.systems)
+        dv_rigid = TrixiParticles.wrap_v(dv_ode, rigid, semi)
 
         @test all(iszero, dv_rigid)
         @test iszero(rigid.resultant_force[])
@@ -611,15 +613,16 @@
                                             state_equation)
             end
 
-            semi = Semidiscretization(fluid_systems..., rigid_system)
-            ode = semidiscretize(semi, (0.0, 0.01))
+            semi_ = Semidiscretization(fluid_systems..., rigid_system)
+            ode = semidiscretize(semi_, (0.0, 0.01))
+            semi = ode.p.semi
 
             v_ode, u_ode = ode.u0.x
             dv_ode = zero(v_ode)
             TrixiParticles.kick!(dv_ode, v_ode, u_ode, ode.p, 0.0)
 
-            rigid = last(ode.p.systems)
-            dv_rigid = TrixiParticles.wrap_v(dv_ode, rigid, ode.p)
+            rigid = last(semi.systems)
+            dv_rigid = TrixiParticles.wrap_v(dv_ode, rigid, semi)
 
             return rigid, copy(dv_rigid)
         end
@@ -691,11 +694,12 @@
                                                   boundary_model=BoundaryModelDynamicalPressureZhang(),
                                                   buffer_size=0)
 
-        semi = Semidiscretization(fluid_system, rigid_system, open_boundary_system)
-        ode = semidiscretize(semi, (0.0, 0.01))
+        semi_ = Semidiscretization(fluid_system, rigid_system, open_boundary_system)
+        ode = semidiscretize(semi_, (0.0, 0.01))
+        semi = ode.p.semi
 
-        rigid = ode.p.systems[2]
-        open_boundary = ode.p.systems[3]
+        rigid = semi.systems[2]
+        open_boundary = semi.systems[3]
 
         @test iszero(TrixiParticles.compact_support(rigid, open_boundary))
         @test iszero(TrixiParticles.compact_support(open_boundary, rigid))
@@ -703,11 +707,11 @@
         v_ode, u_ode = ode.u0.x
         dv_ode = zero(v_ode)
 
-        TrixiParticles.interact!(dv_ode, v_ode, u_ode, rigid, open_boundary, ode.p)
-        TrixiParticles.interact!(dv_ode, v_ode, u_ode, open_boundary, rigid, ode.p)
+        TrixiParticles.interact!(dv_ode, v_ode, u_ode, rigid, open_boundary, semi)
+        TrixiParticles.interact!(dv_ode, v_ode, u_ode, open_boundary, rigid, semi)
 
-        dv_rigid = TrixiParticles.wrap_v(dv_ode, rigid, ode.p)
-        dv_open_boundary = TrixiParticles.wrap_v(dv_ode, open_boundary, ode.p)
+        dv_rigid = TrixiParticles.wrap_v(dv_ode, rigid, semi)
+        dv_open_boundary = TrixiParticles.wrap_v(dv_ode, open_boundary, semi)
 
         @test all(iszero, dv_rigid[:, 1])
         @test all(iszero, dv_open_boundary[:, 1])
@@ -1001,7 +1005,7 @@
         kick_v_ode, kick_u_ode = kick_ode.u0.x
         kick_dv_ode = zero(kick_v_ode)
 
-        TrixiParticles.kick!(kick_dv_ode, kick_v_ode, kick_u_ode, kick_semi, 0.0)
+        TrixiParticles.kick!(kick_dv_ode, kick_v_ode, kick_u_ode, kick_ode.p, 0.0)
         kick_dv = TrixiParticles.wrap_v(kick_dv_ode, kick_rigid_system, kick_semi)
 
         @test kick_dv[2, 1] > 0
