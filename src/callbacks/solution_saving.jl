@@ -241,23 +241,20 @@ function (solution_callback::SolutionSavingCallback)(integrator)
     return nothing
 end
 
-# The type of the `DiscreteCallback` returned by the constructor is
-# `DiscreteCallback{typeof(condition), typeof(affect!), typeof(initialize), typeof(finalize)}`.
+# The exact `DiscreteCallback` type parameters depend on the SciMLBase/DiffEqCallbacks
+# version. For the `show` dispatches below, we only rely on the condition and
+# `affect!` wrapper types.
 #
-# When `interval` is used, this is
-# `DiscreteCallback{<:SolutionSavingCallback,
-#                   <:SolutionSavingCallback,
-#                   typeof(TrixiParticles.initialize_save_cb!)}`.
+# When `interval` is used, the condition and `affect!` are both
+# `SolutionSavingCallback`.
 #
-# When `dt` is used, this is
-# `DiscreteCallback{DiffEqCallbacks.var"#99#103"{...},
-#                   DiffEqCallbacks.PeriodicCallbackAffect{<:SolutionSavingCallback},
-#                   DiffEqCallbacks.var"#100#104"{...}}`.
+# When `dt` is used, `affect!` is a `PeriodicCallbackAffect` wrapping a
+# `SolutionSavingCallback`.
 #
-# When `save_times` is used, this is
-# `DiscreteCallback{<:DiffEqCallbacks.PresetTimeFunction,
-#                   <:SolutionSavingCallback,
-#                   <:DiffEqCallbacks.PresetTimeFunction}`.
+# When `save_times` is used, the condition is created by `PresetTimeCallback` and
+# `affect!` is the `SolutionSavingCallback`. The custom initializer
+# `initialize_save_times_cb!` is passed to `PresetTimeCallback`, which may wrap it
+# internally, so avoid dispatching on an exact initializer type.
 #
 # So we can unambiguously dispatch on
 # - `DiscreteCallback{<:SolutionSavingCallback, <:SolutionSavingCallback}`,
