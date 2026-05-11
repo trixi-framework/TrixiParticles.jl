@@ -157,12 +157,12 @@ function sort_system!(system, v, u, perm, buffer::Nothing)
     return system
 end
 
-function initial_sort(::DiscreteCallback{<:Any, <:SortingCallback, ::typeof(initial_sort!)})
+function initial_sort(::DiscreteCallback{<:Any, <:SortingCallback, typeof(initial_sort!)})
     return true
 end
 
 function initial_sort(::DiscreteCallback{<:Any, <:SortingCallback,
-                                         ::typeof(initialize_sorting_callback!)})
+                                         typeof(initialize_sorting_callback!)})
     return false
 end
 
