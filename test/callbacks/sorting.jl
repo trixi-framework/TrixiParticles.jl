@@ -91,12 +91,17 @@
         @test callback.condition(nothing, 0.1, integrator) == false
 
         callback = SortingCallback(dt=0.02)
-        @test callback.condition(nothing, 0.019, nothing) == false
-        @test callback.condition(nothing, 0.021, nothing) == true
+        integrator = (; isfinished=false)
+        @test callback.condition(nothing, 0.019, integrator) == false
+        @test callback.condition(nothing, 0.021, integrator) == true
 
         # Don't trigger again until the time has advanced by another 0.02.
         callback.affect!.last_t = 0.021
-        @test callback.condition(nothing, 0.022, nothing) == false
+        @test callback.condition(nothing, 0.022, integrator) == false
+
+        # Don't trigger if the integrator is finished.
+        integrator = (; isfinished=true)
+        @test callback.condition(nothing, 0.05, integrator) == false
     end
 
     @testset verbose=true "sort_system!" begin

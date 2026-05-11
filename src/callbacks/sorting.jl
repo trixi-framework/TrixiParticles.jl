@@ -42,7 +42,7 @@ function SortingCallback(; interval::Integer=-1, dt=0.0, initial_sort=true)
         interval = Float64(dt)
 
         # Sort every time step (default)
-    elseif interval == -1
+    elseif interval <= 0
         interval = 1
     end
 
@@ -77,6 +77,7 @@ end
 function (sorting_callback!::SortingCallback{Int})(u, t, integrator)
     (; interval) = sorting_callback!
 
+    # Don't sort when the simulation is finished.
     return !isfinished(integrator) && condition_integrator_interval(integrator, interval)
 end
 
@@ -84,7 +85,9 @@ end
 function (sorting_callback!::SortingCallback)(u, t, integrator)
     (; interval, last_t) = sorting_callback!
 
-    return (t - last_t) > interval
+    # Sort in the next time step after `dt` has elapsed since the last sorting.
+    # Don't sort when the simulation is finished.
+    return !isfinished(integrator) && (t - last_t) > interval
 end
 
 # `affect!`
@@ -154,15 +157,26 @@ function sort_system!(system, v, u, perm, buffer::Nothing)
     return system
 end
 
+function initial_sort(::DiscreteCallback{<:Any, <:SortingCallback, ::typeof(initial_sort!)})
+    return true
+end
+
+function initial_sort(::DiscreteCallback{<:Any, <:SortingCallback,
+                                         ::typeof(initialize_sorting_callback!)})
+    return false
+end
+
 function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:SortingCallback{Int}})
     @nospecialize cb # reduce precompilation time
-    print(io, "SortingCallback(interval=", cb.affect!.interval, ")")
+    print(io, "SortingCallback(interval=", cb.affect!.interval, ", initial_sort=",
+          initial_sort(cb), ")")
 end
 
 function Base.show(io::IO,
                    cb::DiscreteCallback{<:Any, <:SortingCallback})
     @nospecialize cb # reduce precompilation time
-    print(io, "SortingCallback(dt=", cb.affect!.interval, ")")
+    print(io, "SortingCallback(dt=", cb.affect!.interval, ", initial_sort=",
+          initial_sort(cb), ")")
 end
 
 function Base.show(io::IO, ::MIME"text/plain",
@@ -174,7 +188,8 @@ function Base.show(io::IO, ::MIME"text/plain",
     else
         sorting_cb = cb.affect!
         setup = [
-            "interval" => sorting_cb.interval
+            "interval" => sorting_cb.interval,
+            "initial_sort" => initial_sort(cb)
         ]
         summary_box(io, "SortingCallback", setup)
     end
@@ -189,7 +204,8 @@ function Base.show(io::IO, ::MIME"text/plain",
     else
         sorting_cb = cb.affect!
         setup = [
-            "dt" => sorting_cb.interval
+            "dt" => sorting_cb.interval,
+            "initial_sort" => initial_sort(cb)
         ]
         summary_box(io, "SortingCallback", setup)
     end
