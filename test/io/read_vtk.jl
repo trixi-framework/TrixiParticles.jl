@@ -26,6 +26,32 @@
                 @test eltype(data.coordinates) === Float64
             end
 
+            @testset verbose=true "Without InitialCondition" begin
+                trixi2vtk(expected_data; filename="tmp_initial_condition_no_ic",
+                          output_directory=tmp_dir)
+                file = joinpath(tmp_dir, "tmp_initial_condition_no_ic.vtu")
+                data = vtk2trixi(file; create_initial_condition=false)
+
+                @test !(:initial_condition in keys(data))
+                @test isapprox(expected_data.coordinates, data.coordinates, rtol=1e-5)
+                @test isapprox(expected_data.velocity, data.velocity, rtol=1e-5)
+                @test isapprox(expected_data.density, data.density, rtol=1e-5)
+                @test isapprox(expected_data.pressure, data.pressure, rtol=1e-5)
+            end
+
+            @testset verbose=true "Variable Particle Spacing" begin
+                spacing = collect(range(0.1, 0.2; length=size(coordinates, 2)))
+                trixi2vtk(coordinates; filename="tmp_coordinates_variable_spacing",
+                          output_directory=tmp_dir, particle_spacing=spacing,
+                          initial_velocity=velocity, density=expected_data.density,
+                          pressure=expected_data.pressure)
+                file = joinpath(tmp_dir, "tmp_coordinates_variable_spacing.vtu")
+                data = vtk2trixi(file; element_type=Float64,
+                                 create_initial_condition=false)
+
+                @test isapprox(data.particle_spacing, spacing, rtol=1e-5)
+            end
+
             @testset verbose=true "`Float32`" begin
                 expected_ic_32 = InitialCondition(;
                                                   coordinates=convert.(Float32,
