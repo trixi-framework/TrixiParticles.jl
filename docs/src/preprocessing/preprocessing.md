@@ -269,6 +269,9 @@ For example:
 0.0 1.0
 ```
 It is the user’s responsibility to ensure the points are ordered correctly.
+By default, `load_geometry` closes 2D curves by appending the first point when it is
+not already repeated. Use `load_geometry(file; close_curve=false)` for intentional
+open curves.
 This format is easy to generate and inspect manually.
 
 ## DXF Format (.dxf) – recommended

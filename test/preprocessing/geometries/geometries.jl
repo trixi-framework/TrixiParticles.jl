@@ -54,12 +54,40 @@
         end
     end
 
+    @testset verbose=true "Open Polygon Closure" begin
+        open_square = [1.0 2.0 2.0 1.0;
+                       1.0 1.0 2.0 2.0]
+
+        geometry = TrixiParticles.Polygon(open_square)
+
+        @test TrixiParticles.nfaces(geometry) == 4
+        @test first(geometry.vertices) == last(geometry.vertices)
+        @test TrixiParticles.volume(geometry) ≈ 1.0
+
+        mktempdir() do dir
+            filename = joinpath(dir, "open_square.asc")
+            open(filename, "w") do io
+                println(io, "# ASCII")
+                for vertex in eachcol(open_square)
+                    println(io, vertex[1], " ", vertex[2])
+                end
+            end
+
+            geometry_from_file = load_geometry(filename)
+
+            @test TrixiParticles.nfaces(geometry_from_file) == 4
+            @test first(geometry_from_file.vertices) == last(geometry_from_file.vertices)
+            @test TrixiParticles.volume(geometry_from_file) ≈ 1.0
+        end
+    end
+
     @testset verbose=true "Real World Data" begin
         data_dir = pkgdir(TrixiParticles, "examples", "preprocessing", "data")
         validation_dir = pkgdir(TrixiParticles, "test", "preprocessing", "data")
 
         @testset verbose=true "2D" begin
             files = ["hexagon", "circle", "inverted_open_curve"]
+            close_curves = [true, true, false]
             n_edges = [6, 63, 240]
             volumes = [2.5980750000000006, 3.1363805763454, 2.6153740535469048]
 
@@ -74,7 +102,8 @@
 
                 points = vcat((data.var"Points:0")', (data.var"Points:1")')
 
-                geometry = load_geometry(joinpath(data_dir, files[i] * ".asc"))
+                geometry = load_geometry(joinpath(data_dir, files[i] * ".asc");
+                                         close_curve=close_curves[i])
 
                 @test TrixiParticles.nfaces(geometry) == n_edges[i]
 

@@ -19,7 +19,7 @@ particle_spacing = 0.05
 filename = "inverted_open_curve"
 file = joinpath("examples", "preprocessing", "data", filename * ".asc")
 
-geometry = load_geometry(file)
+geometry = load_geometry(file; close_curve=false)
 
 trixi2vtk(geometry)
 

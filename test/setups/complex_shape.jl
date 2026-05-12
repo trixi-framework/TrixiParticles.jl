@@ -42,6 +42,7 @@
 
         @testset verbose=true "Real World Data" begin
             files = ["hexagon", "circle", "inverted_open_curve"]
+            close_curves = [true, true, false]
             algorithms = [
                 WindingNumberHormann(),
                 WindingNumberJacobson(; hierarchical_winding=false)
@@ -72,7 +73,8 @@
                     # See https://docs.julialang.org/en/v1/base/base/#var%22name%22
                     coords = vcat((data.var"Points:0")', (data.var"Points:1")')
 
-                    geometry = load_geometry(joinpath(data_dir, files[j] * ".asc"))
+                    geometry = load_geometry(joinpath(data_dir, files[j] * ".asc");
+                                             close_curve=close_curves[j])
 
                     shape_sampled = ComplexShape(geometry; particle_spacing=0.05,
                                                  density=1.0, point_in_geometry_algorithm)
