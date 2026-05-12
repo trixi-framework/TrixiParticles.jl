@@ -155,6 +155,48 @@
             @test_throws ArgumentError(error_str) apply_angular_velocity(ic_1d, 2.0)
         end
 
+        @testset "InitialCondition from solution uses final velocity" begin
+            struct FinalVelocityMock{IC, M} <: TrixiParticles.AbstractStructureSystem{2}
+                initial_condition::IC
+                mass::M
+            end
+
+            Base.eltype(::FinalVelocityMock) = Float64
+            TrixiParticles.v_nvariables(::FinalVelocityMock) = 3
+            TrixiParticles.compact_support(::FinalVelocityMock, neighbor) = 1.0
+            function TrixiParticles.write_u0!(u0, system::FinalVelocityMock)
+                u0 .= system.initial_condition.coordinates
+                return u0
+            end
+            function TrixiParticles.write_v0!(v0, system::FinalVelocityMock)
+                v0[1:2, :] .= system.initial_condition.velocity
+                v0[3, :] .= system.initial_condition.density
+                return v0
+            end
+
+            coordinates = [0.0 1.0 2.0
+                           0.0 0.0 0.0]
+            initial_condition = InitialCondition(; coordinates,
+                                                 velocity=zeros(2, 3),
+                                                 density=ones(3), mass=ones(3))
+            system = FinalVelocityMock(initial_condition, initial_condition.mass)
+            semi = Semidiscretization(system; neighborhood_search=nothing)
+            ode = semidiscretize(semi, (0.0, 1.0))
+
+            final_state = copy(ode.u0)
+            expected_velocity = [1.0 2.0 3.0
+                                 4.0 5.0 6.0]
+            v = TrixiParticles.wrap_v(final_state.x[1], system, semi)
+            v[1:2, :] .= expected_velocity
+            v[3, :] .= initial_condition.density
+
+            sol = TrixiParticles.SciMLBase.build_solution(ode, nothing, [0.0, 1.0],
+                                                          [ode.u0, final_state])
+            restart_ic = InitialCondition(sol, system, semi; use_final_velocity=true)
+
+            @test restart_ic.velocity == expected_velocity
+        end
+
         @testset "Automatic Mass Calculation" begin
             particle_spacing = 0.13
             coordinates = [88.3 10.4 5.2 48.3 58.9;
