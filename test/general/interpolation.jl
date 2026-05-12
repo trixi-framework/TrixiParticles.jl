@@ -475,6 +475,20 @@
                                                                   u_bnd; endpoint=true,
                                                                   cut_off_bnd)
 
+                result_endpoint_wall_velocity = TrixiParticles.interpolate_line([
+                                                                                    1.0,
+                                                                                    -0.05
+                                                                                ],
+                                                                                [1.0, 1.0],
+                                                                                5,
+                                                                                semi_boundary,
+                                                                                fluid_system,
+                                                                                v_bnd,
+                                                                                u_bnd;
+                                                                                endpoint=true,
+                                                                                cut_off_bnd,
+                                                                                include_wall_velocity=true)
+
                 result = TrixiParticles.interpolate_line([1.0, -0.05], [1.0, 1.0], 5,
                                                          semi_no_boundary, fluid_system,
                                                          v_no_bnd, u_no_bnd; endpoint=false,
@@ -512,6 +526,8 @@
 
                     compare_interpolation_result(result, expected_res)
                     compare_interpolation_result(result_endpoint, expected_res_end)
+                    compare_interpolation_result(result_endpoint_wall_velocity,
+                                                 expected_res_end)
 
                 else
                     expected_res = (density=[666.0, 666.0, 666.0], neighbor_count=[2, 2, 1],
@@ -522,29 +538,48 @@
                                     pressure=[
                                         0.4527147691600855,
                                         0.9912738969258665,
-                                        1.4000000000000001
+                                        1.4
                                     ])
-                    expected_res_end = (density=[
-                                            666.0,
-                                            666.0,
-                                            665.9999999999999,
-                                            666.0,
-                                            666.0
-                                        ], neighbor_count=[1, 2, 2, 1, 1],
+                    expected_res_end = (density=[666.0, 666.0, 666.0, 666.0, 666.0],
+                                        neighbor_count=[1, 2, 2, 1, 1],
                                         point_coords=[1.0 1.0 1.0 1.0 1.0;
                                                       -0.05 0.2125 0.475 0.7375 1.0],
-                                        velocity=[7.7 7.699999999999999 7.699999999999999 7.7 7.7;
-                                                  0.10099999999999999 0.10605429538320173 0.12465095587703465 0.14900000000000002 0.22100000000000006],
+                                        velocity=[7.7 7.7 7.7 7.7 7.7;
+                                                  0.101 0.10605429538320173 0.12465095587703465 0.149 0.221],
                                         pressure=[
-                                            0.19999999999999998,
+                                            0.2,
                                             0.4527147691600855,
                                             0.9912738969258663,
-                                            1.4000000000000001,
+                                            1.4,
                                             2.2
                                         ])
+                    expected_res_end_wall_velocity = (density=[
+                                                          666.0,
+                                                          666.0,
+                                                          666.0,
+                                                          666.0,
+                                                          666.0
+                                                      ], neighbor_count=[2, 2, 2, 1, 1],
+                                                      point_coords=[
+                                                          1.0 1.0 1.0 1.0 1.0;
+                                                          -0.05 0.2125 0.475 0.7375 1.0
+                                                      ],
+                                                      velocity=[
+                                                          0.7077120921221691 7.7 7.7 7.7 7.7;
+                                                          0.009282976792771307 0.10605429538320173 0.12465095587703465 0.149 0.221
+                                                      ],
+                                                      pressure=[
+                                                          0.2,
+                                                          0.4527147691600855,
+                                                          0.9912738969258663,
+                                                          1.4,
+                                                          2.2
+                                                      ])
 
                     compare_interpolation_result(result, expected_res)
                     compare_interpolation_result(result_endpoint, expected_res_end)
+                    compare_interpolation_result(result_endpoint_wall_velocity,
+                                                 expected_res_end_wall_velocity)
                 end
             end
         end

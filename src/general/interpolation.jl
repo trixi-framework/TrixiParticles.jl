@@ -608,8 +608,9 @@ end
     end
 
     @threaded parallelization_backend for point in axes(point_coords, 2)
-        if other_density[point] > computed_density[point] ||
-           computed_density[point] < eps()
+        cut_off = computed_density[point] < eps() ||
+                  (cut_off_bnd && other_density[point] > computed_density[point])
+        if cut_off
             # Return NaN values that can be filtered out in ParaView
             computed_density[point] = NaN
             neighbor_count[point] = 0
