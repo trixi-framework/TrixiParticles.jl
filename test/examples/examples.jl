@@ -326,7 +326,7 @@
                                                                            split_integration))
             end
         end
-        
+
         @trixi_testset "fsi/dam_break_plate_2d.jl with SortingCallback" begin
             @trixi_test_nowarn trixi_include(@__MODULE__,
                                              joinpath(examples_dir(), "fsi",
