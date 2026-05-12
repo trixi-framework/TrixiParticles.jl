@@ -48,9 +48,7 @@ end
 function (info_callback::InfoCallback)(u, t, integrator)
     (; interval) = info_callback
 
-    return interval != 0 &&
-           integrator.stats.naccept % interval == 0 ||
-           isfinished(integrator)
+    return condition_integrator_interval(integrator, interval)
 end
 
 # affect!
@@ -97,7 +95,7 @@ function initialize_info_callback(discrete_callback, u, t, integrator;
                            :total_width => 100,
                            :indentation_level => 0)
 
-    semi = integrator.p
+    semi = integrator.p.semi
     show(io_context, MIME"text/plain"(), semi)
     println(io, "\n")
     foreach_system(semi) do system

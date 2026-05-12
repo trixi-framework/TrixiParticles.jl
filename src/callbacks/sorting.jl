@@ -1,6 +1,7 @@
 # These are the systems that require sorting.
 # TODO: The `DEMSystem` should be added here in the future.
-# Boundary particles always stay fixed relative to each other, TLSPH computes in the initial configuration.
+# Boundary particles always stay fixed relative to each other, TLSPH computes in the
+# initial configuration.
 const RequiresSortingSystem = AbstractFluidSystem
 
 mutable struct SortingCallback{I}
@@ -31,9 +32,9 @@ See [#1044](https://github.com/trixi-framework/TrixiParticles.jl/pull/1044) for 
                        slow down the first time steps, since a perfect grid is even better
                        than sorting by NHS cell index.
 """
-function SortingCallback(; interval::Integer=-1, dt=0.0)
-    if dt > 0 && interval !== -1
-        throw(ArgumentError("Setting both interval and dt is not supported!"))
+function SortingCallback(; interval::Integer=-1, dt=0.0, initial_sort=true)
+    if dt > 0 && interval > 0
+        throw(ArgumentError("setting both `interval` and `dt` is not supported"))
     end
 
     # Sort in intervals in terms of simulation time
@@ -41,47 +42,57 @@ function SortingCallback(; interval::Integer=-1, dt=0.0)
         interval = Float64(dt)
 
         # Sort every time step (default)
-    elseif interval == -1
-        interval = 1
+    elseif interval <= 0
+        throw(ArgumentError("either `interval` or `dt` must be set to a positive value"))
     end
 
     sorting_callback! = SortingCallback(interval, 0.0)
 
     # The first one is the `condition`, the second the `affect!`
     return DiscreteCallback(sorting_callback!, sorting_callback!,
-                            initialize=(initial_sort!), save_positions=(false, false))
+                            initialize=initial_sort ? initial_sort! :
+                                       initialize_sorting_callback!,
+                            save_positions=(false, false))
 end
 
 # `initialize`
-function initial_sort!(cb, u, t, integrator)
-    # The `SortingCallback` is either `cb.affect!` (with `DiscreteCallback`)
-    # or `cb.affect!.affect!` (with `PeriodicCallback`).
-    # Let recursive dispatch handle this.
+function initial_sort!(cb::DiscreteCallback{<:Any, <:SortingCallback}, u, t, integrator)
+    cb.affect!(integrator)
 
-    initial_sort!(cb.affect!, u, t, integrator)
+    return cb
 end
 
-function initial_sort!(cb::SortingCallback, u, t, integrator)
-    return cb(integrator)
+# `initialize` with `initial_sort=false` should not trigger sorting.
+function initialize_sorting_callback!(cb::DiscreteCallback{<:Any, <:SortingCallback},
+                                      u, t, integrator)
+    sorting_callback = cb.affect!
+
+    # Only update the last sorting time, but don't trigger sorting.
+    sorting_callback.last_t = integrator.t
+
+    return cb
 end
 
 # `condition` with `interval`
 function (sorting_callback!::SortingCallback{Int})(u, t, integrator)
     (; interval) = sorting_callback!
 
+    # Don't sort when the simulation is finished.
     return !isfinished(integrator) && condition_integrator_interval(integrator, interval)
 end
 
-# condition with `dt`
+# `condition` with `dt`
 function (sorting_callback!::SortingCallback)(u, t, integrator)
     (; interval, last_t) = sorting_callback!
 
-    return (t - last_t) > interval
+    # Sort in the next time step after `dt` has elapsed since the last sorting.
+    # Don't sort when the simulation is finished.
+    return !isfinished(integrator) && (t - last_t) > interval
 end
 
 # `affect!`
 function (sorting_callback!::SortingCallback)(integrator)
-    semi = integrator.p
+    semi = integrator.p.semi
     v_ode, u_ode = integrator.u.x
 
     @trixi_timeit timer() "sorting callback" begin
@@ -92,6 +103,9 @@ function (sorting_callback!::SortingCallback)(integrator)
             sort_particles!(system, v, u, semi)
         end
     end
+
+    # Update the last sorting time in the callback struct.
+    sorting_callback!.last_t = integrator.t
 
     # Sorting changes the ODE state ordering and introduces a derivative discontinuity.
     derivative_discontinuity!(integrator, true)
@@ -104,16 +118,16 @@ sort_particles!(system, v, u, semi) = system
 function sort_particles!(system::RequiresSortingSystem, v, u, semi)
     nhs = get_neighborhood_search(system, semi)
 
-    if !(nhs isa GridNeighborhoodSearch)
-        throw(ArgumentError("`SortingCallback` can only be used with a `GridNeighborhoodSearch`"))
-    end
+    sort_particles!(system, v, u, nhs, semi)
+end
 
-    sort_particles!(system, v, u, nhs, nhs.cell_list, semi)
+function sort_particles!(system::RequiresSortingSystem, v, u, nhs, semi)
+    throw(ArgumentError("`SortingCallback` can only be used with a `GridNeighborhoodSearch`"))
 end
 
 # TODO: Sort also masses and particle spacings for variable smoothing lengths.
-function sort_particles!(system::RequiresSortingSystem, v, u, nhs,
-                         cell_list::FullGridCellList, semi)
+function sort_particles!(system::RequiresSortingSystem, v, u,
+                         nhs::GridNeighborhoodSearch, semi)
     cell_coords = allocate(semi.parallelization_backend, SVector{ndims(system), Int},
                            nparticles(system))
     @threaded semi for particle in each_active_particle(system)
@@ -143,15 +157,26 @@ function sort_system!(system, v, u, perm, buffer::Nothing)
     return system
 end
 
+function initial_sort(::DiscreteCallback{<:Any, <:SortingCallback, typeof(initial_sort!)})
+    return true
+end
+
+function initial_sort(::DiscreteCallback{<:Any, <:SortingCallback,
+                                         typeof(initialize_sorting_callback!)})
+    return false
+end
+
 function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:SortingCallback{Int}})
     @nospecialize cb # reduce precompilation time
-    print(io, "SortingCallback(interval=", cb.affect!.interval, ")")
+    print(io, "SortingCallback(interval=", cb.affect!.interval, ", initial_sort=",
+          initial_sort(cb), ")")
 end
 
 function Base.show(io::IO,
                    cb::DiscreteCallback{<:Any, <:SortingCallback})
     @nospecialize cb # reduce precompilation time
-    print(io, "SortingCallback(dt=", cb.affect!.affect!.interval, ")")
+    print(io, "SortingCallback(dt=", cb.affect!.interval, ", initial_sort=",
+          initial_sort(cb), ")")
 end
 
 function Base.show(io::IO, ::MIME"text/plain",
@@ -163,7 +188,8 @@ function Base.show(io::IO, ::MIME"text/plain",
     else
         sorting_cb = cb.affect!
         setup = [
-            "interval" => sorting_cb.interval
+            "interval" => sorting_cb.interval,
+            "initial_sort" => initial_sort(cb) ? "yes" : "no"
         ]
         summary_box(io, "SortingCallback", setup)
     end
@@ -176,9 +202,10 @@ function Base.show(io::IO, ::MIME"text/plain",
     if get(io, :compact, false)
         show(io, cb)
     else
-        sorting_cb = cb.affect!.affect!
+        sorting_cb = cb.affect!
         setup = [
-            "dt" => sorting_cb.interval
+            "dt" => sorting_cb.interval,
+            "initial_sort" => initial_sort(cb) ? "yes" : "no"
         ]
         summary_box(io, "SortingCallback", setup)
     end
