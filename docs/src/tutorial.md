@@ -52,4 +52,17 @@ together with boundary and interior sampling.
 - Focus: geometry import, signed distance fields, boundary sampling, `ParticlePackingSystem`
 - Choose this if: you need body-fitted particles for complex geometries
 
+### [Fluid-structure interaction with rigid bodies](tutorials/tut_rigid_body_fsi.md)
+
+```@raw html
+<img src="../tutorials/tut_rigid_body_fsi_step2.png"
+     alt="Rotating squares impacting a free surface water surface"
+     style="max-width: 360px; width: 100%; border-radius: 12px;" />
+```
+
+Simulate the interaction between fluids and moving rigid bodies.
+
+- Focus: fluid-structure interaction, rigid bodies, moving boundaries
+- Choose this if: you want to simulate objects moving in a fluid
+
 See also [Getting started](getting_started.md) and [Examples](examples.md).

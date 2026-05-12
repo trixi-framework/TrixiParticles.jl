@@ -48,7 +48,10 @@ end
 
 @inline function density_diffusion_psi(::DensityDiffusionMolteniColagrossi, rho_a, rho_b,
                                        pos_diff, distance, system, particle, neighbor)
-    return 2 * (rho_a - rho_b) * pos_diff / distance^2
+    # Since this is one of the most performance critical functions, using fast divisions
+    # here gives a significant speedup on GPUs.
+    # See the docs page "Development" for more details on `div_fast`.
+    return div_fast(2 * (rho_a - rho_b), distance^2) * pos_diff
 end
 
 @doc raw"""
@@ -77,13 +80,15 @@ end
 
 @inline function density_diffusion_psi(::DensityDiffusionFerrari, rho_a, rho_b,
                                        pos_diff, distance, system, particle, neighbor)
-    return ((rho_a - rho_b) /
-            (smoothing_length(system, particle) + smoothing_length(system, neighbor))) *
-           pos_diff / distance
+    # Since this is one of the most performance critical functions, using fast divisions
+    # here gives a significant speedup on GPUs.
+    # See the docs page "Development" for more details on `div_fast`.
+    h = smoothing_length(system, particle) + smoothing_length(system, neighbor)
+    return div_fast((rho_a - rho_b), h * distance) * pos_diff
 end
 
 @doc raw"""
-    DensityDiffusionAntuono(initial_condition; delta)
+    DensityDiffusionAntuono(; delta)
 
 The commonly used density diffusion terms by [Antuono (2010)](@cite Antuono2010), also referred to as
 δ-SPH. The density diffusion term by [Molteni (2009)](@cite Molteni2009) is extended by a second
@@ -110,32 +115,30 @@ where ``d`` is the number of dimensions.
 See [`AbstractDensityDiffusion`](@ref TrixiParticles.AbstractDensityDiffusion)
 for an overview and comparison of implemented density diffusion terms.
 """
-struct DensityDiffusionAntuono{NDIMS, ELTYPE, ARRAY2D, ARRAY3D} <: AbstractDensityDiffusion
-    delta                       :: ELTYPE
-    correction_matrix           :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
-    normalized_density_gradient :: ARRAY2D # Array{ELTYPE, 2}: [i, particle]
+struct DensityDiffusionAntuono{ELTYPE} <: AbstractDensityDiffusion
+    delta::ELTYPE
 
-    function DensityDiffusionAntuono(delta, correction_matrix, normalized_density_gradient)
-        new{size(correction_matrix, 1), typeof(delta),
-            typeof(normalized_density_gradient),
-            typeof(correction_matrix)}(delta, correction_matrix,
-                                       normalized_density_gradient)
+    function DensityDiffusionAntuono(; delta)
+        new{typeof(delta)}(delta)
     end
 end
 
-function DensityDiffusionAntuono(initial_condition; delta)
+create_cache_density_diffusion(initial_condition, density_diffusion) = (;)
+
+function create_cache_density_diffusion(initial_condition,
+                                        ::DensityDiffusionAntuono)
     NDIMS = ndims(initial_condition)
     ELTYPE = eltype(initial_condition)
-    correction_matrix = Array{ELTYPE, 3}(undef, NDIMS, NDIMS,
-                                         nparticles(initial_condition))
+    n_particles = nparticles(initial_condition)
 
-    normalized_density_gradient = Array{ELTYPE, 2}(undef, NDIMS,
-                                                   nparticles(initial_condition))
+    density_diffusion_correction_matrix = Array{ELTYPE, 3}(undef, NDIMS, NDIMS,
+                                                           n_particles)
+    density_diffusion_normalized_density_gradient = Array{ELTYPE, 2}(undef, NDIMS,
+                                                                     n_particles)
 
-    return DensityDiffusionAntuono(delta, correction_matrix, normalized_density_gradient)
+    return (; density_diffusion_correction_matrix,
+            density_diffusion_normalized_density_gradient)
 end
-
-@inline Base.ndims(::DensityDiffusionAntuono{NDIMS}) where {NDIMS} = NDIMS
 
 function Base.show(io::IO, density_diffusion::DensityDiffusionAntuono)
     @nospecialize density_diffusion # reduce precompilation time
@@ -149,36 +152,36 @@ function allocate_buffer(initial_condition, density_diffusion, buffer)
     return allocate_buffer(initial_condition, buffer), density_diffusion
 end
 
-function allocate_buffer(ic, dd::DensityDiffusionAntuono, buffer::SystemBuffer)
-    initial_condition = allocate_buffer(ic, buffer)
-    return initial_condition, DensityDiffusionAntuono(initial_condition; delta=dd.delta)
-end
+@propagate_inbounds function density_diffusion_psi(density_diffusion::DensityDiffusionAntuono,
+                                                   rho_a, rho_b, pos_diff, distance, system,
+                                                   particle, neighbor)
+    (; density_diffusion_normalized_density_gradient) = system.cache
 
-@inline function density_diffusion_psi(density_diffusion::DensityDiffusionAntuono,
-                                       rho_a, rho_b, pos_diff, distance, system,
-                                       particle, neighbor)
-    (; normalized_density_gradient) = density_diffusion
-
-    normalized_gradient_a = extract_svector(normalized_density_gradient, system, particle)
-    normalized_gradient_b = extract_svector(normalized_density_gradient, system, neighbor)
-
-    # Fist term by Molteni & Colagrossi
+    # First term by Molteni & Colagrossi
     result = 2 * (rho_a - rho_b)
 
     # Second correction term
+    normalized_gradient_a = extract_svector(density_diffusion_normalized_density_gradient,
+                                            system, particle)
+    normalized_gradient_b = extract_svector(density_diffusion_normalized_density_gradient,
+                                            system, neighbor)
     result -= dot(normalized_gradient_a + normalized_gradient_b, pos_diff)
 
-    return result * pos_diff / distance^2
+    # Since this is one of the most performance critical functions, using fast divisions
+    # here gives a significant speedup on GPUs.
+    # See the docs page "Development" for more details on `div_fast`.
+    return div_fast(result, distance^2) * pos_diff
 end
 
 function update!(density_diffusion::DensityDiffusionAntuono, v, u, system, semi)
-    (; normalized_density_gradient) = density_diffusion
+    density_diffusion_correction_matrix = system.cache.density_diffusion_correction_matrix
+    normalized_density_gradient = system.cache.density_diffusion_normalized_density_gradient
 
     # Compute correction matrix
     density_fun = @propagate_inbounds(particle->current_density(v, system, particle))
     system_coords = current_coordinates(u, system)
 
-    compute_gradient_correction_matrix!(density_diffusion.correction_matrix,
+    compute_gradient_correction_matrix!(density_diffusion_correction_matrix,
                                         system, system_coords, density_fun, semi)
 
     # Compute normalized density gradient
@@ -191,7 +194,8 @@ function update!(density_diffusion::DensityDiffusionAntuono, v, u, system, semi)
         rho_b = @inbounds current_density(v, system, neighbor)
 
         grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
-        L = @inbounds correction_matrix(density_diffusion, particle)
+        L = @inbounds extract_smatrix(density_diffusion_correction_matrix, system,
+                                      particle)
 
         m_b = @inbounds hydrodynamic_mass(system, neighbor)
         volume_b = m_b / rho_b
@@ -206,35 +210,38 @@ function update!(density_diffusion::DensityDiffusionAntuono, v, u, system, semi)
     return density_diffusion
 end
 
-@propagate_inbounds function density_diffusion!(dv,
+@propagate_inbounds function density_diffusion!(drho_particle,
                                                 density_diffusion::AbstractDensityDiffusion,
-                                                v_particle_system, particle, neighbor,
-                                                pos_diff, distance, m_b, rho_a, rho_b,
                                                 particle_system::Union{AbstractFluidSystem,
                                                                        OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}},
-                                                grad_kernel)
+                                                particle, neighbor, pos_diff, distance,
+                                                m_b, rho_a, rho_b, grad_kernel)
     # Density diffusion terms are all zero for distance zero.
-    # See `src/general/smoothing_kernels.jl` for more details.
-    distance^2 < eps(initial_smoothing_length(particle_system)^2) && return
+    # If `skip_zero_distance` is `true`, we can assume that this function isn't called
+    # for distance zero because these neighbors have already been skipped.
+    if !skip_zero_distance(particle_system)
+        distance^2 < eps(initial_smoothing_length(particle_system)^2) && return
+    end
 
-    (; delta) = density_diffusion
-    sound_speed = system_sound_speed(particle_system)
-
-    volume_b = m_b / rho_b
-
+    # Since this is one of the most performance critical functions, using fast divisions
+    # here gives a significant speedup on GPUs.
+    # See the docs page "Development" for more details on `div_fast`.
+    volume_b = div_fast(m_b, rho_b)
     psi = density_diffusion_psi(density_diffusion, rho_a, rho_b, pos_diff, distance,
                                 particle_system, particle, neighbor)
-    density_diffusion_term = dot(psi, grad_kernel) * volume_b
+    density_diffusion_term = volume_b * dot(psi, grad_kernel)
 
     smoothing_length_avg = (smoothing_length(particle_system, particle) +
                             smoothing_length(particle_system, neighbor)) / 2
-    dv[end, particle] += delta * smoothing_length_avg * sound_speed *
-                         density_diffusion_term
+
+    (; delta) = density_diffusion
+    sound_speed = system_sound_speed(particle_system)
+    drho_particle[] += delta * smoothing_length_avg * sound_speed * density_diffusion_term
 end
 
 # Density diffusion `nothing` or interaction other than fluid-fluid
-@inline function density_diffusion!(dv, density_diffusion, v_particle_system, particle,
-                                    neighbor, pos_diff, distance, m_b, rho_a, rho_b,
-                                    particle_system, grad_kernel)
-    return dv
+@inline function density_diffusion!(drho_particle, density_diffusion, particle_system,
+                                    particle, neighbor, pos_diff, distance,
+                                    m_b, rho_a, rho_b, grad_kernel)
+    return drho_particle
 end

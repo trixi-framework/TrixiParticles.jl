@@ -2,13 +2,70 @@
 # Loop over all pairs of particles and neighbors within the kernel cutoff.
 # `f(particle, neighbor, pos_diff, distance)` is called for every particle-neighbor pair.
 # By default, loop over `eachparticle(system)`.
-function PointNeighbors.foreach_point_neighbor(f, system, neighbor_system,
+function PointNeighbors.foreach_point_neighbor(f, system::AbstractSystem,
+                                               neighbor_system::AbstractSystem,
                                                system_coords, neighbor_coords, semi;
                                                points=eachparticle(system),
                                                parallelization_backend=semi.parallelization_backend)
     neighborhood_search = get_neighborhood_search(system, neighbor_system, semi)
     foreach_point_neighbor(f, system_coords, neighbor_coords, neighborhood_search;
                            points, parallelization_backend)
+end
+
+deactivate_out_of_bounds_particles!(system, buffer, nhs, v, u, semi) = system
+
+function deactivate_out_of_bounds_particles!(system, buffer::SystemBuffer,
+                                             nhs::GridNeighborhoodSearch, v, u, semi)
+    deactivate_out_of_bounds_particles!(system, buffer, nhs, nhs.cell_list, v, u, semi)
+end
+
+function deactivate_out_of_bounds_particles!(system, buffer, nhs, cell_list, v, u, semi)
+    return system
+end
+
+# `GridNeighborhoodSearch` with a `FullGridCellList` requires a bounding box.
+# This function deactivates particles that move outside the bounding box to prevent
+# simulation crashes.
+# Note that deactivating particles is only possible in combination with a 'SystemBuffer'.
+function deactivate_out_of_bounds_particles!(system, ::SystemBuffer, nhs,
+                                             cell_list::FullGridCellList, v, u, semi)
+    @trixi_timeit timer() "deactivate out of bounds particle" begin
+        @threaded semi for particle in each_integrated_particle(system)
+            particle_position = current_coords(u, system, particle)
+            cell = PointNeighbors.cell_coords(particle_position, nhs)
+
+            # This is the same code as is used in PointNeighbors.jl in `check_cell_bounds`.
+            # It tests that particles are inside the inner grid (without the padding layer for neighbor query).
+            if !all(cell[i] in 2:(size(cell_list.linear_indices, i) - 1)
+                    for i in eachindex(cell))
+                deactivate_particle!(system, particle, v, u)
+            end
+        end
+
+        if count(system.buffer.active_particle) != system.buffer.active_particle_count[]
+            update_system_buffer!(system.buffer)
+        end
+    end
+
+    return system
+end
+
+@propagate_inbounds function foreach_neighbor(f, system_coords, neighbor_coords,
+                                              neighborhood_search, backend, particle)
+    PointNeighbors.foreach_neighbor(f, system_coords, neighbor_coords,
+                                    neighborhood_search, particle)
+end
+
+# We cannot dispatch by `AbstractGPUArray` because this is called from within
+# a kernel, where the arrays are device arrays (like `CuDeviceArray`),
+# which are not `AbstractGPUArray`s.
+@inline function foreach_neighbor(f, system_coords, neighbor_coords, neighborhood_search,
+                                  backend::KernelAbstractions.GPU, particle)
+    # On GPUs, remove all bounds checks for maximum performance.
+    # Note that this is not safe if the neighborhood search was not initialized correctly.
+    # For example, this is unsafe when benchmarking `interact!` with the wrong NHS.
+    PointNeighbors.foreach_neighbor_unsafe(f, system_coords, neighbor_coords,
+                                           neighborhood_search, particle)
 end
 
 # === Compact support selection ===
@@ -82,6 +139,15 @@ end
     return compact_support(smoothing_kernel, smoothing_length)
 end
 
+@inline function compact_support(system::WallBoundarySystem,
+                                 model::BoundaryModelDummyParticles,
+                                 neighbor::RigidBodySystem{Nothing})
+    # Contact-only rigid bodies do not participate in wall-side hydrodynamic passes such as
+    # density summation, pressure extrapolation, or correction assembly. Keep the reverse
+    # wall->rigid search radius at zero so those updates never query rigid hydrodynamic data.
+    return zero(eltype(system))
+end
+
 @inline function compact_support(system::RigidBodySystem, ::Nothing, neighbor)
     # Fallback for `compact_support(system, system.boundary_model, neighbor)` in the
     # boundary-model-based path used by rigid-fluid interaction.
@@ -104,6 +170,22 @@ end
                                  contact_model::RigidContactModel,
                                  neighbor::WallBoundarySystem)
     return contact_model.contact_distance
+end
+
+@inline function compact_support(system::RigidBodySystem, neighbor::RigidBodySystem)
+    return compact_support(system.contact_model, system, neighbor.contact_model, neighbor)
+end
+
+@inline function compact_support(contact_model, system::RigidBodySystem,
+                                 contact_model_neighbor, neighbor::RigidBodySystem)
+    return zero(eltype(system))
+end
+
+@inline function compact_support(contact_model::RigidContactModel,
+                                 system::RigidBodySystem,
+                                 neighbor_contact_model::RigidContactModel,
+                                 neighbor::RigidBodySystem)
+    return max(contact_model.contact_distance, neighbor_contact_model.contact_distance)
 end
 
 @inline function compact_support(system::RigidBodySystem, neighbor::OpenBoundarySystem)
@@ -144,7 +226,7 @@ end
 
     system_index = system_indices(system, semi)
 
-    return neighborhood_searches[system_index][system_index]
+    return neighborhood_searches[system_index, system_index]
 end
 
 @inline function get_neighborhood_search(system::TotalLagrangianSPHSystem, semi)
@@ -159,7 +241,7 @@ end
     system_index = system_indices(system, semi)
     neighbor_index = system_indices(neighbor_system, semi)
 
-    return neighborhood_searches[system_index][neighbor_index]
+    return neighborhood_searches[system_index, neighbor_index]
 end
 
 @inline function get_neighborhood_search(system::TotalLagrangianSPHSystem,
@@ -175,7 +257,7 @@ end
         return system.self_interaction_nhs
     end
 
-    return neighborhood_searches[system_index][neighbor_index]
+    return neighborhood_searches[system_index, neighbor_index]
 end
 
 # === Initialization ===
