@@ -69,7 +69,7 @@ struct WindingNumberJacobson{ELTYPE, W}
     winding               :: W
 
     function WindingNumberJacobson(; geometry=nothing, winding_number_factor=sqrt(eps()),
-                                   hierarchical_winding=true)
+                                   hierarchical_winding=false)
         if hierarchical_winding && geometry isa Nothing
             throw(ArgumentError("`geometry` must be of type `Polygon` (2D) or `TriangleMesh` (3D) when using hierarchical winding"))
         end
@@ -104,6 +104,7 @@ end
 function (point_in_poly::WindingNumberJacobson)(geometry, points;
                                                 store_winding_number=false)
     (; winding_number_factor, winding) = point_in_poly
+    points = svector_points(points, Val(ndims(geometry)))
 
     # We cannot use a `BitVector` here, as writing to a `BitVector` is not thread-safe
     inpoly = fill(false, length(points))

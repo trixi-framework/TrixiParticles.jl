@@ -62,9 +62,11 @@ function SignedDistanceField(geometry, particle_spacing;
                                         min_corner; place_on_shell=true)
 
         points = reinterpret(reshape, SVector{NDIMS, eltype(grid)}, grid)
+    else
+        points = svector_points(points, Val(NDIMS))
     end
 
-    positions = copy(points)
+    positions = collect(points)
 
     # This gives a performance boost for large geometries
     delete_positions_in_empty_cells!(positions, nhs)
