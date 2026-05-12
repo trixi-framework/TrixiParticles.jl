@@ -56,4 +56,25 @@
         │ boundary: ……………………………………………………… no                                                               │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
     end
+
+    @trixi_testset "signed distance interpolation radius" begin
+        initial_condition = InitialCondition(; coordinates=reshape([0.0, 0.0], 2, 1),
+                                             density=1.0, particle_spacing=0.1)
+        signed_distance_field = TrixiParticles.SignedDistanceField([SVector(2.0, 0.0)],
+                                                                   [SVector(1.0, 0.0)],
+                                                                   [0.0], 1.0,
+                                                                   false, 0.1)
+        system = ParticlePackingSystem(initial_condition;
+                                       signed_distance_field,
+                                       smoothing_length=0.1,
+                                       smoothing_length_interpolation=1.0,
+                                       background_pressure=1.0)
+
+        u = copy(initial_condition.coordinates)
+
+        TrixiParticles.constrain_particles_onto_surface!(u, system,
+                                                         DummySemidiscretization())
+
+        @test u[1, 1] < initial_condition.coordinates[1, 1]
+    end
 end
