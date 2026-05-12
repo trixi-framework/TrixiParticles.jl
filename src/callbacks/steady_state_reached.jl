@@ -11,8 +11,8 @@ where `ekin` is the total kinetic energy of the simulation.
 - `dt=0.0`:         Check steady state condition in regular intervals of `dt` in terms
                     of integration time by adding additional `tstops`
                     (note that this may change the solution).
-- `interval_size`:  The interval in which the change of the kinetic energy is considered.
-                    `interval_size` is a (integer) multiple of `interval` or `dt`.
+- `interval_size`:  The number of callback evaluations over which the change of the
+                    kinetic energy is considered.
 - `abstol`:         Absolute tolerance.
 - `reltol`:         Relative tolerance.
 """
