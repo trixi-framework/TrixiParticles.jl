@@ -1,4 +1,31 @@
 @testset verbose=true "SPH Interpolation" begin
+    @testset "Plane point coordinates" begin
+        x_range = range(0.0, 1.0, length=5)
+        y_range = range(2.0, 3.0, length=3)
+        point_coords = TrixiParticles.plane_point_coords(x_range, y_range)
+
+        @test point_coords[:, 1] == [0.0, 2.0]
+        @test point_coords[:, 5] == [1.0, 2.0]
+        @test point_coords[:, end] == [1.0, 3.0]
+        @test extrema(point_coords[1, :]) == (0.0, 1.0)
+        @test extrema(point_coords[2, :]) == (2.0, 3.0)
+    end
+
+    @testset "Filter tensor interpolation results" begin
+        results = (density=[10.0, 20.0, 30.0],
+                   velocity=[1.0 2.0 3.0
+                             4.0 5.0 6.0],
+                   cauchy_stress=reshape(1:12, 2, 2, 3))
+        filtered = TrixiParticles.filter_interpolation_results(results, [1, 3])
+
+        @test filtered.density == [10.0, 30.0]
+        @test filtered.velocity == [1.0 3.0
+                                    4.0 6.0]
+        @test size(filtered.cauchy_stress) == (2, 2, 2)
+        @test filtered.cauchy_stress[:, :, 1] == results.cauchy_stress[:, :, 1]
+        @test filtered.cauchy_stress[:, :, 2] == results.cauchy_stress[:, :, 3]
+    end
+
     function compare_interpolation_result(actual, expected; tolerance=5e-4)
         @test length(actual.density) == length(expected.density)
         for i in 1:length(expected.density)
@@ -578,8 +605,14 @@
             v_no_wall_velocity = interpolate_points(points_coords, semi_boundary,
                                                     include_wall_velocity=false,
                                                     fluid_system, v_ode, u_ode).velocity
+            v_wall_velocity_without_cutoff = interpolate_points(points_coords, semi_boundary,
+                                                                include_wall_velocity=true,
+                                                                cut_off_bnd=false,
+                                                                fluid_system, v_ode,
+                                                                u_ode).velocity
 
             @test isapprox(v_wall_velocity[2, 1], 0.0; atol=eps())
+            @test isapprox(v_wall_velocity_without_cutoff[2, 1], 0.0; atol=eps())
             @test isapprox(v_no_wall_velocity[2, 1], 0.1; atol=eps())
             @test any(isapprox.(v_wall_velocity[:, 3:end], v_no_wall_velocity[:, 3:end],
                                 atol=eps()))
