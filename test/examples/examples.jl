@@ -272,6 +272,26 @@
             end
         end
 
+        @trixi_testset "fsi/dam_break_plate_2d.jl with SortingCallback" begin
+            @trixi_test_nowarn trixi_include(@__MODULE__,
+                                             joinpath(examples_dir(), "fsi",
+                                                      "dam_break_plate_2d.jl"),
+                                             # Use rounded dimensions to avoid warnings
+                                             initial_fluid_size=(0.15, 0.29),
+                                             tspan=(0.0, 0.05),
+                                             extra_callback=SortingCallback(dt=0.02)) [
+                r"\[ Info: To create the self-interaction neighborhood search.*\n"
+            ]
+            @test sol.retcode == ReturnCode.Success
+            if VERSION < v"1.12"
+                # Older Julia versions produce allocations because `get_neighborhood_search`
+                # is not type-stable with TLSPH.
+                @test count_rhs_allocations(sol) < 200
+            else
+                @test count_rhs_allocations(sol) == 0
+            end
+        end
+
         @trixi_testset "fsi/dam_break_plate_2d.jl split integration" begin
             # Test that this example does not work with only 500 iterations
             @trixi_test_nowarn trixi_include(@__MODULE__,
