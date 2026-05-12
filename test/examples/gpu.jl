@@ -788,6 +788,32 @@ end
                                        913.2089])
             end
 
+            @testset verbose=true "Line with different smoothing_length" begin
+                # Interpolation parameters
+                n_interpolation_points = 10
+                start_point = Float32[0.5, 0.0]
+                end_point = Float32[0.5, 0.5]
+
+                result = interpolate_line(start_point, end_point, n_interpolation_points,
+                                          semi_new, semi_new.systems[1], sol;
+                                          cut_off_bnd=false, smoothing_length=0.2f0)
+
+                @test isapprox(Array(result.computed_density),
+                               Float32[501.10648, 700.15857, 852.81036, 944.48535,
+                                       986.2611, 998.96576, 997.5659, 980.23236,
+                                       929.7254, 825.95825])
+
+                @test isapprox(Array(result.density),
+                               Float32[1001.98303, 1001.8848, 1001.7575, 1001.59985,
+                                       1001.41754, 1001.2164, 1001.0109, 1000.81616,
+                                       1000.6457, 1000.5056])
+
+                @test isapprox(Array(result.pressure),
+                               Float32[4668.169, 4437.7715, 4137.7075, 3768.1145, 3337.1655,
+                                       2863.6277, 2379.349, 1921.7727, 1519.3884,
+                                       1190.5823])
+            end
+
             @testset verbose=true "Plane" begin
                 interpolation_start = Float32[0.0, 0.0]
                 interpolation_end = Float32[1.0, 1.0]
