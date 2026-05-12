@@ -80,7 +80,8 @@ function (steady_state_callback::SteadyStateReachedCallback)(vu_ode, t, integrat
     return steady_state_condition!(steady_state_callback, integrator)
 end
 
-@inline function condition_steady_state_interval(cb::SteadyStateReachedCallback{Int}, integrator)
+@inline function condition_steady_state_interval(cb::SteadyStateReachedCallback{Int},
+                                                 integrator)
     return cb.interval == 0 ||
            condition_integrator_interval(integrator, cb.interval; save_final_solution=false)
 end
