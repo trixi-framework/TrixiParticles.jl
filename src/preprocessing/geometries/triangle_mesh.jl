@@ -1,5 +1,5 @@
 # This is the data format returned by `load(file)` when used with `.stl` files
-struct TriangleMesh{NDIMS, ELTYPE}
+mutable struct TriangleMesh{NDIMS, ELTYPE}
     vertices          :: Vector{SVector{NDIMS, ELTYPE}}
     face_vertices     :: Vector{NTuple{3, SVector{NDIMS, ELTYPE}}}
     face_vertices_ids :: Vector{NTuple{3, Int}}
@@ -172,12 +172,29 @@ end
 @inline face_normal(triangle, geometry::TriangleMesh) = geometry.face_normals[triangle]
 
 @inline function Base.deleteat!(mesh::TriangleMesh, indices)
-    (; face_vertices, face_vertices_ids, face_edges_ids, face_normals) = mesh
+    face_vertices = copy(mesh.face_vertices)
+    face_normals = copy(mesh.face_normals)
 
     deleteat!(face_vertices, indices)
-    deleteat!(face_vertices_ids, indices)
-    deleteat!(face_edges_ids, indices)
     deleteat!(face_normals, indices)
+
+    if isempty(face_vertices)
+        throw(ArgumentError("cannot delete all triangle mesh faces"))
+    end
+
+    vertices = collect(Iterators.flatten(face_vertices))
+    rebuilt = TriangleMesh(face_vertices, face_normals, vertices)
+
+    mesh.vertices = rebuilt.vertices
+    mesh.face_vertices = rebuilt.face_vertices
+    mesh.face_vertices_ids = rebuilt.face_vertices_ids
+    mesh.face_edges_ids = rebuilt.face_edges_ids
+    mesh.edge_vertices_ids = rebuilt.edge_vertices_ids
+    mesh.vertex_normals = rebuilt.vertex_normals
+    mesh.edge_normals = rebuilt.edge_normals
+    mesh.face_normals = rebuilt.face_normals
+    mesh.min_corner = rebuilt.min_corner
+    mesh.max_corner = rebuilt.max_corner
 
     return mesh
 end

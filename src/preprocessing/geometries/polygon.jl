@@ -1,5 +1,5 @@
 # This is the data format returned by `load(file)` when used with `.asc` files
-struct Polygon{NDIMS, ELTYPE}
+mutable struct Polygon{NDIMS, ELTYPE}
     vertices          :: Vector{SVector{NDIMS, ELTYPE}}
     edge_vertices     :: Vector{NTuple{2, SVector{NDIMS, ELTYPE}}}
     vertex_normals    :: Vector{NTuple{2, SVector{NDIMS, ELTYPE}}}
@@ -97,6 +97,33 @@ struct Polygon{NDIMS, ELTYPE}
     end
 end
 
+function rebuild_polygon_from_edges(edge_vertices, vertex_normals, edge_normals)
+    NDIMS = length(first(edge_normals))
+    ELTYPE = eltype(first(edge_normals))
+    vertices = SVector{NDIMS, ELTYPE}[]
+    vertex_ids = Dict{SVector{NDIMS, ELTYPE}, Int}()
+
+    edge_vertices_ids = map(edge_vertices) do edge
+        v1, v2 = edge
+        id1 = get!(vertex_ids, v1) do
+            push!(vertices, v1)
+            return length(vertices)
+        end
+        id2 = get!(vertex_ids, v2) do
+            push!(vertices, v2)
+            return length(vertices)
+        end
+
+        return (id1, id2)
+    end
+
+    min_corner = SVector([minimum(v[i] for v in vertices) for i in 1:NDIMS]...)
+    max_corner = SVector([maximum(v[i] for v in vertices) for i in 1:NDIMS]...)
+
+    return (; vertices, edge_vertices, vertex_normals, edge_normals, edge_vertices_ids,
+            min_corner, max_corner)
+end
+
 function Base.show(io::IO, geometry::Polygon)
     @nospecialize geometry # reduce precompilation time
 
@@ -120,11 +147,30 @@ end
 @inline Base.eltype(::Polygon{NDIMS, ELTYPE}) where {NDIMS, ELTYPE} = ELTYPE
 
 @inline function Base.deleteat!(polygon::Polygon, indices)
-    (; edge_vertices, edge_normals, edge_vertices_ids) = polygon
+    edge_vertices = copy(polygon.edge_vertices)
+    vertex_normals = copy(polygon.vertex_normals)
+    edge_normals = copy(polygon.edge_normals)
 
     deleteat!(edge_vertices, indices)
-    deleteat!(edge_vertices_ids, indices)
+    deleteat!(vertex_normals, indices)
     deleteat!(edge_normals, indices)
+
+    if isempty(edge_vertices)
+        throw(ArgumentError("cannot delete all polygon edges"))
+    end
+
+    (; vertices, edge_vertices_ids, min_corner,
+     max_corner) = rebuild_polygon_from_edges(edge_vertices,
+                                              vertex_normals,
+                                              edge_normals)
+
+    polygon.vertices = vertices
+    polygon.edge_vertices = edge_vertices
+    polygon.vertex_normals = vertex_normals
+    polygon.edge_normals = edge_normals
+    polygon.edge_vertices_ids = edge_vertices_ids
+    polygon.min_corner = min_corner
+    polygon.max_corner = max_corner
 
     return polygon
 end
