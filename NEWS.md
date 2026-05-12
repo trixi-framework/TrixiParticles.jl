@@ -6,11 +6,17 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ## Version 0.5.1
 
+### Highlights
+- Implement stage-level coupling for split integration (#1049).
+- Add `MechanicalWorkCalculatorCallback` (#940).
+
 ### Important Bugfixes
 
-Fix empty PVD collections in `SolutionSavingCallback` output and incorrect metadata
-when using `save_times`.
+- Fix empty PVD collections in `SolutionSavingCallback` output and incorrect metadata
+  when using `save_times` (#1176).
+- Fix `SortingCallback` (#1178).
 
+  
 ## Version 0.5
 
 ### API Changes
