@@ -575,11 +575,19 @@
                                                  include_wall_velocity=true,
                                                  fluid_system, v_ode, u_ode).velocity
 
+            v_wall_velocity_without_cutoff = interpolate_points(points_coords,
+                                                                semi_boundary,
+                                                                include_wall_velocity=true,
+                                                                fluid_system,
+                                                                v_ode, u_ode;
+                                                                cut_off_bnd=false).velocity
+
             v_no_wall_velocity = interpolate_points(points_coords, semi_boundary,
                                                     include_wall_velocity=false,
                                                     fluid_system, v_ode, u_ode).velocity
 
             @test isapprox(v_wall_velocity[2, 1], 0.0; atol=eps())
+            @test isapprox(v_wall_velocity_without_cutoff[2, 1], 0.0; atol=eps())
             @test isapprox(v_no_wall_velocity[2, 1], 0.1; atol=eps())
             @test any(isapprox.(v_wall_velocity[:, 3:end], v_no_wall_velocity[:, 3:end],
                                 atol=eps()))
@@ -937,11 +945,19 @@
                                                  include_wall_velocity=true,
                                                  fluid_system, v_ode, u_ode).velocity
 
+            v_wall_velocity_without_cutoff = interpolate_points(points_coords,
+                                                                semi_boundary,
+                                                                include_wall_velocity=true,
+                                                                fluid_system,
+                                                                v_ode, u_ode;
+                                                                cut_off_bnd=false).velocity
+
             v_no_wall_velocity = interpolate_points(points_coords, semi_boundary,
                                                     include_wall_velocity=false,
                                                     fluid_system, v_ode, u_ode).velocity
 
             @test isapprox(v_wall_velocity[2, 1], 0.0; atol=eps())
+            @test isapprox(v_wall_velocity_without_cutoff[2, 1], 0.0; atol=eps())
             @test isapprox(v_no_wall_velocity[2, 1], 0.1; atol=eps())
             @test any(isapprox.(v_wall_velocity[:, 3:end], v_no_wall_velocity[:, 3:end],
                                 atol=eps()))

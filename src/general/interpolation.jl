@@ -555,8 +555,9 @@ end
     ref_id = system_indices(ref_system, semi)
     ref_smoothing_kernel = ref_system.smoothing_kernel
 
-    # If we don't cut at the boundary, we only need to iterate over the reference system
-    systems = cut_off_bnd ? semi : (ref_system,)
+    # If we neither cut off at the boundary nor include the boundary wall velocity,
+    # we only need to iterate over the reference system.
+    systems = (cut_off_bnd || include_wall_velocity) ? semi : (ref_system,)
 
     foreach_system(systems) do neighbor_system
         system_id = system_indices(neighbor_system, semi)
