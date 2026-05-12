@@ -9,7 +9,7 @@ Callback to reinitialize the density field when using [`ContinuityDensity`](@ref
                              of integration time. This callback does not add extra time
                              steps / `tstops`; instead, reinitialization is triggered at
                              the first solver step after each `dt` interval has elapsed.
-- `reinit_initial_solution`: Reinitialize the initial solution (default=false)
+- `reinit_initial_solution`: Reinitialize the initial solution (default=true)
 """
 mutable struct DensityReinitializationCallback{I}
     interval::I
