@@ -511,9 +511,26 @@ function process_neighborhood_searches(semi, u_ode, ref_system, smoothing_length
         u = wrap_u(u_ode, system, semi)
         system_coords = current_coordinates(u, system)
         old_nhs = get_neighborhood_search(ref_system, system, semi)
-        nhs = PointNeighbors.copy_neighborhood_search(old_nhs, search_radius,
-                                                      nparticles(system))
-        PointNeighbors.initialize!(nhs, point_coords, system_coords)
+
+        # `PointNeighbors.initialize!` is not GPU-compatible for every update strategy,
+        # so we need to initialize on the CPU and then adapt back to the GPU.
+        point_coords_cpu, system_coords_cpu = transfer2cpu(point_coords, system_coords)
+        if semi.parallelization_backend isa KernelAbstractions.GPU
+            old_nhs_cpu = Adapt.adapt(Array, old_nhs)
+        else
+            old_nhs_cpu = old_nhs
+        end
+
+        nhs_cpu = PointNeighbors.copy_neighborhood_search(old_nhs_cpu, search_radius,
+                                                          nparticles(system))
+
+        PointNeighbors.initialize!(nhs_cpu, point_coords_cpu, system_coords_cpu)
+
+        if semi.parallelization_backend isa KernelAbstractions.GPU
+            nhs = Adapt.adapt(semi.parallelization_backend, nhs_cpu)
+        else
+            nhs = nhs_cpu
+        end
 
         return nhs
     end
