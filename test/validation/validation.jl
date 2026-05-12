@@ -5,7 +5,7 @@
                                                   "investigate_relaxation.jl"),
                                          tspan=(0.0, 1.0))
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
         # Verify number of plots
         @test plot1.n == 4
     end
@@ -21,9 +21,9 @@
         if VERSION < v"1.12"
             # Older Julia versions produce allocations because `get_neighborhood_search`
             # is not type-stable with TLSPH.
-            @test count_rhs_allocations(sol, semi) < 200
+            @test count_rhs_allocations(sol) < 200
         else
-            @test count_rhs_allocations(sol, semi) == 0
+            @test count_rhs_allocations(sol) == 0
         end
         @test isapprox(error_deflection_x, 0, atol=eps())
         @test isapprox(error_deflection_y, 0, atol=eps())
@@ -59,7 +59,7 @@
             r"WARNING: Method definition interpolated_pressure.*\n"
         ]
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
 
         # Note that pressure values are in the order of 1e5
         @test isapprox(error_wcsph_P1, 0, atol=eps(1e5))
@@ -119,7 +119,7 @@
             r"WARNING: Method definition initial_velocity_function.*\n"
         ]
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "LDC_2D" begin
@@ -133,6 +133,6 @@
             r"WARNING: Method definition is_moving.*\n"
         ]
         @test sol.retcode == ReturnCode.Success
-        @test count_rhs_allocations(sol, semi) == 0
+        @test count_rhs_allocations(sol) == 0
     end
 end
