@@ -35,3 +35,58 @@ end
 function allocate(backend, ELTYPE, size)
     return Array{ELTYPE, length(size)}(undef, size)
 end
+
+function transfer2cpu(a::AbstractGPUArray)
+    return Adapt.adapt(Array, a)
+end
+
+function transfer2cpu(a)
+    return a
+end
+
+function transfer2cpu(v_::AbstractGPUArray, u_)
+    v = transfer2cpu(v_)
+    u = transfer2cpu(u_)
+
+    return v, u
+end
+
+function transfer2cpu(v_, u_)
+    return v_, u_
+end
+
+function transfer2cpu(semi::Semidiscretization)
+    # First move all systems and neighborhood searches to the CPU
+    systems = Adapt.adapt(Array, semi.systems)
+    neighborhood_searches = Adapt.adapt(Array, semi.neighborhood_searches)
+
+    semi_ = @set semi.systems = systems
+    semi__ = @set semi_.neighborhood_searches = neighborhood_searches
+
+    # Now, set the parallelization backend to `PolyesterBackend` to make sure that
+    # `@threaded` loops still work as expected with this semidiscretization.
+    return @set semi__.parallelization_backend = PolyesterBackend()
+end
+
+function transfer2cpu(v_::AbstractGPUArray, u_, semi_)
+    semi = transfer2cpu(semi_)
+    v, u = transfer2cpu(v_, u_)
+
+    return v, u, semi
+end
+
+function transfer2cpu(v_, u_, semi_)
+    return v_, u_, semi_
+end
+
+function transfer2cpu(v_::AbstractGPUArray, u_, system_, semi_)
+    v, u, semi = transfer2cpu(v_, u_, semi_)
+    system_index = system_indices(system_, semi_)
+    system = semi.systems[system_index]
+
+    return v, u, system, semi
+end
+
+function transfer2cpu(v_, u_, system_, semi_)
+    return v_, u_, system_, semi_
+end

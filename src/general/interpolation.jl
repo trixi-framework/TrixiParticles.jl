@@ -511,23 +511,28 @@ function process_neighborhood_searches(semi, u_ode, ref_system, smoothing_length
         u = wrap_u(u_ode, system, semi)
         system_coords = current_coordinates(u, system)
         old_nhs = get_neighborhood_search(ref_system, system, semi)
-        point_coords_ = point_coords
-        system_coords_ = system_coords
-        old_nhs_ = old_nhs
-        # `PointNeighbors.initialize!` builds grid metadata with host-side indexing.
-        # For GPU runs, initialize the copied search on CPU data and adapt it back below.
+
+        # `PointNeighbors.initialize!` is not GPU-compatible for every update strategy,
+        # so we need to initialize on the CPU and then adapt back to the GPU.
+        point_coords_cpu, system_coords_cpu = transfer2cpu(point_coords, system_coords)
         if semi.parallelization_backend isa KernelAbstractions.GPU
-            point_coords_ = Adapt.adapt(Array, point_coords)
-            system_coords_ = Adapt.adapt(Array, system_coords)
-            old_nhs_ = Adapt.adapt(Array, old_nhs)
+            old_nhs_cpu = Adapt.adapt(Array, old_nhs)
+        else
+            old_nhs_cpu = old_nhs
         end
 
-        nhs = PointNeighbors.copy_neighborhood_search(old_nhs_, search_radius,
-                                                      nparticles(system))
+        nhs_cpu = PointNeighbors.copy_neighborhood_search(old_nhs_cpu, search_radius,
+                                                          nparticles(system))
 
-        PointNeighbors.initialize!(nhs, point_coords_, system_coords_)
+        PointNeighbors.initialize!(nhs_cpu, point_coords_cpu, system_coords_cpu)
 
-        return Adapt.adapt(semi.parallelization_backend, nhs)
+        if semi.parallelization_backend isa KernelAbstractions.GPU
+            nhs = Adapt.adapt(semi.parallelization_backend, nhs_cpu)
+        else
+            nhs = nhs_cpu
+        end
+
+        return nhs
     end
 
     return neighborhood_searches
