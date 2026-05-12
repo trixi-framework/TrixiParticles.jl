@@ -30,8 +30,9 @@ function SteadyStateReachedCallback(; interval::Integer=0, dt=0.0,
         throw(ArgumentError("setting both `interval` and `dt` is not supported"))
     end
 
-    interval_size > 0 ||
+    if interval_size <= 0
         throw(ArgumentError("`interval_size` must be positive"))
+    end
 
     abstol, reltol = float.(promote(abstol, reltol))
     ELTYPE = typeof(abstol)
