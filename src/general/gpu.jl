@@ -44,15 +44,11 @@ function transfer2cpu(a)
     return a
 end
 
-function transfer2cpu(v_::AbstractGPUArray, u_)
+function transfer2cpu(v_, u_)
     v = transfer2cpu(v_)
     u = transfer2cpu(u_)
 
     return v, u
-end
-
-function transfer2cpu(v_, u_)
-    return v_, u_
 end
 
 function transfer2cpu(semi::Semidiscretization)
