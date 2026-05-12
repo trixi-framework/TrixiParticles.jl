@@ -204,7 +204,7 @@ this publication lies with the authors.
 <p align="center">
   <a href="https://www.bmftr.bund.de/EN/Home/home_node.html">
     <img
-      src="https://www.bibliothek.kit.edu/img/400%20Forschen%20%20Publizieren/Foerderhinweis_BMFTR_ENG.jpg"
+      src="https://github.com/user-attachments/assets/d863c64c-b7d0-40c4-aede-874c0b22ee4c"
       alt="With funding from the Federal Ministry of Research, Technology and Space"
       height="120"
     />
@@ -212,7 +212,7 @@ this publication lies with the authors.
   &nbsp;&nbsp;&nbsp;&nbsp;
   <a href="https://www.eurekanetwork.org/programmes-and-calls/eurostars/">
     <img
-      src="https://cerneu.web.cern.ch/sites/default/files/inline-images/Eurostars.jpg"
+      src="https://github.com/user-attachments/assets/d9861c0f-3e19-485e-9e57-e27c44d2d3b8"
       alt="Eurostars"
       height="120"
     />
@@ -226,7 +226,7 @@ the European Union or the granting authorities.
 <p align="center">
   <a href="https://ec.europa.eu/regional_policy/information-sources/logo-download-center_en">
     <img
-      src="https://www.eacea.ec.europa.eu/sites/default/files/styles/embed_large/public/2022-11/EN%20Co-Funded%20by%20the%20EU_POS.png?itok=wassLT3O"
+      src="https://github.com/user-attachments/assets/f562f643-4179-4569-9ffb-b10871be6ee4"
       alt="Co-funded by the European Union"
       height="75"
     />
