@@ -1,6 +1,6 @@
 @testset verbose=true "DensityReinitializationCallback" begin
     struct MockDensityReinitSystem
-        density_calculator
+        density_calculator::Any
         name::Symbol
     end
 

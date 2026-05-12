@@ -30,10 +30,8 @@ function Base.show(io::IO, ::MIME"text/plain",
         show(io, cb)
     else
         callback = cb.affect!
-        setup = Pair{String, Any}[
-            "interval" => callback.interval,
-            "reinit_initial_solution" => callback.reinit_initial_solution
-        ]
+        setup = Pair{String, Any}["interval" => callback.interval,
+                                  "reinit_initial_solution" => callback.reinit_initial_solution]
         summary_box(io, "DensityReinitializationCallback", setup)
     end
 end
