@@ -95,14 +95,14 @@ initial_condition = InitialCondition(; coordinates, velocity=x -> 2x, mass=1.0, 
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-struct InitialCondition{ELTYPE, C, MATRIX, VECTOR}
+struct InitialCondition{ELTYPE, C, MATRIX, VECTOR, N}
     particle_spacing :: ELTYPE
     coordinates      :: C      # Array{coordinates_eltype, 2}
     velocity         :: MATRIX # Array{ELTYPE, 2}
     mass             :: VECTOR # Array{ELTYPE, 1}
     density          :: VECTOR # Array{ELTYPE, 1}
     pressure         :: VECTOR # Array{ELTYPE, 1}
-    normals          :: Union{Nothing, MATRIX}
+    normals          :: N
 end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
@@ -204,7 +204,7 @@ function InitialCondition{NDIMS}(coordinates, velocity, mass, density,
         masses = mass_fun.(coordinates_svector)
     end
 
-    if normals isa AbstractMatrix
+    if !isnothing(normals)
         if size(coordinates) != size(normals)
             throw(ArgumentError("`coordinates` and `normals` must be of the same size"))
         end

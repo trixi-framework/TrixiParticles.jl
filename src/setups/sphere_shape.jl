@@ -448,7 +448,7 @@ function calculate_sphere_normals(coordinates::Matrix{T}, center_position,
         dist = norm(diff)
 
         if dist > threshold
-            normals[:, i] .= center_position + radius * (diff / dist)
+            normals[:, i] .= diff / dist * (radius - dist)
         end
     end
 

@@ -45,12 +45,12 @@
             density = 257
 
             sphere = SphereShape(particle_spacing, radius, center, density)
-
             (; normals) = sphere
-            normals_reference = [[-sqrt(0.5) 0.0 sqrt(0.5) -1.0 0.0 1.0 -sqrt(0.5) 0.0 sqrt(0.5)]
-                                 [-sqrt(0.5) -1 -sqrt(0.5) 0.0 0.0 0.0 sqrt(0.5) 1.0 sqrt(0.5)]]
 
-            @test all(isapprox.(sphere.normals, normals_reference, atol=1e-14))
+            normals_reference = [[-0.207107 0.0 0.207107 -0.5 0.0 0.5 -0.207107 0.0 0.207107]
+                                 [-0.207107 -0.5 -0.207107 0.0 0.0 0.0 0.207107 0.5 0.207107]]
+
+            @test all(isapprox.(sphere.normals, normals_reference, atol=1e-6))
         end
         @testset "3D `SphereShape` Normals" begin
             particle_spacing = 0.5
@@ -61,11 +61,10 @@
             sphere = SphereShape(particle_spacing, radius, center, density)
 
             (; normals) = sphere
-            normals_reference = [[0.0 -sqrt(0.5) 0.0 sqrt(0.5) 0.0 -sqrt(0.5) 0.0 sqrt(0.5) -1.0 0.0 1.0 -sqrt(0.5) 0.0 sqrt(0.5) 0.0 -sqrt(0.5) 0.0 sqrt(0.5) 0.0]
-                                 [-sqrt(0.5) 0.0 0.0 0.0 sqrt(0.5) -sqrt(0.5) -1.0 -sqrt(0.5) 0.0 0.0 0.0 sqrt(0.5) 1.0 sqrt(0.5) -sqrt(0.5) 0.0 0.0 0.0 sqrt(0.5)]
-                                 [-sqrt(0.5) -sqrt(0.5) -1.0 -sqrt(0.5) -sqrt(0.5) 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 sqrt(0.5) sqrt(0.5) 1.0 sqrt(0.5) sqrt(0.5)]]
-
-            @test all(isapprox.(sphere.normals, normals_reference, atol=1e-14))
+            normals_reference = [[0.0 -0.207107 0.0 0.207107 0.0 -0.207107 0.0 0.207107 -0.5 0.0 0.5 -0.207107 0.0 0.207107 0.0 -0.207107 0.0 0.207107 0.0]
+                                 [-0.207107 0.0 0.0 0.0 0.207107 -0.207107 -0.5 -0.207107 0.0 0.0 0.0 0.207107 0.5 0.207107 -0.207107 0.0 0.0 0.0 0.207107]
+                                 [-0.207107 -0.207107 -0.5 -0.207107 -0.207107 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.207107 0.207107 0.5 0.207107 0.207107]]
+            @test all(isapprox.(sphere.normals, normals_reference, atol=1e-6))
         end
     end
 end
