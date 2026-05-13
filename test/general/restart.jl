@@ -1,5 +1,5 @@
 @trixi_testset "Restart" begin
-    @trixi_testset "Half-Simulation Restart" begin
+    @trixi_testset "Poiseuille Flow Half-Simulation Restart" begin
         # Run full simulation
         trixi_include(@__MODULE__,
                       joinpath(examples_dir(), "fluid", "poiseuille_flow_2d.jl"),
@@ -41,7 +41,7 @@
         @test isapprox(result_full.pressure, result_restart.pressure, rtol=8e-2)
     end
 
-    @trixi_testset "Restore Previous State" begin
+    @trixi_testset "Poiseuille Flow Restore Previous State" begin
         R1 = 1.7714
         R2 = 106.66
         C = 1.1808e-2
@@ -69,5 +69,40 @@
                        open_boundary.cache.pressure_reference_values[2].pressure[])
         @test isapprox(restart_flow_rate,
                        open_boundary.cache.pressure_reference_values[2].flow_rate[])
+    end
+
+    @trixi_testset "Oscillating Beam Half-Simulation Restart" begin
+        # Run full simulation
+        trixi_include(@__MODULE__,
+                      joinpath(examples_dir(), "structure", "oscillating_beam_2d.jl"),
+                      tspan=(0.0, 1.0), n_particles_y=5)
+
+        # Store the final solution for comparison
+        full_sol = sol
+        full_final_velocities = copy(full_sol.u[end])
+
+        # Run half simulation
+        trixi_include(@__MODULE__,
+                      joinpath(examples_dir(), "structure", "oscillating_beam_2d.jl"),
+                      tspan=(0.0, 0.5), n_particles_y=5)
+
+        # Get latest iteration and create restart
+        iter = saving_callback.affect!.affect!.latest_saved_iter
+        restart_file = joinpath("out", "structure_1_$iter.vtu")
+
+        ode_restart = semidiscretize(semi, (0.5, 1.0);
+                                     restart_with=restart_file)
+
+        # Create a new saving callback for the restart
+        saving_callback_restart = SolutionSavingCallback(dt=0.02, prefix="restart";
+                                                         deflection_x, deflection_y)
+        info_callback_restart = InfoCallback(interval=1000)
+        callbacks_restart = CallbackSet(info_callback_restart, saving_callback_restart)
+
+        sol_restart = solve(ode_restart, RDPK3SpFSAL49(), save_everystep=false,
+                            callback=callbacks_restart)
+
+        # Compare the final particle velocities
+        @test isapprox(sol_restart.u[end], full_final_velocities, rtol=1e-3)
     end
 end
