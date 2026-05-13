@@ -399,7 +399,7 @@ interpolate_cb = PostprocessCallback(; plane_vtk, dt=0.01, filename="plane")
 
 callbacks = CallbackSet(info_callback, saving_callback,
                         stepsize_callback, split_integration, pp_cb, interpolate_cb,
-                        UpdateCallback())
+                        UpdateCallback(), SortingCallback(interval=100_000))
 
 dt_fluid = 1.25e-4
 sol = solve(ode,
