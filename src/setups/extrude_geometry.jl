@@ -1,6 +1,6 @@
 @doc raw"""
     extrude_geometry(geometry; particle_spacing, direction, n_extrude::Integer,
-                     velocity=zeros(length(direction)),
+                     velocity=zeros(length(direction)), place_on_shell=false,
                      mass=nothing, density=nothing, pressure=0.0)
 
 Extrude either a line, a plane or a shape along a specific direction.

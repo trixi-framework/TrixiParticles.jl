@@ -289,7 +289,7 @@ the correction matrix $\bm{L}_a$ is evaluated explicitly as
 struct GradientCorrection end
 
 @doc raw"""
-    BlendedGradientCorrection()
+    BlendedGradientCorrection(blending_factor)
 
 Calculate a blended gradient to reduce the stability issues of the [`GradientCorrection`](@ref)
 as explained by [Bonet (1999)](@cite Bonet1999).

@@ -91,7 +91,7 @@ function Base.show(io::IO, ::MIME"text/plain", winding::WindingNumberJacobson)
     @nospecialize winding # reduce precompilation time
 
     if get(io, :compact, false)
-        show(io, system)
+        show(io, winding)
     else
         summary_header(io, "WindingNumberJacobson")
         summary_line(io, "winding number factor",

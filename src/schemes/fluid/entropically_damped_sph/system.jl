@@ -4,11 +4,13 @@
                                 pressure_acceleration=inter_particle_averaged_pressure,
                                 density_calculator=SummationDensity(),
                                 shifting_technique=nothing,
+                                average_pressure_reduction=(!isnothing(shifting_technique)),
                                 alpha=0.5, viscosity=nothing,
-                                acceleration=ntuple(_ -> 0.0, NDIMS), surface_tension=nothing,
+                                acceleration=ntuple(_ -> 0.0, NDIMS),
+                                correction=nothing,
+                                source_terms=nothing, surface_tension=nothing,
                                 surface_normal_method=nothing, buffer_size=nothing,
-                                reference_particle_spacing=0.0, color_value=1,
-                                source_terms=nothing)
+                                reference_particle_spacing=0.0, color_value=1)
 
 System for particles of a fluid.
 As opposed to the [weakly compressible SPH scheme](@ref wcsph), which uses an equation of state,

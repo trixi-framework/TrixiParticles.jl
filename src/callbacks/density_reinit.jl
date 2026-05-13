@@ -1,5 +1,6 @@
 """
-    DensityReinitializationCallback(; interval::Integer=0, dt=0.0)
+    DensityReinitializationCallback(particle_system; interval::Integer=0, dt=0.0,
+                                    reinit_initial_solution=true)
 
 Callback to reinitialize the density field when using [`ContinuityDensity`](@ref) [Panizzo2007](@cite).
 
@@ -7,7 +8,7 @@ Callback to reinitialize the density field when using [`ContinuityDensity`](@ref
 - `interval=0`:              Reinitialize the density every `interval` time steps.
 - `dt`:                      Reinitialize the density in regular intervals of `dt` in terms
                              of integration time.
-- `reinit_initial_solution`: Reinitialize the initial solution (default=false)
+- `reinit_initial_solution`: Reinitialize the initial solution (default=true)
 """
 mutable struct DensityReinitializationCallback{I}
     interval::I
