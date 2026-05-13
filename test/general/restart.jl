@@ -81,7 +81,7 @@
 
         # Store the final solution for comparison
         full_sol = sol
-        full_final_velocities = copy(full_sol.u[end])
+        positions_full = full_sol.u[end].x[2]
 
         # Run half simulation
         trixi_include(@__MODULE__,
@@ -104,6 +104,6 @@
                             callback=callbacks_restart)
 
         # Compare the final particle velocities
-        @test isapprox(sol_restart.u[end], full_final_velocities, rtol=1e-3)
+        @test isapprox(sol_restart.u[end].x[2], positions_full, rtol=1e-6)
     end
 end
