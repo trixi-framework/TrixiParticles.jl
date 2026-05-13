@@ -215,7 +215,7 @@ function calculate_normals!(normals, boundary_coordinates, boundary_spacing,
     if face_has_particles(1)
         left_boundary = maximum(boundary_coordinates[1, face_indices[1]]) + offset
         for idx in face_indices[1]
-            normals[1, idx] = -abs(boundary_coordinates[1, idx] - left_boundary)
+            normals[1, idx] = boundary_coordinates[1, idx] - left_boundary
         end
     end
 
@@ -223,7 +223,7 @@ function calculate_normals!(normals, boundary_coordinates, boundary_spacing,
     if face_has_particles(2)
         right_boundary = minimum(boundary_coordinates[1, face_indices[2]]) - offset
         for idx in face_indices[2]
-            normals[1, idx] = abs(boundary_coordinates[1, idx] - right_boundary)
+            normals[1, idx] = boundary_coordinates[1, idx] - right_boundary
         end
     end
 
@@ -231,7 +231,7 @@ function calculate_normals!(normals, boundary_coordinates, boundary_spacing,
     if face_has_particles(3)
         bottom_boundary = maximum(boundary_coordinates[2, face_indices[3]]) + offset
         for idx in face_indices[3]
-            normals[2, idx] = -abs(boundary_coordinates[2, idx] - bottom_boundary)
+            normals[2, idx] = boundary_coordinates[2, idx] - bottom_boundary
         end
     end
 
@@ -239,15 +239,15 @@ function calculate_normals!(normals, boundary_coordinates, boundary_spacing,
     if face_has_particles(4)
         top_boundary = minimum(boundary_coordinates[2, face_indices[4]]) - offset
         for idx in face_indices[4]
-            normals[2, idx] = abs(boundary_coordinates[2, idx] - top_boundary)
+            normals[2, idx] = boundary_coordinates[2, idx] - top_boundary
         end
     end
 
     # Bottom left corner
     if face_has_particles(1) && face_has_particles(3)
-        boundary_corner_point = [maximum(boundary_coordinates[1, corner_indices[1]])
-                                 maximum(boundary_coordinates[2, corner_indices[1]])]
-        corner_point = boundary_corner_point + [offset; offset]
+        boundary_corner_point = SVector(maximum(boundary_coordinates[1, corner_indices[1]]),
+                                        maximum(boundary_coordinates[2, corner_indices[1]]))
+        corner_point = boundary_corner_point + SVector(offset, offset)
         for idx in corner_indices[1]
             normals[:, idx] = boundary_coordinates[:, idx] - corner_point
         end
@@ -255,9 +255,9 @@ function calculate_normals!(normals, boundary_coordinates, boundary_spacing,
 
     # Top left corner
     if face_has_particles(1) && face_has_particles(4)
-        boundary_corner_point = [maximum(boundary_coordinates[1, corner_indices[2]])
-                                 minimum(boundary_coordinates[2, corner_indices[2]])]
-        corner_point = boundary_corner_point + [offset; -offset]
+        boundary_corner_point = SVector(maximum(boundary_coordinates[1, corner_indices[2]]),
+                                        minimum(boundary_coordinates[2, corner_indices[2]]))
+        corner_point = boundary_corner_point + SVector(offset, -offset)
         for idx in corner_indices[2]
             normals[:, idx] = boundary_coordinates[:, idx] - corner_point
         end
@@ -265,9 +265,9 @@ function calculate_normals!(normals, boundary_coordinates, boundary_spacing,
 
     # Bottom right corner
     if face_has_particles(2) && face_has_particles(3)
-        boundary_corner_point = [minimum(boundary_coordinates[1, corner_indices[3]])
-                                 maximum(boundary_coordinates[2, corner_indices[3]])]
-        corner_point = boundary_corner_point + [-offset; offset]
+        boundary_corner_point = SVector(minimum(boundary_coordinates[1, corner_indices[3]]),
+                                        maximum(boundary_coordinates[2, corner_indices[3]]))
+        corner_point = boundary_corner_point + SVector(-offset, offset)
         for idx in corner_indices[3]
             normals[:, idx] = boundary_coordinates[:, idx] - corner_point
         end
@@ -275,9 +275,9 @@ function calculate_normals!(normals, boundary_coordinates, boundary_spacing,
 
     # Top right corner
     if face_has_particles(2) && face_has_particles(4)
-        boundary_corner_point = [minimum(boundary_coordinates[1, corner_indices[4]])
-                                 minimum(boundary_coordinates[2, corner_indices[4]])]
-        corner_point = boundary_corner_point + [-offset; -offset]
+        boundary_corner_point = SVector(minimum(boundary_coordinates[1, corner_indices[4]]),
+                                        minimum(boundary_coordinates[2, corner_indices[4]]))
+        corner_point = boundary_corner_point + SVector(-offset, -offset)
         for idx in corner_indices[4]
             normals[:, idx] = boundary_coordinates[:, idx] - corner_point
         end
