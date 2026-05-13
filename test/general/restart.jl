@@ -3,7 +3,8 @@
         # Run full simulation
         trixi_include(@__MODULE__,
                       joinpath(examples_dir(), "fluid", "poiseuille_flow_2d.jl"),
-                      tspan=(0.0, 0.6), sound_speed_factor=10, particle_spacing=4e-5)
+                      tspan=(0.0, 0.6), sound_speed_factor=10, particle_spacing=4e-5,
+                      info_callback=nothing)
 
         # Since this is an open boundary simulation, the number of active particles may
         # differ. The results must be interpolated to enable comparison with the restart
@@ -17,7 +18,8 @@
         # Run half simulation
         trixi_include(@__MODULE__,
                       joinpath(examples_dir(), "fluid", "poiseuille_flow_2d.jl"),
-                      tspan=(0.0, 0.3), sound_speed_factor=10, particle_spacing=4e-5)
+                      tspan=(0.0, 0.3), sound_speed_factor=10, particle_spacing=4e-5,
+                      info_callback=nothing)
 
         iter = round(Int, 0.3 / 0.02)
         fluid_restart = joinpath("out", "fluid_1_$iter.vtu")
@@ -51,7 +53,7 @@
         # Run half simulation
         trixi_include(@__MODULE__,
                       joinpath(examples_dir(), "fluid", "poiseuille_flow_2d.jl"),
-                      outlet_reference_pressure=pressure_model,
+                      outlet_reference_pressure=pressure_model, info_callback=nothing,
                       tspan=(0.0, 0.3), sound_speed_factor=10, particle_spacing=4e-5)
 
         iter = round(Int, 0.3 / 0.02)
@@ -75,7 +77,7 @@
         # Run full simulation
         trixi_include(@__MODULE__,
                       joinpath(examples_dir(), "structure", "oscillating_beam_2d.jl"),
-                      tspan=(0.0, 1.0), n_particles_y=5)
+                      tspan=(0.0, 1.0), n_particles_y=5, info_callback=nothing)
 
         # Store the final solution for comparison
         full_sol = sol
@@ -96,8 +98,7 @@
         # Create a new saving callback for the restart
         saving_callback_restart = SolutionSavingCallback(dt=0.02, prefix="restart";
                                                          deflection_x, deflection_y)
-        info_callback_restart = InfoCallback(interval=1000)
-        callbacks_restart = CallbackSet(info_callback_restart, saving_callback_restart)
+        callbacks_restart = CallbackSet(saving_callback_restart)
 
         sol_restart = solve(ode_restart, RDPK3SpFSAL49(), save_everystep=false,
                             callback=callbacks_restart)
