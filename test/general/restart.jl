@@ -32,8 +32,8 @@
                             dtmax=1e-2, save_everystep=false, callback=UpdateCallback())
 
         result_restart = interpolate_line(start_point, end_point,
-                                          n_interpolation_points, sol_restart.prob.p,
-                                          sol_restart.prob.p.systems[1],
+                                          n_interpolation_points, sol_restart.prob.p.semi,
+                                          sol_restart.prob.p.semi.systems[1],
                                           sol_restart, cut_off_bnd=false)
 
         @test isapprox(result_full.velocity, result_restart.velocity, rtol=1e-2)
@@ -62,8 +62,8 @@
         ode_restart = semidiscretize(semi, (0.3, 0.6);
                                      restart_with=(fluid_restart, open_boundary_restart,
                                                    boundary_restart))
-        restart_pressure = ode_restart.p.systems[2].cache.pressure_reference_values[2].pressure[]
-        restart_flow_rate = ode_restart.p.systems[2].cache.pressure_reference_values[2].flow_rate[]
+        restart_pressure = ode_restart.p.semi.systems[2].cache.pressure_reference_values[2].pressure[]
+        restart_flow_rate = ode_restart.p.semi.systems[2].cache.pressure_reference_values[2].flow_rate[]
 
         @test isapprox(restart_pressure,
                        open_boundary.cache.pressure_reference_values[2].pressure[])
