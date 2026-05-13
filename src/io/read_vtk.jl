@@ -52,7 +52,7 @@ function vtk2trixi(file; element_type=nothing, coordinates_eltype=nothing,
 
     cELTYPE = isnothing(coordinates_eltype) ? eltype(point_coords) : coordinates_eltype
     ELTYPE = isnothing(element_type) ?
-             eltype(first(ReadVTK.get_data(point_data["pressure"]))) : element_type
+             eltype(first(ReadVTK.get_data(point_data["particle_spacing"]))) : element_type
 
     results = Dict{Symbol, Any}()
 

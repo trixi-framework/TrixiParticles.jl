@@ -34,8 +34,14 @@ function set_initial_conditions!(v0_ode, u0_ode, semi, restart_with::Tuple{Varar
 end
 
 function time_span(tspan, restart_with::Tuple{Vararg{String}})
-    restart_data = vtk2trixi(first(restart_with))
-    t_restart = convert(eltype(tspan), restart_data.time)
+    # Read restart times from all files
+    restart_times = [vtk2trixi(file).time for file in restart_with]
+    t_restart = convert(eltype(tspan), first(restart_times))
+
+    # Check if all restart files have the same time
+    if !all(isapprox(t, t_restart) for t in restart_times)
+        throw(ArgumentError("All restart files must start from the same time."))
+    end
 
     if !isapprox(tspan[1], t_restart)
         @info "Adjusting initial time from $(tspan[1]) to restart time $t_restart"

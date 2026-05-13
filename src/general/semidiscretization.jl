@@ -194,9 +194,9 @@ Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
 
 # Keywords
 - `restart_with`: Can be used to restart the simulation from VTK solution files (see [`SolutionSavingCallback`](@ref)).
-  This has to be a tuple of filenames, one for each system in the [`Semidiscretization`](@ref).
-  The order of the filenames has to match the order of the systems in the [`Semidiscretization`](@ref).
-  If no restart is desired, use `nothing` (default).
+  This can be either `nothing` (default, no restart), a single filename as a `String`,
+  or a `Tuple` of filenames, one for each system in the [`Semidiscretization`](@ref).
+  The order of the filenames must match the order of the systems in the [`Semidiscretization`](@ref).
 - `reset_threads`: A boolean flag to reset Polyester.jl threads before the simulation (default: `true`).
   After an error within a threaded loop, threading might be disabled. Resetting the threads before the simulation
   ensures that threading is enabled again for the simulation.
@@ -225,6 +225,13 @@ u0: ([...], [...]) *this line is ignored by filter*
 """
 function semidiscretize(semi, tspan; reset_threads=true, restart_with=nothing)
     (; systems) = semi
+
+    if restart_with isa String
+        restart_with = (restart_with,)
+    elseif !isnothing(restart_with) && !(restart_with isa Tuple)
+        throw(ArgumentError("`restart_with` must be `nothing`, a string, or a tuple of strings, " *
+                            "got $(typeof(restart_with))"))
+    end
 
     # Check that all systems have the same eltype
     first_system = first(systems)
