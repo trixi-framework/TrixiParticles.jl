@@ -8,8 +8,9 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Important Bugfixes
 
-Fix empty PVD collections in `SolutionSavingCallback` output and incorrect metadata
-when using `save_times`.
+- Fixed empty PVD collections in `SolutionSavingCallback` output and incorrect metadata
+  when using `save_times` (#1176).
+- Fixed interpolation from a `PostprocessCallback` on GPUs (#1192).
 
 ## Version 0.5
 

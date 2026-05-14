@@ -718,6 +718,64 @@ end
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
         end
+
+        @trixi_testset "fsi/dam_break_plate_2d.jl with VTK plane interpolation" begin
+            # Import variables into scope
+            trixi_include_changeprecision(Float32, @__MODULE__,
+                                          joinpath(examples_dir(), "fsi",
+                                                   "dam_break_plate_2d.jl"),
+                                          coordinates_eltype=Float32,
+                                          # Use rounded dimensions to avoid warnings
+                                          initial_fluid_size=(0.15f0, 0.29f0),
+                                          sol=nothing, ode=nothing)
+
+            # Neighborhood search with `FullGridCellList` for GPU compatibility
+            min_corner = minimum(tank.boundary.coordinates, dims=2)
+            max_corner = maximum(tank.boundary.coordinates, dims=2)
+            cell_list = FullGridCellList(; min_corner, max_corner)
+            semi = Semidiscretization(fluid_system, boundary_system, structure_system,
+                                      neighborhood_search=GridNeighborhoodSearch{2}(;
+                                                                                    cell_list),
+                                      parallelization_backend=Main.parallelization_backend)
+            ode = semidiscretize(semi, (0.0f0, 0.05f0))
+
+            # Set up interpolation callback.
+            # No interpolation for non-fluid systems.
+            function plane_vtk(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
+                return nothing
+            end
+            function plane_vtk(::WeaklyCompressibleSPHSystem, dv_ode, du_ode, v_ode, u_ode,
+                               semi, t)
+                resolution = fluid_particle_spacing / 2
+                interpolate_plane_2d_vtk(min_corner, max_corner, resolution,
+                                         semi, semi.systems[1], v_ode, u_ode,
+                                         include_wall_velocity=true,
+                                         filename="plane_$t.vti")
+
+                # Return something non-empty to create a CSV file.
+                return 1
+            end
+            interpolation_callback = PostprocessCallback(; plane_vtk, filename="plane")
+            stepsize_callback = StepsizeCallback(cfl=1.2f0)
+            callbacks = CallbackSet(info_callback, stepsize_callback,
+                                    interpolation_callback)
+
+            # Run the simulation
+            sol = @trixi_test_nowarn solve(ode,
+                                           CarpenterKennedy2N54(williamson_condition=false),
+                                           dt=1.0f0, save_everystep=false,
+                                           callback=callbacks)
+
+            @test sol.retcode == ReturnCode.Success
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+            @test backend == Main.parallelization_backend
+
+            # Test that the callback only fired twice (once at the beginning and once at
+            # the end of the simulation).
+            @test countlines(joinpath("out", "plane.csv")) == 2 + 1 # header + 2 lines of data
+            @test isfile(joinpath("out", "plane_0.0.vti"))
+            @test isfile(joinpath("out", "plane_0.05.vti"))
+        end
     end
 
     @testset verbose=true "DEM" begin
