@@ -158,7 +158,7 @@ end
                 "no density diffusion" => (density_diffusion=nothing,),
                 "DensityDiffusionMolteniColagrossi" => (density_diffusion=DensityDiffusionMolteniColagrossi(delta=0.1f0),),
                 "DensityDiffusionFerrari" => (density_diffusion=DensityDiffusionFerrari(),),
-                "DensityDiffusionAntuono" => (density_diffusion=DensityDiffusionAntuono(),)
+                "DensityDiffusionAntuono" => (density_diffusion=DensityDiffusionAntuono(delta=0.1f0),)
             )
 
             for (test_description, kwargs) in dam_break_tests
