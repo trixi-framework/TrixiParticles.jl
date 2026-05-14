@@ -155,9 +155,10 @@ end
                                           sol=nothing, ode=nothing)
 
             dam_break_tests = Dict(
-                "default" => (),
+                "no density diffusion" => (density_diffusion=nothing,),
                 "DensityDiffusionMolteniColagrossi" => (density_diffusion=DensityDiffusionMolteniColagrossi(delta=0.1f0),),
-                "DensityDiffusionFerrari" => (density_diffusion=DensityDiffusionFerrari(),)
+                "DensityDiffusionFerrari" => (density_diffusion=DensityDiffusionFerrari(),),
+                "DensityDiffusionAntuono" => (density_diffusion=DensityDiffusionAntuono(),)
             )
 
             for (test_description, kwargs) in dam_break_tests
