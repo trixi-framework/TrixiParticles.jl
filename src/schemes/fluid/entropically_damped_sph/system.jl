@@ -1,6 +1,6 @@
 @doc raw"""
-    EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
-                                smoothing_length, sound_speed;
+    EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel,
+                                smoothing_length, sound_speed,
                                 pressure_acceleration=inter_particle_averaged_pressure,
                                 density_calculator=SummationDensity(),
                                 shifting_technique=nothing,
@@ -17,13 +17,13 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
 
 # Arguments
 - `initial_condition`:  Initial condition representing the system's particles.
-- `sound_speed`:        Speed of sound.
-- `smoothing_kernel`:   Smoothing kernel to be used for this system.
-                        See [Smoothing Kernels](@ref smoothing_kernel).
-- `smoothing_length`:   Smoothing length to be used for this system.
-                        See [Smoothing Kernels](@ref smoothing_kernel).
 
 # Keywords
+- `sound_speed`:                Speed of sound.
+- `smoothing_kernel`:           Smoothing kernel to be used for this system.
+                                See [Smoothing Kernels](@ref smoothing_kernel).
+- `smoothing_length`:           Smoothing length to be used for this system.
+                                See [Smoothing Kernels](@ref smoothing_kernel).
 - `viscosity`:                  Viscosity model for this system (default: no viscosity).
                                 Recommended: [`ViscosityAdami`](@ref).
 - `acceleration`:               Acceleration vector for the system. (default: zero vector)
@@ -85,10 +85,9 @@ end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
-function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
-                                     smoothing_length, sound_speed;
+function EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel, smoothing_length,
+                                     sound_speed, density_calculator=SummationDensity(),
                                      pressure_acceleration=inter_particle_averaged_pressure,
-                                     density_calculator=SummationDensity(),
                                      shifting_technique=nothing,
                                      average_pressure_reduction=(!isnothing(shifting_technique)),
                                      alpha=0.5, viscosity=nothing,
@@ -160,9 +159,8 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
     if reference_particle_spacing > 0
         # `reference_particle_spacing` has to be set for surface normals to be determined
-        cache = (;
-                 cache...,  # Existing cache fields
-                 reference_particle_spacing=reference_particle_spacing)
+        # Existing cache fields
+        cache = (; cache..., reference_particle_spacing)
     end
 
     EntropicallyDampedSPHSystem{NDIMS, ELTYPE, typeof(initial_condition), typeof(mass),

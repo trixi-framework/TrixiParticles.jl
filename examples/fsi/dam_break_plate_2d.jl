@@ -12,7 +12,7 @@
 # ==========================================================================================
 
 using TrixiParticles
-using OrdinaryDiffEq
+using OrdinaryDiffEqLowStorageRK
 
 # ==========================================================================================
 # ==== Resolution
@@ -37,9 +37,11 @@ sound_speed = 20 * sqrt(gravity * initial_fluid_size[2])
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1)
 
-tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
-                       n_layers=boundary_layers, spacing_ratio=spacing_ratio,
-                       acceleration=(0.0, -gravity), state_equation=state_equation)
+# `coordinates_eltype=Float64` is the default and can be overwritten with `trixi_include`
+tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density;
+                       n_layers=boundary_layers, spacing_ratio,
+                       acceleration=(0.0, -gravity), state_equation,
+                       coordinates_eltype=Float64)
 
 # Elastic plate/beam
 length_beam = 0.08
@@ -65,10 +67,12 @@ non_fixed_position = (plate_position[1],
 
 plate = RectangularShape(structure_particle_spacing,
                          (n_particles_x, n_particles_y - 1), non_fixed_position,
-                         density=structure_density, place_on_shell=true)
+                         density=structure_density, place_on_shell=true,
+                         coordinates_eltype=Float64)
 clamped_particles = RectangularShape(structure_particle_spacing,
                                      (n_particles_x, 1), plate_position,
-                                     density=structure_density, place_on_shell=true)
+                                     density=structure_density, place_on_shell=true,
+                                     coordinates_eltype=Float64)
 
 structure = union(clamped_particles, plate)
 
@@ -80,18 +84,21 @@ smoothing_kernel = WendlandC2Kernel{2}()
 fluid_density_calculator = ContinuityDensity()
 viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 
-fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
-                                           state_equation, smoothing_kernel,
-                                           smoothing_length, viscosity=viscosity,
+fluid_system = WeaklyCompressibleSPHSystem(tank.fluid; smoothing_kernel, smoothing_length,
+                                           density_calculator=fluid_density_calculator,
+                                           state_equation, viscosity,
                                            acceleration=(0.0, -gravity))
 
 # ==========================================================================================
 # ==== Boundary
 boundary_density_calculator = AdamiPressureExtrapolation()
+
+# Clip negative boundary pressure values to avoid sticking artifacts at the boundary.
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=state_equation,
                                              boundary_density_calculator,
-                                             smoothing_kernel, smoothing_length)
+                                             smoothing_kernel, smoothing_length;
+                                             state_equation,
+                                             clip_negative_pressure=true)
 
 boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
 
@@ -119,14 +126,16 @@ boundary_model_structure = BoundaryModelMonaghanKajtar(k_structure, spacing_rati
 #
 # boundary_model_structure = BoundaryModelDummyParticles(hydrodynamic_densites,
 #                                                    hydrodynamic_masses,
-#                                                    state_equation=state_equation,
 #                                                    boundary_density_calculator,
-#                                                    smoothing_kernel, smoothing_length)
+#                                                    smoothing_kernel, smoothing_length;
+#                                                    state_equation,
+#                                                    clip_negative_pressure=true)
 
-structure_system = TotalLagrangianSPHSystem(structure,
-                                            structure_smoothing_kernel,
-                                            structure_smoothing_length,
-                                            E, nu, boundary_model=boundary_model_structure,
+structure_system = TotalLagrangianSPHSystem(structure;
+                                            smoothing_kernel=structure_smoothing_kernel,
+                                            smoothing_length=structure_smoothing_length,
+                                            young_modulus=E, poisson_ratio=nu,
+                                            boundary_model=boundary_model_structure,
                                             clamped_particles=1:nparticles(clamped_particles),
                                             acceleration=(0.0, -gravity),
                                             penalty_force=PenaltyForceGanzenmueller(alpha=0.01))

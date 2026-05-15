@@ -3,18 +3,21 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::TotalLagrangianSPHSystem,
                    neighbor_system::TotalLagrangianSPHSystem, semi;
-                   integrate_tlsph=semi.integrate_tlsph[])
+                   integrate_tlsph=semi.integrate_tlsph[],
+                   eachparticle=each_integrated_particle(particle_system))
     # Different structures do not interact with each other (yet)
     particle_system === neighbor_system || return dv
 
     # Skip interaction if TLSPH systems are integrated separately
     integrate_tlsph || return dv
 
-    interact_structure_structure!(dv, v_particle_system, particle_system, semi)
+    interact_structure_structure!(dv, v_particle_system, particle_system, semi;
+                                  eachparticle)
 end
 
 # Function barrier without dispatch for unit testing
-@inline function interact_structure_structure!(dv, v_system, system, semi)
+@inline function interact_structure_structure!(dv, v_system, system, semi;
+                                               eachparticle=each_integrated_particle(system))
     (; penalty_force) = system
 
     # Everything here is done in the initial coordinates
@@ -35,7 +38,7 @@ end
     # loop to be able to use aligned loads safely inside the loop.
     use_aligned_matrix_load_ = Val(use_aligned_matrix_load(system))
 
-    @threaded semi for particle in each_integrated_particle(system)
+    @threaded semi for particle in eachparticle
         # We are looping over the particles of `system`, so it is guaranteed
         # that `particle` is in bounds of `system`.
         m_a = @inbounds system.mass[particle]
@@ -76,7 +79,8 @@ end
                                                  neighbor)
 
             current_pos_diff_ = current_coords_a - current_coords_b
-            # On GPUs, convert `Float64` coordinates to `Float32` after computing the difference
+            # In mixed-precision simulations, convert from `coordinates_eltype(system)`
+            # to `eltype(system)` immediately after computing the difference.
             current_pos_diff = convert.(eltype(system), current_pos_diff_)
             current_distance = norm(current_pos_diff)
 
@@ -107,13 +111,14 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::TotalLagrangianSPHSystem,
                    neighbor_system::AbstractFluidSystem, semi;
-                   integrate_tlsph=semi.integrate_tlsph[])
+                   integrate_tlsph=semi.integrate_tlsph[],
+                   eachparticle=each_integrated_particle(particle_system))
     # Skip interaction if TLSPH systems are integrated separately
     integrate_tlsph || return dv
 
     return interact_structure_fluid!(dv, v_particle_system, u_particle_system,
                                      v_neighbor_system, u_neighbor_system,
-                                     particle_system, neighbor_system, semi)
+                                     particle_system, neighbor_system, semi; eachparticle)
 end
 
 # Structure-boundary interaction
@@ -121,7 +126,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::TotalLagrangianSPHSystem,
                    neighbor_system::Union{WallBoundarySystem, OpenBoundarySystem}, semi;
-                   integrate_tlsph=semi.integrate_tlsph[])
+                   integrate_tlsph=semi.integrate_tlsph[],
+                   eachparticle=each_integrated_particle(particle_system))
     # TODO continuity equation?
     return dv
 end

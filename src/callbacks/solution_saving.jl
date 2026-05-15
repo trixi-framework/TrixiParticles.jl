@@ -1,51 +1,62 @@
 @doc raw"""
-    SolutionSavingCallback(; interval::Integer=0, dt=0.0, save_times=Array{Float64, 1}([]),
+    SolutionSavingCallback(; interval::Integer=0, dt=0.0, save_times=Float64[],
                            save_initial_solution=true, save_final_solution=true,
                            output_directory="out", append_timestamp=false, prefix="",
-                           verbose=false, max_coordinates=2^15, custom_quantities...)
+                           verbose=false, overwrite=false, max_coordinates=2^15,
+                           custom_quantities...)
 
 
-Callback to save the current numerical solution in VTK format in regular intervals.
-Either pass `interval` to save every `interval` time steps,
-or pass `dt` to save in intervals of `dt` in terms of integration time by adding
-additional `tstops` (note that this may change the solution).
+Callback to save the current numerical solution in VTK format.
+Use at most one of `interval`, `dt`, and `save_times`: pass `interval` to save
+every `interval` accepted time steps, `dt` to save in intervals of `dt` in terms
+of integration time by adding additional `tstops` (note that this may change the
+solution), or `save_times` to save at specific times. The initial and final
+solution can be added independently with `save_initial_solution` and
+`save_final_solution`.
 
-Additional user-defined quantities can be saved by passing functions
-as keyword arguments, which map `(v, u, t, system)` to an `Array` where
-the columns represent the particles in the same order as in `u`.
-To ignore a custom quantity for a specific system, return `nothing`.
+Additional user-defined quantities can be saved by passing keyword arguments.
+A custom quantity can be an array or a function. Functions are called as
+`(system, dv_ode, du_ode, v_ode, u_ode, semi, t)` when that method exists,
+otherwise as `(system, data, t)`. In the latter case, `data` is a named tuple
+with fields depending on the system type. To ignore a custom quantity for a
+specific system, return `nothing`.
 
 # Keywords
-- `interval=0`:                 Save the solution every `interval` time steps.
+- `interval=0`:                 Save the solution every `interval` accepted time steps.
+                                A value of `0` disables step-interval saves, so only
+                                the initial and final solution are saved based on
+                                `save_initial_solution` and `save_final_solution`,
+                                unless `save_times` or `dt` are used.
 - `dt`:                         Save the solution in regular intervals of `dt` in terms
                                 of integration time by adding additional `tstops`
                                 (note that this may change the solution).
-- `save_times=[]`               List of times at which to save a solution.
-- `save_initial_solution=true`: Save the initial solution.
-- `save_final_solution=true`:   Save the final solution.
+- `save_times=Float64[]`:       Specific times at which to save a solution. These times
+                                are mutually exclusive with `interval` and `dt`.
+- `save_initial_solution=true`: Save the initial solution. Setting this to `false`
+                                does not suppress an initial time explicitly listed in
+                                `save_times`.
+- `save_final_solution=true`:   Save the final solution. Setting this to `false`
+                                does not suppress a final time explicitly listed in
+                                `save_times`.
 - `overwrite=false`:            If `true`, previously written VTK files are overwritten
                                 instead of creating a new file set at each save interval.
                                 In this case, filenames receive the postfix `_current`.
-                                This option is useful for memory efficiency in large simulations where only
-                                the final results matters. Unlike `save_final_solution=true`, it
-                                still provides regular checkpoint backups at each save interval.
-                                If `false` (default), files are not overwritten and an iteration
-                                postfix is appended for each interval.
+                                This option is useful for memory efficiency in large
+                                simulations where only the final results matter. It
+                                provides a rolling checkpoint at each save interval.
+                                If `false` (default), files are not overwritten and an
+                                iteration postfix is appended for each interval.
 - `output_directory="out"`:     Directory to save the VTK files.
 - `append_timestamp=false`:     Append current timestamp to the output directory.
 - `prefix=""`:                  Prefix added to the filename.
-- `custom_quantities...`:       Additional user-defined quantities.
 - `verbose=false`:              Print to standard IO when a file is written.
 - `max_coordinates=2^15`:       The coordinates of particles will be clipped if their
                                 absolute values exceed this threshold.
-- `custom_quantities...`:   Additional custom quantities to include in the VTK output.
-                            Each custom quantity must be a function of `(system, data, t)`,
-                            which will be called for every system, where `data` is a named
-                            tuple with fields depending on the system type, and `t` is the
-                            current simulation time. Check the available data for each
-                            system with `available_data(system)`.
-                            See [Custom Quantities](@ref custom_quantities)
-                            for a list of pre-defined custom quantities that can be used here.
+- `custom_quantities...`:       Additional custom quantities to include in the VTK output.
+                                Check the available data for each system with
+                                `available_data(system)`.
+                                See [Custom Quantities](@ref custom_quantities) for a list
+                                of pre-defined custom quantities that can be used here.
 
 # Examples
 ```jldoctest; output = false, filter = [r"output directory:.*", r"\s+│"]
@@ -73,18 +84,19 @@ saving_callback = SolutionSavingCallback(dt=0.1, my_custom_quantity=kinetic_ener
 ```
 """
 mutable struct SolutionSavingCallback{I, CQ}
-    interval              :: I
-    save_times            :: Vector{Float64}
-    save_initial_solution :: Bool
-    save_final_solution   :: Bool
-    verbose               :: Bool
-    output_directory      :: String
-    prefix                :: String
-    overwrite             :: Bool
-    max_coordinates       :: Float64
-    custom_quantities     :: CQ
-    latest_saved_iter     :: Int
-    git_hash              :: Ref{String}
+    interval               :: I
+    save_times             :: Vector{Float64}
+    save_initial_solution  :: Bool
+    save_final_solution    :: Bool
+    verbose                :: Bool
+    output_directory       :: String
+    prefix                 :: String
+    overwrite              :: Bool
+    max_coordinates        :: Float64
+    custom_quantities      :: CQ
+    collection_initialized :: Bool
+    latest_saved_iter      :: Int
+    git_hash               :: Ref{String}
 end
 
 function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
@@ -94,6 +106,8 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
                                 prefix="", verbose=false, overwrite=false,
                                 max_coordinates=Float64(2^15),
                                 custom_quantities...)
+    save_times = sort!(collect(Float64.(save_times)))
+
     if (dt > 0 && interval > 0) || (length(save_times) > 0 && (dt > 0 || interval > 0))
         throw(ArgumentError("Setting multiple save times for the same solution " *
                             "callback is not possible. Use either `dt`, `interval` or `save_times`."))
@@ -107,14 +121,16 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
         output_directory *= string("_", Dates.format(now(), "YY-mm-ddTHHMMSS"))
     end
 
-    solution_callback = SolutionSavingCallback(interval, Float64.(save_times),
+    solution_callback = SolutionSavingCallback(interval, save_times,
                                                save_initial_solution, save_final_solution,
                                                verbose, output_directory, prefix, overwrite,
                                                max_coordinates, custom_quantities,
-                                               -1, Ref("UnknownVersion"))
+                                               false, -1, Ref("UnknownVersion"))
 
     if length(save_times) > 0
-        return PresetTimeCallback(save_times, solution_callback)
+        return PresetTimeCallback(copy(save_times), solution_callback;
+                                  initialize=(initialize_save_times_cb!),
+                                  save_positions=(false, false))
     elseif dt > 0
         # Add a `tstop` every `dt`, and save the final solution
         return PeriodicCallback(solution_callback, dt,
@@ -137,18 +153,54 @@ function initialize_save_cb!(cb, u, t, integrator)
 end
 
 function initialize_save_cb!(solution_callback::SolutionSavingCallback, u, t, integrator)
-    semi = integrator.p
+    initialize_save_cb!(solution_callback, u, t, integrator,
+                        solution_callback.save_initial_solution)
+end
+
+function initialize_save_cb!(solution_callback::SolutionSavingCallback, u, t, integrator,
+                             save_initial_solution)
+    semi = integrator.p.semi
     set_callbacks_used!(semi, integrator)
 
-    # Reset `latest_saved_iter`
+    # Reset collection state
+    solution_callback.collection_initialized = false
     solution_callback.latest_saved_iter = -1
     solution_callback.git_hash[] = compute_git_hash()
 
     write_meta_data(solution_callback, integrator)
 
     # Save initial solution
-    if solution_callback.save_initial_solution
+    if save_initial_solution
         solution_callback(integrator)
+    end
+
+    return nothing
+end
+
+function initialize_save_times_cb!(cb, u, t, integrator)
+    solution_callback = cb.affect!
+    reset_save_times!(cb.condition.tstops, solution_callback.save_times)
+    add_final_save_time!(cb.condition.tstops, solution_callback, integrator)
+
+    # `PresetTimeCallback` calls `affect!` after this initializer when `t` is in
+    # `tstops`. Avoid writing the initial solution twice when it is also a save time.
+    save_initial_solution = solution_callback.save_initial_solution &&
+                            !insorted(t, cb.condition.tstops)
+    initialize_save_cb!(solution_callback, u, t, integrator, save_initial_solution)
+end
+
+function reset_save_times!(tstops, save_times)
+    empty!(tstops)
+    append!(tstops, save_times)
+    sort!(unique!(tstops))
+
+    return tstops
+end
+
+function add_final_save_time!(save_times, solution_callback, integrator)
+    if solution_callback.save_final_solution
+        push!(save_times, last(integrator.sol.prob.tspan))
+        sort!(unique!(save_times))
     end
 
     return nothing
@@ -158,8 +210,7 @@ end
 function (solution_callback::SolutionSavingCallback)(u, t, integrator)
     (; interval, save_final_solution) = solution_callback
 
-    return condition_integrator_interval(integrator, interval,
-                                         save_final_solution=save_final_solution)
+    return condition_integrator_interval(integrator, interval; save_final_solution)
 end
 
 # `affect!`
@@ -174,7 +225,7 @@ function (solution_callback::SolutionSavingCallback)(integrator)
         end
 
         vu_ode = integrator.u
-        semi = integrator.p
+        semi = integrator.p.semi
         iter = get_iter(interval, integrator)
 
         if iter == solution_callback.latest_saved_iter
@@ -186,15 +237,20 @@ function (solution_callback::SolutionSavingCallback)(integrator)
             iter += 1
         end
 
-        solution_callback.latest_saved_iter = iter
-
         if verbose
             println("Writing solution to $output_directory at t = $(integrator.t)")
         end
 
-        trixi2vtk(dvdu_ode, vu_ode, semi, integrator.t;
-                  iter=(overwrite ? nothing : iter), output_directory, prefix,
-                  git_hash=git_hash[], max_coordinates, custom_quantities...)
+        # Reset the collection on the first write of each callback run to drop stale
+        # PVD entries. Later writes append, including writes after an initial solution.
+        _trixi2vtk(dvdu_ode, vu_ode, semi, integrator.t;
+                   iter, overwrite,
+                   append_collection=solution_callback.collection_initialized,
+                   output_directory, prefix,
+                   git_hash=git_hash[], max_coordinates, custom_quantities...)
+
+        solution_callback.collection_initialized = true
+        solution_callback.latest_saved_iter = iter
     end
 
     # Tell OrdinaryDiffEq that `u` has not been modified
@@ -217,9 +273,9 @@ end
 #                   DiffEqCallbacks.var"#100#104"{...}}`.
 #
 # When `save_times` is used, this is
-# `DiscreteCallback{DiffEqCallbacks.var"#115#117"{...},
+# `DiscreteCallback{<:DiffEqCallbacks.PresetTimeFunction,
 #                   <:SolutionSavingCallback,
-#                   DiffEqCallbacks.var"#116#118"{...}}`.
+#                   <:DiffEqCallbacks.PresetTimeFunction}`.
 #
 # So we can unambiguously dispatch on
 # - `DiscreteCallback{<:SolutionSavingCallback, <:SolutionSavingCallback}`,
