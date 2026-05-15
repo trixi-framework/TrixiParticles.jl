@@ -173,6 +173,11 @@ function WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
                                        cache)
 end
 
+@inline function Base.:(==)(system1::WeaklyCompressibleSPHSystem,
+                            system2::WeaklyCompressibleSPHSystem)
+    return system1.mass === system2.mass
+end
+
 function Base.show(io::IO, system::WeaklyCompressibleSPHSystem)
     @nospecialize system # reduce precompilation time
 
