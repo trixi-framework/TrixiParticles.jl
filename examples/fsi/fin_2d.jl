@@ -264,7 +264,7 @@ structure_system = TotalLagrangianSPHSystem(structure; smoothing_kernel, smoothi
 # ==== Fluid
 fluid_density_calculator = ContinuityDensity()
 # density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
-density_diffusion = DensityDiffusionAntuono(fluid, delta=0.1)
+density_diffusion = DensityDiffusionAntuono(delta=0.1)
 
 fluid_system = WeaklyCompressibleSPHSystem(fluid; density_calculator=fluid_density_calculator,
                                            state_equation, smoothing_kernel,
