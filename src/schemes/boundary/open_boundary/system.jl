@@ -135,6 +135,10 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                               calculate_flow_rate, cache)
 end
 
+function Base.:(==)(system1::OpenBoundarySystem, system2::OpenBoundarySystem)
+    return system1.mass === system2.mass
+end
+
 function initialize!(system::OpenBoundarySystem, semi)
     (; boundary_zones) = system
 
