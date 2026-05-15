@@ -166,7 +166,10 @@
                       stats=(; naccept=123),
                       iter=150,
                       dt=1e-3,
-                      p=(; split_integration_data=(; integrator=(; stats=(; naccept=938), iter=1023))))
+                      p=(;
+                         split_integration_data=(;
+                                                 integrator=(; stats=(; naccept=938),
+                                                             iter=1023))))
 
         TrixiParticles.isfinished(::NamedTuple) = true
         TrixiParticles.u_modified!(::NamedTuple, _) = nothing
