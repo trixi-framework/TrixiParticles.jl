@@ -271,9 +271,16 @@ end
 
 function print_summary(integrator)
     println("─"^100)
-    println("Trixi simulation finished.  Final time: ", integrator.t,
-            "  Time steps: ", integrator.stats.naccept, " (accepted), ",
-            integrator.iter, " (total)")
+    # Print the final time as string to let Julia decide on the formatting
+    @printf("  %-31s %10s\n", "Final time:", string(integrator.t))
+    @printf("  %-31s %10d (accepted) %10d (total)\n",
+            "Time steps:", integrator.stats.naccept, integrator.iter)
+    if !isnothing(integrator.p.split_integration_data)
+        @printf("  %-31s %10d (accepted) %10d (total)\n",
+                "Split integration time steps:",
+                integrator.p.split_integration_data.integrator.stats.naccept,
+                integrator.p.split_integration_data.integrator.iter)
+    end
     println("─"^100)
     println()
 
