@@ -38,7 +38,6 @@ CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 OrdinaryDiffEqCore = "bbf590c4-e513-4bbe-9b18-05decba2e5d8"
 OrdinaryDiffEqLowStorageRK = "b0944070-b475-4768-8dec-fb6eb410534d"
 OrdinaryDiffEqSymplecticRK = "fa646aed-7ef9-47eb-84c4-9443fc8cbfa8"
-Static = "aedffcd0-7271-4cad-89d0-dc628f76c6d3"
 
 [extensions]
 TrixiParticlesOrdinaryDiffEqSymplecticRKExt = ["OrdinaryDiffEqSymplecticRK", "OrdinaryDiffEqCore"]
@@ -71,7 +70,6 @@ ReadVTK = "0.2"
 RecipesBase = "1"
 Reexport = "1"
 SciMLBase = "2"
-Static = "<1.4"
 StaticArrays = "1"
 Statistics = "1"
 StrideArraysCore = "0.5.7"
