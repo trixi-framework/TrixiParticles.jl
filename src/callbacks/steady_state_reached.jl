@@ -8,9 +8,11 @@ where `ekin` is the total kinetic energy of the simulation.
 
 # Keywords
 - `interval=0`:     Check steady state condition every `interval` time steps.
+                    A value of `0` disables step-interval checks.
 - `dt=0.0`:         Check steady state condition in regular intervals of `dt` in terms
                     of integration time by adding additional `tstops`
                     (note that this may change the solution).
+- Either `interval` or `dt` must be set to something larger than 0.
 - `interval_size`:  The number of callback evaluations over which the change of the
                     kinetic energy is considered.
 - `abstol`:         Absolute tolerance.
@@ -26,8 +28,16 @@ end
 
 function SteadyStateReachedCallback(; interval::Integer=0, dt=0.0,
                                     interval_size::Integer=10, abstol=1.0e-8, reltol=1.0e-6)
+    if interval < 0
+        throw(ArgumentError("`interval` must be non-negative"))
+    end
+
     if dt > 0 && interval > 0
         throw(ArgumentError("setting both `interval` and `dt` is not supported"))
+    end
+
+    if dt <= 0 && interval == 0
+        throw(ArgumentError("either `interval` or `dt` must be set to a positive value"))
     end
 
     if interval_size <= 0
@@ -37,30 +47,58 @@ function SteadyStateReachedCallback(; interval::Integer=0, dt=0.0,
     abstol, reltol = float.(promote(abstol, reltol))
     ELTYPE = typeof(abstol)
 
-    if dt > 0
-        interval = convert(ELTYPE, dt)
+    interval_ = if dt > 0
+        convert(ELTYPE, dt)
+    else
+        Int(interval)
     end
 
-    steady_state_callback = SteadyStateReachedCallback(interval, abstol, reltol,
+    steady_state_callback = SteadyStateReachedCallback(interval_, abstol, reltol,
                                                        [convert(ELTYPE, Inf)],
                                                        interval_size)
 
     if dt > 0
-        return PeriodicCallback(steady_state_callback, dt, save_positions=(false, false),
-                                final_affect=true)
+        return PeriodicCallback(steady_state_callback, dt,
+                                initialize=(initialize_steady_state_callback!),
+                                save_positions=(false, false))
     else
         return DiscreteCallback(steady_state_callback, steady_state_callback,
-                                save_positions=(false, false))
+                                save_positions=(false, false),
+                                initialize=(initialize_steady_state_callback!))
     end
+end
+
+function initialize_steady_state_callback!(cb, u, t, integrator)
+    # The `SteadyStateReachedCallback` is either `cb.affect!` (with `DiscreteCallback`)
+    # or `cb.affect!.affect!` (with `PeriodicCallback`).
+    # Let recursive dispatch handle this.
+    initialize_steady_state_callback!(cb.affect!, u, t, integrator)
+end
+
+function initialize_steady_state_callback!(cb::SteadyStateReachedCallback, u, t, integrator)
+    semi = integrator.p.semi
+    set_callbacks_used!(semi, integrator)
+
+    empty!(cb.previous_ekin)
+    push!(cb.previous_ekin, convert(eltype(cb.previous_ekin), Inf))
+
+    return nothing
 end
 
 # `affect!` (`PeriodicCallback`)
 function (cb::SteadyStateReachedCallback)(integrator)
-    steady_state_condition!(cb, integrator) || return nothing
+    if !steady_state_condition!(cb, integrator)
+        u_modified!(integrator, false)
+        return nothing
+    end
 
     print_summary(integrator)
 
     terminate!(integrator)
+
+    u_modified!(integrator, false)
+
+    return nothing
 end
 
 # `affect!` (`DiscreteCallback`)
@@ -68,6 +106,10 @@ function (cb::SteadyStateReachedCallback{Int})(integrator)
     print_summary(integrator)
 
     terminate!(integrator)
+
+    u_modified!(integrator, false)
+
+    return nothing
 end
 
 # `condition` (`DiscreteCallback`)
@@ -83,8 +125,8 @@ end
 
 @inline function condition_steady_state_interval(cb::SteadyStateReachedCallback{Int},
                                                  integrator)
-    return cb.interval == 0 ||
-           condition_integrator_interval(integrator, cb.interval; save_final_solution=false)
+    return condition_integrator_interval(integrator, cb.interval;
+                                         save_final_solution=false)
 end
 
 @inline function steady_state_condition!(cb, integrator)
@@ -129,8 +171,8 @@ function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:SteadyStateReachedCallb
 
     cb_ = cb.affect!
 
-    print(io, "SteadyStateReachedCallback(abstol=", cb_.abstol, ", ", "reltol=", cb_.reltol,
-          ")")
+    print(io, "SteadyStateReachedCallback(interval=", cb_.interval,
+          ", abstol=", cb_.abstol, ", reltol=", cb_.reltol, ")")
 end
 
 function Base.show(io::IO,
@@ -140,8 +182,8 @@ function Base.show(io::IO,
 
     cb_ = cb.affect!.affect!
 
-    print(io, "SteadyStateReachedCallback(abstol=", cb_.abstol, ", reltol=", cb_.reltol,
-          ")")
+    print(io, "SteadyStateReachedCallback(dt=", cb_.interval,
+          ", abstol=", cb_.abstol, ", reltol=", cb_.reltol, ")")
 end
 
 function Base.show(io::IO, ::MIME"text/plain",
@@ -153,10 +195,10 @@ function Base.show(io::IO, ::MIME"text/plain",
     else
         cb_ = cb.affect!
 
-        setup = ["absolute tolerance" => cb_.abstol,
-            "relative tolerance" => cb_.reltol,
-            "interval" => cb_.interval,
-            "interval size" => cb_.interval_size]
+        setup = ["interval" => cb_.interval,
+            "interval size" => cb_.interval_size,
+            "absolute tolerance" => cb_.abstol,
+            "relative tolerance" => cb_.reltol]
         summary_box(io, "SteadyStateReachedCallback", setup)
     end
 end
@@ -171,10 +213,10 @@ function Base.show(io::IO, ::MIME"text/plain",
     else
         cb_ = cb.affect!.affect!
 
-        setup = ["absolute tolerance" => cb_.abstol,
-            "relative tolerance" => cb_.reltol,
-            "interval" => cb_.interval,
-            "interval_size" => cb_.interval_size]
+        setup = ["dt" => cb_.interval,
+            "interval size" => cb_.interval_size,
+            "absolute tolerance" => cb_.abstol,
+            "relative tolerance" => cb_.reltol]
         summary_box(io, "SteadyStateReachedCallback", setup)
     end
 end
