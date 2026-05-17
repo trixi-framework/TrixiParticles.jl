@@ -1,5 +1,5 @@
 # This is the data format returned by `load(file)` when used with `.asc` files
-mutable struct Polygon{NDIMS, ELTYPE}
+struct Polygon{NDIMS, ELTYPE}
     vertices          :: Vector{SVector{NDIMS, ELTYPE}}
     edge_vertices     :: Vector{NTuple{2, SVector{NDIMS, ELTYPE}}}
     vertex_normals    :: Vector{NTuple{2, SVector{NDIMS, ELTYPE}}}
@@ -95,6 +95,13 @@ mutable struct Polygon{NDIMS, ELTYPE}
         return new{NDIMS, ELTYPE}(vertices, edge_vertices, vertex_normals, edge_normals,
                                   edge_vertices_ids, min_corner, max_corner)
     end
+
+    function Polygon{NDIMS, ELTYPE}(vertices, edge_vertices, vertex_normals,
+                                    edge_normals, edge_vertices_ids,
+                                    min_corner, max_corner) where {NDIMS, ELTYPE}
+        return new{NDIMS, ELTYPE}(vertices, edge_vertices, vertex_normals, edge_normals,
+                                  edge_vertices_ids, min_corner, max_corner)
+    end
 end
 
 function rebuild_polygon_from_edges(edge_vertices, vertex_normals, edge_normals)
@@ -120,8 +127,8 @@ function rebuild_polygon_from_edges(edge_vertices, vertex_normals, edge_normals)
     min_corner = SVector([minimum(v[i] for v in vertices) for i in 1:NDIMS]...)
     max_corner = SVector([maximum(v[i] for v in vertices) for i in 1:NDIMS]...)
 
-    return (; vertices, edge_vertices, vertex_normals, edge_normals, edge_vertices_ids,
-            min_corner, max_corner)
+    return Polygon{NDIMS, ELTYPE}(vertices, edge_vertices, vertex_normals, edge_normals,
+                                  edge_vertices_ids, min_corner, max_corner)
 end
 
 function Base.show(io::IO, geometry::Polygon)
@@ -159,20 +166,7 @@ end
         throw(ArgumentError("cannot delete all polygon edges"))
     end
 
-    (; vertices, edge_vertices_ids, min_corner,
-     max_corner) = rebuild_polygon_from_edges(edge_vertices,
-                                              vertex_normals,
-                                              edge_normals)
-
-    polygon.vertices = vertices
-    polygon.edge_vertices = edge_vertices
-    polygon.vertex_normals = vertex_normals
-    polygon.edge_normals = edge_normals
-    polygon.edge_vertices_ids = edge_vertices_ids
-    polygon.min_corner = min_corner
-    polygon.max_corner = max_corner
-
-    return polygon
+    return rebuild_polygon_from_edges(edge_vertices, vertex_normals, edge_normals)
 end
 
 @inline nfaces(mesh::Polygon) = length(mesh.edge_normals)
