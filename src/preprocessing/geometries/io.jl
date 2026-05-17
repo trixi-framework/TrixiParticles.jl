@@ -19,8 +19,9 @@ For comprehensive information about the supported file formats, refer to the doc
 # Keywords
 - `element_type`: Element type (default is `Float64`)
 - `close_curve`: Close 2D `.asc` and `.dxf` curves by appending the first point
-                 when it is not already repeated. Set this to `false` for intentional
-                 open curves.
+                 when it is not already repeated. This assumes the vertices already
+                 trace a complete, ordered boundary. Set this to `false` for intentional
+                 open curves. Region sampling and classification reject open geometries.
 """
 function load_geometry(filename; element_type=Float64, close_curve=true)
     ELTYPE = element_type

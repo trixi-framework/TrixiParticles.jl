@@ -7,8 +7,8 @@
 # 3. Utilize the Winding Number algorithm to determine if points are inside or outside.
 # 4. Visualize the sampled particles and the winding number field.
 #
-# The example uses an "inverted_open_curve" geometry, where standard inside/outside
-# definitions might be ambiguous without a robust point-in-polygon test like winding numbers.
+# The example uses a polygonal star geometry, where standard inside/outside
+# definitions benefit from a robust point-in-polygon test like winding numbers.
 # ==========================================================================================
 
 using TrixiParticles
@@ -16,15 +16,14 @@ using Plots
 
 particle_spacing = 0.05
 
-filename = "inverted_open_curve"
+filename = "star"
 file = joinpath("examples", "preprocessing", "data", filename * ".asc")
 
-geometry = load_geometry(file; close_curve=false)
+geometry = load_geometry(file)
 
 trixi2vtk(geometry)
 
 point_in_geometry_algorithm = WindingNumberJacobson(; geometry,
-                                                    winding_number_factor=0.4,
                                                     hierarchical_winding=true)
 
 # Returns `InitialCondition`

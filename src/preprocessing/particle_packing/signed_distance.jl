@@ -21,6 +21,8 @@ to this surface.
 - `use_for_boundary_packing`: Set to `true` if [`SignedDistanceField`] is used to pack
                               a boundary [`ParticlePackingSystem`](@ref).
                               Use the default of `false` when packing without a boundary.
+                              This requires a closed geometry, since boundary packing
+                              needs a well-defined outside region.
 """
 struct SignedDistanceField{ELTYPE, P, N, D}
     positions           :: P
@@ -37,6 +39,11 @@ function SignedDistanceField(geometry, particle_spacing;
                              use_for_boundary_packing=false)
     NDIMS = ndims(geometry)
     ELTYPE = eltype(particle_spacing)
+
+    if use_for_boundary_packing
+        require_closed_geometry(geometry,
+                                "SignedDistanceField with `use_for_boundary_packing=true`")
+    end
 
     sdf_factor = use_for_boundary_packing ? 2 : 1
 

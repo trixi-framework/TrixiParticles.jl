@@ -41,8 +41,7 @@
         end
 
         @testset verbose=true "Real World Data" begin
-            files = ["hexagon", "circle", "inverted_open_curve"]
-            close_curves = [true, true, false]
+            files = ["hexagon", "circle"]
             algorithms = [
                 WindingNumberHormann(),
                 WindingNumberJacobson(; hierarchical_winding=false)
@@ -74,7 +73,7 @@
                     coords = vcat((data.var"Points:0")', (data.var"Points:1")')
 
                     geometry = load_geometry(joinpath(data_dir, files[j] * ".asc");
-                                             close_curve=close_curves[j])
+                                             close_curve=true)
 
                     shape_sampled = ComplexShape(geometry; particle_spacing=0.05,
                                                  density=1.0, point_in_geometry_algorithm)
@@ -82,6 +81,15 @@
                     @test isapprox(shape_sampled.coordinates, coords, atol=1e-2)
                 end
             end
+        end
+
+        @testset verbose=true "Open Geometry Validation" begin
+            open_square = [0.0 1.0 1.0 0.0;
+                           0.0 0.0 1.0 1.0]
+            geometry = TrixiParticles.Polygon(open_square; close_curve=false)
+
+            @test_throws ArgumentError ComplexShape(geometry; particle_spacing=0.1,
+                                                    density=1.0)
         end
 
         @testset verbose=true "Intersect of Overlapping Shapes and Geometries" begin

@@ -4,6 +4,63 @@ include("io.jl")
 
 @inline eachface(mesh) = Base.OneTo(nfaces(mesh))
 
+"""
+    is_closed_geometry(geometry)
+
+Return `true` if a polygon or triangle mesh forms a closed region or surface.
+"""
+function is_closed_geometry(polygon::Polygon)
+    vertices_close = isapprox(first(polygon.vertices), last(polygon.vertices))
+    vertices_close || return false
+
+    expected_edges = count(1:(length(polygon.vertices) - 1)) do i
+        !isapprox(polygon.vertices[i], polygon.vertices[i + 1])
+    end
+
+    return nfaces(polygon) == expected_edges
+end
+
+function is_closed_geometry(mesh::TriangleMesh)
+    return all(==(2), edge_face_counts(mesh))
+end
+
+function require_closed_geometry(geometry, operation)
+    is_closed_geometry(geometry) && return nothing
+
+    msg = "`$operation` requires a closed geometry. " *
+          closure_error_detail(geometry)
+
+    throw(ArgumentError(msg))
+end
+
+function closure_error_detail(polygon::Polygon)
+    if !isapprox(first(polygon.vertices), last(polygon.vertices))
+        return "The first and last polygon vertices are different. " *
+               "If the vertices already trace a complete 2D boundary, construct or load " *
+               "the geometry with `close_curve=true`; otherwise provide a closed boundary."
+    end
+
+    return "The polygon edge list does not form a complete closed curve."
+end
+
+function closure_error_detail(mesh::TriangleMesh)
+    invalid_edges = count(!=(2), edge_face_counts(mesh))
+
+    return "Found $invalid_edges mesh edges with an incident-face count different from 2."
+end
+
+function edge_face_counts(mesh::TriangleMesh)
+    edge_face_counts = zeros(Int, length(mesh.edge_vertices_ids))
+
+    for face_edges in mesh.face_edges_ids
+        edge_face_counts[face_edges[1]] += 1
+        edge_face_counts[face_edges[2]] += 1
+        edge_face_counts[face_edges[3]] += 1
+    end
+
+    return edge_face_counts
+end
+
 function Base.setdiff(initial_condition::InitialCondition,
                       geometries::Union{Polygon, TriangleMesh}...)
     geometry = first(geometries)
@@ -11,6 +68,7 @@ function Base.setdiff(initial_condition::InitialCondition,
     if ndims(geometry) != ndims(initial_condition)
         throw(ArgumentError("all passed geometries must have the same dimensionality as the initial condition"))
     end
+    require_closed_geometry(geometry, "setdiff")
 
     coords = reinterpret(reshape,
                          SVector{ndims(geometry), eltype(initial_condition.coordinates)},
@@ -38,6 +96,7 @@ function Base.intersect(initial_condition::InitialCondition,
     if ndims(geometry) != ndims(initial_condition)
         throw(ArgumentError("all passed geometries must have the same dimensionality as the initial condition"))
     end
+    require_closed_geometry(geometry, "intersect")
 
     coords = reinterpret(reshape,
                          SVector{ndims(geometry), eltype(initial_condition.coordinates)},

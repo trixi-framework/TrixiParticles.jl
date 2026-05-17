@@ -81,6 +81,32 @@
         end
     end
 
+    @testset verbose=true "Closed Geometry Detection" begin
+        open_square = [1.0 2.0 2.0 1.0;
+                       1.0 1.0 2.0 2.0]
+
+        closed_polygon = TrixiParticles.Polygon(open_square)
+        open_polygon = TrixiParticles.Polygon(open_square; close_curve=false)
+        partial_polygon = deleteat!(TrixiParticles.Polygon(open_square), 2)
+
+        @test TrixiParticles.is_closed_geometry(closed_polygon)
+        @test !TrixiParticles.is_closed_geometry(open_polygon)
+        @test !TrixiParticles.is_closed_geometry(partial_polygon)
+
+        shape = RectangularShape(0.5, (2, 2), (1.0, 1.0), density=1.0)
+        @test_throws ArgumentError intersect(shape, open_polygon)
+        @test_throws ArgumentError setdiff(shape, open_polygon)
+
+        file = pkgdir(TrixiParticles, "test", "preprocessing", "data")
+        planar_geometry = load_geometry(joinpath(file, "inflow_geometry.stl"))
+        closed_mesh = extrude_geometry(planar_geometry, 0.8)
+        open_mesh = extrude_geometry(planar_geometry, 0.8; omit_top_face=true)
+
+        @test !TrixiParticles.is_closed_geometry(planar_geometry)
+        @test TrixiParticles.is_closed_geometry(closed_mesh)
+        @test !TrixiParticles.is_closed_geometry(open_mesh)
+    end
+
     @testset verbose=true "Real World Data" begin
         data_dir = pkgdir(TrixiParticles, "examples", "preprocessing", "data")
         validation_dir = pkgdir(TrixiParticles, "test", "preprocessing", "data")
@@ -231,47 +257,22 @@
                                                    omit_bottom_face=true)
 
             winding_number_factor = 0.2
-            @testset verbose=true "Omit Top Face" begin
-                expected_min_corner = [-0.036399998962879196; 0.24624998748302457; -0.5233639197487431;;]
-                expected_max_corner = [0.38360000103712083; 1.1462499874830245; -0.07336391974874301;;]
 
-                ic_1 = ComplexShape(geometry_extruded_1; particle_spacing=0.03, density=1.0,
-                                    point_in_geometry_algorithm=WindingNumberJacobson(;
-                                                                                      geometry=geometry_extruded_1,
-                                                                                      winding_number_factor))
-
-                @test nparticles(ic_1) == 2994
-                @test isapprox(maximum(ic_1.coordinates, dims=2), expected_max_corner)
-                @test isapprox(minimum(ic_1.coordinates, dims=2), expected_min_corner)
-            end
-
-            @testset verbose=true "Omit Bottom Face" begin
-                expected_min_corner = [-0.0663999989628792; 0.1562499874830246; -0.49336391974874305;;]
-                expected_max_corner = [0.38360000103712083; 1.0562499874830245; -0.07336391974874301;;]
-
-                ic_2 = ComplexShape(geometry_extruded_2; particle_spacing=0.03, density=1.0,
-                                    point_in_geometry_algorithm=WindingNumberJacobson(;
-                                                                                      geometry=geometry_extruded_2,
-                                                                                      winding_number_factor))
-
-                @test nparticles(ic_2) == 2988
-                @test isapprox(maximum(ic_2.coordinates, dims=2), expected_max_corner)
-                @test isapprox(minimum(ic_2.coordinates, dims=2), expected_min_corner)
-            end
-
-            @testset verbose=true "Omit Both" begin
-                expected_min_corner = [-0.0663999989628792; 0.1562499874830246; -0.5233639197487431;;]
-                expected_max_corner = [0.38360000103712083; 1.1462499874830245; -0.07336391974874301;;]
-
-                ic_3 = ComplexShape(geometry_extruded_3; particle_spacing=0.03, density=1.0,
-                                    point_in_geometry_algorithm=WindingNumberJacobson(;
-                                                                                      geometry=geometry_extruded_3,
-                                                                                      winding_number_factor))
-
-                @test nparticles(ic_3) == 3258
-                @test isapprox(maximum(ic_3.coordinates, dims=2), expected_max_corner)
-                @test isapprox(minimum(ic_3.coordinates, dims=2), expected_min_corner)
-            end
+            @test_throws ArgumentError ComplexShape(geometry_extruded_1;
+                                                    particle_spacing=0.03, density=1.0,
+                                                    point_in_geometry_algorithm=WindingNumberJacobson(;
+                                                                                                      geometry=geometry_extruded_1,
+                                                                                                      winding_number_factor))
+            @test_throws ArgumentError ComplexShape(geometry_extruded_2;
+                                                    particle_spacing=0.03, density=1.0,
+                                                    point_in_geometry_algorithm=WindingNumberJacobson(;
+                                                                                                      geometry=geometry_extruded_2,
+                                                                                                      winding_number_factor))
+            @test_throws ArgumentError ComplexShape(geometry_extruded_3;
+                                                    particle_spacing=0.03, density=1.0,
+                                                    point_in_geometry_algorithm=WindingNumberJacobson(;
+                                                                                                      geometry=geometry_extruded_3,
+                                                                                                      winding_number_factor))
         end
     end
 
