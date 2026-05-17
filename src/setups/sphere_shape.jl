@@ -114,9 +114,20 @@ function SphereShape(particle_spacing, radius, center_position, density;
     cutout_min_ = collect(cutout_min)
     cutout_max_ = collect(cutout_max)
 
+    has_cutout = length(cutout_min_) != length(cutout_max_) ||
+                 norm(cutout_max_ - cutout_min_) > eps()
+
+    if has_cutout && (length(cutout_min_) != NDIMS || length(cutout_max_) != NDIMS)
+        throw(ArgumentError("`cutout_min` and `cutout_max` must be of length $NDIMS " *
+                            "for a $(NDIMS)D problem"))
+    end
+
+    if has_cutout && any(cutout_min_ .> cutout_max_)
+        throw(ArgumentError("`cutout_min` must be smaller than or equal to `cutout_max`"))
+    end
+
     # Remove particles in cutout
     # TODO This should consider the particle radius as well
-    has_cutout = norm(cutout_max_ - cutout_min_) > eps()
     function in_cutout(particle)
         return has_cutout &&
                all(cutout_min_ .<= view(coordinates, :, particle) .<= cutout_max_)

@@ -47,6 +47,24 @@
 
         @test shape.coordinates ≈ expected_coords
     end
+
+    @testset verbose=true "Errors" begin
+        point1 = [0.0, 0.0]
+        point2 = [0.0, 1.0]
+
+        @test_throws ArgumentError extrude_geometry((point1, point2);
+                                                    direction=[0.0, 0.0],
+                                                    particle_spacing=0.1,
+                                                    n_extrude=1, density=1.0)
+        @test_throws ArgumentError extrude_geometry((point1, point2);
+                                                    direction=[1.0, 0.0],
+                                                    particle_spacing=0.1,
+                                                    n_extrude=0, density=1.0)
+        @test_throws ArgumentError extrude_geometry((point1, point2);
+                                                    direction=[0.0, 0.0, 1.0],
+                                                    particle_spacing=0.1,
+                                                    n_extrude=1, density=1.0)
+    end
 end
 
 # 3D

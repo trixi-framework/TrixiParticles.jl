@@ -79,6 +79,15 @@
         end
     end
 
+    @testset verbose=true "Errors" begin
+        @test_throws ArgumentError SphereShape(0.1, 0.5, (0.0, 0.0), 1000.0;
+                                              cutout_min=(0.2, 0.0),
+                                              cutout_max=(0.1, 0.1))
+        @test_throws ArgumentError SphereShape(0.1, 0.5, (0.0, 0.0, 0.0),
+                                              1000.0; cutout_min=(0.0, 0.0),
+                                              cutout_max=(0.1, 0.1))
+    end
+
     @testset verbose=true "SphereShape 3D" begin
         shape_names = [
             "1-particle VoxelSphere",
