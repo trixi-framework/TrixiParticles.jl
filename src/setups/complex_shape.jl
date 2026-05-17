@@ -91,7 +91,7 @@ of the geometry.
 - `boundary_density`: Density of each boundary particle.
 - `place_on_shell`:     When `place_on_shell=true`, boundary particles will be placed
                         one particle spacing from the surface of the geometry.
-                        Otherwise when `place_on_shell=true` (simulating fluid particles),
+                        Otherwise when `place_on_shell=false` (simulating fluid particles),
                         boundary particles will be placed half particle spacing away from the surface.
 
 
@@ -133,8 +133,8 @@ function sample_boundary(signed_distance_field;
     end
 
     # Only keep the required part of the signed distance field
-    distance_to_boundary = zero(particle_spacing)
-    keep_indices = (distance_to_boundary .< distances .<= max_signed_distance)
+    distance_to_boundary = place_on_shell ? particle_spacing : particle_spacing / 2
+    keep_indices = (distance_to_boundary .<= distances .<= boundary_thickness)
 
     boundary_coordinates = stack(positions[keep_indices])
     return InitialCondition(; coordinates=boundary_coordinates, density=boundary_density,

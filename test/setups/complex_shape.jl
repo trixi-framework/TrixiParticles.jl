@@ -2,6 +2,39 @@
     data_dir = pkgdir(TrixiParticles, "examples", "preprocessing", "data")
     validation_dir = pkgdir(TrixiParticles, "test", "preprocessing", "data")
 
+    @testset verbose=true "Sample Boundary" begin
+        particle_spacing = 0.1
+        positions = [
+            SVector(0.0, 0.0),
+            SVector(0.1, 0.0),
+            SVector(0.2, 0.0),
+            SVector(0.3, 0.0),
+            SVector(0.4, 0.0)
+        ]
+        distances = [0.01, 0.05, 0.1, 0.2, 0.3]
+
+        signed_distance_field = (; positions, distances, particle_spacing,
+                                 boundary_packing=true, max_signed_distance=0.3)
+
+        boundary = sample_boundary(signed_distance_field; boundary_density=1.0,
+                                   boundary_thickness=0.2, place_on_shell=false)
+        @test boundary.coordinates ≈ stack(positions[2:4])
+
+        boundary = sample_boundary(signed_distance_field; boundary_density=1.0,
+                                   boundary_thickness=0.2, place_on_shell=true)
+        @test boundary.coordinates ≈ stack(positions[3:4])
+
+        too_thin_sdf = (; positions, distances, particle_spacing,
+                        boundary_packing=true, max_signed_distance=0.1)
+        @test_throws ArgumentError sample_boundary(too_thin_sdf; boundary_density=1.0,
+                                                   boundary_thickness=0.2)
+
+        not_boundary_sdf = (; positions, distances, particle_spacing,
+                            boundary_packing=false, max_signed_distance=0.3)
+        @test_throws ArgumentError sample_boundary(not_boundary_sdf; boundary_density=1.0,
+                                                   boundary_thickness=0.2)
+    end
+
     @testset verbose=true "2D" begin
         @testset verbose=true "Shifted Rectangle" begin
             algorithms = [
