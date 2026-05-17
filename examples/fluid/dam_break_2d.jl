@@ -112,7 +112,7 @@ extra_callback2 = nothing
 
 use_reinit = false
 density_reinit_cb = use_reinit ?
-                    DensityReinitializationCallback(semi.systems[1], interval=10) :
+                    DensityReinitializationCallback(system_index=1, interval=10) :
                     nothing
 stepsize_callback = StepsizeCallback(cfl=0.9)
 

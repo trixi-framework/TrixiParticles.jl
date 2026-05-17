@@ -4,6 +4,10 @@
         name::Symbol
     end
 
+    struct MockNoDensityReinitSystem
+        name::Symbol
+    end
+
     density_reinit_calls = Symbol[]
 
     TrixiParticles.wrap_v(v_ode, system::MockDensityReinitSystem, semi) = (:v, system.name)
@@ -53,5 +57,65 @@
         TrixiParticles.reinitialize_density!(callback, vu_ode, semi)
 
         @test density_reinit_calls == [:fluid1]
+    end
+
+    @testset verbose=true "selected system after semidiscretization replacement" begin
+        empty!(density_reinit_calls)
+
+        replacement_system1 = MockDensityReinitSystem(Ref(:replacement1), :replacement1)
+        replacement_system2 = MockDensityReinitSystem(Ref(:replacement2), :replacement2)
+
+        callback = DensityReinitializationCallback(system_index=1, interval=1).affect!
+        vu_ode = (; x=(:v_ode, :u_ode))
+        semi_replaced = (; systems=(replacement_system1, replacement_system2))
+
+        TrixiParticles.reinitialize_density!(callback, vu_ode, semi_replaced)
+
+        @test density_reinit_calls == [:replacement1]
+    end
+
+    @testset verbose=true "selected systems after semidiscretization replacement" begin
+        empty!(density_reinit_calls)
+
+        replacement_system1 = MockDensityReinitSystem(Ref(:replacement1), :replacement1)
+        replacement_system2 = MockDensityReinitSystem(Ref(:replacement2), :replacement2)
+        replacement_system3 = MockDensityReinitSystem(Ref(:replacement3), :replacement3)
+
+        callback = DensityReinitializationCallback(system_indices=(3, 1),
+                                                   interval=1).affect!
+        vu_ode = (; x=(:v_ode, :u_ode))
+        semi_replaced = (; systems=(replacement_system1, replacement_system2,
+                                    replacement_system3))
+
+        TrixiParticles.reinitialize_density!(callback, vu_ode, semi_replaced)
+
+        @test density_reinit_calls == [:replacement3, :replacement1]
+    end
+
+    @testset verbose=true "system index validation" begin
+        @test_throws ArgumentError DensityReinitializationCallback(system_index=0,
+                                                                   interval=1)
+        @test_throws ArgumentError DensityReinitializationCallback(system_indices=(),
+                                                                   interval=1)
+        @test_throws ArgumentError DensityReinitializationCallback(system_indices=(1, 1),
+                                                                   interval=1)
+
+        callback = DensityReinitializationCallback(system_index=3, interval=1).affect!
+        vu_ode = (; x=(:v_ode, :u_ode))
+        semi = (; systems=(MockDensityReinitSystem(nothing, :fluid),))
+
+        @test_throws ArgumentError TrixiParticles.reinitialize_density!(callback, vu_ode,
+                                                                        semi)
+
+        callback = DensityReinitializationCallback(system_index=1, interval=1).affect!
+        semi = (; systems=(MockDensityReinitSystem(SummationDensity(), :fluid),))
+
+        @test_throws ArgumentError TrixiParticles.reinitialize_density!(callback, vu_ode,
+                                                                        semi)
+
+        semi = (; systems=(MockNoDensityReinitSystem(:boundary),))
+
+        @test_throws ArgumentError TrixiParticles.reinitialize_density!(callback, vu_ode,
+                                                                        semi)
     end
 end
