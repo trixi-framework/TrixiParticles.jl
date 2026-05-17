@@ -605,13 +605,13 @@ end
                                  -boundary_zone.face_normal)
         dist_free_surface = boundary_zone.zone_width - dist_to_transition
 
-        if dist_free_surface < compact_support(fluid_system, fluid_system)
+        if dist_free_surface < 2 * compact_support(fluid_system, fluid_system)
             # Ramp shifting velocity near the free surface using a kernel-weighted transition.
             # According to our experiments, the proposed alternative approaches lead to particle disorder:
             # - Sun et al. 2017: only use surface-tangential component
             # - Zhang et al. 2025: disable shifting entirely
             kernel_max = smoothing_kernel(system, 0, particle)
-            dist_from_cutoff = compact_support(fluid_system, fluid_system) -
+            dist_from_cutoff = 2 * compact_support(fluid_system, fluid_system) -
                                dist_free_surface
             shifting_weight = smoothing_kernel(system, dist_from_cutoff, particle) /
                               kernel_max
