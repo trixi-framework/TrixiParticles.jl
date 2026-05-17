@@ -468,6 +468,11 @@ function spanning_vectors(face_vertices::NTuple{3}, zone_width)
         throw(ArgumentError("the vectors `AB` and `AC` must not be collinear"))
     end
 
+    if !isapprox(dot(edge1, edge2), 0.0;
+                 atol=sqrt(eps()) * norm(edge1) * norm(edge2))
+        throw(ArgumentError("the vectors `AB` and `AC` must be orthogonal"))
+    end
+
     # Calculate normal vector of `boundary_face`
     c = Vector(normalize(cross(edge2, edge1)) * zone_width)
 

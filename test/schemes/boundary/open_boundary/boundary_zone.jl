@@ -367,6 +367,26 @@
                                                            open_boundary_layers=2,
                                                            boundary_type=OutFlow())
 
+        non_orthogonal_face = [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]]
+        flow_direction = [0.0, 0.0, 1.0]
+
+        error_str = "the vectors `AB` and `AC` must be orthogonal"
+
+        @test_throws ArgumentError(error_str) BoundaryZone(;
+                                                           boundary_face=non_orthogonal_face,
+                                                           particle_spacing=0.1,
+                                                           face_normal=flow_direction,
+                                                           density=1.0,
+                                                           open_boundary_layers=2,
+                                                           boundary_type=InFlow())
+        @test_throws ArgumentError(error_str) BoundaryZone(;
+                                                           boundary_face=non_orthogonal_face,
+                                                           particle_spacing=0.1,
+                                                           face_normal=(-flow_direction),
+                                                           density=1.0,
+                                                           open_boundary_layers=2,
+                                                           boundary_type=OutFlow())
+
         rectangular_face = [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]
         flow_direction = [0.0, 1.0, 0.0]
 
