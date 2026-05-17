@@ -699,9 +699,9 @@ function check_configuration(system::OpenBoundarySystem, systems,
     system.fluid_system_index[] = fluid_system_index
 
     if boundary_model isa BoundaryModelCharacteristicsLastiwka &&
-       any(zone -> isnothing(zone.flow_direction), boundary_zones)
-        throw(ArgumentError("`BoundaryModelCharacteristicsLastiwka` needs a specific flow direction. " *
-                            "Please specify `InFlow()` and `OutFlow()`."))
+       any(zone -> zone.is_bidirectional, boundary_zones)
+        throw(ArgumentError("`BoundaryModelCharacteristicsLastiwka` needs a directed boundary zone. " *
+                            "Please specify `InFlow()` or `OutFlow()` instead of `BidirectionalFlow()`."))
     end
 
     if first(PointNeighbors.requires_update(neighborhood_search))

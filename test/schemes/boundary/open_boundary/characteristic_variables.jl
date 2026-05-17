@@ -18,6 +18,69 @@
     # Add small offset to avoid "ArgumentError: density must be positive and larger than `eps()`"
     reference_density = (pos, t) -> 1000.0 * (t + sqrt(eps()))
 
+    @testset "Reject bidirectional flow" begin
+        initial_condition = rectangular_patch(particle_spacing, (2, 2))
+        fluid_system = WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
+                                                   smoothing_length,
+                                                   density_calculator=ContinuityDensity(),
+                                                   state_equation=nothing)
+
+        bidirectional = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, 1.0]),
+                                     face_normal=[1.0, 0.0], open_boundary_layers,
+                                     density, particle_spacing)
+        boundary_system = OpenBoundarySystem(bidirectional; fluid_system, buffer_size=0,
+                                             boundary_model=BoundaryModelCharacteristicsLastiwka())
+
+        @test_throws ArgumentError Semidiscretization(fluid_system, boundary_system)
+    end
+
+    @testset "Fallback is zone-local" begin
+        face_vertices = ([0.0, 0.0], [0.0, 0.5])
+        face_vertices_far = ([10.0, 0.0], [10.0, 0.5])
+        flow_direction = SVector(1.0, 0.0)
+
+        inflow = BoundaryZone(; boundary_face=face_vertices, face_normal=flow_direction,
+                              open_boundary_layers, boundary_type=InFlow(),
+                              reference_velocity, reference_pressure, reference_density,
+                              density, particle_spacing)
+        inflow_far = BoundaryZone(; boundary_face=face_vertices_far,
+                                  face_normal=flow_direction,
+                                  open_boundary_layers, boundary_type=InFlow(),
+                                  reference_velocity, reference_pressure, reference_density,
+                                  density, particle_spacing)
+        fluid = extrude_geometry(face_vertices; particle_spacing, n_extrude=4,
+                                 density, pressure, direction=flow_direction)
+        fluid_system = EntropicallyDampedSPHSystem(fluid; smoothing_kernel,
+                                                   smoothing_length,
+                                                   sound_speed,
+                                                   buffer_size=0,
+                                                   density_calculator=ContinuityDensity())
+        boundary_system = OpenBoundarySystem(inflow, inflow_far;
+                                             fluid_system, buffer_size=0,
+                                             boundary_model=BoundaryModelCharacteristicsLastiwka())
+        semi = Semidiscretization(fluid_system, boundary_system)
+        ode = semidiscretize(semi, (0.0, 5.0))
+
+        v0_ode, u0_ode = ode.u0.x
+        v = TrixiParticles.wrap_v(v0_ode, boundary_system, semi)
+        u = TrixiParticles.wrap_u(u0_ode, boundary_system, semi)
+
+        TrixiParticles.evaluate_characteristics!(boundary_system,
+                                                 v, u, v0_ode, u0_ode, semi, 2.0)
+        TrixiParticles.evaluate_characteristics!(boundary_system,
+                                                 v, u, v0_ode, u0_ode, semi, 3.0)
+
+        zone_1_particles = findall(==(1), boundary_system.boundary_zone_indices)
+        zone_2_particles = findall(==(2), boundary_system.boundary_zone_indices)
+
+        @test any(!isapprox(characteristic, 0.0)
+                  for characteristic in boundary_system.cache.characteristics[:,
+                                                                              zone_1_particles])
+        @test all(isapprox(characteristic, 0.0)
+                  for characteristic in boundary_system.cache.characteristics[:,
+                                                                              zone_2_particles])
+    end
+
     # Face vertices of open boundary
     face_vertices_1 = [[0.0, 0.0], [0.5, -0.5], [1.0, 0.5]]
     face_vertices_2 = [[0.0, 1.0], [0.2, 2.0], [2.3, 0.5]]
