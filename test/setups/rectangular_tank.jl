@@ -109,6 +109,20 @@
                                                (water_width, water_height, 0.5),
                                                (tank_width, tank_height),
                                                water_density, spacing_ratio=3)
+
+            @test_throws ArgumentError RectangularTank(particle_spacing,
+                                                       (water_width, water_height),
+                                                       (tank_width, tank_height),
+                                                       water_density, spacing_ratio=0)
+
+            @test_throws ArgumentError RectangularTank(particle_spacing,
+                                                       (water_width, water_height),
+                                                       (tank_width, tank_height),
+                                                       water_density, n_layers=0)
+
+            tank = RectangularTank(0.1, (1.0, 1.0), (0.3, 0.3), water_density)
+            @test tank.n_particles_per_dimension == (3, 3)
+            @test all(tank.fluid_size .≈ (0.3, 0.3))
         end
     end
 
