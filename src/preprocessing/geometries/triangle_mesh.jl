@@ -1,5 +1,5 @@
 # This is the data format returned by `load(file)` when used with `.stl` files
-mutable struct TriangleMesh{NDIMS, ELTYPE}
+struct TriangleMesh{NDIMS, ELTYPE}
     vertices          :: Vector{SVector{NDIMS, ELTYPE}}
     face_vertices     :: Vector{NTuple{3, SVector{NDIMS, ELTYPE}}}
     face_vertices_ids :: Vector{NTuple{3, Int}}
@@ -183,20 +183,7 @@ end
     end
 
     vertices = collect(Iterators.flatten(face_vertices))
-    rebuilt = TriangleMesh(face_vertices, face_normals, vertices)
-
-    mesh.vertices = rebuilt.vertices
-    mesh.face_vertices = rebuilt.face_vertices
-    mesh.face_vertices_ids = rebuilt.face_vertices_ids
-    mesh.face_edges_ids = rebuilt.face_edges_ids
-    mesh.edge_vertices_ids = rebuilt.edge_vertices_ids
-    mesh.vertex_normals = rebuilt.vertex_normals
-    mesh.edge_normals = rebuilt.edge_normals
-    mesh.face_normals = rebuilt.face_normals
-    mesh.min_corner = rebuilt.min_corner
-    mesh.max_corner = rebuilt.max_corner
-
-    return mesh
+    return TriangleMesh(face_vertices, face_normals, vertices)
 end
 
 @inline nfaces(mesh::TriangleMesh) = length(mesh.face_normals)
