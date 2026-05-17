@@ -48,6 +48,33 @@
                 @test shape.coordinates == expected_coords[i]
             end
         end
+
+        @testset "Function Density" begin
+            shape = RectangularShape(0.1, (2, 1), (0.0, 0.0),
+                                     density=coords -> 1000.0 + coords[1])
+
+            @test shape.density ≈ [1000.05, 1000.15]
+        end
+
+        @testset "Coordinates Perturbation Does Not Reset Random State" begin
+            Random.seed!(42)
+            first_random_number = rand()
+            next_random_number = rand()
+
+            Random.seed!(42)
+            @test rand() == first_random_number
+
+            RectangularShape(0.1, (2, 2), (0.0, 0.0), density=1.0,
+                             coordinates_perturbation=0.1)
+
+            @test rand() == next_random_number
+        end
+
+        @testset "Errors" begin
+            @test_throws ArgumentError RectangularShape(0.1, (2, 2), (0.0, 0.0),
+                                                       density=1000.0,
+                                                       acceleration=(0.0, -9.81, 0.0))
+        end
     end
 
     # Only show all of these nested testsets in case of errors
@@ -123,6 +150,14 @@
                 @test shape.pressure ≈ 4.71 * 1000.0 * vec(reverse(pressure'))
             end
         end
+
+        @testset "Zero Acceleration" begin
+            shape = RectangularShape(particle_spacing, (2, 5), (0.0, 0.0),
+                                     density=1000.0, acceleration=(0.0, 0.0))
+
+            @test shape.pressure == zeros(10)
+            @test shape.density == 1000 * ones(10)
+        end
     end
 
     # Use `@trixi_testset` to isolate the mock functions in a separate namespace
@@ -185,6 +220,16 @@
                   TrixiParticles.inverse_state_equation.(Ref(state_equation),
                                                          shape.pressure)
             @test shape.mass == particle_spacing^2 * shape.density
+        end
+
+        @testset "Zero Acceleration" begin
+            shape = RectangularShape(particle_spacing, (2, 5), (0.0, 0.0);
+                                     acceleration=(0.0, 0.0), state_equation)
+
+            @test shape.pressure == zeros(10)
+            @test shape.density ==
+                  TrixiParticles.inverse_state_equation.(Ref(state_equation),
+                                                         shape.pressure)
         end
     end
 end

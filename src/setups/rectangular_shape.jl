@@ -92,7 +92,7 @@ function RectangularShape(particle_spacing, n_particles_per_dimension, min_coord
         throw(ArgumentError("`min_coordinates` must be of length $NDIMS for a $(NDIMS)D problem"))
     end
 
-    if density !== nothing && any(density .< eps())
+    if density !== nothing && !(density isa Function) && any(density .< eps())
         throw(ArgumentError("`density` needs to be positive and larger than $(eps())"))
     end
 
@@ -105,15 +105,19 @@ function RectangularShape(particle_spacing, n_particles_per_dimension, min_coord
                                            place_on_shell, loop_order)
 
     if !isnothing(coordinates_perturbation)
-        seed!(1)
         amplitude = coordinates_perturbation * particle_spacing
-        coordinates .+= rand((-amplitude):(particle_spacing * 1e-3):(amplitude),
+        coordinates .+= rand(MersenneTwister(1),
+                             (-amplitude):(particle_spacing * 1e-3):(amplitude),
                              NDIMS, n_particles)
     end
 
     # Allow zero acceleration with state equation, but interpret `nothing` acceleration
     # with state equation as a likely mistake.
     if acceleration isa AbstractVector || acceleration isa Tuple
+        if length(acceleration) != NDIMS
+            throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
+        end
+
         if pressure != 0.0
             throw(ArgumentError("`pressure` cannot be used together with `acceleration` " *
                                 "and `state_equation` (hydrostatic pressure gradient)"))
@@ -232,6 +236,11 @@ function initialize_pressure!(pressure, particle_spacing, acceleration, density_
 
     # Dimension in which the acceleration is acting
     accel_dim = findfirst(a -> abs(a) > eps(), acceleration)
+
+    if accel_dim === nothing
+        fill!(pressure, zero(eltype(pressure)))
+        return pressure
+    end
 
     # Compute 1D pressure gradient with explicit Euler method
     factor = particle_spacing * abs(acceleration[accel_dim])
