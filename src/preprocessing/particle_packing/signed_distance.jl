@@ -16,6 +16,8 @@ to this surface.
                               distance of `abs(max_signed_distance)` to the surface of the shape
                               will be sampled.
 - `points`:                   Points on which the signed distance is computed.
+                              Pass a collection of static vectors or an `NDIMS`-by-`N` matrix with
+                              one point per column.
                               When set to `nothing` (default), the bounding box of the shape will be
                               sampled with a uniform grid of points.
 - `use_for_boundary_packing`: Set to `true` if [`SignedDistanceField`] is used to pack
@@ -63,7 +65,7 @@ function SignedDistanceField(geometry, particle_spacing;
 
         points = reinterpret(reshape, SVector{NDIMS, eltype(grid)}, grid)
     else
-        points = svector_points(points, Val(NDIMS))
+        points = wrap_points(points, Val(NDIMS))
     end
 
     positions = collect(points)
