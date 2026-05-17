@@ -53,7 +53,7 @@ end
 function transfer2cpu(semi::Semidiscretization)
     # First move all systems and neighborhood searches to the CPU
     systems = Adapt.adapt(Array, semi.systems)
-    neighborhood_searches = Adapt.adapt(Array, semi.neighborhood_searches)
+    neighborhood_searches = Adapt.adapt.(Array, semi.neighborhood_searches)
 
     semi_ = @set semi.systems = systems
     semi__ = @set semi_.neighborhood_searches = neighborhood_searches
