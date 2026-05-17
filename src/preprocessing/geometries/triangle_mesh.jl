@@ -129,21 +129,18 @@ struct TriangleMesh{NDIMS, ELTYPE}
         min_corner = SVector([minimum(v[i] for v in vertices) for i in 1:NDIMS]...)
         max_corner = SVector([maximum(v[i] for v in vertices) for i in 1:NDIMS]...)
 
-        edge_normals = normalize_or_zero.(edge_normals)
-        vertex_normals = normalize_or_zero.(vertex_normals)
+        for normals in (edge_normals, vertex_normals)
+            for i in eachindex(normals)
+                normals_norm = norm(normals[i])
+                !iszero(normals_norm) && (normals[i] = normals[i] / normals_norm)
+            end
+        end
 
         return new{NDIMS, ELTYPE}(vertices, face_vertices, face_vertices_ids,
                                   face_edges_ids, edge_vertices_ids,
                                   vertex_normals, edge_normals,
                                   face_normals, min_corner, max_corner)
     end
-end
-
-function normalize_or_zero(vector)
-    vector_norm = norm(vector)
-    iszero(vector_norm) && return vector
-
-    return vector / vector_norm
 end
 
 function Base.show(io::IO, geometry::TriangleMesh)
