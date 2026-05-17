@@ -67,6 +67,41 @@
         @test boundary_model_adami_no_clip.pressure[1] == -1
     end
 
+    @testset "Bernoulli dynamic pressure" begin
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        smoothing_length = 1.0
+
+        boundary = InitialCondition(; coordinates=[0.0; 0.0][:, :],
+                                    density=[3.0], mass=[1.0],
+                                    particle_spacing=1.0)
+        movement = PrescribedMotion((x, t) -> x, t -> true)
+        boundary_model = BoundaryModelDummyParticles(boundary.density, boundary.mass,
+                                                     BernoulliPressureExtrapolation(),
+                                                     smoothing_kernel, smoothing_length)
+        boundary_system = WallBoundarySystem(boundary, boundary_model;
+                                             prescribed_motion=movement)
+        boundary_system.cache.velocity[:, 1] .= [5.0, 0.0]
+
+        fluid = InitialCondition(; coordinates=[2.0; 0.0][:, :],
+                                 velocity=[1.0; 0.0][:, :],
+                                 density=[3.0], mass=[1.0],
+                                 particle_spacing=1.0)
+        fluid_system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
+                                                   smoothing_length,
+                                                   density_calculator=ContinuityDensity(),
+                                                   state_equation=nothing)
+        v_fluid = vcat(fluid.velocity, fluid.density')
+
+        dynamic_pressure = TrixiParticles.dynamic_pressure(BernoulliPressureExtrapolation(),
+                                                           zeros(1, 1), v_fluid,
+                                                           boundary_system, fluid_system,
+                                                           1, 1, SVector(2.0, 0.0),
+                                                           2.0, 3.0)
+
+        # 0.5 * rho * v_normal^2 with v_normal = 5 - 1.
+        @test dynamic_pressure == 24.0
+    end
+
     @testset verbose=true "Viscosity Adami/Bernoulli: Wall Velocity" begin
         particle_spacing = 0.1
 
