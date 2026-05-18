@@ -7,14 +7,16 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 ## Version 0.5.1
 
 ### Features
-- Implement stage-level coupling for split integration (#1049).
-- Add `MechanicalWorkCalculatorCallback` (#940).
+- Implemented stage-level coupling for split integration (#1049).
+- Added `MechanicalWorkCalculatorCallback` (#940).
 
 ### Important Bugfixes
 
-- Fix empty PVD collections in `SolutionSavingCallback` output and incorrect metadata
+- Fixed empty PVD collections in `SolutionSavingCallback` output and incorrect metadata
   when using `save_times` (#1176).
-- Fix `SortingCallback` (#1178).
+- Fixed `SortingCallback` (#1178).
+- Fixed interpolation with cut_off_bnd=false and interpolate_wall_velocity=true
+  (Fix interpolated wall velocity with cut_off_bnd=false 1185).
 
   
 ## Version 0.5
