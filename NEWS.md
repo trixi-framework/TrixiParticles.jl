@@ -19,7 +19,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Fixed interpolation with cut_off_bnd=false and interpolate_wall_velocity=true
   (Fix interpolated wall velocity with cut_off_bnd=false 1185).
 - Fixed interpolation from a `PostprocessCallback` on GPUs (#1192).
-
+- Fixed interpolation with different smoothing length on the GPU (#952).
 ## Version 0.5
 
 ### API Changes
