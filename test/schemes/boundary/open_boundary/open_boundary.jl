@@ -24,8 +24,7 @@ include("pressure_model.jl")
     boundary_zone = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, 1.0]),
                                  face_normal=[1.0, 0.0], boundary_type=InFlow(),
                                  open_boundary_layers=round(Int,
-                                                             zone_width /
-                                                             particle_spacing),
+                                                            zone_width / particle_spacing),
                                  initial_condition, density=1.0, particle_spacing)
     open_boundary = OpenBoundarySystem(boundary_zone; fluid_system, buffer_size=0,
                                        boundary_model=BoundaryModelDynamicalPressureZhang())
