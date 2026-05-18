@@ -6,7 +6,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ## Version 0.5.1
 
-### Highlights
+### Features
 - Implement stage-level coupling for split integration (#1049).
 - Add `MechanicalWorkCalculatorCallback` (#940).
 
