@@ -11,6 +11,9 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Fixed empty PVD collections in `SolutionSavingCallback` output and incorrect metadata
   when using `save_times` (#1176).
 - Fixed interpolation from a `PostprocessCallback` on GPUs (#1192).
+- Disabled shifting in the free-surface region of `OpenBoundarySystem` with
+  `BoundaryModelDynamicalPressureZhang` and ramp it only between one and two compact
+  supports away from the free surface (#1195).
 
 ## Version 0.5
 
