@@ -14,6 +14,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 - Fixed empty PVD collections in `SolutionSavingCallback` output and incorrect metadata
   when using `save_times` (#1176).
+- Fixed `DensityDiffusionAntuono` on GPUs (#1193).
 - Fixed `SortingCallback` (#1178).
 - Fixed interpolation with cut_off_bnd=false and interpolate_wall_velocity=true
   (Fix interpolated wall velocity with cut_off_bnd=false 1185).
