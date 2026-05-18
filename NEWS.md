@@ -17,8 +17,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Fixed `SortingCallback` (#1178).
 - Fixed interpolation with cut_off_bnd=false and interpolate_wall_velocity=true
   (Fix interpolated wall velocity with cut_off_bnd=false 1185).
+- Fixed interpolation from a `PostprocessCallback` on GPUs (#1192).
 
-  
 ## Version 0.5
 
 ### API Changes
