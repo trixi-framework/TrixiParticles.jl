@@ -1,6 +1,6 @@
-mutable struct DensityReinitializationCallbackAffect{I, PS}
+mutable struct DensityReinitializationCallbackAffect{I}
     interval::I
-    system::PS
+    system_index::Int
     last_t::Float64
     reinit_initial_solution::Bool
 end
@@ -27,14 +27,14 @@ function Base.show(io::IO, ::MIME"text/plain",
 end
 
 """
-    DensityReinitializationCallback(system; interval::Integer=0, dt=0.0,
+    DensityReinitializationCallback(system, semi; interval::Integer=0, dt=0.0,
                                     reinit_initial_solution=true)
 
 Callback to reinitialize the density field when using [`ContinuityDensity`](@ref) [Panizzo2007](@cite).
 
-Pass a system to reinitialize its density field. The system must be the system stored
-in the semidiscretization used by the integrator. If [`semidiscretize`](@ref) creates
-a copy of the system, pass the corresponding system from `ode.p.semi.systems`.
+Pass `system` and the [`Semidiscretization`](@ref) containing it. The callback stores
+the system index and uses the corresponding system from the integrator semidiscretization
+at runtime, which remains valid if [`semidiscretize`](@ref) replaces systems internally.
 
 # Keywords
 - `interval=0`: Reinitialize the density every `interval` time steps.
@@ -44,7 +44,7 @@ a copy of the system, pass the corresponding system from `ode.p.semi.systems`.
                 the first solver step after each `dt` interval has elapsed.
 - `reinit_initial_solution`: Reinitialize the initial solution (default=true).
 """
-function DensityReinitializationCallback(system; interval::Integer=0, dt=0.0,
+function DensityReinitializationCallback(system, semi; interval::Integer=0, dt=0.0,
                                          reinit_initial_solution=true)
     if dt > 0 && interval > 0
         error("Setting both interval and dt is not supported!")
@@ -56,9 +56,10 @@ function DensityReinitializationCallback(system; interval::Integer=0, dt=0.0,
 
     check_density_reinit_system(system)
 
+    system_index = system_indices(system, semi)
     last_t = -Inf
 
-    reinit_cb = DensityReinitializationCallbackAffect(interval, system, last_t,
+    reinit_cb = DensityReinitializationCallbackAffect(interval, system_index, last_t,
                                                       reinit_initial_solution)
 
     return DiscreteCallback(reinit_cb, reinit_cb, save_positions=(false, false),
@@ -71,9 +72,7 @@ end
 
 function initialize_reinit_cb!(cb::DensityReinitializationCallbackAffect, u, t, integrator)
     semi = integrator.p.semi
-    foreach_reinit_system(cb, semi) do system
-        check_density_reinit_system(system)
-    end
+    check_density_reinit_system(current_reinit_system(cb.system_index, semi))
 
     if cb.reinit_initial_solution
         # Update systems to compute quantities like density and pressure.
@@ -124,31 +123,24 @@ function reinitialize_density!(reinit_callback::DensityReinitializationCallbackA
                                vu_ode, semi)
     v_ode, u_ode = vu_ode.x
 
-    foreach_reinit_system(reinit_callback, semi) do particle_system
-        check_density_reinit_system(particle_system)
-        v = wrap_v(v_ode, particle_system, semi)
-        u = wrap_u(u_ode, particle_system, semi)
+    particle_system = current_reinit_system(reinit_callback.system_index, semi)
+    check_density_reinit_system(particle_system)
 
-        reinit_density!(particle_system, v, u, v_ode, u_ode, semi)
-    end
+    v = wrap_v(v_ode, particle_system, semi)
+    u = wrap_u(u_ode, particle_system, semi)
+
+    reinit_density!(particle_system, v, u, v_ode, u_ode, semi)
 
     return reinit_callback
 end
 
-function foreach_reinit_system(f, reinit_callback::DensityReinitializationCallbackAffect,
-                               semi)
-    system_index = findfirst(s -> s === reinit_callback.system, semi.systems)
-
-    if isnothing(system_index)
-        throw(ArgumentError("system is not in the semidiscretization. This can " *
-                            "happen when `semidiscretize` creates a copy of the " *
-                            "system. Create the callback with the corresponding " *
-                            "system from `ode.p.semi.systems`."))
+function current_reinit_system(system_index, semi)
+    if !(1 <= system_index <= length(semi.systems))
+        throw(ArgumentError("system index $system_index is out of bounds for a " *
+                            "semidiscretization with $(length(semi.systems)) systems"))
     end
 
-    f(semi.systems[system_index])
-
-    return nothing
+    return semi.systems[system_index]
 end
 
 function check_density_reinit_system(particle_system)
