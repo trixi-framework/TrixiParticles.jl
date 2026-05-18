@@ -39,8 +39,10 @@ a copy of the system, pass the corresponding system from `ode.p.semi.systems`.
 # Keywords
 - `interval=0`: Reinitialize the density every `interval` time steps.
 - `dt`:         Reinitialize the density in regular intervals of `dt` in terms
-                of integration time.
-- `reinit_initial_solution`: Reinitialize the initial solution.
+                of integration time. This callback does not add extra time
+                steps / `tstops`; instead, reinitialization is triggered at
+                the first solver step after each `dt` interval has elapsed.
+- `reinit_initial_solution`: Reinitialize the initial solution (default=true).
 """
 function DensityReinitializationCallback(system; interval::Integer=0, dt=0.0,
                                          reinit_initial_solution=true)
@@ -99,7 +101,7 @@ end
 function (reinit_callback::DensityReinitializationCallbackAffect)(u, t, integrator)
     (; interval, last_t) = reinit_callback
 
-    return (t - last_t) >= interval
+    return (t - last_t) > interval
 end
 
 # affect!

@@ -155,9 +155,10 @@ end
                                           sol=nothing, ode=nothing)
 
             dam_break_tests = Dict(
-                "default" => (),
+                "no density diffusion" => (density_diffusion=nothing,),
                 "DensityDiffusionMolteniColagrossi" => (density_diffusion=DensityDiffusionMolteniColagrossi(delta=0.1f0),),
-                "DensityDiffusionFerrari" => (density_diffusion=DensityDiffusionFerrari(),)
+                "DensityDiffusionFerrari" => (density_diffusion=DensityDiffusionFerrari(),),
+                "DensityDiffusionAntuono" => (density_diffusion=DensityDiffusionAntuono(delta=0.1f0),)
             )
 
             for (test_description, kwargs) in dam_break_tests
@@ -718,6 +719,64 @@ end
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
         end
+
+        @trixi_testset "fsi/dam_break_plate_2d.jl with VTK plane interpolation" begin
+            # Import variables into scope
+            trixi_include_changeprecision(Float32, @__MODULE__,
+                                          joinpath(examples_dir(), "fsi",
+                                                   "dam_break_plate_2d.jl"),
+                                          coordinates_eltype=Float32,
+                                          # Use rounded dimensions to avoid warnings
+                                          initial_fluid_size=(0.15f0, 0.29f0),
+                                          sol=nothing, ode=nothing)
+
+            # Neighborhood search with `FullGridCellList` for GPU compatibility
+            min_corner = minimum(tank.boundary.coordinates, dims=2)
+            max_corner = maximum(tank.boundary.coordinates, dims=2)
+            cell_list = FullGridCellList(; min_corner, max_corner)
+            semi = Semidiscretization(fluid_system, boundary_system, structure_system,
+                                      neighborhood_search=GridNeighborhoodSearch{2}(;
+                                                                                    cell_list),
+                                      parallelization_backend=Main.parallelization_backend)
+            ode = semidiscretize(semi, (0.0f0, 0.05f0))
+
+            # Set up interpolation callback.
+            # No interpolation for non-fluid systems.
+            function plane_vtk(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
+                return nothing
+            end
+            function plane_vtk(::WeaklyCompressibleSPHSystem, dv_ode, du_ode, v_ode, u_ode,
+                               semi, t)
+                resolution = fluid_particle_spacing / 2
+                interpolate_plane_2d_vtk(min_corner, max_corner, resolution,
+                                         semi, semi.systems[1], v_ode, u_ode,
+                                         include_wall_velocity=true,
+                                         filename="plane_$t.vti")
+
+                # Return something non-empty to create a CSV file.
+                return 1
+            end
+            interpolation_callback = PostprocessCallback(; plane_vtk, filename="plane")
+            stepsize_callback = StepsizeCallback(cfl=1.2f0)
+            callbacks = CallbackSet(info_callback, stepsize_callback,
+                                    interpolation_callback)
+
+            # Run the simulation
+            sol = @trixi_test_nowarn solve(ode,
+                                           CarpenterKennedy2N54(williamson_condition=false),
+                                           dt=1.0f0, save_everystep=false,
+                                           callback=callbacks)
+
+            @test sol.retcode == ReturnCode.Success
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+            @test backend == Main.parallelization_backend
+
+            # Test that the callback only fired twice (once at the beginning and once at
+            # the end of the simulation).
+            @test countlines(joinpath("out", "plane.csv")) == 2 + 1 # header + 2 lines of data
+            @test isfile(joinpath("out", "plane_0.0.vti"))
+            @test isfile(joinpath("out", "plane_0.05.vti"))
+        end
     end
 
     @testset verbose=true "DEM" begin
@@ -786,6 +845,32 @@ end
                                Float32[5154.1177, 4885.1, 4452.6533, 3934.9075, 3420.5737,
                                        2915.0933, 2424.0908, 1929.7888, 1398.8309,
                                        913.2089])
+            end
+
+            @testset verbose=true "Line with different smoothing_length" begin
+                # Interpolation parameters
+                n_interpolation_points = 10
+                start_point = Float32[0.5, 0.0]
+                end_point = Float32[0.5, 0.5]
+
+                result = interpolate_line(start_point, end_point, n_interpolation_points,
+                                          semi_new, semi_new.systems[1], sol;
+                                          cut_off_bnd=false, smoothing_length=0.2f0)
+
+                @test isapprox(Array(result.computed_density),
+                               Float32[501.10648, 700.15857, 852.81036, 944.48535,
+                                       986.2611, 998.96576, 997.5659, 980.23236,
+                                       929.7254, 825.95825])
+
+                @test isapprox(Array(result.density),
+                               Float32[1001.98303, 1001.8848, 1001.7575, 1001.59985,
+                                       1001.41754, 1001.2164, 1001.0109, 1000.81616,
+                                       1000.6457, 1000.5056])
+
+                @test isapprox(Array(result.pressure),
+                               Float32[4668.169, 4437.7715, 4137.7075, 3768.1145, 3337.1655,
+                                       2863.6277, 2379.349, 1921.7727, 1519.3884,
+                                       1190.5823])
             end
 
             @testset verbose=true "Plane" begin

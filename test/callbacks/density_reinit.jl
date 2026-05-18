@@ -48,7 +48,8 @@
         callback.last_t = 0.0
 
         @test !callback(nothing, 0.099, nothing)
-        @test callback(nothing, 0.1, nothing)
+        @test !callback(nothing, 0.1, nothing)
+        @test callback(nothing, 0.101, nothing)
     end
 
     @testset verbose=true "reinit initial solution" begin
