@@ -605,14 +605,25 @@ end
                                  -boundary_zone.face_normal)
         dist_free_surface = boundary_zone.zone_width - dist_to_transition
 
-        if dist_free_surface < 2 * compact_support(fluid_system, fluid_system)
-            # Ramp shifting velocity near the free surface using a kernel-weighted transition.
+        free_surface_region_width = compact_support(fluid_system, fluid_system)
+        free_surface_ramp_width = 2 * free_surface_region_width
+
+        if dist_free_surface <= free_surface_region_width
+            # The free-surface region is the layer within one compact support of the
+            # free surface. Shifting is disabled there to avoid shifting particles with
+            # incomplete support.
+            for dim in 1:ndims(system)
+                cache.delta_v[dim, particle] = zero(eltype(system))
+            end
+        elseif dist_free_surface < free_surface_ramp_width
+            # Between one and two compact supports from the free surface, shifting is
+            # ramped from zero to the unmodified shifting velocity with a kernel-weighted
+            # transition.
             # According to our experiments, the proposed alternative approaches lead to particle disorder:
             # - Sun et al. 2017: only use surface-tangential component
             # - Zhang et al. 2025: disable shifting entirely
             kernel_max = smoothing_kernel(system, 0, particle)
-            dist_from_cutoff = 2 * compact_support(fluid_system, fluid_system) -
-                               dist_free_surface
+            dist_from_cutoff = free_surface_ramp_width - dist_free_surface
             shifting_weight = smoothing_kernel(system, dist_from_cutoff, particle) /
                               kernel_max
             delta_v_ramped = delta_v(system, particle) * shifting_weight
