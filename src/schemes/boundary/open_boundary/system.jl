@@ -626,8 +626,9 @@ end
             # - Sun et al. 2017: only use surface-tangential component
             # - Zhang et al. 2025: disable shifting entirely
             kernel_max = smoothing_kernel(system, 0, particle)
-            dist_from_cutoff = ramp_width - dist_free_surface
-            shifting_weight = smoothing_kernel(system, dist_from_cutoff, particle) /
+            # Distance from the area where full shifting is applied.
+            dist_from_ramp_end = free_surface_region_width + ramp_width - dist_free_surface
+            shifting_weight = smoothing_kernel(system, dist_from_ramp_end, particle) /
                               kernel_max
             delta_v_ramped = delta_v(system, particle) * shifting_weight
             for dim in 1:ndims(system)
