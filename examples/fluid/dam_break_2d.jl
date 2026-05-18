@@ -111,8 +111,9 @@ extra_callback = nothing
 extra_callback2 = nothing
 
 use_reinit = false
+# Use the system stored in `ode.p.semi`, since `semidiscretize` can replace systems.
 density_reinit_cb = use_reinit ?
-                    DensityReinitializationCallback(system_index=1, interval=10) :
+                    DensityReinitializationCallback(ode.p.semi.systems[1]; interval=10) :
                     nothing
 stepsize_callback = StepsizeCallback(cfl=0.9)
 
