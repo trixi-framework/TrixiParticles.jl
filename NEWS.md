@@ -6,12 +6,19 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ## Version 0.5.1
 
+### Features
+- Implemented stage-level coupling for split integration (#1049).
+- Added `MechanicalWorkCalculatorCallback` (#940).
+
 ### Important Bugfixes
 
 - Fixed empty PVD collections in `SolutionSavingCallback` output and incorrect metadata
   when using `save_times` (#1176).
+- Fixed `DensityDiffusionAntuono` on GPUs (#1193).
+- Fixed `SortingCallback` (#1178).
+- Fixed interpolation with `cut_off_bnd=false` and `interpolate_wall_velocity=true` (#1185).
 - Fixed interpolation from a `PostprocessCallback` on GPUs (#1192).
-
+- Fixed interpolation with different smoothing length on the GPU (#952).
 ## Version 0.5
 
 ### API Changes
