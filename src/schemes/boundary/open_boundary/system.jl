@@ -81,6 +81,16 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                                               density_diffusion(fluid_system) : nothing)
     boundary_zones_ = filter(bz -> !isnothing(bz), boundary_zones)
 
+    if boundary_model isa BoundaryModelDynamicalPressureZhang &&
+       !isnothing(shifting_technique)
+        # When dynamical pressure is used with shifting, the shifting is ramped up until
+        # it reaches the full value at two compact supports away from the free surface
+        # of the boundary zone.
+        # In order to prevent discontinuities in the shifting velocity, the boundary zone
+        # must be wide enough to accommodate this ramping region.
+        check_boundary_zone_widths(boundary_zones_, fluid_system)
+    end
+
     initial_conditions = union((bz.initial_condition for bz in boundary_zones_)...)
 
     buffer = SystemBuffer(nparticles(initial_conditions), buffer_size)
@@ -704,8 +714,7 @@ end
 
 @inline use_open_boundary_interpolation_neighbor(system) = false
 
-function check_configuration(system::OpenBoundarySystem, systems,
-                             neighborhood_search::PointNeighbors.AbstractNeighborhoodSearch)
+function check_configuration(system::OpenBoundarySystem, systems, neighborhood_search)
     (; boundary_model, boundary_zones) = system
 
     # Store index of the fluid system. This is necessary for re-linking
@@ -724,4 +733,20 @@ function check_configuration(system::OpenBoundarySystem, systems,
                             "that does not require an update for the first set of coordinates (e.g. `GridNeighborhoodSearch`). " *
                             "See the PointNeighbors.jl documentation for more details."))
     end
+end
+
+function check_boundary_zone_widths(boundary_zones, fluid_system)
+    support = compact_support(system_smoothing_kernel(fluid_system),
+                              initial_smoothing_length(fluid_system))
+    minimum_width = 2 * support
+
+    for (i, zone) in enumerate(boundary_zones)
+        if zone.zone_width < minimum_width
+            throw(ArgumentError("boundary zone $i has width $(zone.zone_width), " *
+                                "but must be at least two compact supports " *
+                                "($(minimum_width))"))
+        end
+    end
+
+    return nothing
 end
