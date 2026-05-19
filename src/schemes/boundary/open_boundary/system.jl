@@ -81,6 +81,16 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                                               density_diffusion(fluid_system) : nothing)
     boundary_zones_ = filter(bz -> !isnothing(bz), boundary_zones)
 
+    if boundary_model isa BoundaryModelDynamicalPressureZhang &&
+       !isnothing(shifting_technique)
+        # When dynamical pressure is used with shifting, the shifting is ramped up until
+        # it reaches the full value at two compact supports away from the free surface
+        # of the boundary zone.
+        # In order to prevent discontinuities in the shifting velocity, the boundary zone
+        # must be wide enough to accommodate this ramping region.
+        check_boundary_zone_widths(boundary_zones_, fluid_system)
+    end
+
     initial_conditions = union((bz.initial_condition for bz in boundary_zones_)...)
 
     buffer = SystemBuffer(nparticles(initial_conditions), buffer_size)
@@ -610,15 +620,30 @@ end
                                  -boundary_zone.face_normal)
         dist_free_surface = boundary_zone.zone_width - dist_to_transition
 
-        if dist_free_surface < compact_support(fluid_system, fluid_system)
-            # Ramp shifting velocity near the free surface using a kernel-weighted transition.
+        # Width of the free-surface region where shifting is disabled.
+        free_surface_region_width = compact_support(fluid_system, fluid_system)
+        # Width of the ramp region behind the free-surface region where shifting is ramped
+        # from zero to the unmodified value.
+        ramp_width = free_surface_region_width
+
+        if dist_free_surface <= free_surface_region_width
+            # The free-surface region is the layer within one compact support of the
+            # free surface. Shifting is disabled there to avoid shifting particles with
+            # incomplete support.
+            for dim in 1:ndims(system)
+                cache.delta_v[dim, particle] = zero(eltype(system))
+            end
+        elseif dist_free_surface < free_surface_region_width + ramp_width
+            # Between one and two compact supports from the free surface, shifting is
+            # ramped from zero to the unmodified shifting velocity with a kernel-weighted
+            # transition.
             # According to our experiments, the proposed alternative approaches lead to particle disorder:
             # - Sun et al. 2017: only use surface-tangential component
             # - Zhang et al. 2025: disable shifting entirely
             kernel_max = smoothing_kernel(system, 0, particle)
-            dist_from_cutoff = compact_support(fluid_system, fluid_system) -
-                               dist_free_surface
-            shifting_weight = smoothing_kernel(system, dist_from_cutoff, particle) /
+            # Distance from the area where full shifting is applied.
+            dist_from_ramp_end = free_surface_region_width + ramp_width - dist_free_surface
+            shifting_weight = smoothing_kernel(system, dist_from_ramp_end, particle) /
                               kernel_max
             delta_v_ramped = delta_v(system, particle) * shifting_weight
             for dim in 1:ndims(system)
@@ -754,8 +779,7 @@ end
 
 @inline use_open_boundary_interpolation_neighbor(system) = false
 
-function check_configuration(system::OpenBoundarySystem, systems,
-                             neighborhood_search::PointNeighbors.AbstractNeighborhoodSearch)
+function check_configuration(system::OpenBoundarySystem, systems, neighborhood_search)
     (; boundary_model, boundary_zones) = system
 
     # Store index of the fluid system. This is necessary for re-linking
@@ -774,4 +798,20 @@ function check_configuration(system::OpenBoundarySystem, systems,
                             "that does not require an update for the first set of coordinates (e.g. `GridNeighborhoodSearch`). " *
                             "See the PointNeighbors.jl documentation for more details."))
     end
+end
+
+function check_boundary_zone_widths(boundary_zones, fluid_system)
+    support = compact_support(system_smoothing_kernel(fluid_system),
+                              initial_smoothing_length(fluid_system))
+    minimum_width = 2 * support
+
+    for (i, zone) in enumerate(boundary_zones)
+        if zone.zone_width < minimum_width
+            throw(ArgumentError("boundary zone $i has width $(zone.zone_width), " *
+                                "but must be at least two compact supports " *
+                                "($(minimum_width))"))
+        end
+    end
+
+    return nothing
 end
