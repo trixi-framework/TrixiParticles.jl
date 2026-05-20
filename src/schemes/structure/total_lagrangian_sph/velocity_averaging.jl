@@ -14,7 +14,7 @@ See [the docs](@ref velocity_averaging) for more details.
 !!! note "Callback Required"
     Velocity averaging requires either an [`UpdateCallback`](@ref)
     or a [`SplitIntegrationCallback`](@ref) to be used in the simulation.
-    In the typical use case of stabilizing a challenging FSI simulation, a
+    In the typical use case of stabilizing a stiff FSI simulation, a
     [`SplitIntegrationCallback`](@ref) will usually be used anyway for performance reasons.
 
 # Keywords

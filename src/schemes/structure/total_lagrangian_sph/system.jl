@@ -265,7 +265,7 @@ end
     # Velocity averaging used and `integrate_tlsph == false` means that split integration
     # is used and the averaged velocity is updated there.
     # Velocity averaging used, `integrate_tlsph == true`, and no fluid system in the semi
-    # means we are inside the split integration
+    # means we are inside the split integration.
     return !isnothing(system.velocity_averaging) && semi.integrate_tlsph[] &&
            any(system -> system isa AbstractFluidSystem, semi.systems)
 end
