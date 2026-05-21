@@ -267,7 +267,7 @@ structure_system = TotalLagrangianSPHSystem(structure; smoothing_kernel, smoothi
                                         clamped_particles_motion=boundary_motion,
                                         boundary_model=boundary_model_structure,
                                         velocity_averaging=TrixiParticles.VelocityAveraging(time_constant=5e-4),
-                                        viscosity=ArtificialViscosityMonaghan(alpha=0.1),
+                                        viscosity=ArtificialViscosityMonaghan(alpha=0.2),
                                         penalty_force=PenaltyForceGanzenmueller(alpha=0.1))
 
 # ==========================================================================================
