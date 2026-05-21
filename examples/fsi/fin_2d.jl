@@ -362,7 +362,7 @@ info_callback = InfoCallback(interval=100)
 prefix = ""
 saving_callback = SolutionSavingCallback(dt=0.01; prefix)
 
-split_cfl = 1.6
+split_cfl = 1.5
 # SSPRK104 CFL = 2.5, 15k RHS evaluations
 # CarpenterKennedy2N54 CFL = 1.6, 11k RHS evaluations
 # RK4 CFL = 1.2, 12k RHS evaluations
