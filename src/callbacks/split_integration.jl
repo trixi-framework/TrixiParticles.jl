@@ -407,19 +407,25 @@ function update_systems_split!(semi_split, v_ode_split, u_ode_split, t)
 end
 
 function self_interaction_split!(dv_ode_split, v_ode_split, u_ode_split, semi_split, semi)
-    # Only loop over (TLSPH) systems in the split integrator
+    # Only loop over (TLSPH) systems in the split integrator.
     foreach_system_wrapped(semi_split, v_ode_split, u_ode_split) do system, v, u
-        has_system_interaction(system, system, semi) || return
-
-        # Construct string for the interactions timer.
-        system_index = system_indices(system, semi)
-        timer_str = "$(timer_name(system))$system_index-$(timer_name(system))$system_index"
-
         dv = wrap_v(dv_ode_split, system, semi_split)
 
-        @trixi_timeit timer() timer_str begin
-            apply_system_interaction!(dv, v, u, v, u, system, system, semi;
-                                      integrate_tlsph=true)
+        foreach_system_wrapped(semi_split, v_ode_split,
+                               u_ode_split) do neighbor,
+                                               v_neighbor,
+                                               u_neighbor
+            has_system_interaction(system, neighbor, semi) || return
+
+            # Construct string for the interactions timer.
+            system_index = system_indices(system, semi)
+            neighbor_index = system_indices(neighbor, semi)
+            timer_str = "$(timer_name(system))$system_index-$(timer_name(neighbor))$neighbor_index"
+
+            @trixi_timeit timer() timer_str begin
+                apply_system_interaction!(dv, v, u, v_neighbor, u_neighbor,
+                                          system, neighbor, semi; integrate_tlsph=true)
+            end
         end
     end
 end

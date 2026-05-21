@@ -110,27 +110,27 @@ end
 
 function create_interaction_matrix(interaction_matrix, systems::Tuple)
     n_systems = length(systems)
-    axes(interaction_matrix) == (Base.OneTo(n_systems), Base.OneTo(n_systems)) ||
+    if size(interaction_matrix) != (n_systems, n_systems)
         throw(ArgumentError("`interaction_matrix` must have size " *
                             "($n_systems, $n_systems), but has size " *
                             "$(size(interaction_matrix))"))
+    end
 
     # Validate values before looking at the declared element type. This lets users pass
     # abstract containers such as `Matrix{Any}` while still rejecting invalid entries.
     for entry in interaction_matrix
-        is_interaction_entry(entry) ||
+        if !is_interaction_entry(entry)
             throw(ArgumentError("`interaction_matrix` entries must be `true`, `false`, " *
                                 "or callable custom interactions, but found " *
                                 "`$(typeof(entry))`"))
+        end
     end
 
     # Rebuild abstractly typed matrices from the concrete entry types to avoid dynamic
     # dispatch and allocations in the RHS interaction loop.
     if !all(isconcretetype, Base.uniontypes(eltype(interaction_matrix)))
-        entry_types = unique(typeof(entry) for entry in interaction_matrix)
-        matrix_eltype = reduce((type, next_type) -> Union{type, next_type}, entry_types)
-
-        return Matrix{matrix_eltype}(interaction_matrix)
+        entry_types = unique(map(typeof, interaction_matrix))
+        return Matrix{Union{entry_types...}}(interaction_matrix)
     end
 
     return copy(interaction_matrix)
