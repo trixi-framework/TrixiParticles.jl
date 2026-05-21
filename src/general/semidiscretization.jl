@@ -31,9 +31,10 @@ The semidiscretization couples the passed systems to one simulation.
                             This does not filter neighborhood search updates or auxiliary
                             state-update loops such as density, pressure, correction, and
                             surface-normal calculations.
-                            Use a concrete union matrix type, e.g.
-                            `Matrix{Union{Bool, typeof(interaction)}}`, when mixing
-                            booleans and a callable entry.
+                            Matrices with abstract element types, e.g. `Matrix{Any}`,
+                            are copied to a concrete union matrix based on the actual
+                            entry types. You can also pass a concrete union matrix type
+                            directly, e.g. `Matrix{Union{Bool, typeof(interaction)}}`.
 
 # Examples
 ```jldoctest; output = false, setup = :(trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing); ref_system = fluid_system)
@@ -114,17 +115,22 @@ function create_interaction_matrix(interaction_matrix, systems::Tuple)
                             "($n_systems, $n_systems), but has size " *
                             "$(size(interaction_matrix))"))
 
-    if !valid_interaction_matrix_eltype(eltype(interaction_matrix))
-        throw(ArgumentError("`interaction_matrix` must not have an abstract element type. " *
-                            "For custom interactions, use a concrete union element type, " *
-                            "for example `Matrix{Union{Bool, typeof(interaction)}}`."))
-    end
-
+    # Validate values before looking at the declared element type. This lets users pass
+    # abstract containers such as `Matrix{Any}` while still rejecting invalid entries.
     for entry in interaction_matrix
         is_interaction_entry(entry) ||
             throw(ArgumentError("`interaction_matrix` entries must be `true`, `false`, " *
                                 "or callable custom interactions, but found " *
                                 "`$(typeof(entry))`"))
+    end
+
+    # Rebuild abstractly typed matrices from the concrete entry types to avoid dynamic
+    # dispatch and allocations in the RHS interaction loop.
+    if !all(isconcretetype, Base.uniontypes(eltype(interaction_matrix)))
+        entry_types = unique(typeof(entry) for entry in interaction_matrix)
+        matrix_eltype = reduce((type, next_type) -> Union{type, next_type}, entry_types)
+
+        return Matrix{matrix_eltype}(interaction_matrix)
     end
 
     return copy(interaction_matrix)
@@ -138,16 +144,6 @@ end
 
 @inline is_enabled_interaction(entry::Bool) = entry
 @inline is_enabled_interaction(entry) = true
-
-function valid_interaction_matrix_eltype(::Type{T}) where {T}
-    return all(valid_interaction_entry_type, Base.uniontypes(T))
-end
-
-@inline valid_interaction_entry_type(::Type{Bool}) = true
-
-function valid_interaction_entry_type(::Type{T}) where {T}
-    return isconcretetype(T)
-end
 
 function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
                             neighborhood_search=GridNeighborhoodSearch{ndims(first(systems))}(),

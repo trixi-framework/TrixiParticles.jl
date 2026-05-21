@@ -81,14 +81,25 @@
         @test_throws ArgumentError Semidiscretization(system1, system2;
                                                       neighborhood_search=nothing,
                                                       interaction_matrix=trues(1, 1))
+
         @test_throws ArgumentError Semidiscretization(system1, system2;
                                                       neighborhood_search=nothing,
-                                                      interaction_matrix=Any[true false;
+                                                      interaction_matrix=Any[true 1;
                                                                              false true])
+
+        semi_any_bool = Semidiscretization(system1, system2;
+                                           neighborhood_search=nothing,
+                                           interaction_matrix=Any[true false;
+                                                                  false true])
+        @test semi_any_bool.interaction_matrix isa Matrix{Bool}
+        @test semi_any_bool.interaction_matrix == [true false; false true]
+
         abstract_union_matrix = Matrix{Union{Bool, Function}}(trues(2, 2))
-        @test_throws ArgumentError Semidiscretization(system1, system2;
-                                                      neighborhood_search=nothing,
-                                                      interaction_matrix=abstract_union_matrix)
+        semi_abstract_union = Semidiscretization(system1, system2;
+                                                 neighborhood_search=nothing,
+                                                 interaction_matrix=abstract_union_matrix)
+        @test semi_abstract_union.interaction_matrix isa Matrix{Bool}
+        @test semi_abstract_union.interaction_matrix == trues(2, 2)
 
         interaction = TestInteraction()
         interaction_matrix = Matrix{Union{Bool, typeof(interaction)}}(trues(2, 2))
@@ -99,6 +110,18 @@
         interaction_matrix[1, 2] = false
 
         @test semi_custom.interaction_matrix[1, 2] === interaction
+
+        interaction_any = TestInteraction()
+        interaction_matrix_any = Any[true interaction_any;
+                                     false true]
+        semi_any_custom = Semidiscretization(system1, system2;
+                                             neighborhood_search=nothing,
+                                             interaction_matrix=interaction_matrix_any)
+        interaction_matrix_any[1, 2] = false
+
+        @test eltype(semi_any_custom.interaction_matrix) ==
+              Union{Bool, typeof(interaction_any)}
+        @test semi_any_custom.interaction_matrix[1, 2] === interaction_any
     end
 
     @testset verbose=true "Check Configuration" begin
