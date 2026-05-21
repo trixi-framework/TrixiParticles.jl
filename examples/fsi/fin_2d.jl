@@ -136,9 +136,10 @@ if packing
 
     min_corner = minimum(tank.boundary.coordinates, dims=2) .- fluid_particle_spacing / 2
     max_corner = maximum(tank.boundary.coordinates, dims=2) .+ fluid_particle_spacing / 2
-    periodic_box = PeriodicBox(; min_corner, max_corner)
+    min_corner .-= center
+    max_corner .-= center
     cell_list = FullGridCellList(; min_corner, max_corner)
-    neighborhood_search = GridNeighborhoodSearch{2}(; periodic_box, cell_list, update_strategy=ParallelUpdate())
+    neighborhood_search = GridNeighborhoodSearch{2}(; cell_list, update_strategy=ParallelUpdate())
 
     semi_packing = Semidiscretization(foot_packing_system, fluid_packing_system,
                                     blade_packing_system; neighborhood_search)
@@ -146,9 +147,10 @@ if packing
     ode_packing = semidiscretize(semi_packing, (0.0, 10.0))
 
     sol_packing = solve(ode_packing, RDPK3SpFSAL35();
+                abstol=1e-8,
                 save_everystep=false,
                 callback=CallbackSet(InfoCallback(interval=50),
-                                    #  SolutionSavingCallback(interval=50, prefix="packing"),
+                                    #  SolutionSavingCallback(interval=50, prefix="packing_foot"),
                                     UpdateCallback()),
                 dtmax=1e-2)
 
@@ -158,7 +160,9 @@ if packing
     packed_foot.coordinates .+= center
     beam.coordinates .+= center
 
-    structure = union(packed_foot, beam)
+    # `union(packed_foot, beam)`, but when particles are too close together, keep the ones
+    # from `beam` instead of `packed_foot` to ensure that the blade doesn't have holes.
+    structure = union(setdiff(packed_foot, beam), beam)
     fluid = setdiff(tank.fluid, structure)
 
     # Pack the fluid against the fin and the tank boundary
@@ -187,6 +191,11 @@ if packing
     fixed_packing_system = ParticlePackingSystem(fixed_union; smoothing_length=smoothing_length_packing,
                                                 fixed_system=true, signed_distance_field=nothing, background_pressure)
 
+    min_corner = minimum(tank.boundary.coordinates, dims=2) .- fluid_particle_spacing / 2
+    max_corner = maximum(tank.boundary.coordinates, dims=2) .+ fluid_particle_spacing / 2
+    cell_list = FullGridCellList(; min_corner, max_corner)
+    neighborhood_search = GridNeighborhoodSearch{2}(; cell_list, update_strategy=ParallelUpdate())
+
     semi_packing = Semidiscretization(fluid_packing_system, fixed_packing_system;
                                     neighborhood_search)
 
@@ -197,6 +206,7 @@ if packing
                 callback=CallbackSet(InfoCallback(interval=50),
                                     #  SolutionSavingCallback(interval=50, prefix="packing"),
                                     UpdateCallback()),
+                abstol=1e-8,
                 dtmax=1e-2)
 
     fluid = InitialCondition(sol_packing, fluid_packing_system, semi_packing)
