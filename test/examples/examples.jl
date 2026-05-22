@@ -501,6 +501,14 @@
     end
 
     @testset verbose=true "N-Body" begin
+        @trixi_testset "n_body/n_body_newtonian_gravity.jl" begin
+            @trixi_test_nowarn trixi_include(@__MODULE__,
+                                             joinpath(examples_dir(), "n_body",
+                                                      "n_body_newtonian_gravity.jl"))
+            @test sol.retcode == ReturnCode.Success
+            @test count_rhs_allocations(sol) == 0
+        end
+
         @trixi_testset "n_body/n_body_solar_system.jl" begin
             @trixi_test_nowarn trixi_include(@__MODULE__,
                                              joinpath(examples_dir(), "n_body",
@@ -515,6 +523,35 @@
                                                       "n_body_benchmark_trixi.jl")) [
                 r"WARNING: Method definition interact!.*\n"
             ]
+
+            v_ode = vec(velocity)
+            u_ode = vec(coordinates)
+            dv_ode = similar(v_ode)
+            du_ode = similar(u_ode)
+            p = (; semi, split_integration_data=nothing)
+
+            # Keep the optimized benchmark path allocation-free. This is a stable proxy
+            # for avoiding performance regressions without adding timing assertions to CI.
+            filename = tempname()
+            try
+                open(filename, "w") do f
+                    redirect_stderr(f) do
+                        TrixiParticles.disable_debug_timings()
+                    end
+                end
+
+                TrixiParticles.kick!(dv_ode, v_ode, u_ode, p, 0.0)
+                TrixiParticles.drift!(du_ode, v_ode, u_ode, p, 0.0)
+
+                @test @allocated(TrixiParticles.kick!(dv_ode, v_ode, u_ode, p, 0.0)) == 0
+                @test @allocated(TrixiParticles.drift!(du_ode, v_ode, u_ode, p, 0.0)) == 0
+            finally
+                open(filename, "w") do f
+                    redirect_stderr(f) do
+                        TrixiParticles.enable_debug_timings()
+                    end
+                end
+            end
         end
 
         @trixi_testset "n_body/n_body_benchmark_reference.jl" begin

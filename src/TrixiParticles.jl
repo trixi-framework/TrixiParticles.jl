@@ -104,6 +104,7 @@ export WindingNumberHormann, WindingNumberJacobson
 export VoxelSphere, RoundSphere, reset_wall!, extrude_geometry, load_geometry,
        sample_boundary, planar_geometry_to_face
 export SourceTermDamping
+export NewtonianGravity
 export ShepardKernelCorrection, KernelCorrection, AkinciFreeSurfaceCorrection,
        GradientCorrection, BlendedGradientCorrection, MixedKernelGradientCorrection
 export nparticles, eachparticle
