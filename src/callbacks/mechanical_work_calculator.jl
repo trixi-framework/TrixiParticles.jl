@@ -179,9 +179,10 @@ function update_mechanical_work_calculator!(work, system, eachparticle,
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
 
-        foreach_interacting_system_wrapped(system, semi, v_ode, u_ode) do neighbor_system,
-                                                                         v_neighbor,
-                                                                         u_neighbor
+        foreach_interacting_system_wrapped(system, semi, v_ode,
+                                           u_ode) do neighbor_system,
+                                                     v_neighbor,
+                                                     u_neighbor
             if only_compute_force_on_fluid && !(neighbor_system isa AbstractFluidSystem)
                 # Not a fluid system, ignore this system
                 return

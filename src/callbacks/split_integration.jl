@@ -412,9 +412,10 @@ function self_interaction_split!(dv_ode_split, v_ode_split, u_ode_split, semi_sp
         dv = wrap_v(dv_ode_split, system, semi_split)
 
         foreach_interacting_system_wrapped(system, semi, v_ode_split,
-                                           u_ode_split, semi_split) do neighbor,
-                                                                 v_neighbor,
-                                                                 u_neighbor
+                                           u_ode_split,
+                                           semi_split) do neighbor,
+                                                          v_neighbor,
+                                                          u_neighbor
             # Construct string for the interactions timer.
             system_index = system_indices(system, semi)
             neighbor_index = system_indices(neighbor, semi)
@@ -437,9 +438,10 @@ function other_interaction_split!(dv_ode_split, semi, v_ode, u_ode, semi_split)
         u_system = wrap_u(u_ode, system, semi)
 
         # Loop over all interacting neighbors in the big integrator
-        foreach_interacting_system_wrapped(system, semi, v_ode, u_ode) do neighbor,
-                                                                          v_neighbor,
-                                                                          u_neighbor
+        foreach_interacting_system_wrapped(system, semi, v_ode,
+                                           u_ode) do neighbor,
+                                                     v_neighbor,
+                                                     u_neighbor
             if neighbor isa TotalLagrangianSPHSystem
                 # TLSPH self-interactions are integrated with the split state.
                 return
