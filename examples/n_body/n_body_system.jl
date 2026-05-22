@@ -1,8 +1,7 @@
 using TrixiParticles
 using LinearAlgebra
 
-struct NBodySystem{NDIMS, ELTYPE <: Real, IC, GR, FAST} <:
-       TrixiParticles.AbstractSystem{NDIMS}
+struct NBodySystem{NDIMS, ELTYPE <: Real, IC, GR} <: TrixiParticles.AbstractSystem{NDIMS}
     initial_condition :: IC
     mass              :: Array{ELTYPE, 1} # [particle]
     G                 :: ELTYPE
@@ -14,12 +13,11 @@ struct NBodySystem{NDIMS, ELTYPE <: Real, IC, GR, FAST} <:
         gravitational_constant = convert(eltype(mass), gravity.gravitational_constant)
 
         new{size(initial_condition.coordinates, 1),
-            eltype(mass), typeof(initial_condition), typeof(gravity),
-            iszero(gravity.softening_length) && isinf(gravity.cutoff_radius)}(initial_condition,
-                                                                              mass,
-                                                                              gravitational_constant,
-                                                                              gravity,
-                                                                              nothing)
+            eltype(mass), typeof(initial_condition), typeof(gravity)}(initial_condition,
+                                                                      mass,
+                                                                      gravitational_constant,
+                                                                      gravity,
+                                                                      nothing)
     end
 end
 
@@ -61,40 +59,10 @@ function TrixiParticles.compact_support(system::NBodySystem,
     return TrixiParticles.gravity_model(system, neighbor).cutoff_radius
 end
 
-@inline function TrixiParticles.interact!(dv, v_particle_system, u_particle_system,
-                                          v_neighbor_system, u_neighbor_system,
-                                          particle_system::NBodySystem{NDIMS, ELTYPE, IC,
-                                                                       GR, true},
-                                          neighbor_system::NBodySystem,
-                                          semi) where {NDIMS, ELTYPE, IC, GR}
-    (; mass, G) = neighbor_system
-
-    system_coords = TrixiParticles.current_coordinates(u_particle_system, particle_system)
-    neighbor_coords = TrixiParticles.current_coordinates(u_neighbor_system, neighbor_system)
-
-    # Loop over all pairs of particles and neighbors within the kernel cutoff.
-    TrixiParticles.foreach_point_neighbor(particle_system, neighbor_system,
-                                          system_coords, neighbor_coords,
-                                          semi) do particle, neighbor, pos_diff, distance
-        # No interaction of a particle with itself
-        particle_system === neighbor_system && particle === neighbor && return
-
-        tmp = -G * mass[neighbor] * (1 / distance^3)
-
-        @inbounds for i in 1:ndims(particle_system)
-            dv[i, particle] += tmp * pos_diff[i]
-        end
-    end
-
-    return dv
-end
-
-@inline function TrixiParticles.interact!(dv, v_particle_system, u_particle_system,
-                                          v_neighbor_system, u_neighbor_system,
-                                          particle_system::NBodySystem{NDIMS, ELTYPE, IC,
-                                                                       GR, false},
-                                          neighbor_system::NBodySystem,
-                                          semi) where {NDIMS, ELTYPE, IC, GR}
+function TrixiParticles.interact!(dv, v_particle_system, u_particle_system,
+                                  v_neighbor_system, u_neighbor_system,
+                                  particle_system::NBodySystem,
+                                  neighbor_system::NBodySystem, semi)
     (; mass) = neighbor_system
     gravity = TrixiParticles.gravity_model(particle_system, neighbor_system)
 
@@ -108,11 +76,11 @@ end
         # No interaction of a particle with itself
         particle_system === neighbor_system && particle === neighbor && return
 
-        dv_gravity = TrixiParticles.gravity_acceleration(gravity, pos_diff, distance,
-                                                         mass[neighbor])
+        factor = TrixiParticles.gravity_acceleration_factor(gravity, distance,
+                                                            mass[neighbor])
 
         @inbounds for i in 1:ndims(particle_system)
-            dv[i, particle] += dv_gravity[i]
+            dv[i, particle] += factor * pos_diff[i]
         end
     end
 
