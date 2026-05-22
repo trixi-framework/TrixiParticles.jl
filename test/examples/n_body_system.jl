@@ -48,7 +48,7 @@
                                  mass=energy_masses, particle_spacing=-1.0)
     softened_energy_system = NBodySystem(energy_ic,
                                          NewtonianGravity(; gravitational_constant=5.0,
-                                                          softening_length=4.0,
+                                                          softening=PlummerSoftening(4.0),
                                                           cutoff_radius=10.0))
     softened_energy_semi = Semidiscretization(softened_energy_system,
                                               neighborhood_search=nothing)

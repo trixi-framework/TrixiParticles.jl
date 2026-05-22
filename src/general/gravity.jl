@@ -56,14 +56,9 @@ struct NewtonianGravity{ELTYPE <: Real, SOFTENING <: AbstractGravitySoftening,
 
     function NewtonianGravity(; gravitational_constant,
                               softening=NoSoftening(),
-                              softening_length=nothing,
                               cutoff_radius=oftype(float(gravitational_constant), Inf))
-        if softening_length !== nothing
-            softening isa NoSoftening ||
-                throw(ArgumentError("`softening` and `softening_length` cannot both be set"))
-            softening = iszero(softening_length) ? NoSoftening() :
-                        PlummerSoftening(softening_length)
-        end
+        softening isa AbstractGravitySoftening ||
+            throw(ArgumentError("`softening` must be a gravitational softening model"))
 
         gravitational_constant_, _,
         cutoff_radius_ = promote(gravitational_constant,
@@ -109,14 +104,6 @@ end
                                        gravitational_constant) = zero(gravitational_constant)
 @inline softening_length_for_promotion(softening,
                                        gravitational_constant) = softening.softening_length
-
-function copy_gravity_model(gravity::NewtonianGravity, ::Type{ELTYPE}) where {ELTYPE}
-    return NewtonianGravity(;
-                            gravitational_constant=convert(ELTYPE,
-                                                           gravity.gravitational_constant),
-                            softening=copy_softening_model(gravity.softening, ELTYPE),
-                            cutoff_radius=convert(ELTYPE, gravity.cutoff_radius))
-end
 
 @inline copy_softening_model(::NoSoftening, ::Type{ELTYPE}) where {ELTYPE} = NoSoftening()
 @inline function copy_softening_model(softening::PlummerSoftening,

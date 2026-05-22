@@ -15,11 +15,6 @@
     @test gravity_float32.softening isa NoSoftening
     @test gravity_float32.cutoff_radius === Inf32
 
-    gravity_softening_length = NewtonianGravity(; gravitational_constant=1.0,
-                                                softening_length=0.1)
-    @test gravity_softening_length.softening isa PlummerSoftening
-    @test gravity_softening_length.softening.softening_length == 0.1
-
     @test NoSoftening()(2.0) == 0.125
     @test NoSoftening()(SVector(2.0, 0.0)) == SVector(0.25, 0.0)
     @test NoSoftening()(SVector(2.0, 0.0), 2.0) == SVector(0.25, 0.0)
@@ -33,14 +28,11 @@
     @test_throws ArgumentError NewtonianGravity(; gravitational_constant=Inf)
     @test_throws ArgumentError NewtonianGravity(; gravitational_constant=NaN)
     @test_throws ArgumentError NewtonianGravity(; gravitational_constant=1.0,
-                                                softening_length=-0.1)
+                                                softening=nothing)
+    @test_throws ArgumentError NewtonianGravity(; gravitational_constant=1.0,
+                                                softening=0.1)
     @test_throws ArgumentError PlummerSoftening(-0.1)
     @test_throws ArgumentError PlummerSoftening(Inf)
-    @test_throws ArgumentError NewtonianGravity(; gravitational_constant=1.0,
-                                                softening=PlummerSoftening(0.1),
-                                                softening_length=0.1)
-    @test_throws ArgumentError NewtonianGravity(; gravitational_constant=1.0,
-                                                softening_length=NaN)
     @test_throws ArgumentError NewtonianGravity(; gravitational_constant=1.0,
                                                 cutoff_radius=0.0)
     @test_throws ArgumentError NewtonianGravity(; gravitational_constant=1.0,

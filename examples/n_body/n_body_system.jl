@@ -11,7 +11,7 @@ struct NBodySystem{NDIMS, ELTYPE <: Real, IC, GR} <: TrixiParticles.AbstractSyst
 
     function NBodySystem(initial_condition, gravity::NewtonianGravity)
         mass = copy(initial_condition.mass)
-        gravity_ = TrixiParticles.copy_gravity_model(gravity, eltype(mass))
+        gravity_ = nbody_gravity_model(gravity, eltype(mass))
         gravitational_constant = gravity_.gravitational_constant
 
         new{size(initial_condition.coordinates, 1),
@@ -21,6 +21,21 @@ struct NBodySystem{NDIMS, ELTYPE <: Real, IC, GR} <: TrixiParticles.AbstractSyst
                                                                        gravity_,
                                                                        nothing)
     end
+end
+
+function nbody_gravity_model(gravity::NewtonianGravity, ::Type{ELTYPE}) where {ELTYPE}
+    return NewtonianGravity(;
+                            gravitational_constant=convert(ELTYPE,
+                                                           gravity.gravitational_constant),
+                            softening=nbody_gravity_softening(gravity.softening, ELTYPE),
+                            cutoff_radius=convert(ELTYPE, gravity.cutoff_radius))
+end
+
+@inline nbody_gravity_softening(::NoSoftening,
+                                ::Type{ELTYPE}) where {ELTYPE} = NoSoftening()
+@inline function nbody_gravity_softening(softening::PlummerSoftening,
+                                         ::Type{ELTYPE}) where {ELTYPE}
+    return PlummerSoftening(convert(ELTYPE, softening.softening_length))
 end
 
 function NBodySystem(initial_condition, gravitational_constant)
