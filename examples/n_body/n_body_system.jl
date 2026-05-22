@@ -4,9 +4,10 @@ using LinearAlgebra
 struct NBodySystem{NDIMS, ELTYPE <: Real, IC, GR} <: TrixiParticles.AbstractSystem{NDIMS}
     initial_condition :: IC
     mass              :: Array{ELTYPE, 1} # [particle]
-    G                 :: ELTYPE
-    gravity           :: GR
-    buffer            :: Nothing
+    # Kept for compatibility with n-body benchmark code that reads `system.G`.
+    G       :: ELTYPE
+    gravity :: GR
+    buffer  :: Nothing
 
     function NBodySystem(initial_condition, gravity::NewtonianGravity)
         mass = copy(initial_condition.mass)
