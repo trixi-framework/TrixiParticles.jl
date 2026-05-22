@@ -9,7 +9,6 @@ on Unitful.jl for gravity constants.
 ```@autodocs
 Modules = [TrixiParticles]
 Pages = [
-    joinpath("general", "gravity.jl"),
-    joinpath("schemes", "gravity", "gravitating_particle_system.jl")
+    joinpath("general", "gravity.jl")
 ]
 ```

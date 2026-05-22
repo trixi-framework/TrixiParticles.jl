@@ -132,6 +132,7 @@ makedocs(sitename="TrixiParticles.jl",
                                                                     "rigid_body.md"),
                      "Total Lagrangian SPH (Elastic Structure)" => joinpath("systems",
                                                                             "total_lagrangian_sph.md"),
+                     "Astrophysics" => joinpath("systems", "astrophysics.md"),
                      "Boundary" => joinpath("systems", "boundary.md")
                  ],
                  "Time Integration" => "time_integration.md",

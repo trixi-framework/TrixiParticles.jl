@@ -48,6 +48,8 @@ TrixiParticles.timer_name(::NBodySystem) = "nbody"
 
 @inline Base.eltype(system::NBodySystem{NDIMS, ELTYPE}) where {NDIMS, ELTYPE} = ELTYPE
 
+@inline TrixiParticles.gravitational_mass(system::NBodySystem, particle) = system.mass[particle]
+
 @inline TrixiParticles.gravity_model(system::NBodySystem) = system.gravity
 
 function TrixiParticles.write_u0!(u0, system::NBodySystem)

@@ -54,8 +54,10 @@
                      2.0 4.0]
     mock_mass = [2.0, 3.0]
 
+    @test !(:current_velocity in names(TrixiParticles))
     @test TrixiParticles.gravity_model(system) === nothing
     @test TrixiParticles.gravity_model(system, neighbor_system) === nothing
+    @test_throws MethodError TrixiParticles.gravitational_mass(system, 1)
     @test TrixiParticles.current_position(mock_coordinates, system, 2) ==
           SVector(2.0, 0.0)
     @test TrixiParticles.current_velocity(mock_velocity, system, 2) ==

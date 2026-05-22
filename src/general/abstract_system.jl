@@ -16,6 +16,10 @@ abstract type AbstractBoundarySystem{NDIMS} <: AbstractSystem{NDIMS} end
 timer_name(::AbstractBoundarySystem) = "boundary"
 vtkname(system::AbstractBoundarySystem) = "boundary"
 
+abstract type AbstractAstrophysicsSystem{NDIMS} <: AbstractSystem{NDIMS} end
+timer_name(::AbstractAstrophysicsSystem) = "astrophysics"
+vtkname(system::AbstractAstrophysicsSystem) = "astrophysics"
+
 # Number of integrated variables in the first component of the ODE system (coordinates)
 @inline u_nvariables(system) = ndims(system)
 
@@ -101,11 +105,6 @@ end
 
 @inline coordinates_eltype(system::AbstractSystem) = eltype(initial_coordinates(system))
 
-"""
-    current_velocity(v, system, particle)
-
-Return the current particle velocity.
-"""
 @propagate_inbounds function current_velocity(v, system, particle)
     return extract_svector(current_velocity(v, system), system, particle)
 end

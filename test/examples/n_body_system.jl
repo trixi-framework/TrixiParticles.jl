@@ -20,6 +20,7 @@
     @test particle_system32.gravity.softening isa PlummerSoftening
     @test particle_system32.gravity.softening.softening_length === 0.25f0
     @test particle_system32.gravity.cutoff_radius === 2.0f0
+    @test TrixiParticles.gravitational_mass(particle_system32, 2) === 2.0f0
 
     duplicate_coordinates = zeros(Float32, 2, 2)
     duplicate_ic = InitialCondition(; coordinates=duplicate_coordinates,

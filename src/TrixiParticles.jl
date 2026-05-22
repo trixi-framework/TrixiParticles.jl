@@ -105,8 +105,7 @@ export VoxelSphere, RoundSphere, reset_wall!, extrude_geometry, load_geometry,
        sample_boundary, planar_geometry_to_face
 export SourceTermDamping
 export DEFAULT_GRAVITATIONAL_CONSTANT, NewtonianGravity, NoSoftening, PlummerSoftening,
-       GravitatingParticleSystem, gravitational_mass, current_position, current_velocity,
-       gravity_acceleration!
+       GravitatingParticleSystem, gravitational_mass, current_position, gravity_acceleration!
 export ShepardKernelCorrection, KernelCorrection, AkinciFreeSurfaceCorrection,
        GradientCorrection, BlendedGradientCorrection, MixedKernelGradientCorrection
 export nparticles, eachparticle

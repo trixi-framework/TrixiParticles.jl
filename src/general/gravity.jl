@@ -117,8 +117,9 @@ end
     return gravity_force_factor(softening, distance) * pos_diff
 end
 
-@inline softening_length_for_promotion(::NoSoftening,
-                                       gravitational_constant) = zero(gravitational_constant)
+@inline function softening_length_for_promotion(::NoSoftening, gravitational_constant)
+    return zero(gravitational_constant)
+end
 @inline softening_length_for_promotion(softening,
                                        gravitational_constant) = softening.softening_length
 
@@ -155,9 +156,7 @@ end
 
 Return the mass used by gravity interactions for `particle`.
 """
-@propagate_inbounds function gravitational_mass(system, particle)
-    return system.mass[particle]
-end
+function gravitational_mass end
 
 """
     current_position(u, system, particle)
@@ -177,6 +176,9 @@ end
 @inline function gravity_model(particle_system, neighbor_system)
     return gravity_model(particle_system)
 end
+
+@inline gravity_cutoff_radius(::AbstractGravityModel) = Inf
+@inline gravity_cutoff_radius(gravity::NewtonianGravity) = gravity.cutoff_radius
 
 @inline function gravity_acceleration(gravity::NewtonianGravity, pos_diff, distance,
                                       neighbor_mass)
