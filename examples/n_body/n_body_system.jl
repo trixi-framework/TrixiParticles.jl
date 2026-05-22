@@ -4,8 +4,8 @@ using LinearAlgebra
 struct NBodySystem{NDIMS, ELTYPE <: Real, IC, GR} <: TrixiParticles.AbstractSystem{NDIMS}
     initial_condition :: IC
     mass              :: Array{ELTYPE, 1} # [particle]
-    gravity           :: GR
     G                 :: ELTYPE
+    gravity           :: GR
     buffer            :: Nothing
 
     function NBodySystem(initial_condition, gravity::NewtonianGravity)
@@ -14,8 +14,9 @@ struct NBodySystem{NDIMS, ELTYPE <: Real, IC, GR} <: TrixiParticles.AbstractSyst
 
         new{size(initial_condition.coordinates, 1),
             eltype(mass), typeof(initial_condition), typeof(gravity)}(initial_condition,
-                                                                      mass, gravity,
+                                                                      mass,
                                                                       gravitational_constant,
+                                                                      gravity,
                                                                       nothing)
     end
 end
@@ -75,11 +76,11 @@ function TrixiParticles.interact!(dv, v_particle_system, u_particle_system,
         # No interaction of a particle with itself
         particle_system === neighbor_system && particle === neighbor && return
 
-        dv_gravity = TrixiParticles.gravity_acceleration(gravity, pos_diff, distance,
-                                                         mass[neighbor])
+        factor = TrixiParticles.gravity_acceleration_factor(gravity, distance,
+                                                            mass[neighbor])
 
         @inbounds for i in 1:ndims(particle_system)
-            dv[i, particle] += dv_gravity[i]
+            dv[i, particle] += factor * pos_diff[i]
         end
     end
 
