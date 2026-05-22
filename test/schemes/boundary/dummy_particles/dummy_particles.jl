@@ -452,15 +452,17 @@
                 return copy(boundary_model_local.pressure), semi_local
             end
 
-            all_enabled_pressure, _ = update_boundary_pressure!(included_boundary_system,
-                                                                fluid_low, fluid_high,
-                                                                trues(3, 3))
+            all_enabled_pressure,
+            _ = update_boundary_pressure!(included_boundary_system,
+                                          fluid_low, fluid_high,
+                                          trues(3, 3))
 
             filtered_matrix = trues(3, 3)
             filtered_matrix[3, 2] = false # wall skips pressure extrapolation from high fluid
-            filtered_pressure, semi_filtered = update_boundary_pressure!(filtered_boundary_system,
-                                                                         fluid_low, fluid_high,
-                                                                         filtered_matrix)
+            filtered_pressure,
+            semi_filtered = update_boundary_pressure!(filtered_boundary_system,
+                                                      fluid_low, fluid_high,
+                                                      filtered_matrix)
 
             @test !TrixiParticles.has_system_interaction(semi_filtered.systems[3],
                                                          semi_filtered.systems[2],
@@ -468,6 +470,105 @@
             @test !all(isapprox.(all_enabled_pressure, fluid_low.pressure[1],
                                  atol=1.0e-12))
             @test all(isapprox.(filtered_pressure, fluid_low.pressure[1], atol=1.0e-12))
+        end
+
+        @testset "Interaction Matrix Filters Boundary Density" begin
+            density_low = 260
+            density_high = 320
+            tank_low = RectangularTank(particle_spacing, (width, height), (width, height),
+                                       density_low; n_layers,
+                                       faces=(true, true, true, false))
+            tank_high = RectangularTank(particle_spacing, (width, height), (width, height),
+                                        density_high; n_layers,
+                                        faces=(true, true, true, false))
+
+            fluid_low = WeaklyCompressibleSPHSystem(tank_low.fluid;
+                                                    smoothing_kernel,
+                                                    smoothing_length,
+                                                    density_calculator=SummationDensity(),
+                                                    state_equation)
+            fluid_high = WeaklyCompressibleSPHSystem(tank_high.fluid;
+                                                     smoothing_kernel,
+                                                     smoothing_length,
+                                                     density_calculator=SummationDensity(),
+                                                     state_equation)
+
+            function boundary_density_with_systems(boundary_system, systems,
+                                                   interaction_matrix)
+                semi_local = Semidiscretization(systems..., boundary_system;
+                                                neighborhood_search=nothing,
+                                                interaction_matrix)
+
+                v_ode = zeros(sum(TrixiParticles.v_nvariables(system) *
+                                  TrixiParticles.n_integrated_particles(system)
+                                  for system in semi_local.systems))
+                u_ode = zeros(sum(TrixiParticles.u_nvariables(system) *
+                                  TrixiParticles.n_integrated_particles(system)
+                                  for system in semi_local.systems))
+
+                TrixiParticles.foreach_system_wrapped(semi_local, v_ode,
+                                                      u_ode) do system, v, u
+                    TrixiParticles.write_v0!(v, system)
+                    TrixiParticles.write_u0!(u, system)
+                end
+
+                v_boundary = TrixiParticles.wrap_v(v_ode, boundary_system, semi_local)
+                u_boundary = TrixiParticles.wrap_u(u_ode, boundary_system, semi_local)
+                boundary_model_local = boundary_system.boundary_model
+                TrixiParticles.compute_density!(boundary_model_local,
+                                                boundary_model_local.density_calculator,
+                                                boundary_system, v_boundary, u_boundary,
+                                                v_ode, u_ode, semi_local)
+
+                return copy(boundary_model_local.cache.density), semi_local
+            end
+
+            all_enabled_boundary_model = BoundaryModelDummyParticles(tank_low.boundary.density,
+                                                                     tank_low.boundary.mass,
+                                                                     SummationDensity(),
+                                                                     smoothing_kernel,
+                                                                     smoothing_length;
+                                                                     state_equation)
+            all_enabled_boundary = WallBoundarySystem(tank_low.boundary,
+                                                      all_enabled_boundary_model)
+            all_enabled_density,
+            _ = boundary_density_with_systems(all_enabled_boundary,
+                                              (fluid_low, fluid_high),
+                                              trues(3, 3))
+
+            filtered_boundary_model = BoundaryModelDummyParticles(tank_low.boundary.density,
+                                                                  tank_low.boundary.mass,
+                                                                  SummationDensity(),
+                                                                  smoothing_kernel,
+                                                                  smoothing_length;
+                                                                  state_equation)
+            filtered_boundary = WallBoundarySystem(tank_low.boundary,
+                                                   filtered_boundary_model)
+            filtered_matrix = trues(3, 3)
+            filtered_matrix[3, 2] = false # wall skips density summation from high fluid
+            filtered_density,
+            semi_filtered = boundary_density_with_systems(filtered_boundary,
+                                                          (fluid_low,
+                                                           fluid_high),
+                                                          filtered_matrix)
+
+            reference_boundary_model = BoundaryModelDummyParticles(tank_low.boundary.density,
+                                                                   tank_low.boundary.mass,
+                                                                   SummationDensity(),
+                                                                   smoothing_kernel,
+                                                                   smoothing_length;
+                                                                   state_equation)
+            reference_boundary = WallBoundarySystem(tank_low.boundary,
+                                                    reference_boundary_model)
+            reference_density,
+            _ = boundary_density_with_systems(reference_boundary,
+                                              (fluid_low,), trues(2, 2))
+
+            @test !TrixiParticles.has_system_interaction(semi_filtered.systems[3],
+                                                         semi_filtered.systems[2],
+                                                         semi_filtered)
+            @test any(all_enabled_density .> filtered_density)
+            @test all(isapprox.(filtered_density, reference_density))
         end
 
         # In this test, we initialize a fluid with a hydrostatic pressure gradient

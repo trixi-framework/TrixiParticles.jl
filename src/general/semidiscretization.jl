@@ -28,10 +28,11 @@ The semidiscretization couples the passed systems to one simulation.
                             system, neighbor, semi; kwargs...)`.
                             Custom interactions used through callbacks must accept forwarded
                             keyword arguments such as `integrate_tlsph` or `eachparticle`.
-                            Disabled ordered wall-neighbor pairs are also skipped in wall
-                            boundary pressure extrapolation. This does not filter
-                            neighborhood search updates or other auxiliary state-update loops
-                            such as density, correction, and surface-normal calculations.
+                            Disabled ordered pairs are also skipped in density summation;
+                            disabled ordered wall-neighbor pairs are skipped in wall boundary
+                            pressure extrapolation. This does not filter neighborhood search
+                            updates or other auxiliary state-update loops such as correction
+                            and surface-normal calculations.
                             Matrices with abstract element types, e.g. `Matrix{Any}`,
                             are copied to a concrete union matrix based on the actual
                             entry types. You can also pass a concrete union matrix type
@@ -137,6 +138,38 @@ function create_interaction_matrix(interaction_matrix, systems::Tuple)
     return copy(interaction_matrix)
 end
 
+function interaction_matrix_summary(semi)
+    disabled = count(entry -> entry === false, semi.interaction_matrix)
+    custom = count(entry -> !(entry isa Bool), semi.interaction_matrix)
+
+    if disabled == 0 && custom == 0
+        return nothing
+    end
+
+    return "$disabled disabled, $custom custom"
+end
+
+function disabled_interaction_pairs(semi)
+    pairs = String[]
+    for index in CartesianIndices(semi.interaction_matrix)
+        semi.interaction_matrix[index] === false || continue
+        push!(pairs, "$(index[1]) -> $(index[2])")
+    end
+
+    return isempty(pairs) ? nothing : join(pairs, ", ")
+end
+
+function custom_interaction_pairs(semi)
+    pairs = String[]
+    for index in CartesianIndices(semi.interaction_matrix)
+        interaction = semi.interaction_matrix[index]
+        interaction isa Bool && continue
+        push!(pairs, "$(index[1]) -> $(index[2]) ($(nameof(typeof(interaction))))")
+    end
+
+    return isempty(pairs) ? nothing : join(pairs, ", ")
+end
+
 @inline is_interaction_entry(entry::Bool) = true
 
 function is_interaction_entry(entry)
@@ -209,6 +242,10 @@ function Base.show(io::IO, semi::Semidiscretization)
     end
     print(io, "neighborhood_search=")
     print(io, semi.neighborhood_searches |> eltype |> nameof)
+    interaction_summary = interaction_matrix_summary(semi)
+    if !isnothing(interaction_summary)
+        print(io, ", interaction_matrix=", interaction_summary)
+    end
     print(io, ")")
 end
 
@@ -227,6 +264,19 @@ function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
         summary_line(io, "total #particles", sum(nparticles.(semi.systems)))
         summary_line(io, "eltype", eltype(semi.systems[1]))
         summary_line(io, "coordinates eltype", coordinates_eltype(semi.systems[1]))
+        interaction_summary = interaction_matrix_summary(semi)
+        if !isnothing(interaction_summary)
+            summary_line(io, "interaction matrix", interaction_summary)
+            disabled_pairs = disabled_interaction_pairs(semi)
+            if !isnothing(disabled_pairs)
+                summary_line(io, "disabled pairs", disabled_pairs)
+            end
+
+            custom_pairs = custom_interaction_pairs(semi)
+            if !isnothing(custom_pairs)
+                summary_line(io, "custom pairs", custom_pairs)
+            end
+        end
         summary_footer(io)
     end
 end

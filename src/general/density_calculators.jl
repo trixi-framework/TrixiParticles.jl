@@ -27,8 +27,10 @@ function summation_density!(system, semi, u, u_ode, density;
                             particles=each_integrated_particle(system))
     set_zero!(density)
 
-    # Use all other systems for the density summation
+    # Use enabled neighbor systems for the density summation.
     @trixi_timeit timer() "compute density" foreach_system(semi) do neighbor_system
+        has_system_interaction(system, neighbor_system, semi) || return
+
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
 
         system_coords = current_coordinates(u, system)

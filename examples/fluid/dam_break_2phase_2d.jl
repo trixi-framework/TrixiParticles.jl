@@ -118,9 +118,9 @@ air_boundary_system = WallBoundarySystem(tank.boundary, air_boundary_model;
 
 # Semidiscretization order:
 # 1: water fluid, 2: air fluid, 3: water wall, 4: air wall.
-# `false` skips ordered pairwise RHS dispatch. For wall systems, it also skips boundary
-# pressure extrapolation from disabled neighbors, keeping each wall matched to its phase.
-# It does not filter neighborhood-search updates.
+# `false` skips ordered pairwise RHS dispatch and density summation. For wall systems, it
+# also skips boundary pressure extrapolation from disabled neighbors, keeping each wall
+# matched to its phase. It does not filter neighborhood-search updates.
 interaction_matrix = trues(4, 4)
 interaction_matrix[1, 4] = false # water fluid skips RHS interaction with air wall
 interaction_matrix[4, 1] = false # air wall skips RHS interaction with water fluid

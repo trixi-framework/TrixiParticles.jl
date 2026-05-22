@@ -397,6 +397,34 @@
         │ coordinates eltype: …………………………… Float32                                                          │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", semi) == show_box
+
+        interaction = TestInteraction()
+        interaction_matrix = Matrix{Union{Bool, typeof(interaction)}}(trues(2, 2))
+        interaction_matrix[1, 2] = false
+        interaction_matrix[2, 1] = interaction
+        semi_custom = Semidiscretization(system1, system2; neighborhood_search=nothing,
+                                         interaction_matrix)
+
+        show_custom_compact = "Semidiscretization($System1(), $System2(), " *
+                              "neighborhood_search=TrivialNeighborhoodSearch, " *
+                              "interaction_matrix=1 disabled, 1 custom)"
+        @test repr(semi_custom) == show_custom_compact
+
+        show_custom_box = """
+        ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+        │ Semidiscretization                                                                               │
+        │ ══════════════════                                                                               │
+        │ #spatial dimensions: ………………………… 3                                                                │
+        │ #systems: ……………………………………………………… 2                                                                │
+        │ neighborhood search: ………………………… TrivialNeighborhoodSearch                                        │
+        │ total #particles: ………………………………… 5                                                                │
+        │ eltype: …………………………………………………………… Float64                                                          │
+        │ coordinates eltype: …………………………… Float32                                                          │
+        │ interaction matrix: …………………………… 1 disabled, 1 custom                                             │
+        │ disabled pairs: ……………………………………… 1 -> 2                                                           │
+        │ custom pairs: …………………………………………… 2 -> 1 (TestInteraction)                                         │
+        └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
+        @test repr("text/plain", semi_custom) == show_custom_box
     end
 
     @testset verbose=true "Source Terms" begin
