@@ -28,9 +28,10 @@ The semidiscretization couples the passed systems to one simulation.
                             system, neighbor, semi; kwargs...)`.
                             Custom interactions used through callbacks must accept forwarded
                             keyword arguments such as `integrate_tlsph` or `eachparticle`.
-                            This does not filter neighborhood search updates or auxiliary
-                            state-update loops such as density, pressure, correction, and
-                            surface-normal calculations.
+                            Disabled ordered wall-neighbor pairs are also skipped in wall
+                            boundary pressure extrapolation. This does not filter
+                            neighborhood search updates or other auxiliary state-update loops
+                            such as density, correction, and surface-normal calculations.
                             Matrices with abstract element types, e.g. `Matrix{Any}`,
                             are copied to a concrete union matrix based on the actual
                             entry types. You can also pass a concrete union matrix type

@@ -496,8 +496,12 @@ function compute_pressure!(boundary_model,
 
     system_coords = current_coordinates(u, system)
 
-    # Use all other systems for the pressure extrapolation
+    # Use enabled neighbor systems for the pressure extrapolation. This lets phase-specific
+    # walls isolate their auxiliary pressure state with the same ordered interaction matrix
+    # used for pairwise RHS dispatch.
     @trixi_timeit timer() "compute boundary pressure" foreach_system(semi) do neighbor_system
+        has_system_interaction(system, neighbor_system, semi) || return
+
         v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
 
