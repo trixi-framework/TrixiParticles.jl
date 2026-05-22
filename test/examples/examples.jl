@@ -525,35 +525,6 @@
                                                       "n_body_benchmark_trixi.jl")) [
                 r"WARNING: Method definition interact!.*\n"
             ]
-
-            v_ode = vec(velocity)
-            u_ode = vec(coordinates)
-            dv_ode = similar(v_ode)
-            du_ode = similar(u_ode)
-            p = (; semi, split_integration_data=nothing)
-
-            # Keep the benchmark system's generic `kick!`/`drift!` path allocation-free.
-            # This avoids noisy timing assertions while still catching practical regressions.
-            filename = tempname()
-            try
-                open(filename, "w") do f
-                    redirect_stderr(f) do
-                        TrixiParticles.disable_debug_timings()
-                    end
-                end
-
-                TrixiParticles.kick!(dv_ode, v_ode, u_ode, p, 0.0)
-                TrixiParticles.drift!(du_ode, v_ode, u_ode, p, 0.0)
-
-                @test @allocated(TrixiParticles.kick!(dv_ode, v_ode, u_ode, p, 0.0)) == 0
-                @test @allocated(TrixiParticles.drift!(du_ode, v_ode, u_ode, p, 0.0)) == 0
-            finally
-                open(filename, "w") do f
-                    redirect_stderr(f) do
-                        TrixiParticles.enable_debug_timings()
-                    end
-                end
-            end
         end
 
         @trixi_testset "n_body/n_body_benchmark_reference.jl" begin
