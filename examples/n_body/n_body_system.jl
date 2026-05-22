@@ -11,12 +11,7 @@ struct NBodySystem{NDIMS, ELTYPE <: Real, IC, GR} <: TrixiParticles.AbstractSyst
 
     function NBodySystem(initial_condition, gravity::NewtonianGravity)
         mass = copy(initial_condition.mass)
-        mass_eltype = eltype(mass)
-        gravitational_constant = convert(mass_eltype, gravity.gravitational_constant)
-        softening_length = convert(mass_eltype, gravity.softening_length)
-        cutoff_radius = convert(mass_eltype, gravity.cutoff_radius)
-        gravity_ = NewtonianGravity(; gravitational_constant, softening_length,
-                                    cutoff_radius)
+        gravity_ = TrixiParticles.copy_gravity_model(gravity, eltype(mass))
         gravitational_constant = gravity_.gravitational_constant
 
         new{size(initial_condition.coordinates, 1),
@@ -98,7 +93,7 @@ end
 function energy(v_ode, u_ode, system, semi)
     (; mass) = system
     gravity = TrixiParticles.gravity_model(system)
-    (; gravitational_constant, softening_length, cutoff_radius) = gravity
+    (; gravitational_constant, softening, cutoff_radius) = gravity
 
     e = zero(eltype(system))
 
@@ -117,9 +112,8 @@ function energy(v_ode, u_ode, system, semi)
             distance = norm(pos_diff)
 
             if distance <= cutoff_radius
-                softened_distance = sqrt(distance^2 + softening_length^2)
-                e -= gravitational_constant * mass[particle] * mass[neighbor] /
-                     softened_distance
+                e -= gravitational_constant * mass[particle] * mass[neighbor] *
+                     TrixiParticles.gravity_potential_factor(softening, distance)
             end
         end
     end

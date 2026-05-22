@@ -11,13 +11,14 @@
                                            mass=masses32,
                                            particle_spacing=-1.0f0)
     gravity32 = NewtonianGravity(; gravitational_constant=1.0,
-                                 softening_length=0.25,
+                                 softening=PlummerSoftening(0.25),
                                  cutoff_radius=2.0)
     particle_system32 = NBodySystem(initial_condition32, gravity32)
 
     @test particle_system32.G === 1.0f0
     @test particle_system32.gravity.gravitational_constant === 1.0f0
-    @test particle_system32.gravity.softening_length === 0.25f0
+    @test particle_system32.gravity.softening isa PlummerSoftening
+    @test particle_system32.gravity.softening.softening_length === 0.25f0
     @test particle_system32.gravity.cutoff_radius === 2.0f0
 
     duplicate_coordinates = zeros(Float32, 2, 2)

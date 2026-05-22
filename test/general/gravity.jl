@@ -1,24 +1,44 @@
 @trixi_testset "Gravity" begin
     gravity = NewtonianGravity(; gravitational_constant=1.0,
-                               softening_length=0.1,
+                               softening=PlummerSoftening(0.1),
                                cutoff_radius=2.0)
 
     @test gravity isa TrixiParticles.AbstractGravityModel
     @test gravity.gravitational_constant == 1.0
-    @test gravity.softening_length == 0.1
+    @test gravity.softening isa PlummerSoftening
+    @test gravity.softening.softening_length == 0.1
     @test gravity.cutoff_radius == 2.0
 
     gravity_float32 = NewtonianGravity(; gravitational_constant=1.0f0)
 
     @test gravity_float32.gravitational_constant === 1.0f0
-    @test gravity_float32.softening_length === 0.0f0
+    @test gravity_float32.softening isa NoSoftening
     @test gravity_float32.cutoff_radius === Inf32
+
+    gravity_softening_length = NewtonianGravity(; gravitational_constant=1.0,
+                                                softening_length=0.1)
+    @test gravity_softening_length.softening isa PlummerSoftening
+    @test gravity_softening_length.softening.softening_length == 0.1
+
+    @test NoSoftening()(2.0) == 0.125
+    @test NoSoftening()(SVector(2.0, 0.0)) == SVector(0.25, 0.0)
+    @test NoSoftening()(SVector(2.0, 0.0), 2.0) == SVector(0.25, 0.0)
+    @test PlummerSoftening(1.0)(2.0) ≈ inv(5 * sqrt(5))
+    @test PlummerSoftening(1.0)(SVector(2.0, 0.0)) ≈
+          SVector(2 / (5 * sqrt(5)), 0.0)
+    @test PlummerSoftening(; softening_length=1.0)(SVector(2.0, 0.0), 2.0) ≈
+          SVector(2 / (5 * sqrt(5)), 0.0)
 
     @test_throws ArgumentError NewtonianGravity(; gravitational_constant=-1.0)
     @test_throws ArgumentError NewtonianGravity(; gravitational_constant=Inf)
     @test_throws ArgumentError NewtonianGravity(; gravitational_constant=NaN)
     @test_throws ArgumentError NewtonianGravity(; gravitational_constant=1.0,
                                                 softening_length=-0.1)
+    @test_throws ArgumentError PlummerSoftening(-0.1)
+    @test_throws ArgumentError PlummerSoftening(Inf)
+    @test_throws ArgumentError NewtonianGravity(; gravitational_constant=1.0,
+                                                softening=PlummerSoftening(0.1),
+                                                softening_length=0.1)
     @test_throws ArgumentError NewtonianGravity(; gravitational_constant=1.0,
                                                 softening_length=NaN)
     @test_throws ArgumentError NewtonianGravity(; gravitational_constant=1.0,
@@ -65,7 +85,7 @@
                                               0.0, 3.0) == SVector(0.0, 0.0)
 
     softened_gravity = NewtonianGravity(; gravitational_constant=1.0,
-                                        softening_length=1.0)
+                                        softening=PlummerSoftening(1.0))
     acceleration = TrixiParticles.gravity_acceleration(softened_gravity,
                                                        SVector(2.0, 0.0),
                                                        2.0, 3.0)
@@ -82,7 +102,7 @@
                                               3.0, 3.0) == SVector(0.0, 0.0)
 
     softened_cutoff_gravity = NewtonianGravity(; gravitational_constant=1.0,
-                                               softening_length=1.0,
+                                               softening=PlummerSoftening(1.0),
                                                cutoff_radius=2.0)
     acceleration = TrixiParticles.gravity_acceleration(softened_cutoff_gravity,
                                                        SVector(2.0, 0.0),
