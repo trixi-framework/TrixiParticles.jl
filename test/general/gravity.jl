@@ -15,10 +15,16 @@
     @test gravity_float32.cutoff_radius === Inf32
 
     @test_throws ArgumentError NewtonianGravity(; gravitational_constant=-1.0)
+    @test_throws ArgumentError NewtonianGravity(; gravitational_constant=Inf)
+    @test_throws ArgumentError NewtonianGravity(; gravitational_constant=NaN)
     @test_throws ArgumentError NewtonianGravity(; gravitational_constant=1.0,
                                                 softening_length=-0.1)
     @test_throws ArgumentError NewtonianGravity(; gravitational_constant=1.0,
+                                                softening_length=NaN)
+    @test_throws ArgumentError NewtonianGravity(; gravitational_constant=1.0,
                                                 cutoff_radius=0.0)
+    @test_throws ArgumentError NewtonianGravity(; gravitational_constant=1.0,
+                                                cutoff_radius=NaN)
 
     struct GravitySystem <: TrixiParticles.AbstractSystem{2} end
     system = GravitySystem()
@@ -36,6 +42,15 @@
     @test returned === dv_particle
     @test dv_particle[] == SVector(1.0, -2.0)
 
+    struct UnknownGravity <: TrixiParticles.AbstractGravityModel end
+
+    @test_throws MethodError TrixiParticles.gravity_interaction!(dv_particle,
+                                                                 UnknownGravity(),
+                                                                 system, neighbor_system,
+                                                                 1, 2,
+                                                                 SVector(1.0, 0.0),
+                                                                 1.0, 1.0, 2.0)
+
     unsoftened_gravity = NewtonianGravity(; gravitational_constant=1.0)
     dv_particle = Ref(SVector(1.0, -2.0))
     returned = TrixiParticles.gravity_interaction!(dv_particle, unsoftened_gravity,
@@ -45,16 +60,36 @@
 
     @test returned === dv_particle
     @test dv_particle[] == SVector(0.25, -2.0)
+    @test TrixiParticles.gravity_acceleration(unsoftened_gravity,
+                                              SVector(0.0, 0.0),
+                                              0.0, 3.0) == SVector(0.0, 0.0)
 
     softened_gravity = NewtonianGravity(; gravitational_constant=1.0,
-                                        softening_length=1.0,
-                                        cutoff_radius=2.0)
+                                        softening_length=1.0)
     acceleration = TrixiParticles.gravity_acceleration(softened_gravity,
                                                        SVector(2.0, 0.0),
                                                        2.0, 3.0)
 
     @test acceleration ≈ SVector(-6 / (5 * sqrt(5)), 0.0)
-    @test TrixiParticles.gravity_acceleration(softened_gravity,
+
+    cutoff_gravity = NewtonianGravity(; gravitational_constant=1.0,
+                                      cutoff_radius=2.0)
+    @test TrixiParticles.gravity_acceleration(cutoff_gravity,
+                                              SVector(2.0, 0.0),
+                                              2.0, 3.0) == SVector(-0.75, 0.0)
+    @test TrixiParticles.gravity_acceleration(cutoff_gravity,
+                                              SVector(3.0, 0.0),
+                                              3.0, 3.0) == SVector(0.0, 0.0)
+
+    softened_cutoff_gravity = NewtonianGravity(; gravitational_constant=1.0,
+                                               softening_length=1.0,
+                                               cutoff_radius=2.0)
+    acceleration = TrixiParticles.gravity_acceleration(softened_cutoff_gravity,
+                                                       SVector(2.0, 0.0),
+                                                       2.0, 3.0)
+
+    @test acceleration ≈ SVector(-6 / (5 * sqrt(5)), 0.0)
+    @test TrixiParticles.gravity_acceleration(softened_cutoff_gravity,
                                               SVector(3.0, 0.0),
                                               3.0, 3.0) == SVector(0.0, 0.0)
 end

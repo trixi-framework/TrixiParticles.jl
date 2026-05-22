@@ -10,14 +10,20 @@ struct NBodySystem{NDIMS, ELTYPE <: Real, IC, GR} <: TrixiParticles.AbstractSyst
 
     function NBodySystem(initial_condition, gravity::NewtonianGravity)
         mass = copy(initial_condition.mass)
-        gravitational_constant = convert(eltype(mass), gravity.gravitational_constant)
+        mass_eltype = eltype(mass)
+        gravitational_constant = convert(mass_eltype, gravity.gravitational_constant)
+        softening_length = convert(mass_eltype, gravity.softening_length)
+        cutoff_radius = convert(mass_eltype, gravity.cutoff_radius)
+        gravity_ = NewtonianGravity(; gravitational_constant, softening_length,
+                                    cutoff_radius)
+        gravitational_constant = gravity_.gravitational_constant
 
         new{size(initial_condition.coordinates, 1),
-            eltype(mass), typeof(initial_condition), typeof(gravity)}(initial_condition,
-                                                                      mass,
-                                                                      gravitational_constant,
-                                                                      gravity,
-                                                                      nothing)
+            eltype(mass), typeof(initial_condition), typeof(gravity_)}(initial_condition,
+                                                                       mass,
+                                                                       gravitational_constant,
+                                                                       gravity_,
+                                                                       nothing)
     end
 end
 
@@ -75,6 +81,7 @@ function TrixiParticles.interact!(dv, v_particle_system, u_particle_system,
                                           semi) do particle, neighbor, pos_diff, distance
         # No interaction of a particle with itself
         particle_system === neighbor_system && particle === neighbor && return
+        iszero(distance) && return
 
         factor = TrixiParticles.gravity_acceleration_factor(gravity, distance,
                                                             mass[neighbor])

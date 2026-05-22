@@ -18,20 +18,23 @@ struct NewtonianGravity{ELTYPE <: Real, SOFTENED, CUTOFF} <: AbstractGravityMode
     function NewtonianGravity(; gravitational_constant,
                               softening_length=zero(gravitational_constant),
                               cutoff_radius=oftype(float(gravitational_constant), Inf))
-        gravitational_constant_, softening_length_, cutoff_radius_ = promote(gravitational_constant,
-                                                                             softening_length,
-                                                                             cutoff_radius)
+        gravitational_constant_, softening_length_,
+        cutoff_radius_ = promote(gravitational_constant,
+                                 softening_length,
+                                 cutoff_radius)
 
-        if gravitational_constant_ < zero(gravitational_constant_)
-            throw(ArgumentError("`gravitational_constant` must be non-negative"))
+        if !isfinite(gravitational_constant_) ||
+           gravitational_constant_ < zero(gravitational_constant_)
+            throw(ArgumentError("`gravitational_constant` must be non-negative and finite"))
         end
 
-        if softening_length_ < zero(softening_length_)
-            throw(ArgumentError("`softening_length` must be non-negative"))
+        if !isfinite(softening_length_) ||
+           softening_length_ < zero(softening_length_)
+            throw(ArgumentError("`softening_length` must be non-negative and finite"))
         end
 
-        if cutoff_radius_ <= zero(cutoff_radius_)
-            throw(ArgumentError("`cutoff_radius` must be positive"))
+        if isnan(cutoff_radius_) || cutoff_radius_ <= zero(cutoff_radius_)
+            throw(ArgumentError("`cutoff_radius` must be positive or `Inf`"))
         end
 
         return new{typeof(gravitational_constant_),
@@ -101,12 +104,6 @@ end
 
 @inline function gravity_acceleration(::Nothing, pos_diff, distance, neighbor_mass)
     return zero(pos_diff)
-end
-
-@inline function gravity_interaction!(dv_particle, gravity, particle_system,
-                                      neighbor_system, particle, neighbor,
-                                      pos_diff, distance, m_a, m_b)
-    return dv_particle
 end
 
 @inline function gravity_interaction!(dv_particle, gravity::NewtonianGravity,
