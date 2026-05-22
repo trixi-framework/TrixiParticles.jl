@@ -1,4 +1,11 @@
 @trixi_testset "Gravity" begin
+    default_gravity = NewtonianGravity()
+
+    @test DEFAULT_GRAVITATIONAL_CONSTANT === 1.0
+    @test default_gravity.gravitational_constant === DEFAULT_GRAVITATIONAL_CONSTANT
+    @test default_gravity.softening isa NoSoftening
+    @test default_gravity.cutoff_radius === Inf
+
     gravity = NewtonianGravity(; gravitational_constant=1.0,
                                softening=PlummerSoftening(0.1),
                                cutoff_radius=2.0)
@@ -41,9 +48,27 @@
     struct GravitySystem <: TrixiParticles.AbstractSystem{2} end
     system = GravitySystem()
     neighbor_system = GravitySystem()
+    mock_coordinates = [0.0 2.0;
+                        0.0 0.0]
+    mock_velocity = [1.0 3.0;
+                     2.0 4.0]
+    mock_mass = [2.0, 3.0]
 
     @test TrixiParticles.gravity_model(system) === nothing
     @test TrixiParticles.gravity_model(system, neighbor_system) === nothing
+    @test TrixiParticles.current_position(mock_coordinates, system, 2) ==
+          SVector(2.0, 0.0)
+    @test TrixiParticles.current_velocity(mock_velocity, system, 2) ==
+          SVector(3.0, 4.0)
+
+    TrixiParticles.gravitational_mass(::GravitySystem, particle) = mock_mass[particle]
+    dv = zeros(2, 2)
+    returned = gravity_acceleration!(dv, NewtonianGravity(), system, neighbor_system,
+                                     1, 2, SVector(-2.0, 0.0), 2.0)
+
+    @test returned === dv
+    @test dv[:, 1] ≈ [0.75, 0.0]
+    @test dv[:, 2] == [0.0, 0.0]
 
     dv_particle = Ref(SVector(1.0, -2.0))
     returned = TrixiParticles.gravity_interaction!(dv_particle, nothing,

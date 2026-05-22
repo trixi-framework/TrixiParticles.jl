@@ -1,6 +1,17 @@
 abstract type AbstractGravityModel end
 abstract type AbstractGravitySoftening end
 
+"""
+    DEFAULT_GRAVITATIONAL_CONSTANT
+
+Default unitless gravitational constant used by [`NewtonianGravity`](@ref).
+
+TrixiParticles does not attach physical units to gravity models. Use `G = 1`
+for nondimensional examples, or pass a numeric `gravitational_constant` in a
+consistent unit system.
+"""
+const DEFAULT_GRAVITATIONAL_CONSTANT = 1.0
+
 @doc raw"""
     NoSoftening()
 
@@ -39,12 +50,18 @@ function PlummerSoftening(; softening_length)
 end
 
 @doc raw"""
-    NewtonianGravity(; gravitational_constant, softening=NoSoftening(), cutoff_radius=Inf)
+    NewtonianGravity(; gravitational_constant=DEFAULT_GRAVITATIONAL_CONSTANT,
+                     softening=NoSoftening(), cutoff_radius=Inf)
 
 Model for Newtonian pairwise self-gravity.
 
+The default convention is unitless with ``G = 1``. No dependency on a unit package
+is required; choose `gravitational_constant` consistently with the units used for
+mass, length, and time in the simulation setup.
+
 # Keywords
-- `gravitational_constant`: Strength of the pairwise gravity interaction.
+- `gravitational_constant=DEFAULT_GRAVITATIONAL_CONSTANT`: Strength of the pairwise
+  gravity interaction.
 - `softening=NoSoftening()`: Gravitational softening model.
 - `cutoff_radius=Inf`: Maximum interaction distance used by pairwise interaction kernels.
 """
@@ -54,7 +71,7 @@ struct NewtonianGravity{ELTYPE <: Real, SOFTENING <: AbstractGravitySoftening,
     softening              :: SOFTENING
     cutoff_radius          :: ELTYPE
 
-    function NewtonianGravity(; gravitational_constant,
+    function NewtonianGravity(; gravitational_constant=DEFAULT_GRAVITATIONAL_CONSTANT,
                               softening=NoSoftening(),
                               cutoff_radius=oftype(float(gravitational_constant), Inf))
         softening isa AbstractGravitySoftening ||
@@ -133,6 +150,28 @@ end
     return inv(sqrt(distance^2 + softening_length^2))
 end
 
+"""
+    gravitational_mass(system, particle)
+
+Return the mass used by gravity interactions for `particle`.
+"""
+@propagate_inbounds function gravitational_mass(system, particle)
+    return system.mass[particle]
+end
+
+"""
+    current_position(u, system, particle)
+
+Return the current particle position used by gravity interactions.
+"""
+@propagate_inbounds function current_position(u, system, particle)
+    return current_coords(u, system, particle)
+end
+
+@inline function current_position(u, system)
+    return current_coordinates(u, system)
+end
+
 @inline gravity_model(system) = nothing
 
 @inline function gravity_model(particle_system, neighbor_system)
@@ -172,6 +211,33 @@ end
 
 @inline function gravity_acceleration(::Nothing, pos_diff, distance, neighbor_mass)
     return zero(pos_diff)
+end
+
+"""
+    gravity_acceleration!(dv, gravity, particle_system, neighbor_system,
+                          particle, neighbor, pos_diff, distance)
+
+Accumulate the acceleration induced by `neighbor` on `particle` in `dv`.
+"""
+@inline function gravity_acceleration!(dv, gravity::NewtonianGravity,
+                                       particle_system, neighbor_system,
+                                       particle, neighbor, pos_diff, distance)
+    iszero(distance) && return dv
+
+    factor = gravity_acceleration_factor(gravity, distance,
+                                         gravitational_mass(neighbor_system, neighbor))
+
+    @inbounds for i in 1:ndims(particle_system)
+        dv[i, particle] += factor * pos_diff[i]
+    end
+
+    return dv
+end
+
+@inline function gravity_acceleration!(dv, ::Nothing,
+                                       particle_system, neighbor_system,
+                                       particle, neighbor, pos_diff, distance)
+    return dv
 end
 
 @inline function gravity_interaction!(dv_particle, gravity::NewtonianGravity,
