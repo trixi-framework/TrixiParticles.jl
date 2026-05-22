@@ -202,10 +202,12 @@ function compute_surface_normal!(system::AbstractFluidSystem,
     set_zero!(cache.neighbor_count)
 
     # TODO: if color values are set only different systems need to be called
-    @trixi_timeit timer() "compute surface normal" foreach_system(semi) do neighbor_system
-        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
-        v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
-
+    @trixi_timeit timer() "compute surface normal" foreach_interacting_system_wrapped(system,
+                                                                                      semi,
+                                                                                      v_ode,
+                                                                                      u_ode) do neighbor_system,
+                                                                                                v_neighbor_system,
+                                                                                                u_neighbor_system
         calc_normal!(system, neighbor_system, u, v, v_neighbor_system,
                      u_neighbor_system, semi, surface_normal_method_,
                      surface_normal_method(neighbor_system))
@@ -275,10 +277,12 @@ function compute_curvature!(system::AbstractFluidSystem,
     # Reset surface curvature
     set_zero!(cache.curvature)
 
-    @trixi_timeit timer() "compute surface curvature" foreach_system(semi) do neighbor_system
-        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
-        v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
-
+    @trixi_timeit timer() "compute surface curvature" foreach_interacting_system_wrapped(system,
+                                                                                         semi,
+                                                                                         v_ode,
+                                                                                         u_ode) do neighbor_system,
+                                                                                                   v_neighbor_system,
+                                                                                                   u_neighbor_system
         calc_curvature!(system, neighbor_system, u, v, v_neighbor_system,
                         u_neighbor_system, semi, surface_normal_method(system),
                         surface_normal_method(neighbor_system))

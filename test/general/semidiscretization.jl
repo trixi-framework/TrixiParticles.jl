@@ -94,6 +94,16 @@
         @test semi_any_bool.interaction_matrix isa Matrix{Bool}
         @test semi_any_bool.interaction_matrix == [true false; false true]
 
+        matrix_parent = trues(3, 3)
+        interaction_matrix_view = @view matrix_parent[1:2, 1:2]
+        semi_matrix_view = Semidiscretization(system1, system2;
+                                              neighborhood_search=nothing,
+                                              interaction_matrix=interaction_matrix_view)
+        matrix_parent[1, 2] = false
+        @test semi_matrix_view.interaction_matrix isa Matrix{Bool}
+        @test axes(semi_matrix_view.interaction_matrix) == (Base.OneTo(2), Base.OneTo(2))
+        @test semi_matrix_view.interaction_matrix == trues(2, 2)
+
         abstract_union_matrix = Matrix{Union{Bool, Function}}(trues(2, 2))
         semi_abstract_union = Semidiscretization(system1, system2;
                                                  neighborhood_search=nothing,
@@ -297,6 +307,43 @@
             return structure, fluid
         end
 
+        function make_shepard_fluid_system(x_coordinate)
+            kernel = SchoenbergCubicSplineKernel{2}()
+            smoothing_length = 1.0
+            state_equation = StateEquationCole(sound_speed=10.0,
+                                               reference_density=1000.0,
+                                               exponent=7)
+            initial_condition = InitialCondition(;
+                                                 coordinates=reshape([x_coordinate, 0.0],
+                                                                     2, 1),
+                                                 velocity=reshape([0.0, 0.0], 2, 1),
+                                                 density=[1000.0],
+                                                 particle_spacing=1.0)
+            system = WeaklyCompressibleSPHSystem(initial_condition;
+                                                 density_calculator=SummationDensity(),
+                                                 correction=ShepardKernelCorrection(),
+                                                 state_equation,
+                                                 smoothing_kernel=kernel,
+                                                 smoothing_length)
+            system.cache.density .= initial_condition.density
+
+            return system
+        end
+
+        function shepard_correction_coefficient(systems, interaction_matrix)
+            semi = Semidiscretization(systems...; neighborhood_search=nothing,
+                                      interaction_matrix)
+            v_ode, u_ode, _ = initialized_ode_state(semi)
+            system = semi.systems[1]
+            u = TrixiParticles.wrap_u(u_ode, system, semi)
+
+            TrixiParticles.compute_correction_values!(system,
+                                                      TrixiParticles.system_correction(system),
+                                                      u, v_ode, u_ode, semi)
+
+            return copy(system.cache.kernel_correction_coefficient), semi
+        end
+
         @testset "disabled pairs skip ordered RHS dispatch" begin
             interaction_matrix = Bool[true false
                                       true true]
@@ -330,6 +377,30 @@
             @test semi.interaction_matrix[1, 2] === interaction
             @test system_dv(dv_ode, semi, 1)[1, 1] == 51
             @test system_dv(dv_ode, semi, 2)[1, 1] == 1000
+        end
+
+        @testset "disabled pairs skip correction values" begin
+            all_enabled_coefficient,
+            _ = shepard_correction_coefficient((make_shepard_fluid_system(0.0),
+                                                make_shepard_fluid_system(0.5)),
+                                               trues(2, 2))
+
+            filtered_matrix = Bool[true false
+                                   true true]
+            filtered_coefficient,
+            semi_filtered = shepard_correction_coefficient((make_shepard_fluid_system(0.0),
+                                                            make_shepard_fluid_system(0.5)),
+                                                           filtered_matrix)
+
+            reference_coefficient,
+            _ = shepard_correction_coefficient((make_shepard_fluid_system(0.0),),
+                                               trues(1, 1))
+
+            @test !TrixiParticles.has_system_interaction(semi_filtered.systems[1],
+                                                         semi_filtered.systems[2],
+                                                         semi_filtered)
+            @test only(all_enabled_coefficient) > only(filtered_coefficient)
+            @test isapprox(only(filtered_coefficient), only(reference_coefficient))
         end
 
         @testset "split interaction uses original interaction matrix" begin

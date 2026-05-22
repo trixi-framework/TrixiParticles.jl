@@ -21,22 +21,11 @@ The semidiscretization couples the passed systems to one simulation.
 - `interaction_matrix=trues(n_systems, n_systems)`: Matrix controlling ordered system-pair
                             interactions after filtering out `nothing` systems. Rows refer
                             to the system being updated and columns to the neighbor system.
-                            Entries can be `true` to use the default interaction, `false`
-                            to skip pairwise RHS dispatch for that ordered pair, or a
-                            callable custom interaction with signature
-                            `(dv, v_system, u_system, v_neighbor, u_neighbor,
-                            system, neighbor, semi; kwargs...)`.
-                            Custom interactions used through callbacks must accept forwarded
-                            keyword arguments such as `integrate_tlsph` or `eachparticle`.
-                            Disabled ordered pairs are also skipped in density summation;
-                            disabled ordered wall-neighbor pairs are skipped in wall boundary
-                            pressure extrapolation. This does not filter neighborhood search
-                            updates or other auxiliary state-update loops such as correction
-                            and surface-normal calculations.
-                            Matrices with abstract element types, e.g. `Matrix{Any}`,
-                            are copied to a concrete union matrix based on the actual
-                            entry types. You can also pass a concrete union matrix type
-                            directly, e.g. `Matrix{Union{Bool, typeof(interaction)}}`.
+                            Entries are `true` for the default interaction, `false` to
+                            disable the ordered pair, or a callable custom interaction with
+                            the same arguments as `interact!(...; kwargs...)`. Disabled
+                            pairs are skipped in RHS and neighbor-derived state updates, but
+                            neighborhood searches are still built.
 
 # Examples
 ```jldoctest; output = false, setup = :(trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing); ref_system = fluid_system)
@@ -56,7 +45,7 @@ semi = Semidiscretization(fluid_system, boundary_system,
                           neighborhood_search=nothing)
 
 interaction_matrix = trues(2, 2)
-interaction_matrix[1, 2] = false # fluid_system skips RHS interaction with boundary_system
+interaction_matrix[1, 2] = false # fluid_system skips system-pair interactions with boundary_system
 semi = Semidiscretization(fluid_system, boundary_system;
                           neighborhood_search=nothing,
                           interaction_matrix=interaction_matrix)
@@ -71,6 +60,8 @@ semi = Semidiscretization(fluid_system, boundary_system;
 │ total #particles: ………………………………… 636                                                              │
 │ eltype: …………………………………………………………… Float64                                                          │
 │ coordinates eltype: …………………………… Float64                                                          │
+│ interaction matrix: …………………………… 1 disabled, 0 custom                                             │
+│ disabled pairs: ……………………………………… 1 -> 2                                                           │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
@@ -128,14 +119,14 @@ function create_interaction_matrix(interaction_matrix, systems::Tuple)
         end
     end
 
-    # Rebuild abstractly typed matrices from the concrete entry types to avoid dynamic
-    # dispatch and allocations in the RHS interaction loop.
+    # Materialize to a one-based `Matrix`. Rebuild abstractly typed matrices from the
+    # concrete entry types to avoid dynamic dispatch and allocations in pairwise loops.
     if !all(isconcretetype, Base.uniontypes(eltype(interaction_matrix)))
         entry_types = unique(map(typeof, interaction_matrix))
         return Matrix{Union{entry_types...}}(interaction_matrix)
     end
 
-    return copy(interaction_matrix)
+    return Matrix{eltype(interaction_matrix)}(interaction_matrix)
 end
 
 function interaction_matrix_summary(semi)
@@ -151,9 +142,10 @@ end
 
 function disabled_interaction_pairs(semi)
     pairs = String[]
-    for index in CartesianIndices(semi.interaction_matrix)
-        semi.interaction_matrix[index] === false || continue
-        push!(pairs, "$(index[1]) -> $(index[2])")
+    for system_index in axes(semi.interaction_matrix, 1),
+        neighbor_index in axes(semi.interaction_matrix, 2)
+        semi.interaction_matrix[system_index, neighbor_index] === false || continue
+        push!(pairs, "$system_index -> $neighbor_index")
     end
 
     return isempty(pairs) ? nothing : join(pairs, ", ")
@@ -161,10 +153,11 @@ end
 
 function custom_interaction_pairs(semi)
     pairs = String[]
-    for index in CartesianIndices(semi.interaction_matrix)
-        interaction = semi.interaction_matrix[index]
+    for system_index in axes(semi.interaction_matrix, 1),
+        neighbor_index in axes(semi.interaction_matrix, 2)
+        interaction = semi.interaction_matrix[system_index, neighbor_index]
         interaction isa Bool && continue
-        push!(pairs, "$(index[1]) -> $(index[2]) ($(nameof(typeof(interaction))))")
+        push!(pairs, "$system_index -> $neighbor_index ($(nameof(typeof(interaction))))")
     end
 
     return isempty(pairs) ? nothing : join(pairs, ", ")
@@ -313,11 +306,44 @@ end
 
 @inline foreach_system(f, systems) = foreach_noalloc(f, systems)
 
+# This is just for readability to loop over enabled neighbor systems without allocations.
+@inline function foreach_interacting_system(f, system, semi)
+    return foreach_interacting_system(f, system, semi, semi)
+end
+
+@inline function foreach_interacting_system(f, system, neighbor_systems, semi)
+    foreach_system(neighbor_systems) do neighbor_system
+        has_system_interaction(system, neighbor_system, semi) || return
+        @inline f(neighbor_system)
+    end
+end
+
+# This is just for readability to loop over enabled neighbor systems with wrapped arrays.
+@inline function foreach_interacting_system_wrapped(f, system, semi, v_ode, u_ode)
+    return foreach_interacting_system_wrapped(f, system, semi, v_ode, u_ode, semi)
+end
+
+# `semi` owns the interaction matrix; `semi_wrap` only selects the array layout for wrapping.
+# Split integration intentionally passes different values here.
+@inline function foreach_interacting_system_wrapped(f, system, semi, v_ode, u_ode,
+                                                    semi_wrap)
+    foreach_interacting_system(system, semi_wrap, semi) do neighbor_system
+        @inline f(neighbor_system, wrap_v(v_ode, neighbor_system, semi_wrap),
+                  wrap_u(u_ode, neighbor_system, semi_wrap))
+    end
+end
+
 # This is just for readability to loop over all systems with wrapped arrays.
 @inline function foreach_system_wrapped(f, semi::Union{NamedTuple, Semidiscretization},
                                         v_ode, u_ode)
-    foreach_system(semi) do system
-        @inline f(system, wrap_v(v_ode, system, semi), wrap_u(u_ode, system, semi))
+    return foreach_system_wrapped(f, semi, v_ode, u_ode, semi)
+end
+
+@inline function foreach_system_wrapped(f, _semi::Union{NamedTuple, Semidiscretization},
+                                        v_ode, u_ode, semi_wrap)
+    foreach_system(semi_wrap) do system
+        @inline f(system, wrap_v(v_ode, system, semi_wrap),
+                  wrap_u(u_ode, system, semi_wrap))
     end
 end
 """
@@ -705,10 +731,8 @@ end
 # TODO `semi` is not used yet, but will be used when the source terms API is modified
 # to match the custom quantities API.
 function add_source_terms!(dv_ode, v_ode, u_ode, semi, t; semi_wrap=semi)
-    foreach_system(semi_wrap) do system
+    foreach_system_wrapped(semi, v_ode, u_ode, semi_wrap) do system, v, u
         dv = wrap_v(dv_ode, system, semi_wrap)
-        v = wrap_v(v_ode, system, semi_wrap)
-        u = wrap_u(u_ode, system, semi_wrap)
 
         # `integrate_tlsph` is extracted from the `semi_wrap`, so that this function
         # can be used in the `SplitIntegrationCallback` as well.
@@ -852,9 +876,7 @@ function system_interaction!(dv_ode, v_ode, u_ode, semi)
 
     # Call `interact!` for each ordered pair of systems.
     foreach_system(semi) do system
-        foreach_system(semi) do neighbor
-            has_system_interaction(system, neighbor, semi) || return
-
+        foreach_interacting_system(system, semi) do neighbor
             # Construct string for the interactions timer.
             # Avoid allocations from string construction when no timers are used.
             if timeit_debug_enabled()
@@ -870,10 +892,8 @@ function system_interaction!(dv_ode, v_ode, u_ode, semi)
     end
 
     # Finalize systems that need to reduce accumulated interaction data afterward.
-    foreach_system(semi) do system
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         dv = wrap_v(dv_ode, system, semi)
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
 
         finalize_interaction!(system, dv, v, u, dv_ode, v_ode, u_ode, semi)
     end

@@ -3,7 +3,7 @@
 #
 # This example simulates a 2D dam break with an air layer above the water.
 # It demonstrates how to set up a multi-fluid simulation in TrixiParticles.jl and how
-# to deactivate selected ordered system-pair RHS interactions.
+# to deactivate selected ordered system-pair interactions.
 # ==========================================================================================
 
 using TrixiParticles
@@ -87,7 +87,7 @@ air_system_system = WeaklyCompressibleSPHSystem(air_system;
 # ==== Setup phase-specific wall boundaries
 
 # Use two copies of the wall geometry with hydrodynamic properties matched to the adjacent
-# fluid phase. The interaction matrix below disables the cross-phase wall RHS interactions.
+# fluid phase. The interaction matrix below disables the cross-phase wall interactions.
 water_boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
                                                    tank.boundary.mass,
                                                    boundary_density_calculator,
@@ -122,12 +122,12 @@ air_boundary_system = WallBoundarySystem(tank.boundary, air_boundary_model;
 # also skips boundary pressure extrapolation from disabled neighbors, keeping each wall
 # matched to its phase. It does not filter neighborhood-search updates.
 interaction_matrix = trues(4, 4)
-interaction_matrix[1, 4] = false # water fluid skips RHS interaction with air wall
-interaction_matrix[4, 1] = false # air wall skips RHS interaction with water fluid
-interaction_matrix[2, 3] = false # air fluid skips RHS interaction with water wall
-interaction_matrix[3, 2] = false # water wall skips RHS interaction with air fluid
-interaction_matrix[3, 4] = false # water wall skips RHS interaction with air wall
-interaction_matrix[4, 3] = false # air wall skips RHS interaction with water wall
+interaction_matrix[1, 4] = false # water fluid skips interaction with air wall
+interaction_matrix[4, 1] = false # air wall skips interaction with water fluid
+interaction_matrix[2, 3] = false # air fluid skips interaction with water wall
+interaction_matrix[3, 2] = false # water wall skips interaction with air fluid
+interaction_matrix[3, 4] = false # water wall skips interaction with air wall
+interaction_matrix[4, 3] = false # air wall skips interaction with water wall
 
 # ==========================================================================================
 # ==== Simulation

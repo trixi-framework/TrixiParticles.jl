@@ -139,11 +139,13 @@ function compute_shepard_coeff!(system, system_coords, v_ode, u_ode, semi,
                                 kernel_correction_coefficient)
     set_zero!(kernel_correction_coefficient)
 
-    # Use all other systems for the density summation
-    @trixi_timeit timer() "compute correction value" foreach_system(semi) do neighbor_system
-        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
-        v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
-
+    # Use enabled neighbor systems for the correction value.
+    @trixi_timeit timer() "compute correction value" foreach_interacting_system_wrapped(system,
+                                                                                        semi,
+                                                                                        v_ode,
+                                                                                        u_ode) do neighbor_system,
+                                                                                                  v_neighbor_system,
+                                                                                                  u_neighbor_system
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
         # Loop over all pairs of particles and neighbors within the kernel cutoff
@@ -198,11 +200,13 @@ function compute_correction_values!(system,
     set_zero!(kernel_correction_coefficient)
     set_zero!(dw_gamma)
 
-    # Use all other systems for the density summation
-    @trixi_timeit timer() "compute correction value" foreach_system(semi) do neighbor_system
-        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
-        v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
-
+    # Use enabled neighbor systems for the correction value.
+    @trixi_timeit timer() "compute correction value" foreach_interacting_system_wrapped(system,
+                                                                                        semi,
+                                                                                        v_ode,
+                                                                                        u_ode) do neighbor_system,
+                                                                                                  v_neighbor_system,
+                                                                                                  u_neighbor_system
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
         # For `distance == 0`, the analytical gradient is zero, but the unsafe gradient
@@ -346,10 +350,12 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
     set_zero!(corr_matrix)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
-    @trixi_timeit timer() "compute correction matrix" foreach_system(semi) do neighbor_system
-        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
-        v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
-
+    @trixi_timeit timer() "compute correction matrix" foreach_interacting_system_wrapped(system,
+                                                                                         semi,
+                                                                                         v_ode,
+                                                                                         u_ode) do neighbor_system,
+                                                                                                   v_neighbor_system,
+                                                                                                   u_neighbor_system
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
         almostzero = sqrt(eps(compact_support(system, neighbor_system)^2))
 
