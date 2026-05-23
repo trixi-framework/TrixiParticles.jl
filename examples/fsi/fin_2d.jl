@@ -261,20 +261,20 @@ boundary_model_structure = BoundaryModelDummyParticles(hydrodynamic_densites,
 #                                                    particle_spacing,
 #                                                    hydrodynamic_masses)
 
+viscosity_structure = ArtificialViscosityMonaghan(alpha=0.2)
 structure_system = TotalLagrangianSPHSystem(structure; smoothing_kernel, smoothing_length=smoothing_length_structure,
                                         young_modulus=modulus, poisson_ratio,
                                         clamped_particles=1:n_clamped_particles,
                                         clamped_particles_motion=boundary_motion,
                                         boundary_model=boundary_model_structure,
                                         velocity_averaging=TrixiParticles.VelocityAveraging(time_constant=5e-4),
-                                        viscosity=ArtificialViscosityMonaghan(alpha=0.2),
+                                        viscosity=viscosity_structure,
                                         penalty_force=PenaltyForceGanzenmueller(alpha=0.1))
 
 # ==========================================================================================
 # ==== Fluid
 fluid_density_calculator = ContinuityDensity()
-# density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
-density_diffusion = DensityDiffusionAntuono(delta=0.1)
+density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 
 fluid_system = WeaklyCompressibleSPHSystem(fluid; density_calculator=fluid_density_calculator,
                                            state_equation, smoothing_kernel,
