@@ -98,16 +98,22 @@
     end
 
     @testset "condition interval" begin
+        struct MockSteadyStateIntegrator
+            stats::NamedTuple{(:naccept,), Tuple{Int}}
+        end
+
+        TrixiParticles.steady_state_condition!(::TrixiParticles.SteadyStateReachedCallback{Int},
+                                               ::MockSteadyStateIntegrator) = true
+
         function mock_integrator(naccept)
-            return (; stats=(; naccept), t=0.0, sol=(; prob=(; tspan=(0.0, 1.0))),
-                    opts=(; tstops=[1.0], maxiters=100), iter=naccept)
+            return MockSteadyStateIntegrator((; naccept))
         end
 
         callback = SteadyStateReachedCallback(interval=1).affect!
-        @test TrixiParticles.condition_steady_state_interval(callback, mock_integrator(1))
+        @test callback(nothing, nothing, mock_integrator(1))
 
         callback = SteadyStateReachedCallback(interval=10).affect!
-        @test !TrixiParticles.condition_steady_state_interval(callback, mock_integrator(9))
-        @test TrixiParticles.condition_steady_state_interval(callback, mock_integrator(10))
+        @test !callback(nothing, nothing, mock_integrator(9))
+        @test callback(nothing, nothing, mock_integrator(10))
     end
 end

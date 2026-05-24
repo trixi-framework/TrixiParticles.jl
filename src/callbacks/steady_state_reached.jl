@@ -8,7 +8,7 @@ where `ekin` is the total kinetic energy of the simulation.
 
 # Keywords
 - `interval=0`:     Check steady state condition every `interval` time steps.
-                    A value of `0` disables step-interval checks.
+                    Use either `interval` or `dt`.
 - `dt=0.0`:         Check steady state condition in regular intervals of `dt` in terms
                     of integration time by adding additional `tstops`
                     (note that this may change the solution).
@@ -77,28 +77,30 @@ end
 
 function initialize_steady_state_callback!(cb::SteadyStateReachedCallback, u, t, integrator)
     semi = integrator.p.semi
+    # This needs the initialized integrator because the callback order in a
+    # `CallbackSet` determines whether update/split callbacks have already set
+    # these flags. The kinetic-energy history is mutable callback state and must
+    # be reset when the same callback object is reused for another solve.
     set_callbacks_used!(semi, integrator)
 
     empty!(cb.previous_ekin)
     push!(cb.previous_ekin, convert(eltype(cb.previous_ekin), Inf))
 
-    return nothing
+    return cb
 end
 
 # `affect!` (`PeriodicCallback`)
 function (cb::SteadyStateReachedCallback)(integrator)
     if !steady_state_condition!(cb, integrator)
         u_modified!(integrator, false)
-        return nothing
+        return cb
     end
 
     print_summary(integrator)
 
     terminate!(integrator)
 
-    u_modified!(integrator, false)
-
-    return nothing
+    return cb
 end
 
 # `affect!` (`DiscreteCallback`)
@@ -107,26 +109,20 @@ function (cb::SteadyStateReachedCallback{Int})(integrator)
 
     terminate!(integrator)
 
-    u_modified!(integrator, false)
-
-    return nothing
+    return cb
 end
 
 # `condition` (`DiscreteCallback`)
-function (steady_state_callback::SteadyStateReachedCallback{Int})(vu_ode, t, integrator)
-    condition_steady_state_interval(steady_state_callback, integrator) || return false
+function (cb::SteadyStateReachedCallback{Int})(vu_ode, t, integrator)
+    if !condition_integrator_interval(integrator, cb.interval; save_final_solution=false)
+        return false
+    end
 
-    return steady_state_condition!(steady_state_callback, integrator)
+    return steady_state_condition!(cb, integrator)
 end
 
 function (steady_state_callback::SteadyStateReachedCallback)(vu_ode, t, integrator)
     return steady_state_condition!(steady_state_callback, integrator)
-end
-
-@inline function condition_steady_state_interval(cb::SteadyStateReachedCallback{Int},
-                                                 integrator)
-    return condition_integrator_interval(integrator, cb.interval;
-                                         save_final_solution=false)
 end
 
 @inline function steady_state_condition!(cb, integrator)
