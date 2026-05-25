@@ -510,11 +510,10 @@ end
         # Accumulate the contributions over all neighbors before writing
         # to `deformation_grad` to reduce the number of memory writes.
         result = @inbounds mapreduce_neighbor(+, initial_coords, initial_coords,
-                                              neighborhood_search, backend,
-                                              particle; init=zero(L_a)) do particle,
-                                                                           neighbor,
-                                                                           initial_pos_diff,
-                                                                           initial_distance
+                                              neighborhood_search, backend, particle;
+                                              init=zero(L_a)) do particle, neighbor,
+                                                                 initial_pos_diff,
+                                                                 initial_distance
 
             # Skip neighbors with the same position because the kernel gradient is zero.
             # Note that `return` only exits the closure, i.e., skips the current neighbor.

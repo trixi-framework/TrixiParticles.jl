@@ -44,14 +44,13 @@ function interact!(dv, v_particle_system, u_particle_system,
         init = (zero(v_a), zero(rho_a))
 
         # Loop over all neighbors within the kernel cutoff
-        dv_particle, drho_particle = @inbounds mapreduce_neighbor(op, system_coords,
-                                                                  neighbor_system_coords,
-                                                                  neighborhood_search,
-                                                                  backend, particle;
-                                                                  init) do particle,
-                                                                           neighbor,
-                                                                           pos_diff,
-                                                                           distance
+        (dv_particle,
+         drho_particle) = @inbounds mapreduce_neighbor(op, system_coords,
+                                                       neighbor_system_coords,
+                                                       neighborhood_search,
+                                                       backend, particle;
+                                                       init) do particle, neighbor,
+                                                                pos_diff, distance
             # Skip neighbors with the same position because the kernel gradient is zero.
             # Note that `return` only exits the closure, i.e., skips the current neighbor.
             skip_zero_distance(particle_system) && distance < almostzero && return init

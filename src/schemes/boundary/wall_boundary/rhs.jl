@@ -48,7 +48,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         v_a = current_velocity(v_particle_system, particle_system, particle)
         v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
-        drho_particle = continuity_equation(zero(rho_a), density_calculator(neighbor_system),
+        drho_particle = continuity_equation(zero(rho_a),
+                                            density_calculator(neighbor_system),
                                             m_b, rho_a, rho_b, v_a, v_b, grad_kernel,
                                             particle)
 
