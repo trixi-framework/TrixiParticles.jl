@@ -285,11 +285,11 @@ function calc_normal!(system::AbstractFluidSystem,
                                  semi, surface_normal_method)
 end
 
-@inline function adhesion_force!(dv_particle,
-                                 surface_tension::AkinciTypeSurfaceTension,
-                                 particle_system::AbstractFluidSystem,
-                                 neighbor_system::RigidBodySystem,
-                                 particle, neighbor, pos_diff, distance)
+@inline function adhesion_force(dv_particle,
+                                surface_tension::AkinciTypeSurfaceTension,
+                                particle_system::AbstractFluidSystem,
+                                neighbor_system::RigidBodySystem,
+                                particle, neighbor, pos_diff, distance)
     (; adhesion_coefficient) = neighbor_system
 
     # No adhesion with oneself. See `src/general/smoothing_kernels.jl` for more details.
@@ -301,8 +301,8 @@ end
     support_radius = compact_support(system_smoothing_kernel(particle_system),
                                      smoothing_length(particle_system, particle))
 
-    dv_particle[] += adhesion_force_akinci(surface_tension, support_radius, m_b,
-                                           pos_diff, distance, adhesion_coefficient)
+    dv_particle += adhesion_force_akinci(surface_tension, support_radius, m_b,
+                                         pos_diff, distance, adhesion_coefficient)
 
     return dv_particle
 end

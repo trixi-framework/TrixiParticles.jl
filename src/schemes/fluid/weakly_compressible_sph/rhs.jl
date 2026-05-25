@@ -87,49 +87,57 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                 particle, neighbor,
                                                 m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
                                                 distance, grad_kernel, correction)
-            dv_particle = Ref(dv_pressure * pressure_correction)
+            dv_particle = dv_pressure * pressure_correction
 
             # Propagate `@inbounds` to the viscosity function, which accesses particle data
-            @inbounds dv_viscosity!(dv_particle, particle_system, neighbor_system,
-                                    v_particle_system, v_neighbor_system,
-                                    particle, neighbor, pos_diff, distance,
-                                    sound_speed, m_a, m_b, rho_a, rho_b,
-                                    v_a, v_b, grad_kernel, viscosity_correction)
+            dv_particle = @inbounds dv_viscosity(dv_particle, particle_system,
+                                                 neighbor_system,
+                                                 v_particle_system, v_neighbor_system,
+                                                 particle, neighbor, pos_diff, distance,
+                                                 sound_speed, m_a, m_b, rho_a, rho_b,
+                                                 v_a, v_b, grad_kernel,
+                                                 viscosity_correction)
 
             # Extra terms in the momentum equation when using a shifting technique
-            @inbounds dv_shifting!(dv_particle, shifting_technique(particle_system),
-                                   particle_system, neighbor_system,
-                                   v_particle_system, v_neighbor_system,
-                                   particle, neighbor, m_a, m_b, rho_a, rho_b, v_a, v_b,
-                                   pos_diff, distance, grad_kernel, correction)
+            dv_particle = @inbounds dv_shifting(dv_particle,
+                                                shifting_technique(particle_system),
+                                                particle_system, neighbor_system,
+                                                v_particle_system, v_neighbor_system,
+                                                particle, neighbor, m_a, m_b, rho_a, rho_b,
+                                                v_a, v_b, pos_diff, distance,
+                                                grad_kernel, correction)
 
-            @inbounds surface_tension_force!(dv_particle,
-                                             surface_tension_a, surface_tension_b,
-                                             particle_system, neighbor_system,
-                                             particle, neighbor, pos_diff, distance,
-                                             rho_a, rho_b, grad_kernel,
-                                             surface_tension_correction)
+            dv_particle = @inbounds surface_tension_force(dv_particle,
+                                                          surface_tension_a,
+                                                          surface_tension_b,
+                                                          particle_system, neighbor_system,
+                                                          particle, neighbor, pos_diff,
+                                                          distance,
+                                                          rho_a, rho_b, grad_kernel,
+                                                          surface_tension_correction)
 
-            @inbounds adhesion_force!(dv_particle, surface_tension_a, particle_system,
-                                      neighbor_system,
-                                      particle, neighbor, pos_diff, distance)
+            dv_particle = @inbounds adhesion_force(dv_particle, surface_tension_a,
+                                                   particle_system, neighbor_system,
+                                                   particle, neighbor, pos_diff, distance)
 
-            drho_particle = Ref(zero(rho_a))
+            drho_particle = zero(rho_a)
 
             # TODO If variable smoothing_length is used, this should use the neighbor smoothing length
             # Propagate `@inbounds` to the continuity equation, which accesses particle data
-            @inbounds continuity_equation!(drho_particle, density_calculator,
-                                           particle_system, neighbor_system,
-                                           particle, neighbor, pos_diff, distance,
-                                           m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+            drho_particle = @inbounds continuity_equation(drho_particle, density_calculator,
+                                                          particle_system, neighbor_system,
+                                                          particle, neighbor, pos_diff,
+                                                          distance,
+                                                          m_b, rho_a, rho_b, v_a, v_b,
+                                                          grad_kernel)
 
-            return dv_particle[], drho_particle[]
+            return dv_particle, drho_particle
         end
 
         for i in eachindex(dv_particle)
             @inbounds dv[i, particle] += dv_particle[i]
         end
-        @inbounds write_drho_particle!(dv, density_calculator, Ref(drho_particle), particle)
+        @inbounds write_drho_particle!(dv, density_calculator, drho_particle, particle)
     end
 
     return dv

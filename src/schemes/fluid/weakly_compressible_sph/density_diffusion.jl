@@ -210,17 +210,18 @@ function update!(density_diffusion::DensityDiffusionAntuono, v, u, system, semi)
     return density_diffusion
 end
 
-@propagate_inbounds function density_diffusion!(drho_particle,
-                                                density_diffusion::AbstractDensityDiffusion,
-                                                particle_system::Union{AbstractFluidSystem,
-                                                                       OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}},
-                                                particle, neighbor, pos_diff, distance,
-                                                m_b, rho_a, rho_b, grad_kernel)
+@propagate_inbounds function density_diffusion(drho_particle,
+                                               density_diffusion::AbstractDensityDiffusion,
+                                               particle_system::Union{AbstractFluidSystem,
+                                                                      OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}},
+                                               particle, neighbor, pos_diff, distance,
+                                               m_b, rho_a, rho_b, grad_kernel)
     # Density diffusion terms are all zero for distance zero.
     # If `skip_zero_distance` is `true`, we can assume that this function isn't called
     # for distance zero because these neighbors have already been skipped.
-    if !skip_zero_distance(particle_system)
-        distance^2 < eps(initial_smoothing_length(particle_system)^2) && return
+    if !skip_zero_distance(particle_system) &&
+       distance^2 < eps(initial_smoothing_length(particle_system)^2)
+        return drho_particle
     end
 
     # Since this is one of the most performance critical functions, using fast divisions
@@ -236,12 +237,14 @@ end
 
     (; delta) = density_diffusion
     sound_speed = system_sound_speed(particle_system)
-    drho_particle[] += delta * smoothing_length_avg * sound_speed * density_diffusion_term
+    drho_particle += delta * smoothing_length_avg * sound_speed * density_diffusion_term
+
+    return drho_particle
 end
 
 # Density diffusion `nothing` or interaction other than fluid-fluid
-@inline function density_diffusion!(drho_particle, density_diffusion, particle_system,
-                                    particle, neighbor, pos_diff, distance,
-                                    m_b, rho_a, rho_b, grad_kernel)
+@inline function density_diffusion(drho_particle, density_diffusion, particle_system,
+                                   particle, neighbor, pos_diff, distance,
+                                   m_b, rho_a, rho_b, grad_kernel)
     return drho_particle
 end
