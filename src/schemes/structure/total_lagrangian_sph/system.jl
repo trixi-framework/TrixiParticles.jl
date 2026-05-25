@@ -509,18 +509,16 @@ end
 
         # Accumulate the contributions over all neighbors before writing
         # to `deformation_grad` to reduce the number of memory writes.
-        # Note that we need a `Ref` in order to be able to update these variables
-        # inside the closure in the `foreach_neighbor` loop.
-        result = Ref(zero(L_a))
+        result = @inbounds mapreduce_neighbor(+, initial_coords, initial_coords,
+                                              neighborhood_search, backend,
+                                              particle; init=zero(L_a)) do particle,
+                                                                           neighbor,
+                                                                           initial_pos_diff,
+                                                                           initial_distance
 
-        # Loop over all neighbors within the kernel cutoff
-        @inbounds foreach_neighbor(initial_coords, initial_coords,
-                                   neighborhood_search, backend,
-                                   particle) do particle, neighbor,
-                                                initial_pos_diff, initial_distance
             # Skip neighbors with the same position because the kernel gradient is zero.
             # Note that `return` only exits the closure, i.e., skips the current neighbor.
-            skip_zero_distance(system) && initial_distance < almostzero && return
+            skip_zero_distance(system) && initial_distance < almostzero && return zero(L_a)
 
             # Now that we know that `distance` is not zero, we can safely call the unsafe
             # version of the kernel gradient to avoid redundant zero checks.
@@ -540,12 +538,12 @@ end
 
             # The tensor product pos_diff ⊗ (L_{0a} * ∇W) is equivalent to multiplication
             # by the transpose: pos_diff * (L_{0a} * ∇W)ᵀ = pos_diff * ∇Wᵀ * L_{0a}ᵀ.
-            result[] -= volume * pos_diff * grad_kernel' * L_a'
+            return -volume * pos_diff * grad_kernel' * L_a'
         end
 
         for j in 1:ndims(system), i in 1:ndims(system)
             # We overwrite every entry of `deformation_grad`, so no `set_zero!` is required.
-            @inbounds deformation_grad[i, j, particle] = result[][i, j]
+            @inbounds deformation_grad[i, j, particle] = result[i, j]
         end
     end
 
