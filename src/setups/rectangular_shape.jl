@@ -124,19 +124,32 @@ function RectangularShape(particle_spacing, n_particles_per_dimension, min_coord
         end
 
         if state_equation === nothing
-            density_fun = pressure -> density
+            if density === nothing
+                throw(ArgumentError("`density` must be specified when not using " *
+                                    "`acceleration` and `state_equation` " *
+                                    "(hydrostatic pressure gradient)"))
+            end
         else
             if density !== nothing
                 throw(ArgumentError("`density` cannot be used together with `acceleration` " *
                                     "and `state_equation` (hydrostatic pressure gradient)"))
             end
-            density_fun = pressure -> inverse_state_equation(state_equation, pressure)
         end
 
         # Initialize hydrostatic pressure
         pressure = Vector{ELTYPE}(undef, n_particles)
-        initialize_pressure!(pressure, particle_spacing, acceleration,
-                             density_fun, n_particles_per_dimension, loop_order)
+        if state_equation === nothing && density isa Function
+            initialize_pressure_with_coordinate_density!(pressure, particle_spacing,
+                                                         acceleration, density,
+                                                         coordinates,
+                                                         n_particles_per_dimension,
+                                                         loop_order)
+        else
+            density_fun = state_equation === nothing ? (pressure -> density) :
+                          (pressure -> inverse_state_equation(state_equation, pressure))
+            initialize_pressure!(pressure, particle_spacing, acceleration,
+                                 density_fun, n_particles_per_dimension, loop_order)
+        end
 
         if state_equation !== nothing
             # Weakly compressible case: get density from inverse state equation
@@ -227,16 +240,19 @@ function rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
     return coordinates
 end
 
-function initialize_pressure!(pressure, particle_spacing, acceleration, density_fun,
-                              n_particles_per_dimension, loop_order)
+function acceleration_dimension(acceleration)
     if count(a -> abs(a) > eps(), acceleration) > 1
         throw(ArgumentError("hydrostatic pressure calculation is not supported with " *
                             "diagonal acceleration"))
     end
 
-    # Dimension in which the acceleration is acting
-    accel_dim = findfirst(a -> abs(a) > eps(), acceleration)
+    return findfirst(a -> abs(a) > eps(), acceleration)
+end
 
+function initialize_pressure!(pressure, particle_spacing, acceleration, density_fun,
+                              n_particles_per_dimension, loop_order)
+    # Dimension in which the acceleration is acting
+    accel_dim = acceleration_dimension(acceleration)
     if accel_dim === nothing
         fill!(pressure, zero(eltype(pressure)))
         return pressure
@@ -273,4 +289,72 @@ function initialize_pressure!(pressure, particle_spacing, acceleration, density_
         index_in_accel_dim = permuted_indices[particle][accel_dim]
         pressure[particle] = pressure_1d[index_in_accel_dim]
     end
+end
+
+function particle_indices_by_cartesian_index(n_particles_per_dimension, loop_order)
+    NDIMS = length(n_particles_per_dimension)
+    particle_indices = Array{Int}(undef, n_particles_per_dimension)
+    cartesian_indices = CartesianIndices(n_particles_per_dimension)
+    permutation = loop_permutation(loop_order, Val(NDIMS))
+    permuted_indices = permutedims(cartesian_indices, permutation)
+
+    for particle in eachindex(permuted_indices)
+        particle_indices[permuted_indices[particle]] = particle
+    end
+
+    return particle_indices
+end
+
+# This is needed for `density = coords -> ...`. The pressure-dependent path above can reuse
+# one 1D pressure profile for every column. Coordinate-dependent density may vary between
+# columns, so each gravity-aligned column needs its own explicit Euler integration.
+function initialize_pressure_with_coordinate_density!(pressure, particle_spacing,
+                                                      acceleration, density_fun,
+                                                      coordinates,
+                                                      n_particles_per_dimension,
+                                                      loop_order)
+    # Dimension in which the acceleration is acting
+    accel_dim = acceleration_dimension(acceleration)
+    if accel_dim === nothing
+        fill!(pressure, zero(eltype(pressure)))
+        return pressure
+    end
+
+    NDIMS = length(n_particles_per_dimension)
+    factor = particle_spacing * abs(acceleration[accel_dim])
+    particle_indices = particle_indices_by_cartesian_index(n_particles_per_dimension,
+                                                           loop_order)
+
+    accel_indices = if sign(acceleration[accel_dim]) < 0
+        n_particles_per_dimension[accel_dim]:-1:1
+    else
+        1:n_particles_per_dimension[accel_dim]
+    end
+    surface_index = first(accel_indices)
+    column_starts = ntuple(dim -> dim == accel_dim ? (surface_index:surface_index) :
+                                  axes(particle_indices, dim), Val(NDIMS))
+
+    for column_start in CartesianIndices(column_starts)
+        pressure_prev = zero(eltype(pressure))
+        density_prev = zero(eltype(pressure))
+        for (i, accel_index) in enumerate(accel_indices)
+            index = ntuple(dim -> dim == accel_dim ? accel_index : column_start[dim],
+                           Val(NDIMS))
+            particle = particle_indices[index...]
+            coords = SVector{NDIMS, eltype(coordinates)}(ntuple(dim -> coordinates[dim, particle],
+                                                                Val(NDIMS)))
+            density = density_fun(coords)
+
+            if i == 1
+                pressure[particle] = 0.5factor * density
+            else
+                pressure[particle] = pressure_prev + factor * density_prev
+            end
+
+            pressure_prev = pressure[particle]
+            density_prev = density
+        end
+    end
+
+    return pressure
 end

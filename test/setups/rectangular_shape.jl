@@ -151,6 +151,18 @@
             end
         end
 
+        @testset "Function Density" begin
+            density_function = coords -> 1000.0 + 100coords[1] + 10coords[2]
+            shape = RectangularShape(particle_spacing, (2, 3), (0.0, 0.0),
+                                     density=density_function,
+                                     acceleration=(0.0, -1.0))
+
+            @test shape.density ≈ [1005.5, 1015.5, 1006.5, 1016.5, 1007.5, 1017.5]
+            @test shape.pressure ≈ [251.775, 254.275, 151.125, 152.625, 50.375,
+                                     50.875]
+            @test shape.mass ≈ particle_spacing^2 * shape.density
+        end
+
         @testset "Zero Acceleration" begin
             shape = RectangularShape(particle_spacing, (2, 5), (0.0, 0.0),
                                      density=1000.0, acceleration=(0.0, 0.0))
