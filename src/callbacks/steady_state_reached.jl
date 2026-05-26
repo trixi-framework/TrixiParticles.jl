@@ -12,7 +12,7 @@ where `ekin` is the total kinetic energy of the simulation.
 - `dt=0.0`:         Check steady state condition in regular intervals of `dt` in terms
                     of integration time by adding additional `tstops`
                     (note that this may change the solution).
-- Either `interval` or `dt` must be set to something larger than 0.
+                    Either `interval` or `dt` must be set to something larger than 0.
 - `interval_size`:  The number of callback evaluations over which the change of the
                     kinetic energy is considered.
 - `abstol`:         Absolute tolerance.
@@ -76,13 +76,6 @@ function initialize_steady_state_callback!(cb, u, t, integrator)
 end
 
 function initialize_steady_state_callback!(cb::SteadyStateReachedCallback, u, t, integrator)
-    semi = integrator.p.semi
-    # This needs the initialized integrator because the callback order in a
-    # `CallbackSet` determines whether update/split callbacks have already set
-    # these flags. The kinetic-energy history is mutable callback state and must
-    # be reset when the same callback object is reused for another solve.
-    set_callbacks_used!(semi, integrator)
-
     empty!(cb.previous_ekin)
     push!(cb.previous_ekin, convert(eltype(cb.previous_ekin), Inf))
 

@@ -78,18 +78,15 @@
         @test steady_state_cb.interval === 2
 
         push!(steady_state_cb.previous_ekin, 1.0)
-        semi = (; integrate_tlsph=Ref(true), update_callback_used=Ref(false))
-        integrator = (; p=(; semi), opts=(; callback=(; discrete_callbacks=[callback])))
-        callback.initialize(callback, nothing, 0.0, integrator)
+        callback.initialize(callback, nothing, 0.0, nothing)
 
         @test steady_state_cb.previous_ekin == [Inf]
 
         callback = SteadyStateReachedCallback(dt=0.1)
         steady_state_cb = callback.affect!.affect!
         push!(steady_state_cb.previous_ekin, 1.0)
-        integrator = (; p=(; semi), opts=(; callback=(; discrete_callbacks=[callback])))
         TrixiParticles.initialize_steady_state_callback!(callback.affect!, nothing, 0.0,
-                                                         integrator)
+                                                         nothing)
 
         @test steady_state_cb.previous_ekin == [Inf]
 
