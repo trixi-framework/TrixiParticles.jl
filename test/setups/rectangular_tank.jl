@@ -120,9 +120,20 @@
                                                        (tank_width, tank_height),
                                                        water_density, n_layers=0)
 
+            @test_throws ArgumentError RectangularTank(particle_spacing,
+                                                       (water_width, water_height),
+                                                       (tank_width, tank_height),
+                                                       water_density, n_layers=1.5)
+
             tank = RectangularTank(0.1, (1.0, 1.0), (0.3, 0.3), water_density)
             @test tank.n_particles_per_dimension == (3, 3)
             @test all(tank.fluid_size .≈ (0.3, 0.3))
+
+            tank = RectangularTank(0.1, (1.0, 1.0), (0.05, 0.3), water_density;
+                                   acceleration=(1.0, 0.0))
+            @test isempty(tank.fluid.coordinates)
+            @test tank.n_particles_per_dimension == (0, 3)
+            @test all(tank.fluid_size .≈ (0.0, 0.3))
         end
     end
 

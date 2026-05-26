@@ -117,9 +117,10 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real, F, B}
             throw(ArgumentError("`fluid_density` needs to be positive and larger than $(eps())."))
         end
 
-        if n_layers < 1
-            throw(ArgumentError("`n_layers` needs to be positive"))
+        if !(n_layers isa Integer) || n_layers < 1
+            throw(ArgumentError("`n_layers` needs to be a positive integer"))
         end
+        n_layers = Int(n_layers)
 
         if spacing_ratio < eps()
             throw(ArgumentError("`spacing_ratio` needs to be positive and larger than $(eps())."))
@@ -170,7 +171,7 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real, F, B}
         # Move the tank corner in the negative coordinate directions to the desired position
         boundary.coordinates .+= min_coordinates
 
-        if norm(fluid_size) > eps()
+        if all(>(0), n_particles_per_dim)
             if state_equation !== nothing
                 # Use hydrostatic pressure gradient and calculate density from inverse state
                 # equation, so don't pass fluid density.
