@@ -36,7 +36,8 @@ coordinate directions as `cutout_min` and `cutout_max`.
 - `cutout_min`:     Corner in negative coordinate directions of a cuboid that is to be
                     cut out of the sphere.
 - `cutout_max`:     Corner in positive coordinate directions of a cuboid that is to be
-                    cut out of the sphere.
+                    cut out of the sphere. If the cutout has zero volume, no particles
+                    are removed.
 - `place_on_shell = false`: If `place_on_shell=true`, particles will be placed on the shell
                     of the shape. For example, the [`TotalLagrangianSPHSystem`](@ref)
                     requires particles to be placed on the shell of the shape and
@@ -114,6 +115,8 @@ function SphereShape(particle_spacing, radius, center_position, density;
     cutout_min_ = collect(cutout_min)
     cutout_max_ = collect(cutout_max)
 
+    # A zero-volume cutout means no cutout. This keeps the 2D zero default valid for
+    # 3D shapes while still validating dimensionality once a real cutout is requested.
     has_cutout = length(cutout_min_) != length(cutout_max_) ||
                  norm(cutout_max_ - cutout_min_) > eps()
 

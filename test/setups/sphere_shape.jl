@@ -86,6 +86,9 @@
         @test_throws ArgumentError SphereShape(0.1, 0.5, (0.0, 0.0, 0.0),
                                               1000.0; cutout_min=(0.0, 0.0),
                                               cutout_max=(0.1, 0.1))
+        @test_nowarn SphereShape(0.1, 0.5, (0.0, 0.0, 0.0),
+                                 1000.0; cutout_min=(0.0, 0.0),
+                                 cutout_max=(0.0, 0.0))
     end
 
     @testset verbose=true "SphereShape 3D" begin

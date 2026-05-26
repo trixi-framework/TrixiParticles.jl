@@ -87,7 +87,7 @@ shape = extrude_geometry(shape; direction, particle_spacing=0.1, n_extrude=4, de
 function extrude_geometry(geometry; particle_spacing=-1, direction, n_extrude::Integer,
                           velocity=zeros(length(direction)), place_on_shell=false,
                           mass=nothing, density=nothing, pressure=0.0)
-    if norm(direction) < eps()
+    if all(iszero, direction)
         throw(ArgumentError("`direction` needs to be non-zero"))
     end
 
