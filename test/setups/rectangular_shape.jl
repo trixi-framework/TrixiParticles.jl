@@ -72,8 +72,8 @@
 
         @testset "Errors" begin
             @test_throws ArgumentError RectangularShape(0.1, (2, 2), (0.0, 0.0),
-                                                       density=1000.0,
-                                                       acceleration=(0.0, -9.81, 0.0))
+                                                        density=1000.0,
+                                                        acceleration=(0.0, -9.81, 0.0))
         end
     end
 
