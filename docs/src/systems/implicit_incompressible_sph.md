@@ -31,9 +31,23 @@ sol = solve(ode, time_integrator; dt, adaptive=false,
             save_everystep=false, callback=callbacks)
 ```
 
+To use RK stages only for the non-pressure right-hand side and run the IISPH pressure
+projection once per accepted step, construct the callback with
+`project_at_step_end=true`. In this mode, place the IISPH callback before callbacks that
+inspect or save the accepted state.
+
+```julia
+callbacks = CallbackSet(IISPHTimeStepCallback(project_at_step_end=true),
+                        info_callback, saving_callback)
+```
+
 By default, the IISPH callback and limiter warm-start the pressure solve: pressure
 initialization is damped once per accepted time step, and intermediate RK stages reuse
 the previous stage pressure as initial guess.
+
+Pressure solver iteration counters can be inspected with
+[`iisph_pressure_iteration_stats`](@ref) and reset with
+[`reset_iisph_pressure_iteration_stats!`](@ref).
 
 Adaptive time integration with IISPH is currently experimental because rejected
 steps require restoring IISPH pressure caches.

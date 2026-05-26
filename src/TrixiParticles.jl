@@ -75,7 +75,8 @@ export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
        PostprocessCallback, StepsizeCallback, UpdateCallback, SteadyStateReachedCallback,
        SplitIntegrationCallback, MechanicalWorkCalculatorCallback, IISPHTimeStepCallback,
        IISPHTimeStepLimiter,
-       calculated_mechanical_work,
+       calculated_mechanical_work, iisph_pressure_iteration_stats,
+       reset_iisph_pressure_iteration_stats!,
        SortingCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller, TransportVelocityAdami, ParticleShiftingTechnique,

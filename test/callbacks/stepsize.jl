@@ -16,7 +16,7 @@
 
         iisph_callback = IISPHTimeStepCallback()
         @test repr(iisph_callback) ==
-              "IISPHTimeStepCallback(require_fixed_step=true, warm_start_pressure=true)"
+              "IISPHTimeStepCallback(require_fixed_step=true, warm_start_pressure=true, project_at_step_end=false)"
 
         iisph_show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -24,6 +24,7 @@
         │ ═════════════════════                                                                            │
         │ require fixed step: …………………………… true                                                             │
         │ warm-start pressure: ………………………… true                                                             │
+        │ project at step end: ………………………… false                                                            │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", iisph_callback) == iisph_show_box
 
@@ -49,12 +50,21 @@
         semi = Semidiscretization(system; neighborhood_search=nothing)
 
         @test TrixiParticles.iisph_projection_dt(semi) == 0.1
+        @test iisph_pressure_iteration_stats(semi) ==
+              (last_iterations=0, total_iterations=0, max_iterations=0,
+               solve_count=0, average_iterations=0.0)
 
         callback = IISPHTimeStepCallback()
         integrator = (; p=(; semi), dt=0.05, opts=(; adaptive=false))
         TrixiParticles.initialize_iisph_time_step_callback(callback, nothing, 0.0,
                                                            integrator)
         @test TrixiParticles.iisph_projection_dt(semi) == 0.05
+        @test !TrixiParticles.iisph_step_end_projection_enabled(semi)
+
+        projection_callback = IISPHTimeStepCallback(project_at_step_end=true)
+        TrixiParticles.initialize_iisph_time_step_callback(projection_callback, nothing,
+                                                           0.0, integrator)
+        @test TrixiParticles.iisph_step_end_projection_enabled(semi)
 
         limiter = IISPHTimeStepLimiter()
         integrator_limiter = (; dt=0.025, opts=(; adaptive=false))
@@ -93,5 +103,16 @@
                                        sum_term, system.omega, density_error, semi)
         @test pressure[1] == 0.0
         @test density_error[1] == 0.0
+
+        TrixiParticles.record_iisph_pressure_iterations!(semi, 2)
+        TrixiParticles.record_iisph_pressure_iterations!(semi, 5)
+        @test iisph_pressure_iteration_stats(semi) ==
+              (last_iterations=5, total_iterations=7, max_iterations=5,
+               solve_count=2, average_iterations=3.5)
+
+        reset_iisph_pressure_iteration_stats!(semi)
+        @test iisph_pressure_iteration_stats(semi) ==
+              (last_iterations=0, total_iterations=0, max_iterations=0,
+               solve_count=0, average_iterations=0.0)
     end
 end

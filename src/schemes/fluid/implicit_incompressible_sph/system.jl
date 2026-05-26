@@ -224,6 +224,7 @@ function update_implicit_sph!(semi, v_ode, u_ode, t)
     if !any(system -> system isa ImplicitIncompressibleSPHSystem, semi.systems)
         return semi
     end
+    iisph_step_end_projection_enabled(semi) && return semi
 
     @trixi_timeit timer() "pressure solver" pressure_solve!(semi, v_ode, u_ode)
 
@@ -428,6 +429,7 @@ function pressure_solve!(semi, v_ode, u_ode)
             l += 1
         end
     end
+    record_iisph_pressure_iterations!(semi, l - 1)
 
     return semi
 end

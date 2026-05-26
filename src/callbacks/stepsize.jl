@@ -79,13 +79,15 @@ function (stepsize_callback::StepsizeCallback)(integrator)
     return stepsize_callback
 end
 
-struct IISPHTimeStepCallback{R, W}
+struct IISPHTimeStepCallback{R, W, P}
     require_fixed_step::R
     warm_start_pressure::W
+    project_at_step_end::P
 end
 
 @doc raw"""
-    IISPHTimeStepCallback(; require_fixed_step=true, warm_start_pressure=true)
+    IISPHTimeStepCallback(; require_fixed_step=true, warm_start_pressure=true,
+                          project_at_step_end=false)
 
 Synchronize the IISPH pressure projection step size with the current time step of
 the OrdinaryDiffEq.jl integrator.
@@ -100,11 +102,17 @@ experiments.
 
 When `warm_start_pressure=true`, IISPH pressure initialization is damped once per accepted
 time step and RK stages reuse the previous stage pressure as initial guess.
+
+When `project_at_step_end=true`, RK stages evaluate the non-pressure right-hand side and
+the callback runs the IISPH pressure projection once at the end of every accepted step.
 """
-function IISPHTimeStepCallback(; require_fixed_step=true, warm_start_pressure=true)
+function IISPHTimeStepCallback(; require_fixed_step=true, warm_start_pressure=true,
+                               project_at_step_end=false)
     callback = IISPHTimeStepCallback{typeof(require_fixed_step),
-                                     typeof(warm_start_pressure)}(require_fixed_step,
-                                                                  warm_start_pressure)
+                                     typeof(warm_start_pressure),
+                                     typeof(project_at_step_end)}(require_fixed_step,
+                                                                  warm_start_pressure,
+                                                                  project_at_step_end)
 
     return DiscreteCallback(callback, callback;
                             initialize=initialize_iisph_time_step_callback,
@@ -115,6 +123,8 @@ function initialize_iisph_time_step_callback(discrete_callback, u, t, integrator
     callback = discrete_callback.affect!
     initialize_iisph_pressure_warm_start!(integrator.p.semi,
                                           callback.warm_start_pressure)
+    initialize_iisph_step_end_projection!(integrator.p.semi,
+                                          callback.project_at_step_end)
     sync_iisph_projection_dt!(integrator;
                               require_fixed_step=callback.require_fixed_step)
 
@@ -130,11 +140,16 @@ end
 function (callback::IISPHTimeStepCallback)(integrator)
     sync_iisph_projection_dt!(integrator;
                               require_fixed_step=callback.require_fixed_step)
+
+    if callback.project_at_step_end
+        project_iisph_pressure_at_step_end!(integrator)
+    end
+
     reset_iisph_pressure_warm_start!(integrator.p.semi,
                                      callback.warm_start_pressure)
 
-    # Tell OrdinaryDiffEq that `u` has not been modified.
-    u_modified!(integrator, false)
+    # The step-end projection mutates the accepted state.
+    u_modified!(integrator, callback.project_at_step_end)
 
     return callback
 end
@@ -197,6 +212,18 @@ function sync_iisph_projection_dt!(integrator, p; require_fixed_step=true)
     return integrator
 end
 
+function initialize_iisph_step_end_projection!(semi, project_at_step_end)
+    uses_iisph_projection_dt(semi) || return semi
+
+    if project_at_step_end
+        enable_iisph_step_end_projection!(semi)
+    else
+        disable_iisph_step_end_projection!(semi)
+    end
+
+    return semi
+end
+
 function initialize_iisph_pressure_warm_start!(semi, warm_start_pressure)
     warm_start_pressure || return semi
     uses_iisph_projection_dt(semi) || return semi
@@ -230,7 +257,8 @@ function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:IISPHTimeStepCallback})
     callback = cb.affect!
     print(io, "IISPHTimeStepCallback(require_fixed_step=",
           callback.require_fixed_step, ", warm_start_pressure=",
-          callback.warm_start_pressure, ")")
+          callback.warm_start_pressure, ", project_at_step_end=",
+          callback.project_at_step_end, ")")
 end
 
 function Base.show(io::IO, ::MIME"text/plain",
@@ -244,7 +272,8 @@ function Base.show(io::IO, ::MIME"text/plain",
 
         setup = [
             "require fixed step" => string(callback.require_fixed_step),
-            "warm-start pressure" => string(callback.warm_start_pressure)
+            "warm-start pressure" => string(callback.warm_start_pressure),
+            "project at step end" => string(callback.project_at_step_end)
         ]
         summary_box(io, "IISPHTimeStepCallback", setup)
     end

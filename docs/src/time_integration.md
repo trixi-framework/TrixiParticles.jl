@@ -26,6 +26,9 @@ use [`IISPHTimeStepLimiter`](@ref) for stage-local synchronization. Adaptive RK 
 are currently experimental for IISPH because rejected steps require restoring IISPH
 pressure caches. The IISPH callback and limiter also warm-start the pressure solve by
 default across intermediate RK stages.
+Use `IISPHTimeStepCallback(project_at_step_end=true)` to evaluate RK stages with the
+non-pressure right-hand side and apply the IISPH pressure projection once at the end of
+each accepted step.
 
 ## Usage
 

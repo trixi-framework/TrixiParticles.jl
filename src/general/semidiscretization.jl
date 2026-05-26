@@ -128,7 +128,10 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     integrate_tlsph = Ref(true)
 
     iisph_projection_dt = Ref(initial_iisph_projection_dt(systems))
-    iisph_pressure_state = (warm_start=Ref(false), initialized=Ref(false))
+    iisph_pressure_state = (warm_start=Ref(false), initialized=Ref(false),
+                            step_end_projection=Ref(false),
+                            last_iterations=Ref(0), total_iterations=Ref(0),
+                            max_iterations=Ref(0), solve_count=Ref(0))
 
     return Semidiscretization(systems, ranges_u, ranges_v, searches,
                               parallelization_backend, update_callback_used,
@@ -256,6 +259,77 @@ end
 function should_damp_iisph_pressure(semi)
     return !iisph_pressure_warm_start_enabled(semi) ||
            !semi.iisph_pressure_state.initialized[]
+end
+
+function enable_iisph_step_end_projection!(semi)
+    semi.iisph_pressure_state.step_end_projection[] = true
+    return semi
+end
+
+function disable_iisph_step_end_projection!(semi)
+    semi.iisph_pressure_state.step_end_projection[] = false
+    return semi
+end
+
+function iisph_step_end_projection_enabled(semi)
+    return semi.iisph_pressure_state.step_end_projection[]
+end
+
+function record_iisph_pressure_iterations!(semi, iterations)
+    state = semi.iisph_pressure_state
+
+    state.last_iterations[] = iterations
+    state.total_iterations[] += iterations
+    state.max_iterations[] = max(state.max_iterations[], iterations)
+    state.solve_count[] += 1
+
+    return semi
+end
+
+"""
+    reset_iisph_pressure_iteration_stats!(semi)
+
+Reset IISPH pressure solver iteration counters in a [`Semidiscretization`](@ref).
+
+See also [`iisph_pressure_iteration_stats`](@ref).
+"""
+function reset_iisph_pressure_iteration_stats!(semi)
+    state = semi.iisph_pressure_state
+
+    state.last_iterations[] = 0
+    state.total_iterations[] = 0
+    state.max_iterations[] = 0
+    state.solve_count[] = 0
+
+    return semi
+end
+
+"""
+    iisph_pressure_iteration_stats(semi)
+
+Return IISPH pressure solver iteration counters for a [`Semidiscretization`](@ref).
+
+The returned named tuple contains:
+- `last_iterations`: Jacobi iterations in the most recent pressure solve
+- `total_iterations`: accumulated Jacobi iterations
+- `max_iterations`: maximum Jacobi iterations in one pressure solve
+- `solve_count`: number of recorded pressure solves
+- `average_iterations`: average Jacobi iterations per pressure solve
+
+Use [`reset_iisph_pressure_iteration_stats!`](@ref) to reset the counters.
+"""
+function iisph_pressure_iteration_stats(semi)
+    state = semi.iisph_pressure_state
+
+    solve_count = state.solve_count[]
+    total_iterations = state.total_iterations[]
+    average_iterations = solve_count == 0 ? 0.0 : total_iterations / solve_count
+
+    return (last_iterations=state.last_iterations[],
+            total_iterations,
+            max_iterations=state.max_iterations[],
+            solve_count,
+            average_iterations)
 end
 
 # This is just for readability to loop over all systems without allocations
@@ -606,6 +680,14 @@ end
 # Update the systems and neighborhood searches (NHS) for a simulation
 # before calling `interact!` to compute forces.
 function update_systems_and_nhs(v_ode, u_ode, semi, t)
+    update_systems_and_nhs_before_pressure!(v_ode, u_ode, semi, t)
+    update_implicit_sph!(semi, v_ode, u_ode, t)
+    update_systems_and_nhs_after_pressure!(v_ode, u_ode, semi, t)
+
+    return semi
+end
+
+function update_systems_and_nhs_before_pressure!(v_ode, u_ode, semi, t)
     # First update step before updating the NHS
     # (for example for writing the current coordinates in the TLSPH system)
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
@@ -623,8 +705,10 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
         update_quantities!(system, v, u, v_ode, u_ode, semi, t)
     end
 
-    update_implicit_sph!(semi, v_ode, u_ode, t)
+    return semi
+end
 
+function update_systems_and_nhs_after_pressure!(v_ode, u_ode, semi, t)
     # Perform correction and pressure calculation
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_pressure!(system, v, u, v_ode, u_ode, semi, t)
@@ -640,6 +724,101 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_final!(system, v, u, v_ode, u_ode, semi, t)
     end
+
+    return semi
+end
+
+function project_iisph_pressure_at_step_end!(integrator)
+    semi = integrator.p.semi
+    uses_iisph_projection_dt(semi) || return integrator
+    iisph_step_end_projection_enabled(semi) || return integrator
+
+    v_ode, u_ode = integrator.u.x
+    t = integrator.t
+
+    @trixi_timeit timer() "IISPH step-end projection" begin
+        @trixi_timeit timer() "pre-pressure update" begin
+            update_systems_and_nhs_before_pressure!(v_ode, u_ode, semi, t)
+        end
+
+        @trixi_timeit timer() "pressure solver" pressure_solve!(semi, v_ode, u_ode)
+
+        @trixi_timeit timer() "post-pressure update" begin
+            update_systems_and_nhs_after_pressure!(v_ode, u_ode, semi, t)
+        end
+
+        dv_pressure = similar(v_ode)
+        set_zero!(dv_pressure)
+
+        @trixi_timeit timer() "pressure acceleration" iisph_pressure_interaction!(dv_pressure,
+                                                                                  v_ode,
+                                                                                  u_ode,
+                                                                                  semi)
+        apply_iisph_pressure_projection!(v_ode, dv_pressure, semi)
+    end
+
+    return integrator
+end
+
+function iisph_pressure_interaction!(dv_ode, v_ode, u_ode, semi)
+    reset_interaction_caches!(semi)
+
+    foreach_system(semi) do system
+        foreach_system(semi) do neighbor
+            iisph_pressure_interact!(dv_ode, v_ode, u_ode, system, neighbor, semi)
+        end
+    end
+
+    return dv_ode
+end
+
+@inline function iisph_pressure_interact!(dv_ode, v_ode, u_ode, system, neighbor, semi)
+    dv = wrap_v(dv_ode, system, semi)
+    v_system = wrap_v(v_ode, system, semi)
+    u_system = wrap_u(u_ode, system, semi)
+
+    v_neighbor = wrap_v(v_ode, neighbor, semi)
+    u_neighbor = wrap_u(u_ode, neighbor, semi)
+
+    iisph_pressure_interact!(dv, v_system, u_system, v_neighbor, u_neighbor, system,
+                             neighbor, semi)
+
+    return dv_ode
+end
+
+function iisph_pressure_interact!(dv, v_particle_system, u_particle_system,
+                                  v_neighbor_system, u_neighbor_system,
+                                  particle_system, neighbor_system, semi)
+    return dv
+end
+
+function apply_iisph_pressure_projection!(v_ode, dv_pressure, semi)
+    dt = iisph_projection_dt(semi)
+
+    foreach_system(semi) do system
+        apply_iisph_pressure_projection!(v_ode, dv_pressure, system, semi, dt)
+    end
+
+    return v_ode
+end
+
+function apply_iisph_pressure_projection!(v_ode, dv_pressure, system, semi, dt)
+    return v_ode
+end
+
+function apply_iisph_pressure_projection!(v_ode, dv_pressure,
+                                          system::ImplicitIncompressibleSPHSystem,
+                                          semi, dt)
+    v = wrap_v(v_ode, system, semi)
+    dv = wrap_v(dv_pressure, system, semi)
+
+    @threaded semi for particle in each_integrated_particle(system)
+        for i in 1:ndims(system)
+            @inbounds v[i, particle] += dt * dv[i, particle]
+        end
+    end
+
+    return v_ode
 end
 
 # Some systems accumulate pairwise interaction state outside `dv_ode`. Reset that state once
