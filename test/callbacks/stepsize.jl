@@ -58,7 +58,8 @@
         @test TrixiParticles.iisph_projection_dt(semi) == 0.1
         @test iisph_pressure_iteration_stats(semi) ==
               (last_iterations=0, total_iterations=0, max_iterations=0,
-               solve_count=0, average_iterations=0.0)
+               solve_count=0, average_iterations=0.0, last_solve_time=0.0,
+               total_solve_time=0.0, max_solve_time=0.0, average_solve_time=0.0)
 
         callback = IISPHTimeStepCallback()
         integrator = (; p=(; semi), dt=0.05, opts=(; adaptive=false))
@@ -126,30 +127,36 @@
         @test pressure[1] == 0.0
         @test density_error[1] == 0.0
 
-        TrixiParticles.record_iisph_pressure_iterations!(semi, 2)
-        TrixiParticles.record_iisph_pressure_iterations!(semi, 5)
+        TrixiParticles.record_iisph_pressure_iterations!(semi, 2, 0.25)
+        TrixiParticles.record_iisph_pressure_iterations!(semi, 5, 0.75)
         @test iisph_pressure_iteration_stats(semi) ==
               (last_iterations=5, total_iterations=7, max_iterations=5,
-               solve_count=2, average_iterations=3.5)
+               solve_count=2, average_iterations=3.5, last_solve_time=0.75,
+               total_solve_time=1.0, max_solve_time=0.75, average_solve_time=0.5)
         @test iisph_pressure_step_stats(semi) ==
               (total_iterations=7, max_iterations=5, solve_count=2,
-               average_iterations=3.5)
+               average_iterations=3.5, total_solve_time=1.0, max_solve_time=0.75,
+               average_solve_time=0.5)
 
         reset_iisph_pressure_step_stats!(semi)
         @test iisph_pressure_step_stats(semi) ==
               (total_iterations=0, max_iterations=0, solve_count=0,
-               average_iterations=0.0)
+               average_iterations=0.0, total_solve_time=0.0, max_solve_time=0.0,
+               average_solve_time=0.0)
         @test iisph_pressure_iteration_stats(semi) ==
               (last_iterations=5, total_iterations=7, max_iterations=5,
-               solve_count=2, average_iterations=3.5)
+               solve_count=2, average_iterations=3.5, last_solve_time=0.75,
+               total_solve_time=1.0, max_solve_time=0.75, average_solve_time=0.5)
 
         reset_iisph_pressure_iteration_stats!(semi)
         @test iisph_pressure_iteration_stats(semi) ==
               (last_iterations=0, total_iterations=0, max_iterations=0,
-               solve_count=0, average_iterations=0.0)
+               solve_count=0, average_iterations=0.0, last_solve_time=0.0,
+               total_solve_time=0.0, max_solve_time=0.0, average_solve_time=0.0)
         @test iisph_pressure_step_stats(semi) ==
               (total_iterations=0, max_iterations=0, solve_count=0,
-               average_iterations=0.0)
+               average_iterations=0.0, total_solve_time=0.0, max_solve_time=0.0,
+               average_solve_time=0.0)
 
         low_work = (; average_iterations=2.0, max_iterations=3, solve_count=1)
         in_band = (; average_iterations=5.0, max_iterations=6, solve_count=1)

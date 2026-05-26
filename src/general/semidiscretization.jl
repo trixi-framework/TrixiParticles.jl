@@ -134,7 +134,10 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
                             last_iterations=Ref(0), total_iterations=Ref(0),
                             max_iterations=Ref(0), solve_count=Ref(0),
                             step_iterations=Ref(0), step_max_iterations=Ref(0),
-                            step_solve_count=Ref(0))
+                            step_solve_count=Ref(0),
+                            last_solve_time=Ref(0.0), total_solve_time=Ref(0.0),
+                            max_solve_time=Ref(0.0),
+                            step_solve_time=Ref(0.0), step_max_solve_time=Ref(0.0))
 
     return Semidiscretization(systems, ranges_u, ranges_v, searches,
                               parallelization_backend, update_callback_used,
@@ -301,7 +304,7 @@ function iisph_pressure_projection_only_enabled(semi)
     return semi.iisph_pressure_state.projection_only[]
 end
 
-function record_iisph_pressure_iterations!(semi, iterations)
+function record_iisph_pressure_iterations!(semi, iterations, solve_time=0.0)
     state = semi.iisph_pressure_state
 
     state.last_iterations[] = iterations
@@ -311,6 +314,11 @@ function record_iisph_pressure_iterations!(semi, iterations)
     state.step_iterations[] += iterations
     state.step_max_iterations[] = max(state.step_max_iterations[], iterations)
     state.step_solve_count[] += 1
+    state.last_solve_time[] = solve_time
+    state.total_solve_time[] += solve_time
+    state.max_solve_time[] = max(state.max_solve_time[], solve_time)
+    state.step_solve_time[] += solve_time
+    state.step_max_solve_time[] = max(state.step_max_solve_time[], solve_time)
 
     return semi
 end
@@ -329,6 +337,9 @@ function reset_iisph_pressure_iteration_stats!(semi)
     state.total_iterations[] = 0
     state.max_iterations[] = 0
     state.solve_count[] = 0
+    state.last_solve_time[] = 0.0
+    state.total_solve_time[] = 0.0
+    state.max_solve_time[] = 0.0
     reset_iisph_pressure_step_stats!(semi)
 
     return semi
@@ -347,6 +358,8 @@ function reset_iisph_pressure_step_stats!(semi)
     state.step_iterations[] = 0
     state.step_max_iterations[] = 0
     state.step_solve_count[] = 0
+    state.step_solve_time[] = 0.0
+    state.step_max_solve_time[] = 0.0
 
     return semi
 end
@@ -361,6 +374,9 @@ The returned named tuple contains:
 - `max_iterations`: maximum Jacobi iterations in one pressure solve in the current step
 - `solve_count`: number of recorded pressure solves in the current step
 - `average_iterations`: average Jacobi iterations per pressure solve in the current step
+- `total_solve_time`: accumulated pressure solve wall time in the current step
+- `max_solve_time`: maximum pressure solve wall time in the current step
+- `average_solve_time`: average pressure solve wall time in the current step
 
 Use [`reset_iisph_pressure_step_stats!`](@ref) to reset these counters.
 """
@@ -374,7 +390,11 @@ function iisph_pressure_step_stats(semi)
     return (total_iterations,
             max_iterations=state.step_max_iterations[],
             solve_count,
-            average_iterations)
+            average_iterations,
+            total_solve_time=state.step_solve_time[],
+            max_solve_time=state.step_max_solve_time[],
+            average_solve_time=solve_count == 0 ? 0.0 :
+                               state.step_solve_time[] / solve_count)
 end
 
 """
@@ -388,6 +408,10 @@ The returned named tuple contains:
 - `max_iterations`: maximum Jacobi iterations in one pressure solve
 - `solve_count`: number of recorded pressure solves
 - `average_iterations`: average Jacobi iterations per pressure solve
+- `last_solve_time`: wall time of the most recent pressure solve
+- `total_solve_time`: accumulated pressure solve wall time
+- `max_solve_time`: maximum pressure solve wall time
+- `average_solve_time`: average pressure solve wall time
 
 Use [`reset_iisph_pressure_iteration_stats!`](@ref) to reset the counters.
 """
@@ -402,7 +426,12 @@ function iisph_pressure_iteration_stats(semi)
             total_iterations,
             max_iterations=state.max_iterations[],
             solve_count,
-            average_iterations)
+            average_iterations,
+            last_solve_time=state.last_solve_time[],
+            total_solve_time=state.total_solve_time[],
+            max_solve_time=state.max_solve_time[],
+            average_solve_time=solve_count == 0 ? 0.0 :
+                               state.total_solve_time[] / solve_count)
 end
 
 # This is just for readability to loop over all systems without allocations

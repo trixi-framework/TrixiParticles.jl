@@ -356,6 +356,46 @@
                            -0.03)
         end
 
+        @testset "Cached pressure coefficients match generic neighbor loop" begin
+            smoothing_kernel_real = SchoenbergCubicSplineKernel{2}()
+            smoothing_length_real = 0.2
+            coordinates_real = [0.0 0.07 0.13
+                                0.0 0.02 0.00]
+            velocity_real = zeros(2, 3)
+            mass_real = [1.0, 1.1, 0.9]
+            density_real = [1000.0, 990.0, 1010.0]
+            pressure_real = [1.0, 2.0, 0.5]
+            ic_real = InitialCondition(; coordinates=coordinates_real,
+                                       velocity=velocity_real, mass=mass_real,
+                                       density=density_real, pressure=pressure_real)
+            system_real = ImplicitIncompressibleSPHSystem(ic_real;
+                                                          smoothing_kernel=smoothing_kernel_real,
+                                                          smoothing_length=smoothing_length_real,
+                                                          reference_density=1000.0,
+                                                          time_step=0.01)
+            semi_real = Semidiscretization(system_real; neighborhood_search=nothing)
+            ode_real = semidiscretize(semi_real, (0.0, 0.01); reset_threads=false)
+            v_ode, u_ode = ode_real.u0.x
+
+            TrixiParticles.update_systems_and_nhs_before_pressure!(v_ode, u_ode,
+                                                                   semi_real, 0.0)
+            system_real.pressure .= pressure_real
+
+            u_real = TrixiParticles.wrap_u(u_ode, system_real, semi_real)
+            TrixiParticles.calculate_sum_d_ij_pj!(system_real, u_real, u_ode,
+                                                  semi_real)
+            generic_sum_d_ij_pj = copy(system_real.sum_d_ij_pj)
+            TrixiParticles.calculate_sum_term_values!(system_real, u_real, u_ode,
+                                                      semi_real)
+            generic_sum_term = copy(system_real.sum_term)
+
+            TrixiParticles.calculate_cached_sum_d_ij_pj!(system_real, semi_real)
+            TrixiParticles.calculate_cached_sum_term_values!(system_real, semi_real)
+
+            @test system_real.sum_d_ij_pj ≈ generic_sum_d_ij_pj
+            @test system_real.sum_term ≈ generic_sum_term
+        end
+
         @testset "Boundary coefficients (PressureMirroring doubles a_ii)" begin
             mass_a = [2.0]
             density_a = [5.0]

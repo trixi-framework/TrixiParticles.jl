@@ -59,7 +59,8 @@ Pressure solver iteration counters can be inspected with
 [`reset_iisph_pressure_iteration_stats!`](@ref).
 Per-step counters for accepted-step adaptivity can be inspected with
 [`iisph_pressure_step_stats`](@ref) and reset with
-[`reset_iisph_pressure_step_stats!`](@ref).
+[`reset_iisph_pressure_step_stats!`](@ref). These counters include pressure solve wall
+times in addition to Jacobi iteration counts.
 
 The [`IISPHPressureAdaptiveTimeStepCallback`](@ref) adjusts the next step size from the
 pressure solver iteration count. It does not reject steps, so it avoids the pressure
