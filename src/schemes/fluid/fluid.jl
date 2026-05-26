@@ -254,11 +254,13 @@ end
 end
 
 function check_configuration(fluid_system::AbstractFluidSystem, systems, nhs)
-    if !(fluid_system isa ParticlePackingSystem) && !isnothing(fluid_system.surface_tension)
+    if !(fluid_system isa ParticlePackingSystem) &&
+       (!isnothing(fluid_system.surface_tension) ||
+        !isnothing(fluid_system.surface_normal_method))
         foreach_system(systems) do neighbor
-            if neighbor isa AbstractFluidSystem &&
-               isnothing(fluid_system.surface_tension) &&
-               isnothing(fluid_system.surface_normal_method)
+            if neighbor isa AbstractFluidSystem && !(neighbor isa ParticlePackingSystem) &&
+               isnothing(neighbor.surface_tension) &&
+               isnothing(neighbor.surface_normal_method)
                 throw(ArgumentError("either none or all fluid systems in a simulation need " *
                                     "to use a surface tension model or a surface normal method."))
             end
