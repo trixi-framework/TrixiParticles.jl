@@ -129,7 +129,8 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
 
     iisph_projection_dt = Ref(initial_iisph_projection_dt(systems))
     iisph_pressure_state = (warm_start=Ref(false), initialized=Ref(false),
-                            step_end_projection=Ref(false),
+                            step_end_projection=Ref(false), strang_projection=Ref(false),
+                            projection_only=Ref(false),
                             last_iterations=Ref(0), total_iterations=Ref(0),
                             max_iterations=Ref(0), solve_count=Ref(0))
 
@@ -263,16 +264,39 @@ end
 
 function enable_iisph_step_end_projection!(semi)
     semi.iisph_pressure_state.step_end_projection[] = true
+    semi.iisph_pressure_state.strang_projection[] = false
+    return semi
+end
+
+function enable_iisph_strang_projection!(semi)
+    semi.iisph_pressure_state.step_end_projection[] = true
+    semi.iisph_pressure_state.strang_projection[] = true
     return semi
 end
 
 function disable_iisph_step_end_projection!(semi)
     semi.iisph_pressure_state.step_end_projection[] = false
+    semi.iisph_pressure_state.strang_projection[] = false
     return semi
 end
 
 function iisph_step_end_projection_enabled(semi)
     return semi.iisph_pressure_state.step_end_projection[]
+end
+
+function iisph_strang_projection_enabled(semi)
+    return semi.iisph_pressure_state.strang_projection[]
+end
+
+function set_iisph_pressure_projection_only!(semi, projection_only)
+    hasproperty(semi, :iisph_pressure_state) || return semi
+    semi.iisph_pressure_state.projection_only[] = projection_only
+    return semi
+end
+
+function iisph_pressure_projection_only_enabled(semi)
+    hasproperty(semi, :iisph_pressure_state) || return false
+    return semi.iisph_pressure_state.projection_only[]
 end
 
 function record_iisph_pressure_iterations!(semi, iterations)
@@ -728,33 +752,41 @@ function update_systems_and_nhs_after_pressure!(v_ode, u_ode, semi, t)
     return semi
 end
 
-function project_iisph_pressure_at_step_end!(integrator)
+function project_iisph_pressure_at_step_end!(integrator; dt_factor=1)
     semi = integrator.p.semi
     uses_iisph_projection_dt(semi) || return integrator
     iisph_step_end_projection_enabled(semi) || return integrator
 
     v_ode, u_ode = integrator.u.x
     t = integrator.t
+    original_dt = iisph_projection_dt(semi)
+    original_projection_only = iisph_pressure_projection_only_enabled(semi)
+    set_iisph_projection_dt!(semi, dt_factor * original_dt)
+    set_iisph_pressure_projection_only!(semi, true)
 
-    @trixi_timeit timer() "IISPH step-end projection" begin
-        @trixi_timeit timer() "pre-pressure update" begin
-            update_systems_and_nhs_before_pressure!(v_ode, u_ode, semi, t)
+    try
+        @trixi_timeit timer() "IISPH step-end projection" begin
+            @trixi_timeit timer() "pre-pressure update" begin
+                update_systems_and_nhs_before_pressure!(v_ode, u_ode, semi, t)
+            end
+
+            @trixi_timeit timer() "pressure solver" pressure_solve!(semi, v_ode, u_ode)
+
+            @trixi_timeit timer() "post-pressure update" begin
+                update_systems_and_nhs_after_pressure!(v_ode, u_ode, semi, t)
+            end
+
+            dv_pressure = similar(v_ode)
+            set_zero!(dv_pressure)
+
+            @trixi_timeit timer() "pressure acceleration" begin
+                iisph_pressure_interaction!(dv_pressure, v_ode, u_ode, semi)
+            end
+            apply_iisph_pressure_projection!(v_ode, dv_pressure, semi)
         end
-
-        @trixi_timeit timer() "pressure solver" pressure_solve!(semi, v_ode, u_ode)
-
-        @trixi_timeit timer() "post-pressure update" begin
-            update_systems_and_nhs_after_pressure!(v_ode, u_ode, semi, t)
-        end
-
-        dv_pressure = similar(v_ode)
-        set_zero!(dv_pressure)
-
-        @trixi_timeit timer() "pressure acceleration" iisph_pressure_interaction!(dv_pressure,
-                                                                                  v_ode,
-                                                                                  u_ode,
-                                                                                  semi)
-        apply_iisph_pressure_projection!(v_ode, dv_pressure, semi)
+    finally
+        set_iisph_projection_dt!(semi, original_dt)
+        set_iisph_pressure_projection_only!(semi, original_projection_only)
     end
 
     return integrator

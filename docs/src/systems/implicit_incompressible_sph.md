@@ -41,6 +41,15 @@ callbacks = CallbackSet(IISPHTimeStepCallback(project_at_step_end=true),
                         info_callback, saving_callback)
 ```
 
+For a symmetric pressure/non-pressure splitting, use
+`IISPHTimeStepCallback(pressure_projection=:strang)`. This applies half pressure
+projections around the RK step while RK stages still evaluate only the non-pressure
+right-hand side. For repeated fixed steps, adjacent half pressure projections are merged
+into one full pressure projection at internal step boundaries, with half projections only
+at the start and end of the integration interval. This is closer to a second-order
+splitting of pressure and non-pressure dynamics than a single projection at the end of
+each accepted step.
+
 By default, the IISPH callback and limiter warm-start the pressure solve: pressure
 initialization is damped once per accepted time step, and intermediate RK stages reuse
 the previous stage pressure as initial guess.

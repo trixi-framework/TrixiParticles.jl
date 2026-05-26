@@ -249,6 +249,7 @@ function calculate_predicted_velocity_and_d_ii_values!(system::ImplicitIncompres
                                                        v, u, v_ode, u_ode, semi)
     (; advection_velocity) = system
     time_step = iisph_projection_dt(semi)
+    projection_only = iisph_pressure_projection_only_enabled(semi)
     d_ii_array = system.d_ii
 
     v_particle_system = wrap_v(v_ode, system, semi)
@@ -261,9 +262,10 @@ function calculate_predicted_velocity_and_d_ii_values!(system::ImplicitIncompres
         # Initialize the advection velocity with the current velocity plus the system acceleration
         v_particle = current_velocity(v_particle_system, system, particle)
         for i in 1:ndims(system)
-            advection_velocity[i,
-                               particle] = v_particle[i] +
-                                           time_step * system.acceleration[i]
+            advection_velocity[i, particle] = v_particle[i]
+            if !projection_only
+                advection_velocity[i, particle] += time_step * system.acceleration[i]
+            end
         end
     end
 
@@ -280,27 +282,29 @@ function calculate_predicted_velocity_and_d_ii_values!(system::ImplicitIncompres
                                                                            neighbor,
                                                                            pos_diff,
                                                                            distance
-            m_a = @inbounds hydrodynamic_mass(system, particle)
             m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
 
             rho_a = @inbounds current_density(v_particle_system, system, particle)
-            rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
-
-            v_a = @inbounds current_velocity(v_particle_system, system, particle)
-            v_b = @inbounds current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
             grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
-            dv_viscosity_ = Ref(zero(pos_diff))
-            @inbounds dv_viscosity!(dv_viscosity_, system, neighbor_system,
-                                    v_particle_system, v_neighbor_system,
-                                    particle, neighbor, pos_diff, distance,
-                                    sound_speed, m_a, m_b, rho_a, rho_b,
-                                    v_a, v_b, grad_kernel)
-            # Add all other non-pressure forces
-            for i in 1:ndims(system)
-                @inbounds advection_velocity[i,
-                                             particle] += time_step * dv_viscosity_[][i]
+            if !projection_only
+                m_a = @inbounds hydrodynamic_mass(system, particle)
+                rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
+                v_a = @inbounds current_velocity(v_particle_system, system, particle)
+                v_b = @inbounds current_velocity(v_neighbor_system, neighbor_system, neighbor)
+
+                dv_viscosity_ = Ref(zero(pos_diff))
+                @inbounds dv_viscosity!(dv_viscosity_, system, neighbor_system,
+                                        v_particle_system, v_neighbor_system,
+                                        particle, neighbor, pos_diff, distance,
+                                        sound_speed, m_a, m_b, rho_a, rho_b,
+                                        v_a, v_b, grad_kernel)
+                # Add all other non-pressure forces
+                for i in 1:ndims(system)
+                    @inbounds advection_velocity[i,
+                                                 particle] += time_step * dv_viscosity_[][i]
+                end
             end
             # Calculate d_ii with eq. 9 in Ihmsen et al. (2013)
             for i in 1:ndims(system)

@@ -79,15 +79,16 @@ function (stepsize_callback::StepsizeCallback)(integrator)
     return stepsize_callback
 end
 
-struct IISPHTimeStepCallback{R, W, P}
+struct IISPHTimeStepCallback{R, W, P, M}
     require_fixed_step::R
     warm_start_pressure::W
     project_at_step_end::P
+    pressure_projection::M
 end
 
 @doc raw"""
     IISPHTimeStepCallback(; require_fixed_step=true, warm_start_pressure=true,
-                          project_at_step_end=false)
+                          project_at_step_end=false, pressure_projection=nothing)
 
 Synchronize the IISPH pressure projection step size with the current time step of
 the OrdinaryDiffEq.jl integrator.
@@ -103,30 +104,62 @@ experiments.
 When `warm_start_pressure=true`, IISPH pressure initialization is damped once per accepted
 time step and RK stages reuse the previous stage pressure as initial guess.
 
-When `project_at_step_end=true`, RK stages evaluate the non-pressure right-hand side and
-the callback runs the IISPH pressure projection once at the end of every accepted step.
+`pressure_projection` selects how IISPH pressure is coupled to the time integrator:
+- `:stage`: solve pressure inside every RHS evaluation. This is the default.
+- `:step_end`: evaluate RK stages with the non-pressure RHS and project once after each
+  accepted step.
+- `:strang`: evaluate RK stages with the non-pressure RHS and use symmetric half-step
+  pressure projections around the RK step.
+
+For backwards compatibility, `project_at_step_end=true` selects `:step_end` unless
+`pressure_projection` is passed explicitly.
 """
 function IISPHTimeStepCallback(; require_fixed_step=true, warm_start_pressure=true,
-                               project_at_step_end=false)
+                               project_at_step_end=false, pressure_projection=nothing)
+    pressure_projection_ = normalize_iisph_pressure_projection(project_at_step_end,
+                                                               pressure_projection)
+    project_at_step_end_ = pressure_projection_ != :stage
+
     callback = IISPHTimeStepCallback{typeof(require_fixed_step),
                                      typeof(warm_start_pressure),
-                                     typeof(project_at_step_end)}(require_fixed_step,
-                                                                  warm_start_pressure,
-                                                                  project_at_step_end)
+                                     typeof(project_at_step_end_),
+                                     typeof(pressure_projection_)}(require_fixed_step,
+                                                                   warm_start_pressure,
+                                                                   project_at_step_end_,
+                                                                   pressure_projection_)
 
     return DiscreteCallback(callback, callback;
                             initialize=initialize_iisph_time_step_callback,
                             save_positions=(false, false))
 end
 
+function normalize_iisph_pressure_projection(project_at_step_end, pressure_projection)
+    pressure_projection_ = if isnothing(pressure_projection)
+        project_at_step_end ? :step_end : :stage
+    else
+        pressure_projection
+    end
+
+    if !(pressure_projection_ in (:stage, :step_end, :strang))
+        throw(ArgumentError("`pressure_projection` must be one of `:stage`, " *
+                            "`:step_end`, or `:strang`"))
+    end
+
+    return pressure_projection_
+end
+
 function initialize_iisph_time_step_callback(discrete_callback, u, t, integrator)
     callback = discrete_callback.affect!
     initialize_iisph_pressure_warm_start!(integrator.p.semi,
                                           callback.warm_start_pressure)
-    initialize_iisph_step_end_projection!(integrator.p.semi,
-                                          callback.project_at_step_end)
+    initialize_iisph_pressure_projection!(integrator.p.semi,
+                                          callback.pressure_projection)
     sync_iisph_projection_dt!(integrator;
                               require_fixed_step=callback.require_fixed_step)
+
+    if callback.pressure_projection == :strang && hasproperty(integrator, :u)
+        project_iisph_pressure_at_step_end!(integrator; dt_factor=0.5)
+    end
 
     return discrete_callback
 end
@@ -141,17 +174,35 @@ function (callback::IISPHTimeStepCallback)(integrator)
     sync_iisph_projection_dt!(integrator;
                               require_fixed_step=callback.require_fixed_step)
 
-    if callback.project_at_step_end
+    if callback.pressure_projection == :step_end
         project_iisph_pressure_at_step_end!(integrator)
+        reset_iisph_pressure_warm_start!(integrator.p.semi,
+                                         callback.warm_start_pressure)
+    elseif callback.pressure_projection == :strang
+        dt_factor = iisph_final_time_reached(integrator) ? 0.5 : 1
+        project_iisph_pressure_at_step_end!(integrator; dt_factor)
+        reset_iisph_pressure_warm_start!(integrator.p.semi,
+                                         callback.warm_start_pressure)
+    else
+        reset_iisph_pressure_warm_start!(integrator.p.semi,
+                                         callback.warm_start_pressure)
     end
 
-    reset_iisph_pressure_warm_start!(integrator.p.semi,
-                                     callback.warm_start_pressure)
-
-    # The step-end projection mutates the accepted state.
+    # Step-end and Strang projection modes mutate the accepted state.
     u_modified!(integrator, callback.project_at_step_end)
 
     return callback
+end
+
+function iisph_final_time_reached(integrator)
+    t_end = last(integrator.sol.prob.tspan)
+    tolerance = 100 * eps(float(one(t_end))) * max(abs(t_end), one(abs(t_end)))
+
+    if integrator.tdir > 0
+        return integrator.t >= t_end - tolerance
+    else
+        return integrator.t <= t_end + tolerance
+    end
 end
 
 struct IISPHTimeStepLimiter{R, W}
@@ -212,10 +263,12 @@ function sync_iisph_projection_dt!(integrator, p; require_fixed_step=true)
     return integrator
 end
 
-function initialize_iisph_step_end_projection!(semi, project_at_step_end)
+function initialize_iisph_pressure_projection!(semi, pressure_projection)
     uses_iisph_projection_dt(semi) || return semi
 
-    if project_at_step_end
+    if pressure_projection == :strang
+        enable_iisph_strang_projection!(semi)
+    elseif pressure_projection == :step_end
         enable_iisph_step_end_projection!(semi)
     else
         disable_iisph_step_end_projection!(semi)
@@ -258,7 +311,8 @@ function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:IISPHTimeStepCallback})
     print(io, "IISPHTimeStepCallback(require_fixed_step=",
           callback.require_fixed_step, ", warm_start_pressure=",
           callback.warm_start_pressure, ", project_at_step_end=",
-          callback.project_at_step_end, ")")
+          callback.project_at_step_end, ", pressure_projection=",
+          callback.pressure_projection, ")")
 end
 
 function Base.show(io::IO, ::MIME"text/plain",
@@ -273,7 +327,8 @@ function Base.show(io::IO, ::MIME"text/plain",
         setup = [
             "require fixed step" => string(callback.require_fixed_step),
             "warm-start pressure" => string(callback.warm_start_pressure),
-            "project at step end" => string(callback.project_at_step_end)
+            "project at step end" => string(callback.project_at_step_end),
+            "pressure projection" => string(callback.pressure_projection)
         ]
         summary_box(io, "IISPHTimeStepCallback", setup)
     end

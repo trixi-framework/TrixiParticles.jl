@@ -29,6 +29,9 @@ default across intermediate RK stages.
 Use `IISPHTimeStepCallback(project_at_step_end=true)` to evaluate RK stages with the
 non-pressure right-hand side and apply the IISPH pressure projection once at the end of
 each accepted step.
+Use `IISPHTimeStepCallback(pressure_projection=:strang)` for a symmetric splitting with
+pressure projections around each non-pressure RK step. Adjacent half projections are
+merged into full pressure projections at internal fixed-step boundaries.
 
 ## Usage
 

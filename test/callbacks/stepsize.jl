@@ -16,7 +16,7 @@
 
         iisph_callback = IISPHTimeStepCallback()
         @test repr(iisph_callback) ==
-              "IISPHTimeStepCallback(require_fixed_step=true, warm_start_pressure=true, project_at_step_end=false)"
+              "IISPHTimeStepCallback(require_fixed_step=true, warm_start_pressure=true, project_at_step_end=false, pressure_projection=stage)"
 
         iisph_show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -25,6 +25,7 @@
         │ require fixed step: …………………………… true                                                             │
         │ warm-start pressure: ………………………… true                                                             │
         │ project at step end: ………………………… false                                                            │
+        │ pressure projection: ………………………… stage                                                            │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", iisph_callback) == iisph_show_box
 
@@ -60,11 +61,27 @@
                                                            integrator)
         @test TrixiParticles.iisph_projection_dt(semi) == 0.05
         @test !TrixiParticles.iisph_step_end_projection_enabled(semi)
+        @test !TrixiParticles.iisph_pressure_projection_only_enabled(semi)
 
         projection_callback = IISPHTimeStepCallback(project_at_step_end=true)
         TrixiParticles.initialize_iisph_time_step_callback(projection_callback, nothing,
                                                            0.0, integrator)
         @test TrixiParticles.iisph_step_end_projection_enabled(semi)
+        @test !TrixiParticles.iisph_strang_projection_enabled(semi)
+
+        strang_callback = IISPHTimeStepCallback(pressure_projection=:strang)
+        TrixiParticles.initialize_iisph_time_step_callback(strang_callback, nothing,
+                                                           0.0, integrator)
+        @test TrixiParticles.iisph_step_end_projection_enabled(semi)
+        @test TrixiParticles.iisph_strang_projection_enabled(semi)
+        @test !TrixiParticles.iisph_pressure_projection_only_enabled(semi)
+
+        TrixiParticles.set_iisph_pressure_projection_only!(semi, true)
+        @test TrixiParticles.iisph_pressure_projection_only_enabled(semi)
+        TrixiParticles.set_iisph_pressure_projection_only!(semi, false)
+        @test !TrixiParticles.iisph_pressure_projection_only_enabled(semi)
+
+        @test_throws ArgumentError IISPHTimeStepCallback(pressure_projection=:invalid)
 
         limiter = IISPHTimeStepLimiter()
         integrator_limiter = (; dt=0.025, opts=(; adaptive=false))
