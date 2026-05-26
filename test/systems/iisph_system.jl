@@ -379,7 +379,8 @@
 
             TrixiParticles.update_systems_and_nhs_before_pressure!(v_ode, u_ode,
                                                                    semi_real, 0.0)
-            system_real.pressure .= pressure_real
+            trial_pressure = [0.7, 1.6, 0.4]
+            system_real.pressure .= trial_pressure
 
             u_real = TrixiParticles.wrap_u(u_ode, system_real, semi_real)
             TrixiParticles.calculate_sum_d_ij_pj!(system_real, u_real, u_ode,
@@ -389,11 +390,25 @@
                                                       semi_real)
             generic_sum_term = copy(system_real.sum_term)
 
-            TrixiParticles.calculate_cached_sum_d_ij_pj!(system_real, semi_real)
-            TrixiParticles.calculate_cached_sum_term_values!(system_real, semi_real)
+            system_real.pressure .= pressure_real
+            operator = iisph_pressure_operator(system_real, semi_real)
+            Ap = similar(trial_pressure)
+            rhs = similar(trial_pressure)
+            residual = similar(trial_pressure)
+            z = similar(trial_pressure)
+
+            mul!(Ap, operator, trial_pressure)
+            iisph_pressure_rhs!(rhs, operator)
+            iisph_pressure_residual!(residual, trial_pressure, rhs, operator)
+            iisph_pressure_apply_preconditioner!(z, residual, operator)
 
             @test system_real.sum_d_ij_pj ≈ generic_sum_d_ij_pj
             @test system_real.sum_term ≈ generic_sum_term
+            @test Ap ≈ system_real.a_ii .* trial_pressure .+ generic_sum_term
+            @test rhs ≈ [TrixiParticles.iisph_source_term(system_real, particle)
+                         for particle in eachindex(rhs)]
+            @test residual ≈ rhs .- Ap
+            @test z ≈ system_real.inv_a_ii .* residual
         end
 
         @testset "Boundary coefficients (PressureMirroring doubles a_ii)" begin

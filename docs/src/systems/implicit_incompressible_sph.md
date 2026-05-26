@@ -61,6 +61,11 @@ Per-step counters for accepted-step adaptivity can be inspected with
 [`iisph_pressure_step_stats`](@ref) and reset with
 [`reset_iisph_pressure_step_stats!`](@ref). These counters include pressure solve wall
 times in addition to Jacobi iteration counts.
+The cached IISPH pressure equation can be accessed as a matrix-free
+[`IISPHPressureOperator`](@ref) with `mul!`, [`iisph_pressure_rhs!`](@ref),
+[`iisph_pressure_residual!`](@ref), and
+[`iisph_pressure_apply_preconditioner!`](@ref). This operator layer is intended for
+accelerated pressure solvers that reuse the same per-step neighbor coefficients.
 
 The [`IISPHPressureAdaptiveTimeStepCallback`](@ref) adjusts the next step size from the
 pressure solver iteration count. It does not reject steps, so it avoids the pressure

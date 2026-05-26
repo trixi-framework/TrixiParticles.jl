@@ -160,6 +160,125 @@ function create_cache_iisph_pressure(initial_condition, NDIMS, ELTYPE)
             pressure_boundary_grad_mass_sum=zeros(ELTYPE, NDIMS, n_particles))
 end
 
+"""
+    IISPHPressureOperator
+
+Matrix-free IISPH pressure operator assembled from cached per-step neighbor coefficients.
+
+The operator applies ``A p`` for the current IISPH pressure equation, where ``A`` contains
+the diagonal entries `system.a_ii` and the cached off-diagonal pressure couplings. Build
+the operator after the IISPH prediction step has updated the pressure cache, for example
+inside the pressure solver or after `update_systems_and_nhs_before_pressure!`.
+
+Use [`iisph_pressure_operator`](@ref) to construct an operator with compatibility checks.
+"""
+struct IISPHPressureOperator{S, SEMI}
+    system :: S
+    semi   :: SEMI
+end
+
+"""
+    iisph_pressure_operator(system, semi)
+
+Construct a matrix-free [`IISPHPressureOperator`](@ref) for `system`.
+
+The operator currently uses the optimized cached IISPH pressure loop and therefore
+requires exactly one [`ImplicitIncompressibleSPHSystem`](@ref) and no
+[`PressureBoundaries`](@ref). Construct it after the per-step pressure cache has been
+built.
+"""
+function iisph_pressure_operator(system::ImplicitIncompressibleSPHSystem, semi)
+    supports_cached_iisph_pressure_loop(semi) ||
+        throw(ArgumentError("the matrix-free IISPH pressure operator currently requires " *
+                            "one `ImplicitIncompressibleSPHSystem` and no " *
+                            "`PressureBoundaries`"))
+
+    return IISPHPressureOperator(system, semi)
+end
+
+Base.eltype(operator::IISPHPressureOperator) = eltype(operator.system)
+Base.size(operator::IISPHPressureOperator) = (nparticles(operator.system),
+                                             nparticles(operator.system))
+Base.size(operator::IISPHPressureOperator, dim::Integer) = dim in (1, 2) ?
+                                                           nparticles(operator.system) : 1
+
+function mul!(Ap, operator::IISPHPressureOperator, pressure)
+    (; system, semi) = operator
+    length(Ap) == nparticles(system) ||
+        throw(DimensionMismatch("output length $(length(Ap)) does not match " *
+                                "number of IISPH particles $(nparticles(system))"))
+    length(pressure) == nparticles(system) ||
+        throw(DimensionMismatch("pressure length $(length(pressure)) does not match " *
+                                "number of IISPH particles $(nparticles(system))"))
+
+    calculate_iisph_pressure_sum_d_ij_pj!(system.sum_d_ij_pj, pressure, system, semi)
+    calculate_iisph_pressure_sum_term!(Ap, pressure, system, semi)
+
+    @threaded semi for particle in eachparticle(system)
+        @inbounds Ap[particle] += system.a_ii[particle] * pressure[particle]
+    end
+
+    return Ap
+end
+
+"""
+    iisph_pressure_rhs!(rhs, operator)
+
+Write the IISPH pressure right-hand side ``b`` into `rhs`.
+"""
+function iisph_pressure_rhs!(rhs, operator::IISPHPressureOperator)
+    (; system, semi) = operator
+    length(rhs) == nparticles(system) ||
+        throw(DimensionMismatch("rhs length $(length(rhs)) does not match " *
+                                "number of IISPH particles $(nparticles(system))"))
+
+    @threaded semi for particle in eachparticle(system)
+        @inbounds rhs[particle] = iisph_source_term(system, particle)
+    end
+
+    return rhs
+end
+
+"""
+    iisph_pressure_residual!(residual, pressure, rhs, operator)
+
+Write the matrix-free pressure residual ``rhs - A * pressure`` into `residual`.
+"""
+function iisph_pressure_residual!(residual, pressure, rhs,
+                                  operator::IISPHPressureOperator)
+    mul!(residual, operator, pressure)
+
+    (; system, semi) = operator
+    @threaded semi for particle in eachparticle(system)
+        @inbounds residual[particle] = rhs[particle] - residual[particle]
+    end
+
+    return residual
+end
+
+"""
+    iisph_pressure_apply_preconditioner!(z, residual, operator)
+
+Apply the IISPH diagonal preconditioner ``D^{-1}`` to `residual` and write the result to
+`z`.
+"""
+function iisph_pressure_apply_preconditioner!(z, residual,
+                                              operator::IISPHPressureOperator)
+    (; system, semi) = operator
+    length(z) == nparticles(system) ||
+        throw(DimensionMismatch("output length $(length(z)) does not match " *
+                                "number of IISPH particles $(nparticles(system))"))
+    length(residual) == nparticles(system) ||
+        throw(DimensionMismatch("residual length $(length(residual)) does not match " *
+                                "number of IISPH particles $(nparticles(system))"))
+
+    @threaded semi for particle in eachparticle(system)
+        @inbounds z[particle] = system.inv_a_ii[particle] * residual[particle]
+    end
+
+    return z
+end
+
 function write_v0!(v0, system::ImplicitIncompressibleSPHSystem)
     # This is as fast as a loop with `@inbounds`, but it's GPU-compatible
     indices = CartesianIndices(system.initial_condition.velocity)
@@ -691,7 +810,15 @@ function calculate_cached_sum_d_ij_pj!(system, semi)
 end
 
 function calculate_cached_sum_d_ij_pj!(system::ImplicitIncompressibleSPHSystem, semi)
-    (; sum_d_ij_pj, pressure) = system
+    calculate_iisph_pressure_sum_d_ij_pj!(system.sum_d_ij_pj, system.pressure, system,
+                                          semi)
+
+    return system
+end
+
+function calculate_iisph_pressure_sum_d_ij_pj!(sum_d_ij_pj, pressure,
+                                               system::ImplicitIncompressibleSPHSystem,
+                                               semi)
     (; pressure_neighbor_offsets, pressure_neighbor, pressure_d_ij) = system.cache
 
     set_zero!(sum_d_ij_pj)
@@ -707,7 +834,7 @@ function calculate_cached_sum_d_ij_pj!(system::ImplicitIncompressibleSPHSystem, 
         end
     end
 
-    return system
+    return sum_d_ij_pj
 end
 
 function calculate_cached_sum_term_values!(system, semi)
@@ -715,9 +842,19 @@ function calculate_cached_sum_term_values!(system, semi)
 end
 
 function calculate_cached_sum_term_values!(system::ImplicitIncompressibleSPHSystem, semi)
-    (; pressure, d_ii, sum_d_ij_pj, sum_term) = system
+    calculate_iisph_pressure_sum_term!(system.sum_term, system.pressure, system, semi)
+
+    return system
+end
+
+function calculate_iisph_pressure_sum_term!(sum_term, pressure,
+                                            system::ImplicitIncompressibleSPHSystem,
+                                            semi)
+    (; d_ii, sum_d_ij_pj) = system
     (; pressure_neighbor_offsets, pressure_neighbor, pressure_grad_mass,
        pressure_d_ji_dot_grad, pressure_boundary_grad_mass_sum) = system.cache
+
+    set_zero!(sum_term)
 
     @threaded semi for particle in each_integrated_particle(system)
         sum_term_particle = zero(eltype(system))
@@ -745,7 +882,7 @@ function calculate_cached_sum_term_values!(system::ImplicitIncompressibleSPHSyst
         @inbounds sum_term[particle] = sum_term_particle
     end
 
-    return system
+    return sum_term
 end
 
 function calculate_sum_d_ij_pj!(system, u, u_ode, semi)
