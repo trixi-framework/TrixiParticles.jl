@@ -734,9 +734,11 @@ end
 function check_configuration(system::ImplicitIncompressibleSPHSystem, systems, nhs)
     (; time_step, omega) = system
     foreach_system(systems) do neighbor
-        if neighbor isa WeaklyCompressibleSPHSystem
-            throw(ArgumentError("`ImplicitIncompressibleSPHSystem` cannot be used together with
-            `WeaklyCompressibleSPHSystem`"))
+        if neighbor isa WeaklyCompressibleSPHSystem ||
+           neighbor isa EntropicallyDampedSPHSystem
+            neighbor_name = neighbor |> typeof |> nameof
+            throw(ArgumentError("`ImplicitIncompressibleSPHSystem` cannot be used " *
+                                "together with `$neighbor_name`"))
         end
         if neighbor isa WallBoundarySystem
             if (neighbor.boundary_model isa BoundaryModelDummyParticles &&
