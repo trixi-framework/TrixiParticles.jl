@@ -117,6 +117,10 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real, F, B}
             throw(ArgumentError("`fluid_density` needs to be positive and larger than $(eps())."))
         end
 
+        if any(<(0), fluid_size_)
+            throw(ArgumentError("`fluid_size` dimensions need to be non-negative"))
+        end
+
         if !(n_layers isa Integer) || n_layers < 1
             throw(ArgumentError("`n_layers` needs to be a positive integer"))
         end
@@ -128,6 +132,10 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real, F, B}
 
         if length(tank_size) != NDIMS
             throw(ArgumentError("`tank_size` must be of length $NDIMS for a $(NDIMS)D problem"))
+        end
+
+        if any(<(0), tank_size_)
+            throw(ArgumentError("`tank_size` dimensions need to be non-negative"))
         end
 
         # Fluid particle data

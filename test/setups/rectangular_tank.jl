@@ -110,6 +110,18 @@
                                                (tank_width, tank_height),
                                                water_density, spacing_ratio=3)
 
+            error = ArgumentError("`fluid_size` dimensions need to be non-negative")
+            @test_throws error RectangularTank(particle_spacing,
+                                               (-water_width, water_height),
+                                               (tank_width, tank_height),
+                                               water_density)
+
+            error = ArgumentError("`tank_size` dimensions need to be non-negative")
+            @test_throws error RectangularTank(particle_spacing,
+                                               (water_width, water_height),
+                                               (-tank_width, tank_height),
+                                               water_density)
+
             @test_throws ArgumentError RectangularTank(particle_spacing,
                                                        (water_width, water_height),
                                                        (tank_width, tank_height),
