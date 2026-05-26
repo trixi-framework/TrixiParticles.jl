@@ -55,6 +55,7 @@ struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ARRAY2D,
     advection_velocity                :: ARRAY2D # Array{ELTYPE, 2}
     d_ii                              :: ARRAY2D # Eq. 9
     a_ii                              :: ARRAY1D # Diagonal elements of the implicit pressure equation (Eq. 6)
+    inv_a_ii                          :: ARRAY1D # Cached inverse diagonal elements
     sum_d_ij_pj                       :: ARRAY2D # \sum_j d_{ij} p_j (Eq. 10)
     sum_term                          :: ARRAY1D # Sum term of Eq. 13
     density_error                     :: ARRAY1D # Temporary storage for parallel reduction
@@ -122,6 +123,7 @@ function ImplicitIncompressibleSPHSystem(initial_condition; smoothing_kernel,
     density = copy(initial_condition.density)
     predicted_density = zeros(ELTYPE, n_particles)
     a_ii = zeros(ELTYPE, n_particles)
+    inv_a_ii = zeros(ELTYPE, n_particles)
     d_ii = zeros(ELTYPE, NDIMS, n_particles)
     advection_velocity = zeros(ELTYPE, NDIMS, n_particles)
     sum_d_ij_pj = zeros(ELTYPE, NDIMS, n_particles)
@@ -137,7 +139,8 @@ function ImplicitIncompressibleSPHSystem(initial_condition; smoothing_kernel,
                                            reference_density, acceleration_, viscosity,
                                            pressure_acceleration, nothing, surface_tension,
                                            particle_refinement, density, predicted_density,
-                                           advection_velocity, d_ii, a_ii, sum_d_ij_pj,
+                                           advection_velocity, d_ii, a_ii, inv_a_ii,
+                                           sum_d_ij_pj,
                                            sum_term, density_error, omega, max_error,
                                            min_iterations, max_iterations, time_step,
                                            artificial_sound_speed, cache)
@@ -326,7 +329,7 @@ end
 function calculate_diagonal_elements_and_predicted_density!(system::ImplicitIncompressibleSPHSystem,
                                                             v, u, v_ode,
                                                             u_ode, semi)
-    (; a_ii, density, predicted_density) = system
+    (; a_ii, density, predicted_density, inv_a_ii) = system
     time_step = iisph_projection_dt(semi)
 
     set_zero!(a_ii)
@@ -336,6 +339,12 @@ function calculate_diagonal_elements_and_predicted_density!(system::ImplicitInco
         calculate_diagonal_elements_and_predicted_density(a_ii, predicted_density, system,
                                                           neighbor_system, v, u, v_ode,
                                                           u_ode, semi, time_step)
+    end
+
+    @threaded semi for particle in eachparticle(system)
+        a_ii_particle = a_ii[particle]
+        inv_a_ii[particle] = abs(a_ii_particle) > 1.0e-9 ? inv(a_ii_particle) :
+                             zero(a_ii_particle)
     end
 end
 
@@ -571,11 +580,39 @@ function pressure_update(system, semi)
 end
 
 function pressure_update(system::ImplicitIncompressibleSPHSystem, semi)
-    (; pressure, sum_term, reference_density, a_ii, omega, density_error) = system
+    (; pressure, sum_term, reference_density, a_ii, inv_a_ii, omega, density_error) = system
 
     # Update the pressure values
     relative_density_error = pressure_update(system, pressure, reference_density, a_ii,
-                                             sum_term, omega, density_error, semi)
+                                             inv_a_ii, sum_term, omega, density_error, semi)
+
+    return relative_density_error
+end
+
+function pressure_update(system, pressure, reference_density, a_ii, inv_a_ii, sum_term,
+                         omega, density_error, semi)
+    relative_density_error = zero(eltype(system))
+
+    @threaded semi for particle in eachparticle(system)
+        inv_a_ii_particle = inv_a_ii[particle]
+        source_term = iisph_source_term(system, particle)
+        if inv_a_ii_particle != 0
+            pressure[particle] = max((1 - omega) * pressure[particle] +
+                                     omega * inv_a_ii_particle *
+                                     (source_term - sum_term[particle]), 0)
+        else
+            pressure[particle] = zero(pressure[particle])
+        end
+        # Calculate the average density error for the termination condition
+        if (pressure[particle] != 0.0)
+            new_density = a_ii[particle] * pressure[particle] + sum_term[particle] -
+                          source_term + reference_density
+            density_error[particle] = (new_density - reference_density)
+        else
+            density_error[particle] = zero(density_error[particle])
+        end
+    end
+    relative_density_error = sum(density_error) / reference_density
 
     return relative_density_error
 end
@@ -585,21 +622,20 @@ function pressure_update(system, pressure, reference_density, a_ii, sum_term, om
     relative_density_error = zero(eltype(system))
 
     @threaded semi for particle in eachparticle(system)
+        source_term = iisph_source_term(system, particle)
         # Removing instabilities by avoiding to divide by very low values of `a_ii`.
         # This is not mentioned in the paper but done in SPlisHSPlasH as well.
         if abs(a_ii[particle]) > 1.0e-9
             pressure[particle] = max((1 - omega) * pressure[particle] +
                                      omega / a_ii[particle] *
-                                     (iisph_source_term(system, particle) -
-                                      sum_term[particle]), 0)
+                                     (source_term - sum_term[particle]), 0)
         else
             pressure[particle] = zero(pressure[particle])
         end
         # Calculate the average density error for the termination condition
         if (pressure[particle] != 0.0)
             new_density = a_ii[particle] * pressure[particle] + sum_term[particle] -
-                          iisph_source_term(system, particle) +
-                          reference_density
+                          source_term + reference_density
             density_error[particle] = (new_density - reference_density)
         else
             density_error[particle] = zero(density_error[particle])

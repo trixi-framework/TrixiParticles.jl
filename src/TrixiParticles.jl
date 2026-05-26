@@ -74,9 +74,10 @@ export BoundaryZone, InFlow, OutFlow, BidirectionalFlow
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
        PostprocessCallback, StepsizeCallback, UpdateCallback, SteadyStateReachedCallback,
        SplitIntegrationCallback, MechanicalWorkCalculatorCallback, IISPHTimeStepCallback,
-       IISPHTimeStepLimiter,
+       IISPHTimeStepLimiter, IISPHPressureAdaptiveTimeStepCallback,
        calculated_mechanical_work, iisph_pressure_iteration_stats,
-       reset_iisph_pressure_iteration_stats!,
+       iisph_pressure_step_stats, reset_iisph_pressure_iteration_stats!,
+       reset_iisph_pressure_step_stats!,
        SortingCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller, TransportVelocityAdami, ParticleShiftingTechnique,

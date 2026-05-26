@@ -32,6 +32,9 @@ each accepted step.
 Use `IISPHTimeStepCallback(pressure_projection=:strang)` for a symmetric splitting with
 pressure projections around each non-pressure RK step. Adjacent half projections are
 merged into full pressure projections at internal fixed-step boundaries.
+Use [`IISPHPressureAdaptiveTimeStepCallback`](@ref) after the IISPH time-step callback
+to adapt the next accepted step size from the pressure solver iteration count without
+rejecting already accepted steps.
 
 ## Usage
 

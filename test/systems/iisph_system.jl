@@ -457,6 +457,17 @@
             @test isapprox(relative_error, -0.003)
             @test isapprox(system_pressure.pressure, [4.0, 0.0])
             @test isapprox(system_pressure.density_error, [-3.0, 0.0])
+
+            system_pressure.pressure .= 0.0
+            system_pressure.density_error .= 0.0
+            system_pressure.inv_a_ii .= [2.0, 0.0]
+
+            relative_error_cached = TrixiParticles.pressure_update(system_pressure,
+                                                                   semi)
+
+            @test isapprox(relative_error_cached, relative_error)
+            @test isapprox(system_pressure.pressure, [4.0, 0.0])
+            @test isapprox(system_pressure.density_error, [-3.0, 0.0])
         end
 
         @testset "Source term and iteration limits" begin

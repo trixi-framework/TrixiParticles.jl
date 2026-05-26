@@ -132,7 +132,9 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
                             step_end_projection=Ref(false), strang_projection=Ref(false),
                             projection_only=Ref(false),
                             last_iterations=Ref(0), total_iterations=Ref(0),
-                            max_iterations=Ref(0), solve_count=Ref(0))
+                            max_iterations=Ref(0), solve_count=Ref(0),
+                            step_iterations=Ref(0), step_max_iterations=Ref(0),
+                            step_solve_count=Ref(0))
 
     return Semidiscretization(systems, ranges_u, ranges_v, searches,
                               parallelization_backend, update_callback_used,
@@ -306,6 +308,9 @@ function record_iisph_pressure_iterations!(semi, iterations)
     state.total_iterations[] += iterations
     state.max_iterations[] = max(state.max_iterations[], iterations)
     state.solve_count[] += 1
+    state.step_iterations[] += iterations
+    state.step_max_iterations[] = max(state.step_max_iterations[], iterations)
+    state.step_solve_count[] += 1
 
     return semi
 end
@@ -324,8 +329,52 @@ function reset_iisph_pressure_iteration_stats!(semi)
     state.total_iterations[] = 0
     state.max_iterations[] = 0
     state.solve_count[] = 0
+    reset_iisph_pressure_step_stats!(semi)
 
     return semi
+end
+
+"""
+    reset_iisph_pressure_step_stats!(semi)
+
+Reset IISPH pressure solver counters accumulated since the previous accepted time step.
+
+See also [`iisph_pressure_step_stats`](@ref).
+"""
+function reset_iisph_pressure_step_stats!(semi)
+    state = semi.iisph_pressure_state
+
+    state.step_iterations[] = 0
+    state.step_max_iterations[] = 0
+    state.step_solve_count[] = 0
+
+    return semi
+end
+
+"""
+    iisph_pressure_step_stats(semi)
+
+Return IISPH pressure solver counters accumulated since the previous accepted time step.
+
+The returned named tuple contains:
+- `total_iterations`: accumulated Jacobi iterations in the current step
+- `max_iterations`: maximum Jacobi iterations in one pressure solve in the current step
+- `solve_count`: number of recorded pressure solves in the current step
+- `average_iterations`: average Jacobi iterations per pressure solve in the current step
+
+Use [`reset_iisph_pressure_step_stats!`](@ref) to reset these counters.
+"""
+function iisph_pressure_step_stats(semi)
+    state = semi.iisph_pressure_state
+
+    solve_count = state.step_solve_count[]
+    total_iterations = state.step_iterations[]
+    average_iterations = solve_count == 0 ? 0.0 : total_iterations / solve_count
+
+    return (total_iterations,
+            max_iterations=state.step_max_iterations[],
+            solve_count,
+            average_iterations)
 end
 
 """

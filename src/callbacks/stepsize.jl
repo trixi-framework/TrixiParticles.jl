@@ -210,6 +210,17 @@ struct IISPHTimeStepLimiter{R, W}
     warm_start_pressure::W
 end
 
+struct IISPHPressureAdaptiveTimeStepCallback{MIN, MAX, TMIN, TMAX, G, S, C, R}
+    min_dt::MIN
+    max_dt::MAX
+    target_min_iterations::TMIN
+    target_max_iterations::TMAX
+    growth_factor::G
+    shrink_factor::S
+    cap_shrink_factor::C
+    require_fixed_step::R
+end
+
 @doc raw"""
     IISPHTimeStepLimiter(; require_fixed_step=true, warm_start_pressure=true)
 
@@ -230,6 +241,65 @@ function IISPHTimeStepLimiter(; require_fixed_step=true, warm_start_pressure=tru
                                                              warm_start_pressure)
 end
 
+@doc raw"""
+    IISPHPressureAdaptiveTimeStepCallback(; min_dt=0, max_dt=Inf,
+                                          target_iterations=(3, 8),
+                                          growth_factor=1.25,
+                                          shrink_factor=0.8,
+                                          cap_shrink_factor=0.5,
+                                          require_fixed_step=false)
+
+Adapt the next accepted IISPH step size from pressure solver work.
+
+This callback does not reject or roll back steps. It reads the IISPH pressure solver
+iterations accumulated during the accepted step, proposes a new `dt` for the next step,
+and resets the per-step pressure counters. This makes it suitable for IISPH experiments
+where rejected steps would require restoring pressure caches.
+
+Place this callback after [`IISPHTimeStepCallback`](@ref) in a `CallbackSet`, so
+step-end and Strang pressure projections are included in the measured pressure work.
+"""
+function IISPHPressureAdaptiveTimeStepCallback(; min_dt=0, max_dt=Inf,
+                                               target_iterations=(3, 8),
+                                               growth_factor=1.25,
+                                               shrink_factor=0.8,
+                                               cap_shrink_factor=0.5,
+                                               require_fixed_step=false)
+    target_min, target_max = target_iterations
+
+    min_dt < 0 && throw(ArgumentError("`min_dt` must be non-negative"))
+    max_dt <= 0 && throw(ArgumentError("`max_dt` must be positive"))
+    min_dt > max_dt && throw(ArgumentError("`min_dt` must be smaller than `max_dt`"))
+    target_min <= 0 && throw(ArgumentError("target iteration counts must be positive"))
+    target_min > target_max &&
+        throw(ArgumentError("target iteration lower bound must not exceed upper bound"))
+    growth_factor < 1 &&
+        throw(ArgumentError("`growth_factor` must be greater than or equal to one"))
+    !(0 < shrink_factor <= 1) &&
+        throw(ArgumentError("`shrink_factor` must be in the interval (0, 1]"))
+    !(0 < cap_shrink_factor <= 1) &&
+        throw(ArgumentError("`cap_shrink_factor` must be in the interval (0, 1]"))
+
+    callback = IISPHPressureAdaptiveTimeStepCallback{typeof(min_dt), typeof(max_dt),
+                                                     typeof(target_min),
+                                                     typeof(target_max),
+                                                     typeof(growth_factor),
+                                                     typeof(shrink_factor),
+                                                     typeof(cap_shrink_factor),
+                                                     typeof(require_fixed_step)}(min_dt,
+                                                                                 max_dt,
+                                                                                 target_min,
+                                                                                 target_max,
+                                                                                 growth_factor,
+                                                                                 shrink_factor,
+                                                                                 cap_shrink_factor,
+                                                                                 require_fixed_step)
+
+    return DiscreteCallback(callback, callback;
+                            initialize=initialize_iisph_pressure_adaptive_callback,
+                            save_positions=(false, false))
+end
+
 function (limiter::IISPHTimeStepLimiter)(u, integrator, p, t)
     # Some OrdinaryDiffEq.jl algorithms call stage limiters with the ODEFunction instead
     # of the integrator at selected stages. In that case there is no step size to sync.
@@ -242,6 +312,78 @@ function (limiter::IISPHTimeStepLimiter)(u, integrator, p, t)
                               require_fixed_step=limiter.require_fixed_step)
 
     return u
+end
+
+function initialize_iisph_pressure_adaptive_callback(discrete_callback, u, t, integrator)
+    callback = discrete_callback.affect!
+    sync_iisph_projection_dt!(integrator;
+                              require_fixed_step=callback.require_fixed_step)
+    reset_iisph_pressure_step_stats!(integrator.p.semi)
+
+    return discrete_callback
+end
+
+# `condition`
+function (callback::IISPHPressureAdaptiveTimeStepCallback)(u, t, integrator)
+    return uses_iisph_projection_dt(integrator.p.semi)
+end
+
+# `affect!`
+function (callback::IISPHPressureAdaptiveTimeStepCallback)(integrator)
+    semi = integrator.p.semi
+    stats = iisph_pressure_step_stats(semi)
+    if stats.solve_count == 0
+        u_modified!(integrator, false)
+        return callback
+    end
+
+    pressure_max_iterations = minimum(maximum_iisph_iterations, semi.systems)
+    dt = integrator.dt
+    dt_new = iisph_pressure_adaptive_dt(dt, stats;
+                                        min_dt=callback.min_dt,
+                                        max_dt=callback.max_dt,
+                                        target_min_iterations=callback.target_min_iterations,
+                                        target_max_iterations=callback.target_max_iterations,
+                                        growth_factor=callback.growth_factor,
+                                        shrink_factor=callback.shrink_factor,
+                                        cap_shrink_factor=callback.cap_shrink_factor,
+                                        pressure_max_iterations)
+
+    if dt_new != dt
+        set_proposed_dt!(integrator, dt_new)
+        integrator.dtcache = dt_new
+        set_iisph_projection_dt!(semi, dt_new)
+    end
+    reset_iisph_pressure_step_stats!(semi)
+    u_modified!(integrator, iisph_step_end_projection_enabled(semi))
+
+    return callback
+end
+
+function iisph_pressure_adaptive_dt(dt, stats; min_dt=0, max_dt=Inf,
+                                    target_min_iterations=3,
+                                    target_max_iterations=8,
+                                    growth_factor=1.25,
+                                    shrink_factor=0.8,
+                                    cap_shrink_factor=0.5,
+                                    pressure_max_iterations=typemax(Int))
+    average_iterations = stats.average_iterations
+    factor = one(dt)
+
+    if stats.max_iterations >= pressure_max_iterations
+        factor = min(factor, cap_shrink_factor)
+    end
+
+    if average_iterations > target_max_iterations
+        factor = min(factor, shrink_factor,
+                     sqrt(target_max_iterations / average_iterations))
+        factor = max(factor, cap_shrink_factor)
+    elseif average_iterations < target_min_iterations
+        safe_average = max(average_iterations, eps(float(average_iterations)))
+        factor = min(growth_factor, sqrt(target_min_iterations / safe_average))
+    end
+
+    return clamp(dt * factor, min_dt, max_dt)
 end
 
 function sync_iisph_projection_dt!(integrator; require_fixed_step=true)
@@ -340,6 +482,41 @@ function Base.show(io::IO, limiter::IISPHTimeStepLimiter)
     print(io, "IISPHTimeStepLimiter(require_fixed_step=",
           limiter.require_fixed_step, ", warm_start_pressure=",
           limiter.warm_start_pressure, ")")
+end
+
+function Base.show(io::IO,
+                   cb::DiscreteCallback{<:Any, <:IISPHPressureAdaptiveTimeStepCallback})
+    @nospecialize cb # reduce precompilation time
+
+    callback = cb.affect!
+    print(io, "IISPHPressureAdaptiveTimeStepCallback(min_dt=",
+          callback.min_dt, ", max_dt=", callback.max_dt,
+          ", target_iterations=(", callback.target_min_iterations, ", ",
+          callback.target_max_iterations, "), growth_factor=", callback.growth_factor,
+          ", shrink_factor=", callback.shrink_factor,
+          ", cap_shrink_factor=", callback.cap_shrink_factor, ")")
+end
+
+function Base.show(io::IO, ::MIME"text/plain",
+                   cb::DiscreteCallback{<:Any, <:IISPHPressureAdaptiveTimeStepCallback})
+    @nospecialize cb # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, cb)
+    else
+        callback = cb.affect!
+
+        setup = [
+            "minimum dt" => string(callback.min_dt),
+            "maximum dt" => string(callback.max_dt),
+            "target iterations" => string((callback.target_min_iterations,
+                                            callback.target_max_iterations)),
+            "growth factor" => string(callback.growth_factor),
+            "shrink factor" => string(callback.shrink_factor),
+            "cap shrink factor" => string(callback.cap_shrink_factor)
+        ]
+        summary_box(io, "IISPHPressureAdaptiveTimeStepCallback", setup)
+    end
 end
 
 function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:StepsizeCallback})

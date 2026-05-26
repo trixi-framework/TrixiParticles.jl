@@ -57,9 +57,24 @@ the previous stage pressure as initial guess.
 Pressure solver iteration counters can be inspected with
 [`iisph_pressure_iteration_stats`](@ref) and reset with
 [`reset_iisph_pressure_iteration_stats!`](@ref).
+Per-step counters for accepted-step adaptivity can be inspected with
+[`iisph_pressure_step_stats`](@ref) and reset with
+[`reset_iisph_pressure_step_stats!`](@ref).
 
-Adaptive time integration with IISPH is currently experimental because rejected
-steps require restoring IISPH pressure caches.
+The [`IISPHPressureAdaptiveTimeStepCallback`](@ref) adjusts the next step size from the
+pressure solver iteration count. It does not reject steps, so it avoids the pressure
+cache rollback problem of OrdinaryDiffEq.jl adaptive methods. Place it after
+[`IISPHTimeStepCallback`](@ref) so it sees all pressure solves from the accepted step:
+
+```julia
+iisph_callback = IISPHTimeStepCallback()
+adaptive_iisph_callback = IISPHPressureAdaptiveTimeStepCallback(;
+    min_dt, max_dt, target_iterations=(3, 8))
+callbacks = CallbackSet(callbacks, iisph_callback, adaptive_iisph_callback)
+```
+
+Adaptive time integration with IISPH remains experimental when it relies on rejected
+steps, because rejected steps require restoring IISPH pressure caches.
 
 ## Derivation
 To derive the linear system of the pressure Poisson equation, we start by discretizing the
