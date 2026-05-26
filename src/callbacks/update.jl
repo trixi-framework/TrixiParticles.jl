@@ -52,11 +52,20 @@ function initial_update!(cb, u, t, integrator)
     initial_update!(cb.affect!, u, t, integrator)
 end
 
-function initial_update!(cb::UpdateCallback, u, t, integrator)
+function initial_update!(cb::UpdateCallback, vu_ode, t, integrator)
+    v_ode, u_ode = vu_ode.x
     semi = integrator.p.semi
 
     # Tell the semidiscretization that the `UpdateCallback` is used
     semi.update_callback_used[] = true
+
+    # If TLSPH is not integrated, the averaged velocity will be initialized in the
+    # split integration.
+    if semi.integrate_tlsph[]
+        foreach_system(semi) do system
+            initialize_averaged_velocity!(system, v_ode, semi, t)
+        end
+    end
 
     return cb(integrator)
 end
@@ -104,6 +113,14 @@ function (update_callback!::UpdateCallback)(integrator)
         foreach_system(semi) do system
             particle_shifting_from_callback!(u_ode, shifting_technique(system), system,
                                              v_ode, semi, integrator)
+        end
+
+        # If TLSPH is not integrated, the averaged velocity will be updated in the
+        # split integration.
+        if semi.integrate_tlsph[]
+            foreach_system(semi) do system
+                compute_averaged_velocity!(system, v_ode, semi, t)
+            end
         end
     end
 
