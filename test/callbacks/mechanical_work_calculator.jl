@@ -21,16 +21,21 @@
         callback = MechanicalWorkCalculatorCallback(system64, semi64)
         @test callback.affect!.system_index == 1
         @test callback.affect!.interval == 1
+        @test callback.affect!.save_interval == 1
         @test callback.affect!.t[] == 0.0
         @test callback.affect!.work[] == 0.0
+        @test isempty(callback.affect!.work_history_times)
+        @test isempty(callback.affect!.work_history)
         @test callback.affect!.dv isa Array{Float64, 2}
         @test size(callback.affect!.dv) == (2, 4)
         @test callback.affect!.eachparticle == 5:4
         @test calculated_mechanical_work(callback) == 0.0
 
         # Test constructor with interval
-        callback = MechanicalWorkCalculatorCallback(system64, semi64; interval=5)
+        callback = MechanicalWorkCalculatorCallback(system64, semi64; interval=5,
+                                                    save_interval=10)
         @test callback.affect!.interval == 5
+        @test callback.affect!.save_interval == 10
         @test eltype(callback.affect!.work) == Float64
         @test eltype(callback.affect!.t) == Float64
 
@@ -38,13 +43,63 @@
         callback = MechanicalWorkCalculatorCallback(system32, semi32; interval=2)
         @test eltype(callback.affect!.work) == Float32
         @test eltype(callback.affect!.t) == Float32
+        @test eltype(callback.affect!.work_history_times) == Float32
+        @test eltype(callback.affect!.work_history) == Float32
+
+        error_str1 = "`interval` must be positive"
+        @test_throws ArgumentError(error_str1) MechanicalWorkCalculatorCallback(system64,
+                                                                                semi64;
+                                                                                interval=0)
+
+        error_str2 = "`save_interval` must be positive"
+        @test_throws ArgumentError(error_str2) MechanicalWorkCalculatorCallback(system64,
+                                                                                semi64;
+                                                                                save_interval=0)
+
+        error_str3 = "`save_interval` must be a positive multiple of `interval`"
+        @test_throws ArgumentError(error_str3) MechanicalWorkCalculatorCallback(system64,
+                                                                                semi64;
+                                                                                interval=2,
+                                                                                save_interval=3)
+    end
+
+    @testset "work history" begin
+        callback = MechanicalWorkCalculatorCallback(system64, semi64; interval=1,
+                                                    save_interval=5)
+        work_callback = callback.affect!
+
+        TrixiParticles.initialize_mechanical_work_calculator_callback(callback, nothing,
+                                                                      0.0, nothing)
+
+        @test work_callback.work_history_times == [0.0]
+        @test work_callback.work_history == [0.0]
+
+        work_callback.work[] = 10.0
+        TrixiParticles.save_mechanical_work!(work_callback, 1.0)
+        work_callback.work[] = 30.0
+        TrixiParticles.save_mechanical_work!(work_callback, 2.0)
+
+        @test calculated_mechanical_work(callback) == 30.0
+        @test calculated_mechanical_work(callback; time_window=(0.5, 1.5)) == 15.0
+        @test calculated_mechanical_work(callback; time_window=(1.0, 2.0)) == 20.0
+
+        error_str1 = "`time_window` must satisfy `t_start <= t_end`"
+        @test_throws ArgumentError(error_str1) calculated_mechanical_work(callback;
+                                                                          time_window=(2.0,
+                                                                                       1.0))
+
+        error_str2 = "`time_window` must lie within the stored mechanical work history (0.0, 2.0)"
+        @test_throws ArgumentError(error_str2) calculated_mechanical_work(callback;
+                                                                          time_window=(-1.0,
+                                                                                       1.0))
     end
 
     @testset "show" begin
-        callback = MechanicalWorkCalculatorCallback(system64, semi64; interval=10)
+        callback = MechanicalWorkCalculatorCallback(system64, semi64; interval=10,
+                                                    save_interval=20)
 
         # Test compact representation
-        show_compact = "MechanicalWorkCalculatorCallback{Float64}(interval=10)"
+        show_compact = "MechanicalWorkCalculatorCallback{Float64}(interval=10, save_interval=20)"
         @test repr(callback) == show_compact
 
         # Test detailed representation - check against expected box format
@@ -53,6 +108,7 @@
         │ MechanicalWorkCalculatorCallback{Float64}                                                        │
         │ ═════════════════════════════════════════                                                        │
         │ interval: ……………………………………………………… 10                                                               │
+        │ save interval: ………………………………………… 20                                                               │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", callback) == show_box
     end
