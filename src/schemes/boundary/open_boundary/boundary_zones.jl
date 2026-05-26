@@ -384,6 +384,15 @@ function set_up_boundary_zone(boundary_face, face_normal, density, particle_spac
         flow_direction = zero(face_normal)
     end
 
+    # Validate boundary geometry before sampling particles.
+    unit_spanning_set, _ = calculate_spanning_vectors(boundary_face,
+                                                      one(eltype(face_normal)))
+    dot_face_normal = dot(normalize(unit_spanning_set[:, 1]), face_normal)
+
+    if !isapprox(abs(dot_face_normal), 1)
+        throw(ArgumentError("`face_normal` is not normal to the boundary face"))
+    end
+
     # Sample particles in boundary zone
     if isnothing(initial_condition) && isnothing(extrude_geometry)
         initial_condition = TrixiParticles.extrude_geometry(boundary_face; particle_spacing,
@@ -407,13 +416,6 @@ function set_up_boundary_zone(boundary_face, face_normal, density, particle_spac
 
     # Vectors spanning the boundary zone/box
     spanning_set, zone_origin = calculate_spanning_vectors(boundary_face, zone_width)
-
-    # First vector of `spanning_vectors` is normal to the boundary face.
-    dot_face_normal = dot(normalize(spanning_set[:, 1]), face_normal)
-
-    if !isapprox(abs(dot_face_normal), 1)
-        throw(ArgumentError("`face_normal` is not normal to the boundary face"))
-    end
 
     if boundary_type isa InFlow
         # First vector of `spanning_vectors` is normal to the boundary face
@@ -463,13 +465,19 @@ function spanning_vectors(face_vertices::NTuple{3}, zone_width)
     edge1 = face_vertices[2] - face_vertices[1]
     edge2 = face_vertices[3] - face_vertices[1]
 
+    edge1_norm = norm(edge1)
+    edge2_norm = norm(edge2)
+    edge_tolerance = sqrt(eps(typeof(edge1_norm * edge2_norm))) * edge1_norm *
+                     edge2_norm
+
     # Check if the edges are linearly dependent (to avoid degenerate planes)
-    if isapprox(norm(cross(edge1, edge2)), 0.0; atol=eps())
+    cross_norm = norm(cross(edge1, edge2))
+    if isapprox(cross_norm, zero(cross_norm); atol=edge_tolerance)
         throw(ArgumentError("the vectors `AB` and `AC` must not be collinear"))
     end
 
-    if !isapprox(dot(edge1, edge2), 0.0;
-                 atol=sqrt(eps()) * norm(edge1) * norm(edge2))
+    edge_dot = dot(edge1, edge2)
+    if !isapprox(edge_dot, zero(edge_dot); atol=edge_tolerance)
         throw(ArgumentError("the vectors `AB` and `AC` must be orthogonal"))
     end
 
