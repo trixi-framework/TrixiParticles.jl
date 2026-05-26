@@ -251,7 +251,6 @@ function (callback::MechanicalWorkCalculatorCallback)(integrator)
     return integrator
 end
 
-
 function save_mechanical_work!(callback::MechanicalWorkCalculatorCallback, t)
     push!(callback.work_history_times, t)
     push!(callback.work_history, callback.work[])
