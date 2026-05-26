@@ -73,7 +73,8 @@ export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangian
 export BoundaryZone, InFlow, OutFlow, BidirectionalFlow
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
        PostprocessCallback, StepsizeCallback, UpdateCallback, SteadyStateReachedCallback,
-       SplitIntegrationCallback, MechanicalWorkCalculatorCallback,
+       SplitIntegrationCallback, MechanicalWorkCalculatorCallback, IISPHTimeStepCallback,
+       IISPHTimeStepLimiter,
        calculated_mechanical_work,
        SortingCallback
 export ContinuityDensity, SummationDensity

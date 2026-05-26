@@ -11,7 +11,11 @@ The system employs implicit incompressible SPH (IISPH), iteratively solving a li
 for the pressure so that density remains within a specified tolerance of the rest value.
 See [Implicit Incompressible SPH](@ref iisph) for more details on the method.
 !!! note "Time Integration"
-    This system only supports time integration with `SymplecticEuler()`. No other schemes are currently supported.
+    IISPH supports fixed-step time integration. When using fixed-step Runge-Kutta
+    methods from OrdinaryDiffEq.jl, add [`IISPHTimeStepCallback`](@ref) or
+    [`IISPHTimeStepLimiter`](@ref) so the pressure projection uses the current
+    integrator step size. Adaptive time integration is currently experimental because
+    rejected steps require restoring IISPH pressure caches.
 
 # Arguments
 - `initial_condition`:  [`InitialCondition`](@ref) representing the system's particles.
@@ -241,7 +245,8 @@ end
 
 function calculate_predicted_velocity_and_d_ii_values!(system::ImplicitIncompressibleSPHSystem,
                                                        v, u, v_ode, u_ode, semi)
-    (; advection_velocity, time_step) = system
+    (; advection_velocity) = system
+    time_step = iisph_projection_dt(semi)
     d_ii_array = system.d_ii
 
     v_particle_system = wrap_v(v_ode, system, semi)
@@ -315,7 +320,8 @@ end
 function calculate_diagonal_elements_and_predicted_density!(system::ImplicitIncompressibleSPHSystem,
                                                             v, u, v_ode,
                                                             u_ode, semi)
-    (; a_ii, density, predicted_density, time_step) = system
+    (; a_ii, density, predicted_density) = system
+    time_step = iisph_projection_dt(semi)
 
     set_zero!(a_ii)
     predicted_density .= density
@@ -482,7 +488,7 @@ function calculate_sum_d_ij_pj!(sum_d_ij_pj, system,
                                 neighbor_system::Union{ImplicitIncompressibleSPHSystem,
                                                        WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}},
                                 u, u_ode, semi)
-    (; time_step) = system
+    time_step = iisph_projection_dt(semi)
 
     system_coords = current_coordinates(u, system)
     neighbor_coords = current_coordinates(u, neighbor_system)
@@ -517,7 +523,8 @@ end
 
 # Calculate the large sum in eq. 13 of Ihmsen et al. (2013) for each particle (as `sum_term`)
 function calculate_sum_term_values!(system::ImplicitIncompressibleSPHSystem, u, u_ode, semi)
-    (; sum_term, pressure, time_step) = system
+    (; sum_term, pressure) = system
+    time_step = iisph_projection_dt(semi)
 
     set_zero!(sum_term)
 

@@ -228,6 +228,28 @@
         end
     end
 
+    @trixi_testset "fluid/dam_break_2d_iisph.jl with OrdinaryDiffEq RK" begin
+        iisph_limiter = IISPHTimeStepLimiter()
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "dam_break_2d_iisph.jl"),
+                                         tspan=(0.0, 0.1),
+                                         time_integration_scheme=CarpenterKennedy2N54(;
+                                             williamson_condition=false,
+                                             stage_limiter! = iisph_limiter,
+                                             step_limiter! = iisph_limiter)) [
+            r"┌ Info: The desired tank length in y-direction .*\n",
+            r"└ New tank length in y-direction.*\n"
+        ]
+        @test sol.retcode == ReturnCode.Success
+        if VERSION < v"1.11"
+            # For some reason, 1.10 produces allocations here
+            @test count_rhs_allocations(sol) <= 32
+        else
+            @test count_rhs_allocations(sol) == 0
+        end
+    end
+
     @trixi_testset "fluid/dam_break_2d_iisph.jl with PressureMirroring" begin
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",

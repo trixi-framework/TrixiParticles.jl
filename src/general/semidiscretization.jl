@@ -49,7 +49,7 @@ semi = Semidiscretization(fluid_system, boundary_system,
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-struct Semidiscretization{BACKEND, S, RU, RV, NS, UCU, IT}
+struct Semidiscretization{BACKEND, S, RU, RV, NS, UCU, IT, PDT}
     systems                 :: S
     ranges_u                :: RU
     ranges_v                :: RV
@@ -57,19 +57,25 @@ struct Semidiscretization{BACKEND, S, RU, RV, NS, UCU, IT}
     parallelization_backend :: BACKEND
     update_callback_used    :: UCU
     integrate_tlsph         :: IT # `false` if TLSPH integration is decoupled
+    iisph_projection_dt     :: PDT
 
     # Dispatch at `systems` to distinguish this constructor from the one below when
     # 4 systems are passed.
     # This is an internal constructor only used in `test/count_allocations.jl`.
     function Semidiscretization(systems::Tuple, ranges_u, ranges_v, neighborhood_searches,
                                 parallelization_backend::PointNeighbors.ParallelizationBackend,
-                                update_callback_used, integrate_tlsph)
+                                update_callback_used, integrate_tlsph,
+                                iisph_projection_dt)
         new{typeof(parallelization_backend), typeof(systems), typeof(ranges_u),
             typeof(ranges_v), typeof(neighborhood_searches),
             typeof(update_callback_used),
-            typeof(integrate_tlsph)}(systems, ranges_u, ranges_v,
-                                     neighborhood_searches, parallelization_backend,
-                                     update_callback_used, integrate_tlsph)
+            typeof(integrate_tlsph), typeof(iisph_projection_dt)}(systems, ranges_u,
+                                                                  ranges_v,
+                                                                  neighborhood_searches,
+                                                                  parallelization_backend,
+                                                                  update_callback_used,
+                                                                  integrate_tlsph,
+                                                                  iisph_projection_dt)
     end
 end
 
@@ -119,9 +125,11 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     # with this set to false.
     integrate_tlsph = Ref(true)
 
+    iisph_projection_dt = Ref(initial_iisph_projection_dt(systems))
+
     return Semidiscretization(systems, ranges_u, ranges_v, searches,
                               parallelization_backend, update_callback_used,
-                              integrate_tlsph)
+                              integrate_tlsph, iisph_projection_dt)
 end
 
 # Inline show function e.g. Semidiscretization(neighborhood_search=...)
@@ -166,6 +174,55 @@ end
     end
 
     return index
+end
+
+@inline iisph_system_time_step(system) = nothing
+
+@inline function iisph_system_time_step(system::ImplicitIncompressibleSPHSystem)
+    return system.time_step
+end
+
+@inline function iisph_system_time_step(system::WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}})
+    return system.boundary_model.cache.time_step
+end
+
+@inline uses_iisph_projection_dt(system) = false
+
+@inline uses_iisph_projection_dt(system::ImplicitIncompressibleSPHSystem) = true
+
+@inline function uses_iisph_projection_dt(system::WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}})
+    return true
+end
+
+function uses_iisph_projection_dt(semi::Semidiscretization)
+    return any(uses_iisph_projection_dt, semi.systems)
+end
+
+function initial_iisph_projection_dt(systems)
+    projection_dt = nothing
+
+    for system in systems
+        time_step = iisph_system_time_step(system)
+        isnothing(time_step) && continue
+
+        if isnothing(projection_dt)
+            projection_dt = time_step
+        elseif time_step != projection_dt
+            throw(ArgumentError("all IISPH systems and `PressureBoundaries` in a " *
+                                "`Semidiscretization` must use the same `time_step`"))
+        end
+    end
+
+    return isnothing(projection_dt) ? zero(eltype(first(systems))) : projection_dt
+end
+
+@inline function iisph_projection_dt(semi)
+    return semi.iisph_projection_dt[]
+end
+
+function set_iisph_projection_dt!(semi, dt)
+    semi.iisph_projection_dt[] = dt
+    return semi
 end
 
 # This is just for readability to loop over all systems without allocations

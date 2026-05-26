@@ -3,6 +3,7 @@ using TrixiTest: @trixi_test_nowarn
 using TrixiParticles
 # Required to load the extension that provides `SymplecticPositionVerlet`.
 using OrdinaryDiffEqSymplecticRK
+using OrdinaryDiffEqLowStorageRK
 using TrixiParticles: PointNeighbors
 using TrixiParticles.Adapt
 using LinearAlgebra

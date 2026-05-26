@@ -11,6 +11,29 @@ state.
 Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "fluid", "implicit_incompressible_sph", "system.jl")]
 ```
+
+## Time integration
+
+IISPH uses the time step size in the pressure projection. For fixed-step
+OrdinaryDiffEq.jl Runge-Kutta methods, synchronize this projection step with the
+integrator step size:
+
+```julia
+using OrdinaryDiffEqLowStorageRK
+
+iisph_limiter = IISPHTimeStepLimiter()
+time_integrator = CarpenterKennedy2N54(williamson_condition=false,
+                                       stage_limiter! = iisph_limiter,
+                                       step_limiter! = iisph_limiter)
+callbacks = CallbackSet(callbacks, IISPHTimeStepCallback())
+
+sol = solve(ode, time_integrator; dt, adaptive=false,
+            save_everystep=false, callback=callbacks)
+```
+
+Adaptive time integration with IISPH is currently experimental because rejected
+steps require restoring IISPH pressure caches.
+
 ## Derivation
 To derive the linear system of the pressure Poisson equation, we start by discretizing the
 continuity equation
