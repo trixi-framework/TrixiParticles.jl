@@ -24,6 +24,11 @@
                                    boundary_thickness=0.2, place_on_shell=true)
         @test boundary.coordinates ≈ stack(positions[3:4])
 
+        @test_throws ArgumentError sample_boundary(signed_distance_field;
+                                                   boundary_density=1.0,
+                                                   boundary_thickness=0.04,
+                                                   place_on_shell=false)
+
         too_thin_sdf = (; positions, distances, particle_spacing,
                         boundary_packing=true, max_signed_distance=0.1)
         @test_throws ArgumentError sample_boundary(too_thin_sdf; boundary_density=1.0,

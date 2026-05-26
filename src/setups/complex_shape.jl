@@ -93,6 +93,8 @@ of the geometry.
                         one particle spacing from the surface of the geometry.
                         Otherwise when `place_on_shell=false` (simulating fluid particles),
                         boundary particles will be placed half particle spacing away from the surface.
+                        Thus, `boundary_thickness` must be at least one particle spacing
+                        for `place_on_shell=true` and half a particle spacing otherwise.
 
 
 # Examples
@@ -111,7 +113,7 @@ boundary_sampled = sample_boundary(signed_distance_field; boundary_density=1.0,
 │ InitialCondition                                                                                 │
 │ ════════════════                                                                                 │
 │ #dimensions: ……………………………………………… 2                                                                │
-│ #particles: ………………………………………………… 889                                                              │
+│ #particles: ………………………………………………… 677                                                              │
 │ particle spacing: ………………………………… 0.03                                                             │
 │ eltype: …………………………………………………………… Float64                                                          │
 │ coordinate eltype: ……………………………… Float64                                                          │
@@ -134,9 +136,21 @@ function sample_boundary(signed_distance_field;
 
     # Only keep the required part of the signed distance field
     distance_to_boundary = place_on_shell ? particle_spacing : particle_spacing / 2
-    keep_indices = (distance_to_boundary .<= distances .<= boundary_thickness)
+    if boundary_thickness < distance_to_boundary
+        throw(ArgumentError("`boundary_thickness` must be at least " *
+                            "`particle_spacing` for `place_on_shell=true` and " *
+                            "half `particle_spacing` for `place_on_shell=false`."))
+    end
 
-    boundary_coordinates = stack(positions[keep_indices])
+    keep_indices = (distance_to_boundary .<= distances .<= boundary_thickness)
+    boundary_positions = positions[keep_indices]
+
+    if isempty(boundary_positions)
+        throw(ArgumentError("No boundary particles were sampled. Increase " *
+                            "`boundary_thickness` or generate a denser `SignedDistanceField`."))
+    end
+
+    boundary_coordinates = stack(boundary_positions)
     return InitialCondition(; coordinates=boundary_coordinates, density=boundary_density,
                             particle_spacing)
 end
