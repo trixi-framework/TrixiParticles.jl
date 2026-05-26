@@ -12,10 +12,11 @@ for the pressure so that density remains within a specified tolerance of the res
 See [Implicit Incompressible SPH](@ref iisph) for more details on the method.
 !!! note "Time Integration"
     IISPH supports fixed-step time integration. When using fixed-step Runge-Kutta
-    methods from OrdinaryDiffEq.jl, add [`IISPHTimeStepCallback`](@ref) or
-    [`IISPHTimeStepLimiter`](@ref) so the pressure projection uses the current
-    integrator step size. Adaptive time integration is currently experimental because
-    rejected steps require restoring IISPH pressure caches.
+    methods from OrdinaryDiffEq.jl, add [`IISPHTimeStepCallback`](@ref) so the
+    pressure projection uses the current integrator step size. Algorithms exposing
+    `stage_limiter!` and `step_limiter!` can also use [`IISPHTimeStepLimiter`](@ref)
+    for stage-local synchronization. Adaptive time integration is currently
+    experimental because rejected steps require restoring IISPH pressure caches.
 
 # Arguments
 - `initial_condition`:  [`InitialCondition`](@ref) representing the system's particles.
@@ -405,9 +406,7 @@ end
 
 # Calculate pressure values with iterative pressure solver (relaxed Jacobi scheme)
 function pressure_solve!(semi, v_ode, u_ode)
-    foreach_system(semi) do system
-        initialize_pressure!(system, semi)
-    end
+    initialize_iisph_pressure!(semi)
 
     # Determine global number of particles included in the PPE solver
     n_iisph_particles_ = sum(n_iisph_particles, semi.systems)
@@ -433,13 +432,25 @@ function pressure_solve!(semi, v_ode, u_ode)
     return semi
 end
 
-function initialize_pressure!(system, semi)
+function initialize_iisph_pressure!(semi)
+    damp_pressure = should_damp_iisph_pressure(semi)
+
+    foreach_system(semi) do system
+        initialize_pressure!(system, semi, damp_pressure)
+    end
+    mark_iisph_pressure_initialized!(semi)
+
+    return semi
+end
+
+function initialize_pressure!(system, semi, damp_pressure)
     return system
 end
 
 function initialize_pressure!(system::Union{ImplicitIncompressibleSPHSystem,
                                             WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}},
-                              semi)
+                              semi, damp_pressure)
+    damp_pressure || return system
 
     # Set initial pressure (p_0) to a half of the current pressure value
     @threaded semi for particle in eachparticle(system)
@@ -584,6 +595,8 @@ function pressure_update(system, pressure, reference_density, a_ii, sum_term, om
                           iisph_source_term(system, particle) +
                           reference_density
             density_error[particle] = (new_density - reference_density)
+        else
+            density_error[particle] = zero(density_error[particle])
         end
     end
     relative_density_error = sum(density_error) / reference_density

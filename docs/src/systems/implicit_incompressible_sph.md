@@ -31,6 +31,10 @@ sol = solve(ode, time_integrator; dt, adaptive=false,
             save_everystep=false, callback=callbacks)
 ```
 
+By default, the IISPH callback and limiter warm-start the pressure solve: pressure
+initialization is damped once per accepted time step, and intermediate RK stages reuse
+the previous stage pressure as initial guess.
+
 Adaptive time integration with IISPH is currently experimental because rejected
 steps require restoring IISPH pressure caches.
 

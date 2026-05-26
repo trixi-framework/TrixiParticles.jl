@@ -15,17 +15,20 @@
         @test repr("text/plain", callback) == show_box
 
         iisph_callback = IISPHTimeStepCallback()
-        @test repr(iisph_callback) == "IISPHTimeStepCallback(require_fixed_step=true)"
+        @test repr(iisph_callback) ==
+              "IISPHTimeStepCallback(require_fixed_step=true, warm_start_pressure=true)"
 
         iisph_show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
         │ IISPHTimeStepCallback                                                                            │
         │ ═════════════════════                                                                            │
         │ require fixed step: …………………………… true                                                             │
+        │ warm-start pressure: ………………………… true                                                             │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", iisph_callback) == iisph_show_box
 
-        @test repr(IISPHTimeStepLimiter()) == "IISPHTimeStepLimiter(require_fixed_step=true)"
+        @test repr(IISPHTimeStepLimiter()) ==
+              "IISPHTimeStepLimiter(require_fixed_step=true, warm_start_pressure=true)"
     end
 
     @trixi_testset "IISPHTimeStepCallback and limiter" begin
@@ -63,5 +66,32 @@
                                                                                       nothing,
                                                                                       0.0,
                                                                                       adaptive_integrator)
+
+        system.pressure .= 8.0
+        TrixiParticles.disable_iisph_pressure_warm_start!(semi)
+        TrixiParticles.reset_iisph_pressure_initialization!(semi)
+        TrixiParticles.initialize_iisph_pressure!(semi)
+        TrixiParticles.initialize_iisph_pressure!(semi)
+        @test system.pressure[1] == 2.0
+
+        system.pressure .= 8.0
+        TrixiParticles.enable_iisph_pressure_warm_start!(semi)
+        TrixiParticles.reset_iisph_pressure_initialization!(semi)
+        TrixiParticles.initialize_iisph_pressure!(semi)
+        TrixiParticles.initialize_iisph_pressure!(semi)
+        @test system.pressure[1] == 4.0
+
+        TrixiParticles.reset_iisph_pressure_initialization!(semi)
+        TrixiParticles.initialize_iisph_pressure!(semi)
+        @test system.pressure[1] == 2.0
+
+        pressure = [1.0]
+        a_ii = [0.0]
+        sum_term = [0.0]
+        density_error = [42.0]
+        TrixiParticles.pressure_update(system, pressure, reference_density, a_ii,
+                                       sum_term, system.omega, density_error, semi)
+        @test pressure[1] == 0.0
+        @test density_error[1] == 0.0
     end
 end

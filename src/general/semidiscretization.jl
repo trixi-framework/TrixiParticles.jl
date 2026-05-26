@@ -49,7 +49,7 @@ semi = Semidiscretization(fluid_system, boundary_system,
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-struct Semidiscretization{BACKEND, S, RU, RV, NS, UCU, IT, PDT}
+struct Semidiscretization{BACKEND, S, RU, RV, NS, UCU, IT, PDT, IPS}
     systems                 :: S
     ranges_u                :: RU
     ranges_v                :: RV
@@ -58,6 +58,7 @@ struct Semidiscretization{BACKEND, S, RU, RV, NS, UCU, IT, PDT}
     update_callback_used    :: UCU
     integrate_tlsph         :: IT # `false` if TLSPH integration is decoupled
     iisph_projection_dt     :: PDT
+    iisph_pressure_state    :: IPS
 
     # Dispatch at `systems` to distinguish this constructor from the one below when
     # 4 systems are passed.
@@ -65,17 +66,18 @@ struct Semidiscretization{BACKEND, S, RU, RV, NS, UCU, IT, PDT}
     function Semidiscretization(systems::Tuple, ranges_u, ranges_v, neighborhood_searches,
                                 parallelization_backend::PointNeighbors.ParallelizationBackend,
                                 update_callback_used, integrate_tlsph,
-                                iisph_projection_dt)
+                                iisph_projection_dt, iisph_pressure_state)
         new{typeof(parallelization_backend), typeof(systems), typeof(ranges_u),
             typeof(ranges_v), typeof(neighborhood_searches),
             typeof(update_callback_used),
-            typeof(integrate_tlsph), typeof(iisph_projection_dt)}(systems, ranges_u,
-                                                                  ranges_v,
-                                                                  neighborhood_searches,
-                                                                  parallelization_backend,
-                                                                  update_callback_used,
-                                                                  integrate_tlsph,
-                                                                  iisph_projection_dt)
+            typeof(integrate_tlsph), typeof(iisph_projection_dt),
+            typeof(iisph_pressure_state)}(systems, ranges_u, ranges_v,
+                                          neighborhood_searches,
+                                          parallelization_backend,
+                                          update_callback_used,
+                                          integrate_tlsph,
+                                          iisph_projection_dt,
+                                          iisph_pressure_state)
     end
 end
 
@@ -126,10 +128,12 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     integrate_tlsph = Ref(true)
 
     iisph_projection_dt = Ref(initial_iisph_projection_dt(systems))
+    iisph_pressure_state = (warm_start=Ref(false), initialized=Ref(false))
 
     return Semidiscretization(systems, ranges_u, ranges_v, searches,
                               parallelization_backend, update_callback_used,
-                              integrate_tlsph, iisph_projection_dt)
+                              integrate_tlsph, iisph_projection_dt,
+                              iisph_pressure_state)
 end
 
 # Inline show function e.g. Semidiscretization(neighborhood_search=...)
@@ -223,6 +227,35 @@ end
 function set_iisph_projection_dt!(semi, dt)
     semi.iisph_projection_dt[] = dt
     return semi
+end
+
+function enable_iisph_pressure_warm_start!(semi)
+    semi.iisph_pressure_state.warm_start[] = true
+    return semi
+end
+
+function disable_iisph_pressure_warm_start!(semi)
+    semi.iisph_pressure_state.warm_start[] = false
+    return semi
+end
+
+function iisph_pressure_warm_start_enabled(semi)
+    return semi.iisph_pressure_state.warm_start[]
+end
+
+function reset_iisph_pressure_initialization!(semi)
+    semi.iisph_pressure_state.initialized[] = false
+    return semi
+end
+
+function mark_iisph_pressure_initialized!(semi)
+    semi.iisph_pressure_state.initialized[] = true
+    return semi
+end
+
+function should_damp_iisph_pressure(semi)
+    return !iisph_pressure_warm_start_enabled(semi) ||
+           !semi.iisph_pressure_state.initialized[]
 end
 
 # This is just for readability to loop over all systems without allocations

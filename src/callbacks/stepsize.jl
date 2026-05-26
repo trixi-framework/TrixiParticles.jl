@@ -79,12 +79,13 @@ function (stepsize_callback::StepsizeCallback)(integrator)
     return stepsize_callback
 end
 
-struct IISPHTimeStepCallback{R}
+struct IISPHTimeStepCallback{R, W}
     require_fixed_step::R
+    warm_start_pressure::W
 end
 
 @doc raw"""
-    IISPHTimeStepCallback(; require_fixed_step=true)
+    IISPHTimeStepCallback(; require_fixed_step=true, warm_start_pressure=true)
 
 Synchronize the IISPH pressure projection step size with the current time step of
 the OrdinaryDiffEq.jl integrator.
@@ -96,9 +97,14 @@ fixed-step OrdinaryDiffEq.jl schemes where the step size is passed to `solve`, e
 Adaptive time integration is currently rejected by default because rejected steps require
 restoring IISPH pressure caches. This can be disabled with `require_fixed_step=false` for
 experiments.
+
+When `warm_start_pressure=true`, IISPH pressure initialization is damped once per accepted
+time step and RK stages reuse the previous stage pressure as initial guess.
 """
-function IISPHTimeStepCallback(; require_fixed_step=true)
-    callback = IISPHTimeStepCallback{typeof(require_fixed_step)}(require_fixed_step)
+function IISPHTimeStepCallback(; require_fixed_step=true, warm_start_pressure=true)
+    callback = IISPHTimeStepCallback{typeof(require_fixed_step),
+                                     typeof(warm_start_pressure)}(require_fixed_step,
+                                                                  warm_start_pressure)
 
     return DiscreteCallback(callback, callback;
                             initialize=initialize_iisph_time_step_callback,
@@ -107,6 +113,8 @@ end
 
 function initialize_iisph_time_step_callback(discrete_callback, u, t, integrator)
     callback = discrete_callback.affect!
+    initialize_iisph_pressure_warm_start!(integrator.p.semi,
+                                          callback.warm_start_pressure)
     sync_iisph_projection_dt!(integrator;
                               require_fixed_step=callback.require_fixed_step)
 
@@ -122,6 +130,8 @@ end
 function (callback::IISPHTimeStepCallback)(integrator)
     sync_iisph_projection_dt!(integrator;
                               require_fixed_step=callback.require_fixed_step)
+    reset_iisph_pressure_warm_start!(integrator.p.semi,
+                                     callback.warm_start_pressure)
 
     # Tell OrdinaryDiffEq that `u` has not been modified.
     u_modified!(integrator, false)
@@ -129,21 +139,29 @@ function (callback::IISPHTimeStepCallback)(integrator)
     return callback
 end
 
-struct IISPHTimeStepLimiter{R}
+struct IISPHTimeStepLimiter{R, W}
     require_fixed_step::R
+    warm_start_pressure::W
 end
 
 @doc raw"""
-    IISPHTimeStepLimiter(; require_fixed_step=true)
+    IISPHTimeStepLimiter(; require_fixed_step=true, warm_start_pressure=true)
 
 Limiter object for OrdinaryDiffEq.jl Runge-Kutta algorithms exposing `stage_limiter!`
 and `step_limiter!` keyword arguments.
 
-The limiter does not alter the RK stage state. It only synchronizes the IISPH projection
-step size from `integrator.dt` when OrdinaryDiffEq.jl passes the integrator to the limiter.
+The limiter does not alter the RK stage state. Use it together with
+[`IISPHTimeStepCallback`](@ref) to synchronize the IISPH projection step size from
+`integrator.dt` at RK stage boundaries when OrdinaryDiffEq.jl passes the integrator to the
+limiter.
+
+When `warm_start_pressure=true`, IISPH pressure initialization is damped once per accepted
+time step and RK stages reuse the previous stage pressure as initial guess.
 """
-function IISPHTimeStepLimiter(; require_fixed_step=true)
-    return IISPHTimeStepLimiter{typeof(require_fixed_step)}(require_fixed_step)
+function IISPHTimeStepLimiter(; require_fixed_step=true, warm_start_pressure=true)
+    return IISPHTimeStepLimiter{typeof(require_fixed_step),
+                                typeof(warm_start_pressure)}(require_fixed_step,
+                                                             warm_start_pressure)
 end
 
 function (limiter::IISPHTimeStepLimiter)(u, integrator, p, t)
@@ -152,6 +170,8 @@ function (limiter::IISPHTimeStepLimiter)(u, integrator, p, t)
     hasproperty(integrator, :dt) || return u
     hasproperty(p, :semi) || return u
 
+    update_iisph_pressure_warm_start!(p.semi, limiter.warm_start_pressure,
+                                      integrator, t)
     sync_iisph_projection_dt!(integrator, p;
                               require_fixed_step=limiter.require_fixed_step)
 
@@ -177,12 +197,40 @@ function sync_iisph_projection_dt!(integrator, p; require_fixed_step=true)
     return integrator
 end
 
+function initialize_iisph_pressure_warm_start!(semi, warm_start_pressure)
+    warm_start_pressure || return semi
+    uses_iisph_projection_dt(semi) || return semi
+
+    enable_iisph_pressure_warm_start!(semi)
+    reset_iisph_pressure_initialization!(semi)
+
+    return semi
+end
+
+function reset_iisph_pressure_warm_start!(semi, warm_start_pressure)
+    warm_start_pressure || return semi
+    uses_iisph_projection_dt(semi) || return semi
+
+    reset_iisph_pressure_initialization!(semi)
+
+    return semi
+end
+
+function update_iisph_pressure_warm_start!(semi, warm_start_pressure, integrator, t)
+    warm_start_pressure || return semi
+    uses_iisph_projection_dt(semi) || return semi
+    iisph_pressure_warm_start_enabled(semi) || return semi
+
+    return semi
+end
+
 function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:IISPHTimeStepCallback})
     @nospecialize cb # reduce precompilation time
 
     callback = cb.affect!
     print(io, "IISPHTimeStepCallback(require_fixed_step=",
-          callback.require_fixed_step, ")")
+          callback.require_fixed_step, ", warm_start_pressure=",
+          callback.warm_start_pressure, ")")
 end
 
 function Base.show(io::IO, ::MIME"text/plain",
@@ -195,7 +243,8 @@ function Base.show(io::IO, ::MIME"text/plain",
         callback = cb.affect!
 
         setup = [
-            "require fixed step" => string(callback.require_fixed_step)
+            "require fixed step" => string(callback.require_fixed_step),
+            "warm-start pressure" => string(callback.warm_start_pressure)
         ]
         summary_box(io, "IISPHTimeStepCallback", setup)
     end
@@ -205,7 +254,8 @@ function Base.show(io::IO, limiter::IISPHTimeStepLimiter)
     @nospecialize limiter # reduce precompilation time
 
     print(io, "IISPHTimeStepLimiter(require_fixed_step=",
-          limiter.require_fixed_step, ")")
+          limiter.require_fixed_step, ", warm_start_pressure=",
+          limiter.warm_start_pressure, ")")
 end
 
 function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:StepsizeCallback})
