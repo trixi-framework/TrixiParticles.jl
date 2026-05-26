@@ -214,7 +214,7 @@ end
     return ndims(system)
 end
 
-@inline requires_update_callback(system::ParticlePackingSystem) = true
+@inline requires_update_callback(system::ParticlePackingSystem, semi) = true
 
 function write2vtk!(vtk, v, u, t, system::ParticlePackingSystem)
     vtk["velocity"] = [advection_velocity(v, system, particle)

@@ -82,14 +82,24 @@ callback = SplitIntegrationCallback(CarpenterKennedy2N54(williamson_condition=fa
 │ stage_coupling: ……………………………………… true                                                             │
 │ predict_positions: ……………………………… true                                                             │
 │ dt: ……………………………………………………………………… 1.0                                                              │
-│ callback: ……………………………………………………… StepsizeCallback(is_constant=true, cfl_number=1.6)               │
+│ callback: ……………………………………………………… CallbackSet{Tuple{}, Tuple{Discr…pdateAveragedVelocityCallback)) │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
 function SplitIntegrationCallback(alg; stage_coupling=false, predict_positions=true,
                                   kwargs...)
+    # Add lightweight callback to (potentially) update the averaged velocity
+    # during the split integration.
+    if haskey(kwargs, :callback)
+        # Note that `CallbackSet`s can be nested
+        kwargs = (; kwargs...,
+                  callback=CallbackSet(values(kwargs).callback,
+                                       UpdateAveragedVelocityCallback()))
+    else
+        kwargs = (; kwargs..., callback=UpdateAveragedVelocityCallback())
+    end
     split_integration_callback = SplitIntegrationCallback(alg, stage_coupling,
-                                                          predict_positions, kwargs)
+                                                          predict_positions, pairs(kwargs))
 
     # The first one is the `condition`, the second the `affect!`
     return DiscreteCallback(split_integration_callback, split_integration_callback,
@@ -517,4 +527,54 @@ function Base.show(io::IO, ::MIME"text/plain",
 
         summary_box(io, "SplitIntegrationCallback", setup)
     end
+end
+
+# === Non-public callback for updating the averaged velocity ===
+# When no split integration is used, this is done from the `UpdateCallback`.
+# With split integration, we use this lightweight callback to avoid updating the systems.
+function UpdateAveragedVelocityCallback()
+    # The first one is the `condition`, the second the `affect!`
+    return DiscreteCallback(update_averaged_velocity_callback!,
+                            update_averaged_velocity_callback!,
+                            initialize=(initialize_averaged_velocity_callback!),
+                            save_positions=(false, false))
+end
+
+# `initialize`
+function initialize_averaged_velocity_callback!(cb, vu_ode, t, integrator)
+    v_ode, u_ode = vu_ode.x
+    semi = integrator.p.semi
+
+    foreach_system(semi) do system
+        initialize_averaged_velocity!(system, v_ode, semi, t)
+    end
+
+    return cb
+end
+
+# `condition`
+function update_averaged_velocity_callback!(u, t, integrator)
+    return true
+end
+
+# `affect!`
+function update_averaged_velocity_callback!(integrator)
+    t_new = integrator.t
+    semi = integrator.p.semi
+    v_ode, u_ode = integrator.u.x
+
+    foreach_system(semi) do system
+        compute_averaged_velocity!(system, v_ode, semi, t_new)
+    end
+
+    # Tell OrdinaryDiffEq that `integrator.u` has not been modified
+    u_modified!(integrator, false)
+
+    return integrator
+end
+
+function Base.show(io::IO,
+                   cb::DiscreteCallback{typeof(update_averaged_velocity_callback!)})
+    @nospecialize cb # reduce precompilation time
+    print(io, "UpdateAveragedVelocityCallback")
 end
