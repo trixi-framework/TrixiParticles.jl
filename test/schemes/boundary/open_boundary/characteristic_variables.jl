@@ -31,7 +31,10 @@
         boundary_system = OpenBoundarySystem(bidirectional; fluid_system, buffer_size=0,
                                              boundary_model=BoundaryModelCharacteristicsLastiwka())
 
-        @test_throws ArgumentError Semidiscretization(fluid_system, boundary_system)
+        error_str = "`BoundaryModelCharacteristicsLastiwka` needs a directed boundary zone. " *
+                    "Please specify `InFlow()` or `OutFlow()` instead of `BidirectionalFlow()`."
+        @test_throws ArgumentError(error_str) Semidiscretization(fluid_system,
+                                                                 boundary_system)
     end
 
     @testset "Fallback is zone-local" begin
