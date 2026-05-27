@@ -220,13 +220,82 @@ function create_neighborhood_search(neighborhood_search, system::TotalLagrangian
                                     nparticles(neighbor))
 end
 
+# === Neighborhood search handlers ===
+# Handlers manage how neighborhood searches are stored and retrieved for
+# different interacting systems.
+abstract type AbstractNHSHandler end
+
+function create_neighborhood_search_handler(::Type{Handler}, neighborhood_search,
+                                            systems) where {Handler <: AbstractNHSHandler}
+    return Handler(neighborhood_search, systems)
+end
+
+function create_neighborhood_search_handler(handler, neighborhood_search, systems)
+    throw(ArgumentError("`neighborhood_search_handler` must be a handler type, " *
+                        "for example `PairsNHSHandler` or `GridNHSHandler`."))
+end
+
+first_neighborhood_search(searches::AbstractMatrix) = first(searches)
+first_neighborhood_search(searches) = first(first(searches))
+
+# Store a distinct neighborhood search for every possible pair of systems.
+struct PairsNHSHandler{NHS} <: AbstractNHSHandler
+    neighborhood_searches::NHS
+end
+
+function PairsNHSHandler(neighborhood_search, systems)
+    searches = [create_neighborhood_search(neighborhood_search, system, neighbor)
+                for system in systems, neighbor in systems]
+
+    @assert isconcretetype(eltype(searches)) "neighborhood searches are not type-stable"
+
+    return PairsNHSHandler(searches)
+end
+
+function get_neighborhood_search(handler::PairsNHSHandler, system_index, neighbor_index,
+                                 search_radius)
+    return handler.neighborhood_searches[system_index, neighbor_index]
+end
+
+# Store one grid neighborhood search per unique search radius and neighbor system.
+# A query for `(system, neighbor)` uses the search radius requested by that pair,
+# but the stored grid belongs to the `neighbor` coordinates.
+struct GridNHSHandler{SR, NHS} <: AbstractNHSHandler
+    search_radii::SR
+    neighborhood_searches::NHS
+end
+
+function GridNHSHandler(neighborhood_search::GridNeighborhoodSearch, systems)
+    search_radii = [sort(unique(compact_support(system, neighbor)
+                                for system in systems))
+                    for neighbor in systems]
+
+    searches = [[copy_neighborhood_search(neighborhood_search, search_radius,
+                                           nparticles(neighbor))
+                 for search_radius in search_radii[neighbor_index]]
+                for (neighbor_index, neighbor) in pairs(systems)]
+
+    searches_are_concrete = isconcretetype(eltype(searches)) &&
+                            all(row -> isconcretetype(eltype(row)), searches)
+    @assert searches_are_concrete "neighborhood searches are not type-stable"
+
+    return GridNHSHandler(search_radii, searches)
+end
+
+function get_neighborhood_search(handler::GridNHSHandler, system_index, neighbor_index,
+                                 search_radius)
+    radii = handler.search_radii[neighbor_index]
+    radius_index = searchsortedfirst(SVector(radii), search_radius - eps(search_radius))
+
+    @boundscheck radius_index <= length(radii) ||
+                 throw(ArgumentError("no grid neighborhood search with radius >= $search_radius"))
+
+    return handler.neighborhood_searches[neighbor_index, radius_index]
+end
+
 # === Neighborhood search lookup ===
 @inline function get_neighborhood_search(system, semi)
-    (; neighborhood_searches) = semi
-
-    system_index = system_indices(system, semi)
-
-    return neighborhood_searches[system_index, system_index]
+    return get_neighborhood_search(system, system, semi)
 end
 
 @inline function get_neighborhood_search(system::TotalLagrangianSPHSystem, semi)
@@ -236,17 +305,19 @@ end
 end
 
 @inline function get_neighborhood_search(system, neighbor_system, semi)
-    (; neighborhood_searches) = semi
+    (; neighborhood_search_handler) = semi
 
     system_index = system_indices(system, semi)
     neighbor_index = system_indices(neighbor_system, semi)
+    search_radius = compact_support(system, neighbor_system)
 
-    return neighborhood_searches[system_index, neighbor_index]
+    return get_neighborhood_search(neighborhood_search_handler, system_index,
+                                   neighbor_index, search_radius)
 end
 
 @inline function get_neighborhood_search(system::TotalLagrangianSPHSystem,
                                          neighbor_system::TotalLagrangianSPHSystem, semi)
-    (; neighborhood_searches) = semi
+    (; neighborhood_search_handler) = semi
 
     system_index = system_indices(system, semi)
     neighbor_index = system_indices(neighbor_system, semi)
@@ -257,7 +328,10 @@ end
         return system.self_interaction_nhs
     end
 
-    return neighborhood_searches[system_index, neighbor_index]
+    search_radius = compact_support(system, neighbor_system)
+
+    return get_neighborhood_search(neighborhood_search_handler, system_index,
+                                   neighbor_index, search_radius)
 end
 
 # === Initialization ===
