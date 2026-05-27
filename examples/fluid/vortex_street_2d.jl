@@ -93,7 +93,8 @@ fluid_system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel, smoothing_le
                                            density_calculator=fluid_density_calculator,
                                            state_equation, density_diffusion, viscosity,
                                            pressure_acceleration=tensile_instability_control,
-                                           shifting_technique, buffer_size=n_buffer_particles)
+                                           shifting_technique,
+                                           buffer_size=n_buffer_particles)
 
 # ==========================================================================================
 # ==== Open Boundary
