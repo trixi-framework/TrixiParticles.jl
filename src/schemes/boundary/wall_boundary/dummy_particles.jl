@@ -253,7 +253,7 @@ function create_cache_model(::MixedKernelGradientCorrection, density, NDIMS, n_p
     return (; kernel_correction_coefficient=similar(density), dw_gamma, correction_matrix)
 end
 
-function create_cache_model(initial_density,
+function create_cache_model(initial_density::AbstractVector,
                             ::Union{SummationDensity, PressureMirroring, PressureZeroing},
                             NDIMS)
     density = copy(initial_density)
@@ -261,7 +261,7 @@ function create_cache_model(initial_density,
     return (; density)
 end
 
-function create_cache_model(initial_density,
+function create_cache_model(initial_density::AbstractVector,
                             density_calculator::PressureBoundaries, NDIMS)
     ELTYPE = eltype(initial_density)
     n_particles = size(initial_density, 1)
@@ -283,11 +283,11 @@ function create_cache_model(initial_density,
             omega, time_step, density_error)
 end
 
-function create_cache_model(initial_density, ::ContinuityDensity, NDIMS)
+function create_cache_model(initial_density::AbstractVector, ::ContinuityDensity, NDIMS)
     return (; initial_density)
 end
 
-function create_cache_model(initial_density,
+function create_cache_model(initial_density::AbstractVector,
                             ::Union{AdamiPressureExtrapolation,
                                     BernoulliPressureExtrapolation}, NDIMS)
     density = copy(initial_density)
@@ -731,8 +731,10 @@ end
     (; volume, wall_velocity) = cache
 
     # Prescribed velocity of the boundary particle.
-    # This velocity is zero when not using moving boundaries.
-    v_boundary = current_velocity(v, system, particle)
+    # This velocity is zero when not using moving boundaries or TLSPH.
+    # If not using TLSPH with velocity averaging, this function simply
+    # forwards to `current_velocity`.
+    v_boundary = velocity_for_viscosity(v, system, particle)
 
     for dim in eachindex(v_boundary)
         # Compute the no-slip wall velocity using the formula v_w = 2 * v_a - ṽ_fluid,

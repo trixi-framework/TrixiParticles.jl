@@ -20,8 +20,8 @@ end
 function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
                                    v_neighbor_system, u_neighbor_system,
                                    particle_system,
-                                   neighbor_system::AbstractFluidSystem,
-                                   semi)
+                                   neighbor_system::AbstractFluidSystem, semi;
+                                   eachparticle=each_integrated_particle(particle_system))
     sound_speed = system_sound_speed(neighbor_system)
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -38,10 +38,7 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     foreach_point_neighbor(particle_system, neighbor_system,
                            system_coords, neighbor_coords, semi;
-                           points=each_integrated_particle(particle_system)) do particle,
-                                                                                neighbor,
-                                                                                pos_diff,
-                                                                                distance
+                           points=eachparticle) do particle, neighbor, pos_diff, distance
         # Skip neighbors with the same position because the kernel gradient is zero.
         # Note that `return` only exits the closure, i.e., skips the current neighbor.
         skip_zero_distance(neighbor_system) && distance < almostzero && return

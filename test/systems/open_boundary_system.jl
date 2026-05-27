@@ -97,4 +97,41 @@
 
         @test repr("text/plain", system) == show_box
     end
+
+    @testset "boundary zone width" begin
+        particle_spacing = 0.05
+        smoothing_kernel = WendlandC2Kernel{2}()
+        smoothing_length = 0.1
+
+        fluid = RectangularShape(particle_spacing, (2, 2), (0.0, 0.0), density=1.0)
+        fluid_system = EntropicallyDampedSPHSystem(fluid; smoothing_kernel,
+                                                   smoothing_length, sound_speed=1.0)
+
+        boundary_zone = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, 1.0]),
+                                     particle_spacing, face_normal=(1.0, 0.0),
+                                     density=1.0, open_boundary_layers=7,
+                                     boundary_type=InFlow())
+
+        compact_support = TrixiParticles.compact_support(smoothing_kernel, smoothing_length)
+        error_str = "boundary zone 1 has width $(boundary_zone.zone_width), " *
+                    "but must be at least two compact supports ($(2 * compact_support))"
+
+        @test_nowarn OpenBoundarySystem(boundary_zone; buffer_size=0,
+                                        boundary_model=BoundaryModelCharacteristicsLastiwka(),
+                                        fluid_system)
+
+        @test_nowarn OpenBoundarySystem(boundary_zone; buffer_size=0,
+                                        boundary_model=BoundaryModelDynamicalPressureZhang(),
+                                        fluid_system)
+
+        fluid_system_with_shifting = EntropicallyDampedSPHSystem(fluid; smoothing_kernel,
+                                                                 smoothing_length,
+                                                                 sound_speed=1.0,
+                                                                 shifting_technique=ParticleShiftingTechnique())
+
+        @test_throws ArgumentError(error_str) OpenBoundarySystem(boundary_zone;
+                                                                 buffer_size=0,
+                                                                 boundary_model=BoundaryModelDynamicalPressureZhang(),
+                                                                 fluid_system=fluid_system_with_shifting)
+    end
 end
