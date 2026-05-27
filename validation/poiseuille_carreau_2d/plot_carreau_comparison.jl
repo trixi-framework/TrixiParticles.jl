@@ -46,14 +46,15 @@ function average_profile(y::Vector{Float64}, u::Vector{Float64})
             j += 1
         end
         push!(unique_y, yi)
-        push!(mean_u, mean(u_sorted[i:j-1]))
+        push!(mean_u, mean(u_sorted[i:(j - 1)]))
         i = j
     end
     return unique_y, mean_u
 end
 
 function carreau_yasuda_nu(gamma, nu0, nu_inf, lambda_cy, a_yasuda, n_cy)
-    return nu_inf + (nu0 - nu_inf) *
+    return nu_inf +
+           (nu0 - nu_inf) *
            (1.0 + (lambda_cy * gamma)^a_yasuda)^((n_cy - 1.0) / a_yasuda)
 end
 
@@ -153,22 +154,22 @@ function plot_carreau(out_root::AbstractString="out_poiseuille_carreau")
                       legend=:bottomright,
                       size=(600, 450))
 
-    for nd in n_dirs
-        pvdfile = joinpath(nd, "fluid_1.pvd")
+    for n_dir in n_dirs
+        pvdfile = joinpath(n_dir, "fluid_1.pvd")
         if !isfile(pvdfile)
-            @warn "Missing PVD file for $nd, skipping"
+            @warn "Missing PVD file for $n_dir, skipping"
             continue
         end
         times, files = parse_pvd(pvdfile)
-        errors = Vector{NTuple{3,Float64}}()
+        errors = Vector{NTuple{3, Float64}}()
         mean_us = Float64[]
         y_norm = Float64[]
         u_norm = Float64[]
         u_analytic_sph_final = Float64[]
-        n_val = parse(Float64, replace(basename(nd), "n_" => ""))
+        n_val = parse(Float64, replace(basename(n_dir), "n_" => ""))
 
         for (t, file) in zip(times, files)
-            coords, vel = read_vtu_velocity(joinpath(nd, file))
+            coords, vel = read_vtu_velocity(joinpath(n_dir, file))
             ys = vec(coords[2, :])
             u_num = vec(vel[1, :])
             mean_u = mean(u_num)
@@ -176,7 +177,7 @@ function plot_carreau(out_root::AbstractString="out_poiseuille_carreau")
 
             y_unique, u_avg = average_profile(ys, u_num)
             u_analytic = analytical_ux_profile(y_unique, n_val, h, rho0, nu0,
-                                                nu_inf, lambda_cy, a_yasuda, dpdx)
+                                               nu_inf, lambda_cy, a_yasuda, dpdx)
             l2, rel_l2, maxabs = compute_errors(u_avg, u_analytic)
             push!(errors, (l2, rel_l2, maxabs))
 
@@ -213,7 +214,8 @@ function plot_carreau(out_root::AbstractString="out_poiseuille_carreau")
         xlabel!(per_case_fig[1], "y / H")
         ylabel!(per_case_fig[1], "u_x / u_max")
         title!(per_case_fig[1], "n=$(n_val) final profile")
-        xlims!(per_case_fig[1], (0.0, 1.0)); ylims!(per_case_fig[1], (0.0, 1.0))
+        xlims!(per_case_fig[1], (0.0, 1.0));
+        ylims!(per_case_fig[1], (0.0, 1.0))
 
         plot!(per_case_fig[2], error_times, rel_l2vals;
               label="relative L2", linewidth=2, color=:black)
@@ -225,9 +227,9 @@ function plot_carreau(out_root::AbstractString="out_poiseuille_carreau")
         plot!(error_plot, error_times, rel_l2vals;
               label="n=$(n_val)", linewidth=2)
 
-        savefig(per_case_fig, joinpath(nd, "carreau_comparison_and_error.png"))
+        savefig(per_case_fig, joinpath(n_dir, "carreau_comparison_and_error.png"))
 
-        csvfile = joinpath(nd, "carreau_error_data.csv")
+        csvfile = joinpath(n_dir, "carreau_error_data.csv")
         open(csvfile, "w") do io
             println(io, "time,mean_u,L2,rel_L2,maxabs")
             for (t, m, e) in zip(times, mean_us, errors)
@@ -240,9 +242,12 @@ function plot_carreau(out_root::AbstractString="out_poiseuille_carreau")
     savefig(profile_plot, joinpath(out_root, "carreau_final_profiles.png"))
     savefig(mean_plot, joinpath(out_root, "carreau_mean_velocity.png"))
     savefig(error_plot, joinpath(out_root, "carreau_error_comparison.png"))
-    println("Saved profile comparison to: ", joinpath(out_root, "carreau_final_profiles.png"))
-    println("Saved mean velocity comparison to: ", joinpath(out_root, "carreau_mean_velocity.png"))
-    println("Saved error comparison to: ", joinpath(out_root, "carreau_error_comparison.png"))
+    println("Saved profile comparison to: ",
+            joinpath(out_root, "carreau_final_profiles.png"))
+    println("Saved mean velocity comparison to: ",
+            joinpath(out_root, "carreau_mean_velocity.png"))
+    println("Saved error comparison to: ",
+            joinpath(out_root, "carreau_error_comparison.png"))
 end
 
 plot_carreau(length(ARGS) > 0 ? ARGS[1] : "out_poiseuille_carreau")

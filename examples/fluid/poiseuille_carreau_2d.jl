@@ -61,10 +61,11 @@ end
 function carreau_yasuda_kinematic_viscosity(shear_rate, nu0, nu_inf,
                                             time_constant, lambda_exponent,
                                             power_law_index)
-    return nu_inf + (nu0 - nu_inf) *
+    return nu_inf +
+           (nu0 - nu_inf) *
            (1.0 + (time_constant * shear_rate)^lambda_exponent)^((power_law_index -
-                                                                    1.0) /
-                                                                   lambda_exponent)
+                                                                  1.0) /
+                                                                 lambda_exponent)
 end
 
 function solve_shear_rate_from_stress(shear_stress, density, nu0, nu_inf,
@@ -217,8 +218,8 @@ smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 sound_speed = sound_speed_factor * reference_velocity
 state_equation = StateEquationCole(; sound_speed,
-                                    reference_density=fluid_density,
-                                    exponent=7)
+                                   reference_density=fluid_density,
+                                   exponent=7)
 
 viscosity = ViscosityCarreauYasuda(; nu0, nu_inf,
                                    lambda=carreau_time_constant,

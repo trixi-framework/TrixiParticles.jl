@@ -41,17 +41,17 @@ relative_l2_error_bounds = Dict(0.25 => 0.06,
                                 1.0 => 0.06,
                                 1.5 => 0.06)
 
-final_relative_l2_errors = Dict{Float64,Float64}()
-final_max_velocity_errors = Dict{Float64,Float64}()
+final_relative_l2_errors = Dict{Float64, Float64}()
+final_max_velocity_errors = Dict{Float64, Float64}()
 
 function final_error_values(output_directory, result_filename)
     csv_file = joinpath(output_directory, result_filename * ".csv")
     data = TrixiParticles.CSV.read(csv_file, TrixiParticles.DataFrame)
     column_names = string.(names(data))
     l2_column = Symbol(only(filter(name -> startswith(name, "l2_velocity_error"),
-                                    column_names)))
+                                   column_names)))
     max_column = Symbol(only(filter(name -> startswith(name, "max_velocity_error"),
-                                     column_names)))
+                                    column_names)))
     return data[!, l2_column][end], data[!, max_column][end]
 end
 
@@ -70,8 +70,9 @@ for power_law_index in n_values
     output_directory = joinpath("out_poiseuille_carreau", "n_$power_law_index")
     result_filename = "validation_run_poiseuille_carreau_2d_n_$(n_label)_ny_$ny"
 
-    relative_l2_error, max_velocity_error = final_error_values(output_directory,
-                                                               result_filename)
+    relative_l2_error,
+    max_velocity_error = final_error_values(output_directory,
+                                            result_filename)
     final_relative_l2_errors[power_law_index] = relative_l2_error
     final_max_velocity_errors[power_law_index] = max_velocity_error
 
