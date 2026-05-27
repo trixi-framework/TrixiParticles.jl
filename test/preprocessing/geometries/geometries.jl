@@ -54,11 +54,11 @@
         end
     end
 
-    @testset verbose=true "`deleteat!` Rebuilds Derived Data" begin
+    @testset verbose=true "`delete_faces` Rebuilds Derived Data" begin
         triangle = [0.0 1.0 0.5 0.0;
                     0.0 0.0 0.7 0.0]
 
-        edge_only = deleteat!(TrixiParticles.Polygon(triangle), [1, 2])
+        edge_only = TrixiParticles.delete_faces(TrixiParticles.Polygon(triangle), [1, 2])
 
         @test TrixiParticles.nfaces(edge_only) == 1
         @test length(edge_only.vertices) == 2
@@ -74,7 +74,7 @@
         face_normals = [SVector(0.0, 0.0, 1.0), SVector(0.0, 0.0, 1.0)]
         mesh = TrixiParticles.TriangleMesh(face_vertices, face_normals, [A, B, C, D])
 
-        deleteat!(mesh, 1)
+        mesh = TrixiParticles.delete_faces(mesh, 1)
 
         @test TrixiParticles.nfaces(mesh) == 1
         @test length(mesh.vertices) == 3

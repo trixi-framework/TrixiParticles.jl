@@ -171,7 +171,7 @@ end
 
 @inline face_normal(triangle, geometry::TriangleMesh) = geometry.face_normals[triangle]
 
-@inline function Base.deleteat!(mesh::TriangleMesh, indices)
+@inline function delete_faces(mesh::TriangleMesh, indices)
     face_vertices = copy(mesh.face_vertices)
     face_normals = copy(mesh.face_normals)
 

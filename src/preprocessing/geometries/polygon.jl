@@ -153,7 +153,12 @@ end
 
 @inline Base.eltype(::Polygon{NDIMS, ELTYPE}) where {NDIMS, ELTYPE} = ELTYPE
 
-@inline function Base.deleteat!(polygon::Polygon, indices)
+"""
+    delete_faces(geometry, indices)
+
+Return a geometry with the faces at `indices` removed and derived geometry data rebuilt.
+"""
+@inline function delete_faces(polygon::Polygon, indices)
     edge_vertices = copy(polygon.edge_vertices)
     vertex_normals = copy(polygon.vertex_normals)
     edge_normals = copy(polygon.edge_normals)
