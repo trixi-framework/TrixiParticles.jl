@@ -15,9 +15,11 @@
   <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/479ff0c6-3c65-44fe-b3e0-2ed653e7e3a5" alt="TrixiP_logo" width="40%"/>
 </p>
 
-**TrixiParticles.jl** is a high-performance simulation framework for particle-based methods for complex multiphysics applications, written in [Julia](https://julialang.org).
+**TrixiParticles.jl** is a high-performance numerical simulation framework for particle-based methods in complex multiphysics applications, written in [Julia](https://julialang.org).
+It combines an accessible user interface with an extensible architecture for developing new methods, while offering high performance on both CPU and GPU.
 
 TrixiParticles.jl focuses on the following use cases:
+
 - Accurate and efficient physics-based modeling of complex multiphysics problems.
 - Development of new particle-based methods and models.
 - Accessible simulation setup for educational purposes, including student projects, coursework, and thesis work.

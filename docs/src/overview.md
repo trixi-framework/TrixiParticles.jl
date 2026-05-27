@@ -83,5 +83,6 @@ SPH (WCSPH) or Total Lagrangian SPH (TLSPH). Schemes are organized by applicatio
 for example fluid, structure, and boundary systems. A scheme typically comprises at least
 two files: a `system.jl` file and an `rhs.jl` file. The `system.jl` file defines the data
 structure that stores the particles of the scheme together with routines for allocation and
-main updates that do not involve particle interactions. The `rhs.jl` file contains the
-interaction terms between particles of the same scheme and between different schemes.
+main updates that do not involve the computation of forces from interactions between particles.
+The `rhs.jl` file contains these interaction terms between particles of the same scheme and
+between different schemes.
