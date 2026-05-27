@@ -12,75 +12,23 @@ Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "fluid", "implicit_incompressible_sph", "system.jl")]
 ```
 
-## Time integration
-
-IISPH uses the time step size in the pressure projection. For fixed-step
-OrdinaryDiffEq.jl Runge-Kutta methods, synchronize this projection step with the
-integrator step size:
-
-```julia
-using OrdinaryDiffEqLowStorageRK
-
-iisph_limiter = IISPHTimeStepLimiter()
-time_integrator = CarpenterKennedy2N54(williamson_condition=false,
-                                       stage_limiter! = iisph_limiter,
-                                       step_limiter! = iisph_limiter)
-callbacks = CallbackSet(callbacks, IISPHTimeStepCallback())
-
-sol = solve(ode, time_integrator; dt, adaptive=false,
-            save_everystep=false, callback=callbacks)
-```
-
-To use RK stages only for the non-pressure right-hand side and run the IISPH pressure
-projection once per accepted step, construct the callback with
-`project_at_step_end=true`. In this mode, place the IISPH callback before callbacks that
-inspect or save the accepted state.
-
-```julia
-callbacks = CallbackSet(IISPHTimeStepCallback(project_at_step_end=true),
-                        info_callback, saving_callback)
-```
-
-For a symmetric pressure/non-pressure splitting, use
-`IISPHTimeStepCallback(pressure_projection=:strang)`. This applies half pressure
-projections around the RK step while RK stages still evaluate only the non-pressure
-right-hand side. For repeated fixed steps, adjacent half pressure projections are merged
-into one full pressure projection at internal step boundaries, with half projections only
-at the start and end of the integration interval. This is closer to a second-order
-splitting of pressure and non-pressure dynamics than a single projection at the end of
-each accepted step.
-
-By default, the IISPH callback and limiter warm-start the pressure solve: pressure
-initialization is damped once per accepted time step, and intermediate RK stages reuse
-the previous stage pressure as initial guess.
+## Pressure solver instrumentation
 
 Pressure solver iteration counters can be inspected with
 [`iisph_pressure_iteration_stats`](@ref) and reset with
 [`reset_iisph_pressure_iteration_stats!`](@ref).
-Per-step counters for accepted-step adaptivity can be inspected with
+Per-step counters can be inspected with
 [`iisph_pressure_step_stats`](@ref) and reset with
 [`reset_iisph_pressure_step_stats!`](@ref). These counters include pressure solve wall
 times in addition to Jacobi iteration counts.
+
+## Matrix-free pressure operator
+
 The cached IISPH pressure equation can be accessed as a matrix-free
 [`IISPHPressureOperator`](@ref) with `mul!`, [`iisph_pressure_rhs!`](@ref),
 [`iisph_pressure_residual!`](@ref), and
 [`iisph_pressure_apply_preconditioner!`](@ref). This operator layer is intended for
 accelerated pressure solvers that reuse the same per-step neighbor coefficients.
-
-The [`IISPHPressureAdaptiveTimeStepCallback`](@ref) adjusts the next step size from the
-pressure solver iteration count. It does not reject steps, so it avoids the pressure
-cache rollback problem of OrdinaryDiffEq.jl adaptive methods. Place it after
-[`IISPHTimeStepCallback`](@ref) so it sees all pressure solves from the accepted step:
-
-```julia
-iisph_callback = IISPHTimeStepCallback()
-adaptive_iisph_callback = IISPHPressureAdaptiveTimeStepCallback(;
-    min_dt, max_dt, target_iterations=(3, 8))
-callbacks = CallbackSet(callbacks, iisph_callback, adaptive_iisph_callback)
-```
-
-Adaptive time integration with IISPH remains experimental when it relies on rejected
-steps, because rejected steps require restoring IISPH pressure caches.
 
 ## Derivation
 To derive the linear system of the pressure Poisson equation, we start by discretizing the

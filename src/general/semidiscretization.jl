@@ -49,7 +49,7 @@ semi = Semidiscretization(fluid_system, boundary_system,
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-struct Semidiscretization{BACKEND, S, RU, RV, NS, UCU, IT, PDT, IPS}
+struct Semidiscretization{BACKEND, S, RU, RV, NS, UCU, IT, IPS}
     systems                 :: S
     ranges_u                :: RU
     ranges_v                :: RV
@@ -57,7 +57,6 @@ struct Semidiscretization{BACKEND, S, RU, RV, NS, UCU, IT, PDT, IPS}
     parallelization_backend :: BACKEND
     update_callback_used    :: UCU
     integrate_tlsph         :: IT # `false` if TLSPH integration is decoupled
-    iisph_projection_dt     :: PDT
     iisph_pressure_state    :: IPS
 
     # Dispatch at `systems` to distinguish this constructor from the one below when
@@ -66,17 +65,16 @@ struct Semidiscretization{BACKEND, S, RU, RV, NS, UCU, IT, PDT, IPS}
     function Semidiscretization(systems::Tuple, ranges_u, ranges_v, neighborhood_searches,
                                 parallelization_backend::PointNeighbors.ParallelizationBackend,
                                 update_callback_used, integrate_tlsph,
-                                iisph_projection_dt, iisph_pressure_state)
+                                iisph_pressure_state)
         new{typeof(parallelization_backend), typeof(systems), typeof(ranges_u),
             typeof(ranges_v), typeof(neighborhood_searches),
             typeof(update_callback_used),
-            typeof(integrate_tlsph), typeof(iisph_projection_dt),
+            typeof(integrate_tlsph),
             typeof(iisph_pressure_state)}(systems, ranges_u, ranges_v,
                                           neighborhood_searches,
                                           parallelization_backend,
                                           update_callback_used,
                                           integrate_tlsph,
-                                          iisph_projection_dt,
                                           iisph_pressure_state)
     end
 end
@@ -127,11 +125,7 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     # with this set to false.
     integrate_tlsph = Ref(true)
 
-    iisph_projection_dt = Ref(initial_iisph_projection_dt(systems))
-    iisph_pressure_state = (warm_start=Ref(false), initialized=Ref(false),
-                            step_end_projection=Ref(false), strang_projection=Ref(false),
-                            projection_only=Ref(false),
-                            last_iterations=Ref(0), total_iterations=Ref(0),
+    iisph_pressure_state = (last_iterations=Ref(0), total_iterations=Ref(0),
                             max_iterations=Ref(0), solve_count=Ref(0),
                             step_iterations=Ref(0), step_max_iterations=Ref(0),
                             step_solve_count=Ref(0),
@@ -141,8 +135,7 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
 
     return Semidiscretization(systems, ranges_u, ranges_v, searches,
                               parallelization_backend, update_callback_used,
-                              integrate_tlsph, iisph_projection_dt,
-                              iisph_pressure_state)
+                              integrate_tlsph, iisph_pressure_state)
 end
 
 # Inline show function e.g. Semidiscretization(neighborhood_search=...)
@@ -187,121 +180,6 @@ end
     end
 
     return index
-end
-
-@inline iisph_system_time_step(system) = nothing
-
-@inline function iisph_system_time_step(system::ImplicitIncompressibleSPHSystem)
-    return system.time_step
-end
-
-@inline function iisph_system_time_step(system::WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}})
-    return system.boundary_model.cache.time_step
-end
-
-@inline uses_iisph_projection_dt(system) = false
-
-@inline uses_iisph_projection_dt(system::ImplicitIncompressibleSPHSystem) = true
-
-@inline function uses_iisph_projection_dt(system::WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}})
-    return true
-end
-
-function uses_iisph_projection_dt(semi::Semidiscretization)
-    return any(uses_iisph_projection_dt, semi.systems)
-end
-
-function initial_iisph_projection_dt(systems)
-    projection_dt = nothing
-
-    for system in systems
-        time_step = iisph_system_time_step(system)
-        isnothing(time_step) && continue
-
-        if isnothing(projection_dt)
-            projection_dt = time_step
-        elseif time_step != projection_dt
-            throw(ArgumentError("all IISPH systems and `PressureBoundaries` in a " *
-                                "`Semidiscretization` must use the same `time_step`"))
-        end
-    end
-
-    return isnothing(projection_dt) ? zero(eltype(first(systems))) : projection_dt
-end
-
-@inline function iisph_projection_dt(semi)
-    return semi.iisph_projection_dt[]
-end
-
-function set_iisph_projection_dt!(semi, dt)
-    semi.iisph_projection_dt[] = dt
-    return semi
-end
-
-function enable_iisph_pressure_warm_start!(semi)
-    semi.iisph_pressure_state.warm_start[] = true
-    return semi
-end
-
-function disable_iisph_pressure_warm_start!(semi)
-    semi.iisph_pressure_state.warm_start[] = false
-    return semi
-end
-
-function iisph_pressure_warm_start_enabled(semi)
-    return semi.iisph_pressure_state.warm_start[]
-end
-
-function reset_iisph_pressure_initialization!(semi)
-    semi.iisph_pressure_state.initialized[] = false
-    return semi
-end
-
-function mark_iisph_pressure_initialized!(semi)
-    semi.iisph_pressure_state.initialized[] = true
-    return semi
-end
-
-function should_damp_iisph_pressure(semi)
-    return !iisph_pressure_warm_start_enabled(semi) ||
-           !semi.iisph_pressure_state.initialized[]
-end
-
-function enable_iisph_step_end_projection!(semi)
-    semi.iisph_pressure_state.step_end_projection[] = true
-    semi.iisph_pressure_state.strang_projection[] = false
-    return semi
-end
-
-function enable_iisph_strang_projection!(semi)
-    semi.iisph_pressure_state.step_end_projection[] = true
-    semi.iisph_pressure_state.strang_projection[] = true
-    return semi
-end
-
-function disable_iisph_step_end_projection!(semi)
-    semi.iisph_pressure_state.step_end_projection[] = false
-    semi.iisph_pressure_state.strang_projection[] = false
-    return semi
-end
-
-function iisph_step_end_projection_enabled(semi)
-    return semi.iisph_pressure_state.step_end_projection[]
-end
-
-function iisph_strang_projection_enabled(semi)
-    return semi.iisph_pressure_state.strang_projection[]
-end
-
-function set_iisph_pressure_projection_only!(semi, projection_only)
-    hasproperty(semi, :iisph_pressure_state) || return semi
-    semi.iisph_pressure_state.projection_only[] = projection_only
-    return semi
-end
-
-function iisph_pressure_projection_only_enabled(semi)
-    hasproperty(semi, :iisph_pressure_state) || return false
-    return semi.iisph_pressure_state.projection_only[]
 end
 
 function record_iisph_pressure_iterations!(semi, iterations, solve_time=0.0)
@@ -828,107 +706,6 @@ function update_systems_and_nhs_after_pressure!(v_ode, u_ode, semi, t)
     end
 
     return semi
-end
-
-function project_iisph_pressure_at_step_end!(integrator; dt_factor=1)
-    semi = integrator.p.semi
-    uses_iisph_projection_dt(semi) || return integrator
-    iisph_step_end_projection_enabled(semi) || return integrator
-
-    v_ode, u_ode = integrator.u.x
-    t = integrator.t
-    original_dt = iisph_projection_dt(semi)
-    original_projection_only = iisph_pressure_projection_only_enabled(semi)
-    set_iisph_projection_dt!(semi, dt_factor * original_dt)
-    set_iisph_pressure_projection_only!(semi, true)
-
-    try
-        @trixi_timeit timer() "IISPH step-end projection" begin
-            @trixi_timeit timer() "pre-pressure update" begin
-                update_systems_and_nhs_before_pressure!(v_ode, u_ode, semi, t)
-            end
-
-            @trixi_timeit timer() "pressure solver" pressure_solve!(semi, v_ode, u_ode)
-
-            @trixi_timeit timer() "post-pressure update" begin
-                update_systems_and_nhs_after_pressure!(v_ode, u_ode, semi, t)
-            end
-
-            dv_pressure = similar(v_ode)
-            set_zero!(dv_pressure)
-
-            @trixi_timeit timer() "pressure acceleration" begin
-                iisph_pressure_interaction!(dv_pressure, v_ode, u_ode, semi)
-            end
-            apply_iisph_pressure_projection!(v_ode, dv_pressure, semi)
-        end
-    finally
-        set_iisph_projection_dt!(semi, original_dt)
-        set_iisph_pressure_projection_only!(semi, original_projection_only)
-    end
-
-    return integrator
-end
-
-function iisph_pressure_interaction!(dv_ode, v_ode, u_ode, semi)
-    reset_interaction_caches!(semi)
-
-    foreach_system(semi) do system
-        foreach_system(semi) do neighbor
-            iisph_pressure_interact!(dv_ode, v_ode, u_ode, system, neighbor, semi)
-        end
-    end
-
-    return dv_ode
-end
-
-@inline function iisph_pressure_interact!(dv_ode, v_ode, u_ode, system, neighbor, semi)
-    dv = wrap_v(dv_ode, system, semi)
-    v_system = wrap_v(v_ode, system, semi)
-    u_system = wrap_u(u_ode, system, semi)
-
-    v_neighbor = wrap_v(v_ode, neighbor, semi)
-    u_neighbor = wrap_u(u_ode, neighbor, semi)
-
-    iisph_pressure_interact!(dv, v_system, u_system, v_neighbor, u_neighbor, system,
-                             neighbor, semi)
-
-    return dv_ode
-end
-
-function iisph_pressure_interact!(dv, v_particle_system, u_particle_system,
-                                  v_neighbor_system, u_neighbor_system,
-                                  particle_system, neighbor_system, semi)
-    return dv
-end
-
-function apply_iisph_pressure_projection!(v_ode, dv_pressure, semi)
-    dt = iisph_projection_dt(semi)
-
-    foreach_system(semi) do system
-        apply_iisph_pressure_projection!(v_ode, dv_pressure, system, semi, dt)
-    end
-
-    return v_ode
-end
-
-function apply_iisph_pressure_projection!(v_ode, dv_pressure, system, semi, dt)
-    return v_ode
-end
-
-function apply_iisph_pressure_projection!(v_ode, dv_pressure,
-                                          system::ImplicitIncompressibleSPHSystem,
-                                          semi, dt)
-    v = wrap_v(v_ode, system, semi)
-    dv = wrap_v(dv_pressure, system, semi)
-
-    @threaded semi for particle in each_integrated_particle(system)
-        for i in 1:ndims(system)
-            @inbounds v[i, particle] += dt * dv[i, particle]
-        end
-    end
-
-    return v_ode
 end
 
 # Some systems accumulate pairwise interaction state outside `dv_ode`. Reset that state once

@@ -19,23 +19,6 @@ on the velocity. Therefore, not all integrators designed for `DynamicalODEProble
 will work (properly) (see [below](@ref kick_drift_kick)).
 However, all integrators designed for general `ODEProblem`s can be used.
 
-For [`ImplicitIncompressibleSPHSystem`](@ref), fixed-step OrdinaryDiffEq.jl methods need
-the [`IISPHTimeStepCallback`](@ref) so the IISPH pressure projection uses the current
-integrator step size. Algorithms exposing `stage_limiter!` and `step_limiter!` can also
-use [`IISPHTimeStepLimiter`](@ref) for stage-local synchronization. Adaptive RK methods
-are currently experimental for IISPH because rejected steps require restoring IISPH
-pressure caches. The IISPH callback and limiter also warm-start the pressure solve by
-default across intermediate RK stages.
-Use `IISPHTimeStepCallback(project_at_step_end=true)` to evaluate RK stages with the
-non-pressure right-hand side and apply the IISPH pressure projection once at the end of
-each accepted step.
-Use `IISPHTimeStepCallback(pressure_projection=:strang)` for a symmetric splitting with
-pressure projections around each non-pressure RK step. Adjacent half projections are
-merged into full pressure projections at internal fixed-step boundaries.
-Use [`IISPHPressureAdaptiveTimeStepCallback`](@ref) after the IISPH time-step callback
-to adapt the next accepted step size from the pressure solver iteration count without
-rejecting already accepted steps.
-
 ## Usage
 
 After obtaining an `ODEProblem` from [`semidiscretize`](@ref), let us call it `ode`,

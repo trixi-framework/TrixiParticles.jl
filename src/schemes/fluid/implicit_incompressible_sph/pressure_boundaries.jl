@@ -2,8 +2,7 @@ function calculate_diagonal_elements_and_predicted_density!(system::WallBoundary
                                                             v, u, v_ode, u_ode, semi)
     (; boundary_model) = system
     (; density_calculator) = boundary_model
-    (; a_ii, predicted_density, density) = boundary_model.cache
-    time_step = iisph_projection_dt(semi)
+    (; a_ii, predicted_density, density, time_step) = boundary_model.cache
 
     set_zero!(a_ii)
     predicted_density .= density
@@ -81,8 +80,7 @@ end
 function calculate_sum_term_values!(system::WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}},
                                     u, u_ode, semi)
     (; boundary_model) = system
-    (; sum_term) = boundary_model.cache
-    time_step = iisph_projection_dt(semi)
+    (; sum_term, time_step) = boundary_model.cache
 
     # Calculate the large sum in eq. 13 of Ihmsen et al. (2013) for each particle (as `sum_term`)
     set_zero!(sum_term)

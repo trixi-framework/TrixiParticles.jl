@@ -15,7 +15,7 @@ function copy_semi_with_no_update_nhs(semi)
 
     return Semidiscretization(semi.systems, semi.ranges_u, semi.ranges_v,
                               neighborhood_searches, SerialBackend(), Ref(true), Ref(true),
-                              semi.iisph_projection_dt, semi.iisph_pressure_state)
+                              semi.iisph_pressure_state)
 end
 
 # Forward `foreach_neighbor` to wrapped neighborhood search
