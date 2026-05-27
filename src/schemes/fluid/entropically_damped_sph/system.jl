@@ -381,6 +381,6 @@ function restart_with!(system::EntropicallyDampedSPHSystem, v, u)
     for particle in each_integrated_particle(system)
         system.initial_condition.coordinates[:, particle] .= u[:, particle]
         system.initial_condition.velocity[:, particle] .= v[1:ndims(system), particle]
-        system.initial_condition.pressure[particle] = v[end, particle]
+        system.initial_condition.pressure[particle] = v[ndims(system) + 1, particle]
     end
 end
