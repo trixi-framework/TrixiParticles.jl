@@ -42,7 +42,8 @@ using TrixiBase: @trixi_timeit, timer, timeit_debug_enabled,
                                 ThreadsDynamicBackend, default_backend
 using PointNeighbors: PointNeighbors, foreach_point_neighbor, copy_neighborhood_search,
                       @threaded
-using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, paraview_collection, vtk_save
+using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, VTKFieldData, paraview_collection,
+                vtk_save
 
 # `util.jl` needs to be first because of the macros `@trixi_timeit` and `@threaded`
 include("util.jl")
@@ -78,7 +79,7 @@ export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller, TransportVelocityAdami, ParticleShiftingTechnique,
        ParticleShiftingTechniqueSun2017, ConsistentShiftingSun2019,
-       ContinuityEquationTermSun2019, MomentumEquationTermSun2019
+       ContinuityEquationTermSun2019, MomentumEquationTermSun2019, VelocityAveraging
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        SchoenbergQuinticSplineKernel, GaussianKernel, WendlandC2Kernel, WendlandC4Kernel,
        WendlandC6Kernel, SpikyKernel, Poly6Kernel, LaguerreGaussKernel
