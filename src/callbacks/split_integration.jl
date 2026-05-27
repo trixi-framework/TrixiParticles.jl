@@ -567,8 +567,8 @@ function update_averaged_velocity_callback!(integrator)
         compute_averaged_velocity!(system, v_ode, semi, t_new)
     end
 
-    # Tell OrdinaryDiffEq that `integrator.u` has not been modified
-    u_modified!(integrator, false)
+    # No derivative discontinuity is introduced since `integrator.u` has not been modified
+    derivative_discontinuity!(integrator, false)
 
     return integrator
 end
