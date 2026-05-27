@@ -127,14 +127,59 @@
         integrator = (; t=23.0,
                       stats=(; naccept=453),
                       iter=472,
-                      dt=1e-3)
+                      dt=1e-3,
+                      p=(; split_integration_data=nothing))
 
         TrixiParticles.isfinished(::NamedTuple) = true
         TrixiParticles.u_modified!(::NamedTuple, _) = nothing
 
         expected = """
         ────────────────────────────────────────────────────────────────────────────────────────────────────
-        Trixi simulation finished.  Final time: 23.0  Time steps: 453 (accepted), 472 (total)
+        Trixi simulation finished.
+          Final time:                           23.0
+          Time steps:                            453 (accepted)        472 (total)
+        ────────────────────────────────────────────────────────────────────────────────────────────────────
+
+        ────────────────────────────────────────────────────────────────────
+        TrixiParticles.jl          Time                    Allocations"""
+
+        # Redirect `stdout` to a string
+        pipe = Pipe()
+        redirect_stdout(pipe) do
+            callback.affect!(integrator)
+        end
+        close(pipe.in)
+        output = String(read(pipe))
+
+        @test startswith(output, expected)
+    end
+
+    @testset verbose=true "affect! finished with split integration" begin
+        callback = InfoCallback()
+
+        # Set `start_time` to -1e109 to make the output independent of the current time
+        callback.affect!.start_time = -1e109
+
+        # Build a mock `integrator`, which is a `NamedTuple` holding the fields that are
+        # accessed in `initialize_info_callback`.
+        integrator = (; t=23.0,
+                      stats=(; naccept=123),
+                      iter=150,
+                      dt=1e-3,
+                      p=(;
+                         split_integration_data=(;
+                                                 integrator=(; stats=(; naccept=938),
+                                                             iter=1023))))
+
+        TrixiParticles.isfinished(::NamedTuple) = true
+        TrixiParticles.u_modified!(::NamedTuple, _) = nothing
+
+        expected = """
+        ────────────────────────────────────────────────────────────────────────────────────────────────────
+        Trixi simulation finished.
+          Final time:                           23.0
+          Time steps:                            123 (accepted)        150 (total)
+          Split integration time steps:          938 (accepted)       1023 (total)
         ────────────────────────────────────────────────────────────────────────────────────────────────────
 
         ────────────────────────────────────────────────────────────────────
