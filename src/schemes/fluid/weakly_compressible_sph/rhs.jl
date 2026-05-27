@@ -25,14 +25,23 @@ function interact!(dv, v_particle_system, u_particle_system,
     compact_support_ = compact_support(particle_system, neighbor_system)
     almostzero = sqrt(eps(compact_support_^2))
 
+    use_aligned_load_system = Val(use_aligned_vrho_load(v_particle_system, particle_system))
+    use_aligned_load_neighbor = Val(use_aligned_vrho_load(v_neighbor_system,
+                                                          neighbor_system))
+
     @threaded semi for particle in each_integrated_particle(particle_system)
         # We are looping over the particles of `particle_system`, so it is guaranteed
         # that `particle` is in bounds of `particle_system`.
         m_a = @inbounds hydrodynamic_mass(particle_system, particle)
         p_a = @inbounds current_pressure(v_particle_system, particle_system, particle)
 
-        v_a = @inbounds current_velocity(v_particle_system, particle_system, particle)
-        rho_a = @inbounds current_density(v_particle_system, particle_system, particle)
+        # In 3D, this function can combine velocity and density load into one wide load,
+        # which gives a significant speedup on GPUs.
+        # Note that we can only safely use `@inbounds` after checking alignment
+        # with `use_aligned_vrho_load` before the `@threaded` loop.
+        (v_a,
+         rho_a) = @inbounds velocity_and_density(v_particle_system, particle_system,
+                                                 use_aligned_load_system, particle)
 
         # Accumulate the RHS contributions over all neighbors before writing to `dv`,
         # to reduce the number of memory writes.
@@ -56,8 +65,11 @@ function interact!(dv, v_particle_system, u_particle_system,
 
             # `foreach_neighbor` makes sure that `neighbor` is in bounds of `neighbor_system`
             m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
-            v_b = @inbounds current_velocity(v_neighbor_system, neighbor_system, neighbor)
-            rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
+            # Note that we can only safely use `@inbounds` after checking alignment
+            # with `use_aligned_vrho_load` before the `@threaded` loop.
+            (v_b,
+             rho_b) = @inbounds velocity_and_density(v_neighbor_system, neighbor_system,
+                                                     use_aligned_load_neighbor, neighbor)
 
             # The following call is equivalent to
             #     `p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)`
@@ -133,4 +145,56 @@ end
                                    neighbor_system::WallBoundarySystem{<:BoundaryModelDummyParticles{PressureMirroring}},
                                    neighbor, p_a)
     return p_a
+end
+
+# Default method, which simply calls `current_velocity` and `current_density` separately.
+@propagate_inbounds function velocity_and_density(v, system, ::Val{false}, particle)
+    v_particle = current_velocity(v, system, particle)
+    rho_particle = current_density(v, system, particle)
+
+    return v_particle, rho_particle
+end
+
+# Optimized version for WCSPH with `ContinuityDensity` in 3D,
+# which combines the velocity and density load into one wide load.
+# This is significantly faster on GPUs than the 4 individual loads of `extract_svector`.
+# WARNING: this requires that the pointer of `v` is aligned to `4 * sizeof(eltype(v))`,
+#          which is checked by `use_aligned_vrho_load`.
+#          Only call this function after checking `use_aligned_vrho_load` to avoid
+#          segmentation faults from illegal accesses.
+@propagate_inbounds function velocity_and_density(v, system, ::Val{true}, particle)
+    vrho_particle = extract_svector_aligned(v, Val(4), particle)
+
+    # The columns of `v` are ordered as (v_x, v_y, v_z, rho)
+    v..., rho = Tuple(vrho_particle)
+    v_particle = SVector(v)
+
+    return v_particle, rho
+end
+
+# By default, don't use aligned loads
+use_aligned_vrho_load(v, system) = false
+
+function use_aligned_vrho_load(v::AbstractGPUArray, system::WeaklyCompressibleSPHSystem{3})
+    use_aligned_vrho_load(v, system, system.density_calculator)
+end
+
+use_aligned_vrho_load(v, system, density_calculator) = false
+
+# Only use aligned loads when all of these conditions are satisfied:
+# - WCSPH with `ContinuityDensity` in 3D. Only then, the columns of `v` are of length 4.
+# - We are on a GPU, where the aligned load gives a significant speedup.
+# - The velocity array is aligned for aligned loads, which requires that the pointer of `v`
+#   is aligned to `4 * sizeof(eltype(v))`
+#   Otherwise, we cannot use `vloada`, which is an *aligned* load.
+#   The unaligned version `vload` does not produce wide load instructions on GPUs.
+function use_aligned_vrho_load(v::AbstractGPUArray, system, ::ContinuityDensity)
+    if !can_use_aligned_load(v, 4)
+        # Aligned loads should always be possible on GPUs because the slices of `v_ode`
+        # are aligned to 64 bytes in `Semidiscretization` and arrays on GPUs are always
+        # aligned to full pages.
+        error("illegal alignment of `v` integration array. Please report this issue.")
+    end
+
+    return true
 end
