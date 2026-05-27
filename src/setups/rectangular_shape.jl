@@ -341,7 +341,8 @@ function initialize_pressure_with_coordinate_density!(pressure, particle_spacing
             index = ntuple(dim -> dim == accel_dim ? accel_index : column_start[dim],
                            Val(NDIMS))
             particle = particle_indices[index...]
-            coords = SVector{NDIMS, eltype(coordinates)}(ntuple(dim -> coordinates[dim, particle],
+            coords = SVector{NDIMS, eltype(coordinates)}(ntuple(dim -> coordinates[dim,
+                                                                                   particle],
                                                                 Val(NDIMS)))
             density = density_fun(coords)
 

@@ -159,7 +159,7 @@
 
             @test shape.density ≈ [1005.5, 1015.5, 1006.5, 1016.5, 1007.5, 1017.5]
             @test shape.pressure ≈ [251.775, 254.275, 151.125, 152.625, 50.375,
-                                     50.875]
+                50.875]
             @test shape.mass ≈ particle_spacing^2 * shape.density
         end
 
