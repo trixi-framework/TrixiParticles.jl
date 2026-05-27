@@ -16,8 +16,8 @@ Its main features include:
   - Methods: Weakly Compressible Smoothed Particle Hydrodynamics (WCSPH), Entropically Damped Artificial Compressibility (EDAC), Implicit Incompressible Smoothed Particle Hydrodynamics (IISPH)
   - Models: Surface Tension, Open Boundaries
 - Structural mechanics
-  - Methods: Total Lagrangian SPH (TLSPH), Discrete Element Method (DEM)
-- Fluid-Structure Interaction
+  - Methods: Total Lagrangian SPH (TLSPH), Discrete Element Method (DEM), Rigid Body Dynamics (RBD)
+- Fluid-Structure Interaction with elastic structures and rigid bodies
 - Particle sampling of complex geometries from `.stl`, `.asc`, and `.dxf` files
 - Output formats:
   - VTK

@@ -127,10 +127,11 @@ makedocs(sitename="TrixiParticles.jl",
                                                                            "implicit_incompressible_sph.md")
                      ],
                      "Discrete Element Method (Solid)" => joinpath("systems", "dem.md"),
-                     "Rigid Body SPH (Rigid Structure)" => joinpath("systems",
-                                                                    "rigid_body.md"),
+                     "Rigid Body Dynamics (Rigid Structure)" => joinpath("systems",
+                                                                         "rigid_body.md"),
                      "Total Lagrangian SPH (Elastic Structure)" => joinpath("systems",
-                                                                            "total_lagrangian_sp                     "Boundary" => joinpath("systems", "boundary.md")
+                                                                            "total_lagrangian_sph.md"),
+                     "Boundary" => joinpath("systems", "boundary.md")
                  ],
                  "Time Integration" => "time_integration.md",
                  "Callbacks" => "callbacks.md",

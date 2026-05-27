@@ -79,10 +79,10 @@ flowchart TD
 
 ## Structure
 In the codebase, a scheme denotes a particle method or model such as Weakly Compressible
-SPH (WCSPH) or Total Lagrangian SPH (TLSPH). Schemes are organized by application area,
-for example fluid, structure, and boundary systems. A scheme typically comprises at least
-two files: a `system.jl` file and an `rhs.jl` file. The `system.jl` file defines the data
-structure that stores the particles of the scheme together with routines for allocation and
-main updates that do not involve the computation of forces from interactions between particles.
-The `rhs.jl` file contains these interaction terms between particles of the same scheme and
-between different schemes.
+SPH (WCSPH), Total Lagrangian SPH (TLSPH), the Discrete Element Method (DEM), or rigid-body
+dynamics. Schemes are organized by application area, for example fluid, structure, and
+boundary systems. A scheme typically comprises at least two files: a `system.jl` file and
+an `rhs.jl` file. The `system.jl` file defines the data structure that stores the particles
+of the scheme together with routines for allocation and main updates that do not involve
+the computation of forces from interactions between particles. The `rhs.jl` file contains
+these interaction terms between particles of the same scheme and between different schemes.
