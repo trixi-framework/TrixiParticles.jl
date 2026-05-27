@@ -56,6 +56,7 @@
     include("update.jl")
     include("sorting.jl")
     include("solution_saving.jl")
+    include("density_reinit.jl")
     include("steady_state_reached.jl")
     include("mechanical_work_calculator.jl")
 end
