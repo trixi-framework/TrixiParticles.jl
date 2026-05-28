@@ -80,4 +80,4 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "vortex_street_2d.j
               open_boundary_model=open_boundary_model,
               shifting_technique=shifting_technique,
               factor_d=resolution_factor, domain_size=domain_size, tspan=tspan,
-              extra_callback=pp_callback)
+              extra_callback=pp_callback, saving_callback=nothing)
