@@ -134,7 +134,7 @@ function Base.show(io::IO, semi::Semidiscretization)
         print(io, system, ", ")
     end
     print(io, "neighborhood_search=")
-    print(io, nameof(eltype(semi.neighborhood_search_handler)))
+    print(io, neighborhood_search_name(semi.neighborhood_search_handler))
     print(io, ")")
 end
 
@@ -149,7 +149,7 @@ function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
         summary_line(io, "#spatial dimensions", ndims(semi.systems[1]))
         summary_line(io, "#systems", length(semi.systems))
         summary_line(io, "neighborhood search",
-                     nameof(eltype(semi.neighborhood_search_handler)))
+                     neighborhood_search_name(semi.neighborhood_search_handler))
         summary_line(io, "total #particles", sum(nparticles.(semi.systems)))
         summary_line(io, "eltype", eltype(semi.systems[1]))
         summary_line(io, "coordinates eltype", coordinates_eltype(semi.systems[1]))

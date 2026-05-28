@@ -238,6 +238,12 @@ end
 first_neighborhood_search(searches::AbstractMatrix) = first(searches)
 first_neighborhood_search(searches) = first(first(searches))
 
+function neighborhood_search_name(handler::AbstractNHSHandler)
+    search = first_neighborhood_search(handler.neighborhood_searches)
+
+    return nameof(typeof(search))
+end
+
 # Store a distinct neighborhood search for every possible pair of systems.
 struct PairsNHSHandler{NHS} <: AbstractNHSHandler
     neighborhood_searches::NHS
