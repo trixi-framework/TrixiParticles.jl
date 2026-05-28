@@ -10,11 +10,11 @@ resolution_factor = 0.05
 cylinder_diameter = 0.1
 prescribed_velocity = 1.0
 
-output_directory = "out"
+directory = joinpath(validation_dir(), "vortex_street_2d")
 
 # ======================================================================================
 # ==== Read results
-data = CSV.read(joinpath(output_directory, "resulting_force.csv"), DataFrame)
+data = CSV.read(joinpath(directory, "resulting_force.csv"), DataFrame)
 
 step = 1
 times = data[!, "time"][1:step:end]
