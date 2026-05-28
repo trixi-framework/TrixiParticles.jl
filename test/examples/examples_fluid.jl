@@ -204,7 +204,7 @@
                 r"└ New tank length in y-direction.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            @test count_rhs_allocations(sol) == 0
             v_ode, u_ode = sol.u[end].x
             @test eltype(v_ode) == Float32
             @test eltype(u_ode) == Float64
