@@ -80,7 +80,7 @@ smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
 
-kinematic_viscosity = maximum(prescribed_velocity) * cylinder_diameter / reynolds_number
+kinematic_viscosity = prescribed_velocity * cylinder_diameter / reynolds_number
 
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1)
