@@ -88,5 +88,5 @@ pS = plot(frequencies_half, spectrum_half, xlabel="Frequency (Hz)", size=(400, 2
           label=nothing, linewidth=2)
 plot!(pS, top_margin=2Plots.mm)
 
-p = plot(pC, pS, layout=@layout([a; b{0.3h}]), size=(800, 800))
+p = plot(pC, pS, layout=@layout([a; b{0.3h}]), size=(800, 800), dpi=600)
 plot!(p, right_margin=5Plots.mm)
