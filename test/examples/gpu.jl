@@ -96,7 +96,8 @@ end
                 # Perhaps because this is inside an `if` block?
                 semi_ = @invokelatest (@__MODULE__).semi
                 @test TrixiParticles.get_neighborhood_search(first(semi_.systems),
-                                                             semi_).cell_list isa FullGridCellList
+                                                             semi_).cell_list isa
+                      FullGridCellList
                 @test (@invokelatest (@__MODULE__).sol).retcode ==
                       (@invokelatest (@__MODULE__).ReturnCode).Success
                 v_ode, u_ode = (@invokelatest (@__MODULE__).sol).u[end].x
@@ -129,7 +130,8 @@ end
                 # See the comment in the previous test about `@invokelatest`
                 semi_ = @invokelatest (@__MODULE__).semi
                 @test TrixiParticles.get_neighborhood_search(first(semi_.systems),
-                                                             semi_).cell_list isa FullGridCellList
+                                                             semi_).cell_list isa
+                      FullGridCellList
                 @test (@invokelatest (@__MODULE__).sol).retcode ==
                       (@invokelatest (@__MODULE__).ReturnCode).Success
                 v_ode, u_ode = (@invokelatest (@__MODULE__).sol).u[end].x
@@ -181,7 +183,8 @@ end
                         r"└ New tank length in y-direction.*\n"
                     ]
                     @test TrixiParticles.get_neighborhood_search(first(semi.systems),
-                                                                 semi).cell_list isa FullGridCellList
+                                                                 semi).cell_list isa
+                          FullGridCellList
                     @test sol.retcode == ReturnCode.Success
                     v_ode, u_ode = sol.u[end].x
                     backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
@@ -206,7 +209,8 @@ end
                 r"└ New tank length in y-direction.*\n"
             ]
             @test TrixiParticles.get_neighborhood_search(first(semi.systems),
-                                                         semi).cell_list isa FullGridCellList
+                                                         semi).cell_list isa
+                  FullGridCellList
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
@@ -241,7 +245,8 @@ end
                 r"└ New tank length in y-direction.*\n"
             ]
             @test TrixiParticles.get_neighborhood_search(first(semi.systems),
-                                                         semi).cell_list isa FullGridCellList
+                                                         semi).cell_list isa
+                  FullGridCellList
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
@@ -320,6 +325,7 @@ end
 
             hydrostatic_water_column_tests = Dict(
                 "WCSPH default" => (),
+                "WCSPH with PairsNHSHandler" => (neighborhood_search_handler=PairsNHSHandler,),
                 "WCSPH with source term damping" => (source_terms=SourceTermDamping(damping_coefficient=1.0f-4),),
                 "WCSPH with SummationDensity" => (fluid_density_calculator=SummationDensity(),
                                                   clip_negative_pressure=true),
@@ -383,6 +389,7 @@ end
                     semi_fullgrid = Semidiscretization(fluid_system, boundary_system,
                                                        neighborhood_search=GridNeighborhoodSearch{2}(;
                                                                                                      cell_list),
+                                                       neighborhood_search_handler=GridNHSHandler,
                                                        parallelization_backend=Main.parallelization_backend)
 
                     # Run the simulation
@@ -398,6 +405,10 @@ end
                     ]
 
                     @test sol.retcode == ReturnCode.Success
+                    if test_description == "WCSPH with PairsNHSHandler"
+                        @test semi.neighborhood_search_handler isa
+                              TrixiParticles.PairsNHSHandler
+                    end
                     v_ode, u_ode = sol.u[end].x
                     backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
                     @test backend == Main.parallelization_backend

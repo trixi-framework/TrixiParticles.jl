@@ -1,6 +1,6 @@
 """
     Semidiscretization(systems...; neighborhood_search=GridNeighborhoodSearch{NDIMS}(),
-                       neighborhood_search_handler=PairsNHSHandler)
+                       neighborhood_search_handler=default_neighborhood_search_handler(neighborhood_search))
 
 The semidiscretization couples the passed systems to one simulation.
 
@@ -16,8 +16,9 @@ The semidiscretization couples the passed systems to one simulation.
                             and the examples below for more details.
                             To use a periodic domain, pass a [`PeriodicBox`](@ref) to the
                             neighborhood search.
-- `neighborhood_search_handler=PairsNHSHandler`: The handler type used to organize
-                            neighborhood searches internally.
+- `neighborhood_search_handler`: The handler type used to organize neighborhood searches
+                            internally. By default, [`GridNHSHandler`](@ref) is used with
+                            [`GridNeighborhoodSearch`](@ref) and [`PairsNHSHandler`](@ref) otherwise.
 - `threaded_nhs_update=true`:   Can be used to deactivate thread parallelization in the neighborhood search update.
                                 This can be one of the largest sources of variations between simulations
                                 with different thread numbers due to particle ordering changes.
@@ -79,7 +80,7 @@ end
 
 function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
                             neighborhood_search=GridNeighborhoodSearch{ndims(first(systems))}(),
-                            neighborhood_search_handler=PairsNHSHandler,
+                            neighborhood_search_handler=default_neighborhood_search_handler(neighborhood_search),
                             parallelization_backend=PolyesterBackend())
     systems = filter(system -> !isnothing(system), systems)
 

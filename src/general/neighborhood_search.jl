@@ -235,6 +235,20 @@ function create_neighborhood_search_handler(handler, neighborhood_search, system
                         "for example `PairsNHSHandler` or `GridNHSHandler`."))
 end
 
+default_neighborhood_search_handler(neighborhood_search) = PairsNHSHandler
+
+function default_neighborhood_search_handler(neighborhood_search::GridNeighborhoodSearch)
+    # If the neighborhood search does not require updates when the first system moves,
+    # we can query neighbors of arbitrary particles without updating the neighborhood search.
+    # In this case, we can use a single neighborhood search per neighbor system,
+    # instead of one per pair of systems, which all store the same information.
+    if !PointNeighbors.requires_update(neighborhood_search)[1]
+        return GridNHSHandler
+    end
+
+    return PairsNHSHandler
+end
+
 first_neighborhood_search(searches::AbstractMatrix) = first(searches)
 first_neighborhood_search(searches) = first(first(searches))
 
@@ -277,7 +291,7 @@ function GridNHSHandler(neighborhood_search::GridNeighborhoodSearch, systems)
                     for neighbor in systems]
 
     searches = [[copy_neighborhood_search(neighborhood_search, search_radius,
-                                           nparticles(neighbor))
+                                          nparticles(neighbor))
                  for search_radius in search_radii[neighbor_index]]
                 for (neighbor_index, neighbor) in pairs(systems)]
 
@@ -291,12 +305,12 @@ end
 function get_neighborhood_search(handler::GridNHSHandler, system_index, neighbor_index,
                                  search_radius)
     radii = handler.search_radii[neighbor_index]
-    radius_index = searchsortedfirst(SVector(radii), search_radius - eps(search_radius))
+    radius_index = searchsortedfirst(radii, search_radius - eps(search_radius))
 
     @boundscheck radius_index <= length(radii) ||
                  throw(ArgumentError("no grid neighborhood search with radius >= $search_radius"))
 
-    return handler.neighborhood_searches[neighbor_index, radius_index]
+    return handler.neighborhood_searches[neighbor_index][radius_index]
 end
 
 # === Neighborhood search lookup ===

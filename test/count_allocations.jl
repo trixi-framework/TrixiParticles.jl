@@ -20,7 +20,7 @@ end
 
 function no_update_nhs_handler(handler::TrixiParticles.PairsNHSHandler)
     return TrixiParticles.PairsNHSHandler(map(NoUpdateNeighborhoodSearch,
-                                             handler.neighborhood_searches))
+                                              handler.neighborhood_searches))
 end
 
 function no_update_nhs_handler(handler::TrixiParticles.GridNHSHandler)

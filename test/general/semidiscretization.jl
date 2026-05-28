@@ -38,6 +38,15 @@
                eachpoint=1:3)]
         @test semi.neighborhood_search_handler.neighborhood_searches == nhs
 
+        semi_grid_default = Semidiscretization(system1, system2,
+                                               neighborhood_search=GridNeighborhoodSearch{3}())
+        @test !PointNeighbors.requires_update(GridNeighborhoodSearch{3}())[1]
+        @test semi_grid_default.neighborhood_search_handler isa
+              TrixiParticles.GridNHSHandler
+        @test TrixiParticles.get_neighborhood_search(system1, system2,
+                                                     semi_grid_default) isa
+              GridNeighborhoodSearch
+
         semi_grid = Semidiscretization(system1, system2,
                                        neighborhood_search=GridNeighborhoodSearch{3}(),
                                        neighborhood_search_handler=GridNHSHandler)
@@ -49,6 +58,11 @@
                   semi_grid.neighborhood_search_handler.neighborhood_searches)
         @test all(searches -> isconcretetype(eltype(searches)),
                   semi_grid.neighborhood_search_handler.neighborhood_searches)
+
+        semi_pairs = Semidiscretization(system1, system2,
+                                        neighborhood_search=GridNeighborhoodSearch{3}(),
+                                        neighborhood_search_handler=PairsNHSHandler)
+        @test semi_pairs.neighborhood_search_handler isa TrixiParticles.PairsNHSHandler
 
         handler = TrixiParticles.PairsNHSHandler(nothing, (system1, system2))
         @test_throws ArgumentError Semidiscretization(system1, system2,
