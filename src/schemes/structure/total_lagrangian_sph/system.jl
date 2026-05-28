@@ -84,6 +84,7 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
     correction_matrix        :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
     pk1_rho2                 :: ARRAY3D # PK1 corrected divided by rho^2: [i, j, particle]
     deformation_grad         :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
+    deformation_grad_buffer  :: ARRAY3D # Array{ELTYPE, 3}
     material_density         :: ARRAY1D # Array{ELTYPE, 1}: [particle]
     n_integrated_particles   :: Int64
     young_modulus            :: YM
@@ -153,6 +154,9 @@ function TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing
     pk1_rho2 = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
     deformation_grad = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
 
+    n_neighbors = 128
+    deformation_grad_buffer = Array{ELTYPE, 3}(undef, n_particles, NDIMS, n_neighbors)
+
     n_integrated_particles = n_particles - n_clamped_particles
 
     lame_lambda = @. young_modulus_sorted * poisson_ratio_sorted /
@@ -169,7 +173,7 @@ function TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing
 
     return TotalLagrangianSPHSystem(initial_condition_sorted, initial_coordinates,
                                     current_coordinates, mass, correction_matrix,
-                                    pk1_rho2, deformation_grad, material_density,
+                                    pk1_rho2, deformation_grad, deformation_grad_buffer, material_density,
                                     n_integrated_particles, young_modulus_sorted,
                                     poisson_ratio_sorted,
                                     lame_lambda, lame_mu, smoothing_kernel,
@@ -229,7 +233,7 @@ function initialize_self_interaction_nhs(system::TotalLagrangianSPHSystem,
                                     system.initial_coordinates,
                                     system.current_coordinates, system.mass,
                                     system.correction_matrix, system.pk1_rho2,
-                                    system.deformation_grad, system.material_density,
+                                    system.deformation_grad, system.deformation_grad_buffer, system.material_density,
                                     system.n_integrated_particles, system.young_modulus,
                                     system.poisson_ratio, system.lame_lambda,
                                     system.lame_mu, system.smoothing_kernel,
@@ -398,6 +402,9 @@ function initialize!(system::TotalLagrangianSPHSystem, semi)
     # Calculate correction matrix
     compute_gradient_correction_matrix!(correction_matrix, system, initial_coords,
                                         density_fun, semi)
+
+
+    calc_deformation_grad_buffer!(system.deformation_grad_buffer, system, semi)
 end
 
 function update_positions!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
@@ -483,7 +490,7 @@ end
     end
 end
 
-@inline function calc_deformation_grad!(deformation_grad, system, semi)
+@inline function calc_deformation_grad_buffer!(deformation_grad_buffer, system, semi)
     (; mass, material_density) = system
 
     # For `distance == 0`, the analytical gradient is zero, but the unsafe gradient
@@ -493,12 +500,63 @@ end
     # the order of `h^2`, so we need to check `distance < sqrt(eps(h^2))`.
     # Note that `sqrt(eps(h^2)) != eps(h)`.
     h = initial_smoothing_length(system)
-    almostzero = sqrt(eps(h^2))
+    almostzero = eps(h^2)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     initial_coords = initial_coordinates(system)
     neighborhood_search = get_neighborhood_search(system, semi)
     backend = semi.parallelization_backend
+
+    # The deformation gradient is computed for all particles, including the clamped ones
+    @threaded semi for particle in eachparticle(system)
+        # We are looping over the particles of `system`, so it is guaranteed
+        # that `particle` is in bounds of `system`.
+        L_a = @inbounds correction_matrix(system, particle)
+
+        particle_coords = @inbounds extract_svector(initial_coords,
+                                                    Val(ndims(system)), particle)
+
+        neighbors = @inbounds neighborhood_search.neighbor_lists[particle]
+        for neighbor_idx in eachindex(neighbors)
+            neighbor = @inbounds neighbors[neighbor_idx]
+
+            neighbor_coords = @inbounds extract_svector(initial_coords,
+                                                        Val(ndims(system)), neighbor)
+
+            initial_pos_diff = particle_coords - neighbor_coords
+            initial_distance2 = dot(initial_pos_diff, initial_pos_diff)
+
+            # Skip neighbors with the same position because the kernel gradient is zero.
+            # Note that `return` only exits the closure, i.e., skips the current neighbor.
+            # skip_zero_distance(system) && initial_distance2 < almostzero && return
+
+            initial_distance = sqrt(initial_distance2)
+
+            # Now that we know that `distance` is not zero, we can safely call the unsafe
+            # version of the kernel gradient to avoid redundant zero checks.
+            grad_kernel = smoothing_kernel_grad_unsafe(system, initial_pos_diff,
+                                                       initial_distance, particle)
+
+            volume = @inbounds div_fast(mass[neighbor], material_density[neighbor])
+
+            # The tensor product pos_diff ⊗ (L_{0a} * ∇W) is equivalent to multiplication
+            # by the transpose: pos_diff * (L_{0a} * ∇W)ᵀ = (L_{0a} * ∇W * pos_diffᵀ)ᵀ
+            buffer = -volume * L_a * grad_kernel
+            buffer = ifelse(initial_distance2 < almostzero, zero(buffer), buffer)
+            for i in 1:ndims(system)
+                # We overwrite every entry of `deformation_grad`, so no `set_zero!` is required.
+                @inbounds deformation_grad_buffer[particle, i, neighbor_idx] = buffer[i]
+            end
+        end
+    end
+
+    return deformation_grad_buffer
+end
+
+@inline function calc_deformation_grad!(deformation_grad, system, semi)
+    (; deformation_grad_buffer) = system
+
+    neighborhood_search = get_neighborhood_search(system, semi)
 
     # The deformation gradient is computed for all particles, including the clamped ones
     @threaded semi for particle in eachparticle(system)
@@ -511,26 +569,12 @@ end
         # to `deformation_grad` to reduce the number of memory writes.
         # Note that we need a `Ref` in order to be able to update these variables
         # inside the closure in the `foreach_neighbor` loop.
-        result = Ref(zero(L_a))
+        result = zero(L_a)
 
-        # Loop over all neighbors within the kernel cutoff
-        @inbounds foreach_neighbor(initial_coords, initial_coords,
-                                   neighborhood_search, backend,
-                                   particle) do particle, neighbor,
-                                                initial_pos_diff, initial_distance
-            # Skip neighbors with the same position because the kernel gradient is zero.
-            # Note that `return` only exits the closure, i.e., skips the current neighbor.
-            skip_zero_distance(system) && initial_distance < almostzero && return
+        neighbors = @inbounds neighborhood_search.neighbor_lists[particle]
+        for neighbor_idx in eachindex(neighbors)
+            neighbor = @inbounds neighbors[neighbor_idx]
 
-            # Now that we know that `distance` is not zero, we can safely call the unsafe
-            # version of the kernel gradient to avoid redundant zero checks.
-            grad_kernel = smoothing_kernel_grad_unsafe(system, initial_pos_diff,
-                                                       initial_distance, particle)
-
-            # Since this is one of the most performance critical functions, using fast
-            # divisions here gives a significant speedup on GPUs.
-            # See the docs page "Development" for more details on `div_fast`.
-            volume = @inbounds div_fast(mass[neighbor], material_density[neighbor])
             current_coords_b = @inbounds current_coords(system, neighbor)
 
             pos_diff_ = current_coords_a - current_coords_b
@@ -538,14 +582,19 @@ end
             # to `eltype(system)` immediately after computing the difference.
             pos_diff = convert.(eltype(system), pos_diff_)
 
+            tmp = @inbounds SVector(deformation_grad_buffer[particle, 1, neighbor_idx],
+                                    deformation_grad_buffer[particle, 2, neighbor_idx],
+                                    deformation_grad_buffer[particle, 3, neighbor_idx])
+
             # The tensor product pos_diff ⊗ (L_{0a} * ∇W) is equivalent to multiplication
-            # by the transpose: pos_diff * (L_{0a} * ∇W)ᵀ = pos_diff * ∇Wᵀ * L_{0a}ᵀ.
-            result[] -= volume * pos_diff * grad_kernel' * L_a'
+            # by the transpose: pos_diff * (L_{0a} * ∇W)ᵀ = (L_{0a} * ∇W * pos_diffᵀ)ᵀ
+            F_T = tmp * pos_diff'
+            result += F_T'
         end
 
         for j in 1:ndims(system), i in 1:ndims(system)
             # We overwrite every entry of `deformation_grad`, so no `set_zero!` is required.
-            @inbounds deformation_grad[i, j, particle] = result[][i, j]
+            @inbounds deformation_grad[i, j, particle] = result[i, j]
         end
     end
 
