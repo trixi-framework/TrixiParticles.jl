@@ -85,7 +85,7 @@ end
 # `affect!` (`PeriodicCallback`)
 function (cb::SteadyStateReachedCallback)(integrator)
     if !steady_state_condition!(cb, integrator)
-        u_modified!(integrator, false)
+        derivative_discontinuity!(integrator, false)
         return cb
     end
 
