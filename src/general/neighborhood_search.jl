@@ -307,7 +307,7 @@ function get_neighborhood_search(handler::GridNHSHandler, system_index, neighbor
     radii = handler.search_radii[neighbor_index]
     radius_index = searchsortedfirst(radii, search_radius - eps(search_radius))
 
-    @boundscheck if radius_index <= length(radii)
+    @boundscheck if radius_index > length(radii)
         throw(ArgumentError("no grid neighborhood search with radius >= $search_radius"))
     end
 

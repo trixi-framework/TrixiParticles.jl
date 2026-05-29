@@ -58,6 +58,10 @@
                   semi_grid.neighborhood_search_handler.neighborhood_searches)
         @test all(searches -> isconcretetype(eltype(searches)),
                   semi_grid.neighborhood_search_handler.neighborhood_searches)
+        @test TrixiParticles.get_neighborhood_search(semi_grid.neighborhood_search_handler,
+                                                     1, 1, 0.1) isa GridNeighborhoodSearch
+        @test_throws ArgumentError TrixiParticles.get_neighborhood_search(semi_grid.neighborhood_search_handler,
+                                                                          1, 1, 1.0)
 
         semi_pairs = Semidiscretization(system1, system2,
                                         neighborhood_search=GridNeighborhoodSearch{3}(),
