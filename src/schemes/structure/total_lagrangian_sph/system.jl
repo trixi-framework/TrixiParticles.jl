@@ -540,7 +540,9 @@ end
 
             # The tensor product pos_diff ⊗ (L_{0a} * ∇W) is equivalent to multiplication
             # by the transpose: pos_diff * (L_{0a} * ∇W)ᵀ = (L_{0a} * ∇W * pos_diffᵀ)ᵀ
-            # This is a lot faster than `pos_diff * grad_kernel' * L_a'` in 3D.
+            # The original form is:
+            #   -volume * pos_diff * (L_a * grad_kernel)'
+            # Equivalent transposed form that is much faster in 3D:
             F_T = -volume * L_a * grad_kernel * pos_diff'
             result[] += F_T'
         end
