@@ -56,6 +56,13 @@ end
                                     neighborhood_search, particle)
 end
 
+@propagate_inbounds function mapreduce_neighbor(f, op, system_coords, neighbor_coords,
+                                                neighborhood_search, backend, particle;
+                                                init)
+    PointNeighbors.mapreduce_neighbor(f, op, system_coords, neighbor_coords,
+                                      neighborhood_search, particle; init)
+end
+
 # We cannot dispatch by `AbstractGPUArray` because this is called from within
 # a kernel, where the arrays are device arrays (like `CuDeviceArray`),
 # which are not `AbstractGPUArray`s.
@@ -66,6 +73,16 @@ end
     # For example, this is unsafe when benchmarking `interact!` with the wrong NHS.
     PointNeighbors.foreach_neighbor_unsafe(f, system_coords, neighbor_coords,
                                            neighborhood_search, particle)
+end
+
+@inline function mapreduce_neighbor(f, op, system_coords, neighbor_coords,
+                                    neighborhood_search,
+                                    backend::KernelAbstractions.GPU, particle; init)
+    # On GPUs, remove all bounds checks for maximum performance.
+    # Note that this is not safe if the neighborhood search was not initialized correctly.
+    # For example, this is unsafe when benchmarking `interact!` with the wrong NHS.
+    PointNeighbors.mapreduce_neighbor_unsafe(f, op, system_coords, neighbor_coords,
+                                             neighborhood_search, particle; init)
 end
 
 # === Compact support selection ===

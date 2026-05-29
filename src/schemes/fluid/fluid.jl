@@ -138,29 +138,29 @@ function compute_density!(system, u, u_ode, semi, ::SummationDensity)
 end
 
 # With 'SummationDensity', density is calculated in wcsph/system.jl:compute_density!
-@inline function continuity_equation!(drho_particle, ::SummationDensity,
-                                      particle_system, neighbor_system,
-                                      particle, neighbor, pos_diff, distance,
-                                      m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+@inline function continuity_equation(drho_particle, ::SummationDensity,
+                                     particle_system, neighbor_system,
+                                     particle, neighbor, pos_diff, distance,
+                                     m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
     return drho_particle
 end
 
 # This formulation was chosen to be consistent with the used pressure_acceleration formulations
-@propagate_inbounds function continuity_equation!(drho_particle,
-                                                  ::ContinuityDensity,
-                                                  particle_system::AbstractFluidSystem,
-                                                  neighbor_system,
-                                                  particle, neighbor, pos_diff, distance,
-                                                  m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
-    continuity_equation!(drho_particle, particle_system, neighbor_system,
-                         particle, neighbor, pos_diff, distance,
-                         m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+@propagate_inbounds function continuity_equation(drho_particle,
+                                                 ::ContinuityDensity,
+                                                 particle_system::AbstractFluidSystem,
+                                                 neighbor_system,
+                                                 particle, neighbor, pos_diff, distance,
+                                                 m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+    continuity_equation(drho_particle, particle_system, neighbor_system,
+                        particle, neighbor, pos_diff, distance,
+                        m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
 end
 
-@propagate_inbounds function continuity_equation!(drho_particle,
-                                                  particle_system, neighbor_system,
-                                                  particle, neighbor, pos_diff, distance,
-                                                  m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+@propagate_inbounds function continuity_equation(drho_particle,
+                                                 particle_system, neighbor_system,
+                                                 particle, neighbor, pos_diff, distance,
+                                                 m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
     v_diff = v_a - v_b
 
     v_diff = continuity_equation_shifting_term(v_diff,
@@ -171,15 +171,16 @@ end
     # Since this is one of the most performance critical functions, using fast divisions
     # here gives a significant speedup on GPUs.
     # See the docs page "Development" for more details on `div_fast`.
-    drho_particle[] += div_fast(rho_a, rho_b) * m_b * dot(v_diff, grad_kernel)
+    drho_particle += div_fast(rho_a, rho_b) * m_b * dot(v_diff, grad_kernel)
 
     # Artificial density diffusion should only be applied to systems representing a fluid
     # with the same physical properties i.e. density and viscosity.
     # TODO: shouldn't be applied to particles on the interface (depends on PR #539)
     if particle_system === neighbor_system
-        density_diffusion!(drho_particle, density_diffusion(particle_system),
-                           particle_system, particle, neighbor,
-                           pos_diff, distance, m_b, rho_a, rho_b, grad_kernel)
+        drho_particle = density_diffusion(drho_particle, density_diffusion(particle_system),
+                                          particle_system, particle, neighbor,
+                                          pos_diff, distance, m_b, rho_a, rho_b,
+                                          grad_kernel)
     end
 
     return drho_particle
@@ -191,7 +192,7 @@ end
 
 @propagate_inbounds function write_drho_particle!(dv, ::ContinuityDensity,
                                                   drho_particle, particle)
-    dv[end, particle] += drho_particle[]
+    dv[end, particle] += drho_particle
 
     return dv
 end

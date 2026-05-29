@@ -32,13 +32,12 @@
         m_a = 1.0
         m_b = 1.0
 
-        dv = Ref(zero(v_diff))
-        viscosity(dv, system_wcsph, system_wcsph,
-                  v, v, 1, 2, pos_diff, distance,
-                  sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+        dv = viscosity(zero(v_diff), system_wcsph, system_wcsph,
+                       v, v, 1, 2, pos_diff, distance,
+                       sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
 
-        @test isapprox(dv[][1], -0.02049217623299368, atol=6e-15)
-        @test isapprox(dv[][2], 0.03073826434949052, atol=6e-15)
+        @test isapprox(dv[1], -0.02049217623299368, atol=6e-15)
+        @test isapprox(dv[2], 0.03073826434949052, atol=6e-15)
     end
     @testset verbose=true "`ViscosityMorris`" begin
         nu = 7e-3
@@ -63,13 +62,12 @@
         v_a = v[:, 1]
         v_b = v[:, 2]
 
-        dv = Ref(zero(pos_diff))
-        viscosity(dv, system_wcsph, system_wcsph,
-                  v, v, 1, 2, pos_diff, distance,
-                  sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+        dv = viscosity(zero(pos_diff), system_wcsph, system_wcsph,
+                       v, v, 1, 2, pos_diff, distance,
+                       sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
 
-        @test isapprox(dv[][1], -1.0895602048035404e-5, atol=6e-15)
-        @test isapprox(dv[][2], 3.631867349345135e-5, atol=6e-15)
+        @test isapprox(dv[1], -1.0895602048035404e-5, atol=6e-15)
+        @test isapprox(dv[2], 3.631867349345135e-5, atol=6e-15)
     end
     @testset verbose=true "`ViscosityAdami`" begin
         viscosity = ViscosityAdami(nu=7e-3)
@@ -93,13 +91,12 @@
         v_a = v[:, 1]
         v_b = v[:, 2]
 
-        dv = Ref(zero(pos_diff))
-        viscosity(dv, system_wcsph, system_wcsph,
-                  v, v, 1, 2, pos_diff, distance,
-                  sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+        dv = viscosity(zero(pos_diff), system_wcsph, system_wcsph,
+                       v, v, 1, 2, pos_diff, distance,
+                       sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
 
-        @test isapprox(dv[][1], -1.089560204803541e-5, atol=6e-15)
-        @test isapprox(dv[][2], 3.6318673493451364e-5, atol=6e-15)
+        @test isapprox(dv[1], -1.089560204803541e-5, atol=6e-15)
+        @test isapprox(dv[2], 3.6318673493451364e-5, atol=6e-15)
     end
     @testset verbose=true "`ViscosityMorrisSGS`" begin
         nu = 7e-3
@@ -125,13 +122,12 @@
         v_a = v[:, 1]
         v_b = v[:, 2]
 
-        dv = Ref(zero(pos_diff))
-        viscosity(dv, system_wcsph, system_wcsph,
-                  v, v, 1, 2, pos_diff, distance,
-                  sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+        dv = viscosity(zero(pos_diff), system_wcsph, system_wcsph,
+                       v, v, 1, 2, pos_diff, distance,
+                       sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
 
-        @test isapprox(dv[][1], -2.032835697804103e-5, atol=6e-15)
-        @test isapprox(dv[][2], 6.776118992680343e-5, atol=6e-15)
+        @test isapprox(dv[1], -2.032835697804103e-5, atol=6e-15)
+        @test isapprox(dv[2], 6.776118992680343e-5, atol=6e-15)
     end
     @testset verbose=true "`ViscosityAdamiSGS`" begin
         viscosity = ViscosityAdamiSGS(nu=7e-3)
@@ -155,13 +151,12 @@
         v_a = v[:, 1]
         v_b = v[:, 2]
 
-        dv = Ref(zero(pos_diff))
-        viscosity(dv, system_wcsph, system_wcsph,
-                  v, v, 1, 2, pos_diff, distance,
-                  sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+        dv = viscosity(zero(pos_diff), system_wcsph, system_wcsph,
+                       v, v, 1, 2, pos_diff, distance,
+                       sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
 
-        @test isapprox(dv[][1], -2.0328356978041036e-5, atol=6e-15)
-        @test isapprox(dv[][2], 6.776118992680346e-5, atol=6e-15)
+        @test isapprox(dv[1], -2.0328356978041036e-5, atol=6e-15)
+        @test isapprox(dv[2], 6.776118992680346e-5, atol=6e-15)
     end
 
     @testset verbose=true "`ViscosityCarreauYasuda`" begin
@@ -193,13 +188,12 @@
         v_a = v[:, 1]
         v_b = v[:, 2]
 
-        dv = Ref(zero(pos_diff))
-        viscosity(dv, system_wcsph, system_wcsph,
-                  v, v, 1, 2, pos_diff, distance,
-                  sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+        dv = viscosity(zero(pos_diff), system_wcsph, system_wcsph,
+                       v, v, 1, 2, pos_diff, distance,
+                       sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
 
-        @test isapprox(dv[][1], -1.0895602048035410e-5, atol=6e-15)
-        @test isapprox(dv[][2], 3.6318673493451364e-5, atol=6e-15)
+        @test isapprox(dv[1], -1.0895602048035410e-5, atol=6e-15)
+        @test isapprox(dv[2], 3.6318673493451364e-5, atol=6e-15)
 
         # ------------------------------------------------------------------
         # 2) Shear-thinning case: fixed (precomputed) values
@@ -220,12 +214,11 @@
         v_a = v[:, 1]
         v_b = v[:, 2]
 
-        dv = Ref(zero(pos_diff))
-        viscosity(dv, system_wcsph, system_wcsph,
-                  v, v, 1, 2, pos_diff, distance,
-                  sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+        dv = viscosity(zero(pos_diff), system_wcsph, system_wcsph,
+                       v, v, 1, 2, pos_diff, distance,
+                       sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
 
-        @test isapprox(dv[][1], -5.33743497379846e-9, atol=6e-15)
-        @test isapprox(dv[][2], 1.7791449912661534e-8, atol=6e-15)
+        @test isapprox(dv[1], -5.33743497379846e-9, atol=6e-15)
+        @test isapprox(dv[2], 1.7791449912661534e-8, atol=6e-15)
     end
 end
