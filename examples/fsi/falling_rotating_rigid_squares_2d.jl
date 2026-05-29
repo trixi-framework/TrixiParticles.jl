@@ -134,7 +134,7 @@ extra_structure_systems = (nothing,)
 # ==========================================================================================
 # ==== Simulation
 semi = Semidiscretization(fluid_system, boundary_system,
-                          structure_system_1, structure_system_2, parallelization_backend=SerialBackend(), # TODO
+                          structure_system_1, structure_system_2,
                           extra_structure_systems...)
 ode = semidiscretize(semi, tspan)
 
