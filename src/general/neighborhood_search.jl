@@ -274,6 +274,18 @@ the default for searches that cannot use [`SharedNHSHandler`](@ref).
 ```jldoctest semi_example; output=false, setup = :(using TrixiParticles; trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing); system1 = fluid_system; system2 = boundary_system)
 semi = Semidiscretization(system1, system2;
                           neighborhood_search_handler=PairsNHSHandler)
+
+# output
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ Semidiscretization                                                                               │
+│ ══════════════════                                                                               │
+│ #spatial dimensions: ………………………… 2                                                                │
+│ #systems: ……………………………………………………… 2                                                                │
+│ neighborhood search: ………………………… GridNeighborhoodSearch                                           │
+│ total #particles: ………………………………… 636                                                              │
+│ eltype: …………………………………………………………… Float64                                                          │
+│ coordinates eltype: …………………………… Float64                                                          │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
 struct PairsNHSHandler{NHS} <: AbstractNHSHandler
@@ -318,6 +330,18 @@ implementations because it avoids storing and updating redundant neighborhood se
 semi = Semidiscretization(system1, system2;
                           neighborhood_search=GridNeighborhoodSearch{2}(),
                           neighborhood_search_handler=SharedNHSHandler)
+
+# output
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ Semidiscretization                                                                               │
+│ ══════════════════                                                                               │
+│ #spatial dimensions: ………………………… 2                                                                │
+│ #systems: ……………………………………………………… 2                                                                │
+│ neighborhood search: ………………………… GridNeighborhoodSearch                                           │
+│ total #particles: ………………………………… 636                                                              │
+│ eltype: …………………………………………………………… Float64                                                          │
+│ coordinates eltype: …………………………… Float64                                                          │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
 struct SharedNHSHandler{SR, NHS} <: AbstractNHSHandler
