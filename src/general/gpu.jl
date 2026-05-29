@@ -26,11 +26,11 @@ function adapt_neighborhood_search_handler(to, handler::PairsNHSHandler)
     return PairsNHSHandler(Adapt.adapt.(to, handler.neighborhood_searches))
 end
 
-function adapt_neighborhood_search_handler(to, handler::GridNHSHandler)
+function adapt_neighborhood_search_handler(to, handler::SharedNHSHandler)
     searches = map(handler.neighborhood_searches) do neighborhood_searches
         Adapt.adapt.(to, neighborhood_searches)
     end
-    return GridNHSHandler(handler.search_radii, searches)
+    return SharedNHSHandler(handler.search_radii, searches)
 end
 
 # This makes `@threaded semi for ...` use `semi.parallelization_backend` for parallelization

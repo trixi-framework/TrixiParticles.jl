@@ -389,7 +389,7 @@ end
                     semi_fullgrid = Semidiscretization(fluid_system, boundary_system,
                                                        neighborhood_search=GridNeighborhoodSearch{2}(;
                                                                                                      cell_list),
-                                                       neighborhood_search_handler=GridNHSHandler,
+                                                       neighborhood_search_handler=SharedNHSHandler,
                                                        parallelization_backend=Main.parallelization_backend)
 
                     # Run the simulation

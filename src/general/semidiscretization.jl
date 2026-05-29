@@ -16,9 +16,11 @@ The semidiscretization couples the passed systems to one simulation.
                             and the examples below for more details.
                             To use a periodic domain, pass a [`PeriodicBox`](@ref) to the
                             neighborhood search.
-- `neighborhood_search_handler`: The handler type used to organize neighborhood searches
-                            internally. By default, [`GridNHSHandler`](@ref) is used with
-                            [`GridNeighborhoodSearch`](@ref) and [`PairsNHSHandler`](@ref) otherwise.
+- `neighborhood_search_handler`: The handler type used to store and look up neighborhood
+                            searches internally. By default, [`SharedNHSHandler`](@ref)
+                            is used whenever possible and [`PairsNHSHandler`](@ref) otherwise.
+                            See [neighborhood search handlers](@ref neighborhood_search_handlers)
+                            for more details.
 - `threaded_nhs_update=true`:   Can be used to deactivate thread parallelization in the neighborhood search update.
                                 This can be one of the largest sources of variations between simulations
                                 with different thread numbers due to particle ordering changes.

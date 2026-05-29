@@ -232,7 +232,7 @@ end
 
 function create_neighborhood_search_handler(handler, neighborhood_search, systems)
     throw(ArgumentError("`neighborhood_search_handler` must be a handler type, " *
-                        "for example `PairsNHSHandler` or `GridNHSHandler`."))
+                        "for example `PairsNHSHandler` or `SharedNHSHandler`."))
 end
 
 default_neighborhood_search_handler(neighborhood_search) = PairsNHSHandler
@@ -243,7 +243,7 @@ function default_neighborhood_search_handler(neighborhood_search::GridNeighborho
     # In this case, we can use a single neighborhood search per neighbor system,
     # instead of one per pair of systems, which all store the same information.
     if !PointNeighbors.requires_update(neighborhood_search)[1]
-        return GridNHSHandler
+        return SharedNHSHandler
     end
 
     return PairsNHSHandler
@@ -258,7 +258,24 @@ function neighborhood_search_name(handler::AbstractNHSHandler)
     return nameof(typeof(search))
 end
 
-# Store a distinct neighborhood search for every possible pair of systems.
+"""
+    PairsNHSHandler
+
+Neighborhood search handler that stores one neighborhood search for each ordered
+pair of systems.
+
+`PairsNHSHandler` is the fully generic handler. Use it for neighborhood search
+implementations whose data are tied to the specific pair of systems used during
+an update, e.g., [`PrecomputedNeighborhoodSearch`](@ref).
+It is compatible with all neighborhood search implementations and is
+the default for searches that cannot use [`SharedNHSHandler`](@ref).
+
+# Examples
+```jldoctest semi_example; output=false, setup = :(using TrixiParticles; trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing); system1 = fluid_system; system2 = boundary_system)
+semi = Semidiscretization(system1, system2;
+                          neighborhood_search_handler=PairsNHSHandler)
+```
+"""
 struct PairsNHSHandler{NHS} <: AbstractNHSHandler
     neighborhood_searches::NHS
 end
@@ -277,15 +294,38 @@ function get_neighborhood_search(handler::PairsNHSHandler, system_index, neighbo
     return handler.neighborhood_searches[system_index, neighbor_index]
 end
 
-# Store one grid neighborhood search per unique search radius and neighbor system.
-# A query for `(system, neighbor)` uses the search radius requested by that pair,
-# but the stored grid belongs to the `neighbor` coordinates.
-struct GridNHSHandler{SR, NHS} <: AbstractNHSHandler
+"""
+    SharedNHSHandler
+
+Neighborhood search handler optimized for reusable neighborhood searches.
+
+`SharedNHSHandler` stores one neighborhood search for each neighbor system and
+required search radius, instead of one search for every ordered pair of systems.
+For a query involving `(system, neighbor)`, it selects the stored search for the
+neighbor system with a radius large enough for that pair's compact support.
+
+This handler is only compatible with neighborhood searches that can query
+neighbors of arbitrary points in space after an update,
+e.g. [`GridNeighborhoodSearch`](@ref) and [`TrivialNeighborhoodSearch`](@ref).
+[`PrecomputedNeighborhoodSearch`](@ref) is not compatible because it can only
+query neighbors for the particles that were used to update the search.
+
+The `SharedNHSHandler` is the default handler for compatible neighborhood search
+implementations because it avoids storing and updating redundant neighborhood searches.
+
+# Examples
+```jldoctest semi_example; output=false, setup = :(using TrixiParticles; trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing); system1 = fluid_system; system2 = boundary_system)
+semi = Semidiscretization(system1, system2;
+                          neighborhood_search=GridNeighborhoodSearch{2}(),
+                          neighborhood_search_handler=SharedNHSHandler)
+```
+"""
+struct SharedNHSHandler{SR, NHS} <: AbstractNHSHandler
     search_radii::SR
     neighborhood_searches::NHS
 end
 
-function GridNHSHandler(neighborhood_search::GridNeighborhoodSearch, systems)
+function SharedNHSHandler(neighborhood_search::GridNeighborhoodSearch, systems)
     search_radii = [sort(unique(compact_support(system, neighbor)
                                 for system in systems))
                     for neighbor in systems]
@@ -299,16 +339,16 @@ function GridNHSHandler(neighborhood_search::GridNeighborhoodSearch, systems)
                             all(row -> isconcretetype(eltype(row)), searches)
     @assert searches_are_concrete "neighborhood searches are not type-stable"
 
-    return GridNHSHandler(search_radii, searches)
+    return SharedNHSHandler(search_radii, searches)
 end
 
-function get_neighborhood_search(handler::GridNHSHandler, system_index, neighbor_index,
+function get_neighborhood_search(handler::SharedNHSHandler, system_index, neighbor_index,
                                  search_radius)
     radii = handler.search_radii[neighbor_index]
     radius_index = searchsortedfirst(radii, search_radius - eps(search_radius))
 
     @boundscheck if radius_index > length(radii)
-        throw(ArgumentError("no grid neighborhood search with radius >= $search_radius"))
+        throw(ArgumentError("no shared neighborhood search with radius >= $search_radius"))
     end
 
     return handler.neighborhood_searches[neighbor_index][radius_index]

@@ -42,15 +42,15 @@
                                                neighborhood_search=GridNeighborhoodSearch{3}())
         @test !PointNeighbors.requires_update(GridNeighborhoodSearch{3}())[1]
         @test semi_grid_default.neighborhood_search_handler isa
-              TrixiParticles.GridNHSHandler
+              TrixiParticles.SharedNHSHandler
         @test TrixiParticles.get_neighborhood_search(system1, system2,
                                                      semi_grid_default) isa
               GridNeighborhoodSearch
 
         semi_grid = Semidiscretization(system1, system2,
                                        neighborhood_search=GridNeighborhoodSearch{3}(),
-                                       neighborhood_search_handler=GridNHSHandler)
-        @test semi_grid.neighborhood_search_handler isa TrixiParticles.GridNHSHandler
+                                       neighborhood_search_handler=SharedNHSHandler)
+        @test semi_grid.neighborhood_search_handler isa TrixiParticles.SharedNHSHandler
         @test semi_grid.neighborhood_search_handler.search_radii isa Vector
         @test all(search_radii -> search_radii isa Vector,
                   semi_grid.neighborhood_search_handler.search_radii)

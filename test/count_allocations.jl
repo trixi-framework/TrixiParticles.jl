@@ -23,11 +23,11 @@ function no_update_nhs_handler(handler::TrixiParticles.PairsNHSHandler)
                                               handler.neighborhood_searches))
 end
 
-function no_update_nhs_handler(handler::TrixiParticles.GridNHSHandler)
-    return TrixiParticles.GridNHSHandler(handler.search_radii,
-                                         map(searches -> map(NoUpdateNeighborhoodSearch,
-                                                             searches),
-                                             handler.neighborhood_searches))
+function no_update_nhs_handler(handler::TrixiParticles.SharedNHSHandler)
+    return TrixiParticles.SharedNHSHandler(handler.search_radii,
+                                           map(searches -> map(NoUpdateNeighborhoodSearch,
+                                                               searches),
+                                               handler.neighborhood_searches))
 end
 
 # Forward `foreach_neighbor` to wrapped neighborhood search
