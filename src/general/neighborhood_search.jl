@@ -235,7 +235,11 @@ function create_neighborhood_search_handler(handler, neighborhood_search, system
                         "for example `PairsNHSHandler` or `SharedNHSHandler`."))
 end
 
-function default_neighborhood_search_handler(neighborhood_search)
+function default_neighborhood_search_handler(::Nothing)
+    return SharedNHSHandler
+end
+
+function default_neighborhood_search_handler(neighborhood_search::AbstractNeighborhoodSearch)
     # If the neighborhood search does not require updates when the first system moves,
     # we can query neighbors of arbitrary particles without updating the neighborhood search.
     # In this case, we can use a single neighborhood search per neighbor system,
