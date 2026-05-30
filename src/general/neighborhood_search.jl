@@ -347,7 +347,7 @@ struct SharedNHSHandler{SR, NHS} <: AbstractNHSHandler
     neighborhood_searches::NHS
 end
 
-function SharedNHSHandler(neighborhood_search, systems)
+function SharedNHSHandler(neighborhood_search::AbstractNeighborhoodSearch, systems)
     if PointNeighbors.requires_update(neighborhood_search)[1]
         throw(ArgumentError("`SharedNHSHandler` is not compatible with neighborhood search " *
                             "implementations that require updates when the first system moves, " *
