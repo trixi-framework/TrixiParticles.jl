@@ -235,9 +235,7 @@ function create_neighborhood_search_handler(handler, neighborhood_search, system
                         "for example `PairsNHSHandler` or `SharedNHSHandler`."))
 end
 
-default_neighborhood_search_handler(neighborhood_search) = PairsNHSHandler
-
-function default_neighborhood_search_handler(neighborhood_search::GridNeighborhoodSearch)
+function default_neighborhood_search_handler(neighborhood_search)
     # If the neighborhood search does not require updates when the first system moves,
     # we can query neighbors of arbitrary particles without updating the neighborhood search.
     # In this case, we can use a single neighborhood search per neighbor system,
@@ -349,7 +347,13 @@ struct SharedNHSHandler{SR, NHS} <: AbstractNHSHandler
     neighborhood_searches::NHS
 end
 
-function SharedNHSHandler(neighborhood_search::GridNeighborhoodSearch, systems)
+function SharedNHSHandler(neighborhood_search, systems)
+    if PointNeighbors.requires_update(neighborhood_search)[1]
+        throw(ArgumentError("`SharedNHSHandler` is not compatible with neighborhood search " *
+                            "implementations that require updates when the first system moves, " *
+                            "such as `PrecomputedNeighborhoodSearch`"))
+    end
+
     search_radii = [sort(unique(compact_support(system, neighbor)
                                 for system in systems))
                     for neighbor in systems]
