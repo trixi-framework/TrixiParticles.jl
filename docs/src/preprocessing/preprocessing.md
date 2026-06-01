@@ -31,9 +31,9 @@ triangle = [125.0 375.0 250.0 125.0;
             175.0 175.0 350.0 175.0]
 
 # Delete all edges but one
-edge1 = deleteat!(TrixiParticles.Polygon(triangle), [2, 3])
-edge2 = deleteat!(TrixiParticles.Polygon(triangle), [1, 3])
-edge3 = deleteat!(TrixiParticles.Polygon(triangle), [1, 2])
+edge1 = delete_faces(TrixiParticles.Polygon(triangle), [2, 3])
+edge2 = delete_faces(TrixiParticles.Polygon(triangle), [1, 3])
+edge3 = delete_faces(TrixiParticles.Polygon(triangle), [1, 2])
 
 algorithm = WindingNumberJacobson()
 

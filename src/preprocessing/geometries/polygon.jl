@@ -95,6 +95,40 @@ struct Polygon{NDIMS, ELTYPE}
         return new{NDIMS, ELTYPE}(vertices, edge_vertices, vertex_normals, edge_normals,
                                   edge_vertices_ids, min_corner, max_corner)
     end
+
+    function Polygon{NDIMS, ELTYPE}(vertices, edge_vertices, vertex_normals,
+                                    edge_normals, edge_vertices_ids,
+                                    min_corner, max_corner) where {NDIMS, ELTYPE}
+        return new{NDIMS, ELTYPE}(vertices, edge_vertices, vertex_normals, edge_normals,
+                                  edge_vertices_ids, min_corner, max_corner)
+    end
+end
+
+function rebuild_polygon_from_edges(edge_vertices, vertex_normals, edge_normals)
+    NDIMS = length(first(edge_normals))
+    ELTYPE = eltype(first(edge_normals))
+    vertices = SVector{NDIMS, ELTYPE}[]
+    vertex_ids = Dict{SVector{NDIMS, ELTYPE}, Int}()
+
+    edge_vertices_ids = map(edge_vertices) do edge
+        v1, v2 = edge
+        id1 = get!(vertex_ids, v1) do
+            push!(vertices, v1)
+            return length(vertices)
+        end
+        id2 = get!(vertex_ids, v2) do
+            push!(vertices, v2)
+            return length(vertices)
+        end
+
+        return (id1, id2)
+    end
+
+    min_corner = SVector([minimum(v[i] for v in vertices) for i in 1:NDIMS]...)
+    max_corner = SVector([maximum(v[i] for v in vertices) for i in 1:NDIMS]...)
+
+    return Polygon{NDIMS, ELTYPE}(vertices, edge_vertices, vertex_normals, edge_normals,
+                                  edge_vertices_ids, min_corner, max_corner)
 end
 
 function Base.show(io::IO, geometry::Polygon)
@@ -119,14 +153,25 @@ end
 
 @inline Base.eltype(::Polygon{NDIMS, ELTYPE}) where {NDIMS, ELTYPE} = ELTYPE
 
-@inline function Base.deleteat!(polygon::Polygon, indices)
-    (; edge_vertices, edge_normals, edge_vertices_ids) = polygon
+"""
+    delete_faces(geometry, indices)
+
+Return a geometry with the faces at `indices` removed and derived geometry data rebuilt.
+"""
+@inline function delete_faces(polygon::Polygon, indices)
+    edge_vertices = copy(polygon.edge_vertices)
+    vertex_normals = copy(polygon.vertex_normals)
+    edge_normals = copy(polygon.edge_normals)
 
     deleteat!(edge_vertices, indices)
-    deleteat!(edge_vertices_ids, indices)
+    deleteat!(vertex_normals, indices)
     deleteat!(edge_normals, indices)
 
-    return polygon
+    if isempty(edge_vertices)
+        throw(ArgumentError("cannot delete all polygon edges"))
+    end
+
+    return rebuild_polygon_from_edges(edge_vertices, vertex_normals, edge_normals)
 end
 
 @inline nfaces(mesh::Polygon) = length(mesh.edge_normals)
