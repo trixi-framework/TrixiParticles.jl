@@ -40,8 +40,6 @@
         @test eltype(calculator.t) == Float32
     end
 
-
-
     @testset "update_mechanical_work_calculator!" begin
         # In the first test, we just move the 2x2 grid of particles up against gravity
         # and test that the accumulated work is just the potential energy difference.
