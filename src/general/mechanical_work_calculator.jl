@@ -141,11 +141,13 @@ function (calculator::MechanicalWorkCalculator)(system, dv_ode, du_ode, v_ode, u
     dt = t - calculator.t
     calculator.t = t
 
-    work = update_mechanical_work(calculator.work, system, calculator.eachparticle,
-                                  calculator.only_compute_force_on_fluid, calculator.dv,
-                                  v_ode, u_ode, semi, t, dt)
-
-    calculator.work = work
+    @trixi_timeit timer() "calculate mechanical work" begin
+        calculator.work = update_mechanical_work(calculator.work, system,
+                                                 calculator.eachparticle,
+                                                 calculator.only_compute_force_on_fluid,
+                                                 calculator.dv,
+                                                 v_ode, u_ode, semi, t, dt)
+    end
 
     return calculator.work
 end
@@ -153,33 +155,27 @@ end
 function update_mechanical_work(work, system, eachparticle,
                                 only_compute_force_on_fluid, dv,
                                 v_ode, u_ode, semi, t, dt)
-    # Note that the systems and NHS have already been updated by the
-    # `PostprocessCallback` before calling this function.
-    @trixi_timeit timer() "calculate mechanical work" begin
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
+    v = wrap_v(v_ode, system, semi)
+    u = wrap_u(u_ode, system, semi)
 
-        compute_structure_acceleration!(dv, v, u, system, eachparticle,
-                                        only_compute_force_on_fluid,
-                                        v_ode, u_ode, semi, t)
+    compute_structure_acceleration!(dv, v, u, system, eachparticle,
+                                    only_compute_force_on_fluid,
+                                    v_ode, u_ode, semi, t)
 
-        # Note that this is a reduction, so we cannot use `@threaded` here.
-        for particle in eachparticle
-            velocity = current_velocity(v, system, particle)
-            dv_particle = extract_svector(dv, system, particle)
+    # Note that this is a reduction, so we cannot use `@threaded` here.
+    for particle in eachparticle
+        velocity = current_velocity(v, system, particle)
+        dv_particle = extract_svector(dv, system, particle)
 
-            # The force on the clamped particle is mass times acceleration
-            F_particle = system.mass[particle] * dv_particle
+        # The force on the clamped particle is mass times acceleration
+        F_particle = system.mass[particle] * dv_particle
 
-            # To obtain mechanical work, we need to integrate the instantaneous power.
-            # Instantaneous power is force applied BY the particle times its velocity.
-            # The force applied BY the particle is the negative of the force applied ON it.
-            work += dot(-F_particle, velocity) * dt
-        end
+        # To obtain mechanical work, we need to integrate the instantaneous power.
+        # Instantaneous power is force applied BY the particle times its velocity.
+        # The force applied BY the particle is the negative of the force applied ON it.
+        work += dot(-F_particle, velocity) * dt
     end
 
-    # Note that we cannot `return` from inside the `@trixi_timeit` block,
-    # or the timer output formatting will be messed up.
     return work
 end
 
