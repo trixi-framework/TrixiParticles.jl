@@ -17,8 +17,7 @@ be used to measure the work done by the structure on the surrounding fluid.
     `(n_integrated_particles(system) + 1):nparticles(system)`.
 - **Fluid energy transfer** -- set `eachparticle=eachparticle(system)` together with
     `only_compute_force_on_fluid=true` to accumulate the work that the entire structure
-    exerts on the surrounding fluid. This measures energy transfer, not force; use
-    [`ThrustCalculator`](@ref) for drag, lift, or thrust estimates.
+    exerts on the surrounding fluid.
 
 Internally the calculator integrates the instantaneous power, i.e. the dot product between
 the force exerted by the particle and its prescribed velocity, using an explicit Euler
