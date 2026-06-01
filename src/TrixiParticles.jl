@@ -73,8 +73,8 @@ export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangian
 export BoundaryZone, InFlow, OutFlow, BidirectionalFlow
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
        PostprocessCallback, StepsizeCallback, UpdateCallback, SteadyStateReachedCallback,
-       SplitIntegrationCallback, MechanicalWorkCalculatorCallback,
-       calculated_mechanical_work,
+       SplitIntegrationCallback, MechanicalWorkCalculator, calculated_mechanical_work,
+       ThrustCalculator, calculated_thrust,
        SortingCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller, TransportVelocityAdami, ParticleShiftingTechnique,
