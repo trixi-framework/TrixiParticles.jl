@@ -83,8 +83,9 @@ function (update_callback!::UpdateCallback)(integrator)
     semi = integrator.p.semi
     v_ode, u_ode = integrator.u.x
 
-    # The update callback starts without a derivative discontinuity and hence don't modify
-    # the results of the right hand side. Individual update functions below mark one when they change `v_ode` or `u_ode`.
+    # An empty update without calling any of the functions below does not modify
+    # the results of the right-hand side.
+    # The functions that add a discontinuity call `derivative_discontinuity!` themselves.
     derivative_discontinuity!(integrator, false)
 
     @trixi_timeit timer() "update callback" begin
