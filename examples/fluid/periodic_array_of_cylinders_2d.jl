@@ -42,12 +42,10 @@ nu = 0.1 / fluid_density # viscosity parameter
 # from M. Ellero and N. A. Adams (https://doi.org/10.1002/nme.3088) uses `c = 0.02`
 sound_speed = 0.02
 
-pressure = sound_speed^2 * fluid_density
-
 particle_spacing = tank_size[1] / n_particles_x
 
 box = RectangularTank(particle_spacing, fluid_size, tank_size, fluid_density;
-                      n_layers=boundary_layers, pressure, faces=(false, false, true, true))
+                      n_layers=boundary_layers, faces=(false, false, true, true))
 
 cylinder = SphereShape(particle_spacing, cylinder_radius, tank_size ./ 2,
                        fluid_density, sphere_type=RoundSphere())
