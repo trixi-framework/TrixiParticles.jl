@@ -569,7 +569,8 @@ function update_averaged_velocity_callback!(integrator)
         compute_averaged_velocity!(system, v_ode, semi, t_new)
     end
 
-    # No derivative discontinuity is introduced since `integrator.u` has not been modified and hence does not change the result of the right-hand side.
+    # This callback does not modify `integrator.u` and hence does not change the result
+    # of the right-hand side.
     derivative_discontinuity!(integrator, false)
 
     return integrator
