@@ -15,9 +15,10 @@ be used to measure the work done by the structure on the surrounding fluid.
 - **Prescribed/clamped motion work** (default) -- monitor only the clamped particles by
     leaving `eachparticle` at its default range
     `(n_integrated_particles(system) + 1):nparticles(system)`.
-- **Fluid load measurement** -- set `eachparticle=eachparticle(system)` together with
+- **Fluid energy transfer** -- set `eachparticle=eachparticle(system)` together with
     `only_compute_force_on_fluid=true` to accumulate the work that the entire structure
-    exerts on the surrounding fluid (useful for drag or lift estimates).
+    exerts on the surrounding fluid. This measures energy transfer, not force; use
+    [`ThrustCalculator`](@ref) for drag, lift, or thrust estimates.
 
 Internally the calculator integrates the instantaneous power, i.e. the dot product between
 the force exerted by the particle and its prescribed velocity, using an explicit Euler
@@ -39,8 +40,7 @@ The accumulated value can be retrieved via [`calculated_mechanical_work`](@ref).
 - `only_compute_force_on_fluid=false`: When `true`, only interactions with
                 fluid systems are accounted for. Combined with
                 `eachparticle=eachparticle(system)`, this accumulates the work that the
-                entire structure exerts on the fluid, which is useful for drag or lift
-                estimates.
+                entire structure exerts on the fluid.
 
 # Examples
 ```jldoctest; output = false, setup = :(system = TotalLagrangianSPHSystem(RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0); smoothing_kernel=WendlandC2Kernel{2}(), smoothing_length=1.0, young_modulus=1.0, poisson_ratio=1.0); semi = (; systems=(system,), parallelization_backend=SerialBackend()))
