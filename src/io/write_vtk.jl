@@ -343,7 +343,7 @@ function write2vtk!(vtk, v, u, t, system::AbstractFluidSystem)
 
         surface_tension_a = surface_tension_model(system)
         surface_tension_b = surface_tension_model(system)
-        nhs = create_neighborhood_search(TrivialNeighborhoodSearch{ndims(system)},
+        nhs = create_neighborhood_search(TrivialNeighborhoodSearch{ndims(system)}(),
                                          system, system)
 
         foreach_point_neighbor(system_coords, system_coords,
