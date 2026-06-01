@@ -141,18 +141,18 @@ function (calculator::MechanicalWorkCalculator)(system, dv_ode, du_ode, v_ode, u
     dt = t - calculator.t
     calculator.t = t
 
-    work = update_mechanical_work!(calculator.work, system, calculator.eachparticle,
-                                   calculator.only_compute_force_on_fluid, calculator.dv,
-                                   v_ode, u_ode, semi, t, dt)
+    work = update_mechanical_work(calculator.work, system, calculator.eachparticle,
+                                  calculator.only_compute_force_on_fluid, calculator.dv,
+                                  v_ode, u_ode, semi, t, dt)
 
     calculator.work = work
 
     return calculator.work
 end
 
-function update_mechanical_work!(work, system, eachparticle,
-                                 only_compute_force_on_fluid, dv,
-                                 v_ode, u_ode, semi, t, dt)
+function update_mechanical_work(work, system, eachparticle,
+                                only_compute_force_on_fluid, dv,
+                                v_ode, u_ode, semi, t, dt)
     # Note that the systems and NHS have already been updated by the
     # `PostprocessCallback` before calling this function.
     @trixi_timeit timer() "calculate mechanical work" begin
@@ -178,6 +178,8 @@ function update_mechanical_work!(work, system, eachparticle,
         end
     end
 
+    # Note that we cannot `return` from inside the `@trixi_timeit` block,
+    # or the timer output formatting will be messed up.
     return work
 end
 
