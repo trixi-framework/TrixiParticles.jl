@@ -207,8 +207,9 @@
             mechanical_work1 = MechanicalWorkCalculator(tlsph_system_new, semi)
             mechanical_work2 = MechanicalWorkCalculator(tlsph_system_new, semi;
                                                         only_compute_force_on_fluid=true)
+            thrust = ThrustCalculator(tlsph_system_new, semi; direction=SVector(0.0, 1.0))
             postprocess_callback = PostprocessCallback(; interval=1, mechanical_work1,
-                                                       mechanical_work2,
+                                                       mechanical_work2, thrust,
                                                        write_file_interval=0)
 
             sol = @trixi_test_nowarn solve(ode, RDPK3SpFSAL35(), save_everystep=false,
@@ -233,6 +234,7 @@
             @test isapprox(calculated_mechanical_work(mechanical_work2),
                            expected_energy_fluid,
                            rtol=5e-4)
+            @test isfinite(calculated_thrust(thrust))
         end
 
         @trixi_testset "fsi/falling_water_column_2d.jl" begin
