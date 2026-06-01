@@ -52,7 +52,8 @@ pressure field. It is highly recommended to use density diffusion when using WCS
 ### Formulation
 
 All density diffusion terms extend the continuity equation (see [`ContinuityDensity`](@ref))
-by an additional term
+by an additional term. In the literature, this is typically written for a fixed smoothing
+length ``h`` as
 ```math
 \frac{\mathrm{d}\rho_a}{\mathrm{d}t} = \sum_{b} m_b v_{ab} \cdot \nabla W_{ab}
     + \delta h c \sum_{b} V_b \psi_{ab} \cdot \nabla W_{ab},
@@ -62,12 +63,20 @@ the density diffusion method (see
 [`AbstractDensityDiffusion`](@ref TrixiParticles.AbstractDensityDiffusion) for available terms).
 Also, ``\rho_a`` denotes the density of particle ``a`` and ``r_{ab} = r_a - r_b`` is the
 difference of the coordinates, ``v_{ab} = v_a - v_b`` of the velocities of particles
-``a`` and ``b``.
+``a`` and ``b``. When particle-wise smoothing lengths are used, the corresponding
+pairwise form is
+```math
+\frac{\mathrm{d}\rho_a}{\mathrm{d}t} = \sum_{b} m_b v_{ab} \cdot \nabla W_{ab}
+    + \delta c \sum_{b} \bar{h}_{ab} V_b \psi_{ab} \cdot \nabla W_{ab},
+```
+with ``\bar{h}_{ab} = \frac{1}{2}(h_a + h_b)``. TrixiParticles.jl uses this pairwise
+average, which is the natural extension of the standard formula to variable smoothing
+lengths. For fixed smoothing length, both expressions coincide.
 
 ### Numerical Results
 
 All density diffusion terms remove numerical noise in the pressure field and produce more
-accurate results than weakly commpressible SPH without density diffusion.
+accurate results than weakly compressible SPH without density diffusion.
 This can be demonstrated with dam break examples in 2D and 3D. Here, ``δ = 0.1`` has
 been used for all terms.
 Note that, due to added stability, the adaptive time integration method that was used here
@@ -129,11 +138,11 @@ in such simulations.
 ### Mathematical formulation
 
 We use the following formulation by [Sun et al. (2018)](@cite Sun2018).
-After each time step, a correction term ``\delta r_a`` is added to the position ``r_a``
+After each time step, a correction term ``\delta \bm{r}_a`` is added to the position ``\bm{r}_a``
 of particle ``a``, which is given by
 ```math
-\delta r_a = -4 \Delta t \, v_\text{max} h
-    \sum_b \left( 1 + R \left( \frac{W_{ab}}{W(\Delta x_a)} \right)^n \right) \nabla W_{ab}
+\delta \bm{r}_a = -4 \Delta t \, v_\text{max} h
+    \sum_b \left( 1 + R \left( \frac{W_{ab}}{W(\Delta x_a)} \right)^n \right) \nabla_a W_{ab}
     \frac{m_b}{\rho_a + \rho_b},
 ```
 where:
@@ -141,14 +150,27 @@ where:
 - ``v_\text{max}`` is the maximum velocity over all particles,
 - ``h`` is the smoothing length,
 - ``R`` and ``n`` are constants, which are set to ``0.2`` and ``4`` respectively,
-- ``W(\Delta x_a)`` is the smoothing kernel of the particle size of particle ``a``,
-  which can be interpreted as the target particle spacing that we want to achieve.
-- ``\nabla W_{ab}`` is the gradient of the smoothing kernel,
+- ``\Delta x_a`` is the target particle spacing associated with particle ``a``,
+- ``W(\Delta x_a)`` is the smoothing kernel evaluated at that target particle spacing,
+- ``\nabla_a W_{ab}`` is the gradient of the smoothing kernel with respect to particle ``a``,
 - ``m_b`` is the mass of particle ``b``,
 - ``\rho_a, \rho_b`` is the density of particles ``a`` and ``b``, respectively.
 
-Note that we replaced ``\text{CFL} \cdot \text{Ma}`` by ``\Delta t \cdot v_\text{max} / h``,
-as explained in [Sun2018](@cite Sun2018) on page 29, right above Equation 9.
+In TrixiParticles.jl, the same correction is applied through a shifting velocity
+```math
+\delta \bm{r}_a = \Delta t \, \delta \bm{v}_a,
+```
+with
+```math
+\delta \bm{v}_a = - v_\text{max} \frac{(2h)^2}{2\Delta x}
+    \sum_b \left( 1 + \frac{2}{10} \left( \frac{W_{ab}}{W(\Delta x)} \right)^4 \right)
+    \frac{m_b}{\rho_a + \rho_b} \nabla_a W_{ab}.
+```
+This corresponds to the same PST idea, but with the commonly used constants fixed to
+``R = 0.2`` and ``n = 4``. The prefactor is written in a form that keeps the magnitude of
+the shifting correction consistent when the smoothing-length factor changes. In particular,
+``\text{CFL} \cdot \text{Ma}`` is replaced by ``\Delta t \, v_\text{max} / h``, as explained
+by [Sun et al. (2018)](@cite Sun2018) on page 29, immediately above Equation 9.
 
 The ``\delta``-SPH method (WCSPH with density diffusion) together with this formulation
 of PST is commonly referred to as ``\delta^+``-SPH.
@@ -178,18 +200,45 @@ is a constant background pressure field.
 The tilde in the second term of the right-hand side indicates that the material derivative
 has an advection part.
 
-The discretized form of the last term is
+In the literature, the discretized form of the last term is
 ```math
  -\frac{1}{\rho_a} \nabla p_{\text{background}} \approx  -\frac{p_{\text{background}}}{m_a} \sum_b \left(V_a^2 + V_b^2 \right) \nabla_a W_{ab},
 ```
-where ``V_a``, ``V_b`` denote the volume of particles ``a`` and ``b`` respectively.
+where ``V_a`` and ``V_b`` denote the particle volumes of particles ``a`` and ``b`` respectively.
 Note that although in the continuous case ``\nabla p_{\text{background}} = 0``,
-the discretization is not 0th-order consistent for **non**-uniform particle distribution,
-which means that there is a non-vanishing contribution only when particles are disordered.
-That also means that ``p_{\text{background}}`` occurs as pre-factor to correct
-the trajectory of a particle resulting in uniform pressure distributions.
-Suggested is a background pressure which is in the order of the reference pressure,
-but it can be chosen arbitrarily large when the time-step criterion is adjusted.
+the discretization is not 0th-order consistent for non-uniform particle distributions.
+This means that a non-vanishing contribution appears only when the particles are disordered,
+so ``p_{\text{background}}`` acts as a prefactor that regularizes the trajectories and promotes
+more uniform particle distributions.
+
+In TrixiParticles.jl, this background-pressure contribution is evaluated through the
+currently selected pressure-acceleration formulation instead of hard-coding the
+specific ``(V_a^2 + V_b^2)`` discretization. This keeps the TVF term consistent with the
+pressure discretization used in the rest of the scheme and automatically adapts it when a
+different pressure-acceleration formulation is chosen. For the default
+continuity-density formulation,
+```math
+\left.\frac{\mathrm{d}\bm{v}_a}{\mathrm{d} t}\right|_{p}
+= - \sum_b m_b \frac{p_a + p_b}{\rho_a \rho_b} \nabla_a W_{ab},
+```
+setting ``p_a = p_b = 1`` gives the discrete background-pressure operator
+```math
+- \sum_b \frac{2m_b}{\rho_a \rho_b} \nabla_a W_{ab}.
+```
+In the TVF update this operator is multiplied by the background pressure and the time-step
+factor from the transport-velocity correction. TrixiParticles.jl then removes the explicit
+dependence on ``\Delta t`` by using the CFL estimate employed by [Adami et al. (2013)](@cite Adami2013),
+```math
+\Delta t \leq \frac{1}{4} \frac{h}{c_s},
+```
+as an equality, so that the resulting shifting-velocity contribution becomes
+```math
+\delta \bm{v}_a = - \frac{p_{\text{background}}}{8} \frac{h}{c_s}
+\sum_b \frac{2m_b}{\rho_a \rho_b} \nabla_a W_{ab},
+```
+where ``h`` is the smoothing length and ``c_s`` is the speed of sound. This explains
+both why the implemented pairwise factor differs from ``V_a^2 + V_b^2`` and why the
+factor ``h / c_s`` appears in the final expression.
 
 The inviscid momentum equation with an additional convection term for a particle
 moving with ``\tilde{v}`` is
@@ -200,18 +249,36 @@ where the tensor ``\bm{A} = \rho v\left(\tilde{v}-v\right)^T`` is a consequence
 of the modified advection velocity and can be interpreted as the convection of momentum
 with the relative velocity ``\tilde{v}-v``.
 
-The discretized form of the momentum equation for a particle ``a`` reads as
+The discretized form of the momentum equation for a particle ``a`` reads
 ```math
-\frac{\tilde{\mathrm{d}} v_a}{\mathrm{d}t} = \frac{1}{m_a} \sum_b \left(V_a^2 + V_b^2 \right) \left[ -\tilde{p}_{ab} \nabla_a W_{ab} + \frac{1}{2} \left(\bm{A}_a + \bm{A}_b \right) \cdot \nabla_a W_{ab} \right].
+\frac{\tilde{\mathrm{d}} v_a}{\mathrm{d}t}
+= \frac{1}{m_a} \sum_b \left(V_a^2 + V_b^2 \right)
+\left[ -\tilde{p}_{ab} \nabla_a W_{ab}
++ \frac{1}{2} \left(\bm{A}_a + \bm{A}_b \right) \cdot \nabla_a W_{ab} \right].
 ```
 Here, ``\tilde{p}_{ab}`` is the density-weighted pressure
 ```math
 \tilde{p}_{ab} = \frac{\rho_b p_a + \rho_a p_b}{\rho_a + \rho_b},
 ```
-with the density ``\rho_a``, ``\rho_b`` and the pressure ``p_a``, ``p_b`` of particles ``a``
-and ``b``, respectively. ``\bm{A}_a`` and ``\bm{A}_b`` are the convection tensors
-for particle ``a`` and ``b``, respectively, and are given, e.g., for particle ``a``,
-as ``\bm{A}_a = \rho v_a\left(\tilde{v}_a-v_a\right)^T``.
+with ``\rho_a``, ``\rho_b`` and ``p_a``, ``p_b`` denoting the densities and pressures
+of particles ``a`` and ``b``, respectively.
+
+As for the background-pressure term above, TrixiParticles.jl evaluates the additional
+convection term through the selected pressure-acceleration formulation instead of
+hard-coding the ``(V_a^2 + V_b^2)`` form. For the default continuity-density
+formulation, this gives
+```math
+\left.\frac{\tilde{\mathrm{d}} v_a}{\mathrm{d}t}\right|_{\bm{A}}
+= - \sum_b \frac{m_b}{\rho_a \rho_b}
+\left(\bm{A}_a + \bm{A}_b \right) \cdot \nabla_a W_{ab}.
+```
+Here, ``\bm{A}_a`` and ``\bm{A}_b`` are the convection tensors of particles ``a`` and ``b``,
+with, for example,
+```math
+\bm{A}_a = \rho_a \bm{v}_a \left(\tilde{\bm{v}}_a - \bm{v}_a\right)^T.
+```
+Thus, the implemented form is again the operator-consistent version of the literature
+discretization for the pressure-acceleration formulation used by the scheme.
 
 To apply the TVF, use the keyword argument `shifting_technique` in the constructor
 of a system that supports it.
@@ -247,13 +314,13 @@ Only the combination of PST and TIC is able to produce physical results.
 
 The force that particle ``a`` experiences from particle ``b`` due to pressure is given by
 ```math
-f_{ab} = -m_a m_b \frac{p_a + p_b}{\rho_a \rho_b} \nabla W_{ab}
+\bm{f}_{ab} = -m_a m_b \frac{p_a + p_b}{\rho_a \rho_b} \nabla_a W_{ab}
 ```
 for the WCSPH method with [`ContinuityDensity`](@ref).
 
-The TIC formulation changes this force to
+The TIC formulation changes this term to
 ```math
-f_{ab} = -m_a m_b \frac{|p_a| + p_b}{\rho_a \rho_b} \nabla W_{ab}.
+\bm{f}_{ab}^{\mathrm{TIC}} = -m_a m_b \frac{|p_a| + p_b}{\rho_a \rho_b} \nabla_a W_{ab}.
 ```
 Note that this formulation is asymmetric and sacrifices conservation of linear and angular
 momentum.

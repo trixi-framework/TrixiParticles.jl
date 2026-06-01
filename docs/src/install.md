@@ -1,11 +1,11 @@
 # [Installation](@id installation)
 
-## Setting up Julia
-If you have not yet installed Julia, please [follow the instructions on the
+## Setting Up Julia
+If you have not installed Julia yet, please [follow the instructions on the
 official website](https://julialang.org/downloads/). TrixiParticles.jl works
 with Julia v1.10 and newer. We recommend using the latest stable release of Julia.
 
-## For users
+## For Users
 TrixiParticles.jl is a registered Julia package.
 You can install TrixiParticles.jl,
 time integration sub-packages of [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl)
@@ -18,7 +18,7 @@ julia> using Pkg
 julia> Pkg.add(["TrixiParticles", "OrdinaryDiffEqLowStorageRK", "OrdinaryDiffEqSymplecticRK", "Plots"])
 ```
 
-## [For developers](@id for-developers)
+## [For Developers](@id for-developers)
 If you plan on editing TrixiParticles.jl itself, you can download TrixiParticles.jl
 to a local folder and use the code from the cloned directory:
 ```bash
@@ -41,22 +41,21 @@ related packages (e.g., sub-packages of OrdinaryDiffEq.jl, see above) to the pro
 in the `run` folder
 and always have a reproducible environment at hand to share with others.
 
-## Optional software/packages
+## Optional Software/Packages
 - [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl) -- A Julia package of ordinary differential equation solvers; examples in TrixiParticles.jl use sub-packages such as `OrdinaryDiffEqLowStorageRK` and `OrdinaryDiffEqSymplecticRK`
-- [Plots.jl](https://github.com/JuliaPlots/Plots.jl) -- Julia Plotting library that is used in some examples
+- [Plots.jl](https://github.com/JuliaPlots/Plots.jl) -- Julia plotting library used in some examples
 - [PythonPlot.jl](https://github.com/JuliaPy/PythonPlot.jl) -- Plotting library that can be used instead of Plots.jl
-- [ParaView](https://www.paraview.org/) -- Software that can be used for visualization of results
+- [ParaView](https://www.paraview.org/) -- Visualization software for simulation results
 
-## [Common issues](@id installation-issues)
+## [Common Issues](@id installation-issues)
 
-If you followed the [installation instructions for developers](@ref for-developers) and you
-run into any problems with packages when pulling the latest version of TrixiParticles.jl,
-start Julia with the project in the `run` folder,
+If you followed the [installation instructions for developers](@ref for-developers) and run
+into package issues after pulling the latest version of TrixiParticles.jl, start Julia with
+the project in the `run` folder,
 ```bash
-   julia --project=run
+julia --project=run
 ```
-update all packages in that project, resolve all conflicts in the project, and install all
-new dependencies:
+then update packages, resolve dependency conflicts, and install new dependencies:
 ```julia
 julia> using Pkg
 
