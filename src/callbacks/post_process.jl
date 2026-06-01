@@ -195,7 +195,7 @@ function (pp::PostprocessCallback)(integrator)
             write_postprocess_callback(pp, integrator)
         end
 
-        # Postprocessing does not introduce a derivative discontinuity.
+        # This callback only processes results and does not change the result of the right-hand side.
         derivative_discontinuity!(integrator, false)
     end
 end

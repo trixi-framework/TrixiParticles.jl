@@ -209,7 +209,9 @@ function (split_integration_callback::SplitIntegrationCallback)(integrator)
     if isapprox(new_t, old_t)
         # Usually, `u` is modified in the split integration above, but if the split
         # integrator has already been advanced to the new step time in the last stage of the
-        # previous step, the split integration above is skipped and `u` is not modified.
+        # previous step, the split integration above is skipped and only the split integration `u`
+        # is copied to the large `u` to account for potential caching errors.
+        # This does not affect the RHS of the large integrator, so no discontinuity is introduced.
         derivative_discontinuity!(integrator, false)
     else
         # Split integration updates the ODE state and introduces a derivative discontinuity.
@@ -567,7 +569,7 @@ function update_averaged_velocity_callback!(integrator)
         compute_averaged_velocity!(system, v_ode, semi, t_new)
     end
 
-    # No derivative discontinuity is introduced since `integrator.u` has not been modified
+    # No derivative discontinuity is introduced since `integrator.u` has not been modified and hence does not change the result of the right-hand side.
     derivative_discontinuity!(integrator, false)
 
     return integrator

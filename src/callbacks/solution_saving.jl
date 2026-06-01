@@ -253,7 +253,7 @@ function (solution_callback::SolutionSavingCallback)(integrator)
         solution_callback.latest_saved_iter = iter
     end
 
-    # Saving does not introduce a derivative discontinuity.
+    # This callback only saves results and does not change the result of the right-hand side.
     derivative_discontinuity!(integrator, false)
 
     return nothing

@@ -72,7 +72,7 @@ function (stepsize_callback::StepsizeCallback)(integrator)
     integrator.opts.dtmax = dt
     integrator.dtcache = dt
 
-    # Updating the proposed step size does not introduce a derivative discontinuity.
+    # This callback only processes results and does not change the result of the right-hand side.
     derivative_discontinuity!(integrator, false)
 
     return stepsize_callback
