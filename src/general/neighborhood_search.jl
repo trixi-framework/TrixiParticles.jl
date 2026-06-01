@@ -229,8 +229,10 @@ function create_neighborhood_search_handler(handler, neighborhood_search, system
 end
 
 # `neighborhood_search = nothing` creates a `TrivialNeighborhoodSearch`.
-function default_neighborhood_search_handler(::Nothing)
-    return SharedNHSHandler
+function default_neighborhood_search_handler(::Union{Nothing, TrivialNeighborhoodSearch})
+    # Prefer the `PairsNHSHandler` for `TrivialNeighborhoodSearch` because it allows for
+    # infinite search radius, which the `SharedNHSHandler` does not support.
+    return PairsNHSHandler
 end
 
 function default_neighborhood_search_handler(neighborhood_search::AbstractNeighborhoodSearch)

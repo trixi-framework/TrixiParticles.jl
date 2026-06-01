@@ -28,12 +28,13 @@
         @test semi.ranges_u == (1:6, 7:15)
         @test semi.ranges_v == (1:6, 7:18)
 
-        @test semi.neighborhood_search_handler isa TrixiParticles.SharedNHSHandler
-        @test semi.neighborhood_search_handler.search_radii == [[0.2], [0.2]]
+        @test semi.neighborhood_search_handler isa TrixiParticles.PairsNHSHandler
 
-        nhs = [
-            [TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2, eachpoint=1:2)],
-            [TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2, eachpoint=1:3)]]
+        nhs1 = TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
+                                                           eachpoint=1:2)
+        nhs2 = TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
+                                                           eachpoint=1:3)
+        nhs = [nhs1 nhs2; nhs1 nhs2]
         @test semi.neighborhood_search_handler.neighborhood_searches == nhs
 
         semi_grid_default = Semidiscretization(system1, system2,
