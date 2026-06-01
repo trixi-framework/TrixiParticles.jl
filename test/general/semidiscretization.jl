@@ -31,10 +31,9 @@
         @test semi.neighborhood_search_handler isa TrixiParticles.SharedNHSHandler
         @test semi.neighborhood_search_handler.search_radii == [[0.2], [0.2]]
 
-        nhs = [[TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
-                eachpoint=1:2)],
-               [TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
-                eachpoint=1:3)]]
+        nhs = [
+            [TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2, eachpoint=1:2)],
+            [TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2, eachpoint=1:3)]]
         @test semi.neighborhood_search_handler.neighborhood_searches == nhs
 
         semi_grid_default = Semidiscretization(system1, system2,
