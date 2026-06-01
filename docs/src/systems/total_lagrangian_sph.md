@@ -106,16 +106,16 @@ Pages = [joinpath("schemes", "structure", "total_lagrangian_sph", "penalty_force
 ## Viscosity
 
 Another technique that is used to correct the hourglass instability is artificial viscosity.
-Hereby, a viscosity term designed for fluids (see [Viscosity](@ref viscosity_sph)) is applied.
-First, the force ``f_{ab}^{\text{fluid}}`` exerted by particle ``b`` on particle ``a``
+Here, a viscosity term designed for fluids (see [Viscosity](@ref viscosity_sph)) is applied.
+First, the force ``\bm{F}_{ab}^{\text{fluid}}`` exerted by particle ``b`` on particle ``a``
 due to artificial viscosity is computed as if both particles were fluid particles
 (see [Viscosity](@ref viscosity_sph) for the relevant equations).
 Then, according to [Lin et al. (2015)](@cite Lin2015), this force can be applied to TLSPH
 with the following conversion:
 ```math
-f_{ab}^{\text{AV}} = \det(F_a) F_a^{-1} f_{ab}^{\text{fluid}},
+\bm{F}_{ab}^{\text{AV}} = \det(\bm{F}_a) \bm{F}_a^{-T} \bm{F}_{ab}^{\text{fluid}},
 ```
-where ``F_a`` is the deformation gradient at particle ``a``.
+where ``\bm{F}_a`` is the deformation gradient at particle ``a``.
 
 We found that artificial viscosity is not effective at correcting the incorrect
 particle positions due to hourglass modes.

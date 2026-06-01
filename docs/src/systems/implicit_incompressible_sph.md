@@ -5,7 +5,10 @@ is a method that achieves incompressibility by solving the pressure Poisson equa
 The resulting linear system is iteratively solved with the relaxed Jacobi method.
 Unlike the [weakly compressible SPH method](@ref wcsph), incompressible methods determine
 pressure by enforcing the incompressibility constraint rather than using an equation of
-state.
+state. In the derivation below, we keep the force notation of
+[Ihmsen et al. (2013)](@cite Ihmsen2013), which is also the standard presentation in the
+IISPH literature. Internally, TrixiParticles.jl applies the equivalent pressure
+accelerations ``\bm{F}_i^p / m_i``; this changes only the presentation, not the algebra.
 
 ```@autodocs
 Modules = [TrixiParticles]
@@ -28,14 +31,15 @@ difference yields
 The divergence in the right-hand side is discretized with the SPH discretization for
 particle ``i`` as
 ```math
--\frac{1}{\rho_i} \sum_j m_j \bm{v}_{ij} \nabla W_{ij},
+-\frac{1}{\rho_i} \sum_j m_j \bm{v}_{ij} \cdot \nabla W_{ij},
 ```
 where ``\bm{v}_{ij} = \bm{v}_i - \bm{v}_j``.
 
 Together, the following discretized version of the continuity equation for a particle ``i``
 is achieved:
 ```math
-\frac{\rho_i(t + \Delta t) - \rho_i(t)}{\Delta t} = \sum_j m_j \bm{v}_{ij}(t+\Delta t) \nabla W_{ij}.
+\frac{\rho_i(t + \Delta t) - \rho_i(t)}{\Delta t}
+= \sum_j m_j \bm{v}_{ij}(t+\Delta t) \cdot \nabla W_{ij}.
 ```
 
 Note that the linear system is only solved for fluid particles, so ``i`` always represents
@@ -50,12 +54,12 @@ Using the semi-implicit Euler method, we can obtain the velocity in the next tim
 ```
 
 where ``\bm{F}_i^{\text{adv}}`` denotes all non-pressure forces such as gravity, viscosity, surface
-tension and more, while ``\bm{F}_i^p``denotes the unknown pressure forces, which we
+tension and more, while ``\bm{F}_i^p`` denotes the unknown pressure forces, which we
 want to solve for.
 
 Note that the IISPH is an incompressible method, which means that the density of the
-fluid remain constant over time. By assuming a fixed reference density ``\rho_0`` for all
-fluid particle over the whole time of the simulation, the density value at the next time
+fluid remains constant over time. By assuming a fixed reference density ``\rho_0`` for all
+fluid particles over the whole simulation, the density value at the next time
 step ``\rho_i(t + \Delta t)`` also has to be this rest density. So ``\rho_0`` can be plugged in
 for ``\rho_i(t + \Delta t)`` in the equation above.
 
@@ -72,7 +76,7 @@ Using this predicted velocity and the continuity equation, a predicted density c
 in a similar way as
 
 ```math
-\rho_i^{\text{adv}}(t + \Delta t)= \rho_i(t) + \Delta t \sum_j m_j \bm{v}_{ij}^{\text{adv}} \nabla W_{ij}(t).
+\rho_i^{\text{adv}}(t + \Delta t)= \rho_i(t) + \Delta t \sum_j m_j \bm{v}_{ij}^{\text{adv}}(t+\Delta t) \cdot \nabla W_{ij}(t).
 ```
 
 To achieve the rest density, the unknown pressure forces must counteract the compression
@@ -81,7 +85,7 @@ the predicted density and the reference density.
 
 Therefore, the following equation needs to be fulfilled:
 ```math
-\Delta t ^2 \sum_j m_j \left(  \frac{\bm{F}_i^p(t)}{m_i} - \frac{\bm{F}_j^p(t)}{m_j} \right) \nabla W_{ij}(t) = \rho_0 - \rho_i^{\text{adv}}.
+\Delta t ^2 \sum_j m_j \left(  \frac{\bm{F}_i^p(t)}{m_i} - \frac{\bm{F}_j^p(t)}{m_j} \right) \cdot \nabla W_{ij}(t) = \rho_0 - \rho_i^{\text{adv}}.
 ```
 
 This expression is derived by substituting the reference density ``\rho_0`` for
@@ -130,10 +134,10 @@ The pressure acceleration is given by:
 
 The ``d_{ii}p_i`` value describes the displacement of particle ``i`` because of the particle ``i``
 and ``d_{ij}p_j`` describes the influence from the neighboring particles ``j``.
-Using this new values the linear system can be rewritten as
+Using these values, the linear system can be rewritten as
 
 ```math
-\rho_0 - \rho_i^{\text{adv}} = \sum_j m_j \left( d_{ii}p_i + \sum_k d_{ik}p_k - d_{jj}p_j - \sum_k d_{jk}p_k \right) \nabla W_{ij},
+\rho_0 - \rho_i^{\text{adv}} = \sum_j m_j \left( d_{ii}p_i + \sum_k d_{ik}p_k - d_{jj}p_j - \sum_k d_{jk}p_k \right) \cdot \nabla W_{ij},
 ```
 
 where the first sum over ``k`` loops over all neighbor particles of ``i`` and
@@ -150,21 +154,21 @@ To separate this sum, it can be written as
 With this separation, the equation for the linear system can again be rewritten as
 
 ```math
-\rho_0 - \rho_i^{\text{adv}} = p_i \sum_j m_j ( d_{ii} - d_{ji})\nabla W_{ij}  + \sum_j m_j \left ( \sum_k d_{ik} p_k - d_{jj} p_j - \sum_{k \neq i} d_{jk}p_k \right) \nabla W_{ij}.
+\rho_0 - \rho_i^{\text{adv}} = p_i \sum_j m_j ( d_{ii} - d_{ji}) \cdot \nabla W_{ij}  + \sum_j m_j \left ( \sum_k d_{ik} p_k - d_{jj} p_j - \sum_{k \neq i} d_{jk}p_k \right) \cdot \nabla W_{ij}.
 ```
 
 In this formulation all coefficients that are getting multiplied with the pressure value ``p_i``
 are separated from the other. The diagonal elements ``a_{ii}`` can therefore be defined as:
 
 ```math
-a_{ii} = \sum_j m_j ( d_{ii} - d_{ji})\nabla W_{ij}.
+a_{ii} = \sum_j m_j ( d_{ii} - d_{ji}) \cdot \nabla W_{ij}.
 ```
 
 The remaining part of the equation represents the influence of the other pressure values ``p_j``.
 ​Hence, the final relaxed Jacobi iteration takes the form:
 
 ```math
-p_i^{l+1} = (1 - \omega) p_i^{l} + \omega \frac{1}{a_{ii}} \left( \rho_0 -\rho_i^{\text{adv}} - \sum_j m_j \left( \sum_k d_{ik} p_k^l - d_{jj} p_j^l - \sum_{k \neq i} d_{jk} p_k^l \right) \nabla W_{ij} \right).
+p_i^{l+1} = (1 - \omega) p_i^{l} + \omega \frac{1}{a_{ii}} \left( \rho_0 -\rho_i^{\text{adv}} - \sum_j m_j \left( \sum_k d_{ik} p_k^l - d_{jj} p_j^l - \sum_{k \neq i} d_{jk} p_k^l \right) \cdot \nabla W_{ij} \right).
 ```
 
 Because interactions are local, limited to particles within the kernel support defined by
@@ -209,7 +213,7 @@ as only isolated or almost isolated particles are affected.
 ## Boundary Handling
 
 The previously introduced formulation did not distinguish between fluid and boundary
-particles. To account boundary interactions correctly, a few modifications to the previous
+particles. To account for boundary interactions correctly, a few modifications to the previous
 equations are required.
 
 First, the discretized form of the continuity equation must be adapted for the case in which
@@ -220,7 +224,7 @@ neighboring fluid particles (indexed by ``f``) and neighboring boundary particle
 The updated discretized continuity equation becomes:
 
 ```math
-\frac{\rho_i(t + \Delta t) - \rho_i(t)}{\Delta t} = \sum_f m_f \bm{v}_{if}(t+\Delta t) \nabla W_{if} + \sum_b m_b \bm{v}_{ib}(t+\Delta t) \nabla W_{ib}.
+\frac{\rho_i(t + \Delta t) - \rho_i(t)}{\Delta t} = \sum_f m_f \bm{v}_{if}(t+\Delta t) \cdot \nabla W_{if} + \sum_b m_b \bm{v}_{ib}(t+\Delta t) \cdot \nabla W_{ib}.
 ```
 
 Since boundary particles have zero velocity, the difference between the fluid
@@ -229,13 +233,13 @@ particle's velocity ``\bm{v}_{ib}(t+\Delta t) = \bm{v}_{i}(t+\Delta t)``.
 Accordingly, the predicted density ``\rho^{\text{adv}}`` becomes:
 
 ```math
-\rho_i^{\text{adv}} = \rho_i (t) + \Delta t \sum_f m_f \bm{v}_{if}^{\text{adv}} \nabla W_{if}(t) + \Delta t \sum_b m_b \bm{v}_{i}^{\text{adv}} \nabla W_{ib}(t).
+\rho_i^{\text{adv}} = \rho_i (t) + \Delta t \sum_f m_f \bm{v}_{if}^{\text{adv}} \cdot \nabla W_{if}(t) + \Delta t \sum_b m_b \bm{v}_{i}^{\text{adv}} \cdot \nabla W_{ib}(t).
 ```
 
 This leads to the following updated formulation of the linear system:
 
 ```math
-\Delta t^2 \sum_f m_f \left(  \frac{\bm{F}_i^p(t)}{m_i} - \frac{\bm{F}_f^p(t)}{m_f} \right) \nabla W_{if} + \Delta t^2 \sum_b m_b \frac{\bm{F}_i^p(t)}{m_i} \nabla W_{ib} = \rho_0 - \rho_i^{\text{adv}}.
+\Delta t^2 \sum_f m_f \left(  \frac{\bm{F}_i^p(t)}{m_i} - \frac{\bm{F}_f^p(t)}{m_f} \right) \cdot \nabla W_{if} + \Delta t^2 \sum_b m_b \frac{\bm{F}_i^p(t)}{m_i} \cdot \nabla W_{ib} = \rho_0 - \rho_i^{\text{adv}}.
 ```
 
 Note that, since boundary particles are fixed, the force ``F_b^p`` is zero and does not appear
@@ -244,12 +248,12 @@ in this equation.
 The pressure force acting on a fluid particle is computed as:
 
 ```math
-\bm{F}_i^p(t) = -\sum_f m_f \left( \frac{p_i(t)}{\rho_i^2(t)} + \frac{p_f(t)}{\rho_f^2(t)} \right) \nabla W_{if}(t) - \sum_b m_b \left( \frac{p_i(t)}{\rho_i^2(t)} + \frac{p_b(t)}{\rho_b^2(t)} \right) \nabla W_{ib}(t).
+\bm{F}_i^p(t) = -m_i \sum_f m_f \left( \frac{p_i(t)}{\rho_i^2(t)} + \frac{p_f(t)}{\rho_f^2(t)} \right) \nabla W_{if}(t) - m_i \sum_b m_b \left( \frac{p_i(t)}{\rho_i^2(t)} + \frac{p_b(t)}{\rho_b^2(t)} \right) \nabla W_{ib}(t).
 ```
 
 This also leads to an updated version of the equation for the diagonal elements:
 ```math
-a_{ii} = \sum_j m_j ( d_{ii} - d_{ji})\nabla W_{ij} + \sum_b m_b (-d_{bi}) \nabla W_{ib}.
+a_{ii} = \sum_f m_f ( d_{ii} - d_{fi}) \cdot \nabla W_{if} + \sum_b m_b d_{ii} \cdot \nabla W_{ib}.
 ```
 
 From this point forward, the computation of the coefficients required for the Jacobi scheme
@@ -263,11 +267,12 @@ When using pressure mirroring, the pressure value ``p_b`` of a boundary particle
 above is defined to be equal to the pressure of the corresponding fluid particle ``p_i``.
 In other words, the boundary particle "mirrors" the pressure of the fluid particle interacting
 with it. As a result, the coefficient that describes the influence of a particle's own
-pressure value ``p_i`` ​must also include contributions from boundary particles. Therefore,
-the equation for calculating the coefficient ``d_{ii}`` must be adjusted as follows:
+pressure value ``p_i`` must include a doubled contribution from each boundary particle.
+Therefore, ``d_{ii}`` becomes
 
 ```math
-d_{ii} = -\Delta t^2 \sum_f \frac{m_f}{\rho_i^2} \nabla W_{if} - \Delta t^2 \sum_b \frac{m_b}{\rho_i^2} \nabla W_{ib}.
+d_{ii} = -\Delta t^2 \sum_f \frac{m_f}{\rho_i^2} \nabla W_{if}
+         - 2\Delta t^2 \sum_b \frac{m_b}{\rho_i^2} \nabla W_{ib}.
 ```
 
 The corresponding relaxed Jacobi iteration for pressure mirroring then becomes:
@@ -275,30 +280,29 @@ The corresponding relaxed Jacobi iteration for pressure mirroring then becomes:
 ```math
 \begin{align*}
 p_i^{l+1} = (1 - \omega) p_i^l + \omega \frac{1}{a_{ii}} &\left( \rho_0 - \rho_i^{\text{adv}}
- - \sum_f m_f \left( \sum_k d_{ik} p_k^l - d_{ff}p_f^l - \sum_{k \neq i} d_{fk} p_k^l \right) \nabla W_{if} \right. \\
-& \quad - \left. \sum_b m_b \sum_f d_{if} p_f^l \nabla W_{ib} \right).
+ - \sum_f m_f \left( \sum_k d_{ik} p_k^l - d_{ff}p_f^l - \sum_{k \neq i} d_{fk} p_k^l \right) \cdot \nabla W_{if} \right. \\
+& \quad - \left. \sum_b m_b \left( \sum_f d_{if} p_f^l \right) \cdot \nabla W_{ib} \right).
 \end{align*}
 ```
 
 ### Pressure Zeroing
 If pressure zeroing is used instead, the pressure value of a boundary particle ``p_b``
-​is assumed to be zero. Consequently, boundary particles do not contribute to the pressure
-forces acting on fluid particles.
-In this case, the computation of the coefficient ``d_{ii}`` remains unchanged and is given by:
+is assumed to be zero. In the linear system, this removes the boundary pressure unknowns,
+but boundary particles still contribute through the ``p_i/\rho_i^2`` part of the pressure
+acceleration. Therefore ``d_{ii}`` is
 
 ```math
-d_{ii} = -\Delta t^2 \sum_f \frac{m_f}{\rho_i^2} \nabla W_{if}.
+d_{ii} = -\Delta t^2 \sum_f \frac{m_f}{\rho_i^2} \nabla W_{if}
+         - \Delta t^2 \sum_b \frac{m_b}{\rho_i^2} \nabla W_{ib}.
 ```
 
-The equation for the relaxed Jacobi iteration remains the same as in the pressure mirroring
-approach. However, the contribution from boundary particles vanishes due to their zero
-pressure:
+The corresponding relaxed Jacobi iteration reads
 
 ```math
 \begin{align*}
 p_i^{l+1} = (1 - \omega) p_i^l + \omega \frac{1}{a_{ii}} &\left( \rho_0 - \rho_i^{\text{adv}}
- - \sum_f m_f \left( \sum_k d_{ik} p_k^l - d_{ff}p_f^l - \sum_{k \neq i} d_{fk} p_k^l \right) \nabla W_{if} \right. \\
-& \quad - \left. \sum_b m_b \sum_j d_{if} p_f^l \nabla W_{ib} \right).
+ - \sum_f m_f \left( \sum_k d_{ik} p_k^l - d_{ff}p_f^l - \sum_{k \neq i} d_{fk} p_k^l \right) \cdot \nabla W_{if} \right. \\
+& \quad - \left. \sum_b m_b \left( \sum_f d_{if} p_f^l \right) \cdot \nabla W_{ib} \right).
 \end{align*}
 ```
 
@@ -307,8 +311,8 @@ The density calculators [`AdamiPressureExtrapolation`](@ref) and [`BernoulliPres
 can also be used with IISPH.
 When using one of these pressure extrapolation methods the calculation of the PPE is exactly
 the same as when using pressure zeroing.
-So within the linear systems the pressure values are equal to zero (``p_b=0``) and therefore
-are not considered in the calculations. Only in the pressure acceleration, the extrapolated
+So within the linear system the boundary pressures are treated as zero (``p_b=0``), exactly
+as in pressure zeroing. Only in the pressure acceleration, the extrapolated
 pressure values are used for the boundary particles. For more information on these two methods,
 refer to the docs for the [boundary models](@ref boundary_models).
 
@@ -318,7 +322,7 @@ The [`PressureBoundaries`](@ref) density calculator was introduced by
 only be used with IISPH.
 In the standard IISPH method the PPE is solved only for fluid particles. The
 pressure values for the boundary particles are then approximated, for example by using
-pressure mirroing.
+pressure mirroring.
 With `PressureBoundaries`, however, the linear system is extended to
 include the boundary particles as well. This means that the pressure values of both the fluid
 and the boundary particles are computed directly by solving the PPE.
@@ -333,22 +337,22 @@ also solved as part of the linear system.
 This leads to the following condition for the boundary particles ``b``:
 
 ```math
-\Delta t^2 \sum_f m_f \left(  \frac{\bm{F}_i^p(t)}{m_i} - \frac{\bm{F}_f^p(t)}{m_f} \right) \nabla W_{if} + \Delta t^2 \sum_b m_b \left(  \frac{\bm{F}_i^p(t)}{m_i} - \frac{\bm{F}_b^p(t)}{m_b} \right) \nabla W_{ib} = \rho_0 - \rho_i^{\text{adv}}.
+\Delta t^2 \sum_f m_f \left(  \frac{\bm{F}_i^p(t)}{m_i} - \frac{\bm{F}_f^p(t)}{m_f} \right) \cdot \nabla W_{if} + \Delta t^2 \sum_b m_b \left(  \frac{\bm{F}_i^p(t)}{m_i} - \frac{\bm{F}_b^p(t)}{m_b} \right) \cdot \nabla W_{ib} = \rho_0 - \rho_i^{\text{adv}}.
 ```
 
-Note that in this case ``i`` is a boundary particle,``f`` are its fluid neighbors, and ``b``
+Note that in this case ``i`` is a boundary particle, ``f`` are its fluid neighbors, and ``b``
 its boundary neighbors.
 
 Since the pressure force for boundary particles is zero (as mentioned before), and because
 in this case ``i`` and ``b`` are both boundary particles, the PPE simplifies to
 
 ```math
-\Delta t^2 \sum_f m_f - \frac{\bm{F}_f^p(t)}{m_f} \nabla W_{if} = \rho_0 - \rho_i^{\text{adv}}.
+-\Delta t^2 \sum_f m_f \frac{\bm{F}_f^p(t)}{m_f} \cdot \nabla W_{if} = \rho_0 - \rho_i^{\text{adv}}.
 ```
 If we substitute the definition of the pressure force from above, we obtain
 
 ```math
-\Delta t^2 \sum_f m_f \left(  \sum_k m_k \left( \frac{p_f(t)}{\rho_j^2(t)} + \frac{p_k(t)}{\rho_k^2(t)} \right) \nabla W_{fk}\right) \nabla W_{if} = \rho_0 - \rho_i^{\text{adv}}.
+\Delta t^2 \sum_f m_f \left(  \sum_k m_k \left( \frac{p_f(t)}{\rho_f^2(t)} + \frac{p_k(t)}{\rho_k^2(t)} \right) \nabla W_{fk}\right) \cdot \nabla W_{if} = \rho_0 - \rho_i^{\text{adv}}.
 ```
 
 where ``k`` represents all neighboring particles (fluid and boundary) of fluid particle ``f``.
@@ -358,23 +362,23 @@ indirectly as neighbors of fluid particles), their ``d_{ii}`` values are zero. T
 diagonal elements simplify to
 
 ```math
-a_{ii} = \sum_f \left( -d_{fi}\right) \nabla W_{if}.
+a_{ii} = - \sum_f m_f d_{fi} \cdot \nabla W_{if}.
 ```
 
 The off-diagonal term ``\sum_{j \neq i} a_{ij} p_j`` in the relaxed Jacobi iteration for boundary
 particles takes the following form
 
 ```math
-\sum_{j \neq i} a_{ij} p_j = \sum_f m_f \left( d_{ff} - \sum_{f_j} d_{ff_j}p_{f_j}\right) \nabla W_{if}.
+\sum_{j \neq i} a_{ij} p_j = \sum_f m_f \left( - d_{ff} p_f - \sum_{k \neq i} d_{fk}p_k \right) \cdot \nabla W_{if}.
 ```
 
 But not only the addition of the boundary particles to the linear system changes when using
 pressure boundaries, also the PPE for the fluid particles is changing slightly.
 
 Since the boundary particles have now their own pressure values, ``p_b`` is no longer
-eliminated (as in pressure zeroing or pressure extrapolation  with ``p_b=0``) nor simply
+eliminated (as in pressure zeroing or pressure extrapolation with ``p_b=0``) nor simply
 replaced by the fluid particle's pressure (as in pressure mirroring with ``p_b=p_i``).
-Instead, ``p_b``remains part of the PPE.
+Instead, ``p_b`` remains part of the PPE.
 
 This has no effect on the diagonal elements ``a_{ii}``, which are identical to those of the
 other density calculators. The ``d_{ii}`` values are also computed in the same way as for
@@ -383,10 +387,10 @@ However,  the off-diagonal term ``\sum_{j \neq i} a_{ij} p_j`` in the relaxed Ja
 changes slightly.
 For pressure boundaries it takes the form
 ```math
- \sum_{j \neq i} a_{ij} p_j = \sum_f m_f \left( \sum_k d_{ik} p_k - d_{ff} p_f - \sum_{k \neq f} d_{fk} p_k \right) \nabla W_{if} \\
- + \sum_b m_b \left( \sum_k d_{ik} p_k  \right) \nabla W_{ib},
+\sum_{j \neq i} a_{ij} p_j = \sum_f m_f \left( \sum_k d_{ik} p_k - d_{ff} p_f - \sum_{k \neq f} d_{fk} p_k \right) \cdot \nabla W_{if}
++ \sum_b m_b \left( \sum_k d_{ik} p_k  \right) \cdot \nabla W_{ib},
 ```
-where ``k``represents all neighboring particles of ``i`` (both fluid and boundary).
+where ``k`` represents all neighboring particles of ``i`` (both fluid and boundary).
 
 ```@docs
     PressureBoundaries

@@ -16,6 +16,11 @@ Pages = [joinpath("schemes", "boundary", "prescribed_motion.jl")]
 
 # [Boundary Models](@id boundary_models)
 
+!!! note
+    The pairwise interaction terms below are written in force form, following the SPH literature.
+    TrixiParticles.jl applies the corresponding accelerations internally. Where the implemented
+    boundary discretization differs from the literature formula, both forms are stated explicitly.
+
 ## Dummy Particles
 
 Boundaries modeled as dummy particles, which are treated like fluid particles,
@@ -25,7 +30,7 @@ dummy particles need to have a mass corresponding to the fluid's rest density, w
 "hydrodynamic mass", as opposed to mass corresponding to the material density of a
 [`TotalLagrangianSPHSystem`](@ref).
 
-Here, `initial_density` and `hydrodynamic_mass` are vectors that contains the initial density
+Here, `initial_density` and `hydrodynamic_mass` are vectors that contain the initial density
 and the hydrodynamic mass respectively for each boundary particle.
 Note that when used with [`SummationDensity`](@ref) (see below), this is only used to determine
 the element type and the number of boundary particles.
@@ -37,14 +42,16 @@ This should be the same as for the adjacent fluid system with the largest smooth
 
 In the literature, this kind of boundary particles is referred to as
 "dummy particles" ([Adami et al., 2012](@cite Adami2012) and [Valizadeh & Monaghan, 2015](@cite Valizadeh2015)),
-"frozen fluid particles" ([Akinci et al., 2012](@cite Akinci2012)) or "dynamic boundaries [Crespo et al., 2007](@cite Crespo2007).
+"frozen fluid particles" ([Akinci et al., 2012](@cite Akinci2012)) or "dynamic boundaries" ([Crespo et al., 2007](@cite Crespo2007)).
 The key detail of this boundary condition and the only difference between the boundary models
 in these references is the way the density and pressure of boundary particles is computed.
 
-Since boundary particles are treated like fluid particles, the force
-on fluid particle ``a`` due to boundary particle ``b`` is given by
+For the standard summation-density pressure force, the force on fluid particle ``a``
+due to boundary particle ``b`` is
 ```math
-f_{ab} = m_a m_b \left( \frac{p_a}{\rho_a^2} + \frac{p_b}{\rho_b^2} \right) \nabla_{r_a} W(\Vert r_a - r_b \Vert, h).
+\bm{f}_{ab}^{p}
+= -m_a m_b \left( \frac{p_a}{\rho_a^2} + \frac{p_b}{\rho_b^2} \right)
+\nabla_{r_a} W(\Vert r_a - r_b \Vert, h).
 ```
 The quantities to be defined here are the density ``\rho_b`` and pressure ``p_b``
 of the boundary particle ``b``.
@@ -99,11 +106,16 @@ where the sum is over all fluid particles, ``\rho_f`` and ``p_f`` denote the den
 ```
 
 #### 2. [`BernoulliPressureExtrapolation`](@ref)
-Identical to the pressure ``p_b `` calculated via [`AdamiPressureExtrapolation`](@ref), but it adds the dynamic pressure component of the Bernoulli equation:
+Identical to the pressure ``p_b`` calculated via [`AdamiPressureExtrapolation`](@ref), but it adds an additional dynamic pressure term. For moving wall boundaries, the implementation uses
 ```math
-p_b = \frac{\sum_f (p_f + \frac{1}{2} \, \rho_{\text{neighbor}} \left( \frac{ (\mathbf{v}_f - \mathbf{v}_{\text{body}}) \cdot (\mathbf{x}_f - \mathbf{x}_{\text{neighbor}}) }{ \left\| \mathbf{x}_f - \mathbf{x}_{\text{neighbor}} \right\| } \right)^2 \times \text{factor} +\rho_f (\bm{g} - \bm{a}_b) \cdot \bm{r}_{bf}) W(\Vert r_{bf} \Vert, h)}{\sum_f W(\Vert r_{bf} \Vert, h)}
+p_b = \frac{\sum_f (p_f + p_{f,\mathrm{dyn}} + \rho_f (\bm{g} - \bm{a}_b) \cdot \bm{r}_{bf}) W(\Vert r_{bf} \Vert, h)}{\sum_f W(\Vert r_{bf} \Vert, h)},
 ```
-where ``\mathbf{v}_f`` is the velocity of the fluid and ``\mathbf{v}_{\text{body}}`` is the velocity of the body.
+with
+```math
+p_{f,\mathrm{dyn}} = \frac{1}{2} \, \text{factor} \, \rho_f
+\frac{\left((\bm{v}_b - \bm{v}_f) \cdot \bm{r}_{bf}\right)^2}{\Vert \bm{r}_{bf} \Vert},
+```
+where ``\bm{v}_f`` is the fluid velocity and ``\bm{v}_b`` is the boundary velocity.
 This adjustment provides a higher boundary pressure for bodies moving with a relative velocity to the fluid to prevent penetration.
 This modification is original and not derived from any literature source.
 
@@ -123,17 +135,16 @@ reference pressure (the corresponding pressure to the reference density by the s
 #### 6. [`PressureMirroring`](@ref)
 
 Instead of calculating density and pressure for each boundary particle, we modify the
-momentum equation,
+pressure force,
 ```math
-\frac{\mathrm{d}v_a}{\mathrm{d}t} = -\sum_b m_b \left( \frac{p_a}{\rho_a^2} + \frac{p_b}{\rho_b^2} \right) \nabla_a W_{ab}
+\bm{F}_a^{p} = -m_a \sum_b m_b \left( \frac{p_a}{\rho_a^2} + \frac{p_b}{\rho_b^2} \right) \nabla_a W_{ab},
 ```
 to replace the unknown density $\rho_b$ if $b$ is a boundary particle by the reference density
 and the unknown pressure $p_b$ if $b$ is a boundary particle by the pressure $p_a$ of the
-interacting fluid particle.
-The momentum equation therefore becomes
+interacting fluid particle. The force therefore becomes
 ```math
-\frac{\mathrm{d}v_a}{\mathrm{d}t} = -\sum_f m_f \left( \frac{p_a}{\rho_a^2} + \frac{p_f}{\rho_f^2} \right) \nabla_a W_{af}
--\sum_b m_b \left( \frac{p_a}{\rho_a^2} + \frac{p_a}{\rho_0^2} \right) \nabla_a W_{ab},
+\bm{F}_a^{p} = -m_a \sum_f m_f \left( \frac{p_a}{\rho_a^2} + \frac{p_f}{\rho_f^2} \right) \nabla_a W_{af}
+-m_a \sum_b m_b \left( \frac{p_a}{\rho_a^2} + \frac{p_a}{\rho_0^2} \right) \nabla_a W_{ab},
 ```
 where the first sum is over all fluid particles and the second over all boundary particles.
 
@@ -168,18 +179,22 @@ condition is applied.
 
 ## Repulsive Particles
 
-Boundaries modeled as boundary particles which exert forces on the fluid particles ([Monaghan, Kajtar, 2009](@cite Monaghan2009)).
-The force on fluid particle ``a`` due to boundary particle ``b`` is given by
+Boundaries modeled as boundary particles which exert repulsive interactions on the fluid particles ([Monaghan, Kajtar, 2009](@cite Monaghan2009)).
+The literature force on fluid particle ``a`` due to boundary particle ``b`` is
 ```math
-f_{ab} = m_a \left(\tilde{f}_{ab} - m_b \Pi_{ab} \nabla_{r_a} W(\Vert r_a - r_b \Vert, h)\right)
+\bm{f}_{ab} = m_a \left(\tilde{\bm{f}}_{ab} - m_b \Pi_{ab}
+\nabla_{r_a} W(\Vert r_a - r_b \Vert, h)\right)
 ```
 with
 ```math
-\tilde{f}_{ab} = \frac{K}{\beta^{n-1}} \frac{r_{ab}}{\Vert r_{ab} \Vert (\Vert r_{ab} \Vert - d)} \Phi(\Vert r_{ab} \Vert, h)
+\tilde{\bm{f}}_{ab} =
+\frac{K}{\beta^{n-1}} \frac{\bm{r}_{ab}}
+{\Vert \bm{r}_{ab} \Vert (\Vert \bm{r}_{ab} \Vert - d)}
+\Phi(\Vert \bm{r}_{ab} \Vert, h)\,
 \frac{2 m_b}{m_a + m_b},
 ```
 where ``m_a`` and ``m_b`` are the masses of fluid particle ``a`` and boundary particle ``b``
-respectively, ``r_{ab} = r_a - r_b`` is the difference of the coordinates of particles
+respectively, ``\bm{r}_{ab} = \bm{r}_a - \bm{r}_b`` is the difference of the coordinates of particles
 ``a`` and ``b``, ``d`` denotes the boundary particle spacing and ``n`` denotes the number of
 dimensions (see [Monaghan & Kajtar, 2009](@cite Monaghan2009), Equation (3.1) and [Valizadeh & Monaghan, 2015](@cite Valizadeh2015)).
 Note that the repulsive acceleration $\tilde{f}_{ab}$ does not depend on the masses of
