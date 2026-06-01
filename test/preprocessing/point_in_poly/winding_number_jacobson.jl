@@ -30,4 +30,17 @@
             └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", winding) == show_box
     end
+
+    @testset verbose=true "Open Geometry Validation" begin
+        open_square = [0.0 1.0 1.0 0.0;
+                       0.0 0.0 1.0 1.0]
+        geometry = TrixiParticles.Polygon(open_square; close_curve=false)
+        points = [SVector(0.5, 0.5)]
+
+        jacobson = WindingNumberJacobson(; hierarchical_winding=false)
+        hormann = WindingNumberHormann()
+
+        @test jacobson(geometry, points)[1] isa Vector{Bool}
+        @test hormann(geometry, points)[1] isa Vector{Bool}
+    end
 end
