@@ -156,9 +156,12 @@ function update_mechanical_work!(work, system, eachparticle,
     # Note that the systems and NHS have already been updated by the
     # `PostprocessCallback` before calling this function.
     @trixi_timeit timer() "calculate mechanical work" begin
-        v = compute_structure_acceleration!(dv, system, eachparticle,
-                                            only_compute_force_on_fluid,
-                                            v_ode, u_ode, semi, t)
+        v = wrap_v(v_ode, system, semi)
+        u = wrap_u(u_ode, system, semi)
+
+        compute_structure_acceleration!(dv, v, u, system, eachparticle,
+                                        only_compute_force_on_fluid,
+                                        v_ode, u_ode, semi, t)
 
         # Note that this is a reduction, so we cannot use `@threaded` here.
         for particle in eachparticle
@@ -178,13 +181,10 @@ function update_mechanical_work!(work, system, eachparticle,
     return work
 end
 
-function compute_structure_acceleration!(dv, system, eachparticle,
+function compute_structure_acceleration!(dv, v, u, system, eachparticle,
                                          only_compute_force_on_fluid,
                                          v_ode, u_ode, semi, t)
     set_zero!(dv)
-
-    v = wrap_v(v_ode, system, semi)
-    u = wrap_u(u_ode, system, semi)
 
     foreach_system(semi) do neighbor_system
         if only_compute_force_on_fluid && !(neighbor_system isa AbstractFluidSystem)
@@ -210,5 +210,5 @@ function compute_structure_acceleration!(dv, system, eachparticle,
         end
     end
 
-    return v
+    return dv
 end
