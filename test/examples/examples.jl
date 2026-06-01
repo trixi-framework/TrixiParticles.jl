@@ -142,6 +142,19 @@
                 @test isapprox(calculated_mechanical_work(mechanical_work_calculator),
                                sum(system.mass) * gravity * 1,
                                rtol=rtol[name])
+
+                # Results for "some particles clamped" are even worse with the shorter
+                # time window, so we have to use a looser tolerance.
+                @test isapprox(calculated_mechanical_work(mechanical_work_calculator,
+                                                          time_window=(0.0, 0.5)),
+                               sum(system.mass) * gravity * 0.5,
+                               rtol=2 * rtol[name])
+
+                # Results are better when ignoring the initial acceleration from rest.
+                @test isapprox(calculated_mechanical_work(mechanical_work_calculator,
+                                                          time_window=(0.5, 1.0)),
+                               sum(system.mass) * gravity * 0.5,
+                               rtol=0.5 * rtol[name])
             end
         end
 
