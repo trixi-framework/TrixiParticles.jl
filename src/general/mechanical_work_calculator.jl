@@ -95,8 +95,8 @@ function MechanicalWorkCalculator(system::AbstractStructureSystem, semi;
 end
 
 function reset!(calculator::MechanicalWorkCalculator)
-    calculator.t = zero(eltype(calculator.t))
-    calculator.work = zero(eltype(calculator.work))
+    calculator.t = zero(calculator.t)
+    calculator.work = zero(calculator.work)
     calculator.initialized = false
 
     return calculator
@@ -134,7 +134,7 @@ function (calculator::MechanicalWorkCalculator)(system, dv_ode, du_ode, v_ode, u
 
     if !calculator.initialized
         calculator.t = t
-        calculator.work = zero(eltype(calculator.work))
+        calculator.work = zero(calculator.work)
         calculator.initialized = true
         return calculator.work
     end
