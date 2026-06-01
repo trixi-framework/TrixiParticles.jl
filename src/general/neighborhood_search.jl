@@ -194,20 +194,6 @@ end
 end
 
 # === Neighborhood search creation ===
-function create_neighborhood_search(::Nothing, system, neighbor)
-    nhs = TrivialNeighborhoodSearch{ndims(system)}()
-
-    return create_neighborhood_search(nhs, system, neighbor)
-end
-
-# Avoid method ambiguity
-function create_neighborhood_search(::Nothing, system::TotalLagrangianSPHSystem,
-                                    neighbor::TotalLagrangianSPHSystem)
-    nhs = TrivialNeighborhoodSearch{ndims(system)}()
-
-    return create_neighborhood_search(nhs, system, neighbor)
-end
-
 function create_neighborhood_search(neighborhood_search, system, neighbor)
     return copy_neighborhood_search(neighborhood_search, compact_support(system, neighbor),
                                     nparticles(neighbor))
@@ -230,11 +216,19 @@ function create_neighborhood_search_handler(::Type{Handler}, neighborhood_search
     return Handler(neighborhood_search, systems)
 end
 
+function create_neighborhood_search_handler(::Type{Handler}, neighborhood_search::Nothing,
+                                            systems) where {Handler <: AbstractNHSHandler}
+    # `neighborhood_search = nothing` creates a `TrivialNeighborhoodSearch`.
+    nhs = TrivialNeighborhoodSearch{ndims(first(systems))}()
+    return Handler(nhs, systems)
+end
+
 function create_neighborhood_search_handler(handler, neighborhood_search, systems)
     throw(ArgumentError("`neighborhood_search_handler` must be a handler type, " *
                         "for example `PairsNHSHandler` or `SharedNHSHandler`."))
 end
 
+# `neighborhood_search = nothing` creates a `TrivialNeighborhoodSearch`.
 function default_neighborhood_search_handler(::Nothing)
     return SharedNHSHandler
 end
@@ -294,7 +288,7 @@ struct PairsNHSHandler{NHS} <: AbstractNHSHandler
     neighborhood_searches::NHS
 end
 
-function PairsNHSHandler(neighborhood_search, systems)
+function PairsNHSHandler(neighborhood_search::AbstractNeighborhoodSearch, systems)
     searches = [create_neighborhood_search(neighborhood_search, system, neighbor)
                 for system in systems, neighbor in systems]
 
