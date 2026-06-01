@@ -630,12 +630,12 @@ function restart_with!(system::TotalLagrangianSPHSystem, v, u)
     restart_with!(system, system.boundary_model, v, u)
 end
 
-function restart_u(system::AbstractStructureSystem, data)
+function restart_u(system::TotalLagrangianSPHSystem, data)
     # The integration array requires only the particles that need to be integrated
     return data.coordinates[:, each_integrated_particle(system)]
 end
 
-function restart_v(system::AbstractStructureSystem, data)
+function restart_v(system::TotalLagrangianSPHSystem, data)
     # The integration array requires only the particles that need to be integrated
     return data.velocity[:, each_integrated_particle(system)]
 end

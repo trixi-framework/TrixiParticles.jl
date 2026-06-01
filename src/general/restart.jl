@@ -72,6 +72,14 @@ function write_density_and_pressure!(v_restart, system::EntropicallyDampedSPHSys
     return v_restart
 end
 
+function write_density_and_pressure!(v_restart, system::EntropicallyDampedSPHSystem,
+                                     density_calculator::SummationDensity,
+                                     pressure, density)
+    v_restart[size(v_restart, 1) - 1, :] = pressure
+
+    return v_restart
+end
+
 restore_previous_state!(system, restart_file) = system
 
 function initialize_neighborhood_searches!(semi, u0_ode,

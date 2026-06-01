@@ -913,7 +913,7 @@ end
         start_point = [0.0f0 + 10 * particle_spacing, wall_distance / 2]
         end_point = [flow_length - 10 * particle_spacing, wall_distance / 2]
         result_full = interpolate_line(start_point, end_point, n_interpolation_points,
-                                       sol.prob.p, sol.prob.p.systems[1], sol,
+                                       sol.prob.p.semi, sol.prob.p.semi.systems[1], sol,
                                        cut_off_bnd=false)
 
         # Run half simulation and safe checkpoint
@@ -926,14 +926,14 @@ end
                                       parallelization_backend=Main.parallelization_backend)
 
         # Transfer `semi` back to CPU
-        semi_new = TrixiParticles.Adapt.adapt(Array, sol.prob.p)
+        semi_cpu = TrixiParticles.Adapt.adapt(Array, sol.prob.p.semi)
 
         iter = round(Int, 0.3 / 0.02)
         fluid_restart = joinpath("out", "fluid_1_$iter.vtu")
         open_boundary_restart = joinpath("out", "open_boundary_1_$iter.vtu")
         boundary_restart = joinpath("out", "boundary_1_$iter.vtu")
 
-        ode_restart = semidiscretize(semi_new, (0.3f0, 0.6f0);
+        ode_restart = semidiscretize(semi_cpu, (0.3f0, 0.6f0);
                                      restart_with=(fluid_restart, open_boundary_restart,
                                                    boundary_restart))
 
