@@ -303,23 +303,19 @@ function (calculator::ThrustCalculator)(system, dv_ode, du_ode, v_ode, u_ode, se
         return nothing
     end
 
-    thrust = update_thrust!(system, calculator.eachparticle, calculator.direction,
-                            calculator.dv, v_ode, u_ode, semi, t)
-
-    calculator.thrust = thrust
+    @trixi_timeit timer() "calculate thrust" begin
+        calculator.thrust = update_thrust!(system, calculator.eachparticle,
+                                           calculator.direction,
+                                           calculator.dv, v_ode, u_ode, semi, t)
+    end
 
     return calculator.thrust
 end
 
 function update_thrust!(system, eachparticle, direction, dv, v_ode, u_ode, semi, t)
-    # Note that the systems and NHS have already been updated by the
-    # `PostprocessCallback` before calling this function.
-    @trixi_timeit timer() "calculate thrust" begin
-        compute_structure_acceleration!(dv, system, eachparticle, true,
-                                        v_ode, u_ode, semi, t)
+    compute_structure_acceleration!(dv, system, eachparticle, true, v_ode, u_ode, semi, t)
 
-        return projected_force(dv, system, eachparticle, direction)
-    end
+    return projected_force(dv, system, eachparticle, direction)
 end
 
 function projected_force(dv, system, eachparticle, direction)
