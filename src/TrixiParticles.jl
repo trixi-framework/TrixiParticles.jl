@@ -74,6 +74,7 @@ export BoundaryZone, InFlow, OutFlow, BidirectionalFlow
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
        PostprocessCallback, StepsizeCallback, UpdateCallback, SteadyStateReachedCallback,
        SplitIntegrationCallback, MechanicalWorkCalculator, calculated_mechanical_work,
+       ThrustCalculator, calculated_thrust,
        SortingCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller, TransportVelocityAdami, ParticleShiftingTechnique,

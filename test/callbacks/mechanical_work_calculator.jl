@@ -2,8 +2,12 @@
     # Mock system
     struct MockSystem <: TrixiParticles.AbstractStructureSystem{2}
         eltype::Type
+        mass::Vector
+
+        function MockSystem(ELTYPE)
+            new(ELTYPE, ELTYPE[1, 2, 3, 4])
+        end
     end
-    TrixiParticles.nparticles(::MockSystem) = 4
     Base.eltype(system::MockSystem) = system.eltype
 
     function TrixiParticles.create_neighborhood_search(neighborhood_search,
@@ -38,6 +42,100 @@
         calculator = MechanicalWorkCalculator(system32, semi32)
         @test eltype(calculator.work) == Float32
         @test eltype(calculator.t) == Float32
+    end
+
+    @testset "ThrustCalculator constructor and force projection" begin
+        @test_throws UndefKeywordError ThrustCalculator(system64, semi64)
+
+        calculator = ThrustCalculator(system64, semi64; direction=SVector(1.0, 0.0))
+        @test calculator.system_index == 1
+        @test calculator.thrust == 0.0
+        @test calculator.dv isa Array{Float64, 2}
+        @test size(calculator.dv) == (2, 4)
+        @test calculator.eachparticle == eachparticle(system64)
+        @test calculator.direction == SVector(1.0, 0.0)
+        @test calculated_thrust(calculator) == 0.0
+
+        calculator = ThrustCalculator(system32, semi32; direction=(0.0, 2.0),
+                                      eachparticle=2:3)
+        @test eltype(calculator.thrust) == Float32
+        @test calculator.direction == SVector(0.0f0, 1.0f0)
+        @test calculator.eachparticle == 2:3
+
+        @test_throws ArgumentError ThrustCalculator(system64, semi64; direction=(0.0, 0.0))
+
+        dv = [2.0 -1.0 0.0 3.0
+              4.0 5.0 -2.0 1.0]
+        @test TrixiParticles.projected_force(dv, system64, eachparticle(system64),
+                                             SVector(1.0, 0.0)) == 12.0
+        @test TrixiParticles.projected_force(dv, system64, 2:3,
+                                             SVector(0.0, 1.0)) == 4.0
+
+        TrixiParticles.reset!(calculator)
+        @test calculated_thrust(calculator) == 0.0f0
+    end
+
+    @testset "ThrustCalculator FSI force" begin
+        particle_spacing = 1.0
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        smoothing_length = 1.0
+        fluid_density = 1000.0
+        structure_density = 2000.0
+        particle_volume = particle_spacing^2
+
+        state_equation = StateEquationCole(sound_speed=10.0,
+                                           reference_density=fluid_density,
+                                           exponent=1.0)
+
+        fluid_ic = InitialCondition(; coordinates=reshape([0.0, 0.0], 2, 1),
+                                    velocity=zeros(2, 1),
+                                    mass=[particle_volume * fluid_density],
+                                    density=[fluid_density], particle_spacing)
+
+        fluid_system = WeaklyCompressibleSPHSystem(fluid_ic; smoothing_kernel,
+                                                   smoothing_length,
+                                                   density_calculator=SummationDensity(),
+                                                   state_equation,
+                                                   reference_particle_spacing=particle_spacing)
+
+        structure_coordinates = reshape([1.5, 0.0], 2, 1)
+        structure_ic = InitialCondition(; coordinates=structure_coordinates,
+                                        velocity=zeros(2, 1),
+                                        mass=[particle_volume * structure_density],
+                                        density=[structure_density], particle_spacing)
+
+        boundary_model = BoundaryModelDummyParticles([fluid_density],
+                                                     [particle_volume * fluid_density],
+                                                     AdamiPressureExtrapolation(),
+                                                     smoothing_kernel, smoothing_length;
+                                                     state_equation,
+                                                     reference_particle_spacing=particle_spacing)
+
+        structure_system = TotalLagrangianSPHSystem(structure_ic; smoothing_kernel,
+                                                    smoothing_length,
+                                                    young_modulus=1.0e5,
+                                                    poisson_ratio=0.3,
+                                                    boundary_model)
+
+        semi_ = Semidiscretization(fluid_system, structure_system)
+        ode = semidiscretize(semi_, (0.0, 0.01))
+        semi = ode.p.semi
+
+        v_ode, u_ode = ode.u0.x
+        dv_ode = zero(v_ode)
+        TrixiParticles.kick!(dv_ode, v_ode, u_ode, ode.p, 0.0)
+
+        fluid = semi.systems[1]
+        structure = semi.systems[2]
+        dv_fluid = TrixiParticles.wrap_v(dv_ode, fluid, semi)
+
+        thrust = ThrustCalculator(structure, semi; direction=SVector(1.0, 0.0))
+        thrust(structure, dv_ode, nothing, v_ode, u_ode, semi, 0.0)
+
+        expected_force = -fluid.mass[1] * dv_fluid[1, 1]
+        @test !iszero(expected_force)
+        @test isapprox(calculated_thrust(thrust), expected_force;
+                       rtol=sqrt(eps()), atol=sqrt(eps()))
     end
 
     @testset "update_mechanical_work_calculator!" begin
