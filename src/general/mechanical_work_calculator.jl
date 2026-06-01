@@ -157,34 +157,9 @@ function update_mechanical_work!(work, system, eachparticle,
     # Note that the systems and NHS have already been updated by the
     # `PostprocessCallback` before calling this function.
     @trixi_timeit timer() "calculate mechanical work" begin
-        set_zero!(dv)
-
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
-        foreach_system(semi) do neighbor_system
-            if only_compute_force_on_fluid && !(neighbor_system isa AbstractFluidSystem)
-                # Not a fluid system, ignore this system
-                return nothing
-            end
-
-            v_neighbor = wrap_v(v_ode, neighbor_system, semi)
-            u_neighbor = wrap_u(u_ode, neighbor_system, semi)
-
-            interact!(dv, v, u, v_neighbor, u_neighbor,
-                      system, neighbor_system, semi,
-                      integrate_tlsph=true, # Required when using split integration
-                      eachparticle=eachparticle)
-
-            return nothing
-        end
-
-        if !only_compute_force_on_fluid
-            @threaded semi for particle in eachparticle
-                add_acceleration!(dv, system, particle)
-                add_source_terms_inner!(dv, v, u, particle, system, source_terms(system), t)
-            end
-        end
+        v = compute_structure_acceleration!(dv, system, eachparticle,
+                                            only_compute_force_on_fluid,
+                                            v_ode, u_ode, semi, t)
 
         # Note that this is a reduction, so we cannot use `@threaded` here.
         for particle in eachparticle
@@ -202,4 +177,39 @@ function update_mechanical_work!(work, system, eachparticle,
     end
 
     return work
+end
+
+function compute_structure_acceleration!(dv, system, eachparticle,
+                                         only_compute_force_on_fluid,
+                                         v_ode, u_ode, semi, t)
+    set_zero!(dv)
+
+    v = wrap_v(v_ode, system, semi)
+    u = wrap_u(u_ode, system, semi)
+
+    foreach_system(semi) do neighbor_system
+        if only_compute_force_on_fluid && !(neighbor_system isa AbstractFluidSystem)
+            # Not a fluid system, ignore this system.
+            return nothing
+        end
+
+        v_neighbor = wrap_v(v_ode, neighbor_system, semi)
+        u_neighbor = wrap_u(u_ode, neighbor_system, semi)
+
+        interact!(dv, v, u, v_neighbor, u_neighbor,
+                  system, neighbor_system, semi,
+                  integrate_tlsph=true, # Required when using split integration
+                  eachparticle=eachparticle)
+
+        return nothing
+    end
+
+    if !only_compute_force_on_fluid
+        @threaded semi for particle in eachparticle
+            add_acceleration!(dv, system, particle)
+            add_source_terms_inner!(dv, v, u, particle, system, source_terms(system), t)
+        end
+    end
+
+    return v
 end
