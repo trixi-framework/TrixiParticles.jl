@@ -304,7 +304,7 @@ function (calculator::ThrustCalculator)(system, dv_ode, du_ode, v_ode, u_ode, se
     end
 
     @trixi_timeit timer() "calculate thrust" begin
-        calculator.thrust = update_thrust!(system, calculator.eachparticle,
+        calculator.thrust = compute_thrust(system, calculator.eachparticle,
                                            calculator.direction,
                                            calculator.dv, v_ode, u_ode, semi, t)
     end
@@ -312,8 +312,11 @@ function (calculator::ThrustCalculator)(system, dv_ode, du_ode, v_ode, u_ode, se
     return calculator.thrust
 end
 
-function update_thrust!(system, eachparticle, direction, dv, v_ode, u_ode, semi, t)
-    compute_structure_acceleration!(dv, system, eachparticle, true, v_ode, u_ode, semi, t)
+function compute_thrust(system, eachparticle, direction, dv, v_ode, u_ode, semi, t)
+    v = wrap_v(v_ode, system, semi)
+    u = wrap_u(u_ode, system, semi)
+    compute_structure_acceleration!(dv, v, u, system, eachparticle, true,
+                                    v_ode, u_ode, semi, t)
 
     return projected_force(dv, system, eachparticle, direction)
 end
