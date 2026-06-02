@@ -1,9 +1,15 @@
 # ==========================================================================================
 # 2D Interphase Drag Example
 #
-# This example demonstrates a custom ordered-pair interaction in the `interaction_matrix`.
-# A water layer and an oil layer start with opposite horizontal velocities. The custom
-# interaction keeps the default fluid coupling and adds tangential drag across the interface.
+# This example shows how to replace entries of the `interaction_matrix` with a custom
+# interaction function. The entry `interaction_matrix[i, j]` controls how forces on
+# system `i` are computed from particles of system `j`.
+#
+# Here, water and oil are stacked in two layers and move horizontally in opposite
+# directions. The custom interaction first applies the default fluid interaction, then
+# adds an extra drag term that damps tangential slip across the water-oil interface.
+# Since the matrix entries are directional, both water-from-oil and oil-from-water
+# entries are set below.
 # ==========================================================================================
 
 using TrixiParticles
@@ -75,8 +81,7 @@ function (drag::InterfacialTangentialDrag)(dv, v_system, u_system,
     neighbor_coords = TrixiParticles.current_coordinates(u_neighbor, neighbor)
 
     TrixiParticles.foreach_point_neighbor(system, neighbor, system_coords,
-                                          neighbor_coords,
-                                          semi;
+                                          neighbor_coords, semi;
                                           points=eachparticle) do particle,
                                                                   neighbor_particle,
                                                                   pos_diff,
@@ -84,9 +89,8 @@ function (drag::InterfacialTangentialDrag)(dv, v_system, u_system,
         v_a = TrixiParticles.current_velocity(v_system, system, particle)
         v_b = TrixiParticles.current_velocity(v_neighbor, neighbor, neighbor_particle)
         velocity_difference = v_b - v_a
-        normal_velocity_difference = sum(velocity_difference[i] *
-                                         drag.interface_normal[i]
-                                         for i in 1:ndims(system))
+        normal_velocity_difference = velocity_difference' * drag.interface_normal
+
 
         rho_a = TrixiParticles.current_density(v_system, system, particle)
         rho_b = TrixiParticles.current_density(v_neighbor, neighbor, neighbor_particle)
@@ -106,8 +110,8 @@ function (drag::InterfacialTangentialDrag)(dv, v_system, u_system,
     return dv
 end
 
-# `true` keeps the default interaction, while a callable handles the interaction for that
-# ordered pair. This callable calls the default interaction before adding drag. Since the
+# `true` keeps the default interaction, while a method handles the interaction for that
+# ordered pair. This method calls the default interaction before adding drag. Since the
 # matrix is ordered, reciprocal coupling needs both entries.
 interfacial_drag = InterfacialTangentialDrag(1.0e3, (0.0, 1.0))
 interaction_matrix = Matrix{Union{Bool, typeof(interfacial_drag)}}(trues(2, 2))
