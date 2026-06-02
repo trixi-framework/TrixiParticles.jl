@@ -15,16 +15,17 @@ The semidiscretization couples the passed systems to one simulation.
                             and the examples below for more details.
                             To use a periodic domain, pass a [`PeriodicBox`](@ref) to the
                             neighborhood search.
-- `parallelization_backend=PolyesterBackend()`: Backend used for thread-parallel loops,
-                            including the generic neighborhood-search update paths.
+- `parallelization_backend=PolyesterBackend()`: Backend used for thread-parallel loops.
                             Pass `SerialBackend()` to disable thread parallelization.
-- `interaction_matrix=trues(n_systems, n_systems)`: Matrix controlling interactions of each
-                            system-neighbor pair after filtering out `nothing` systems.
+                            See [the docs](@ref gpu_support) on how to use GPU backends.
+- `interaction_matrix=trues(n_systems, n_systems)`: Matrix controlling ordered system-pair
+                            interactions after filtering out `nothing` systems. Rows refer
+                            to the system being updated and columns to the neighbor system.
                             `A[i, j] == true` uses the default interaction for computing forces
                             on system `i` by particles of system `j`. `A[i, j] == false` disables
                             the interaction. Set a matrix entry to a method with
                             the same arguments as `interact!(...; kwargs...)` to use a custom
-                            interaction function for this forces computation. Disabled
+                            interaction function for this force computation. Disabled
                             pairs are skipped in the RHS and in auxiliary neighbor loops such as
                             density summation, correction factors, surface normals, pressure
                             extrapolation, and particle shifting. The semidiscretization still
@@ -66,7 +67,7 @@ semi = Semidiscretization(fluid_system, boundary_system;
 │ eltype: …………………………………………………………… Float64                                                          │
 │ coordinates eltype: …………………………… Float64                                                          │
 │ interaction matrix: …………………………… 1 disabled, 0 custom                                             │
-│ disabled pairs: ……………………………………… 1 -> 2                                                           │
+│ disabled interactions: ……………………………………… 1 -> 2                                                           │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
@@ -97,16 +98,12 @@ struct Semidiscretization{BACKEND, S, RU, RV, NS, IM, UCU, IT}
     end
 end
 
-function default_interaction_matrix(systems::Tuple)
+function create_interaction_matrix(::Nothing, systems)
     n_systems = length(systems)
     return trues(n_systems, n_systems)
 end
 
-function create_interaction_matrix(::Nothing, systems::Tuple)
-    return default_interaction_matrix(systems)
-end
-
-function create_interaction_matrix(interaction_matrix, systems::Tuple)
+function create_interaction_matrix(interaction_matrix, systems)
     n_systems = length(systems)
     if size(interaction_matrix) != (n_systems, n_systems)
         throw(ArgumentError("`interaction_matrix` must have size " *
@@ -119,13 +116,12 @@ function create_interaction_matrix(interaction_matrix, systems::Tuple)
     for entry in interaction_matrix
         if !is_interaction_entry(entry)
             throw(ArgumentError("`interaction_matrix` entries must be `true`, `false`, " *
-                                "or callable custom interactions, but found " *
-                                "`$(typeof(entry))`"))
+                                "or methods, but found `$(typeof(entry))`"))
         end
     end
 
-    # Materialize to a one-based `Matrix`. Rebuild abstractly typed matrices from the
-    # concrete entry types to avoid dynamic dispatch and allocations in pairwise loops.
+    # Rebuild abstractly typed matrices from the concrete entry types
+    # to avoid dynamic dispatch and allocations in pairwise loops.
     if !all(isconcretetype, Base.uniontypes(eltype(interaction_matrix)))
         entry_types = unique(map(typeof, interaction_matrix))
         return Matrix{Union{entry_types...}}(interaction_matrix)
