@@ -45,26 +45,12 @@
         return dv
     end
 
-    struct TestInteraction
-        calls::Base.RefValue{Int}
-    end
-    TestInteraction() = TestInteraction(Ref(0))
-
-    function (interaction::TestInteraction)(dv, v_system, u_system, v_neighbor,
-                                            u_neighbor, system, neighbor, semi;
-                                            kwargs...)
-        interaction.calls[] += 1
-        dv[1, 1] += 50
-        return dv
-    end
-
     @testset verbose=true "Constructor" begin
         semi = Semidiscretization(system1, system2, neighborhood_search=nothing)
 
         # Verification
         @test semi.ranges_u == (1:6, 7:15)
         @test semi.ranges_v == (1:6, 7:18)
-        @test semi.interaction_matrix == trues(2, 2)
 
         nhs = [TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
                eachpoint=1:2)
@@ -75,61 +61,6 @@
                TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
                eachpoint=1:3)]
         @test semi.neighborhood_searches == nhs
-
-        @test_throws ArgumentError Semidiscretization(system1, system2;
-                                                      neighborhood_search=nothing,
-                                                      interaction_matrix=trues(1, 1))
-
-        @test_throws ArgumentError Semidiscretization(system1, system2;
-                                                      neighborhood_search=nothing,
-                                                      interaction_matrix=Any[true 1;
-                                                                             false true])
-
-        semi_any_bool = Semidiscretization(system1, system2;
-                                           neighborhood_search=nothing,
-                                           interaction_matrix=Any[true false;
-                                                                  false true])
-        @test semi_any_bool.interaction_matrix isa Matrix{Bool}
-        @test semi_any_bool.interaction_matrix == [true false; false true]
-
-        matrix_parent = trues(3, 3)
-        interaction_matrix_view = @view matrix_parent[1:2, 1:2]
-        semi_matrix_view = Semidiscretization(system1, system2;
-                                              neighborhood_search=nothing,
-                                              interaction_matrix=interaction_matrix_view)
-        matrix_parent[1, 2] = false
-        @test semi_matrix_view.interaction_matrix isa Matrix{Bool}
-        @test axes(semi_matrix_view.interaction_matrix) == (Base.OneTo(2), Base.OneTo(2))
-        @test semi_matrix_view.interaction_matrix == trues(2, 2)
-
-        abstract_union_matrix = Matrix{Union{Bool, Function}}(trues(2, 2))
-        semi_abstract_union = Semidiscretization(system1, system2;
-                                                 neighborhood_search=nothing,
-                                                 interaction_matrix=abstract_union_matrix)
-        @test semi_abstract_union.interaction_matrix isa Matrix{Bool}
-        @test semi_abstract_union.interaction_matrix == trues(2, 2)
-
-        interaction = TestInteraction()
-        interaction_matrix = Matrix{Union{Bool, typeof(interaction)}}(trues(2, 2))
-        interaction_matrix[1, 2] = interaction
-        semi_custom = Semidiscretization(system1, system2;
-                                         neighborhood_search=nothing,
-                                         interaction_matrix)
-        interaction_matrix[1, 2] = false
-
-        @test semi_custom.interaction_matrix[1, 2] === interaction
-
-        interaction_any = TestInteraction()
-        interaction_matrix_any = Any[true interaction_any;
-                                     false true]
-        semi_any_custom = Semidiscretization(system1, system2;
-                                             neighborhood_search=nothing,
-                                             interaction_matrix=interaction_matrix_any)
-        interaction_matrix_any[1, 2] = false
-
-        @test eltype(semi_any_custom.interaction_matrix) ==
-              Union{Bool, typeof(interaction_any)}
-        @test semi_any_custom.interaction_matrix[1, 2] === interaction_any
     end
 
     @testset verbose=true "Check Configuration" begin
@@ -237,6 +168,19 @@
     end
 
     @testset verbose=true "Interaction Matrix" begin
+        struct TestInteraction
+            calls::Base.RefValue{Int}
+        end
+        TestInteraction() = TestInteraction(Ref(0))
+
+        function (interaction::TestInteraction)(dv, v_system, u_system, v_neighbor,
+                                                u_neighbor, system, neighbor, semi;
+                                                kwargs...)
+            interaction.calls[] += 1
+            dv[1, 1] += 50
+            return dv
+        end
+
         function zero_ode_state(semi)
             n_u = sum(TrixiParticles.u_nvariables(system) *
                       TrixiParticles.n_integrated_particles(system)
@@ -340,6 +284,66 @@
                                                       u, v_ode, u_ode, semi)
 
             return copy(system.cache.kernel_correction_coefficient), semi
+        end
+
+        @testset "constructor" begin
+            semi = Semidiscretization(system1, system2, neighborhood_search=nothing)
+            @test semi.interaction_matrix == trues(2, 2)
+
+            @test_throws ArgumentError Semidiscretization(system1, system2;
+                                                          neighborhood_search=nothing,
+                                                          interaction_matrix=trues(1, 1))
+
+            @test_throws ArgumentError Semidiscretization(system1, system2;
+                                                          neighborhood_search=nothing,
+                                                          interaction_matrix=Any[true 1;
+                                                                                 false true])
+
+            semi_any_bool = Semidiscretization(system1, system2;
+                                               neighborhood_search=nothing,
+                                               interaction_matrix=Any[true false;
+                                                                      false true])
+            @test semi_any_bool.interaction_matrix isa Matrix{Bool}
+            @test semi_any_bool.interaction_matrix == [true false; false true]
+
+            matrix_parent = trues(3, 3)
+            interaction_matrix_view = @view matrix_parent[1:2, 1:2]
+            semi_matrix_view = Semidiscretization(system1, system2;
+                                                  neighborhood_search=nothing,
+                                                  interaction_matrix=interaction_matrix_view)
+            matrix_parent[1, 2] = false
+            @test semi_matrix_view.interaction_matrix isa Matrix{Bool}
+            @test axes(semi_matrix_view.interaction_matrix) == (Base.OneTo(2), Base.OneTo(2))
+            @test semi_matrix_view.interaction_matrix == trues(2, 2)
+
+            abstract_union_matrix = Matrix{Union{Bool, Function}}(trues(2, 2))
+            semi_abstract_union = Semidiscretization(system1, system2;
+                                                     neighborhood_search=nothing,
+                                                     interaction_matrix=abstract_union_matrix)
+            @test semi_abstract_union.interaction_matrix isa Matrix{Bool}
+            @test semi_abstract_union.interaction_matrix == trues(2, 2)
+
+            interaction = TestInteraction()
+            interaction_matrix = Matrix{Union{Bool, typeof(interaction)}}(trues(2, 2))
+            interaction_matrix[1, 2] = interaction
+            semi_custom = Semidiscretization(system1, system2;
+                                             neighborhood_search=nothing,
+                                             interaction_matrix)
+            interaction_matrix[1, 2] = false
+
+            @test semi_custom.interaction_matrix[1, 2] === interaction
+
+            interaction_any = TestInteraction()
+            interaction_matrix_any = Any[true interaction_any;
+                                         false true]
+            semi_any_custom = Semidiscretization(system1, system2;
+                                                 neighborhood_search=nothing,
+                                                 interaction_matrix=interaction_matrix_any)
+            interaction_matrix_any[1, 2] = false
+
+            @test eltype(semi_any_custom.interaction_matrix) ==
+                  Union{Bool, typeof(interaction_any)}
+            @test semi_any_custom.interaction_matrix[1, 2] === interaction_any
         end
 
         @testset "disabled pairs skip ordered RHS dispatch" begin
@@ -477,7 +481,10 @@
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", semi) == show_box
 
-        interaction = TestInteraction()
+        struct ShowInteraction end
+        (::ShowInteraction)(args...; kwargs...) = nothing
+
+        interaction = ShowInteraction()
         interaction_matrix = Matrix{Union{Bool, typeof(interaction)}}(trues(2, 2))
         interaction_matrix[1, 2] = false
         interaction_matrix[2, 1] = interaction
@@ -501,7 +508,7 @@
         │ coordinates eltype: …………………………… Float32                                                          │
         │ interaction matrix: …………………………… 1 disabled, 1 custom                                             │
         │ disabled pairs: ……………………………………… 1 -> 2                                                           │
-        │ custom pairs: …………………………………………… 2 -> 1 (TestInteraction)                                         │
+        │ custom pairs: …………………………………………… 2 -> 1 (ShowInteraction)                                         │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", semi_custom) == show_custom_box
     end
