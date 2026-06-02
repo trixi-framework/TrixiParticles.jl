@@ -539,8 +539,12 @@ end
             pos_diff = convert.(eltype(system), pos_diff_)
 
             # The tensor product pos_diff ⊗ (L_{0a} * ∇W) is equivalent to multiplication
-            # by the transpose: pos_diff * (L_{0a} * ∇W)ᵀ = pos_diff * ∇Wᵀ * L_{0a}ᵀ.
-            result[] -= volume * pos_diff * grad_kernel' * L_a'
+            # by the transpose: pos_diff * (L_{0a} * ∇W)ᵀ = (L_{0a} * ∇W * pos_diffᵀ)ᵀ
+            # The original form is:
+            #   -volume * pos_diff * (L_a * grad_kernel)'
+            # Equivalent transposed form that is much faster in 3D:
+            F_T = -volume * L_a * grad_kernel * pos_diff'
+            result[] += F_T'
         end
 
         for j in 1:ndims(system), i in 1:ndims(system)
