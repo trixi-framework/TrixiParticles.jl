@@ -67,7 +67,7 @@ semi = Semidiscretization(fluid_system, boundary_system;
 │ eltype: …………………………………………………………… Float64                                                          │
 │ coordinates eltype: …………………………… Float64                                                          │
 │ interaction matrix: …………………………… 1 disabled, 0 custom                                             │
-│ disabled interactions: ……………………………………… 1 -> 2                                                           │
+│ disabled pairs: ……………………………………… 1 -> 2                                                           │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
