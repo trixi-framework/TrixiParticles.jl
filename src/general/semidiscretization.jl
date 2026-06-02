@@ -50,7 +50,7 @@ semi = Semidiscretization(fluid_system, boundary_system,
                           neighborhood_search=nothing)
 
 interaction_matrix = trues(2, 2)
-interaction_matrix[1, 2] = false # Skip forces on fluid_system from boundary_system
+interaction_matrix[1, 2] = false # `fluid_system` skips interactions with `boundary_system`
 semi = Semidiscretization(fluid_system, boundary_system;
                           neighborhood_search=nothing,
                           interaction_matrix=interaction_matrix)
