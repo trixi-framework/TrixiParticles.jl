@@ -42,6 +42,9 @@ function interact!(dv, v_particle_system, u_particle_system,
         rho_a = @inbounds current_density(v_particle_system, particle_system, particle)
         rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
 
+        v_a = @inbounds current_velocity(v_particle_system, particle_system, particle)
+        v_b = @inbounds current_velocity(v_neighbor_system, neighbor_system, neighbor)
+
         p_a = @inbounds current_pressure(v_particle_system, particle_system, particle)
         p_b = @inbounds current_pressure(v_neighbor_system, neighbor_system, neighbor)
 
@@ -62,19 +65,18 @@ function interact!(dv, v_particle_system, u_particle_system,
                                             rho_b, pos_diff, distance, grad_kernel,
                                             correction)
 
-        dv_viscosity_ = @inbounds dv_viscosity(particle_system, neighbor_system,
-                                               v_particle_system, v_neighbor_system,
-                                               particle, neighbor, pos_diff, distance,
-                                               sound_speed, m_a, m_b, rho_a, rho_b,
-                                               grad_kernel)
-
-        dv_particle = Ref(dv_pressure + dv_viscosity_)
+        dv_particle = Ref(dv_pressure)
+        @inbounds dv_viscosity!(dv_particle, particle_system, neighbor_system,
+                                v_particle_system, v_neighbor_system,
+                                particle, neighbor, pos_diff, distance,
+                                sound_speed, m_a, m_b, rho_a, rho_b,
+                                v_a, v_b, grad_kernel)
 
         # Extra terms in the momentum equation when using a shifting technique
         @inbounds dv_shifting!(dv_particle, shifting_technique(particle_system),
                                particle_system, neighbor_system,
                                v_particle_system, v_neighbor_system,
-                               particle, neighbor, m_a, m_b, rho_a, rho_b,
+                               particle, neighbor, m_a, m_b, rho_a, rho_b, v_a, v_b,
                                pos_diff, distance, grad_kernel, correction)
 
         @inbounds surface_tension_force!(dv_particle, surface_tension_a,
@@ -91,19 +93,24 @@ function interact!(dv, v_particle_system, u_particle_system,
             @inbounds dv[i, particle] += dv_particle[][i]
         end
 
-        v_diff = current_velocity(v_particle_system, particle_system, particle) -
-                 current_velocity(v_neighbor_system, neighbor_system, neighbor)
+        v_a = current_velocity(v_particle_system, particle_system, particle)
+        v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
+        v_diff = v_a - v_b
 
         pressure_evolution!(dv, particle_system, neighbor_system, v_diff, grad_kernel,
                             particle, neighbor, pos_diff, distance,
                             sound_speed, m_a, m_b, p_a, p_b, rho_a, rho_b, nu_edac)
 
+        drho_particle = Ref(zero(rho_a))
+
         # TODO If variable smoothing_length is used, this should use the neighbor smoothing length
         # Propagate `@inbounds` to the continuity equation, which accesses particle data
-        @inbounds continuity_equation!(dv, density_calculator, particle_system,
-                                       neighbor_system, v_particle_system,
-                                       v_neighbor_system, particle, neighbor,
-                                       pos_diff, distance, m_b, rho_a, rho_b, grad_kernel)
+        @inbounds continuity_equation!(drho_particle, density_calculator,
+                                       particle_system, neighbor_system,
+                                       particle, neighbor, pos_diff, distance,
+                                       m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+
+        @inbounds write_drho_particle!(dv, density_calculator, drho_particle, particle)
     end
 
     return dv

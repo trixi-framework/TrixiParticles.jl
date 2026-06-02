@@ -1,4 +1,4 @@
-module TrixiParticlesOrdinaryDiffEqExt
+module TrixiParticlesOrdinaryDiffEqSymplecticRKExt
 
 # This package extension defines the `SymplecticPositionVerlet` scheme from DualSPHysics.
 # The scheme is similar to the `LeapfrogDriftKickDrift` scheme, but with a different
@@ -12,8 +12,8 @@ using TrixiParticles: TrixiParticles, @threaded, each_integrated_particle,
                       WeaklyCompressibleSPHSystem, ContinuityDensity,
                       PointNeighbors
 
-using OrdinaryDiffEq.OrdinaryDiffEqSymplecticRK: alloc_symp_state, load_symp_state,
-                                                 store_symp_state!
+using OrdinaryDiffEqSymplecticRK: alloc_symp_state, load_symp_state,
+                                  store_symp_state!
 
 using OrdinaryDiffEqCore: OrdinaryDiffEqCore, @.., @muladd, @cache,
                           OrdinaryDiffEqPartitionedAlgorithm,
@@ -43,21 +43,6 @@ function OrdinaryDiffEqCore.get_fsalfirstlast(cache::SymplecticPositionVerletCac
     return (cache.fsalfirst, cache.k)
 end
 
-# Legacy version for OrdinaryDiffEqCore < 3 (OrdinaryDiffEq < v6.106.0)
-function OrdinaryDiffEqCore.alg_cache(alg::SymplecticPositionVerlet, u, rate_prototype,
-                                      ::Type{uEltypeNoUnits},
-                                      ::Type{uBottomEltypeNoUnits}, ::Type{tTypeNoUnits},
-                                      uprev, uprev2, f, t, dt, reltol, p, calck,
-                                      ::Val{true}) where {uEltypeNoUnits,
-                                                          uBottomEltypeNoUnits,
-                                                          tTypeNoUnits}
-    tmp = zero(u)
-    k = zero(rate_prototype)
-    fsalfirst = zero(rate_prototype)
-    half = uEltypeNoUnits(1 // 2)
-    SymplecticPositionVerletCache(u, uprev, tmp, k, fsalfirst, half)
-end
-
 function OrdinaryDiffEqCore.alg_cache(alg::SymplecticPositionVerlet, u, rate_prototype,
                                       ::Type{uEltypeNoUnits},
                                       ::Type{uBottomEltypeNoUnits}, ::Type{tTypeNoUnits},
@@ -78,9 +63,10 @@ function OrdinaryDiffEqCore.alg_cache(alg::SymplecticPositionVerlet, u, rate_pro
                                       ::Type{uBottomEltypeNoUnits}, ::Type{tTypeNoUnits},
                                       uprev, uprev2, f, t,
                                       dt, reltol, p, calck,
-                                      ::Val{false}) where {uEltypeNoUnits,
-                                                           uBottomEltypeNoUnits,
-                                                           tTypeNoUnits}
+                                      ::Val{false},
+                                      verbose) where {uEltypeNoUnits,
+                                                      uBottomEltypeNoUnits,
+                                                      tTypeNoUnits}
     # We only use inplace functions in TrixiParticles, so there is no point
     # in implementing the non-inplace version.
     error("`SymplecticPositionVerlet` supports only in-place functions")
@@ -121,7 +107,7 @@ end
 
     # The following is equivalent to `du = duprev + dt * kdu` for the velocity, but when
     # the density is integrated, a different update is used for the density.
-    semi = p
+    semi = p.semi
     TrixiParticles.foreach_system(semi) do system
         kdu_system = TrixiParticles.wrap_v(kdu, system, semi)
         du_system = TrixiParticles.wrap_v(du, system, semi)

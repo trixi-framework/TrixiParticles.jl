@@ -35,15 +35,16 @@ end
 # `rho_mean` is the mean density of the fluid, which is used to determine correction values near the free surface.
 #  Return a tuple `(viscosity_correction, pressure_correction, surface_tension_correction)` representing the correction terms.
 @inline function free_surface_correction(correction::AkinciFreeSurfaceCorrection,
-                                         particle_system, rho_mean)
+                                         particle_system, rho_a, rho_b)
     # Equation 4 in ref
+    rho_mean = (rho_a + rho_b) / 2
     k = correction.rho0 / rho_mean
 
     # Viscosity, pressure, surface_tension
     return k, 1, k
 end
 
-@inline function free_surface_correction(correction, particle_system, rho_mean)
+@inline function free_surface_correction(correction, particle_system, rho_a, rho_b)
     return 1, 1, 1
 end
 
@@ -325,7 +326,9 @@ function compute_gradient_correction_matrix!(corr_matrix, system, coordinates, d
 
         volume = @inbounds mass[neighbor] / density_fun(neighbor)
 
-        result = volume * grad_kernel * pos_diff'
+        # This is the same as using `transpose`, but it's faster due to
+        # https://github.com/JuliaLang/LinearAlgebra.jl/issues/1102.
+        result = volume * grad_kernel * permutedims(pos_diff)
 
         for j in 1:ndims(system), i in 1:ndims(system)
             @inbounds corr_matrix[i, j, particle] -= result[i, j]
@@ -379,7 +382,9 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
             volume = hydrodynamic_mass(neighbor_system, neighbor) /
                      current_density(v_neighbor_system, neighbor_system, neighbor)
 
-            L = volume * grad_kernel * pos_diff'
+            # This is the same as using `transpose`, but it's faster due to
+            # https://github.com/JuliaLang/LinearAlgebra.jl/issues/1102.
+            L = volume * grad_kernel * permutedims(pos_diff)
 
             # pos_diff is always x_a - x_b hence * -1 to switch the order to x_b - x_a
             @inbounds for j in 1:ndims(system), i in 1:ndims(system)

@@ -41,20 +41,20 @@ function interact!(dv, v_particle_system, u_particle_system,
         rho_a = @inbounds current_density(v_particle_system, particle_system, particle)
         rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
 
+        v_a = @inbounds current_velocity(v_particle_system, particle_system, particle)
+        v_b = @inbounds current_velocity(v_neighbor_system, neighbor_system, neighbor)
+
         m_a = @inbounds hydrodynamic_mass(particle_system, particle)
         m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
 
+        p_a = @inbounds current_pressure(v_particle_system, particle_system, particle)
         # The following call is equivalent to
-        #     `p_a = particle_pressure(v_particle_system, particle_system, particle)`
-        #     `p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)`
-        # Only when the neighbor system is a `WallBoundarySystem` or a `TotalLagrangianSPHSystem`
-        # with the boundary model `PressureMirroring`, this will return `p_b = p_a`, which is
-        # the pressure of the fluid particle.
-        p_a,
-        p_b = @inbounds particle_neighbor_pressure(v_particle_system,
-                                                   v_neighbor_system,
-                                                   particle_system, neighbor_system,
-                                                   particle, neighbor)
+        #     `p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)`
+        # Only when the neighbor system is a `WallBoundarySystem`
+        # or a `TotalLagrangianSPHSystem` with the boundary model `PressureMirroring`,
+        # this will return `p_b = p_a`, which is the pressure of the fluid particle.
+        p_b = @inbounds neighbor_pressure(v_neighbor_system, neighbor_system,
+                                          neighbor, p_a)
 
         dv_pressure = pressure_acceleration(particle_system, neighbor_system,
                                             particle, neighbor,
@@ -62,14 +62,15 @@ function interact!(dv, v_particle_system, u_particle_system,
                                             distance, grad_kernel, nothing)
 
         # Propagate `@inbounds` to the viscosity function, which accesses particle data
-        dv_viscosity_ = @inbounds dv_viscosity(particle_system, neighbor_system,
-                                               v_particle_system, v_neighbor_system,
-                                               particle, neighbor, pos_diff, distance,
-                                               sound_speed, m_a, m_b, rho_a, rho_b,
-                                               grad_kernel)
+        dv_viscosity_ = Ref(zero(pos_diff))
+        @inbounds dv_viscosity!(dv_viscosity_, particle_system, neighbor_system,
+                                v_particle_system, v_neighbor_system,
+                                particle, neighbor, pos_diff, distance,
+                                sound_speed, m_a, m_b, rho_a, rho_b,
+                                v_a, v_b, grad_kernel)
 
         for i in 1:ndims(particle_system)
-            @inbounds dv[i, particle] += dv_pressure[i] + dv_viscosity_[i]
+            @inbounds dv[i, particle] += dv_pressure[i] + dv_viscosity_[][i]
         end
     end
     return dv
