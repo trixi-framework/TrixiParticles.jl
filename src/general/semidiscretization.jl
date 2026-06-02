@@ -97,7 +97,7 @@ function create_interaction_matrix(::Nothing, systems)
     return trues(n_systems, n_systems)
 end
 
-function create_interaction_matrix(interaction_matrix, systems::Tuple)
+function create_interaction_matrix(interaction_matrix, systems)
     n_systems = length(systems)
     if size(interaction_matrix) != (n_systems, n_systems)
         throw(ArgumentError("`interaction_matrix` must have size " *
