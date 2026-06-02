@@ -22,15 +22,14 @@ boundary_layers = 4
 # Make sure that the kernel support of fluid particles at an open boundary is always
 # fully sampled.
 # Note: Due to the dynamics at the inlets and outlets of open boundaries,
-# it is recommended to use `open_boundary_layers > boundary_layers`
+# it is recommended to use `open_boundary_layers > boundary_layers`.
 open_boundary_layers = 8
 
 # ==========================================================================================
 # ==== Experiment Setup
 tspan = (0.0, 4.0)
 
-# Boundary geometry and initial fluid particle positions
-# For better results the domain_size should be increased to
+# We use a smaller domain for a faster runtime. The original domain size in the paper is
 # domain_size = (25 * cylinder_diameter, 20 * cylinder_diameter)
 domain_size = (20 * cylinder_diameter, 10 * cylinder_diameter)
 open_boundary_size = (particle_spacing * open_boundary_layers, domain_size[2])
@@ -65,7 +64,7 @@ outlet = RectangularTank(particle_spacing, open_boundary_size, open_boundary_siz
                          faces=(false, false, true, true),
                          coordinates_eltype=Float64)
 
-n_buffer_particles = 20 * pipe.n_particles_per_dimension[2]
+n_buffer_particles = nparticles(inlet.fluid)
 
 cylinder_center = (5 * cylinder_diameter, domain_size[2] / 2)
 cylinder = SphereShape(particle_spacing, cylinder_diameter / 2,
@@ -104,12 +103,12 @@ face_in = ([0.0, 0.0], [0.0, domain_size[2]])
 inflow = BoundaryZone(; boundary_face=face_in, face_normal=flow_direction,
                       open_boundary_layers, density=fluid_density, particle_spacing,
                       reference_velocity=prescribed_velocity * flow_direction,
-                      initial_condition=inlet.fluid, boundary_type=InFlow())
+                      initial_condition=inlet.fluid)
 
 face_out = ([min_coords_outlet[1], 0.0], [min_coords_outlet[1], domain_size[2]])
 outflow = BoundaryZone(; boundary_face=face_out, face_normal=(-flow_direction),
                        open_boundary_layers, density=fluid_density, particle_spacing,
-                       initial_condition=outlet.fluid, boundary_type=OutFlow())
+                       initial_condition=outlet.fluid)
 
 open_boundary = OpenBoundarySystem(inflow, outflow; fluid_system,
                                    boundary_model=open_boundary_model,
@@ -119,6 +118,7 @@ open_boundary = OpenBoundarySystem(inflow, outflow; fluid_system,
 # ==========================================================================================
 # ==== Boundary
 wall = union(pipe.boundary, inlet.boundary, outlet.boundary)
+# Free-slip boundary condition for the wall.
 boundary_model_wall = BoundaryModelDummyParticles(wall.density, wall.mass,
                                                   AdamiPressureExtrapolation(),
                                                   smoothing_kernel, smoothing_length;
@@ -126,6 +126,7 @@ boundary_model_wall = BoundaryModelDummyParticles(wall.density, wall.mass,
 
 boundary_system_wall = WallBoundarySystem(wall, boundary_model_wall)
 
+# No-slip boundary condition for the cylinder.
 boundary_model_cylinder = BoundaryModelDummyParticles(cylinder.density, cylinder.mass,
                                                       AdamiPressureExtrapolation(),
                                                       smoothing_kernel, smoothing_length;
@@ -135,9 +136,8 @@ boundary_system_cylinder = WallBoundarySystem(cylinder, boundary_model_cylinder)
 
 # ==========================================================================================
 # ==== Simulation
-boundary = union(wall, cylinder)
-min_corner = minimum(boundary.coordinates .- particle_spacing, dims=2)
-max_corner = maximum(boundary.coordinates .+ particle_spacing, dims=2)
+min_corner = minimum(wall.coordinates .- particle_spacing, dims=2)
+max_corner = maximum(wall.coordinates .+ particle_spacing, dims=2)
 
 nhs = GridNeighborhoodSearch{2}(; cell_list=FullGridCellList(; min_corner, max_corner),
                                 update_strategy=ParallelUpdate())
