@@ -134,40 +134,6 @@ function create_interaction_matrix(interaction_matrix, systems::Tuple)
     return Matrix{eltype(interaction_matrix)}(interaction_matrix)
 end
 
-function interaction_matrix_summary(semi)
-    disabled = count(entry -> entry === false, semi.interaction_matrix)
-    custom = count(entry -> !(entry isa Bool), semi.interaction_matrix)
-
-    if disabled == 0 && custom == 0
-        return nothing
-    end
-
-    return "$disabled disabled, $custom custom"
-end
-
-function disabled_interaction_pairs(semi)
-    pairs = String[]
-    for system_index in axes(semi.interaction_matrix, 1),
-        neighbor_index in axes(semi.interaction_matrix, 2)
-        semi.interaction_matrix[system_index, neighbor_index] === false || continue
-        push!(pairs, "$system_index -> $neighbor_index")
-    end
-
-    return isempty(pairs) ? nothing : join(pairs, ", ")
-end
-
-function custom_interaction_pairs(semi)
-    pairs = String[]
-    for system_index in axes(semi.interaction_matrix, 1),
-        neighbor_index in axes(semi.interaction_matrix, 2)
-        interaction = semi.interaction_matrix[system_index, neighbor_index]
-        interaction isa Bool && continue
-        push!(pairs, "$system_index -> $neighbor_index ($(nameof(typeof(interaction))))")
-    end
-
-    return isempty(pairs) ? nothing : join(pairs, ", ")
-end
-
 @inline is_interaction_entry(entry::Bool) = true
 
 function is_interaction_entry(entry)
@@ -279,6 +245,40 @@ function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
     end
 end
 
+function interaction_matrix_summary(semi)
+    disabled = count(entry -> entry === false, semi.interaction_matrix)
+    custom = count(entry -> !(entry isa Bool), semi.interaction_matrix)
+
+    if disabled == 0 && custom == 0
+        return nothing
+    end
+
+    return "$disabled disabled, $custom custom"
+end
+
+function disabled_interaction_pairs(semi)
+    pairs = String[]
+    for system_index in axes(semi.interaction_matrix, 1),
+        neighbor_index in axes(semi.interaction_matrix, 2)
+        semi.interaction_matrix[system_index, neighbor_index] === false || continue
+        push!(pairs, "$system_index -> $neighbor_index")
+    end
+
+    return isempty(pairs) ? nothing : join(pairs, ", ")
+end
+
+function custom_interaction_pairs(semi)
+    pairs = String[]
+    for system_index in axes(semi.interaction_matrix, 1),
+        neighbor_index in axes(semi.interaction_matrix, 2)
+        interaction = semi.interaction_matrix[system_index, neighbor_index]
+        interaction isa Bool && continue
+        push!(pairs, "$system_index -> $neighbor_index ($(nameof(typeof(interaction))))")
+    end
+
+    return isempty(pairs) ? nothing : join(pairs, ", ")
+end
+
 @inline function system_indices(system, semi)
     # Note that this takes only about 5 ns, while mapping systems to indices with a `Dict`
     # is ~30x slower because `hash(::System)` is very slow.
@@ -290,10 +290,6 @@ end
 
     return index
 end
-
-@inline has_system_interaction(system, neighbor_system, semi) = true
-
-@inline system_interaction(system, neighbor_system, semi) = true
 
 @inline function has_system_interaction(system, neighbor_system, semi::Semidiscretization)
     return is_enabled_interaction(system_interaction(system, neighbor_system, semi))
