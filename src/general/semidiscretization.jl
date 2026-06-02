@@ -110,8 +110,7 @@ function create_interaction_matrix(interaction_matrix, systems)
     for entry in interaction_matrix
         if !is_interaction_entry(entry)
             throw(ArgumentError("`interaction_matrix` entries must be `true`, `false`, " *
-                                "or callable custom interactions, but found " *
-                                "`$(typeof(entry))`"))
+                                "or methods, but found `$(typeof(entry))`"))
         end
     end
 
