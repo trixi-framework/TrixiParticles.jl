@@ -405,8 +405,8 @@ function interpolate_line(start, end_, n_points, semi, ref_system, v_ode, u_ode;
     points_coords_ = collect(reinterpret(reshape, eltype(start_svector), points_coords))
 
     return interpolate_points(points_coords_, semi, ref_system, v_ode, u_ode;
-                              smoothing_length=smoothing_length, include_wall_velocity,
-                              cut_off_bnd=cut_off_bnd, clip_negative_pressure)
+                              smoothing_length, include_wall_velocity, cut_off_bnd,
+                              clip_negative_pressure)
 end
 
 @doc raw"""
@@ -511,9 +511,27 @@ function process_neighborhood_searches(semi, u_ode, ref_system, smoothing_length
         u = wrap_u(u_ode, system, semi)
         system_coords = current_coordinates(u, system)
         old_nhs = get_neighborhood_search(ref_system, system, semi)
-        nhs = PointNeighbors.copy_neighborhood_search(old_nhs, search_radius,
-                                                      nparticles(system))
-        PointNeighbors.initialize!(nhs, point_coords, system_coords)
+
+        # `PointNeighbors.initialize!` is not GPU-compatible for every update strategy,
+        # so we need to initialize on the CPU and then adapt back to the GPU.
+        point_coords_cpu, system_coords_cpu = transfer2cpu(point_coords, system_coords)
+        if semi.parallelization_backend isa KernelAbstractions.GPU
+            old_nhs_cpu = Adapt.adapt(Array, old_nhs)
+        else
+            old_nhs_cpu = old_nhs
+        end
+
+        nhs_cpu = PointNeighbors.copy_neighborhood_search(old_nhs_cpu, search_radius,
+                                                          nparticles(system))
+
+        PointNeighbors.initialize!(nhs_cpu, point_coords_cpu, system_coords_cpu;
+                                   eachindex_y=each_active_particle(system))
+
+        if semi.parallelization_backend isa KernelAbstractions.GPU
+            nhs = Adapt.adapt(semi.parallelization_backend, nhs_cpu)
+        else
+            nhs = nhs_cpu
+        end
 
         return nhs
     end
@@ -555,8 +573,9 @@ end
     ref_id = system_indices(ref_system, semi)
     ref_smoothing_kernel = ref_system.smoothing_kernel
 
-    # If we don't cut at the boundary, we only need to iterate over the reference system
-    systems = cut_off_bnd ? semi : (ref_system,)
+    # If we neither cut off at the boundary nor include the boundary wall velocity,
+    # we only need to iterate over the reference system.
+    systems = (cut_off_bnd || include_wall_velocity) ? semi : (ref_system,)
 
     foreach_system(systems) do neighbor_system
         system_id = system_indices(neighbor_system, semi)
@@ -607,8 +626,9 @@ end
     end
 
     @threaded parallelization_backend for point in axes(point_coords, 2)
-        if other_density[point] > computed_density[point] ||
-           computed_density[point] < eps()
+        cut_off = computed_density[point] < eps() ||
+                  (cut_off_bnd && other_density[point] > computed_density[point])
+        if cut_off
             # Return NaN values that can be filtered out in ParaView
             computed_density[point] = NaN
             neighbor_count[point] = 0
@@ -637,8 +657,7 @@ end
         end
     end
 
-    return (; computed_density=computed_density, point_coords=point_coords,
-            neighbor_count=neighbor_count, cache...)
+    return (; computed_density, point_coords, neighbor_count, cache...)
 end
 
 @inline function create_cache_interpolation(ref_system::AbstractFluidSystem, n_points, semi)

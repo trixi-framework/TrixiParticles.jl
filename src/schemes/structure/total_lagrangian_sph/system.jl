@@ -1,13 +1,13 @@
 @doc raw"""
-    TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing_length,
-                             young_modulus, poisson_ratio;
-                             n_clamped_particles=0,
+    TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing_length,
+                             young_modulus, poisson_ratio,
                              clamped_particles=Int[],
                              clamped_particles_motion=nothing,
                              acceleration=ntuple(_ -> 0.0, NDIMS),
                              penalty_force=nothing, viscosity=nothing,
                              source_terms=nothing, boundary_model=nothing,
-                             self_interaction_nhs=:default)
+                             self_interaction_nhs=:default,
+                             velocity_averaging=nothing)
 
 System for particles of an elastic structure.
 
@@ -18,21 +18,16 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
 
 # Arguments
 - `initial_condition`:  Initial condition representing the system's particles.
-- `young_modulus`:      Young's modulus.
-- `poisson_ratio`:      Poisson ratio.
+
+# Keywords
 - `smoothing_kernel`:   Smoothing kernel to be used for this system.
                         See [Smoothing Kernels](@ref smoothing_kernel).
 - `smoothing_length`:   Smoothing length to be used for this system.
                         See [Smoothing Kernels](@ref smoothing_kernel).
-
-# Keywords
-- `n_clamped_particles` (deprecated): Number of clamped particles that are fixed and not integrated
-                         to clamp the structure. Note that the clamped particles must be the **last**
-                         particles in the `InitialCondition`. See the info box below.
-                         This keyword is deprecated and will be removed in a future release.
-                         Instead pass `clamped_particles` with the explicit particle indices to be clamped.
-- `clamped_particles`: Indices specifying the clamped particles that are fixed
-                       and not integrated to clamp the structure.
+- `young_modulus`:      Young's modulus.
+- `poisson_ratio`:      Poisson ratio.
+- `clamped_particles`:  Indices specifying the clamped particles that are fixed
+                        and not integrated to clamp the structure.
 - `clamped_particles_motion`: Prescribed motion of the clamped particles.
                     If `nothing` (default), the clamped particles are fixed.
                     See [`PrescribedMotion`](@ref) for details.
@@ -61,29 +56,25 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
                     `transpose_backend` of the [`PrecomputedNeighborhoodSearch`](@ref)
                     is set to `true` when running on GPUs and `false` on CPUs.
                     Alternatively, a user-defined neighborhood search can be passed here.
+- `velocity_averaging`: Velocity averaging technique to be applied on the velocity field
+                    to obtain an averaged velocity to be used in fluid-structure interaction.
+                    See [the docs](@ref velocity_averaging) for details.
 
 !!! note
-    If specifying the clamped particles manually (via `n_clamped_particles`),
-    the clamped particles must be the **last** particles in the `InitialCondition`.
-    To do so, e.g. use the `union` function:
+    To define `clamped_particles` conveniently, place the clamped block first and combine
+    initial conditions with `union`:
     ```jldoctest; output = false, setup = :(clamped_particles = RectangularShape(0.1, (1, 4), (0.0, 0.0), density=1.0); beam = RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0))
-    structure = union(beam, clamped_particles)
+    structure = union(clamped_particles, beam)
+    clamped_particle_indices = 1:nparticles(clamped_particles)
 
     # output
-    ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-    │ InitialCondition                                                                                 │
-    │ ════════════════                                                                                 │
-    │ #dimensions: ……………………………………………… 2                                                                │
-    │ #particles: ………………………………………………… 16                                                               │
-    │ particle spacing: ………………………………… 0.1                                                              │
-    │ eltype: …………………………………………………………… Float64                                                          │
-    │ coordinate eltype: ……………………………… Float64                                                          │
-    └──────────────────────────────────────────────────────────────────────────────────────────────────┘
+    1:4
     ```
-    where `beam` and `clamped_particles` are of type [`InitialCondition`](@ref).
+    Since `clamped_particles` is the first argument, these particles appear first in
+    `structure`, so their indices are `1:nparticles(clamped_particles)`.
 """
 struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, ARRAY3D,
-                                YM, PR, LL, LM, K, PF, V, ST, M, IM, NHS,
+                                YM, PR, LL, LM, K, PF, V, ST, M, IM, NHS, VA,
                                 C} <: AbstractStructureSystem{NDIMS}
     initial_condition   :: IC
     initial_coordinates :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
@@ -109,19 +100,19 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
     clamped_particles_motion :: M
     clamped_particles_moving :: IM
     self_interaction_nhs     :: NHS
+    velocity_averaging       :: VA
     cache                    :: C
 end
 
-function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing_length,
-                                  young_modulus, poisson_ratio;
-                                  n_clamped_particles=0,
-                                  clamped_particles=Int[],
+function TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing_length,
+                                  young_modulus, poisson_ratio, clamped_particles=Int[],
                                   clamped_particles_motion=nothing,
                                   acceleration=ntuple(_ -> zero(eltype(initial_condition)),
                                                       ndims(smoothing_kernel)),
                                   penalty_force=nothing, viscosity=nothing,
                                   source_terms=nothing, boundary_model=nothing,
-                                  self_interaction_nhs=:default)
+                                  self_interaction_nhs=:default,
+                                  velocity_averaging=nothing)
     NDIMS = ndims(initial_condition)
     ELTYPE = eltype(initial_condition)
     n_particles = nparticles(initial_condition)
@@ -136,20 +127,6 @@ function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing
         throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
     end
 
-    # Backwards compatibility: `n_clamped_particles` is deprecated.
-    # Emit a deprecation warning and (if the user didn't supply explicit indices)
-    # convert the old `n_clamped_particles` convention to `clamped_particles`.
-    if n_clamped_particles != 0
-        Base.depwarn("keyword `n_clamped_particles` is deprecated and will be removed in a future release; " *
-                     "pass `clamped_particles` (Vector{Int} of indices) instead.",
-                     :n_clamped_particles)
-        if isempty(clamped_particles)
-            clamped_particles = collect((n_particles - n_clamped_particles + 1):n_particles)
-        else
-            throw(ArgumentError("Either `n_clamped_particles` or `clamped_particles` can be specified, not both."))
-        end
-    end
-
     # Handle clamped particles
     if !isempty(clamped_particles)
         @assert allunique(clamped_particles) "`clamped_particles` contains duplicate particle indices"
@@ -162,6 +139,7 @@ function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing
         move_particles_to_end!(young_modulus_sorted, clamped_particles)
         move_particles_to_end!(poisson_ratio_sorted, clamped_particles)
     else
+        n_clamped_particles = 0
         initial_condition_sorted = initial_condition
         young_modulus_sorted = young_modulus
         poisson_ratio_sorted = poisson_ratio
@@ -186,7 +164,8 @@ function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing
     initialize_prescribed_motion!(clamped_particles_motion, initial_condition_sorted,
                                   n_clamped_particles)
 
-    cache = create_cache_tlsph(clamped_particles_motion, initial_condition_sorted)
+    cache = (; create_cache_tlsph(clamped_particles_motion, initial_condition_sorted)...,
+             create_cache_tlsph(velocity_averaging, initial_condition_sorted)...)
 
     return TotalLagrangianSPHSystem(initial_condition_sorted, initial_coordinates,
                                     current_coordinates, mass, correction_matrix,
@@ -197,7 +176,7 @@ function TotalLagrangianSPHSystem(initial_condition, smoothing_kernel, smoothing
                                     smoothing_length, acceleration_, boundary_model,
                                     penalty_force, viscosity, source_terms,
                                     clamped_particles_motion, ismoving,
-                                    self_interaction_nhs, cache)
+                                    self_interaction_nhs, velocity_averaging, cache)
 end
 
 # Initialize self-interaction neighborhood search if not provided by the user
@@ -259,7 +238,8 @@ function initialize_self_interaction_nhs(system::TotalLagrangianSPHSystem,
                                     system.viscosity, system.source_terms,
                                     system.clamped_particles_motion,
                                     system.clamped_particles_moving,
-                                    self_interaction_nhs, system.cache)
+                                    self_interaction_nhs, system.velocity_averaging,
+                                    system.cache)
 end
 
 extract_periodic_box(::Nothing) = nothing
@@ -272,6 +252,22 @@ function create_cache_tlsph(::PrescribedMotion, initial_condition)
     acceleration = zero(initial_condition.velocity)
 
     return (; velocity, acceleration)
+end
+
+function create_cache_tlsph(::VelocityAveraging, initial_condition)
+    averaged_velocity = zero(initial_condition.velocity)
+    t_last_averaging = Ref(zero(eltype(initial_condition)))
+
+    return (; averaged_velocity, t_last_averaging)
+end
+
+@inline function requires_update_callback(system::TotalLagrangianSPHSystem, semi)
+    # Velocity averaging used and `integrate_tlsph == false` means that split integration
+    # is used and the averaged velocity is updated there.
+    # Velocity averaging used, `integrate_tlsph == true`, and no fluid system in the semi
+    # means we are inside the split integration.
+    return !isnothing(system.velocity_averaging) && semi.integrate_tlsph[] &&
+           any(system -> system isa AbstractFluidSystem, semi.systems)
 end
 
 @inline function Base.eltype(::TotalLagrangianSPHSystem{<:Any, <:Any, ELTYPE}) where {ELTYPE}
@@ -386,6 +382,10 @@ end
 @inline function poisson_ratio(::TotalLagrangianSPHSystem,
                                poisson_ratio::AbstractVector, particle)
     return poisson_ratio[particle]
+end
+
+@inline function velocity_averaging(system::TotalLagrangianSPHSystem)
+    return system.velocity_averaging
 end
 
 function initialize!(system::TotalLagrangianSPHSystem, semi)
@@ -539,8 +539,12 @@ end
             pos_diff = convert.(eltype(system), pos_diff_)
 
             # The tensor product pos_diff ⊗ (L_{0a} * ∇W) is equivalent to multiplication
-            # by the transpose: pos_diff * (L_{0a} * ∇W)ᵀ = pos_diff * ∇Wᵀ * L_{0a}ᵀ.
-            result[] -= volume * pos_diff * grad_kernel' * L_a'
+            # by the transpose: pos_diff * (L_{0a} * ∇W)ᵀ = (L_{0a} * ∇W * pos_diffᵀ)ᵀ
+            # The original form is:
+            #   -volume * pos_diff * (L_a * grad_kernel)'
+            # Equivalent transposed form that is much faster in 3D:
+            F_T = -volume * L_a * grad_kernel * pos_diff'
+            result[] += F_T'
         end
 
         for j in 1:ndims(system), i in 1:ndims(system)

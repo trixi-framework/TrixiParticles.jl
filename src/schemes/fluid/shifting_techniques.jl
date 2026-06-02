@@ -5,7 +5,9 @@ abstract type AbstractShiftingTechnique end
 
 # WARNING: Be careful if defining this function for a specific system type.
 # The version for a specific system type will override this generic version.
-requires_update_callback(system) = requires_update_callback(shifting_technique(system))
+function requires_update_callback(system, semi)
+    return requires_update_callback(shifting_technique(system))
+end
 requires_update_callback(::Nothing) = false
 requires_update_callback(::AbstractShiftingTechnique) = false
 
@@ -521,8 +523,8 @@ function particle_shifting_from_callback!(u_ode,
         apply_particle_shifting!(u_ode, shifting, system, semi, integrator.dt)
     end
 
-    # Tell OrdinaryDiffEq that `integrator.u` has been modified
-    u_modified!(integrator, true)
+    # Particle shifting updates the ODE state and introduces a derivative discontinuity.
+    derivative_discontinuity!(integrator, true)
 
     return u_ode
 end
@@ -591,8 +593,10 @@ end
     delta_v_a = delta_v(system, particle)
     delta_v_b = delta_v(neighbor_system, neighbor)
 
-    A_a = rho_a * v_a * delta_v_a'
-    A_b = rho_b * v_b * delta_v_b'
+    # This is the same as using `transpose`, but it's faster due to
+    # https://github.com/JuliaLang/LinearAlgebra.jl/issues/1102.
+    A_a = rho_a * v_a * permutedims(delta_v_a)
+    A_b = rho_b * v_b * permutedims(delta_v_b)
 
     # The following term depends on the pressure acceleration formulation.
     # See the large comment below. In the original paper (Adami et al., 2013), this is

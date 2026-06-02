@@ -344,6 +344,14 @@ To further handle incomplete kernel support, for example in the viscous term of 
 the updated velocity of particles within the [`BoundaryZone`](@ref) is projected onto the face normal,
 so that only the component in flow direction is kept.
 
+When a shifting technique or transport velocity formulation is used with this boundary model,
+the shifting velocity is modified near the free surface of the [`BoundaryZone`](@ref).
+The free-surface region is defined as the layer within one compact support of the free surface;
+inside this region, shifting is set to zero because the kernel support is incomplete.
+From one to two compact supports away from the free surface, the shifting velocity is ramped
+from zero to the unmodified value using a kernel-weighted transition.
+Particles farther away from the free surface use the unmodified shifting velocity.
+
 # Pressure Models
 ```@autodocs
 Modules = [TrixiParticles]

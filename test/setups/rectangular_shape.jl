@@ -142,10 +142,9 @@
             n_particles_per_dimension = (2, 5)
 
             @testset "Loop Order :y_first" begin
-                shape = RectangularShape(particle_spacing,
-                                         n_particles_per_dimension, (0.0, 0.0),
-                                         acceleration=(0.0, -1.0),
-                                         state_equation=state_equation)
+                shape = RectangularShape(particle_spacing, n_particles_per_dimension,
+                                         (0.0, 0.0); acceleration=(0.0, -1.0),
+                                         state_equation)
 
                 @test shape.pressure ≈ vec(pressure)
                 @test shape.density ==
@@ -155,21 +154,18 @@
             end
 
             @testset "Loop Order :x_first" begin
-                shape = RectangularShape(particle_spacing,
-                                         n_particles_per_dimension, (0.0, 0.0),
-                                         acceleration=(0.0, -1.0),
-                                         state_equation=state_equation,
-                                         loop_order=:x_first)
+                shape = RectangularShape(particle_spacing, n_particles_per_dimension,
+                                         (0.0, 0.0); acceleration=(0.0, -1.0),
+                                         state_equation, loop_order=:x_first)
 
                 # Transpose `pressure`
                 @test shape.pressure ≈ vec(pressure')
             end
 
             @testset "Positive Acceleration" begin
-                shape = RectangularShape(particle_spacing,
-                                         n_particles_per_dimension, (0.0, 0.0),
-                                         acceleration=(0.0, 1.0),
-                                         state_equation=state_equation)
+                shape = RectangularShape(particle_spacing, n_particles_per_dimension,
+                                         (0.0, 0.0); acceleration=(0.0, 1.0),
+                                         state_equation)
 
                 @test shape.pressure ≈ vec(reverse(pressure))
                 @test shape.density ==
@@ -181,10 +177,8 @@
 
         @testset "Horizontal Gravity" begin
             n_particles_per_dimension = (5, 2)
-            shape = RectangularShape(particle_spacing,
-                                     n_particles_per_dimension, (0.0, 0.0),
-                                     acceleration=(-1.0, 0.0),
-                                     state_equation=state_equation)
+            shape = RectangularShape(particle_spacing, n_particles_per_dimension,
+                                     (0.0, 0.0); acceleration=(-1.0, 0.0), state_equation)
 
             @test shape.pressure ≈ 1.0 * vec(pressure')
             @test shape.density ==
@@ -289,9 +283,9 @@ end
                 permute!(acceleration_, permutation)
 
                 shape = RectangularShape(particle_spacing,
-                                         Tuple(n_particles_per_dimension_),
-                                         (0.0, 0.0, 0.0), density=1000.0,
-                                         loop_order=loop_order, acceleration=acceleration_)
+                                         Tuple(n_particles_per_dimension_), (0.0, 0.0, 0.0);
+                                         density=1000.0, loop_order,
+                                         acceleration=acceleration_)
 
                 # Permute pressure with acceleration permutation
                 permuted1 = permutedims(pressure, permutation)
@@ -349,10 +343,9 @@ end
             acceleration_ = collect(acceleration)
             permute!(acceleration_, permutation)
 
-            shape = RectangularShape(particle_spacing,
-                                     Tuple(n_particles_per_dimension_), (0.0, 0.0, 0.0),
-                                     acceleration=acceleration_,
-                                     state_equation=state_equation)
+            shape = RectangularShape(particle_spacing, Tuple(n_particles_per_dimension_),
+                                     (0.0, 0.0, 0.0); acceleration=acceleration_,
+                                     state_equation)
 
             @test shape.pressure ≈ vec(permutedims(pressure, permutation))
             density = TrixiParticles.inverse_state_equation.(Ref(state_equation),

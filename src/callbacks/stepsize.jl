@@ -46,7 +46,7 @@ end
 function initialize_stepsize_callback(discrete_callback, u, t, integrator)
     stepsize_callback = discrete_callback.affect!
 
-    semi = integrator.p
+    semi = integrator.p.semi
     set_callbacks_used!(semi, integrator)
 
     stepsize_callback(integrator)
@@ -64,7 +64,7 @@ function (stepsize_callback::StepsizeCallback)(integrator)
     (; cfl_number) = stepsize_callback
 
     v_ode, u_ode = integrator.u.x
-    semi = integrator.p
+    semi = integrator.p.semi
 
     dt = @trixi_timeit timer() "calculate dt" calculate_dt(v_ode, u_ode, cfl_number, semi)
 
@@ -72,8 +72,8 @@ function (stepsize_callback::StepsizeCallback)(integrator)
     integrator.opts.dtmax = dt
     integrator.dtcache = dt
 
-    # Tell OrdinaryDiffEq that `u` has not been modified
-    u_modified!(integrator, false)
+    # This callback only updates the step size and does not change the result of the right-hand side.
+    derivative_discontinuity!(integrator, false)
 
     return stepsize_callback
 end

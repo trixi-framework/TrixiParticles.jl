@@ -1,7 +1,6 @@
 """
-    ImplicitIncompressibleSPHSystem(initial_condition,
-                                    smoothing_kernel, smoothing_length,
-                                    reference_density;
+    ImplicitIncompressibleSPHSystem(initial_condition; smoothing_kernel,
+                                    smoothing_length, reference_density,
                                     viscosity=nothing,
                                     acceleration=ntuple(_ -> 0.0, ndims(smoothing_kernel)),
                                     omega=0.5, max_error=0.1, min_iterations=2,
@@ -16,13 +15,13 @@ See [Implicit Incompressible SPH](@ref iisph) for more details on the method.
 
 # Arguments
 - `initial_condition`:  [`InitialCondition`](@ref) representing the system's particles.
-- `smoothing_kernel`:   Smoothing kernel to be used for this system.
-                        See [Smoothing Kernels](@ref smoothing_kernel).
-- `smoothing_length`:   Smoothing length to be used for this system.
-                        See [Smoothing Kernels](@ref smoothing_kernel).
-- `reference_density`:  Reference density used for the fluid particles
 
-# Keyword Arguments
+# Keywords
+- `smoothing_kernel`:           Smoothing kernel to be used for this system.
+                                See [Smoothing Kernels](@ref smoothing_kernel).
+- `smoothing_length`:           Smoothing length to be used for this system.
+                                See [Smoothing Kernels](@ref smoothing_kernel).
+- `reference_density`:          Reference density used for the fluid particles.
 - `viscosity`:                  Currently, only [`ViscosityMorris`](@ref)
                                 and [`ViscosityAdami`](@ref) are supported.
 - `acceleration`:               Acceleration vector for the system. (default: zero vector)
@@ -65,9 +64,8 @@ end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
-function ImplicitIncompressibleSPHSystem(initial_condition,
-                                         smoothing_kernel, smoothing_length,
-                                         reference_density;
+function ImplicitIncompressibleSPHSystem(initial_condition; smoothing_kernel,
+                                         smoothing_length, reference_density,
                                          viscosity=nothing,
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),
