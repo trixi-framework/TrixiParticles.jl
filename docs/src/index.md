@@ -1,7 +1,7 @@
 # TrixiParticles.jl
 
-**TrixiParticles.jl** is a high-performance numerical simulation framework for particle-based methods in complex multiphysics applications. It combines an accessible user interface with an extensible
-architecture for developing new methods, while offering high performance on both CPU and GPU.
+**TrixiParticles.jl** is a high-performance numerical simulation framework for particle-based methods in complex multiphysics applications.
+It combines an accessible user interface with an extensible architecture for developing new methods, while offering high performance on both CPU and GPU.
 
 TrixiParticles.jl focuses on the following use cases:
 
