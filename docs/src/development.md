@@ -87,7 +87,7 @@ project-specific conventions:
 - Add docstrings to public API functions and types. Start with a signature
   block, use `# Arguments`, `# Keywords`, and `# Examples` sections where
   applicable, and use `@doc raw"""..."""` for docstrings containing LaTeX or
-  doctests.
+  doctests. Very short docstrings don't require these sections.
 - Do not add docstrings to non-exported internal functions and types. Use
   regular comments to explain their purpose and usage.
 - Validate user input with explicit `throw(ArgumentError(...))`.
