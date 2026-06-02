@@ -3,13 +3,9 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::TotalLagrangianSPHSystem,
                    neighbor_system::TotalLagrangianSPHSystem, semi;
-                   integrate_tlsph=semi.integrate_tlsph[],
                    eachparticle=each_integrated_particle(particle_system))
     # Different structures do not interact with each other (yet)
     particle_system === neighbor_system || return dv
-
-    # Skip interaction if TLSPH systems are integrated separately
-    integrate_tlsph || return dv
 
     interact_structure_structure!(dv, v_particle_system, particle_system, semi;
                                   eachparticle)
@@ -106,11 +102,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::TotalLagrangianSPHSystem,
                    neighbor_system::AbstractFluidSystem, semi;
-                   integrate_tlsph=semi.integrate_tlsph[],
                    eachparticle=each_integrated_particle(particle_system))
-    # Skip interaction if TLSPH systems are integrated separately
-    integrate_tlsph || return dv
-
     return interact_structure_fluid!(dv, v_particle_system, u_particle_system,
                                      v_neighbor_system, u_neighbor_system,
                                      particle_system, neighbor_system, semi; eachparticle)
@@ -121,7 +113,6 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::TotalLagrangianSPHSystem,
                    neighbor_system::Union{WallBoundarySystem, OpenBoundarySystem}, semi;
-                   integrate_tlsph=semi.integrate_tlsph[],
                    eachparticle=each_integrated_particle(particle_system))
     # TODO continuity equation?
     return dv

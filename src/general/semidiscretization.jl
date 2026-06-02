@@ -921,8 +921,7 @@ end
 
     interaction = system_interaction(system, neighbor, semi)
     return apply_interaction!(interaction, dv, v_system, u_system, v_neighbor,
-                              u_neighbor, system, neighbor, semi;
-                              integrate_tlsph, kwargs...)
+                              u_neighbor, system, neighbor, semi; kwargs...)
 end
 
 @inline function apply_interaction!(interaction::Bool, dv, v_system, u_system,

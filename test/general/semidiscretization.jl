@@ -47,15 +47,13 @@
 
     struct TestInteraction
         calls::Base.RefValue{Int}
-        integrate_tlsph_seen::Base.RefValue{Bool}
     end
-    TestInteraction() = TestInteraction(Ref(0), Ref(false))
+    TestInteraction() = TestInteraction(Ref(0))
 
     function (interaction::TestInteraction)(dv, v_system, u_system, v_neighbor,
                                             u_neighbor, system, neighbor, semi;
-                                            integrate_tlsph=false, kwargs...)
+                                            kwargs...)
         interaction.calls[] += 1
-        interaction.integrate_tlsph_seen[] |= integrate_tlsph
         dv[1, 1] += 50
         return dv
     end
@@ -423,7 +421,6 @@
                                                     semi_split)
 
             @test interaction.calls[] == 1
-            @test interaction.integrate_tlsph_seen[]
             @test system_dv(dv_ode_split, semi_split, 1)[1, 1] == 50
         end
 
@@ -447,7 +444,6 @@
                                                    u_ode_split, semi_split, semi)
 
             @test self_interaction.calls[] == 1
-            @test self_interaction.integrate_tlsph_seen[]
             @test cross_interaction.calls[] == 0
             @test system_dv(dv_ode_split, semi_split, 1)[1, 1] == 50
             @test system_dv(dv_ode_split, semi_split, 2)[1, 1] == 0
@@ -457,7 +453,6 @@
                                                     semi_split)
 
             @test cross_interaction.calls[] == 1
-            @test cross_interaction.integrate_tlsph_seen[]
             @test system_dv(dv_ode_split, semi_split, 1)[1, 1] == 50
             @test system_dv(dv_ode_split, semi_split, 2)[1, 1] == 0
         end
