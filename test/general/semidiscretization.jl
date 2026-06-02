@@ -346,7 +346,7 @@
             @test semi_any_custom.interaction_matrix[1, 2] === interaction_any
         end
 
-        @testset "disabled pairs skip ordered RHS dispatch" begin
+        @testset "disabled interactions are skipped" begin
             interaction_matrix = Bool[true false
                                       true true]
             semi = Semidiscretization(system1, system2; neighborhood_search=nothing,
