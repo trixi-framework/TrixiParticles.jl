@@ -43,7 +43,6 @@ Static = "aedffcd0-7271-4cad-89d0-dc628f76c6d3"
 [extensions]
 TrixiParticlesOrdinaryDiffEqSymplecticRKExt = ["OrdinaryDiffEqSymplecticRK", "OrdinaryDiffEqCore"]
 TrixiParticlesCUDAExt = "CUDA"
-TrixiParticlesOrdinaryDiffEqExt = ["OrdinaryDiffEq", "OrdinaryDiffEqCore"]
 
 [compat]
 Accessors = "0.1.43"
