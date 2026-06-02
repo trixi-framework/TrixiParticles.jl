@@ -18,14 +18,19 @@ The semidiscretization couples the passed systems to one simulation.
 - `parallelization_backend=PolyesterBackend()`: Backend used for thread-parallel loops,
                             including the generic neighborhood-search update paths.
                             Pass `SerialBackend()` to disable thread parallelization.
-- `interaction_matrix=trues(n_systems, n_systems)`: Matrix controlling ordered system-pair
-                            interactions after filtering out `nothing` systems. Rows refer
-                            to the system being updated and columns to the neighbor system.
-                            Entries are `true` for the default interaction, `false` to
-                            disable the ordered pair, or a callable custom interaction with
-                            the same arguments as `interact!(...; kwargs...)`. Disabled
-                            pairs are skipped in RHS and neighbor-derived state updates, but
-                            neighborhood searches are still built.
+- `interaction_matrix=trues(n_systems, n_systems)`: Matrix controlling interactions of each
+                            system-neighbor pair after filtering out `nothing` systems.
+                            `A[i, j] == true` uses the default interaction for computing forces
+                            on system `i` by particles of system `j`. `A[i, j] == false` disables
+                            the interaction. Set a matrix entry to a method with
+                            the same arguments as `interact!(...; kwargs...)` to use a custom
+                            interaction function for this forces computation. Disabled
+                            pairs are skipped in the RHS and in auxiliary neighbor loops such as
+                            density summation, correction factors, surface normals, pressure
+                            extrapolation, and particle shifting. The semidiscretization still
+                            stores a full matrix of neighborhood searches for uniform indexing
+                            and for APIs such as point interpolation, which use neighborhood
+                            searches independently of force interactions.
 
 # Examples
 ```jldoctest; output = false, setup = :(trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing); ref_system = fluid_system)
@@ -45,7 +50,7 @@ semi = Semidiscretization(fluid_system, boundary_system,
                           neighborhood_search=nothing)
 
 interaction_matrix = trues(2, 2)
-interaction_matrix[1, 2] = false # fluid_system skips system-pair interactions with boundary_system
+interaction_matrix[1, 2] = false # Skip forces on fluid_system from boundary_system
 semi = Semidiscretization(fluid_system, boundary_system;
                           neighborhood_search=nothing,
                           interaction_matrix=interaction_matrix)
