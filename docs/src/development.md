@@ -72,7 +72,7 @@ TrixiParticles.jl mostly follows the
 project-specific conventions:
 
 - Apply `JuliaFormatter@2.1.1` before opening a PR.
-- Stay within the 92 character limit, also for comments and markdown.
+- Stay within the 92 character limit, also for comments and markdown (where practical).
 - Use descriptive variable and function names, and avoid unclear abbreviations.
   For example, use `boundary_pressure` instead of `bnd_press`, and
   `kernel_gradient` instead of `ker_grad`.
