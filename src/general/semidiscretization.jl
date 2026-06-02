@@ -136,9 +136,6 @@ function is_interaction_entry(entry)
     return !isempty(methods(entry))
 end
 
-@inline is_enabled_interaction(entry::Bool) = entry
-@inline is_enabled_interaction(entry) = true
-
 function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
                             neighborhood_search=GridNeighborhoodSearch{ndims(first(systems))}(),
                             parallelization_backend=PolyesterBackend(),
@@ -286,6 +283,9 @@ end
 
     return index
 end
+
+@inline is_enabled_interaction(entry::Bool) = entry
+@inline is_enabled_interaction(entry) = true
 
 @inline function has_system_interaction(system, neighbor_system, semi::Semidiscretization)
     return is_enabled_interaction(system_interaction(system, neighbor_system, semi))
