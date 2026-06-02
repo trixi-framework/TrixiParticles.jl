@@ -427,24 +427,37 @@
             @test system_dv(dv_ode_split, semi_split, 1)[1, 1] == 50
         end
 
-        @testset "split interaction includes TLSPH cross interactions" begin
+        @testset "split interaction separates TLSPH self and cross interactions" begin
             structure1 = first(make_tlsph_fluid_systems())
             structure2 = first(make_tlsph_fluid_systems())
-            interaction = TestInteraction()
-            interaction_matrix = Matrix{Union{Bool, typeof(interaction)}}(falses(2, 2))
-            interaction_matrix[1, 2] = interaction
+            self_interaction = TestInteraction()
+            cross_interaction = TestInteraction()
+            interaction_matrix = Matrix{Union{Bool, typeof(self_interaction)}}(falses(2, 2))
+            interaction_matrix[1, 1] = self_interaction
+            interaction_matrix[1, 2] = cross_interaction
 
             semi = Semidiscretization(structure1, structure2; neighborhood_search=nothing,
                                       interaction_matrix)
             semi_split = Semidiscretization(semi.systems...; neighborhood_search=nothing)
+            v_ode, u_ode, _ = initialized_ode_state(semi)
             v_ode_split, u_ode_split, dv_ode_split = initialized_ode_state(semi_split)
 
             semi.integrate_tlsph[] = false
             TrixiParticles.self_interaction_split!(dv_ode_split, v_ode_split,
                                                    u_ode_split, semi_split, semi)
 
-            @test interaction.calls[] == 1
-            @test interaction.integrate_tlsph_seen[]
+            @test self_interaction.calls[] == 1
+            @test self_interaction.integrate_tlsph_seen[]
+            @test cross_interaction.calls[] == 0
+            @test system_dv(dv_ode_split, semi_split, 1)[1, 1] == 50
+            @test system_dv(dv_ode_split, semi_split, 2)[1, 1] == 0
+
+            fill!(dv_ode_split, 0)
+            TrixiParticles.other_interaction_split!(dv_ode_split, semi, v_ode, u_ode,
+                                                    semi_split)
+
+            @test cross_interaction.calls[] == 1
+            @test cross_interaction.integrate_tlsph_seen[]
             @test system_dv(dv_ode_split, semi_split, 1)[1, 1] == 50
             @test system_dv(dv_ode_split, semi_split, 2)[1, 1] == 0
         end
