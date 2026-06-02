@@ -499,34 +499,35 @@ function compute_pressure!(boundary_model,
     # Use enabled neighbor systems for the pressure extrapolation. This lets phase-specific
     # walls isolate their auxiliary pressure state with the same ordered interaction matrix
     # used for pairwise RHS dispatch.
-    @trixi_timeit timer() "compute boundary pressure" foreach_interacting_system_wrapped(system,
-                                                                                         semi,
-                                                                                         v_ode,
-                                                                                         u_ode) do neighbor_system,
-                                                                                                   v_neighbor_system,
-                                                                                                   u_neighbor_system
-        neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
+    @trixi_timeit timer() "compute boundary pressure" begin
+        foreach_system_wrapped(semi, v_ode, u_ode) do neighbor_system,
+                                                        v_neighbor_system,
+                                                        u_neighbor_system
+            has_system_interaction(system, neighbor_system, semi) || return
 
-        # This is an optimization for simulations with large and complex boundaries.
-        # Especially in 3D simulations with large and/or complex structures outside
-        # of areas with permanent flow.
-        # Note: The version iterating neighbors first is not thread-parallelizable
-        #       and thus not GPU-compatible.
-        # The factor is based on the achievable speed-up of the thread parallelizable version.
-        # Use the parallel version if the number of boundary particles is not much larger
-        # than the number of fluid particles.
-        n_boundary_particles = nparticles(system)
-        n_fluid_particles = nparticles(neighbor_system)
-        speedup = ceil(Int, Threads.nthreads() / 2)
-        is_gpu = system_coords isa AbstractGPUArray
-        condition_boundary = n_boundary_particles < speedup * n_fluid_particles
-        parallelize = is_gpu || condition_boundary || !allow_loop_flipping
+            neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-        # Loop over boundary particles and then the neighboring fluid particles
-        # to extrapolate fluid pressure to the boundaries.
-        boundary_pressure_extrapolation!(Val(parallelize), boundary_model, system,
-                                         neighbor_system, system_coords, neighbor_coords, v,
-                                         v_neighbor_system, semi)
+            # This is an optimization for simulations with large and complex boundaries.
+            # Especially in 3D simulations with large and/or complex structures outside
+            # of areas with permanent flow.
+            # Note: The version iterating neighbors first is not thread-parallelizable
+            #       and thus not GPU-compatible.
+            # The factor is based on the achievable speed-up of the thread parallelizable version.
+            # Use the parallel version if the number of boundary particles is not much larger
+            # than the number of fluid particles.
+            n_boundary_particles = nparticles(system)
+            n_fluid_particles = nparticles(neighbor_system)
+            speedup = ceil(Int, Threads.nthreads() / 2)
+            is_gpu = system_coords isa AbstractGPUArray
+            condition_boundary = n_boundary_particles < speedup * n_fluid_particles
+            parallelize = is_gpu || condition_boundary || !allow_loop_flipping
+
+            # Loop over boundary particles and then the neighboring fluid particles
+            # to extrapolate fluid pressure to the boundaries.
+            boundary_pressure_extrapolation!(Val(parallelize), boundary_model, system,
+                                             neighbor_system, system_coords,
+                                             neighbor_coords, v, v_neighbor_system, semi)
+        end
     end
 
     @trixi_timeit timer() "inverse state equation" @threaded semi for particle in

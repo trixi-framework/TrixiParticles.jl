@@ -318,21 +318,6 @@ end
     end
 end
 
-# This is just for readability to loop over enabled neighbor systems with wrapped arrays.
-@inline function foreach_interacting_system_wrapped(f, system, semi, v_ode, u_ode)
-    return foreach_interacting_system_wrapped(f, system, semi, v_ode, u_ode, semi)
-end
-
-# `semi` owns the interaction matrix; `semi_wrap` only selects the array layout for wrapping.
-# Split integration intentionally passes different values here.
-@inline function foreach_interacting_system_wrapped(f, system, semi, v_ode, u_ode,
-                                                    semi_wrap)
-    foreach_interacting_system(system, semi_wrap, semi) do neighbor_system
-        @inline f(neighbor_system, wrap_v(v_ode, neighbor_system, semi_wrap),
-                  wrap_u(u_ode, neighbor_system, semi_wrap))
-    end
-end
-
 # This is just for readability to loop over all systems with wrapped arrays.
 @inline function foreach_system_wrapped(f, semi::Union{NamedTuple, Semidiscretization},
                                         v_ode, u_ode)

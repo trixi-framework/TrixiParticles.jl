@@ -441,23 +441,25 @@ function other_interaction_split!(dv_ode_split, semi, v_ode, u_ode, semi_split)
         u_system = wrap_u(u_ode, system, semi)
 
         # Loop over all interacting neighbors in the big integrator
-        foreach_interacting_system_wrapped(system, semi, v_ode,
-                                           u_ode) do neighbor,
-                                                     v_neighbor,
-                                                     u_neighbor
-            if system === neighbor
+        foreach_system_wrapped(semi, v_ode, u_ode) do neighbor_system,
+                                                        v_neighbor,
+                                                        u_neighbor
+            has_system_interaction(system, neighbor_system, semi) || return
+
+            if system === neighbor_system
                 # TLSPH self-interactions are integrated with the split state.
                 return
             end
 
             # Construct string for the interactions timer.
             system_index = system_indices(system, semi)
-            neighbor_index = system_indices(neighbor, semi)
-            timer_str = "$(timer_name(system))$system_index-$(timer_name(neighbor))$neighbor_index"
+            neighbor_index = system_indices(neighbor_system, semi)
+            timer_str = "$(timer_name(system))$system_index-$(timer_name(neighbor_system))$neighbor_index"
 
             @trixi_timeit timer() timer_str begin
                 apply_system_interaction!(dv, v_system, u_system, v_neighbor, u_neighbor,
-                                          system, neighbor, semi; integrate_tlsph=true)
+                                          system, neighbor_system, semi;
+                                          integrate_tlsph=true)
             end
         end
     end
