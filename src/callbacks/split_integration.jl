@@ -439,9 +439,10 @@ function other_interaction_split!(dv_ode_split, semi, v_ode, u_ode, semi_split)
         u_system = wrap_u(u_ode, system, semi)
 
         # Loop over all interacting neighbors in the big integrator
-        foreach_system_wrapped(semi, v_ode, u_ode) do neighbor_system,
-                                                        v_neighbor,
-                                                        u_neighbor
+        foreach_system_wrapped(semi, v_ode,
+                               u_ode) do neighbor_system,
+                                         v_neighbor,
+                                         u_neighbor
             has_system_interaction(system, neighbor_system, semi) || return
 
             if system === neighbor_system

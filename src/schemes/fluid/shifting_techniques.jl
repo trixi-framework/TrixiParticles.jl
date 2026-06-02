@@ -463,8 +463,8 @@ end
     h = smoothing_length(system, 1)
 
     foreach_system_wrapped(semi, v_ode, u_ode) do neighbor_system,
-                                                    v_neighbor,
-                                                    u_neighbor
+                                                  v_neighbor,
+                                                  u_neighbor
         has_system_interaction(system, neighbor_system, semi) || return
 
         system_coords = current_coordinates(u, system)
@@ -641,8 +641,8 @@ function update_shifting!(system, shifting::TransportVelocityAdami, v, u, v_ode,
     set_zero!(delta_v)
 
     foreach_system_wrapped(semi, v_ode, u_ode) do neighbor_system,
-                                                    v_neighbor,
-                                                    u_neighbor
+                                                  v_neighbor,
+                                                  u_neighbor
         has_system_interaction(system, neighbor_system, semi) || return
 
         system_coords = current_coordinates(u, system)

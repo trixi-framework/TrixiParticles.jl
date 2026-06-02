@@ -91,7 +91,6 @@ function (drag::InterfacialTangentialDrag)(dv, v_system, u_system,
         velocity_difference = v_b - v_a
         normal_velocity_difference = velocity_difference' * drag.interface_normal
 
-
         rho_a = TrixiParticles.current_density(v_system, system, particle)
         rho_b = TrixiParticles.current_density(v_neighbor, neighbor, neighbor_particle)
         m_b = TrixiParticles.hydrodynamic_mass(neighbor, neighbor_particle)

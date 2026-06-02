@@ -667,8 +667,8 @@ function interpolate_velocity!(system::OpenBoundarySystem, boundary_zone,
     # Shepard-normalized interpolation:
     #   v(p) = (Σ_b v_b V_b W_pb) / (Σ_b V_b W_pb)
     foreach_system_wrapped(semi, v_ode, u_ode) do neighbor_system,
-                                                    v_neighbor,
-                                                    u_neighbor
+                                                  v_neighbor,
+                                                  u_neighbor
         has_system_interaction(system, neighbor_system, semi) || return
 
         use_open_boundary_interpolation_neighbor(neighbor_system) || return neighbor_system

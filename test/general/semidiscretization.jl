@@ -313,7 +313,8 @@
                                                   interaction_matrix=interaction_matrix_view)
             matrix_parent[1, 2] = false
             @test semi_matrix_view.interaction_matrix isa Matrix{Bool}
-            @test axes(semi_matrix_view.interaction_matrix) == (Base.OneTo(2), Base.OneTo(2))
+            @test axes(semi_matrix_view.interaction_matrix) ==
+                  (Base.OneTo(2), Base.OneTo(2))
             @test semi_matrix_view.interaction_matrix == trues(2, 2)
 
             abstract_union_matrix = Matrix{Union{Bool, Function}}(trues(2, 2))

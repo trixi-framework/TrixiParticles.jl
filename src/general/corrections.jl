@@ -141,9 +141,10 @@ function compute_shepard_coeff!(system, system_coords, v_ode, u_ode, semi,
 
     # Use enabled neighbor systems for the correction value.
     @trixi_timeit timer() "compute correction value" begin
-        foreach_system_wrapped(semi, v_ode, u_ode) do neighbor_system,
-                                                        v_neighbor_system,
-                                                        u_neighbor_system
+        foreach_system_wrapped(semi, v_ode,
+                               u_ode) do neighbor_system,
+                                         v_neighbor_system,
+                                         u_neighbor_system
             has_system_interaction(system, neighbor_system, semi) || return
 
             neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -204,9 +205,10 @@ function compute_correction_values!(system,
 
     # Use enabled neighbor systems for the correction value.
     @trixi_timeit timer() "compute correction value" begin
-        foreach_system_wrapped(semi, v_ode, u_ode) do neighbor_system,
-                                                        v_neighbor_system,
-                                                        u_neighbor_system
+        foreach_system_wrapped(semi, v_ode,
+                               u_ode) do neighbor_system,
+                                         v_neighbor_system,
+                                         u_neighbor_system
             has_system_interaction(system, neighbor_system, semi) || return
 
             neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -355,9 +357,10 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     @trixi_timeit timer() "compute correction matrix" begin
-        foreach_system_wrapped(semi, v_ode, u_ode) do neighbor_system,
-                                                        v_neighbor_system,
-                                                        u_neighbor_system
+        foreach_system_wrapped(semi, v_ode,
+                               u_ode) do neighbor_system,
+                                         v_neighbor_system,
+                                         u_neighbor_system
             has_system_interaction(system, neighbor_system, semi) || return
 
             neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -367,16 +370,19 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
                                    semi) do particle, neighbor, pos_diff, distance
                 function kernel_grad_local(correction, smoothing_kernel, pos_diff, distance,
                                            smoothing_length_, system, particle)
-                    return smoothing_kernel_grad_unsafe(system, pos_diff, distance, particle)
+                    return smoothing_kernel_grad_unsafe(system, pos_diff, distance,
+                                                        particle)
                 end
 
                 # Compute gradient of corrected kernel
                 function kernel_grad_local(correction::MixedKernelGradientCorrection,
                                            smoothing_kernel, pos_diff, distance,
                                            smoothing_length_, system, particle)
-                    return corrected_kernel_grad_unsafe(smoothing_kernel, pos_diff, distance,
+                    return corrected_kernel_grad_unsafe(smoothing_kernel, pos_diff,
+                                                        distance,
                                                         smoothing_length_,
-                                                        KernelCorrection(), system, particle)
+                                                        KernelCorrection(), system,
+                                                        particle)
                 end
 
                 # Skip neighbors with the same position if the kernel gradient is zero.

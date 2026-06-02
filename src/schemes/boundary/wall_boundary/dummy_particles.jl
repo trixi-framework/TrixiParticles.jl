@@ -500,9 +500,10 @@ function compute_pressure!(boundary_model,
     # walls isolate their auxiliary pressure state with the same ordered interaction matrix
     # used for pairwise RHS dispatch.
     @trixi_timeit timer() "compute boundary pressure" begin
-        foreach_system_wrapped(semi, v_ode, u_ode) do neighbor_system,
-                                                        v_neighbor_system,
-                                                        u_neighbor_system
+        foreach_system_wrapped(semi, v_ode,
+                               u_ode) do neighbor_system,
+                                         v_neighbor_system,
+                                         u_neighbor_system
             has_system_interaction(system, neighbor_system, semi) || return
 
             neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
