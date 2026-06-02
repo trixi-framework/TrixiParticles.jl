@@ -114,8 +114,8 @@ function create_interaction_matrix(interaction_matrix, systems)
         end
     end
 
-    # Materialize to a one-based `Matrix`. Rebuild abstractly typed matrices from the
-    # concrete entry types to avoid dynamic dispatch and allocations in pairwise loops.
+    # Rebuild abstractly typed matrices from the concrete entry types
+    # to avoid dynamic dispatch and allocations in pairwise loops.
     if !all(isconcretetype, Base.uniontypes(eltype(interaction_matrix)))
         entry_types = unique(map(typeof, interaction_matrix))
         return Matrix{Union{entry_types...}}(interaction_matrix)
