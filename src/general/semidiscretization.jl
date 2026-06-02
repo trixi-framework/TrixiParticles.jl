@@ -15,9 +15,9 @@ The semidiscretization couples the passed systems to one simulation.
                             and the examples below for more details.
                             To use a periodic domain, pass a [`PeriodicBox`](@ref) to the
                             neighborhood search.
-- `parallelization_backend=PolyesterBackend()`: Backend used for thread-parallel loops,
-                            including the generic neighborhood-search update paths.
+- `parallelization_backend=PolyesterBackend()`: Backend used for thread-parallel loops.
                             Pass `SerialBackend()` to disable thread parallelization.
+                            See [the docs](@ref gpu_support) on how to use GPU backends.
 - `interaction_matrix=trues(n_systems, n_systems)`: Matrix controlling ordered system-pair
                             interactions after filtering out `nothing` systems. Rows refer
                             to the system being updated and columns to the neighbor system.
