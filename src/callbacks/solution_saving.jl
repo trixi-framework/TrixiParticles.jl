@@ -253,8 +253,8 @@ function (solution_callback::SolutionSavingCallback)(integrator)
         solution_callback.latest_saved_iter = iter
     end
 
-    # Tell OrdinaryDiffEq that `u` has not been modified
-    u_modified!(integrator, false)
+    # This callback only saves results and does not change the result of the right-hand side.
+    derivative_discontinuity!(integrator, false)
 
     return nothing
 end
