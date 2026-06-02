@@ -93,8 +93,6 @@ water_boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
                                                    boundary_density_calculator,
                                                    smoothing_kernel, smoothing_length;
                                                    state_equation=state_equation,
-                                                   correction=nothing,
-                                                   reference_particle_spacing=0,
                                                    viscosity=viscosity_wall,
                                                    clip_negative_pressure=true)
 
@@ -108,8 +106,6 @@ air_boundary_model = BoundaryModelDummyParticles(air_boundary_density, air_bound
                                                  boundary_density_calculator,
                                                  smoothing_kernel, smoothing_length;
                                                  state_equation=air_eos,
-                                                 correction=nothing,
-                                                 reference_particle_spacing=0,
                                                  viscosity=viscosity_wall,
                                                  clip_negative_pressure=true)
 
