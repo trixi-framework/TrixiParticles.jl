@@ -363,7 +363,7 @@
             @test system_dv(dv_ode, semi, 2)[1, 1] == 1100
         end
 
-        @testset "callable entries replace ordered RHS dispatch" begin
+        @testset "custom interaction function" begin
             interaction = TestInteraction()
             interaction_matrix = Matrix{Union{Bool, typeof(interaction)}}(trues(2, 2))
             interaction_matrix[1, 2] = interaction
