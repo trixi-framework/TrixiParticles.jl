@@ -92,13 +92,9 @@ struct Semidiscretization{BACKEND, S, RU, RV, NS, IM, UCU, IT}
     end
 end
 
-function default_interaction_matrix(systems::Tuple)
+function create_interaction_matrix(::Nothing, systems)
     n_systems = length(systems)
     return trues(n_systems, n_systems)
-end
-
-function create_interaction_matrix(::Nothing, systems::Tuple)
-    return default_interaction_matrix(systems)
 end
 
 function create_interaction_matrix(interaction_matrix, systems::Tuple)
