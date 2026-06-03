@@ -112,7 +112,7 @@ end
 # `true` keeps the default interaction, while a method handles the interaction for that
 # ordered pair. This method calls the default interaction before adding drag. Since the
 # matrix is ordered, reciprocal coupling needs both entries.
-interfacial_drag = InterfacialTangentialDrag(1.0e3, (0.0, 1.0))
+interfacial_drag = InterfacialTangentialDrag(1.0e3, SVector(0.0, 1.0))
 interaction_matrix = Matrix{Union{Bool, typeof(interfacial_drag)}}(trues(2, 2))
 interaction_matrix[1, 2] = interfacial_drag
 interaction_matrix[2, 1] = interfacial_drag
