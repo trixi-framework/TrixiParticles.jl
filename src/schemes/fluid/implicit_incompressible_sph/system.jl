@@ -199,6 +199,8 @@ end
     return system.density
 end
 
+@inline system_state_equation(system::ImplicitIncompressibleSPHSystem) = nothing
+
 # TODO: What do we do with the sound speed? This is needed for the viscosity.
 @inline system_sound_speed(system::ImplicitIncompressibleSPHSystem) = system.artificial_sound_speed
 

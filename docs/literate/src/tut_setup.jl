@@ -131,14 +131,11 @@ nothing # hide
 
 # To model the boundary, we use particle-based boundary conditions, in which particles
 # are sampled in the boundary that interact with the fluid particles to avoid penetration.
-# In order to define a boundary system, we first have to choose a boundary model,
-# which defines how the fluid interacts with boundary particles.
-# We will use the [`BoundaryModelDummyParticles`](@ref) with [`AdamiPressureExtrapolation`](@ref).
-# See [here](@ref boundary_models) for a comprehensive overview over boundary models.
-boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             AdamiPressureExtrapolation(),
-                                             smoothing_kernel, smoothing_length;
-                                             state_equation)
+# Here, we explicitly choose the dummy-particle boundary model and use its high-level
+# builder to infer kernel and equation-of-state-related settings from the adjacent
+# fluid system. See [here](@ref boundary_models) for a comprehensive overview over
+# boundary models.
+boundary_model = BoundaryModelDummyParticles(tank.boundary; fluid_system=fluid_system)
 boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
 nothing # hide
 
