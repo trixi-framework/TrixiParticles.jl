@@ -212,6 +212,27 @@
             return Array(TrixiParticles.wrap_v(dv_ode, system, semi))
         end
 
+        @testset "conditional wrapped loop filters before wrapping" begin
+            semi = Semidiscretization(system1, system2; neighborhood_search=nothing)
+
+            # These arrays are only long enough for the first system. If the skipped second
+            # system is wrapped, this test fails with a bounds error.
+            v_short = zeros(length(semi.ranges_v[1]))
+            u_short = zeros(length(semi.ranges_u[1]))
+            visited = Any[]
+
+            TrixiParticles.foreach_system_wrapped_if(system -> system === semi.systems[1],
+                                                     semi, v_short, u_short) do system, v, u
+                push!(visited, system)
+                @test size(v) == (TrixiParticles.v_nvariables(system),
+                                  TrixiParticles.n_integrated_particles(system))
+                @test size(u) == (TrixiParticles.u_nvariables(system),
+                                  TrixiParticles.n_integrated_particles(system))
+            end
+
+            @test visited == Any[semi.systems[1]]
+        end
+
         function make_tlsph_fluid_systems()
             kernel = SchoenbergCubicSplineKernel{2}()
             smoothing_length = 1.0

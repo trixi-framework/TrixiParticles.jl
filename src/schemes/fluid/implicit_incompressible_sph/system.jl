@@ -261,12 +261,13 @@ function calculate_predicted_velocity_and_d_ii_values!(system::ImplicitIncompres
     end
 
     # Compute predicted velocity
-    foreach_system_wrapped(semi, v_ode,
-                           u_ode) do neighbor_system,
-                                     v_neighbor_system,
-                                     u_neighbor_system
-        has_system_interaction(system, neighbor_system, semi) || return
-
+    foreach_system_wrapped_if(neighbor_system -> has_system_interaction(system,
+                                                                        neighbor_system,
+                                                                        semi),
+                              semi, v_ode,
+                              u_ode) do neighbor_system,
+                                        v_neighbor_system,
+                                        u_neighbor_system
         system_coords = current_coordinates(u, system)
         neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 

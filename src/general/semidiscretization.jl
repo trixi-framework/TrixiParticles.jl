@@ -316,6 +316,25 @@ end
                   wrap_u(u_ode, system, semi_wrap))
     end
 end
+
+# This is just for readability to loop over filtered systems with wrapped arrays.
+# The predicate is evaluated before wrapping to avoid allocations for skipped systems.
+@inline function foreach_system_wrapped_if(f, predicate,
+                                           semi::Union{NamedTuple, Semidiscretization},
+                                           v_ode, u_ode)
+    return foreach_system_wrapped_if(f, predicate, semi, v_ode, u_ode, semi)
+end
+
+@inline function foreach_system_wrapped_if(f, predicate,
+                                           _semi::Union{NamedTuple, Semidiscretization},
+                                           v_ode, u_ode, semi_wrap)
+    foreach_system(semi_wrap) do system
+        predicate(system) || return
+
+        @inline f(system, wrap_v(v_ode, system, semi_wrap),
+                  wrap_u(u_ode, system, semi_wrap))
+    end
+end
 """
     semidiscretize(semi, tspan; reset_threads=true)
 

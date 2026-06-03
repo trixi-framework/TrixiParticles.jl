@@ -439,17 +439,14 @@ function other_interaction_split!(dv_ode_split, semi, v_ode, u_ode, semi_split)
         u_system = wrap_u(u_ode, system, semi)
 
         # Loop over all interacting neighbors in the big integrator
-        foreach_system_wrapped(semi, v_ode,
-                               u_ode) do neighbor_system,
-                                         v_neighbor,
-                                         u_neighbor
-            has_system_interaction(system, neighbor_system, semi) || return
-
-            if system === neighbor_system
-                # TLSPH self-interactions are integrated with the split state.
-                return
-            end
-
+        # TLSPH self-interactions are integrated with the split state.
+        foreach_system_wrapped_if(neighbor_system -> system !== neighbor_system &&
+                                                     has_system_interaction(system,
+                                                                            neighbor_system,
+                                                                            semi),
+                                  semi, v_ode, u_ode) do neighbor_system,
+                                                         v_neighbor,
+                                                         u_neighbor
             # Construct string for the interactions timer.
             system_index = system_indices(system, semi)
             neighbor_index = system_indices(neighbor_system, semi)

@@ -179,17 +179,14 @@ function update_mechanical_work_calculator!(work, system, eachparticle,
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
 
-        foreach_system_wrapped(semi, v_ode,
-                               u_ode) do neighbor_system,
-                                         v_neighbor,
-                                         u_neighbor
-            has_system_interaction(system, neighbor_system, semi) || return
-
-            if only_compute_force_on_fluid && !(neighbor_system isa AbstractFluidSystem)
-                # Not a fluid system, ignore this system
-                return
-            end
-
+        foreach_system_wrapped_if(neighbor_system -> has_system_interaction(system,
+                                                                            neighbor_system,
+                                                                            semi) &&
+                                                   (!only_compute_force_on_fluid ||
+                                                    neighbor_system isa AbstractFluidSystem),
+                                  semi, v_ode, u_ode) do neighbor_system,
+                                                         v_neighbor,
+                                                         u_neighbor
             apply_system_interaction!(dv, v, u, v_neighbor, u_neighbor,
                                       system, neighbor_system, semi,
                                       integrate_tlsph=true, # Required when using split integration
