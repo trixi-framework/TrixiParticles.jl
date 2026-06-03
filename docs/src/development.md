@@ -22,7 +22,6 @@ python3 -m http.server -d docs/build
 ```
 and open `localhost:8000` in your webbrowser.
 
-
 ## Release management
 
 To create a new release for TrixiParticles.jl, perform the following steps:
@@ -66,6 +65,43 @@ To create a new release for TrixiParticles.jl, perform the following steps:
    version should be `v0.3.1-dev`. If you just released `v0.2.4`, the new development
    version should be `v0.2.5-dev`.
 
+## Coding conventions
+
+TrixiParticles.jl mostly follows the
+[SciMLStyle](https://github.com/SciML/SciMLStyle). In addition, follow these
+project-specific conventions:
+
+- Apply `JuliaFormatter@2.1.1` before opening a PR.
+- Stay within the 92 character limit, also for comments and markdown (where practical).
+- Use descriptive variable and function names, and avoid unclear abbreviations.
+  For example, use `boundary_pressure` instead of `bnd_press`, and
+  `kernel_gradient` instead of `ker_grad`.
+  Standard SPH and time-integration notation is fine for local formula
+  variables, e.g., `m_a`, `rho_b`, `v_ode`, and `u_ode`.
+- Comments start uppercase and end with a period.
+- Error messages start lowercase and do not have a period unless they contain
+  multiple sentences.
+- Keep package-code imports centralized in `src/TrixiParticles.jl`.
+  Use explicit import lists, and import the package module itself only when
+  qualified calls like `Package.function` are needed.
+- Add docstrings to public API functions and types. Start with a signature
+  block, use `# Arguments`, `# Keywords`, and `# Examples` sections where
+  applicable, and use `@doc raw"""..."""` for docstrings containing LaTeX or
+  doctests. Very short docstrings don't require these sections.
+- Do not add docstrings to non-exported internal functions and types. Use
+  regular comments to explain their purpose and usage.
+- Validate user input with explicit `throw(ArgumentError(...))`.
+  Reserve `@assert` for internal invariants and states that should be impossible.
+- Use `@inbounds` only on individual lines whose bounds are guaranteed.
+  Do not mark full loops, blocks, or functions as `@inbounds`. See
+  [Writing fast GPU code](@ref writing_fast_gpu_code) for more details.
+- Use `NDIMS` for spatial-dimension type parameters and `ELTYPE` for numeric
+  element-type parameters. Prefer accessors like `ndims(system)` and
+  `eltype(system)` over dispatching with `where` clauses.
+- For new user-facing types that will be shown in the summary output of the
+  `InfoCallback`, implement compact `Base.show` output and rich `MIME"text/plain"`
+  output with `summary_header`, `summary_line`, and `summary_footer`.
+
 ## [Writing GPU-compatible code](@id writing_gpu_code)
 
 When implementing new functionality that should run on both CPUs and GPUs,
@@ -90,9 +126,9 @@ The following rules improve kernel performance and avoid common GPU pitfalls:
 
 1. Avoid exceptions and bounds errors inside kernels.
    Perform all required checks before entering `@threaded` loops (that is, before GPU kernels).
-   Then use `@inbounds` directly at the loop where bounds are guaranteed.
+   Then use `@inbounds` on individual lines inside the loop where bounds are guaranteed.
    In TrixiParticles.jl, we do not place `@inbounds` inside inner helper functions.
-   Instead, mark helper functions with `@propagate_inbounds` so the loop-level
+   Instead, mark helper functions with `@propagate_inbounds` so the line-level
    `@inbounds` is propagated.
 2. Avoid implicit `Float64` literals in arithmetic.
    For example, prefer `x / 2` over `0.5 * x` so `Float32` simulations stay in `Float32`.
