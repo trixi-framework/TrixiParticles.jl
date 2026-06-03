@@ -17,6 +17,7 @@ using GPUArraysCore: AbstractGPUArray
 using JSON: JSON
 using KernelAbstractions: KernelAbstractions, @kernel, @index
 using LinearAlgebra: norm, normalize, cross, dot, I, tr, inv, pinv, det
+import LinearAlgebra: mul!
 using Polyester: Polyester, @batch
 using Printf: @printf, @sprintf
 using ReadVTK: ReadVTK
@@ -74,7 +75,11 @@ export BoundaryZone, InFlow, OutFlow, BidirectionalFlow
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
        PostprocessCallback, StepsizeCallback, UpdateCallback, SteadyStateReachedCallback,
        SplitIntegrationCallback, MechanicalWorkCalculatorCallback,
-       calculated_mechanical_work,
+       calculated_mechanical_work, iisph_pressure_iteration_stats,
+       iisph_pressure_step_stats, reset_iisph_pressure_iteration_stats!,
+       reset_iisph_pressure_step_stats!, IISPHPressureOperator,
+       iisph_pressure_operator, iisph_pressure_rhs!, iisph_pressure_residual!,
+       iisph_pressure_apply_preconditioner!,
        SortingCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller, TransportVelocityAdami, ParticleShiftingTechnique,
