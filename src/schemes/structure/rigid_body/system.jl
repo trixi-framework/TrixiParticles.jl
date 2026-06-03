@@ -459,7 +459,9 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::RigidBodySystem, semi)
 
     # Contact stability depends on the most restrictive *actual* rigid contact partner of
     # this body.
-    foreach_interacting_system(system, semi) do neighbor
+    foreach_system(semi) do neighbor
+        has_system_interaction(system, neighbor, semi) || return
+
         neighbor === system && return
 
         if neighbor isa Union{RigidBodySystem, WallBoundarySystem}

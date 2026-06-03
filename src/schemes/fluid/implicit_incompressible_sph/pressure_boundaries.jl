@@ -8,7 +8,9 @@ function calculate_diagonal_elements_and_predicted_density!(system::WallBoundary
     predicted_density .= density
 
     # Calculate the diagonal elements (a_ii-values) according to eq. 12 in Ihmsen et al. (2013)
-    foreach_interacting_system(system, semi) do neighbor_system
+    foreach_system(semi) do neighbor_system
+        has_system_interaction(system, neighbor_system, semi) || return
+
         calculate_diagonal_elements_and_predicted_density(a_ii, predicted_density, system,
                                                           density_calculator,
                                                           neighbor_system, v, u, v_ode,
@@ -85,7 +87,9 @@ function calculate_sum_term_values!(system::WallBoundarySystem{<:BoundaryModelDu
     # Calculate the large sum in eq. 13 of Ihmsen et al. (2013) for each particle (as `sum_term`)
     set_zero!(sum_term)
 
-    foreach_interacting_system(system, semi) do neighbor_system
+    foreach_system(semi) do neighbor_system
+        has_system_interaction(system, neighbor_system, semi) || return
+
         calculate_sum_term!(sum_term, system, neighbor_system, u, u_ode, semi, time_step)
     end
 end

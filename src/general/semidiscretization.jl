@@ -303,18 +303,6 @@ end
 
 @inline foreach_system(f, systems) = foreach_noalloc(f, systems)
 
-# This is just for readability to loop over enabled neighbor systems without allocations.
-@inline function foreach_interacting_system(f, system, semi)
-    return foreach_interacting_system(f, system, semi, semi)
-end
-
-@inline function foreach_interacting_system(f, system, neighbor_systems, semi)
-    foreach_system(neighbor_systems) do neighbor_system
-        has_system_interaction(system, neighbor_system, semi) || return
-        @inline f(neighbor_system)
-    end
-end
-
 # This is just for readability to loop over all systems with wrapped arrays.
 @inline function foreach_system_wrapped(f, semi::Union{NamedTuple, Semidiscretization},
                                         v_ode, u_ode)
@@ -858,7 +846,9 @@ function system_interaction!(dv_ode, v_ode, u_ode, semi)
 
     # Call `interact!` for each ordered pair of systems.
     foreach_system(semi) do system
-        foreach_interacting_system(system, semi) do neighbor
+        foreach_system(semi) do neighbor
+            has_system_interaction(system, neighbor, semi) || return
+
             # Construct string for the interactions timer.
             # Avoid allocations from string construction when no timers are used.
             if timeit_debug_enabled()
