@@ -666,11 +666,11 @@ function interpolate_velocity!(system::OpenBoundarySystem, boundary_zone,
 
     # Shepard-normalized interpolation:
     #   v(p) = (Σ_b v_b V_b W_pb) / (Σ_b V_b W_pb)
-    foreach_system(semi) do neighbor_system
-        use_open_boundary_interpolation_neighbor(neighbor_system) || return neighbor_system
-
-        v_neighbor = wrap_v(v_ode, neighbor_system, semi)
-        u_neighbor = wrap_u(u_ode, neighbor_system, semi)
+    foreach_system_wrapped_if(neighbor_system -> has_system_interaction(system,
+                                                                        neighbor_system,
+                                                                        semi) &&
+                                                 use_open_boundary_interpolation_neighbor(neighbor_system),
+                              semi, v_ode, u_ode) do neighbor_system, v_neighbor, u_neighbor
         neighbor_coords = current_coordinates(u_neighbor, neighbor_system)
 
         # We can do this because we require the neighborhood search to support querying neighbors
