@@ -144,9 +144,10 @@ function compute_shepard_coeff!(system, system_coords, v_ode, u_ode, semi,
         foreach_system_wrapped_if(neighbor_system -> has_system_interaction(system,
                                                                             neighbor_system,
                                                                             semi),
-                                  semi, v_ode, u_ode) do neighbor_system,
-                                                         v_neighbor_system,
-                                                         u_neighbor_system
+                                  semi, v_ode,
+                                  u_ode) do neighbor_system,
+                                            v_neighbor_system,
+                                            u_neighbor_system
             neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
             # Loop over all pairs of particles and neighbors within the kernel cutoff

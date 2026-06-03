@@ -444,9 +444,10 @@ function other_interaction_split!(dv_ode_split, semi, v_ode, u_ode, semi_split)
                                                      has_system_interaction(system,
                                                                             neighbor_system,
                                                                             semi),
-                                  semi, v_ode, u_ode) do neighbor_system,
-                                                         v_neighbor,
-                                                         u_neighbor
+                                  semi, v_ode,
+                                  u_ode) do neighbor_system,
+                                            v_neighbor,
+                                            u_neighbor
             # Construct string for the interactions timer.
             system_index = system_indices(system, semi)
             neighbor_index = system_indices(neighbor_system, semi)

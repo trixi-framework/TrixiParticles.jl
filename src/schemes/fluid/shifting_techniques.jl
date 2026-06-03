@@ -466,8 +466,8 @@ end
                                                                         neighbor_system,
                                                                         semi),
                               semi, v_ode, u_ode) do neighbor_system,
-                                                        v_neighbor,
-                                                        u_neighbor
+                                                     v_neighbor,
+                                                     u_neighbor
         system_coords = current_coordinates(u, system)
         neighbor_coords = current_coordinates(u_neighbor, neighbor_system)
 
@@ -645,8 +645,8 @@ function update_shifting!(system, shifting::TransportVelocityAdami, v, u, v_ode,
                                                                         neighbor_system,
                                                                         semi),
                               semi, v_ode, u_ode) do neighbor_system,
-                                                        v_neighbor,
-                                                        u_neighbor
+                                                     v_neighbor,
+                                                     u_neighbor
         system_coords = current_coordinates(u, system)
         neighbor_coords = current_coordinates(u_neighbor, neighbor_system)
 

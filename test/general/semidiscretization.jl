@@ -225,9 +225,9 @@
                                                      semi, v_short, u_short) do system, v, u
                 push!(visited, system)
                 @test size(v) == (TrixiParticles.v_nvariables(system),
-                                  TrixiParticles.n_integrated_particles(system))
+                       TrixiParticles.n_integrated_particles(system))
                 @test size(u) == (TrixiParticles.u_nvariables(system),
-                                  TrixiParticles.n_integrated_particles(system))
+                       TrixiParticles.n_integrated_particles(system))
             end
 
             @test visited == Any[semi.systems[1]]
