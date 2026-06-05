@@ -136,6 +136,33 @@
         end
     end
 
+    @testset "ParabolicKernel Gradient Linearity" begin
+        # The `ParabolicKernel` is designed to have a linear gradient: ∇Wᵢⱼ = c * rᵢⱼ.
+        smoothing_lengths = (0.5, 1.0)
+
+        for ndims in 1:3
+            kernel_ = ParabolicKernel{ndims}()
+
+            @testset "ParabolicKernel{$ndims}" begin
+                for h in smoothing_lengths
+                    h_inv = inv(h)
+                    c = 2 * TrixiParticles.normalization_factor(kernel_, h_inv) * h_inv^2
+
+                    for factor in (0.25, 0.5, 0.75)
+                        pos_diff = SVector(ntuple(i -> i * factor * h / (2 * ndims),
+                                                  ndims))
+                        distance = norm(pos_diff)
+
+                        gradient = TrixiParticles.kernel_grad(kernel_, pos_diff,
+                                                              distance, h)
+
+                        @test gradient ≈ -c .* pos_diff
+                    end
+                end
+            end
+        end
+    end
+
     @testset verbose=false "Return Type" begin
         # Test that the return type of the kernel and kernel derivative preserve
         # the input type. We don't want to return `Float64` when working with `Float32`.
