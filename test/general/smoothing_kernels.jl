@@ -141,7 +141,7 @@
     end
 
     @testset "ParabolicKernel Gradient Linearity" begin
-        # The `ParabolicKernel` is designed to have a linear gradient: ∇Wᵢⱼ = c * rᵢⱼ.
+        # The `ParabolicKernel` is designed to have a linear gradient: ∇Wᵢⱼ = -c * rᵢⱼ.
         smoothing_lengths = (0.5, 1.0)
 
         for ndims in 1:3
