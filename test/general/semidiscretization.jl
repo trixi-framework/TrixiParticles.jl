@@ -28,15 +28,51 @@
         @test semi.ranges_u == (1:6, 7:15)
         @test semi.ranges_v == (1:6, 7:18)
 
-        nhs = [TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
-               eachpoint=1:2)
-               TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
-               eachpoint=1:2);;
-               TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
-               eachpoint=1:3)
-               TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
-               eachpoint=1:3)]
-        @test semi.neighborhood_searches == nhs
+        @test semi.neighborhood_search_handler isa TrixiParticles.PairsNHSHandler
+
+        nhs1 = TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
+                                                           eachpoint=1:2)
+        nhs2 = TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
+                                                           eachpoint=1:3)
+        nhs = [nhs1 nhs2; nhs1 nhs2]
+        @test semi.neighborhood_search_handler.neighborhood_searches == nhs
+
+        semi_grid_default = Semidiscretization(system1, system2,
+                                               neighborhood_search=GridNeighborhoodSearch{3}())
+        @test !PointNeighbors.requires_update(GridNeighborhoodSearch{3}())[1]
+        @test semi_grid_default.neighborhood_search_handler isa
+              TrixiParticles.SharedNHSHandler
+        @test TrixiParticles.get_neighborhood_search(system1, system2,
+                                                     semi_grid_default) isa
+              GridNeighborhoodSearch
+
+        semi_grid = Semidiscretization(system1, system2,
+                                       neighborhood_search=GridNeighborhoodSearch{3}(),
+                                       neighborhood_search_handler=SharedNHSHandler)
+        @test semi_grid.neighborhood_search_handler isa TrixiParticles.SharedNHSHandler
+        @test semi_grid.neighborhood_search_handler.search_radii isa Vector
+        @test all(search_radii -> search_radii isa Vector,
+                  semi_grid.neighborhood_search_handler.search_radii)
+        @test all(searches -> searches isa Vector,
+                  semi_grid.neighborhood_search_handler.neighborhood_searches)
+        @test all(searches -> isconcretetype(eltype(searches)),
+                  semi_grid.neighborhood_search_handler.neighborhood_searches)
+        @test TrixiParticles.get_neighborhood_search(semi_grid.neighborhood_search_handler,
+                                                     1, 1, 0.1) isa GridNeighborhoodSearch
+        @test_throws ArgumentError TrixiParticles.get_neighborhood_search(semi_grid.neighborhood_search_handler,
+                                                                          1, 1, 1.0)
+
+        semi_pairs = Semidiscretization(system1, system2,
+                                        neighborhood_search=GridNeighborhoodSearch{3}(),
+                                        neighborhood_search_handler=PairsNHSHandler)
+        @test semi_pairs.neighborhood_search_handler isa TrixiParticles.PairsNHSHandler
+
+        # Need to pass a type, not an NHS handler object.
+        nhs = TrixiParticles.TrivialNeighborhoodSearch{3}()
+        handler = TrixiParticles.PairsNHSHandler(nhs, (system1, system2))
+        @test_throws ArgumentError Semidiscretization(system1, system2,
+                                                      neighborhood_search=nothing,
+                                                      neighborhood_search_handler=handler)
     end
 
     @testset verbose=true "Check Configuration" begin

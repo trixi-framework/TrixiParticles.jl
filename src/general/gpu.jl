@@ -22,6 +22,17 @@ Adapt.@adapt_structure DEMSystem
 Adapt.@adapt_structure BoundaryDEMSystem
 Adapt.@adapt_structure RCRWindkesselModel
 
+function adapt_neighborhood_search_handler(to, handler::PairsNHSHandler)
+    return PairsNHSHandler(Adapt.adapt.(to, handler.neighborhood_searches))
+end
+
+function adapt_neighborhood_search_handler(to, handler::SharedNHSHandler)
+    searches = map(handler.neighborhood_searches) do neighborhood_searches
+        Adapt.adapt.(to, neighborhood_searches)
+    end
+    return SharedNHSHandler(handler.search_radii, searches)
+end
+
 # This makes `@threaded semi for ...` use `semi.parallelization_backend` for parallelization
 @inline function PointNeighbors.parallel_foreach(f, iterator, semi::Semidiscretization)
     PointNeighbors.parallel_foreach(f, iterator, semi.parallelization_backend)
@@ -53,10 +64,11 @@ end
 function transfer2cpu(semi::Semidiscretization)
     # First move all systems and neighborhood searches to the CPU
     systems = Adapt.adapt(Array, semi.systems)
-    neighborhood_searches = Adapt.adapt.(Array, semi.neighborhood_searches)
+    neighborhood_search_handler = adapt_neighborhood_search_handler(Array,
+                                                                    semi.neighborhood_search_handler)
 
     semi_ = @set semi.systems = systems
-    semi__ = @set semi_.neighborhood_searches = neighborhood_searches
+    semi__ = @set semi_.neighborhood_search_handler = neighborhood_search_handler
 
     # Now, set the parallelization backend to `PolyesterBackend` to make sure that
     # `@threaded` loops still work as expected with this semidiscretization.
