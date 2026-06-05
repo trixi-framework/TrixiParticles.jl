@@ -13,6 +13,7 @@ The following smoothing kernels are currently available:
 | [`Poly6Kernel`](@ref)                     | $[0, 1h]$         | $1.5$ to $2.5$        | Academic                | +         |
 | [`SpikyKernel`](@ref)                     | $[0, 1h]$         | $1.5$ to $3.0$        | Academic                | +         |
 | [`LaguerreGaussKernel`](@ref)             | $[0, 2h]$         | $1.3$ to $1.5$        | General                 | ++++      |
+| [`ParabolicKernel`](@ref)                 | $[0, 1h]$         | $2.1$ to $3.0$        | TLSPH only              | n/a       |
 
 Any Kernel with a stability rating of more than '+++' doesn't suffer from pairing-instability.
 
@@ -40,6 +41,7 @@ other_kernels = [
     ("Gaussian",       GaussianKernel{2}()),
     ("Poly6",          Poly6Kernel{2}()),
     ("Laguerre-Gauss", LaguerreGaussKernel{2}()),
+    ("Parabolic",      ParabolicKernel{2}()),
 ]
 
 spiky_kernel_group = [

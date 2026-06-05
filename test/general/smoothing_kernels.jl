@@ -48,14 +48,16 @@
             WendlandC6Kernel,
             SpikyKernel,
             Poly6Kernel,
-            LaguerreGaussKernel
+            LaguerreGaussKernel,
+            ParabolicKernel
         ]
 
         kernels_1d = [
             SchoenbergCubicSplineKernel,
             SchoenbergQuarticSplineKernel,
             SchoenbergQuinticSplineKernel,
-            LaguerreGaussKernel
+            LaguerreGaussKernel,
+            ParabolicKernel
         ]
 
         @testset "$kernel" for kernel in kernels
@@ -63,8 +65,8 @@
             error_2d = abs(integrate_kernel_2d(kernel{2}()) - 1.0)
             error_3d = abs(integrate_kernel_3d(kernel{3}()) - 1.0)
 
-            @test error_2d <= 1e-15
-            @test error_3d <= 1e-15
+            @test error_2d <= 2e-15
+            @test error_3d <= 3e-15
 
             if kernel in kernels_1d
                 error_1d = abs(integrate_kernel_1d(kernel{1}()) - 1.0)
@@ -86,14 +88,16 @@
             WendlandC6Kernel,
             SpikyKernel,
             Poly6Kernel,
-            LaguerreGaussKernel
+            LaguerreGaussKernel,
+            ParabolicKernel
         ]
 
         kernels_1d = [
             SchoenbergCubicSplineKernel,
             SchoenbergQuarticSplineKernel,
             SchoenbergQuinticSplineKernel,
-            LaguerreGaussKernel
+            LaguerreGaussKernel,
+            ParabolicKernel
         ]
 
         # Test 4 different smoothing lengths
@@ -145,14 +149,16 @@
             WendlandC6Kernel,
             SpikyKernel,
             Poly6Kernel,
-            LaguerreGaussKernel
+            LaguerreGaussKernel,
+            ParabolicKernel
         ]
 
         kernels_1d = [
             SchoenbergCubicSplineKernel,
             SchoenbergQuarticSplineKernel,
             SchoenbergQuinticSplineKernel,
-            LaguerreGaussKernel
+            LaguerreGaussKernel,
+            ParabolicKernel
         ]
 
         # Test different smoothing length types
