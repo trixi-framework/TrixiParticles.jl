@@ -1,9 +1,12 @@
 # ==========================================================================================
 # 2D Vortex Street
 #
-# Flow past a circular cylinder (vortex street), Tafuni et al. (2018).
-# Other literature using this validation:
-# Vacondio et al. (2013), Marrone et al. (2013), Calhoun (2002), Liu et al. (1998)
+# Based on:
+#   A. Tafuni, J. M. Domínguez, R. Vacondio, A. J. C. Crespo.
+#   "A versatile algorithm for the treatment of open boundary conditions in smoothed
+#   particle hydrodynamics GPU models".
+#   Computer Methods in Applied Mechanics and Engineering, Volume 342 (2018), pages 604-624.
+#   https://doi.org/10.1016/j.cma.2018.08.004
 # ==========================================================================================
 
 using TrixiParticles
@@ -11,10 +14,10 @@ using OrdinaryDiffEqLowStorageRK
 
 # ==========================================================================================
 # ==== Resolution
-factor_d = 0.1 # Resolution in the paper is `0.01` (5M particles)
+particle_spacing_factor = 0.1 # Resolution in the paper is `0.01` (5M particles)
 
 cylinder_diameter = 0.1
-particle_spacing = factor_d * cylinder_diameter
+particle_spacing = particle_spacing_factor * cylinder_diameter
 
 # Make sure that the kernel support of fluid particles at a boundary is always fully sampled
 boundary_layers = 4
