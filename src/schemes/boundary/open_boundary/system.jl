@@ -355,8 +355,8 @@ function update_open_boundary_eachstep!(system::OpenBoundarySystem, v_ode, u_ode
         end
     end
 
-    # Tell OrdinaryDiffEq that `integrator.u` has been modified
-    u_modified!(integrator, true)
+    # Activating or deactivating boundary particles introduces a derivative discontinuity.
+    derivative_discontinuity!(integrator, true)
 
     return system
 end
