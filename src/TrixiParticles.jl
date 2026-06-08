@@ -67,6 +67,7 @@ include("visualization/recipes_plots.jl")
 export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition, apply_angular_velocity
 export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangianSPHSystem,
+       StandardTLSPHModel, BondAssociatedTLSPHModel,
        RigidBodySystem, WallBoundarySystem, DEMSystem, BoundaryDEMSystem,
        OpenBoundarySystem,
        ImplicitIncompressibleSPHSystem

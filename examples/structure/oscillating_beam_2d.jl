@@ -67,6 +67,7 @@ structure_system = TotalLagrangianSPHSystem(structure; smoothing_kernel, smoothi
                                             acceleration=(0.0, -gravity),
                                             penalty_force=nothing, viscosity=nothing,
                                             clamped_particles_motion=nothing,
+                                            model=StandardTLSPHModel(),
                                             self_interaction_nhs=:default)
 
 # ==========================================================================================

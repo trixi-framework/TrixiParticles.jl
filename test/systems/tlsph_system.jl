@@ -43,6 +43,15 @@
             @test TrixiParticles.initial_smoothing_length(system) == smoothing_length
             @test system.acceleration == [0.0 for _ in 1:NDIMS]
             @test system.boundary_model == boundary_model
+            @test system.model isa StandardTLSPHModel
+
+            baq_system = TotalLagrangianSPHSystem(initial_condition; smoothing_kernel,
+                                                  smoothing_length, young_modulus=E,
+                                                  poisson_ratio=nu, boundary_model,
+                                                  model=BondAssociatedTLSPHModel())
+            @test baq_system.model isa BondAssociatedTLSPHModel
+            @test size(baq_system.cache.weighted_volume) == (2,)
+            @test size(baq_system.cache.stress_integral) == (NDIMS, NDIMS, 2)
         end
     end
 
