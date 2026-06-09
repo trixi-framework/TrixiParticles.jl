@@ -18,6 +18,13 @@ end
 # Function barrier without dispatch for unit testing
 @inline function interact_structure_structure!(dv, v_system, system, semi;
                                                eachparticle=each_integrated_particle(system))
+    interact_structure_structure!(dv, v_system, system, tlsph_model(system), semi;
+                                  eachparticle)
+end
+
+@inline function interact_structure_structure!(dv, v_system, system,
+                                               ::StandardTLSPHModel, semi;
+                                               eachparticle=each_integrated_particle(system))
     (; penalty_force) = system
 
     # Everything here is done in the initial coordinates
@@ -96,6 +103,95 @@ end
         end
 
         # TODO continuity equation for boundary model with `ContinuityDensity`?
+    end
+
+    return dv
+end
+
+@inline function interact_structure_structure!(dv, v_system, system,
+                                               ::BondAssociatedTLSPHModel, semi;
+                                               eachparticle=each_integrated_particle(system))
+    (; penalty_force, mass, material_density) = system
+    (; weighted_volume) = system.cache
+
+    system_coords = initial_coordinates(system)
+    neighborhood_search = get_neighborhood_search(system, semi)
+    backend = semi.parallelization_backend
+    h = initial_smoothing_length(system)
+    almostzero = sqrt(eps(h^2))
+
+    @threaded semi for particle in eachparticle
+        m_a = @inbounds mass[particle]
+        rho_a = @inbounds material_density[particle]
+        volume_a = div_fast(m_a, rho_a)
+        current_coords_a = @inbounds current_coords(system, particle)
+        F_a = @inbounds deformation_gradient(system, particle)
+        stress_integral_a = @inbounds bond_associated_stress_integral(system, particle)
+        weighted_volume_a = @inbounds weighted_volume[particle]
+
+        dv_particle = Ref(zero(current_coords_a))
+
+        @inbounds foreach_neighbor(system_coords, system_coords,
+                                   neighborhood_search, backend,
+                                   particle) do particle, neighbor,
+                                                initial_pos_diff, initial_distance
+            initial_distance < almostzero && return
+
+            rho_b = material_density[neighbor]
+            m_b = mass[neighbor]
+            volume_b = div_fast(m_b, rho_b)
+            current_coords_b = current_coords(system, neighbor)
+            F_b = deformation_gradient(system, neighbor)
+
+            current_pos_diff_ = current_coords_a - current_coords_b
+            current_pos_diff = convert.(eltype(system), current_pos_diff_)
+            current_distance = norm(current_pos_diff)
+            initial_bond = -initial_pos_diff
+            current_bond = -current_pos_diff
+
+            F_ab = bond_deformation_gradient(F_a, F_b, initial_bond, current_bond,
+                                             initial_distance)
+            P_ab = pk1_stress_tensor(F_ab, system, particle)
+            P_ba = pk1_stress_tensor(F_ab, system, neighbor)
+
+            grad_kernel_a = smoothing_kernel_grad_unsafe(system, initial_pos_diff,
+                                                         initial_distance, particle)
+            weight_a = bond_weight(grad_kernel_a, initial_pos_diff, initial_distance)
+            gradient_weight_a = volume_b * correction_matrix(system, particle) *
+                                grad_kernel_a
+
+            neighbor_pos_diff = -initial_pos_diff
+            grad_kernel_b = smoothing_kernel_grad_unsafe(system, neighbor_pos_diff,
+                                                         initial_distance, neighbor)
+            weight_b = bond_weight(grad_kernel_b, neighbor_pos_diff, initial_distance)
+            gradient_weight_b = volume_a * correction_matrix(system, neighbor) *
+                                grad_kernel_b
+
+            stress_integral_b = bond_associated_stress_integral(system, neighbor)
+            weighted_volume_b = weighted_volume[neighbor]
+
+            force_state_ab = weight_a / (weighted_volume_a * initial_distance^2) *
+                             (P_ab * initial_bond) +
+                             stress_integral_a * gradient_weight_a / volume_b
+            force_state_ba = weight_b / (weighted_volume_b * initial_distance^2) *
+                             (P_ba * -initial_bond) +
+                             stress_integral_b * gradient_weight_b / volume_a
+
+            dv_particle[] += volume_b / rho_a * (force_state_ab - force_state_ba)
+
+            @inbounds dv_penalty_force!(dv_particle, penalty_force, particle, neighbor,
+                                        initial_pos_diff, initial_distance,
+                                        current_pos_diff, current_distance,
+                                        system, m_a, m_b, rho_a, rho_b, F_a, F_b)
+
+            @inbounds dv_viscosity_tlsph!(dv_particle, system, v_system, particle, neighbor,
+                                          current_pos_diff, current_distance,
+                                          m_a, m_b, rho_a, rho_b, F_a, grad_kernel_a)
+        end
+
+        for i in 1:ndims(system)
+            @inbounds dv[i, particle] += dv_particle[][i]
+        end
     end
 
     return dv
