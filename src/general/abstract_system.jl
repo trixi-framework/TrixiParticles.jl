@@ -124,6 +124,7 @@ end
 end
 
 @inline set_particle_density!(v, system, particle, density) = v
+@inline set_particle_mass!(v, system, particle, mass) = v
 @inline set_particle_pressure!(v, system, particle, pressure) = v
 
 @inline function smoothing_kernel(system, distance, particle)

@@ -439,6 +439,26 @@
         @test count_rhs_allocations(sol) == 0
     end
 
+    @trixi_testset "fluid/pipe_flow_2d.jl - DeltaALESPHSystem" begin
+        trixi_include(@__MODULE__,
+                      joinpath(examples_dir(), "fluid", "pipe_flow_2d.jl"),
+                      sol=nothing, ode=nothing)
+
+        delta_ale_system = DeltaALESPHSystem(pipe.fluid; smoothing_kernel,
+                                             smoothing_length, sound_speed,
+                                             reference_density=fluid_density,
+                                             maximum_velocity=norm(prescribed_velocity),
+                                             viscosity,
+                                             buffer_size=n_buffer_particles)
+
+        @trixi_test_nowarn trixi_include(@__MODULE__, tspan=(0.0, 0.5),
+                                         joinpath(examples_dir(), "fluid",
+                                                  "pipe_flow_2d.jl"),
+                                         fluid_system=delta_ale_system)
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol) == 0
+    end
+
     @trixi_testset "fluid/pipe_flow_2d.jl - BoundaryModelMirroringTafuni (WCSPH)" begin
         @trixi_test_nowarn trixi_include(@__MODULE__, tspan=(0.0, 0.5), wcsph=true,
                                          joinpath(examples_dir(), "fluid",

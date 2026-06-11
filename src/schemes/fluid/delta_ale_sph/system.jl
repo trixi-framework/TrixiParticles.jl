@@ -3,7 +3,8 @@
                       sound_speed, reference_density, maximum_velocity,
                       delta=0.1, acceleration=ntuple(_ -> 0.0, NDIMS),
                       viscosity=nothing, pressure_acceleration=nothing,
-                      correction=nothing, source_terms=nothing)
+                      correction=nothing, source_terms=nothing,
+                      buffer_size=nothing)
 
 The ``\delta``-ALE-SPH formulation by [Antuono et al. (2021)](@cite Antuono2021).
 
@@ -29,6 +30,7 @@ coefficient `delta`, as proposed in equation (14).
                            for [`ContinuityDensity`](@ref) is selected.
 - `correction`: Correction method (default: no correction).
 - `source_terms`: Additional acceleration source terms.
+- `buffer_size`: Number of buffer particles.
 """
 struct DeltaALESPHSystem{NDIMS, ELTYPE <: Real, IC, M, P, DC, SE, K, V, DD, COR,
                          PF, SC, ST, B, PR, C} <: AbstractFluidSystem{NDIMS}
@@ -58,7 +60,13 @@ function DeltaALESPHSystem(initial_condition; smoothing_kernel, smoothing_length
                            acceleration=ntuple(_ -> zero(eltype(initial_condition)),
                                                ndims(smoothing_kernel)),
                            viscosity=nothing, pressure_acceleration=nothing,
-                           correction=nothing, source_terms=nothing)
+                           correction=nothing, source_terms=nothing,
+                           buffer_size=nothing)
+    buffer = isnothing(buffer_size) ? nothing :
+             SystemBuffer(nparticles(initial_condition), buffer_size)
+
+    initial_condition = allocate_buffer(initial_condition, buffer)
+
     NDIMS = ndims(initial_condition)
     ELTYPE = eltype(initial_condition)
     n_particles = nparticles(initial_condition)
@@ -108,7 +116,7 @@ function DeltaALESPHSystem(initial_condition; smoothing_kernel, smoothing_length
     return DeltaALESPHSystem(initial_condition, mass, pressure, density_calculator,
                              state_equation, smoothing_kernel, acceleration_, viscosity,
                              density_diffusion, correction, pressure_acceleration,
-                             shifting_technique, source_terms, nothing, nothing, nothing,
+                             shifting_technique, source_terms, nothing, nothing, buffer,
                              nothing, cache)
 end
 
@@ -132,6 +140,9 @@ function Base.show(io::IO, ::MIME"text/plain", system::DeltaALESPHSystem)
     else
         summary_header(io, "DeltaALESPHSystem{$(ndims(system))}")
         summary_line(io, "#particles", nparticles(system))
+        if system.buffer isa SystemBuffer
+            summary_line(io, "#buffer_particles", system.buffer.buffer_size)
+        end
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
         summary_line(io, "smoothing length", initial_smoothing_length(system))
         summary_line(io, "sound speed", system_sound_speed(system))
@@ -168,6 +179,13 @@ end
 
 @propagate_inbounds function current_mass(v, system::DeltaALESPHSystem, particle)
     return current_mass(v, system)[particle]
+end
+
+@inline function set_particle_mass!(v, system::DeltaALESPHSystem, particle, mass)
+    current_mass(v, system)[particle] = mass
+    system.mass[particle] = mass
+
+    return v
 end
 
 @inline current_pressure(v, system::DeltaALESPHSystem) = system.pressure
@@ -248,6 +266,33 @@ function sort_system!(system::DeltaALESPHSystem, v, u, perm, buffer::Nothing)
     system.mass .= system_mass
 
     return system
+end
+
+function sort_system!(system::DeltaALESPHSystem, v, u, perm, buffer::SystemBuffer)
+    (; active_particle) = buffer
+
+    system_coords = current_coordinates(u, system)
+    system_velocity = current_velocity(v, system)
+    system_density = current_density(v, system)
+    system_mass = current_mass(v, system)
+    system_pressure = current_pressure(v, system)
+
+    active_particle_sorted = active_particle[perm]
+    perm2 = sortperm(transfer2cpu(active_particle_sorted), rev=true)
+    combined_perm = perm[perm2]
+
+    active_particle .= active_particle_sorted[perm2]
+    system_coords .= system_coords[:, combined_perm]
+    system_velocity .= system_velocity[:, combined_perm]
+    system_density .= system_density[combined_perm]
+    system_mass .= system_mass[combined_perm]
+    system_pressure .= system_pressure[combined_perm]
+    system.mass .= system_mass
+
+    buffer.active_particle_count[] = count(active_particle)
+    buffer.eachparticle[1:buffer.active_particle_count[]] .= 1:buffer.active_particle_count[]
+
+    return buffer
 end
 
 function system_data(system::DeltaALESPHSystem, dv_ode, du_ode, v_ode, u_ode, semi)

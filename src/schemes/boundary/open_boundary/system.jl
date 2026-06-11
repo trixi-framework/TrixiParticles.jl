@@ -536,6 +536,10 @@ end
     pressure = current_pressure(v_old, system_old, particle_old)
     set_particle_pressure!(v_new, system_new, particle_new, pressure)
 
+    # Some formulations, such as delta-ALE-SPH, evolve particle mass.
+    mass = hydrodynamic_mass(system_old, particle_old)
+    set_particle_mass!(v_new, system_new, particle_new, mass)
+
     # Exchange position and velocity
     for dim in 1:ndims(system_new)
         u_new[dim, particle_new] = u_old[dim, particle_old]

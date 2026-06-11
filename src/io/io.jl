@@ -360,6 +360,14 @@ function add_system_data!(system_data, shifting_technique::ParticleShiftingTechn
     system_data["shifting_technique"]["model"] = type2string(shifting_technique)
 end
 
+function add_system_data!(system_data, shifting_technique::DeltaALEShifting)
+    system_data["shifting_technique"] = Dict{String, Any}()
+    system_data["shifting_technique"]["model"] = type2string(shifting_technique)
+    system_data["shifting_technique"]["maximum_velocity"] = shifting_technique.maximum_velocity
+    system_data["shifting_technique"]["kernel_factor"] = shifting_technique.kernel_factor
+    system_data["shifting_technique"]["kernel_exponent"] = shifting_technique.kernel_exponent
+end
+
 function add_system_data!(system_data, viscosity::ViscosityCarreauYasuda)
     system_data["viscosity_model"] = Dict{String, Any}()
     system_data["viscosity_model"]["model"] = type2string(viscosity)
