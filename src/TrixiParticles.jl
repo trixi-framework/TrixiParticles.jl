@@ -22,9 +22,9 @@ using Printf: @printf, @sprintf
 using ReadVTK: ReadVTK
 using RecipesBase: RecipesBase, @series
 using Random: seed!
-using SciMLBase: SciMLBase, CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
-                 get_tmp_cache, set_proposed_dt!, ODESolution, ODEProblem, terminate!,
-                 add_tstop!
+using SciMLBase: SciMLBase, CallbackSet, DiscreteCallback, DynamicalODEProblem,
+                 derivative_discontinuity!, get_tmp_cache, set_proposed_dt!,
+                 ODESolution, ODEProblem, terminate!, add_tstop!
 @reexport using StaticArrays: SVector
 using StaticArrays: @SMatrix, SMatrix, setindex
 using Statistics: Statistics
@@ -79,7 +79,7 @@ export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller, TransportVelocityAdami, ParticleShiftingTechnique,
        ParticleShiftingTechniqueSun2017, ConsistentShiftingSun2019,
-       ContinuityEquationTermSun2019, MomentumEquationTermSun2019
+       ContinuityEquationTermSun2019, MomentumEquationTermSun2019, VelocityAveraging
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        SchoenbergQuinticSplineKernel, GaussianKernel, WendlandC2Kernel, WendlandC4Kernel,
        WendlandC6Kernel, SpikyKernel, Poly6Kernel, LaguerreGaussKernel

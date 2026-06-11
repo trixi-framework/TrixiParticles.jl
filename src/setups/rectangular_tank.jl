@@ -1159,6 +1159,7 @@ The selected walls of the tank will be placed at the new positions.
 """
 function reset_wall!(rectangular_tank, reset_faces, positions)
     (; boundary, particle_spacing, spacing_ratio, n_layers, face_indices) = rectangular_tank
+    boundary_spacing = particle_spacing / spacing_ratio
 
     for face in eachindex(reset_faces)
         dim = div(face - 1, 2) + 1
@@ -1171,17 +1172,17 @@ function reset_wall!(rectangular_tank, reset_faces, positions)
                 # For "odd" faces the layer direction is outwards
                 # and for "even" faces inwards.
                 layer_shift = if iseven(face)
-                    (layer - 1) * particle_spacing / spacing_ratio
+                    (layer - 1) * boundary_spacing
                 else
-                    # Odd faces need to be shifted outwards by `particle_spacing`
+                    # Odd faces need to be shifted outwards by `boundary_spacing`
                     # to be outside of the fluid.
-                    -(layer - 1) * particle_spacing / spacing_ratio - particle_spacing
+                    -(layer - 1) * boundary_spacing - boundary_spacing
                 end
 
                 # Set position
                 boundary.coordinates[dim,
                                      particle] = positions[face] + layer_shift +
-                                                 0.5particle_spacing
+                                                 0.5boundary_spacing
             end
         end
     end
