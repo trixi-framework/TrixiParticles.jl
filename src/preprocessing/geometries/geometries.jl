@@ -23,10 +23,13 @@ function Base.setdiff(initial_condition::InitialCondition,
     mass = initial_condition.mass[.!delete_indices]
     density = initial_condition.density[.!delete_indices]
     pressure = initial_condition.pressure[.!delete_indices]
+    normals = isnothing(initial_condition.normals) ? nothing :
+              initial_condition.normals[:, .!delete_indices]
 
     result = InitialCondition{ndims(initial_condition)}(coordinates, velocity, mass,
                                                         density, pressure,
-                                                        initial_condition.particle_spacing)
+                                                        initial_condition.particle_spacing,
+                                                        normals)
 
     return setdiff(result, Base.tail(geometries)...)
 end
@@ -50,10 +53,12 @@ function Base.intersect(initial_condition::InitialCondition,
     mass = initial_condition.mass[keep_indices]
     density = initial_condition.density[keep_indices]
     pressure = initial_condition.pressure[keep_indices]
+    normals = isnothing(initial_condition.normals) ? nothing : initial_condition.normals
 
     result = InitialCondition{ndims(initial_condition)}(coordinates, velocity, mass,
                                                         density, pressure,
-                                                        initial_condition.particle_spacing)
+                                                        initial_condition.particle_spacing,
+                                                        normals)
 
     return intersect(result, Base.tail(geometries)...)
 end
