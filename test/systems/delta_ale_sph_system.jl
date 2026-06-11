@@ -29,6 +29,10 @@
     TrixiParticles.write_v0!(v0, system)
     @test v0 == vcat(velocity, density', mass')
 
+    vtk = Dict{String, Any}()
+    TrixiParticles.write2vtk!(vtk, v0, coordinates, 0.0, system)
+    @test vtk["mass"] == mass
+
     @test_throws ArgumentError DeltaALESPHSystem(initial_condition;
                                                  smoothing_kernel, smoothing_length,
                                                  sound_speed=10.0,

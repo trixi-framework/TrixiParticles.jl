@@ -372,6 +372,16 @@ function write2vtk!(vtk, v, u, t, system::AbstractFluidSystem)
     return vtk
 end
 
+function write2vtk!(vtk, v, u, t, system::DeltaALESPHSystem)
+    invoke(write2vtk!, Tuple{Any, Any, Any, Any, AbstractFluidSystem},
+           vtk, v, u, t, system)
+
+    vtk["mass"] = [current_mass(v, system, particle)
+                   for particle in eachparticle(system)]
+
+    return vtk
+end
+
 write2vtk!(vtk, viscosity::Nothing) = vtk
 
 function write2vtk!(vtk,

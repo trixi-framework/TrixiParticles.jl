@@ -112,10 +112,13 @@ end
                                             pos_diff, distance, grad_kernel)
     particle_system === neighbor_system || return zero(m_a)
 
+    distance^2 < eps(h^2) && return zero(m_a)
+    
     volume_a = div_fast(m_a, rho_a)
     volume_b = div_fast(m_b, rho_b)
     h = (smoothing_length(particle_system, particle) +
          smoothing_length(neighbor_system, neighbor)) / 2
+
     coefficient = 2 * particle_system.density_diffusion.delta * h *
                   system_sound_speed(particle_system)
 

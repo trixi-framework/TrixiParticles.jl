@@ -44,6 +44,12 @@ The formulation integrates density and mass, so `SummationDensity` is not an opt
 `maximum_velocity` is the expected maximum physical velocity used to define the shifting
 Mach number in the paper.
 
+!!! warning
+    For free-surface simulations, the paper projects the shifting velocity onto the local
+    free-surface tangent and disables diffusion for poorly sampled kernel supports.
+    Free-surface detection is not yet available in TrixiParticles.jl, so these two
+    free-surface modifications are not currently applied.
+
 ```@autodocs
 Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "fluid", "delta_ale_sph", "system.jl")]
