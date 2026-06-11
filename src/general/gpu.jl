@@ -10,6 +10,7 @@
 Adapt.@adapt_structure InitialCondition
 Adapt.@adapt_structure WeaklyCompressibleSPHSystem
 Adapt.@adapt_structure EntropicallyDampedSPHSystem
+Adapt.@adapt_structure DeltaALESPHSystem
 Adapt.@adapt_structure WallBoundarySystem
 Adapt.@adapt_structure BoundaryModelDummyParticles
 Adapt.@adapt_structure BoundaryModelMonaghanKajtar

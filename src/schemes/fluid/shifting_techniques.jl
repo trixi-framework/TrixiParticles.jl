@@ -403,6 +403,98 @@ end
     return v_diff
 end
 
+"""
+    DeltaALEShifting(; maximum_velocity, kernel_factor=0.2, kernel_exponent=4)
+
+Bounded shifting velocity from equations (17)-(18) of Antuono et al. (2021).
+This shifting technique is used internally by [`DeltaALESPHSystem`](@ref).
+"""
+struct DeltaALEShifting{ELTYPE, EXPONENT} <: AbstractShiftingTechnique
+    maximum_velocity :: ELTYPE
+    kernel_factor    :: ELTYPE
+    kernel_exponent  :: EXPONENT
+
+    function DeltaALEShifting(; maximum_velocity, kernel_factor=0.2,
+                              kernel_exponent=4)
+        ELTYPE = promote_type(typeof(maximum_velocity), typeof(kernel_factor))
+
+        return new{ELTYPE, typeof(kernel_exponent)}(convert(ELTYPE, maximum_velocity),
+                                                    convert(ELTYPE, kernel_factor),
+                                                    kernel_exponent)
+    end
+end
+
+@propagate_inbounds function continuity_equation_shifting_term(v_diff,
+                                                               ::DeltaALEShifting,
+                                                               system, neighbor_system,
+                                                               particle, neighbor,
+                                                               rho_a, rho_b)
+    delta_v_a = delta_v(system, particle)
+    delta_v_b = delta_v(neighbor_system, neighbor)
+
+    return v_diff + 2 * delta_v_a +
+           (div_fast(rho_b, rho_a) - 1) * delta_v_b
+end
+
+@fastpow function update_shifting!(system, shifting::DeltaALEShifting,
+                                   v, u, v_ode, u_ode, semi)
+    (; delta_v) = system.cache
+    (; maximum_velocity, kernel_factor, kernel_exponent) = shifting
+
+    set_zero!(delta_v)
+
+    dx = particle_spacing(system, 1)
+    Wdx = smoothing_kernel(system, dx, 1)
+    h = smoothing_length(system, 1)
+
+    foreach_system(semi) do neighbor_system
+        v_neighbor = wrap_v(v_ode, neighbor_system, semi)
+        u_neighbor = wrap_u(u_ode, neighbor_system, semi)
+
+        system_coords = current_coordinates(u, system)
+        neighbor_coords = current_coordinates(u_neighbor, neighbor_system)
+
+        foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
+                               semi;
+                               points=each_integrated_particle(system)) do particle,
+                                                                           neighbor,
+                                                                           pos_diff,
+                                                                           distance
+            m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
+            rho_b = @inbounds current_density(v_neighbor, neighbor_system, neighbor)
+            volume_b = div_fast(m_b, rho_b)
+
+            kernel = smoothing_kernel(system, distance, particle)
+            grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
+
+            delta_v_ = -2 * h * maximum_velocity *
+                       (1 + kernel_factor * (kernel / Wdx)^kernel_exponent) *
+                       volume_b * grad_kernel
+
+            for i in eachindex(delta_v_)
+                @inbounds delta_v[i, particle] += delta_v_[i]
+            end
+        end
+    end
+
+    maximum_shifting_velocity = maximum_velocity / 2
+    @threaded semi for particle in each_integrated_particle(system)
+        delta_v_particle = extract_svector(delta_v, system, particle)
+        delta_v_norm = norm(delta_v_particle)
+
+        if delta_v_norm > maximum_shifting_velocity
+            factor = maximum_shifting_velocity / delta_v_norm
+            for i in axes(delta_v, 1)
+                @inbounds delta_v[i, particle] *= factor
+            end
+        end
+    end
+
+    modify_shifting_at_free_surfaces!(system, u, semi)
+
+    return system
+end
+
 # `ParticleShiftingTechnique{<:Any, true}` means `update_everystage=true`
 function update_shifting!(system, shifting::ParticleShiftingTechnique{<:Any, true},
                           v, u, v_ode, u_ode, semi)

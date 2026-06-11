@@ -17,6 +17,7 @@ include("fluid/implicit_incompressible_sph/implicit_incompressible_sph.jl")
 # Include rhs for all schemes
 include("fluid/weakly_compressible_sph/rhs.jl")
 include("fluid/entropically_damped_sph/rhs.jl")
+include("fluid/delta_ale_sph/rhs.jl")
 include("fluid/implicit_incompressible_sph/rhs.jl")
 include("boundary/wall_boundary/rhs.jl")
 include("structure/rigid_body/rhs.jl")
