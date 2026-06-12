@@ -38,3 +38,16 @@ steps:
   #   env:
   #     TRIXIPARTICLES_TEST: oneapi
   #   timeout_in_minutes: 60
+
+  - label: "Metal"
+    plugins:
+      - JuliaCI/julia#v1:
+          version: "1.12"
+    agents:
+      queue: "metal"
+    command: |
+      julia --color=yes --project=test -e 'using Pkg; Pkg.add("Metal"); Pkg.develop(path="."); Pkg.instantiate()'
+      julia --color=yes --project=test -e 'include("test/runtests.jl")'
+    env:
+      TRIXIPARTICLES_TEST: metal
+    timeout_in_minutes: 60
