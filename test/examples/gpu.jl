@@ -911,7 +911,7 @@ end
         # simulation. The fluid domain starts at `x = 10 * particle_spacing`.
         n_interpolation_points = 10
         start_point = [0.0f0 + 10 * particle_spacing, domain_size[1] / 2]
-        end_point = [domain_size[2] - 10 * particle_spacing, domain_size[1] / 2]
+        end_point = [domain_size[1] - 10 * particle_spacing, domain_size[2] / 2]
         result_full = interpolate_line(start_point, end_point, n_interpolation_points,
                                        sol.prob.p.semi, sol.prob.p.semi.systems[1], sol,
                                        cut_off_bnd=false)
@@ -925,15 +925,12 @@ end
                                       coordinates_eltype=Float32,
                                       parallelization_backend=Main.parallelization_backend)
 
-        # Transfer `semi` back to CPU
-        semi_cpu = TrixiParticles.Adapt.adapt(Array, sol.prob.p.semi)
-
         iter = saving_callback.affect!.affect!.latest_saved_iter
         fluid_restart = joinpath("out", "fluid_1_$iter.vtu")
         open_boundary_restart = joinpath("out", "open_boundary_1_$iter.vtu")
         boundary_restart = joinpath("out", "boundary_1_$iter.vtu")
 
-        ode_restart = semidiscretize(semi_cpu, (0.3f0, 0.6f0);
+        ode_restart = semidiscretize(semi, (0.3f0, 0.6f0);
                                      restart_with=(fluid_restart, open_boundary_restart,
                                                    boundary_restart))
 
@@ -946,8 +943,8 @@ end
                                           sol_restart.prob.p.semi.systems[1],
                                           sol_restart, cut_off_bnd=false)
 
-        @test isapprox(result_full.velocity, result_restart.velocity, rtol=8e-3)
-        @test isapprox(result_full.density, result_restart.density, rtol=8e-4)
-        @test isapprox(result_full.pressure, result_restart.pressure, rtol=8e-2)
+        @test isapprox(result_full.velocity, result_restart.velocity, rtol=8f-3)
+        @test isapprox(result_full.density, result_restart.density, rtol=8f-4)
+        @test isapprox(result_full.pressure, result_restart.pressure, rtol=8f-2)
     end
 end
