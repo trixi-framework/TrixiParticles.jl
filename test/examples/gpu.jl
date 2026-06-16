@@ -943,8 +943,8 @@ end
                                           sol_restart.prob.p.semi.systems[1],
                                           sol_restart, cut_off_bnd=false)
 
-        @test isapprox(result_full.velocity, result_restart.velocity, rtol=8f-3)
-        @test isapprox(result_full.density, result_restart.density, rtol=8f-4)
-        @test isapprox(result_full.pressure, result_restart.pressure, rtol=8f-2)
+        @test isapprox(result_full.velocity, result_restart.velocity, rtol=8.0f-3)
+        @test isapprox(result_full.density, result_restart.density, rtol=8.0f-4)
+        @test isapprox(result_full.pressure, result_restart.pressure, rtol=8.0f-2)
     end
 end
