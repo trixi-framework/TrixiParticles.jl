@@ -15,7 +15,7 @@ n_particles_y = 4
 # ==== Experiment Setup
 tspan = (0.0, 2.0)
 
-fin_length = 0.6
+fin_length = 0.502
 fin_thickness = 30e-3
 real_thickness = 1e-3
 real_modulus = 125e9
@@ -26,10 +26,11 @@ modulus = 12 * (1 - poisson_ratio^2) * flexural_rigidity / fin_thickness^3
 fiber_volume_fraction = 0.6
 fiber_density = 1800.0
 epoxy_density = 1250.0
-density = fiber_volume_fraction * fiber_density +
+real_density = fiber_volume_fraction * fiber_density +
           (1 - fiber_volume_fraction) * epoxy_density
-
-clamp_radius = 0.05
+# Scale the density with the thickness ratio to keep the mass of the fin constant
+# when changing the thickness.
+density = real_density * (fin_thickness / real_thickness)
 
 tank_size = (2.0, 1.0)
 center = (tank_size[2] / 2, tank_size[2] / 2)
@@ -45,7 +46,7 @@ smoothing_length_structure = sqrt(2) * particle_spacing
 smoothing_length_fluid = 1.5 * fluid_particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
-file = joinpath(examples_dir(), "preprocessing", "data", "fin.dxf")
+file = joinpath(examples_dir(), "preprocessing", "data", "hyper_bifins_x.dxf")
 geometry = load_geometry(file)
 
 # trixi2vtk(geometry)
@@ -410,7 +411,7 @@ interpolate_cb = PostprocessCallback(; plane_vtk, dt=0.01, filename="plane")
 mechanical_work_calculator = MechanicalWorkCalculator(semi.systems[4], semi)
 thrust_calculator = ThrustCalculator(semi.systems[4], semi, direction=SVector(1.0, 0.0))
 calculator_cb = PostprocessCallback(; mechanical_work_calculator, thrust_calculator,
-                                    interval=100, filename="$(prefix)_efficiency",
+                                    interval=1, filename="$(prefix)_efficiency",
                                     write_file_interval=1000)
 
 callbacks = CallbackSet(info_callback, saving_callback,
