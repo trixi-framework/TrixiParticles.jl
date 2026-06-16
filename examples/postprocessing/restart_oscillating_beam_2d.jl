@@ -1,5 +1,5 @@
 # ==========================================================================================
-# Restart Example: Oscillting Beam 2D
+# Restart Example: Oscillating Beam 2D
 #
 # This example demonstrates how to restart a simulation.
 # We first run a simulation of oscillating beam up to t=1.0s, then restart from the

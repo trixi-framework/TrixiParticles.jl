@@ -715,6 +715,9 @@ function restart_u(system::OpenBoundarySystem, data)
                          n_integrated_particles(system))
     coords_total .= coordinates_eltype(system)(1e16)
 
+    # Since only active particles are written during saving, the loaded `data` contains
+    # only active particles. These are placed at the beginning of the array, leaving the
+    # inactive buffer particles at the end. Thus, we can safely activate the first N particles.
     coords_active = data.coordinates
     for particle in axes(coords_active, 2)
         for dim in 1:ndims(system)
@@ -734,6 +737,9 @@ function restart_v(system::OpenBoundarySystem, data)
     v_total = zeros(eltype(system), v_nvariables(system),
                     n_integrated_particles(system))
 
+    # Since only active particles are written during saving, the loaded `data` contains
+    # only active particles. These are placed at the beginning of the array, leaving the
+    # inactive buffer particles at the end. Thus, we can safely activate the first N particles.
     v_active = zeros(eltype(system), v_nvariables(system), size(data.velocity, 2))
 
     v_active[1:ndims(system), :] = data.velocity

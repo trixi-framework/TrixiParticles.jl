@@ -197,6 +197,10 @@ Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
   This can be either `nothing` (default, no restart), a single filename as a `String`,
   or a `Tuple` of filenames, one for each system in the [`Semidiscretization`](@ref).
   The order of the filenames must match the order of the systems in the [`Semidiscretization`](@ref).
+  Note that `semidiscretize` replaces the initial time (`tspan[1]`) with the timestamp read
+  from the VTK files. If the user-provided `tspan[1]` does not match the restart time,
+  it is adjusted and an info message is logged. If multiple files are provided, their
+  timestamps must match.
 - `reset_threads`: A boolean flag to reset Polyester.jl threads before the simulation (default: `true`).
   After an error within a threaded loop, threading might be disabled. Resetting the threads before the simulation
   ensures that threading is enabled again for the simulation.
@@ -228,7 +232,7 @@ function semidiscretize(semi, tspan; reset_threads=true, restart_with=nothing)
 
     if restart_with isa String
         restart_with = (restart_with,)
-    elseif !isnothing(restart_with) && !(restart_with isa Tuple)
+    elseif !isnothing(restart_with) && !(restart_with isa NTuple{<:Any, String})
         throw(ArgumentError("`restart_with` must be `nothing`, a string, or a tuple of strings, " *
                             "got $(typeof(restart_with))"))
     end

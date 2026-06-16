@@ -21,7 +21,7 @@
                       tspan=(0.0, 0.3), sound_speed_factor=10, particle_spacing=4e-5,
                       info_callback=nothing)
 
-        iter = round(Int, 0.3 / 0.02)
+        iter = saving_callback.affect!.affect!.latest_saved_iter
         fluid_restart = joinpath("out", "fluid_1_$iter.vtu")
         open_boundary_restart = joinpath("out", "open_boundary_1_$iter.vtu")
         boundary_restart = joinpath("out", "boundary_1_$iter.vtu")
@@ -56,7 +56,7 @@
                       outlet_reference_pressure=pressure_model, info_callback=nothing,
                       tspan=(0.0, 0.3), sound_speed_factor=10, particle_spacing=4e-5)
 
-        iter = round(Int, 0.3 / 0.02)
+        iter = saving_callback.affect!.affect!.latest_saved_iter
         fluid_restart = joinpath("out", "fluid_1_$iter.vtu")
         open_boundary_restart = joinpath("out", "open_boundary_1_$iter.vtu")
         boundary_restart = joinpath("out", "boundary_1_$iter.vtu")

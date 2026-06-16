@@ -1,7 +1,7 @@
 function set_initial_conditions!(v0_ode, u0_ode, semi, restart_with::Tuple{Vararg{String}})
     # Check number of systems
     if length(semi.systems) != length(restart_with)
-        throw(ArgumentError("Number of systems in `semi` does not match number of restart files provided " *
+        throw(ArgumentError("number of systems in `semi` does not match number of restart files provided " *
                             "in `restart_with`"))
     end
 

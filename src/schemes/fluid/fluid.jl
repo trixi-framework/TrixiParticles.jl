@@ -266,12 +266,12 @@ function restart_u(system::AbstractFluidSystem, data)
         end
     end
 
-    if !isnothing(buffer(system))
-        system.buffer.active_particle .= false
-        system.buffer.active_particle[1:size(coords_active, 2)] .= true
+    buf = buffer(system)
+    if !isnothing(buf)
+        buf.active_particle .= false
+        buf.active_particle[1:size(coords_active, 2)] .= true
+        update_system_buffer!(buf)
     end
-
-    update_system_buffer!(system.buffer)
 
     return coords_total
 end
@@ -282,8 +282,11 @@ function restart_v(system::AbstractFluidSystem, data)
     velocity_active = zeros(eltype(system), v_nvariables(system), size(data.velocity, 2))
 
     velocity_active[1:ndims(system), :] = data.velocity
-    write_density_and_pressure!(velocity_active, system, density_calculator(system),
-                                data.pressure, data.density)
+
+    density_calc = hasproperty(system, :density_calculator) ? density_calculator(system) :
+                   nothing
+    write_density_and_pressure!(velocity_active, system, density_calc, data.pressure,
+                                data.density)
 
     for particle in axes(velocity_active, 2)
         for i in axes(velocity_active, 1)
