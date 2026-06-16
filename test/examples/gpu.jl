@@ -910,8 +910,8 @@ end
         # differ. The results must be interpolated to enable comparison with the restart
         # simulation. The fluid domain starts at `x = 10 * particle_spacing`.
         n_interpolation_points = 10
-        start_point = [0.0f0 + 10 * particle_spacing, domain_size[1] / 2]
-        end_point = [domain_size[1] - 10 * particle_spacing, domain_size[2] / 2]
+        start_point = [0.0f0 + 10 * particle_spacing, channel_height / 2]
+        end_point = [channel_length - 10 * particle_spacing, channel_height / 2]
         result_full = interpolate_line(start_point, end_point, n_interpolation_points,
                                        sol.prob.p.semi, sol.prob.p.semi.systems[1], sol,
                                        cut_off_bnd=false)
