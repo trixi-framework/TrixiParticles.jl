@@ -17,20 +17,39 @@ tspan = (0.0, 2.0)
 
 fin_length = 0.502
 fin_thickness = 30e-3
-real_thickness = 1e-3
 real_modulus = 125e9
 poisson_ratio = 0.3
-flexural_rigidity = real_modulus * real_thickness^3 / (1 - poisson_ratio^2) / 12
-modulus = 12 * (1 - poisson_ratio^2) * flexural_rigidity / fin_thickness^3
+
+# Real blade thickness profile along the flexible blade:
+# x = 0 is the attachment to the foot pocket, x = 1 is the blade tip.
+function real_thickness(x)
+    real_thickness_at_attachment = 1.2e-3
+    real_thickness_at_tip = 0.7e-3
+
+    # Clamp to use constant material properties for the clamped region and foot pocket.
+    x_clamped = clamp(x, 0.0, 1.0)
+    return real_thickness_at_attachment +
+           x_clamped * (real_thickness_at_tip - real_thickness_at_attachment)
+end
+
+# The simulated blade is artificially thick for resolution. Scale Young's modulus so
+# E_artificial * t_artificial^3 matches the real bending stiffness E_real * t_real^3.
+function artificial_modulus(real_modulus, real_thickness, artificial_thickness)
+    return real_modulus * (real_thickness / artificial_thickness)^3
+end
+
+# Scale density so rho_artificial * t_artificial keeps the same mass per blade area
+# as rho_real * t_real.
+function artificial_density(real_density, real_thickness, artificial_thickness)
+    return real_density * real_thickness / artificial_thickness
+end
 
 fiber_volume_fraction = 0.6
 fiber_density = 1800.0
 epoxy_density = 1250.0
 real_density = fiber_volume_fraction * fiber_density +
           (1 - fiber_volume_fraction) * epoxy_density
-# Scale the density with the thickness ratio to keep the mass of the fin constant
-# when changing the thickness.
-density = real_density * (fin_thickness / real_thickness)
+density = real_density
 
 tank_size = (2.0, 1.0)
 center = (tank_size[2] / 2, tank_size[2] / 2)
@@ -220,6 +239,26 @@ else
     fluid = setdiff(tank.fluid, structure)
 end
 
+# Convert particle x-positions to the relative blade coordinate used by `real_thickness`.
+# A value of 0 corresponds to the blade attachment, and a value of 1 corresponds to the tip.
+function normalized_blade_coordinate(coordinates, particle)
+    return (coordinates[1, particle] - center[1]) / fin_length
+end
+
+real_thickness_structure = [real_thickness(normalized_blade_coordinate(structure.coordinates,
+                                                                       particle))
+                            for particle in 1:nparticles(structure)]
+
+modulus = [artificial_modulus(real_modulus, thickness, fin_thickness)
+           for thickness in real_thickness_structure]
+
+# Update both density and mass based on the artificial thickness to ensure that
+# the structure has the same mass per blade area as the real fin,
+# while keeping the same bending stiffness.
+structure.density .= [artificial_density(real_density, thickness, fin_thickness)
+                      for thickness in real_thickness_structure]
+structure.mass .= structure.density .* particle_spacing^2
+
 n_clamped_particles = nparticles(structure) - nparticles(beam)
 
 # Movement function
@@ -256,12 +295,6 @@ boundary_model_structure = BoundaryModelDummyParticles(hydrodynamic_densites,
                                                    smoothing_kernel, smoothing_length_fluid,
                                                    viscosity=viscosity_fin)
 
-# k_structure = 1.0
-# beta_structure = fluid_particle_spacing / particle_spacing
-# boundary_model_structure = BoundaryModelMonaghanKajtar(k_structure, beta_structure,
-#                                                    particle_spacing,
-#                                                    hydrodynamic_masses)
-
 viscosity_structure = ArtificialViscosityMonaghan(alpha=0.2)
 structure_system = TotalLagrangianSPHSystem(structure; smoothing_kernel, smoothing_length=smoothing_length_structure,
                                         young_modulus=modulus, poisson_ratio,
@@ -285,9 +318,6 @@ fluid_system = WeaklyCompressibleSPHSystem(fluid; density_calculator=fluid_densi
                                            shifting_technique=ParticleShiftingTechnique(sound_speed_factor=0.2, v_max_factor=0.0),
                                            pressure_acceleration=tensile_instability_control,
                                            buffer_size=n_buffer_particles)
-# fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_length,
-#                                            sound_speed, viscosity=ViscosityAdami(; nu),
-#                                            transport_velocity=TransportVelocityAdami(10 * sound_speed^2 * fluid_density))
 
 # ==========================================================================================
 # ==== Open Boundaries
@@ -411,7 +441,7 @@ interpolate_cb = PostprocessCallback(; plane_vtk, dt=0.01, filename="plane")
 mechanical_work_calculator = MechanicalWorkCalculator(semi.systems[4], semi)
 thrust_calculator = ThrustCalculator(semi.systems[4], semi, direction=SVector(1.0, 0.0))
 calculator_cb = PostprocessCallback(; mechanical_work_calculator, thrust_calculator,
-                                    interval=1, filename="$(prefix)_efficiency",
+                                    interval=100, filename="$(prefix)_efficiency",
                                     write_file_interval=1000)
 
 callbacks = CallbackSet(info_callback, saving_callback,
