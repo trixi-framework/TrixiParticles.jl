@@ -1,6 +1,24 @@
+abstract type AbstractTLSPHModel end
+
+"""
+    StandardTLSPHModel()
+
+Standard total Lagrangian SPH correspondence formulation.
+"""
+struct StandardTLSPHModel <: AbstractTLSPHModel end
+
+"""
+    BondAssociatedTLSPHModel()
+
+Total Lagrangian SPH correspondence formulation with bond-associated quadrature
+integration at the center of each bond.
+"""
+struct BondAssociatedTLSPHModel <: AbstractTLSPHModel end
+
 @doc raw"""
     TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing_length,
                              young_modulus, poisson_ratio,
+                             model=StandardTLSPHModel(),
                              clamped_particles=Int[],
                              clamped_particles_motion=nothing,
                              acceleration=ntuple(_ -> 0.0, NDIMS),
@@ -26,6 +44,10 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
                         See [Smoothing Kernels](@ref smoothing_kernel).
 - `young_modulus`:      Young's modulus.
 - `poisson_ratio`:      Poisson ratio.
+- `model`:              Discretization of the correspondence formulation.
+                        [`StandardTLSPHModel`](@ref) (default) uses the traditional TLSPH
+                        discretization. [`BondAssociatedTLSPHModel`](@ref) uses
+                        bond-associated quadrature integration.
 - `clamped_particles`:  Indices specifying the clamped particles that are fixed
                         and not integrated to clamp the structure.
 - `clamped_particles_motion`: Prescribed motion of the clamped particles.
@@ -74,7 +96,7 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
     `structure`, so their indices are `1:nparticles(clamped_particles)`.
 """
 struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, ARRAY3D,
-                                YM, PR, LL, LM, K, PF, V, ST, M, IM, NHS, VA,
+                                YM, PR, LL, LM, K, MOD, PF, V, ST, M, IM, NHS, VA,
                                 C} <: AbstractStructureSystem{NDIMS}
     initial_condition   :: IC
     initial_coordinates :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
@@ -94,6 +116,7 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
     smoothing_length         :: ELTYPE
     acceleration             :: SVector{NDIMS, ELTYPE}
     boundary_model           :: BM
+    model                    :: MOD
     penalty_force            :: PF
     viscosity                :: V
     source_terms             :: ST
@@ -105,7 +128,9 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
 end
 
 function TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing_length,
-                                  young_modulus, poisson_ratio, clamped_particles=Int[],
+                                  young_modulus, poisson_ratio,
+                                  model::AbstractTLSPHModel=StandardTLSPHModel(),
+                                  clamped_particles=Int[],
                                   clamped_particles_motion=nothing,
                                   acceleration=ntuple(_ -> zero(eltype(initial_condition)),
                                                       ndims(smoothing_kernel)),
@@ -164,7 +189,8 @@ function TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing
     initialize_prescribed_motion!(clamped_particles_motion, initial_condition_sorted,
                                   n_clamped_particles)
 
-    cache = (; create_cache_tlsph(clamped_particles_motion, initial_condition_sorted)...,
+    cache = (; create_cache_tlsph_model(model, initial_condition_sorted)...,
+             create_cache_tlsph(clamped_particles_motion, initial_condition_sorted)...,
              create_cache_tlsph(velocity_averaging, initial_condition_sorted)...)
 
     return TotalLagrangianSPHSystem(initial_condition_sorted, initial_coordinates,
@@ -174,7 +200,7 @@ function TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing
                                     poisson_ratio_sorted,
                                     lame_lambda, lame_mu, smoothing_kernel,
                                     smoothing_length, acceleration_, boundary_model,
-                                    penalty_force, viscosity, source_terms,
+                                    model, penalty_force, viscosity, source_terms,
                                     clamped_particles_motion, ismoving,
                                     self_interaction_nhs, velocity_averaging, cache)
 end
@@ -234,7 +260,7 @@ function initialize_self_interaction_nhs(system::TotalLagrangianSPHSystem,
                                     system.poisson_ratio, system.lame_lambda,
                                     system.lame_mu, system.smoothing_kernel,
                                     system.smoothing_length, system.acceleration,
-                                    system.boundary_model, system.penalty_force,
+                                    system.boundary_model, system.model, system.penalty_force,
                                     system.viscosity, system.source_terms,
                                     system.clamped_particles_motion,
                                     system.clamped_particles_moving,
@@ -246,6 +272,19 @@ extract_periodic_box(::Nothing) = nothing
 extract_periodic_box(nhs) = nhs.periodic_box
 
 create_cache_tlsph(::Nothing, initial_condition) = (;)
+
+create_cache_tlsph_model(::StandardTLSPHModel, initial_condition) = (;)
+
+function create_cache_tlsph_model(::BondAssociatedTLSPHModel, initial_condition)
+    n_particles = nparticles(initial_condition)
+    NDIMS = ndims(initial_condition)
+    ELTYPE = eltype(initial_condition)
+
+    weighted_volume = Vector{ELTYPE}(undef, n_particles)
+    stress_integral = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
+
+    return (; weighted_volume, stress_integral)
+end
 
 function create_cache_tlsph(::PrescribedMotion, initial_condition)
     velocity = zero(initial_condition.velocity)
@@ -358,6 +397,10 @@ end
     extract_smatrix(system.pk1_rho2, system, particle)
 end
 
+@propagate_inbounds function bond_associated_stress_integral(system, particle)
+    extract_smatrix(system.cache.stress_integral, system, particle)
+end
+
 @propagate_inbounds function young_modulus(system::TotalLagrangianSPHSystem, particle)
     return young_modulus(system, system.young_modulus, particle)
 end
@@ -388,6 +431,9 @@ end
     return system.velocity_averaging
 end
 
+@inline tlsph_model(system::TotalLagrangianSPHSystem) = system.model
+@inline tlsph_model(system) = StandardTLSPHModel()
+
 function initialize!(system::TotalLagrangianSPHSystem, semi)
     (; correction_matrix) = system
 
@@ -398,6 +444,41 @@ function initialize!(system::TotalLagrangianSPHSystem, semi)
     # Calculate correction matrix
     compute_gradient_correction_matrix!(correction_matrix, system, initial_coords,
                                         density_fun, semi)
+    initialize_tlsph_model!(system, system.model, semi)
+end
+
+@inline initialize_tlsph_model!(system, ::StandardTLSPHModel, semi) = system
+
+function initialize_tlsph_model!(system, ::BondAssociatedTLSPHModel, semi)
+    (; weighted_volume) = system.cache
+    (; mass, material_density) = system
+
+    initial_coords = initial_coordinates(system)
+    neighborhood_search = get_neighborhood_search(system, semi)
+    backend = semi.parallelization_backend
+    h = initial_smoothing_length(system)
+    almostzero = sqrt(eps(h^2))
+
+    @threaded semi for particle in eachparticle(system)
+        result = Ref(zero(eltype(system)))
+
+        @inbounds foreach_neighbor(initial_coords, initial_coords,
+                                   neighborhood_search, backend,
+                                   particle) do particle, neighbor,
+                                                initial_pos_diff, initial_distance
+            initial_distance < almostzero && return
+
+            grad_kernel = smoothing_kernel_grad_unsafe(system, initial_pos_diff,
+                                                       initial_distance, particle)
+            volume = div_fast(mass[neighbor], material_density[neighbor])
+            result[] += bond_weight(grad_kernel, initial_pos_diff, initial_distance) *
+                        volume
+        end
+
+        @inbounds weighted_volume[particle] = result[]
+    end
+
+    return system
 end
 
 function update_positions!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
@@ -452,7 +533,29 @@ end
 
 function update_quantities!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
     # Precompute PK1 stress tensor
-    @trixi_timeit timer() "stress tensor" compute_pk1_corrected!(system, semi)
+    @trixi_timeit timer() "stress tensor" compute_stress!(system, system.model, semi)
+
+    return system
+end
+
+@inline compute_stress!(system, ::StandardTLSPHModel, semi) =
+    compute_pk1_corrected!(system, semi)
+
+@inline function compute_stress!(system, ::BondAssociatedTLSPHModel, semi)
+    (; deformation_grad, pk1_rho2, material_density) = system
+
+    calc_deformation_grad!(deformation_grad, system, semi)
+
+    @threaded semi for particle in eachparticle(system)
+        pk1_particle = @inbounds pk1_stress_tensor(system, particle)
+        rho2_inv = 1 / @inbounds material_density[particle]^2
+
+        for j in 1:ndims(system), i in 1:ndims(system)
+            @inbounds pk1_rho2[i, j, particle] = pk1_particle[i, j] * rho2_inv
+        end
+    end
+
+    calc_bond_associated_stress_integral!(system, semi)
 
     return system
 end
@@ -556,11 +659,80 @@ end
     return deformation_grad
 end
 
+@inline function bond_weight(grad_kernel, initial_pos_diff, initial_distance)
+    return -dot(grad_kernel, initial_pos_diff) / initial_distance^2
+end
+
+@inline function bond_deformation_gradient(F_a, F_b, initial_bond, current_bond,
+                                           initial_distance)
+    F_average = (F_a + F_b) / 2
+    F_correction = (current_bond - F_average * initial_bond) *
+                   (initial_bond' / initial_distance^2)
+    return F_average + F_correction
+end
+
+function calc_bond_associated_stress_integral!(system, semi)
+    (; stress_integral, weighted_volume) = system.cache
+    (; mass, material_density) = system
+
+    initial_coords = initial_coordinates(system)
+    neighborhood_search = get_neighborhood_search(system, semi)
+    backend = semi.parallelization_backend
+    h = initial_smoothing_length(system)
+    almostzero = sqrt(eps(h^2))
+
+    @threaded semi for particle in eachparticle(system)
+        F_a = @inbounds deformation_gradient(system, particle)
+        current_coords_a = @inbounds current_coords(system, particle)
+        weighted_volume_a = @inbounds weighted_volume[particle]
+        result = Ref(zero(F_a))
+
+        @inbounds foreach_neighbor(initial_coords, initial_coords,
+                                   neighborhood_search, backend,
+                                   particle) do particle, neighbor,
+                                                initial_pos_diff, initial_distance
+            initial_distance < almostzero && return
+
+            grad_kernel = smoothing_kernel_grad_unsafe(system, initial_pos_diff,
+                                                       initial_distance, particle)
+            weight = bond_weight(grad_kernel, initial_pos_diff, initial_distance)
+            volume_b = div_fast(mass[neighbor], material_density[neighbor])
+
+            initial_bond = -initial_pos_diff
+            current_coords_b = current_coords(system, neighbor)
+            current_bond_ = current_coords_b - current_coords_a
+            current_bond = convert.(eltype(system), current_bond_)
+
+            F_b = deformation_gradient(system, neighbor)
+            F_ab = bond_deformation_gradient(F_a, F_b, initial_bond, current_bond,
+                                             initial_distance)
+            P_ab = pk1_stress_tensor(F_ab, system, particle)
+            transverse_projection = I -
+                                    initial_bond * initial_bond' / initial_distance^2
+            weighted_volume_b = weighted_volume[neighbor]
+            quadrature_weight = weight *
+                                (inv(2 * weighted_volume_a) +
+                                 inv(2 * weighted_volume_b)) * volume_b
+
+            result[] += quadrature_weight * (P_ab * transverse_projection)
+        end
+
+        for j in 1:ndims(system), i in 1:ndims(system)
+            @inbounds stress_integral[i, j, particle] = result[][i, j]
+        end
+    end
+
+    return stress_integral
+end
+
 # First Piola-Kirchhoff stress tensor
 @propagate_inbounds function pk1_stress_tensor(system, particle)
-    (; lame_lambda, lame_mu) = system
-
     F = deformation_gradient(system, particle)
+    return pk1_stress_tensor(F, system, particle)
+end
+
+@propagate_inbounds function pk1_stress_tensor(F, system, particle)
+    (; lame_lambda, lame_mu) = system
     S = pk2_stress_tensor(F, lame_lambda, lame_mu, particle)
 
     return F * S
@@ -640,11 +812,29 @@ end
 # The von-Mises stress is one form of equivalent stress, where sigma is the deviatoric stress.
 # See pages 32 and 123.
 function von_mises_stress(system)
+    return von_mises_stress(system, system.model)
+end
+
+function von_mises_stress(system, ::StandardTLSPHModel)
     von_mises_stress_vector = zeros(eltype(system.pk1_rho2), nparticles(system))
 
     @threaded default_backend(von_mises_stress_vector) for particle in
                                                            each_integrated_particle(system)
         von_mises_stress_vector[particle] = von_mises_stress(system, particle)
+    end
+
+    return von_mises_stress_vector
+end
+
+function von_mises_stress(system, ::BondAssociatedTLSPHModel)
+    cauchy_stress_tensors = cauchy_stress(system)
+    von_mises_stress_vector = zeros(eltype(system.pk1_rho2), nparticles(system))
+
+    @threaded default_backend(von_mises_stress_vector) for particle in
+                                                           each_integrated_particle(system)
+        sigma = extract_smatrix(cauchy_stress_tensors, system, particle)
+        s = sigma - (1.0 / 3.0) * tr(sigma) * I
+        von_mises_stress_vector[particle] = sqrt(3.0 / 2.0 * sum(s .^ 2))
     end
 
     return von_mises_stress_vector
@@ -671,6 +861,10 @@ end
 # See here page 473 for the relation between the `pk1`, the first Piola-Kirchhoff tensor,
 # and the Cauchy stress.
 function cauchy_stress(system::TotalLagrangianSPHSystem)
+    return cauchy_stress(system, system.model)
+end
+
+function cauchy_stress(system, ::StandardTLSPHModel)
     NDIMS = ndims(system)
 
     cauchy_stress_tensors = zeros(eltype(system.pk1_rho2), NDIMS, NDIMS,
@@ -683,6 +877,55 @@ function cauchy_stress(system::TotalLagrangianSPHSystem)
         P = pk1_rho2(system, particle) * system.material_density[particle]^2
         sigma = (1.0 / J) * P * F'
         cauchy_stress_tensors[:, :, particle] = sigma
+    end
+
+    return cauchy_stress_tensors
+end
+
+function cauchy_stress(system, ::BondAssociatedTLSPHModel)
+    NDIMS = ndims(system)
+    cauchy_stress_tensors = zeros(eltype(system.pk1_rho2), NDIMS, NDIMS,
+                                  nparticles(system))
+    (; mass, material_density) = system
+    (; weighted_volume) = system.cache
+
+    initial_coords = initial_coordinates(system)
+    neighborhood_search = system.self_interaction_nhs
+    backend = default_backend(cauchy_stress_tensors)
+    h = initial_smoothing_length(system)
+    almostzero = sqrt(eps(h^2))
+
+    @threaded backend for particle in each_integrated_particle(system)
+        F_a = @inbounds deformation_gradient(system, particle)
+        current_coords_a = @inbounds current_coords(system, particle)
+        weighted_volume_a = @inbounds weighted_volume[particle]
+        sigma_a = Ref(zero(F_a))
+
+        @inbounds foreach_neighbor(initial_coords, initial_coords,
+                                   neighborhood_search, backend,
+                                   particle) do particle, neighbor,
+                                                initial_pos_diff, initial_distance
+            initial_distance < almostzero && return
+
+            grad_kernel = smoothing_kernel_grad_unsafe(system, initial_pos_diff,
+                                                       initial_distance, particle)
+            weight = bond_weight(grad_kernel, initial_pos_diff, initial_distance)
+            volume_b = div_fast(mass[neighbor], material_density[neighbor])
+            initial_bond = -initial_pos_diff
+            current_bond_ = current_coords(system, neighbor) - current_coords_a
+            current_bond = convert.(eltype(system), current_bond_)
+            F_b = deformation_gradient(system, neighbor)
+            F_ab = bond_deformation_gradient(F_a, F_b, initial_bond, current_bond,
+                                             initial_distance)
+            P_ab = pk1_stress_tensor(F_ab, system, particle)
+            sigma_ab = P_ab * F_ab' / det(F_ab)
+
+            sigma_a[] += weight / weighted_volume_a * volume_b * sigma_ab
+        end
+
+        for j in 1:NDIMS, i in 1:NDIMS
+            @inbounds cauchy_stress_tensors[i, j, particle] = sigma_a[][i, j]
+        end
     end
 
     return cauchy_stress_tensors
@@ -759,6 +1002,7 @@ function Base.show(io::IO, system::TotalLagrangianSPHSystem)
     print(io, "", system.smoothing_kernel)
     print(io, ", ", system.acceleration)
     print(io, ", ", system.boundary_model)
+    show_tlsph_model(io, system.model)
     print(io, ", ", system.penalty_force)
     print(io, ", ", system.viscosity)
     print(io, ") with ", nparticles(system), " particles")
@@ -790,10 +1034,22 @@ function Base.show(io::IO, ::MIME"text/plain", system::TotalLagrangianSPHSystem)
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
         summary_line(io, "acceleration", system.acceleration)
         summary_line(io, "boundary model", system.boundary_model)
+        show_tlsph_model_summary(io, system.model)
         summary_line(io, "penalty force", system.penalty_force)
         summary_line(io, "viscosity", system.viscosity)
         summary_footer(io)
     end
+end
+
+@inline show_tlsph_model(io, ::StandardTLSPHModel) = nothing
+@inline show_tlsph_model_summary(io, ::StandardTLSPHModel) = nothing
+
+@inline function show_tlsph_model(io, model::BondAssociatedTLSPHModel)
+    print(io, ", ", model)
+end
+
+@inline function show_tlsph_model_summary(io, model::BondAssociatedTLSPHModel)
+    summary_line(io, "model", model |> typeof |> nameof)
 end
 
 function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
