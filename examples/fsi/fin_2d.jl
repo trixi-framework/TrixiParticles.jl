@@ -295,7 +295,7 @@ boundary_model_structure = BoundaryModelDummyParticles(hydrodynamic_densites,
                                                    smoothing_kernel, smoothing_length_fluid,
                                                    viscosity=viscosity_fin)
 
-viscosity_structure = ArtificialViscosityMonaghan(alpha=0.2)
+viscosity_structure = ArtificialViscosityMonaghan(alpha=1.0)
 structure_system = TotalLagrangianSPHSystem(structure; smoothing_kernel, smoothing_length=smoothing_length_structure,
                                         young_modulus=modulus, poisson_ratio,
                                         clamped_particles=1:n_clamped_particles,
