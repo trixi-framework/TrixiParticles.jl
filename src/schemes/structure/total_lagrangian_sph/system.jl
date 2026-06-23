@@ -454,6 +454,8 @@ function update_quantities!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode
     # Precompute PK1 stress tensor
     @trixi_timeit timer() "stress tensor" compute_pk1_corrected!(system, semi)
 
+    # @trixi_timeit timer() "KV damping" apply_kelvin_voigt_damping!(system.pk1_rho2, v, system, semi)
+
     return system
 end
 
@@ -556,6 +558,54 @@ end
     return deformation_grad
 end
 
+@inline function apply_kelvin_voigt_damping!(pk1_rho2, v, system, semi)
+    (; mass, material_density) = system
+
+    # Compute bulk modulus from Young's modulus and Poisson's ratio.
+    # See the table at the end of https://en.wikipedia.org/wiki/Lam%C3%A9_parameters
+    # TODO Should we compute the sound speed per particle and then use the maximum?
+    E = maximum(system.young_modulus)
+    K = E / (ndims(system) * (1 - 2 * maximum(system.poisson_ratio)))
+
+    # Newton–Laplace equation
+    sound_speed = sqrt(K / minimum(system.material_density))
+
+    # Loop over all pairs of particles and neighbors within the kernel cutoff
+    initial_coords = initial_coordinates(system)
+    foreach_point_neighbor(system, system, initial_coords, initial_coords,
+                           semi) do particle, neighbor, initial_pos_diff, initial_distance
+        # Only consider particles with a distance > 0.
+        # See `src/general/smoothing_kernels.jl` for more details.
+        initial_distance^2 < eps(initial_smoothing_length(system)^2) && return
+
+        volume = @inbounds mass[neighbor] / material_density[neighbor]
+        v_diff = @inbounds current_velocity(v, system, particle) -
+                              current_velocity(v, system, neighbor)
+
+        grad_kernel = smoothing_kernel_grad(system, initial_pos_diff,
+                                            initial_distance, particle)
+
+        # Multiply by L_{0a}
+        L = @inbounds correction_matrix(system, particle)
+
+        dF = -volume * v_diff * grad_kernel' * L'
+
+        F = deformation_gradient(system, particle)
+
+        alpha = 1.0
+        rho = material_density[particle]
+
+        h = smoothing_length(system, particle)
+        P_rho2 = alpha / rho * sound_speed * h / 2 * F * (dF' * F + F' * dF)
+
+        for j in 1:ndims(system), i in 1:ndims(system)
+            @inbounds pk1_rho2[i, j, particle] += P_rho2[i, j]
+        end
+    end
+
+    return pk1_rho2
+end
+
 # First Piola-Kirchhoff stress tensor
 @propagate_inbounds function pk1_stress_tensor(system, particle)
     (; lame_lambda, lame_mu) = system
@@ -632,6 +682,16 @@ function restart_with!(system::TotalLagrangianSPHSystem, v, u)
 
     # This is dispatched in the boundary system.jl file
     restart_with!(system, system.boundary_model, v, u)
+end
+
+function restart_u(system::TotalLagrangianSPHSystem, data)
+    # The integration array requires only the particles that need to be integrated
+    return data.coordinates[:, each_integrated_particle(system)]
+end
+
+function restart_v(system::TotalLagrangianSPHSystem, data)
+    # The integration array requires only the particles that need to be integrated
+    return data.velocity[:, each_integrated_particle(system)]
 end
 
 # An explanation of these equation can be found in

@@ -51,8 +51,19 @@ function vtk2trixi(file; element_type=nothing, coordinates_eltype=nothing,
     point_coords = ReadVTK.get_points(vtk_file)
 
     cELTYPE = isnothing(coordinates_eltype) ? eltype(point_coords) : coordinates_eltype
-    ELTYPE = isnothing(element_type) ?
-             eltype(first(ReadVTK.get_data(point_data["pressure"]))) : element_type
+
+    if !isnothing(element_type)
+        ELTYPE = element_type
+    else
+        # Try to get element type from pressure or density (whichever exists)
+        ELTYPE = if "pressure" in keys(point_data)
+            eltype(first(ReadVTK.get_data(point_data["pressure"])))
+        elseif "material_density" in keys(point_data)
+            eltype(first(ReadVTK.get_data(point_data["material_density"])))
+        else
+            error("Neither 'pressure' nor 'material_density' field found in VTK file")
+        end
+    end
 
     results = Dict{Symbol, Any}()
 
@@ -87,7 +98,8 @@ function vtk2trixi(file; element_type=nothing, coordinates_eltype=nothing,
                                  results[:particle_spacing]
     results[:coordinates] = coordinates
     results[:time] = "time" in keys(field_data) ?
-                     first(ReadVTK.get_data(field_data["time"])) : zero(ELTYPE)
+                     convert.(ELTYPE, first(ReadVTK.get_data(field_data["time"]))) :
+                     zero(ELTYPE)
 
     append!(used_keys, ["index", "ndims"])
     # Load any custom quantities

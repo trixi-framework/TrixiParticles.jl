@@ -176,7 +176,7 @@ end
     # Artificial density diffusion should only be applied to systems representing a fluid
     # with the same physical properties i.e. density and viscosity.
     # TODO: shouldn't be applied to particles on the interface (depends on PR #539)
-    if particle_system === neighbor_system
+    if particle_system == neighbor_system
         density_diffusion!(drho_particle, density_diffusion(particle_system),
                            particle_system, particle, neighbor,
                            pos_diff, distance, m_b, rho_a, rho_b, grad_kernel)
@@ -251,6 +251,50 @@ end
 
 @inline function surface_normal_method(system)
     return nothing
+end
+
+function restart_u(system::AbstractFluidSystem, data)
+    coords_total = zeros(coordinates_eltype(system), u_nvariables(system),
+                         n_integrated_particles(system))
+    coords_total .= coordinates_eltype(system)(1e16)
+
+    coords_active = data.coordinates
+
+    for particle in axes(coords_active, 2)
+        for dim in 1:ndims(system)
+            coords_total[dim, particle] = coords_active[dim, particle]
+        end
+    end
+
+    buf = buffer(system)
+    if !isnothing(buf)
+        buf.active_particle .= false
+        buf.active_particle[1:size(coords_active, 2)] .= true
+        update_system_buffer!(buf)
+    end
+
+    return coords_total
+end
+
+function restart_v(system::AbstractFluidSystem, data)
+    velocity_total = zeros(eltype(system), v_nvariables(system),
+                           n_integrated_particles(system))
+    velocity_active = zeros(eltype(system), v_nvariables(system), size(data.velocity, 2))
+
+    velocity_active[1:ndims(system), :] = data.velocity
+
+    density_calc = hasproperty(system, :density_calculator) ? density_calculator(system) :
+                   nothing
+    write_density_and_pressure!(velocity_active, system, density_calc, data.pressure,
+                                data.density)
+
+    for particle in axes(velocity_active, 2)
+        for i in axes(velocity_active, 1)
+            velocity_total[i, particle] = velocity_active[i, particle]
+        end
+    end
+
+    return velocity_total
 end
 
 function check_configuration(fluid_system::AbstractFluidSystem, systems, nhs)
