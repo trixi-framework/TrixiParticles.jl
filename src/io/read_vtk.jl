@@ -61,7 +61,7 @@ function vtk2trixi(file; element_type=nothing, coordinates_eltype=nothing,
         elseif "material_density" in keys(point_data)
             eltype(first(ReadVTK.get_data(point_data["material_density"])))
         else
-            error("Neither 'pressure' nor 'material_density' field found in VTK file")
+            error("neither 'pressure' nor 'material_density' field found in VTK file")
         end
     end
 
@@ -98,7 +98,7 @@ function vtk2trixi(file; element_type=nothing, coordinates_eltype=nothing,
                                  results[:particle_spacing]
     results[:coordinates] = coordinates
     results[:time] = "time" in keys(field_data) ?
-                     convert.(ELTYPE, first(ReadVTK.get_data(field_data["time"]))) :
+                     convert(ELTYPE, first(ReadVTK.get_data(field_data["time"]))) :
                      zero(ELTYPE)
 
     append!(used_keys, ["index", "ndims"])

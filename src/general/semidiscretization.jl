@@ -194,8 +194,8 @@ Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
 
 # Keywords
 - `restart_with`: Can be used to restart the simulation from VTK solution files (see [`SolutionSavingCallback`](@ref)).
-  This can be either `nothing` (default, no restart), a single filename as a `String`,
-  or a `Tuple` of filenames, one for each system in the [`Semidiscretization`](@ref).
+  This can be either `nothing` (default, no restart) or a `Tuple` of filenames,
+  one for each system in the [`Semidiscretization`](@ref).
   The order of the filenames must match the order of the systems in the [`Semidiscretization`](@ref).
   Note that `semidiscretize` replaces the initial time (`tspan[1]`) with the timestamp read
   from the VTK files. If the user-provided `tspan[1]` does not match the restart time,

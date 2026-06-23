@@ -254,9 +254,9 @@ end
 end
 
 function restart_u(system::AbstractFluidSystem, data)
-    coords_total = zeros(coordinates_eltype(system), u_nvariables(system),
-                         n_integrated_particles(system))
-    coords_total .= coordinates_eltype(system)(1e16)
+    inactive_coords = convert(coordinates_eltype(system), 1e16)
+    coords_total = fill(inactive_coords, u_nvariables(system),
+                        n_integrated_particles(system))
 
     coords_active = data.coordinates
 

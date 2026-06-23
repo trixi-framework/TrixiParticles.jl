@@ -1,3 +1,4 @@
+# Update `v0_ode` and `u0_ode` with the data from the restart files
 function set_initial_conditions!(v0_ode, u0_ode, semi, restart_with::Tuple{Vararg{String}})
     # Check number of systems
     if length(semi.systems) != length(restart_with)
@@ -33,6 +34,7 @@ function set_initial_conditions!(v0_ode, u0_ode, semi, restart_with::Tuple{Varar
     end
 end
 
+# Compute a new `tspan` based on the restart files
 function time_span(tspan, restart_with::Tuple{Vararg{String}})
     # Read restart times from all files
     restart_times = [vtk2trixi(file).time for file in restart_with]
@@ -40,7 +42,7 @@ function time_span(tspan, restart_with::Tuple{Vararg{String}})
 
     # Check if all restart files have the same time
     if !all(isapprox(t, t_restart) for t in restart_times)
-        throw(ArgumentError("All restart files must start from the same time."))
+        throw(ArgumentError("all restart files must start from the same time"))
     end
 
     if !isapprox(tspan[1], t_restart)

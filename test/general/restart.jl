@@ -95,13 +95,7 @@
         ode_restart = semidiscretize(semi, (0.5, 1.0);
                                      restart_with=restart_file)
 
-        # Create a new saving callback for the restart
-        saving_callback_restart = SolutionSavingCallback(dt=0.02, prefix="restart";
-                                                         deflection_x, deflection_y)
-        callbacks_restart = CallbackSet(saving_callback_restart)
-
-        sol_restart = solve(ode_restart, RDPK3SpFSAL49(), save_everystep=false,
-                            callback=callbacks_restart)
+        sol_restart = solve(ode_restart, RDPK3SpFSAL49(), save_everystep=false, dt=1e-6)
 
         # Compare the final particle velocities
         @test isapprox(sol_restart.u[end].x[2], positions_full, rtol=1e-6)
