@@ -280,11 +280,16 @@ function initialize_neighborhood_search!(semi, system, neighbor)
     # TODO Initialize after adapting to the GPU.
     # Currently, this cannot use `semi.parallelization_backend`
     # because data is still on the CPU.
+    parallelization_backend = if semi.parallelization_backend isa KernelAbstractions.GPU
+        PolyesterBackend()
+    else
+        semi.parallelization_backend
+    end
     PointNeighbors.initialize!(get_neighborhood_search(system, neighbor, semi),
                                initial_coordinates(system),
                                initial_coordinates(neighbor),
                                eachindex_y=each_active_particle(neighbor),
-                               parallelization_backend=PolyesterBackend())
+                               parallelization_backend=parallelization_backend)
 
     return semi
 end
