@@ -487,8 +487,9 @@ end
         span_dim = spanning_set[dim]
         # Checks whether the projection of the particle position
         # falls within the range of the zone
-        if !(0 <= dot(particle_position, span_dim) <= dot(span_dim, span_dim))
-
+        dot_span_dim = dot(span_dim, span_dim)
+        almostzero = 10 * eps(dot_span_dim)
+        if !(-almostzero <= dot(particle_position, span_dim) <= dot_span_dim + almostzero)
             # Particle is not in boundary zone
             return false
         end
@@ -499,10 +500,13 @@ end
 end
 
 function update_boundary_zone_indices!(system, u, boundary_zones, semi)
+    periodic_box = get_neighborhood_search(system.fluid_system, system, semi).periodic_box
+
     set_zero!(system.boundary_zone_indices)
 
     @threaded semi for particle in each_integrated_particle(system)
-        particle_coords = current_coords(u, system, particle)
+        particle_coords = PointNeighbors.periodic_coords(current_coords(u, system, particle),
+                                                         periodic_box)
 
         for (zone_id, boundary_zone) in enumerate(boundary_zones)
             # Check if boundary particle is in the boundary zone
@@ -523,6 +527,9 @@ function update_boundary_zone_indices!(system, u, boundary_zones, semi)
         # - Floating-point rounding when a particle lies almost exactly on the `boundary_face`
         #   during transition, causing a reset just outside the zone
         #   (fixed in https://github.com/trixi-framework/TrixiParticles.jl/pull/997).
+        if system.boundary_zone_indices[particle] == 0
+            @info "" particle_coords
+        end
         @assert system.boundary_zone_indices[particle] != 0 "No boundary zone found for active buffer particle"
     end
 

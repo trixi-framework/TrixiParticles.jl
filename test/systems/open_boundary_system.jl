@@ -134,4 +134,59 @@
                                                                  boundary_model=BoundaryModelDynamicalPressureZhang(),
                                                                  fluid_system=fluid_system_with_shifting)
     end
+
+    @testset "periodic boundary conversion" begin
+        particle_spacing = 0.1
+        density = 1000.0
+
+        fluid = RectangularShape(particle_spacing, (20, 10), (0.0, 0.0);
+                                 density)
+        smoothing_kernel = WendlandC2Kernel{2}()
+        fluid_system = EntropicallyDampedSPHSystem(fluid; smoothing_kernel,
+                                                   smoothing_length=1.5 *
+                                                                    particle_spacing,
+                                                   sound_speed=10.0, buffer_size=1)
+
+        outflow = BoundaryZone(; boundary_face=([2.0, 0.0], [2.0, 1.0]),
+                               face_normal=(-1.0, 0.0), particle_spacing,
+                               density, open_boundary_layers=1,
+                               boundary_type=OutFlow())
+        open_boundary = OpenBoundarySystem(outflow; fluid_system,
+                                           boundary_model=BoundaryModelMirroringTafuni(),
+                                           buffer_size=1)
+
+        min_corner = [0.0, 0.0]
+        max_corner = [2.1, 1.0]
+        periodic_box = PeriodicBox(; min_corner, max_corner)
+        neighborhood_search = GridNeighborhoodSearch{2}(;
+                                                        cell_list=FullGridCellList(;
+                                                                                   min_corner,
+                                                                                   max_corner),
+                                                        update_strategy=ParallelUpdate(),
+                                                        periodic_box)
+        semi = Semidiscretization(fluid_system, open_boundary;
+                                  neighborhood_search)
+        ode = semidiscretize(semi, (0.0, 1.0))
+        v_ode, u_ode = ode.u0.x
+        TrixiParticles.initialize!(open_boundary, semi)
+
+        u_fluid = TrixiParticles.wrap_u(u_ode, fluid_system, semi)
+        v_open_boundary = TrixiParticles.wrap_v(v_ode, open_boundary, semi)
+        u_open_boundary = TrixiParticles.wrap_u(u_ode, open_boundary, semi)
+
+        particle = findfirst(i -> u_fluid[1, i] > 1.9 && u_fluid[2, i] < 0.1,
+                             axes(u_fluid, 2))
+        particle_new = findfirst(==(false), open_boundary.buffer.active_particle)
+
+        u_fluid[:, particle] .= [2.05, -eps(Float64)]
+
+        TrixiParticles.check_domain!(open_boundary, v_open_boundary, u_open_boundary,
+                                     v_ode, u_ode, semi)
+
+        @test !fluid_system.buffer.active_particle[particle]
+        @test open_boundary.buffer.active_particle[particle_new]
+        @test TrixiParticles.is_in_boundary_zone(outflow,
+                                                 SVector(u_open_boundary[:,
+                                                                         particle_new]...))
+    end
 end
