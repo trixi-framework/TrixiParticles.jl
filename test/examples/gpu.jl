@@ -945,7 +945,7 @@ end
         sol_restart = solve(ode_restart, CarpenterKennedy2N54(williamson_condition=false),
                             dt=1.0f0, save_everystep=false,
                             callback=CallbackSet(UpdateCallback(),
-                                                 StepsizeCallback(cfl=0.9)))
+                                                 StepsizeCallback(cfl=1.5f0)))
 
         result_restart = interpolate_line(start_point, end_point,
                                           n_interpolation_points, sol_restart.prob.p.semi,
