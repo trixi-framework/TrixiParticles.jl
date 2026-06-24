@@ -156,11 +156,9 @@ end
 
             dam_break_tests = Dict(
                 "no density diffusion" => (density_diffusion=nothing,),
-                "DensityDiffusionMolteniColagrossi" =>
-                    (density_diffusion=DensityDiffusionMolteniColagrossi(delta=0.1f0),),
+                "DensityDiffusionMolteniColagrossi" => (density_diffusion=DensityDiffusionMolteniColagrossi(delta=0.1f0),),
                 "DensityDiffusionFerrari" => (density_diffusion=DensityDiffusionFerrari(),),
-                "DensityDiffusionAntuono" =>
-                    (density_diffusion=DensityDiffusionAntuono(delta=0.1f0),)
+                "DensityDiffusionAntuono" => (density_diffusion=DensityDiffusionAntuono(delta=0.1f0),)
             )
 
             for (test_description, kwargs) in dam_break_tests
@@ -317,52 +315,48 @@ end
 
             hydrostatic_water_column_tests = Dict(
                 "WCSPH default" => (),
-                "WCSPH with source term damping" =>
-                    (source_terms=SourceTermDamping(damping_coefficient=1.0f-4),),
-                "WCSPH with SummationDensity" =>
-                    (fluid_density_calculator=SummationDensity(),
-                     clip_negative_pressure=true),
+                "WCSPH with source term damping" => (source_terms=SourceTermDamping(damping_coefficient=1.0f-4),),
+                "WCSPH with SummationDensity" => (fluid_density_calculator=SummationDensity(),
+                                                  clip_negative_pressure=true),
                 "WCSPH with ViscosityAdami" => (
-                 # from 0.02*10.0*1.2*0.05/8
-                 viscosity_fluid=ViscosityAdami(nu=0.0015f0),),
+                                                # from 0.02*10.0*1.2*0.05/8
+                                                viscosity_fluid=ViscosityAdami(nu=0.0015f0),),
                 "WCSPH with ViscosityMorris" => (
-                 # from 0.02*10.0*1.2*0.05/8
-                 viscosity_fluid=ViscosityMorris(nu=0.0015f0),),
+                                                 # from 0.02*10.0*1.2*0.05/8
+                                                 viscosity_fluid=ViscosityMorris(nu=0.0015f0),),
                 "WCSPH with ViscosityAdami and SummationDensity" => (
-                 # from 0.02*10.0*1.2*0.05/8
-                 viscosity_fluid=ViscosityAdami(nu=0.0015f0),
-                 fluid_density_calculator=SummationDensity(),
-                 maxiters=38, # 38 time steps on CPU
-                 clip_negative_pressure=true),
+                                                                     # from 0.02*10.0*1.2*0.05/8
+                                                                     viscosity_fluid=ViscosityAdami(nu=0.0015f0),
+                                                                     fluid_density_calculator=SummationDensity(),
+                                                                     maxiters=38, # 38 time steps on CPU
+                                                                     clip_negative_pressure=true),
                 "WCSPH with SchoenbergQuarticSplineKernel" => (smoothing_length=1.1,
-                 smoothing_kernel=SchoenbergQuarticSplineKernel{2}()),
+                                                               smoothing_kernel=SchoenbergQuarticSplineKernel{2}()),
                 "WCSPH with SchoenbergQuinticSplineKernel" => (smoothing_length=1.1,
-                 smoothing_kernel=SchoenbergQuinticSplineKernel{2}()),
+                                                               smoothing_kernel=SchoenbergQuinticSplineKernel{2}()),
                 "WCSPH with WendlandC2Kernel" => (smoothing_length=1.5,
-                 smoothing_kernel=WendlandC2Kernel{2}()),
+                                                  smoothing_kernel=WendlandC2Kernel{2}()),
                 "WCSPH with WendlandC4Kernel" => (smoothing_length=1.75,
-                 smoothing_kernel=WendlandC4Kernel{2}()),
+                                                  smoothing_kernel=WendlandC4Kernel{2}()),
                 "WCSPH with WendlandC6Kernel" => (smoothing_length=2.0,
-                 smoothing_kernel=WendlandC6Kernel{2}()),
-                "EDAC with source term damping" =>
-                    (source_terms=SourceTermDamping(damping_coefficient=1.0f-4),
-                     fluid_system=EntropicallyDampedSPHSystem(tank.fluid;
-                                                              smoothing_kernel,
-                                                              smoothing_length,
-                                                              sound_speed,
-                                                              viscosity=viscosity_fluid,
-                                                              density_calculator=ContinuityDensity(),
-                                                              acceleration=(0.0,
-                                                                            -gravity))),
-                "EDAC with SummationDensity" =>
-                    (fluid_system=EntropicallyDampedSPHSystem(tank.fluid;
-                                                              smoothing_kernel,
-                                                              smoothing_length,
-                                                              sound_speed,
-                                                              viscosity=viscosity_fluid,
-                                                              density_calculator=SummationDensity(),
-                                                              acceleration=(0.0,
-                                                                            -gravity)),)
+                                                  smoothing_kernel=WendlandC6Kernel{2}()),
+                "EDAC with source term damping" => (source_terms=SourceTermDamping(damping_coefficient=1.0f-4),
+                                                    fluid_system=EntropicallyDampedSPHSystem(tank.fluid;
+                                                                                             smoothing_kernel,
+                                                                                             smoothing_length,
+                                                                                             sound_speed,
+                                                                                             viscosity=viscosity_fluid,
+                                                                                             density_calculator=ContinuityDensity(),
+                                                                                             acceleration=(0.0,
+                                                                                                           -gravity))),
+                "EDAC with SummationDensity" => (fluid_system=EntropicallyDampedSPHSystem(tank.fluid;
+                                                                                          smoothing_kernel,
+                                                                                          smoothing_length,
+                                                                                          sound_speed,
+                                                                                          viscosity=viscosity_fluid,
+                                                                                          density_calculator=SummationDensity(),
+                                                                                          acceleration=(0.0,
+                                                                                                        -gravity)),)
             )
 
             for (test_description, kwargs) in hydrostatic_water_column_tests
@@ -958,8 +952,8 @@ end
                                           sol_restart.prob.p.semi.systems[1],
                                           sol_restart, cut_off_bnd=false)
 
-        @test isapprox(result_full.velocity, result_restart.velocity, rtol=5f-5)
-        @test isapprox(result_full.density, result_restart.density, rtol=5f-6)
-        @test isapprox(result_full.pressure, result_restart.pressure, rtol=5f-4)
+        @test isapprox(result_full.velocity, result_restart.velocity, rtol=5.0f-5)
+        @test isapprox(result_full.density, result_restart.density, rtol=5.0f-6)
+        @test isapprox(result_full.pressure, result_restart.pressure, rtol=5.0f-4)
     end
 end
