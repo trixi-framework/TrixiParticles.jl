@@ -4,7 +4,11 @@
         trixi_include(@__MODULE__,
                       joinpath(examples_dir(), "fluid", "poiseuille_flow_2d.jl"),
                       tspan=(0.0, 0.6), sound_speed_factor=10, particle_spacing=4e-5,
-                      info_callback=nothing)
+                      info_callback=nothing, sol=nothing)
+
+        sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
+                    dt=1.0, save_everystep=false,
+                    callback=CallbackSet(callbacks, StepsizeCallback(cfl=1.5)))
 
         # Since this is an open boundary simulation, the number of active particles may
         # differ. The results must be interpolated to enable comparison with the restart
@@ -19,7 +23,11 @@
         trixi_include(@__MODULE__,
                       joinpath(examples_dir(), "fluid", "poiseuille_flow_2d.jl"),
                       tspan=(0.0, 0.3), sound_speed_factor=10, particle_spacing=4e-5,
-                      info_callback=nothing)
+                      info_callback=nothing, sol=nothing)
+
+        sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
+                    dt=1.0, save_everystep=false,
+                    callback=CallbackSet(callbacks, StepsizeCallback(cfl=1.5)))
 
         iter = saving_callback.affect!.affect!.latest_saved_iter
         fluid_restart = joinpath("out", "fluid_1_$iter.vtu")
@@ -30,17 +38,19 @@
                                      restart_with=(fluid_restart, open_boundary_restart,
                                                    boundary_restart))
 
-        sol_restart = solve(ode_restart, RDPK3SpFSAL35(), abstol=1e-5, reltol=1e-3,
-                            dtmax=1e-2, save_everystep=false, callback=UpdateCallback())
+        sol_restart = solve(ode_restart, CarpenterKennedy2N54(williamson_condition=false),
+                            dt=1.0, save_everystep=false,
+                            callback=CallbackSet(UpdateCallback(),
+                                                 StepsizeCallback(cfl=1.5)))
 
         result_restart = interpolate_line(start_point, end_point,
                                           n_interpolation_points, sol_restart.prob.p.semi,
                                           sol_restart.prob.p.semi.systems[1],
                                           sol_restart, cut_off_bnd=false)
 
-        @test isapprox(result_full.velocity, result_restart.velocity, rtol=1e-2)
-        @test isapprox(result_full.density, result_restart.density, rtol=8e-4)
-        @test isapprox(result_full.pressure, result_restart.pressure, rtol=8e-2)
+        @test isapprox(result_full.velocity, result_restart.velocity, rtol=5e-5)
+        @test isapprox(result_full.density, result_restart.density, rtol=5e-6)
+        @test isapprox(result_full.pressure, result_restart.pressure, rtol=5e-4)
     end
 
     @trixi_testset "Poiseuille Flow Restore Previous State" begin
