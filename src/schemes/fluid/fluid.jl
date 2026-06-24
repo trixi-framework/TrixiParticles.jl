@@ -283,10 +283,8 @@ function restart_v(system::AbstractFluidSystem, data)
 
     velocity_active[1:ndims(system), :] = data.velocity
 
-    density_calc = hasproperty(system, :density_calculator) ? density_calculator(system) :
-                   nothing
-    write_density_and_pressure!(velocity_active, system, density_calc, data.pressure,
-                                data.density)
+    write_density_and_pressure!(velocity_active, system, density_calculator(system),
+                                data.pressure, data.density)
 
     for particle in axes(velocity_active, 2)
         for i in axes(velocity_active, 1)
