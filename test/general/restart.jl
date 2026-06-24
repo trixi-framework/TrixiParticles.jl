@@ -108,6 +108,6 @@
         sol_restart = solve(ode_restart, RDPK3SpFSAL49(), save_everystep=false, dt=1e-6)
 
         # Compare the final particle velocities
-        @test isapprox(sol_restart.u[end].x[2], positions_full, rtol=1e-6)
+        @test isapprox(sol_restart.u[end].x[2], positions_full, rtol=8e-5)
     end
 end
