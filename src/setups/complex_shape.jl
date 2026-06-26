@@ -52,6 +52,8 @@ function ComplexShape(geometry; particle_spacing, density,
         throw(ArgumentError("`WindingNumberHormann` only supports 2D geometries"))
     end
 
+    require_closed_geometry(geometry, "ComplexShape")
+
     if grid_offset < 0.0
         throw(ArgumentError("only a positive `grid_offset` is supported"))
     end
