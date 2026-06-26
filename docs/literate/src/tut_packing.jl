@@ -251,10 +251,12 @@ fixed_system = ParticlePackingSystem(packed_ic; smoothing_kernel, smoothing_leng
 
 # Now we define a rectangular domain that we want to pack.
 # In practice, you could create any `InitialCondition` that encloses your complex geometry.
-tank_domain = RectangularTank(particle_spacing, (4, 4), (0, 0), min_coordinates=(-1, -2),
-                              density)
+domain_size = (4, 4)
+n_particles_per_dimension = round.(Int, domain_size ./ particle_spacing)
+tank_domain = RectangularShape(particle_spacing, n_particles_per_dimension, (-1, -2);
+                               density)
 
-sampled_outer_domain = setdiff(tank_domain.fluid, packed_ic)
+sampled_outer_domain = setdiff(tank_domain, packed_ic)
 
 # If we plot these two `InitialCondition`s, we can see
 # that the geometry interface is not properly represented yet.
