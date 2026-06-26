@@ -462,10 +462,12 @@ end
     Wdx = smoothing_kernel(system, dx, 1)
     h = smoothing_length(system, 1)
 
-    foreach_system(semi) do neighbor_system
-        u_neighbor = wrap_u(u_ode, neighbor_system, semi)
-        v_neighbor = wrap_v(v_ode, neighbor_system, semi)
-
+    foreach_system_wrapped_if(neighbor_system -> has_system_interaction(system,
+                                                                        neighbor_system,
+                                                                        semi),
+                              semi, v_ode, u_ode) do neighbor_system,
+                                                     v_neighbor,
+                                                     u_neighbor
         system_coords = current_coordinates(u, system)
         neighbor_coords = current_coordinates(u_neighbor, neighbor_system)
 
@@ -639,10 +641,12 @@ function update_shifting!(system, shifting::TransportVelocityAdami, v, u, v_ode,
 
     set_zero!(delta_v)
 
-    foreach_system(semi) do neighbor_system
-        v_neighbor = wrap_v(v_ode, neighbor_system, semi)
-        u_neighbor = wrap_u(u_ode, neighbor_system, semi)
-
+    foreach_system_wrapped_if(neighbor_system -> has_system_interaction(system,
+                                                                        neighbor_system,
+                                                                        semi),
+                              semi, v_ode, u_ode) do neighbor_system,
+                                                     v_neighbor,
+                                                     u_neighbor
         system_coords = current_coordinates(u, system)
         neighbor_coords = current_coordinates(u_neighbor, neighbor_system)
 
