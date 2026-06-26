@@ -679,10 +679,10 @@ end
     if system.ismoving[]
         relative_velocity = current_velocity(v, system, particle) .-
                             current_velocity(v_neighbor_system, neighbor_system, neighbor)
-        normal_velocity = dot(relative_velocity, pos_diff)
+        normal_velocity = dot(relative_velocity, pos_diff) / distance
 
         return boundary_density_calculator.factor * density_neighbor *
-               normal_velocity^2 / distance / 2
+               normal_velocity^2 / 2
     end
     return zero(density_neighbor)
 end

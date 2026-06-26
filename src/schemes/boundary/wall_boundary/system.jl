@@ -255,7 +255,7 @@ end
 
 function restart_with!(system::WallBoundarySystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
                        v, u)
-    (; initial_density) = model.cache
+    (; initial_density) = system.boundary_model.cache
 
     for particle in eachparticle(system)
         initial_density[particle] = v[1, particle]
