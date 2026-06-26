@@ -244,4 +244,35 @@
                       nparticles(system))
         end
     end
+
+    @trixi_testset "restart_with! with ContinuityDensity" begin
+        coordinates = [0.5 2.0
+                       1.0 2.0]
+        velocity = 2 * coordinates
+        mass = [1.25, 1.5]
+        density = [990.0, 1000.0]
+        pressure = [5.0, 7.8]
+        smoothing_kernel = Val(:smoothing_kernel)
+        TrixiParticles.ndims(::Val{:smoothing_kernel}) = 2
+        smoothing_length = 0.362
+        sound_speed = 10.0
+
+        initial_condition = InitialCondition(; coordinates, velocity, mass, density,
+                                             pressure)
+        system = EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel,
+                                             smoothing_length, sound_speed,
+                                             density_calculator=ContinuityDensity())
+
+        u_new = coordinates .+ 1
+        velocity_new = velocity .+ 2
+        pressure_new = [11.0, 13.0]
+        density_new = [980.0, 970.0]
+        v_new = vcat(velocity_new, pressure_new', density_new')
+
+        TrixiParticles.restart_with!(system, v_new, u_new)
+
+        @test system.initial_condition.coordinates == u_new
+        @test system.initial_condition.velocity == velocity_new
+        @test system.initial_condition.pressure == pressure_new
+    end
 end
