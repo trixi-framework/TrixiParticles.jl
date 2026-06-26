@@ -573,7 +573,8 @@
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",
                                                   "periodic_array_of_cylinders_2d.jl"),
-                                         tspan=(0.0, 20.0))
+                                         tspan=(0.0, 20.0),
+                                         density_diffusion=DensityDiffusionMolteniColagrossi(delta=0.1))
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol) == 0
     end
