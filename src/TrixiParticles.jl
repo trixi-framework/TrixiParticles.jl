@@ -41,7 +41,7 @@ using TrixiBase: @trixi_timeit, timer, timeit_debug_enabled,
                                 SerialBackend, PolyesterBackend, ThreadsStaticBackend,
                                 ThreadsDynamicBackend, default_backend
 using PointNeighbors: PointNeighbors, foreach_point_neighbor, copy_neighborhood_search,
-                      @threaded
+                      @threaded, AbstractNeighborhoodSearch
 using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, VTKFieldData, paraview_collection,
                 vtk_save
 
@@ -65,6 +65,7 @@ include("io/io.jl")
 include("visualization/recipes_plots.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
+export PairsNHSHandler, SharedNHSHandler
 export InitialCondition, apply_angular_velocity
 export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangianSPHSystem,
        RigidBodySystem, WallBoundarySystem, DEMSystem, BoundaryDEMSystem,

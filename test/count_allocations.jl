@@ -11,10 +11,23 @@ TrixiParticles.extract_periodic_box(::NoUpdateNeighborhoodSearch) = nothing
 # Copy a `Semidiscretization`, but wrap the neighborhood searches with
 # `NoUpdateNeighborhoodSearch`.
 function copy_semi_with_no_update_nhs(semi)
-    neighborhood_searches = map(NoUpdateNeighborhoodSearch, semi.neighborhood_searches)
+    neighborhood_search_handler = no_update_nhs_handler(semi.neighborhood_search_handler)
 
     return Semidiscretization(semi.systems, semi.ranges_u, semi.ranges_v,
-                              neighborhood_searches, SerialBackend(), Ref(true), Ref(true))
+                              neighborhood_search_handler, SerialBackend(), Ref(true),
+                              Ref(true))
+end
+
+function no_update_nhs_handler(handler::TrixiParticles.PairsNHSHandler)
+    return TrixiParticles.PairsNHSHandler(map(NoUpdateNeighborhoodSearch,
+                                              handler.neighborhood_searches))
+end
+
+function no_update_nhs_handler(handler::TrixiParticles.SharedNHSHandler)
+    return TrixiParticles.SharedNHSHandler(handler.search_radii,
+                                           map(searches -> map(NoUpdateNeighborhoodSearch,
+                                                               searches),
+                                               handler.neighborhood_searches))
 end
 
 # Forward `foreach_neighbor` to wrapped neighborhood search

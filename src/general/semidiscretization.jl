@@ -1,5 +1,6 @@
 """
-    Semidiscretization(systems...; neighborhood_search=GridNeighborhoodSearch{NDIMS}())
+    Semidiscretization(systems...; neighborhood_search=GridNeighborhoodSearch{NDIMS}(),
+                       neighborhood_search_handler=default_neighborhood_search_handler(neighborhood_search))
 
 The semidiscretization couples the passed systems to one simulation.
 
@@ -15,6 +16,11 @@ The semidiscretization couples the passed systems to one simulation.
                             and the examples below for more details.
                             To use a periodic domain, pass a [`PeriodicBox`](@ref) to the
                             neighborhood search.
+- `neighborhood_search_handler`: The handler type used to store and look up neighborhood
+                            searches internally. By default, [`SharedNHSHandler`](@ref)
+                            is used whenever possible and [`PairsNHSHandler`](@ref) otherwise.
+                            See [neighborhood search handlers](@ref neighborhood_search_handlers)
+                            for more details.
 - `threaded_nhs_update=true`:   Can be used to deactivate thread parallelization in the neighborhood search update.
                                 This can be one of the largest sources of variations between simulations
                                 with different thread numbers due to particle ordering changes.
@@ -49,32 +55,34 @@ semi = Semidiscretization(fluid_system, boundary_system,
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-struct Semidiscretization{BACKEND, S, RU, RV, NS, UCU, IT}
-    systems                 :: S
-    ranges_u                :: RU
-    ranges_v                :: RV
-    neighborhood_searches   :: NS
-    parallelization_backend :: BACKEND
-    update_callback_used    :: UCU
-    integrate_tlsph         :: IT # `false` if TLSPH integration is decoupled
+struct Semidiscretization{BACKEND, S, RU, RV, NSH, UCU, IT}
+    systems                     :: S
+    ranges_u                    :: RU
+    ranges_v                    :: RV
+    neighborhood_search_handler :: NSH
+    parallelization_backend     :: BACKEND
+    update_callback_used        :: UCU
+    integrate_tlsph             :: IT # `false` if TLSPH integration is decoupled
 
     # Dispatch at `systems` to distinguish this constructor from the one below when
     # 4 systems are passed.
     # This is an internal constructor only used in `test/count_allocations.jl`.
-    function Semidiscretization(systems::Tuple, ranges_u, ranges_v, neighborhood_searches,
+    function Semidiscretization(systems::Tuple, ranges_u, ranges_v,
+                                neighborhood_search_handler,
                                 parallelization_backend::PointNeighbors.ParallelizationBackend,
                                 update_callback_used, integrate_tlsph)
         new{typeof(parallelization_backend), typeof(systems), typeof(ranges_u),
-            typeof(ranges_v), typeof(neighborhood_searches),
+            typeof(ranges_v), typeof(neighborhood_search_handler),
             typeof(update_callback_used),
             typeof(integrate_tlsph)}(systems, ranges_u, ranges_v,
-                                     neighborhood_searches, parallelization_backend,
+                                     neighborhood_search_handler, parallelization_backend,
                                      update_callback_used, integrate_tlsph)
     end
 end
 
 function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
                             neighborhood_search=GridNeighborhoodSearch{ndims(first(systems))}(),
+                            neighborhood_search_handler=default_neighborhood_search_handler(neighborhood_search),
                             parallelization_backend=PolyesterBackend())
     systems = filter(system -> !isnothing(system), systems)
 
@@ -101,13 +109,9 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
                      for i in eachindex(sizes_v))
 
-    # Create a n x n matrix of n neighborhood searches for each of the n systems.
-    # We will need one neighborhood search for each pair of systems.
-    searches = [create_neighborhood_search(neighborhood_search,
-                                           system, neighbor)
-                for system in systems, neighbor in systems]
-
-    @assert isconcretetype(eltype(searches)) "neighborhood searches are not type-stable"
+    neighborhood_search_handler = create_neighborhood_search_handler(neighborhood_search_handler,
+                                                                     neighborhood_search,
+                                                                     systems)
 
     # These will be set to true inside the `UpdateCallback`.
     # Some techniques require the use of this callback, and this flag can be used
@@ -119,7 +123,7 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     # with this set to false.
     integrate_tlsph = Ref(true)
 
-    return Semidiscretization(systems, ranges_u, ranges_v, searches,
+    return Semidiscretization(systems, ranges_u, ranges_v, neighborhood_search_handler,
                               parallelization_backend, update_callback_used,
                               integrate_tlsph)
 end
@@ -133,7 +137,7 @@ function Base.show(io::IO, semi::Semidiscretization)
         print(io, system, ", ")
     end
     print(io, "neighborhood_search=")
-    print(io, semi.neighborhood_searches |> eltype |> nameof)
+    print(io, neighborhood_search_name(semi.neighborhood_search_handler))
     print(io, ")")
 end
 
@@ -148,7 +152,7 @@ function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
         summary_line(io, "#spatial dimensions", ndims(semi.systems[1]))
         summary_line(io, "#systems", length(semi.systems))
         summary_line(io, "neighborhood search",
-                     semi.neighborhood_searches |> eltype |> nameof)
+                     neighborhood_search_name(semi.neighborhood_search_handler))
         summary_line(io, "total #particles", sum(nparticles.(semi.systems)))
         summary_line(io, "eltype", eltype(semi.systems[1]))
         summary_line(io, "coordinates eltype", coordinates_eltype(semi.systems[1]))
@@ -284,11 +288,11 @@ function semidiscretize(semi, tspan; reset_threads=true)
         systems = Adapt.adapt(semi.parallelization_backend, semi.systems)
         semi_ = @set semi.systems = systems
 
-        # Also convert the neighborhood searches to the GPU
-        neighborhood_searches = map(search -> Adapt.adapt(semi.parallelization_backend,
-                                                          search),
-                                    semi_.neighborhood_searches)
-        semi__ = @set semi_.neighborhood_searches = neighborhood_searches
+        # Also convert the neighborhood searches to the GPU, while keeping the
+        # handler containers on the CPU.
+        neighborhood_search_handler = adapt_neighborhood_search_handler(semi.parallelization_backend,
+                                                                        semi_.neighborhood_search_handler)
+        semi__ = @set semi_.neighborhood_search_handler = neighborhood_search_handler
 
         # We now have a new `Semidiscretization` with new systems.
         # This means that systems linking to other systems still point to old systems.
@@ -772,7 +776,7 @@ function check_update_callback(semi)
 end
 
 function check_configuration(systems,
-                             nhs::Union{Nothing, PointNeighbors.AbstractNeighborhoodSearch})
+                             nhs::Union{Nothing, AbstractNeighborhoodSearch})
     foreach_system(systems) do system
         check_configuration(system, systems, nhs)
     end
