@@ -218,6 +218,14 @@
         │ source terms: …………………………………………… Nothing                                                          │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", system) == show_box
+
+        system = WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
+                                             smoothing_length, density_calculator,
+                                             state_equation,
+                                             surface_tension=SurfaceTensionMorris(),
+                                             reference_particle_spacing=0.1)
+
+        @test repr(system) isa String
     end
 
     @testset verbose=true "write_u0!" begin
