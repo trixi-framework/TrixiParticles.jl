@@ -49,7 +49,7 @@ semi = Semidiscretization(fluid_system, boundary_system,
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-struct Semidiscretization{BACKEND, S, RU, RV, NS, UCU, IT}
+struct Semidiscretization{BACKEND, S, RU, RV, NS, UCU, IT, IPS}
     systems                 :: S
     ranges_u                :: RU
     ranges_v                :: RV
@@ -57,19 +57,25 @@ struct Semidiscretization{BACKEND, S, RU, RV, NS, UCU, IT}
     parallelization_backend :: BACKEND
     update_callback_used    :: UCU
     integrate_tlsph         :: IT # `false` if TLSPH integration is decoupled
+    iisph_pressure_state    :: IPS
 
     # Dispatch at `systems` to distinguish this constructor from the one below when
     # 4 systems are passed.
     # This is an internal constructor only used in `test/count_allocations.jl`.
     function Semidiscretization(systems::Tuple, ranges_u, ranges_v, neighborhood_searches,
                                 parallelization_backend::PointNeighbors.ParallelizationBackend,
-                                update_callback_used, integrate_tlsph)
+                                update_callback_used, integrate_tlsph,
+                                iisph_pressure_state)
         new{typeof(parallelization_backend), typeof(systems), typeof(ranges_u),
             typeof(ranges_v), typeof(neighborhood_searches),
             typeof(update_callback_used),
-            typeof(integrate_tlsph)}(systems, ranges_u, ranges_v,
-                                     neighborhood_searches, parallelization_backend,
-                                     update_callback_used, integrate_tlsph)
+            typeof(integrate_tlsph),
+            typeof(iisph_pressure_state)}(systems, ranges_u, ranges_v,
+                                          neighborhood_searches,
+                                          parallelization_backend,
+                                          update_callback_used,
+                                          integrate_tlsph,
+                                          iisph_pressure_state)
     end
 end
 
@@ -119,9 +125,17 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     # with this set to false.
     integrate_tlsph = Ref(true)
 
+    iisph_pressure_state = (last_iterations=Ref(0), total_iterations=Ref(0),
+                            max_iterations=Ref(0), solve_count=Ref(0),
+                            step_iterations=Ref(0), step_max_iterations=Ref(0),
+                            step_solve_count=Ref(0),
+                            last_solve_time=Ref(0.0), total_solve_time=Ref(0.0),
+                            max_solve_time=Ref(0.0),
+                            step_solve_time=Ref(0.0), step_max_solve_time=Ref(0.0))
+
     return Semidiscretization(systems, ranges_u, ranges_v, searches,
                               parallelization_backend, update_callback_used,
-                              integrate_tlsph)
+                              integrate_tlsph, iisph_pressure_state)
 end
 
 # Inline show function e.g. Semidiscretization(neighborhood_search=...)
@@ -166,6 +180,136 @@ end
     end
 
     return index
+end
+
+function record_iisph_pressure_iterations!(semi, iterations, solve_time=0.0)
+    state = semi.iisph_pressure_state
+
+    state.last_iterations[] = iterations
+    state.total_iterations[] += iterations
+    state.max_iterations[] = max(state.max_iterations[], iterations)
+    state.solve_count[] += 1
+    state.step_iterations[] += iterations
+    state.step_max_iterations[] = max(state.step_max_iterations[], iterations)
+    state.step_solve_count[] += 1
+    state.last_solve_time[] = solve_time
+    state.total_solve_time[] += solve_time
+    state.max_solve_time[] = max(state.max_solve_time[], solve_time)
+    state.step_solve_time[] += solve_time
+    state.step_max_solve_time[] = max(state.step_max_solve_time[], solve_time)
+
+    return semi
+end
+
+"""
+    reset_iisph_pressure_iteration_stats!(semi)
+
+Reset IISPH pressure solver iteration counters in a [`Semidiscretization`](@ref).
+
+See also [`iisph_pressure_iteration_stats`](@ref).
+"""
+function reset_iisph_pressure_iteration_stats!(semi)
+    state = semi.iisph_pressure_state
+
+    state.last_iterations[] = 0
+    state.total_iterations[] = 0
+    state.max_iterations[] = 0
+    state.solve_count[] = 0
+    state.last_solve_time[] = 0.0
+    state.total_solve_time[] = 0.0
+    state.max_solve_time[] = 0.0
+    reset_iisph_pressure_step_stats!(semi)
+
+    return semi
+end
+
+"""
+    reset_iisph_pressure_step_stats!(semi)
+
+Reset IISPH pressure solver counters accumulated since the previous accepted time step.
+
+See also [`iisph_pressure_step_stats`](@ref).
+"""
+function reset_iisph_pressure_step_stats!(semi)
+    state = semi.iisph_pressure_state
+
+    state.step_iterations[] = 0
+    state.step_max_iterations[] = 0
+    state.step_solve_count[] = 0
+    state.step_solve_time[] = 0.0
+    state.step_max_solve_time[] = 0.0
+
+    return semi
+end
+
+"""
+    iisph_pressure_step_stats(semi)
+
+Return IISPH pressure solver counters accumulated since the previous accepted time step.
+
+The returned named tuple contains:
+- `total_iterations`: accumulated Jacobi iterations in the current step
+- `max_iterations`: maximum Jacobi iterations in one pressure solve in the current step
+- `solve_count`: number of recorded pressure solves in the current step
+- `average_iterations`: average Jacobi iterations per pressure solve in the current step
+- `total_solve_time`: accumulated pressure solve wall time in the current step
+- `max_solve_time`: maximum pressure solve wall time in the current step
+- `average_solve_time`: average pressure solve wall time in the current step
+
+Use [`reset_iisph_pressure_step_stats!`](@ref) to reset these counters.
+"""
+function iisph_pressure_step_stats(semi)
+    state = semi.iisph_pressure_state
+
+    solve_count = state.step_solve_count[]
+    total_iterations = state.step_iterations[]
+    average_iterations = solve_count == 0 ? 0.0 : total_iterations / solve_count
+
+    return (total_iterations,
+            max_iterations=state.step_max_iterations[],
+            solve_count,
+            average_iterations,
+            total_solve_time=state.step_solve_time[],
+            max_solve_time=state.step_max_solve_time[],
+            average_solve_time=solve_count == 0 ? 0.0 :
+                               state.step_solve_time[] / solve_count)
+end
+
+"""
+    iisph_pressure_iteration_stats(semi)
+
+Return IISPH pressure solver iteration counters for a [`Semidiscretization`](@ref).
+
+The returned named tuple contains:
+- `last_iterations`: Jacobi iterations in the most recent pressure solve
+- `total_iterations`: accumulated Jacobi iterations
+- `max_iterations`: maximum Jacobi iterations in one pressure solve
+- `solve_count`: number of recorded pressure solves
+- `average_iterations`: average Jacobi iterations per pressure solve
+- `last_solve_time`: wall time of the most recent pressure solve
+- `total_solve_time`: accumulated pressure solve wall time
+- `max_solve_time`: maximum pressure solve wall time
+- `average_solve_time`: average pressure solve wall time
+
+Use [`reset_iisph_pressure_iteration_stats!`](@ref) to reset the counters.
+"""
+function iisph_pressure_iteration_stats(semi)
+    state = semi.iisph_pressure_state
+
+    solve_count = state.solve_count[]
+    total_iterations = state.total_iterations[]
+    average_iterations = solve_count == 0 ? 0.0 : total_iterations / solve_count
+
+    return (last_iterations=state.last_iterations[],
+            total_iterations,
+            max_iterations=state.max_iterations[],
+            solve_count,
+            average_iterations,
+            last_solve_time=state.last_solve_time[],
+            total_solve_time=state.total_solve_time[],
+            max_solve_time=state.max_solve_time[],
+            average_solve_time=solve_count == 0 ? 0.0 :
+                               state.total_solve_time[] / solve_count)
 end
 
 # This is just for readability to loop over all systems without allocations
@@ -516,6 +660,14 @@ end
 # Update the systems and neighborhood searches (NHS) for a simulation
 # before calling `interact!` to compute forces.
 function update_systems_and_nhs(v_ode, u_ode, semi, t)
+    update_systems_and_nhs_before_pressure!(v_ode, u_ode, semi, t)
+    update_implicit_sph!(semi, v_ode, u_ode, t)
+    update_systems_and_nhs_after_pressure!(v_ode, u_ode, semi, t)
+
+    return semi
+end
+
+function update_systems_and_nhs_before_pressure!(v_ode, u_ode, semi, t)
     # First update step before updating the NHS
     # (for example for writing the current coordinates in the TLSPH system)
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
@@ -533,8 +685,10 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
         update_quantities!(system, v, u, v_ode, u_ode, semi, t)
     end
 
-    update_implicit_sph!(semi, v_ode, u_ode, t)
+    return semi
+end
 
+function update_systems_and_nhs_after_pressure!(v_ode, u_ode, semi, t)
     # Perform correction and pressure calculation
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_pressure!(system, v, u, v_ode, u_ode, semi, t)
@@ -550,6 +704,8 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_final!(system, v, u, v_ode, u_ode, semi, t)
     end
+
+    return semi
 end
 
 # Some systems accumulate pairwise interaction state outside `dv_ode`. Reset that state once
