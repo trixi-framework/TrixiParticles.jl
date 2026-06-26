@@ -556,6 +556,16 @@
     end
 
     @testset verbose=true "N-Body" begin
+        include("n_body_system.jl")
+
+        @trixi_testset "n_body/n_body_newtonian_gravity.jl" begin
+            @trixi_test_nowarn trixi_include(@__MODULE__,
+                                             joinpath(examples_dir(), "n_body",
+                                                      "n_body_newtonian_gravity.jl"))
+            @test sol.retcode == ReturnCode.Success
+            @test count_rhs_allocations(sol) == 0
+        end
+
         @trixi_testset "n_body/n_body_solar_system.jl" begin
             @trixi_test_nowarn trixi_include(@__MODULE__,
                                              joinpath(examples_dir(), "n_body",
