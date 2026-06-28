@@ -51,7 +51,7 @@ real_density = fiber_volume_fraction * fiber_density +
           (1 - fiber_volume_fraction) * epoxy_density
 density = real_density
 
-tank_size = (2.0, 1.0)
+tank_size = (2.0, 1.5)
 center = (tank_size[2] / 2, tank_size[2] / 2)
 initial_fluid_size = tank_size
 initial_velocity = (1.0, 0.0)
@@ -261,11 +261,11 @@ structure.mass .= structure.density .* particle_spacing^2
 
 n_clamped_particles = nparticles(structure) - nparticles(beam)
 
-# Movement function
-frequency = 1.3 # Hz
-amplitude = 0.18 # m
-rotation_deg = 25 # degrees
-rotation_phase_offset = 0.12 # periods
+# Movement function (parameters chosen to match video)
+frequency = 1.062 # Hz
+amplitude = 0.28 # m
+rotation_deg = 30 # degrees
+rotation_phase_offset = 0.15 # periods
 translation_vector = SVector(0.0, amplitude)
 rotation_angle = rotation_deg * pi / 180
 
@@ -391,7 +391,7 @@ ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
 prefix = ""
-saving_callback = SolutionSavingCallback(dt=0.01; prefix)
+saving_callback = SolutionSavingCallback(dt=1/120; prefix)
 
 split_cfl = 1.5
 # SSPRK104 CFL = 2.5, 15k RHS evaluations
