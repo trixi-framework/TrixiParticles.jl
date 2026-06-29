@@ -152,7 +152,7 @@ function (calculator::MechanicalWorkCalculator)(system, dv_ode, du_ode, v_ode, u
         # Integrate the instantaneous power using the trapezoidal rule to get the
         # accumulated mechanical work.
         calculator.work = update_mechanical_work(calculator.work, calculator.power,
-                                                    current_power, dt)
+                                                 current_power, dt)
     else
         # Initialize
         calculator.work = zero(calculator.work)
