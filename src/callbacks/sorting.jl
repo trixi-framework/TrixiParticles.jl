@@ -107,8 +107,8 @@ function (sorting_callback!::SortingCallback)(integrator)
     # Update the last sorting time in the callback struct.
     sorting_callback!.last_t = integrator.t
 
-    # Tell OrdinaryDiffEq that `integrator.u` has been modified
-    u_modified!(integrator, true)
+    # Sorting changes the ODE state ordering and introduces a derivative discontinuity.
+    derivative_discontinuity!(integrator, true)
 
     return integrator
 end

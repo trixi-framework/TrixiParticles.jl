@@ -83,10 +83,10 @@ function (update_callback!::UpdateCallback)(integrator)
     semi = integrator.p.semi
     v_ode, u_ode = integrator.u.x
 
-    # Tell OrdinaryDiffEq that `integrator.u` has NOT been modified.
-    # This will be set to `true` in any of the update functions below that modify
-    # either `v_ode` or `u_ode`.
-    u_modified!(integrator, false)
+    # An empty update without calling any of the functions below does not modify
+    # the results of the right-hand side.
+    # The functions that add a discontinuity call `derivative_discontinuity!` themselves.
+    derivative_discontinuity!(integrator, false)
 
     @trixi_timeit timer() "update callback" begin
         # Update quantities that are stored in the systems. These quantities (e.g. pressure)

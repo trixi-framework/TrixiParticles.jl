@@ -42,7 +42,7 @@
 <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/f9a542bf-956b-4647-843b-94cbb085a4fa" width="60%"/>
 ```
 
-## Fluid Structure Interaction
+## Fluid-Structure Interaction
 
 ### Dam Break with Elastic Plate (`fsi/dam_break_plate_2d.jl`)
 ```@raw html
@@ -59,7 +59,7 @@
 <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/b3964f68-2782-43e6-b6ff-be96f9f224ae" width="60%"/>
 ```
 
-## Structure Mechanics
+## Structural Mechanics
 
 ### Oscillating Beam (`solid/oscillating_beam_2d.jl`)
 ```@raw html

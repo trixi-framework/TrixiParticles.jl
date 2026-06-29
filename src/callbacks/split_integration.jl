@@ -207,17 +207,15 @@ function (split_integration_callback::SplitIntegrationCallback)(integrator)
     data.t_ref[] = new_t
 
     if isapprox(new_t, old_t)
-        # Tell OrdinaryDiffEq that `u` has NOT been modified.
         # Usually, `u` is modified in the split integration above, but if the split
         # integrator has already been advanced to the new step time in the last stage of the
-        # previous step, the split integration above is skipped and `u` is not modified.
-        # (Technically, the split integration `u` is copied to the large `u` to account for
-        # potential caching errors, but the RHS of the last stage of the previous step
-        # can be reused for FSAL methods, which is what `u_modified!` is for.)
-        u_modified!(integrator, false)
+        # previous step, the split integration above is skipped and only the split integration `u`
+        # is copied to the large `u` to account for potential caching errors.
+        # This does not affect the RHS of the large integrator, so no discontinuity is introduced.
+        derivative_discontinuity!(integrator, false)
     else
-        # Tell OrdinaryDiffEq that `u` has been modified.
-        u_modified!(integrator, true)
+        # Split integration updates the ODE state and introduces a derivative discontinuity.
+        derivative_discontinuity!(integrator, true)
     end
 
     return integrator
@@ -571,8 +569,9 @@ function update_averaged_velocity_callback!(integrator)
         compute_averaged_velocity!(system, v_ode, semi, t_new)
     end
 
-    # Tell OrdinaryDiffEq that `integrator.u` has not been modified
-    u_modified!(integrator, false)
+    # This callback does not modify `integrator.u` and hence does not change the result
+    # of the right-hand side.
+    derivative_discontinuity!(integrator, false)
 
     return integrator
 end

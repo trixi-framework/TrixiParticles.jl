@@ -22,9 +22,9 @@ using Printf: @printf, @sprintf
 using ReadVTK: ReadVTK
 using RecipesBase: RecipesBase, @series
 using Random: seed!
-using SciMLBase: SciMLBase, CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
-                 get_tmp_cache, set_proposed_dt!, ODESolution, ODEProblem, terminate!,
-                 add_tstop!
+using SciMLBase: SciMLBase, CallbackSet, DiscreteCallback, DynamicalODEProblem,
+                 derivative_discontinuity!, get_tmp_cache, set_proposed_dt!,
+                 ODESolution, ODEProblem, terminate!, add_tstop!
 @reexport using StaticArrays: SVector
 using StaticArrays: @SMatrix, SMatrix, setindex
 using Statistics: Statistics
@@ -62,6 +62,7 @@ include("general/semidiscretization.jl")
 include("general/gpu.jl")
 include("preprocessing/preprocessing.jl")
 include("io/io.jl")
+include("general/restart.jl")
 include("visualization/recipes_plots.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
