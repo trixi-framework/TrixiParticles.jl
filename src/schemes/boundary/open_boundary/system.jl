@@ -397,12 +397,14 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
 
     u_fluid = wrap_u(u_ode, fluid_system, semi)
     v_fluid = wrap_v(v_ode, fluid_system, semi)
+    periodic_box = get_neighborhood_search(fluid_system, system, semi).periodic_box
 
     boundary_candidates .= false
 
     # Check the boundary particles whether they're leaving the boundary zone
     @threaded semi for particle in each_integrated_particle(system)
-        particle_coords = current_coords(u, system, particle)
+        particle_coords = PointNeighbors.periodic_coords(current_coords(u, system, particle),
+                                                         periodic_box)
 
         # Check if boundary particle is outside the boundary zone
         boundary_zone = current_boundary_zone(system, particle)
@@ -423,7 +425,7 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
 
         boundary_zone = current_boundary_zone(system, particle)
         convert_particle!(system, fluid_system, boundary_zone, particle, particle_new,
-                          v, u, v_fluid, u_fluid)
+                          v, u, v_fluid, u_fluid, periodic_box)
     end
 
     update_system_buffer!(system.buffer)
@@ -433,7 +435,9 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
 
     # Check the fluid particles whether they're entering the boundary zone
     @threaded semi for fluid_particle in each_integrated_particle(fluid_system)
-        fluid_coords = current_coords(u_fluid, fluid_system, fluid_particle)
+        fluid_coords = PointNeighbors.periodic_coords(current_coords(u_fluid, fluid_system,
+                                                                     fluid_particle),
+                                                      periodic_box)
 
         # Check if fluid particle is in any boundary zone
         for boundary_zone in boundary_zones
@@ -454,7 +458,7 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
         particle_new = available_boundary_particles[i]
 
         convert_particle!(fluid_system, system, particle, particle_new,
-                          v, u, v_fluid, u_fluid)
+                          v, u, v_fluid, u_fluid, periodic_box)
     end
 
     update_system_buffer!(system.buffer)
@@ -471,7 +475,7 @@ end
 # Buffer particle is outside the boundary zone
 @inline function convert_particle!(system::OpenBoundarySystem, fluid_system,
                                    boundary_zone, particle, particle_new,
-                                   v, u, v_fluid, u_fluid)
+                                   v, u, v_fluid, u_fluid, periodic_box)
     # Position relative to the origin of the transition face
     relative_position = current_coords(u, system, particle) - boundary_zone.zone_origin
 
@@ -488,7 +492,8 @@ end
     end
 
     # Activate a new particle in simulation domain
-    transfer_particle!(fluid_system, system, particle, particle_new, v_fluid, u_fluid, v, u)
+    transfer_particle!(fluid_system, system, particle, particle_new,
+                       v_fluid, u_fluid, v, u, periodic_box)
 
     # Reset position of boundary particle back to the beginning of the boundary zone.
     # If we translated it by exactly `zone_width` along `-face_normal`, rounding
@@ -502,7 +507,8 @@ end
     end
 
     # Verify the particle remains inside the boundary zone after the reset; deactivate it if not.
-    particle_coords = current_coords(u, system, particle)
+    particle_coords = PointNeighbors.periodic_coords(current_coords(u, system, particle),
+                                                     periodic_box)
     if !is_in_boundary_zone(boundary_zone, particle_coords)
         deactivate_particle!(system, particle, v, u)
 
@@ -518,9 +524,11 @@ end
 
 # Fluid particle is in boundary zone
 @inline function convert_particle!(fluid_system::AbstractFluidSystem, system,
-                                   particle, particle_new, v, u, v_fluid, u_fluid)
+                                   particle, particle_new, v, u, v_fluid, u_fluid,
+                                   periodic_box)
     # Activate particle in boundary zone
-    transfer_particle!(system, fluid_system, particle, particle_new, v, u, v_fluid, u_fluid)
+    transfer_particle!(system, fluid_system, particle, particle_new,
+                       v, u, v_fluid, u_fluid, periodic_box)
 
     # Deactivate particle in interior domain
     deactivate_particle!(fluid_system, particle, v_fluid, u_fluid)
@@ -529,7 +537,7 @@ end
 end
 
 @inline function transfer_particle!(system_new, system_old, particle_old, particle_new,
-                                    v_new, u_new, v_old, u_old)
+                                    v_new, u_new, v_old, u_old, periodic_box)
     # Activate new particle
     system_new.buffer.active_particle[particle_new] = true
 
@@ -541,9 +549,12 @@ end
     pressure = current_pressure(v_old, system_old, particle_old)
     set_particle_pressure!(v_new, system_new, particle_new, pressure)
 
+    particle_coords = current_coords(u_old, system_old, particle_old)
+    particle_coords = PointNeighbors.periodic_coords(particle_coords, periodic_box)
+
     # Exchange position and velocity
     for dim in 1:ndims(system_new)
-        u_new[dim, particle_new] = u_old[dim, particle_old]
+        u_new[dim, particle_new] = particle_coords[dim]
         v_new[dim, particle_new] = v_old[dim, particle_old]
     end
 
