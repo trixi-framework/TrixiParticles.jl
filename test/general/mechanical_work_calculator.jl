@@ -43,6 +43,14 @@
         @test eltype(calculator.power) == Float32
     end
 
+    @testset "reset_custom_quantity!" begin
+        calculator = MechanicalWorkCalculator(system64, semi64)
+        calculator.initialized = true
+
+        @test TrixiParticles.reset_custom_quantity!(calculator) === calculator
+        @test !calculator.initialized
+    end
+
     @testset "trapezoidal integration" begin
         @test TrixiParticles.update_mechanical_work(1.0, 2.0, 6.0, 0.25) == 2.0
     end

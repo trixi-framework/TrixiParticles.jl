@@ -107,6 +107,12 @@ function reset!(calculator::MechanicalWorkCalculator)
     return calculator
 end
 
+function reset_custom_quantity!(calculator::MechanicalWorkCalculator)
+    calculator.initialized = false
+
+    return calculator
+end
+
 """
     calculated_mechanical_work(calculator::MechanicalWorkCalculator)
 
