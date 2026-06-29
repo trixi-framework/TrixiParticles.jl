@@ -61,6 +61,9 @@ system_new = semi_new.systems[1]
 mechanical_work_calculator = MechanicalWorkCalculator(system_new, semi_new)
 postprocess_cb = PostprocessCallback(; interval=2, mechanical_work_calculator)
 
+# Now pass the callback to the `solve` function:
+# sol = solve(ode, ..., callback=postprocess_cb)
+
 # After the simulation, retrieve the accumulated mechanical work.
 mechanical_work = calculated_mechanical_work(mechanical_work_calculator)
 
