@@ -22,6 +22,7 @@
         @test calculator.system_index == 1
         @test calculator.t == 0.0
         @test calculator.work == 0.0
+        @test calculator.power == 0.0
         @test !calculator.initialized
         @test calculator.dv isa Array{Float64, 2}
         @test size(calculator.dv) == (2, 4)
@@ -33,14 +34,20 @@
         @test calculator.eachparticle == 1:2
         @test eltype(calculator.work) == Float64
         @test eltype(calculator.t) == Float64
+        @test eltype(calculator.power) == Float64
 
         # Test with specific element type
         calculator = MechanicalWorkCalculator(system32, semi32)
         @test eltype(calculator.work) == Float32
         @test eltype(calculator.t) == Float32
+        @test eltype(calculator.power) == Float32
     end
 
-    @testset "update_mechanical_work" begin
+    @testset "trapezoidal integration" begin
+        @test TrixiParticles.update_mechanical_work(1.0, 2.0, 6.0, 0.25) == 2.0
+    end
+
+    @testset "calculate_mechanical_power" begin
         # In the first test, we just move the 2x2 grid of particles up against gravity
         # and test that the accumulated work is just the potential energy difference.
         # In the other tests, we clamp the top row of particles and offset them to create
@@ -109,15 +116,16 @@
             eachparticle = (TrixiParticles.n_integrated_particles(system) + 1):nparticles(system)
             dv = zeros(2, nparticles(system))
 
-            work1 = TrixiParticles.update_mechanical_work(work1, system, eachparticle,
-                                                          false, dv, v_ode, u_ode, semi,
-                                                          0.0, dt1)
-            work2 = TrixiParticles.update_mechanical_work(work2, system, eachparticle,
-                                                          false, dv, v_ode, u_ode, semi,
-                                                          0.0, dt2)
-            work3 = TrixiParticles.update_mechanical_work(work3, system, eachparticle,
-                                                          true, dv, v_ode, u_ode, semi,
-                                                          0.0, dt3)
+            power = TrixiParticles.calculate_mechanical_power(system, eachparticle,
+                                                              false, dv, v_ode, u_ode,
+                                                              semi, 0.0)
+            power_fluid = TrixiParticles.calculate_mechanical_power(system, eachparticle,
+                                                                    true, dv, v_ode,
+                                                                    u_ode, semi, 0.0)
+            work1 = TrixiParticles.update_mechanical_work(work1, power, power, dt1)
+            work2 = TrixiParticles.update_mechanical_work(work2, power, power, dt2)
+            work3 = TrixiParticles.update_mechanical_work(work3, power_fluid,
+                                                          power_fluid, dt3)
 
             if i == 1
                 @test isapprox(work1, 0.8)

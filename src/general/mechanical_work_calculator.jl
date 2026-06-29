@@ -20,8 +20,12 @@ be used to measure the work done by the structure on the surrounding fluid.
     exerts on the surrounding fluid.
 
 Internally the calculator integrates the instantaneous power, i.e. the dot product between
-the force exerted by the particle and its prescribed velocity, using an explicit Euler
-time integration scheme.
+the force exerted by the particle and its prescribed velocity, which is then integrated
+in time using the trapezoidal rule.
+Therefore, the evaluation interval of the [`PostprocessCallback`](@ref) does not only
+control when data is written, but also determines the time step used for this integration.
+The interval should usually be chosen below `interval=100`, depending on the smoothness of
+the power signal.
 
 The accumulated value can be retrieved via [`calculated_mechanical_work`](@ref).
 
@@ -68,6 +72,7 @@ mechanical_work = calculated_mechanical_work(mechanical_work_calculator)
 mutable struct MechanicalWorkCalculator{ELTYPE, DV, EP}
     t                           :: ELTYPE # Time of last call
     work                        :: ELTYPE
+    power                       :: ELTYPE
     initialized                 :: Bool
     system_index                :: Int
     dv                          :: DV
@@ -88,7 +93,7 @@ function MechanicalWorkCalculator(system::AbstractStructureSystem, semi;
     # so this can be a regular `Array` even when the simulation is running on a GPU.
     dv = Array{ELTYPE, 2}(undef, (v_nvariables(system), nparticles(system)))
 
-    return MechanicalWorkCalculator(zero(ELTYPE), zero(ELTYPE), false,
+    return MechanicalWorkCalculator(zero(ELTYPE), zero(ELTYPE), zero(ELTYPE), false,
                                     system_index, dv, eachparticle,
                                     only_compute_force_on_fluid)
 end
@@ -96,6 +101,7 @@ end
 function reset!(calculator::MechanicalWorkCalculator)
     calculator.t = zero(calculator.t)
     calculator.work = zero(calculator.work)
+    calculator.power = zero(calculator.power)
     calculator.initialized = false
 
     return calculator
@@ -131,36 +137,49 @@ function (calculator::MechanicalWorkCalculator)(system, dv_ode, du_ode, v_ode, u
         return nothing
     end
 
-    if !calculator.initialized
-        calculator.t = t
-        calculator.work = zero(calculator.work)
-        calculator.initialized = true
-        return calculator.work
-    end
-
     dt = t - calculator.t
     calculator.t = t
 
     @trixi_timeit timer() "calculate mechanical work" begin
-        calculator.work = update_mechanical_work(calculator.work, system,
-                                                 calculator.eachparticle,
-                                                 calculator.only_compute_force_on_fluid,
-                                                 calculator.dv,
-                                                 v_ode, u_ode, semi, t, dt)
+        current_power = calculate_mechanical_power(system,
+                                                   calculator.eachparticle,
+                                                   calculator.only_compute_force_on_fluid,
+                                                   calculator.dv,
+                                                   v_ode, u_ode, semi, t)
     end
+
+    if calculator.initialized
+        # Integrate the instantaneous power using the trapezoidal rule to get the
+        # accumulated mechanical work.
+        calculator.work = update_mechanical_work(calculator.work, calculator.power,
+                                                    current_power, dt)
+    else
+        # Initialize
+        calculator.work = zero(calculator.work)
+        calculator.initialized = true
+    end
+
+    # Update previous power for next call
+    calculator.power = current_power
 
     return calculator.work
 end
 
-function update_mechanical_work(work, system, eachparticle,
-                                only_compute_force_on_fluid, dv,
-                                v_ode, u_ode, semi, t, dt)
+function update_mechanical_work(work, previous_power, current_power, dt)
+    return work + (previous_power + current_power) * dt / 2
+end
+
+function calculate_mechanical_power(system, eachparticle,
+                                    only_compute_force_on_fluid, dv,
+                                    v_ode, u_ode, semi, t)
     v = wrap_v(v_ode, system, semi)
     u = wrap_u(u_ode, system, semi)
 
     compute_structure_acceleration!(dv, v, u, system, eachparticle,
                                     only_compute_force_on_fluid,
                                     v_ode, u_ode, semi, t)
+
+    power = zero(eltype(system))
 
     # Note that this is a reduction, so we cannot use `@threaded` here.
     for particle in eachparticle
@@ -173,10 +192,10 @@ function update_mechanical_work(work, system, eachparticle,
         # To obtain mechanical work, we need to integrate the instantaneous power.
         # Instantaneous power is force applied BY the particle times its velocity.
         # The force applied BY the particle is the negative of the force applied ON it.
-        work += dot(-F_particle, velocity) * dt
+        power += dot(-F_particle, velocity)
     end
 
-    return work
+    return power
 end
 
 function compute_structure_acceleration!(dv, v, u, system, eachparticle,
