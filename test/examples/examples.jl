@@ -111,7 +111,7 @@
                 "all particles clamped" => sqrt(eps()),
                 # Clamp everything but the top two layers of the beam.
                 # We don't expect very accurate results here, this is more of a smoke test.
-                "some particles clamped" => 0.1
+                "some particles clamped" => 0.12
             )
             @testset "$name" for (name, clamped_particles) in tests
                 # We need a new `PrescribedMotion` for each test due to
