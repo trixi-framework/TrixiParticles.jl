@@ -89,7 +89,7 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real, F, B}
     boundary                  :: B
     fluid_size                :: NTuple{NDIMS, ELTYPE}
     tank_size                 :: NTuple{NDIMS, ELTYPE}
-    faces_                    :: NTuple{NDIMSt2, Bool} # store if face in dir exists (-x +x -y +y -z +z)
+    faces_                    :: NTuple{NDIMSt2, Bool} # Store if face in dir exists (-x +x -y +y -z +z)
     face_indices              :: NTuple{NDIMSt2, Array{Int, 2}} # see `reset_wall!`
     particle_spacing          :: ELTYPE
     spacing_ratio             :: ELTYPE
@@ -141,9 +141,11 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real, F, B}
 
         # The type of the particle spacing determines the eltype of the coordinates
         boundary_coordinates,
-        face_indices = initialize_boundaries(convert.(coordinates_eltype, boundary_spacing),
-                                             tank_size_, n_boundaries_per_dim,
-                                             n_layers, faces)
+        face_indices,
+        boundary_indices... = initialize_boundaries(convert.(coordinates_eltype,
+                                                             boundary_spacing),
+                                                    tank_size_, n_boundaries_per_dim,
+                                                    n_layers, faces)
 
         boundary_masses = boundary_density * boundary_spacing^NDIMS *
                           ones(ELTYPE, size(boundary_coordinates, 2))
@@ -154,10 +156,14 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real, F, B}
         fluid_size_ = check_tank_overlap(fluid_size_, tank_size_,
                                          particle_spacing, n_particles_per_dim)
 
+        normals = zeros(ELTYPE, size(boundary_coordinates))
+        calculate_normals!(normals, boundary_coordinates, boundary_spacing,
+                           face_indices, boundary_indices, faces, Val(NDIMS))
+
         boundary = InitialCondition(coordinates=boundary_coordinates,
                                     velocity=boundary_velocities,
                                     mass=boundary_masses, density=boundary_densities,
-                                    particle_spacing=boundary_spacing)
+                                    particle_spacing=boundary_spacing, normals=normals)
 
         # Move the tank corner in the negative coordinate directions to the desired position
         boundary.coordinates .+= min_coordinates
@@ -190,6 +196,88 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real, F, B}
                    typeof(boundary)}(fluid, boundary, fluid_size_, tank_size_,
                                      faces, face_indices, particle_spacing, spacing_ratio,
                                      n_layers, n_particles_per_dim)
+    end
+end
+
+# Return the geometric position of the wall for a given face and the indices
+# of the boundary particles associated with this face.
+function wall_position(face_id, dimension, indices, particle_coords, offset)
+    if iseven(face_id) # Positive coordinate direction: right, top, or back
+        return minimum(view(particle_coords, dimension, indices)) - offset
+    else # Negative coordinate direction: left, bottom, or front
+        return maximum(view(particle_coords, dimension, indices)) + offset
+    end
+end
+
+# Compute the normals for boundary particles located at the intersection of one or multiple boundary 
+# faces (i.e. for faces, edges and corners) by geometrically combining the normals of the intersecting `face_ids`.
+function set_intersection_normals!(indices, face_ids, face_exists, particle_coords, offset,
+                                   normals)
+    # Do nothing if no particles belong to these faces
+    # or if the intersection doesn't exist (not all faces of it activated).
+    isempty(indices) && return
+    all(face_exists[face_id] for face_id in face_ids) || return
+    for face_id in face_ids
+        dimension = div(face_id, 2, RoundUp)
+        wall = wall_position(face_id, dimension, indices, particle_coords, offset)
+        for particle in indices
+            normals[dimension, particle] = particle_coords[dimension, particle] - wall
+        end
+    end
+end
+
+# 2D
+function calculate_normals!(normals, boundary_coordinates, boundary_spacing,
+                            face_indices, boundary_indices, faces, ::Val{2})
+    corner_indices, = boundary_indices
+    offset = boundary_spacing / 2
+
+    for (face_id, indices) in enumerate(face_indices)
+        set_intersection_normals!(indices, (face_id,), faces, boundary_coordinates, offset,
+                                  normals)
+    end
+
+    # The order matches `edge_indices` from `initialize_boundaries` (important for `zip`).
+    corner_faces = ((1, 3), (1, 4),
+                    (2, 3), (2, 4))
+
+    for (indices, face_ids) in zip(corner_indices, corner_faces)
+        set_intersection_normals!(indices, face_ids, faces, boundary_coordinates, offset,
+                                  normals)
+    end
+end
+
+# 3D
+function calculate_normals!(normals, boundary_coordinates, boundary_spacing,
+                            face_indices, boundary_indices, faces, ::Val{3})
+    corner_indices, edge_indices = boundary_indices
+    offset = boundary_spacing / 2
+
+    # Compute normals for the faces
+    for (face_id, indices) in enumerate(face_indices)
+        set_intersection_normals!(indices, (face_id,), faces, boundary_coordinates, offset,
+                                  normals)
+    end
+
+    # The order matches `edge_indices` from `initialize_boundaries` (important for `zip`).
+    edge_faces = ((1, 3), (1, 4), (1, 5), (1, 6),
+                  (2, 3), (2, 4), (2, 5), (2, 6),
+                  (3, 5), (3, 6), (4, 5), (4, 6))
+
+    for (indices, face_ids) in zip(edge_indices, edge_faces)
+        set_intersection_normals!(indices, face_ids, faces, boundary_coordinates, offset,
+                                  normals)
+    end
+
+    # The order matches `corner_indices` from `initialize_boundaries` (important for `zip`).
+    corner_faces = ((1, 3, 5), (1, 4, 5),
+                    (1, 3, 6), (1, 4, 6),
+                    (2, 3, 5), (2, 4, 5),
+                    (2, 3, 6), (2, 4, 6))
+
+    for (indices, face_ids) in zip(corner_indices, corner_faces)
+        set_intersection_normals!(indices, face_ids, faces, boundary_coordinates, offset,
+                                  normals)
     end
 end
 
@@ -322,10 +410,14 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{2},
     n_particles_x, n_particles_y = n_boundaries_per_dim
 
     # Store each particle index
-    face_indices_1 = Array{Int, 2}(undef, n_layers, n_particles_y)
-    face_indices_2 = Array{Int, 2}(undef, n_layers, n_particles_y)
-    face_indices_3 = Array{Int, 2}(undef, n_layers, n_particles_x)
-    face_indices_4 = Array{Int, 2}(undef, n_layers, n_particles_x)
+    face_indices_1 = Array{Int, 2}(undef, n_layers, n_particles_y) # Left
+    face_indices_2 = Array{Int, 2}(undef, n_layers, n_particles_y) # Right
+    face_indices_3 = Array{Int, 2}(undef, n_layers, n_particles_x) # Bottom
+    face_indices_4 = Array{Int, 2}(undef, n_layers, n_particles_x) # Top
+    corner_indices_13 = Array{Int, 2}(undef, n_layers, n_layers)
+    corner_indices_14 = Array{Int, 2}(undef, n_layers, n_layers)
+    corner_indices_23 = Array{Int, 2}(undef, n_layers, n_layers)
+    corner_indices_24 = Array{Int, 2}(undef, n_layers, n_layers)
 
     # Create empty array to extend later depending on faces and corners to build
     boundary_coordinates = Array{typeof(particle_spacing), 2}(undef, 2, 0)
@@ -343,10 +435,10 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{2},
                                                  (layer_offset, 0.0),
                                                  loop_order=:x_first)
 
-        # store coordinates of left boundary
+        # Store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, left_boundary)
 
-        # store the indices of each particle
+        # Store the indices of each particle
         particles_per_layer = n_particles_y
         for i in 1:n_layers
             face_indices_1[i, :] = collect((index + 1):(particles_per_layer + index))
@@ -361,10 +453,10 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{2},
                                                   (tank_size[1], 0.0),
                                                   loop_order=:x_first)
 
-        # store coordinates of left boundary
+        # Store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, right_boundary)
 
-        # store the indices of each particle
+        # Store the indices of each particle
         particles_per_layer = n_particles_y
         for i in 1:n_layers
             face_indices_2[i, :] = collect((index + 1):(particles_per_layer + index))
@@ -379,10 +471,10 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{2},
                                                    (0.0, layer_offset),
                                                    loop_order=:y_first)
 
-        # store coordinates of left boundary
+        # Store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, bottom_boundary)
 
-        # store the indices of each particle
+        # Store the indices of each particle
         particles_per_layer = n_particles_x
         for i in 1:n_layers
             face_indices_3[i, :] = collect((index + 1):(particles_per_layer + index))
@@ -397,10 +489,10 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{2},
                                                 (0.0, tank_size[2]),
                                                 loop_order=:y_first)
 
-        # store coordinates of left boundary
+        # Store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, top_boundary)
 
-        # store the indices of each particle
+        # Store the indices of each particle
         particles_per_layer = n_particles_x
         for i in 1:n_layers
             face_indices_4[i, :] = collect((index + 1):(particles_per_layer + index))
@@ -415,6 +507,13 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{2},
                                                       (n_layers, n_layers),
                                                       (layer_offset, layer_offset))
         boundary_coordinates = hcat(boundary_coordinates, bottom_left_corner)
+
+        # Store the indices of each particle
+        particles_per_layer = n_layers
+        for i in 1:n_layers
+            corner_indices_13[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
+        end
     end
 
     # Top left
@@ -423,6 +522,13 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{2},
                                                    (n_layers, n_layers),
                                                    (layer_offset, tank_size[2]))
         boundary_coordinates = hcat(boundary_coordinates, top_left_corner)
+
+        # Store the indices of each particle
+        particles_per_layer = n_layers
+        for i in 1:n_layers
+            corner_indices_14[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
+        end
     end
 
     # Bottom right
@@ -431,6 +537,13 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{2},
                                                        (n_layers, n_layers),
                                                        (tank_size[1], layer_offset))
         boundary_coordinates = hcat(boundary_coordinates, bottom_right_corner)
+
+        # Store the indices of each particle
+        particles_per_layer = n_layers
+        for i in 1:n_layers
+            corner_indices_23[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
+        end
     end
 
     # Top right
@@ -439,10 +552,18 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{2},
                                                     (n_layers, n_layers),
                                                     (tank_size[1], tank_size[2]))
         boundary_coordinates = hcat(boundary_coordinates, top_right_corner)
+
+        # Store the indices of each particle
+        particles_per_layer = n_layers
+        for i in 1:n_layers
+            corner_indices_24[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
+        end
     end
 
     return boundary_coordinates,
-           (face_indices_1, face_indices_2, face_indices_3, face_indices_4)
+           (face_indices_1, face_indices_2, face_indices_3, face_indices_4),
+           (corner_indices_13, corner_indices_14, corner_indices_23, corner_indices_24)
 end
 
 # 3D
@@ -450,13 +571,39 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{3},
                                n_boundaries_per_dim, n_layers, faces)
     n_particles_x, n_particles_y, n_particles_z = n_boundaries_per_dim
 
-    # Store each particle index
-    face_indices_1 = Array{Int, 2}(undef, n_layers, n_particles_y * n_particles_z)
-    face_indices_2 = Array{Int, 2}(undef, n_layers, n_particles_y * n_particles_z)
-    face_indices_3 = Array{Int, 2}(undef, n_layers, n_particles_x * n_particles_z)
-    face_indices_4 = Array{Int, 2}(undef, n_layers, n_particles_x * n_particles_z)
-    face_indices_5 = Array{Int, 2}(undef, n_layers, n_particles_x * n_particles_y)
-    face_indices_6 = Array{Int, 2}(undef, n_layers, n_particles_x * n_particles_y)
+    # Faces
+    face_indices_1 = Array{Int, 2}(undef, n_layers, n_particles_y * n_particles_z) # Left
+    face_indices_2 = Array{Int, 2}(undef, n_layers, n_particles_y * n_particles_z) # Right
+    face_indices_3 = Array{Int, 2}(undef, n_layers, n_particles_x * n_particles_z) # Bottom
+    face_indices_4 = Array{Int, 2}(undef, n_layers, n_particles_x * n_particles_z) # Top
+    face_indices_5 = Array{Int, 2}(undef, n_layers, n_particles_x * n_particles_y) # Front
+    face_indices_6 = Array{Int, 2}(undef, n_layers, n_particles_x * n_particles_y) # Back
+
+    # Corners
+    corner_indices_1_3_5 = Array{Int, 2}(undef, n_layers, n_layers * n_layers)
+    corner_indices_1_4_5 = Array{Int, 2}(undef, n_layers, n_layers * n_layers)
+    corner_indices_1_3_6 = Array{Int, 2}(undef, n_layers, n_layers * n_layers)
+    corner_indices_1_4_6 = Array{Int, 2}(undef, n_layers, n_layers * n_layers)
+    corner_indices_2_3_5 = Array{Int, 2}(undef, n_layers, n_layers * n_layers)
+    corner_indices_2_4_5 = Array{Int, 2}(undef, n_layers, n_layers * n_layers)
+    corner_indices_2_3_6 = Array{Int, 2}(undef, n_layers, n_layers * n_layers)
+    corner_indices_2_4_6 = Array{Int, 2}(undef, n_layers, n_layers * n_layers)
+
+    # Edges
+    edge_indices_1_3 = Array{Int, 2}(undef, n_layers, n_layers * n_particles_z)
+    edge_indices_1_4 = Array{Int, 2}(undef, n_layers, n_layers * n_particles_z)
+    edge_indices_2_3 = Array{Int, 2}(undef, n_layers, n_layers * n_particles_z)
+    edge_indices_2_4 = Array{Int, 2}(undef, n_layers, n_layers * n_particles_z)
+
+    edge_indices_3_5 = Array{Int, 2}(undef, n_layers, n_layers * n_particles_x)
+    edge_indices_3_6 = Array{Int, 2}(undef, n_layers, n_layers * n_particles_x)
+    edge_indices_4_5 = Array{Int, 2}(undef, n_layers, n_layers * n_particles_x)
+    edge_indices_4_6 = Array{Int, 2}(undef, n_layers, n_layers * n_particles_x)
+
+    edge_indices_1_5 = Array{Int, 2}(undef, n_layers, n_layers * n_particles_y)
+    edge_indices_1_6 = Array{Int, 2}(undef, n_layers, n_layers * n_particles_y)
+    edge_indices_2_5 = Array{Int, 2}(undef, n_layers, n_layers * n_particles_y)
+    edge_indices_2_6 = Array{Int, 2}(undef, n_layers, n_layers * n_particles_y)
 
     # Create empty array to extend later depending on faces and corners to build
     boundary_coordinates = Array{typeof(particle_spacing), 2}(undef, 3, 0)
@@ -467,6 +614,9 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{3},
     # For odd faces we need to shift the face outwards if we have multiple layers
     layer_offset = -n_layers * particle_spacing
 
+    # --- Faces ---
+
+    particles_per_layer = prod((n_particles_y, n_particles_z))
     #### -x boundary (y-z-plane)
     if faces[1]
         x_neg_boundary = rectangular_shape_coords(particle_spacing,
@@ -474,11 +624,10 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{3},
                                                   (layer_offset, 0.0, 0.0),
                                                   loop_order=:x_first)
 
-        # store coordinates of left boundary
+        # Store coordinates of -x boundary
         boundary_coordinates = hcat(boundary_coordinates, x_neg_boundary)
 
-        # store the indices of each particle
-        particles_per_layer = prod((n_particles_y, n_particles_z))
+        # Store the indices of each particle
         for i in 1:n_layers
             face_indices_1[i, :] = collect((index + 1):(particles_per_layer + index))
             index += particles_per_layer
@@ -491,30 +640,23 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{3},
                                                   (n_layers, n_particles_y, n_particles_z),
                                                   (tank_size[1], 0.0, 0.0),
                                                   loop_order=:x_first)
-
-        # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, x_pos_boundary)
 
-        # store the indices of each particle
-        particles_per_layer = prod((n_particles_y, n_particles_z))
         for i in 1:n_layers
             face_indices_2[i, :] = collect((index + 1):(particles_per_layer + index))
             index += particles_per_layer
         end
     end
 
+    particles_per_layer = prod((n_particles_x, n_particles_z))
     #### -y boundary (x-z-plane)
     if faces[3]
         y_neg_boundary = rectangular_shape_coords(particle_spacing,
                                                   (n_particles_x, n_layers, n_particles_z),
                                                   (0.0, layer_offset, 0.0),
                                                   loop_order=:y_first)
-
-        # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, y_neg_boundary)
 
-        # store the indices of each particle
-        particles_per_layer = prod((n_particles_x, n_particles_z))
         for i in 1:n_layers
             face_indices_3[i, :] = collect((index + 1):(particles_per_layer + index))
             index += particles_per_layer
@@ -527,30 +669,23 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{3},
                                                   (n_particles_x, n_layers, n_particles_z),
                                                   (0.0, tank_size[2], 0.0),
                                                   loop_order=:y_first)
-
-        # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, y_pos_boundary)
 
-        # store the indices of each particle
-        particles_per_layer = prod((n_particles_x, n_particles_z))
         for i in 1:n_layers
             face_indices_4[i, :] = collect((index + 1):(particles_per_layer + index))
             index += particles_per_layer
         end
     end
 
-    #### -z boundary (x-y-plane).
+    particles_per_layer = prod((n_particles_x, n_particles_y))
+    #### -z boundary (x-y-plane)
     if faces[5]
         z_neg_boundary = rectangular_shape_coords(particle_spacing,
                                                   (n_particles_x, n_particles_y, n_layers),
                                                   (0.0, 0.0, layer_offset),
                                                   loop_order=:z_first)
-
-        # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, z_neg_boundary)
 
-        # store the indices of each particle
-        particles_per_layer = prod((n_particles_x, n_particles_y))
         for i in 1:n_layers
             face_indices_5[i, :] = collect((index + 1):(particles_per_layer + index))
             index += particles_per_layer
@@ -563,164 +698,293 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{3},
                                                   (n_particles_x, n_particles_y, n_layers),
                                                   (0.0, 0.0, tank_size[3]),
                                                   loop_order=:z_first)
-
-        # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, z_pos_boundary)
 
-        # store the indices of each particle
-        particles_per_layer = prod((n_particles_x, n_particles_y))
         for i in 1:n_layers
             face_indices_6[i, :] = collect((index + 1):(particles_per_layer + index))
             index += particles_per_layer
         end
     end
 
-    #### Add edges
+    # --- Edges ---
+
+    particles_per_layer = prod((n_layers, n_particles_z))
+    # -x / -y edge (z-aligned)
     if faces[1] && faces[3]
         edge_1_3 = rectangular_shape_coords(particle_spacing,
                                             (n_layers, n_layers, n_particles_z),
                                             (layer_offset, layer_offset, 0.0))
         boundary_coordinates = hcat(boundary_coordinates, edge_1_3)
+
+        for i in 1:n_layers
+            edge_indices_1_3[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
+        end
     end
 
+    # -x / +y edge (z-aligned)
     if faces[1] && faces[4]
         edge_1_4 = rectangular_shape_coords(particle_spacing,
                                             (n_layers, n_layers, n_particles_z),
                                             (layer_offset, tank_size[2], 0.0))
         boundary_coordinates = hcat(boundary_coordinates, edge_1_4)
+
+        for i in 1:n_layers
+            edge_indices_1_4[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
+        end
     end
 
+    # +x / -y edge (z-aligned)
     if faces[2] && faces[3]
         edge_2_3 = rectangular_shape_coords(particle_spacing,
                                             (n_layers, n_layers, n_particles_z),
                                             (tank_size[1], layer_offset, 0.0))
         boundary_coordinates = hcat(boundary_coordinates, edge_2_3)
+
+        for i in 1:n_layers
+            edge_indices_2_3[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
+        end
     end
 
+    # +x / +y edge (z-aligned)
     if faces[2] && faces[4]
         edge_2_4 = rectangular_shape_coords(particle_spacing,
                                             (n_layers, n_layers, n_particles_z),
                                             (tank_size[1], tank_size[2], 0.0))
         boundary_coordinates = hcat(boundary_coordinates, edge_2_4)
+
+        for i in 1:n_layers
+            edge_indices_2_4[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
+        end
     end
 
+    particles_per_layer = prod((n_layers, n_particles_x))
+    # -y / -z edge (x-aligned)
     if faces[5] && faces[3]
-        edge_5_3 = rectangular_shape_coords(particle_spacing,
+        edge_3_5 = rectangular_shape_coords(particle_spacing,
                                             (n_particles_x, n_layers, n_layers),
                                             (0.0, layer_offset, layer_offset))
-        boundary_coordinates = hcat(boundary_coordinates, edge_5_3)
+        boundary_coordinates = hcat(boundary_coordinates, edge_3_5)
+
+        for i in 1:n_layers
+            edge_indices_3_5[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
+        end
     end
 
+    # +y / -z edge (x-aligned)
     if faces[5] && faces[4]
-        edge_5_4 = rectangular_shape_coords(particle_spacing,
+        edge_4_5 = rectangular_shape_coords(particle_spacing,
                                             (n_particles_x, n_layers, n_layers),
                                             (0.0, tank_size[2], layer_offset))
-        boundary_coordinates = hcat(boundary_coordinates, edge_5_4)
+        boundary_coordinates = hcat(boundary_coordinates, edge_4_5)
+
+        for i in 1:n_layers
+            edge_indices_4_5[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
+        end
     end
 
+    # -y / +z edge (x-aligned)
     if faces[6] && faces[3]
-        edge_6_3 = rectangular_shape_coords(particle_spacing,
+        edge_3_6 = rectangular_shape_coords(particle_spacing,
                                             (n_particles_x, n_layers, n_layers),
                                             (0.0, layer_offset, tank_size[3]))
-        boundary_coordinates = hcat(boundary_coordinates, edge_6_3)
+        boundary_coordinates = hcat(boundary_coordinates, edge_3_6)
+
+        for i in 1:n_layers
+            edge_indices_3_6[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
+        end
     end
 
+    # +y / +z edge (x-aligned)
     if faces[6] && faces[4]
-        edge_6_4 = rectangular_shape_coords(particle_spacing,
+        edge_4_6 = rectangular_shape_coords(particle_spacing,
                                             (n_particles_x, n_layers, n_layers),
                                             (0.0, tank_size[2], tank_size[3]))
-        boundary_coordinates = hcat(boundary_coordinates, edge_6_4)
+        boundary_coordinates = hcat(boundary_coordinates, edge_4_6)
+
+        for i in 1:n_layers
+            edge_indices_4_6[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
+        end
     end
 
+    particles_per_layer = prod((n_layers, n_particles_y))
+    # -x / -z edge (y-aligned)
     if faces[1] && faces[5]
         edge_1_5 = rectangular_shape_coords(particle_spacing,
                                             (n_layers, n_particles_y, n_layers),
                                             (layer_offset, 0.0, layer_offset))
         boundary_coordinates = hcat(boundary_coordinates, edge_1_5)
+
+        for i in 1:n_layers
+            edge_indices_1_5[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
+        end
     end
 
+    # -x / +z edge (y-aligned)
     if faces[1] && faces[6]
         edge_1_6 = rectangular_shape_coords(particle_spacing,
                                             (n_layers, n_particles_y, n_layers),
                                             (layer_offset, 0.0, tank_size[3]))
         boundary_coordinates = hcat(boundary_coordinates, edge_1_6)
+
+        for i in 1:n_layers
+            edge_indices_1_6[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
+        end
     end
 
-    if faces[5] && faces[2]
-        edge_5_2 = rectangular_shape_coords(particle_spacing,
+    # +x / -z edge (y-aligned)
+    if faces[2] && faces[5]
+        edge_2_5 = rectangular_shape_coords(particle_spacing,
                                             (n_layers, n_particles_y, n_layers),
                                             (tank_size[1], 0.0, layer_offset))
-        boundary_coordinates = hcat(boundary_coordinates, edge_5_2)
+        boundary_coordinates = hcat(boundary_coordinates, edge_2_5)
+
+        for i in 1:n_layers
+            edge_indices_2_5[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
+        end
     end
 
-    if faces[6] && faces[2]
-        edge_6_2 = rectangular_shape_coords(particle_spacing,
+    # +x / +z edge (y-aligned)
+    if faces[2] && faces[6]
+        edge_2_6 = rectangular_shape_coords(particle_spacing,
                                             (n_layers, n_particles_y, n_layers),
                                             (tank_size[1], 0.0, tank_size[3]))
-        boundary_coordinates = hcat(boundary_coordinates, edge_6_2)
+        boundary_coordinates = hcat(boundary_coordinates, edge_2_6)
+
+        for i in 1:n_layers
+            edge_indices_2_6[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
+        end
     end
 
-    #### Add corners
+    #### --- Corners ---
+    particles_per_layer = prod((n_layers, n_layers))
+
+    # -x / -y / -z corner
     if faces[1] && faces[3] && faces[5]
         corner_1_3_5 = rectangular_shape_coords(particle_spacing,
                                                 (n_layers, n_layers, n_layers),
                                                 (layer_offset, layer_offset, layer_offset))
         boundary_coordinates = hcat(boundary_coordinates, corner_1_3_5)
+
+        for i in 1:n_layers
+            corner_indices_1_3_5[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
+        end
     end
 
+    # -x / +y / -z corner
     if faces[1] && faces[4] && faces[5]
         corner_1_4_5 = rectangular_shape_coords(particle_spacing,
                                                 (n_layers, n_layers, n_layers),
                                                 (layer_offset, tank_size[2], layer_offset))
         boundary_coordinates = hcat(boundary_coordinates, corner_1_4_5)
+
+        for i in 1:n_layers
+            corner_indices_1_4_5[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
+        end
     end
 
+    # -x / -y / +z corner
     if faces[1] && faces[3] && faces[6]
         corner_1_3_6 = rectangular_shape_coords(particle_spacing,
                                                 (n_layers, n_layers, n_layers),
                                                 (layer_offset, layer_offset, tank_size[3]))
         boundary_coordinates = hcat(boundary_coordinates, corner_1_3_6)
+
+        for i in 1:n_layers
+            corner_indices_1_3_6[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
+        end
     end
 
+    # -x / +y / +z corner
     if faces[1] && faces[4] && faces[6]
         corner_1_4_6 = rectangular_shape_coords(particle_spacing,
                                                 (n_layers, n_layers, n_layers),
                                                 (layer_offset, tank_size[2], tank_size[3]))
         boundary_coordinates = hcat(boundary_coordinates, corner_1_4_6)
+
+        for i in 1:n_layers
+            corner_indices_1_4_6[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
+        end
     end
 
+    # +x / -y / -z corner
     if faces[2] && faces[3] && faces[5]
         corner_2_3_5 = rectangular_shape_coords(particle_spacing,
                                                 (n_layers, n_layers, n_layers),
                                                 (tank_size[1], layer_offset, layer_offset))
         boundary_coordinates = hcat(boundary_coordinates, corner_2_3_5)
+
+        for i in 1:n_layers
+            corner_indices_2_3_5[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
+        end
     end
 
+    # +x / +y / -z corner
     if faces[2] && faces[4] && faces[5]
         corner_2_4_5 = rectangular_shape_coords(particle_spacing,
                                                 (n_layers, n_layers, n_layers),
                                                 (tank_size[1], tank_size[2], layer_offset))
         boundary_coordinates = hcat(boundary_coordinates, corner_2_4_5)
+
+        for i in 1:n_layers
+            corner_indices_2_4_5[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
+        end
     end
 
+    # +x / -y / +z corner
     if faces[2] && faces[3] && faces[6]
         corner_2_3_6 = rectangular_shape_coords(particle_spacing,
                                                 (n_layers, n_layers, n_layers),
                                                 (tank_size[1], layer_offset, tank_size[3]))
         boundary_coordinates = hcat(boundary_coordinates, corner_2_3_6)
+
+        for i in 1:n_layers
+            corner_indices_2_3_6[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
+        end
     end
 
+    # +x / +y / +z corner
     if faces[2] && faces[4] && faces[6]
         corner_2_4_6 = rectangular_shape_coords(particle_spacing,
                                                 (n_layers, n_layers, n_layers),
                                                 (tank_size[1], tank_size[2],
                                                  tank_size[3]))
         boundary_coordinates = hcat(boundary_coordinates, corner_2_4_6)
+
+        for i in 1:n_layers
+            corner_indices_2_4_6[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
+        end
     end
 
     return boundary_coordinates,
-           (face_indices_1, face_indices_2, face_indices_3, face_indices_4, face_indices_5,
-            face_indices_6)
+           (face_indices_1, face_indices_2, face_indices_3, face_indices_4,
+            face_indices_5, face_indices_6),
+           (corner_indices_1_3_5, corner_indices_1_4_5,
+            corner_indices_1_3_6, corner_indices_1_4_6,
+            corner_indices_2_3_5, corner_indices_2_4_5,
+            corner_indices_2_3_6, corner_indices_2_4_6),
+           (edge_indices_1_3, edge_indices_1_4, edge_indices_1_5, edge_indices_1_6,
+            edge_indices_2_3, edge_indices_2_4, edge_indices_2_5, edge_indices_2_6,
+            edge_indices_3_5, edge_indices_3_6, edge_indices_4_5, edge_indices_4_6)
 end
 
 @doc raw"""
