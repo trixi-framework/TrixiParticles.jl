@@ -125,8 +125,11 @@ function SphereShape(particle_spacing, radius, center_position, density;
     particles_not_in_cutout = map(!in_cutout, axes(coordinates, 2))
     coordinates = coordinates[:, particles_not_in_cutout]
 
+    normals = calculate_sphere_normals(coordinates, collect(center_position), radius,
+                                       Val(NDIMS))
+
     return InitialCondition(; coordinates, velocity, mass, density, pressure,
-                            particle_spacing)
+                            particle_spacing, normals)
 end
 
 """
@@ -430,4 +433,25 @@ function round_sphere(sphere, particle_spacing, radius, center::SVector{3})
     end
 
     return particle_coords
+end
+
+# Compute the normals by projecting each point on the surface of the sphere
+function calculate_sphere_normals(coordinates::Matrix{T}, center_position,
+                                  radius, ::Val{NDIMS}) where {T, NDIMS}
+    n_points = size(coordinates, 2)
+    normals = zeros(T, NDIMS, n_points)
+
+    threshold = eps(radius)
+    for i in axes(coordinates, 2)
+        point = extract_svector(coordinates, Val(NDIMS), i)
+        diff = point - center_position
+        dist = norm(diff)
+
+        if dist > threshold
+            # The unit normal is `diff / dist`, and we scale it by the distance to the surface of the sphere.
+            normals[:, i] .= diff / dist * (radius - dist)
+        end
+    end
+
+    return normals
 end
