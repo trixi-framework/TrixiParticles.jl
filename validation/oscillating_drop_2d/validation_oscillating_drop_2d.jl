@@ -21,7 +21,7 @@ include("energy_quantities.jl")
 
 # ==========================================================================================
 # ==== Resolution
-fluid_particle_spacing = 0.05
+fluid_particle_spacing = 0.005
 
 # ==========================================================================================
 # ==== Experiment Setup
@@ -30,7 +30,7 @@ n_periods = 12
 tspan = (0.0, n_periods * period)
 
 fluid_density = 1000.0
-sound_speed = 20.0
+sound_speed = 10.0
 
 # The compressible energy diagnostic below uses the closed form for the linear equation
 # of state used in the paper.
@@ -52,7 +52,7 @@ q_delta = DeltaSPHHeat()
 
 postprocess_callback = PostprocessCallback(; output_directory="out",
                                            filename,
-                                           write_file_interval=0,
+                                           write_file_interval=1000,
                                            interval=1,
                                            kinetic_energy,
                                            potential_energy,
