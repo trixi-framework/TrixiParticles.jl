@@ -2,8 +2,8 @@
 # 2D Oscillating Drop Energy Validation
 #
 # Based on:
-#   M. Antuono, A. Colagrossi, S. Marrone.
-#   "Numerical diffusive terms in weakly-compressible SPH schemes."
+#   M. Antuono, S. Marrone, A. Colagrossi, B. Bouscasse.
+#   "Energy balance in the δ-SPH scheme"
 #   Computer Methods in Applied Mechanics and Engineering, 289 (2015), pp. 209-226.
 #   https://doi.org/10.1016/j.cma.2015.02.004
 #
