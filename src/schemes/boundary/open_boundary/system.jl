@@ -403,7 +403,8 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
 
     # Check the boundary particles whether they're leaving the boundary zone
     @threaded semi for particle in each_integrated_particle(system)
-        particle_coords = PointNeighbors.periodic_coords(current_coords(u, system, particle),
+        particle_coords = PointNeighbors.periodic_coords(current_coords(u, system,
+                                                                        particle),
                                                          periodic_box)
 
         # Check if boundary particle is outside the boundary zone
