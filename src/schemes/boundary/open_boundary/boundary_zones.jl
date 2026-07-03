@@ -486,10 +486,8 @@ end
     for dim in 1:NDIMS
         span_dim = spanning_set[dim]
         # Checks whether the projection of the particle position
-        # falls within the range of the zone
-        dot_span_dim = dot(span_dim, span_dim)
-        almostzero = 10 * eps(dot_span_dim)
-        if !(-almostzero <= dot(particle_position, span_dim) <= dot_span_dim + almostzero)
+        # falls within the range of the zone.
+        if !(0 <= dot(particle_position, span_dim) <= dot(span_dim, span_dim))
             # Particle is not in boundary zone
             return false
         end
