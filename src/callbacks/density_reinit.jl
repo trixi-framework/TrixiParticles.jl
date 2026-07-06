@@ -1,4 +1,4 @@
-mutable struct DensityReinitializationCallbackAffect{I}
+mutable struct DensityReinitializationCallback{I}
     interval::I
     system_index::Int
     last_t::Float64
@@ -6,7 +6,7 @@ mutable struct DensityReinitializationCallbackAffect{I}
 end
 
 function Base.show(io::IO,
-                   cb::DiscreteCallback{<:Any, <:DensityReinitializationCallbackAffect})
+                   cb::DiscreteCallback{<:Any, <:DensityReinitializationCallback})
     @nospecialize cb # reduce precompilation time
     callback = cb.affect!
     print(io, "DensityReinitializationCallback(interval=", callback.interval,
@@ -14,7 +14,7 @@ function Base.show(io::IO,
 end
 
 function Base.show(io::IO, ::MIME"text/plain",
-                   cb::DiscreteCallback{<:Any, <:DensityReinitializationCallbackAffect})
+                   cb::DiscreteCallback{<:Any, <:DensityReinitializationCallback})
     @nospecialize cb # reduce precompilation time
     if get(io, :compact, false)
         show(io, cb)
@@ -59,8 +59,8 @@ function DensityReinitializationCallback(system, semi; interval::Integer=0, dt=0
     system_index = system_indices(system, semi)
     last_t = -Inf
 
-    reinit_cb = DensityReinitializationCallbackAffect(interval, system_index, last_t,
-                                                      reinit_initial_solution)
+    reinit_cb = DensityReinitializationCallback(interval, system_index, last_t,
+                                                reinit_initial_solution)
 
     return DiscreteCallback(reinit_cb, reinit_cb, save_positions=(false, false),
                             initialize=(initialize_reinit_cb!))
@@ -70,7 +70,7 @@ function initialize_reinit_cb!(cb, u, t, integrator)
     initialize_reinit_cb!(cb.affect!, u, t, integrator)
 end
 
-function initialize_reinit_cb!(cb::DensityReinitializationCallbackAffect, u, t, integrator)
+function initialize_reinit_cb!(cb::DensityReinitializationCallback, u, t, integrator)
     semi = integrator.p.semi
     check_density_reinit_system(current_reinit_system(cb.system_index, semi))
 
@@ -89,22 +89,22 @@ function initialize_reinit_cb!(cb::DensityReinitializationCallbackAffect, u, t, 
 end
 
 # condition with interval
-function (reinit_callback::DensityReinitializationCallbackAffect{<:Integer})(u, t,
-                                                                             integrator)
+function (reinit_callback::DensityReinitializationCallback{<:Integer})(u, t,
+                                                                       integrator)
     (; interval) = reinit_callback
 
     return condition_integrator_interval(integrator, interval, save_final_solution=false)
 end
 
 # condition with dt
-function (reinit_callback::DensityReinitializationCallbackAffect)(u, t, integrator)
+function (reinit_callback::DensityReinitializationCallback)(u, t, integrator)
     (; interval, last_t) = reinit_callback
 
     return (t - last_t) > interval
 end
 
 # affect!
-function (reinit_callback::DensityReinitializationCallbackAffect)(integrator)
+function (reinit_callback::DensityReinitializationCallback)(integrator)
     vu_ode = integrator.u
     semi = integrator.p.semi
 
@@ -119,7 +119,7 @@ function (reinit_callback::DensityReinitializationCallbackAffect)(integrator)
     return integrator
 end
 
-function reinitialize_density!(reinit_callback::DensityReinitializationCallbackAffect,
+function reinitialize_density!(reinit_callback::DensityReinitializationCallback,
                                vu_ode, semi)
     v_ode, u_ode = vu_ode.x
 
