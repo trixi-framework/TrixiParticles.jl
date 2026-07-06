@@ -432,22 +432,28 @@ end
 
 function other_interaction_split!(dv_ode_split, semi, v_ode, u_ode, semi_split)
     # Only loop over (TLSPH) systems in the split integrator.
-    # We wrap with `semi`, so we cannot use `foreach_system_wrapped` here.
-    foreach_system(semi_split) do system
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v_system, u_system
+        if !any(split_system -> split_system === system, semi_split.systems)
+            # Not part of the split integrator, ignore this system.
+            return
+        end
+
         dv = wrap_v(dv_ode_split, system, semi_split)
-        v_system = wrap_v(v_ode, system, semi)
-        u_system = wrap_u(u_ode, system, semi)
 
         # Loop over all interacting neighbors in the big integrator
         # TLSPH self-interactions are integrated with the split state.
-        foreach_system_wrapped_if(neighbor_system -> system !== neighbor_system &&
-                                                     has_system_interaction(system,
-                                                                            neighbor_system,
-                                                                            semi),
-                                  semi, v_ode,
-                                  u_ode) do neighbor_system,
-                                            v_neighbor,
-                                            u_neighbor
+        foreach_system_wrapped(semi, v_ode,
+                               u_ode) do neighbor_system, v_neighbor, u_neighbor
+            if system === neighbor_system
+                # Self-interactions are handled by the split integrator.
+                return
+            end
+
+            if !has_system_interaction(system, neighbor_system, semi)
+                # No interaction between these systems.
+                return
+            end
+
             # Construct string for the interactions timer.
             system_index = system_indices(system, semi)
             neighbor_index = system_indices(neighbor_system, semi)

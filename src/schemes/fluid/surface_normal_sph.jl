@@ -203,13 +203,14 @@ function compute_surface_normal!(system::AbstractFluidSystem,
 
     # TODO: if color values are set only different systems need to be called
     @trixi_timeit timer() "compute surface normal" begin
-        foreach_system_wrapped_if(neighbor_system -> has_system_interaction(system,
-                                                                            neighbor_system,
-                                                                            semi),
-                                  semi, v_ode,
-                                  u_ode) do neighbor_system,
-                                            v_neighbor_system,
-                                            u_neighbor_system
+        foreach_system_wrapped(semi, v_ode,
+                               u_ode) do neighbor_system, v_neighbor_system,
+                                         u_neighbor_system
+            if !has_system_interaction(system, neighbor_system, semi)
+                # No interaction between these systems.
+                return
+            end
+
             calc_normal!(system, neighbor_system, u, v, v_neighbor_system,
                          u_neighbor_system, semi, surface_normal_method_,
                          surface_normal_method(neighbor_system))
@@ -281,13 +282,14 @@ function compute_curvature!(system::AbstractFluidSystem,
     set_zero!(cache.curvature)
 
     @trixi_timeit timer() "compute surface curvature" begin
-        foreach_system_wrapped_if(neighbor_system -> has_system_interaction(system,
-                                                                            neighbor_system,
-                                                                            semi),
-                                  semi, v_ode,
-                                  u_ode) do neighbor_system,
-                                            v_neighbor_system,
-                                            u_neighbor_system
+        foreach_system_wrapped(semi, v_ode,
+                               u_ode) do neighbor_system, v_neighbor_system,
+                                         u_neighbor_system
+            if !has_system_interaction(system, neighbor_system, semi)
+                # No interaction between these systems.
+                return
+            end
+
             calc_curvature!(system, neighbor_system, u, v, v_neighbor_system,
                             u_neighbor_system, semi, surface_normal_method(system),
                             surface_normal_method(neighbor_system))
