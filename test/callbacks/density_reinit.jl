@@ -108,6 +108,22 @@
         @test density_reinit_calls == [:fluid1]
     end
 
+    @testset verbose=true "legacy constructor" begin
+        empty!(density_reinit_calls)
+
+        system1 = MockDensityReinitSystem(nothing, :fluid1)
+        system2 = MockDensityReinitSystem(nothing, :fluid2)
+        vu_ode = (; x=(:v_ode, :u_ode))
+        semi = (; systems=(system1, system2))
+        callback = DensityReinitializationCallback(system1; interval=1).affect!
+
+        @test callback.system_index == 0
+
+        TrixiParticles.reinitialize_density!(callback, vu_ode, semi)
+
+        @test density_reinit_calls == [:fluid1, :fluid2]
+    end
+
     @testset verbose=true "selected semidiscretized system" begin
         empty!(density_reinit_calls)
 
@@ -131,6 +147,59 @@
                                                                         (; systems=()))
     end
 
+    @testset verbose=true "selected replaced semidiscretization" begin
+        coordinates1 = [0.0 0.1
+                        0.0 0.0]
+        coordinates2 = [0.3 0.4
+                        0.0 0.0]
+        mass = [1.0, 1.0]
+        density = [1000.0, 1000.0]
+        smoothing_kernel = WendlandC2Kernel{2}()
+        smoothing_length = 0.2
+        state_equation = StateEquationCole(; sound_speed=10.0, reference_density=1000.0,
+                                           exponent=1)
+
+        system1 = WeaklyCompressibleSPHSystem(InitialCondition(; coordinates=coordinates1,
+                                                               mass, density);
+                                              smoothing_kernel, smoothing_length,
+                                              density_calculator=ContinuityDensity(),
+                                              state_equation)
+        system2 = WeaklyCompressibleSPHSystem(InitialCondition(; coordinates=coordinates2,
+                                                               mass, density);
+                                              smoothing_kernel, smoothing_length,
+                                              density_calculator=ContinuityDensity(),
+                                              state_equation)
+        semi = Semidiscretization(system1, system2; neighborhood_search=nothing)
+        ode = semidiscretize(semi, (0.0, 1.0))
+
+        semi_runtime = ode.p.semi
+        replacement_systems = deepcopy(semi_runtime.systems)
+        semi_replaced = TrixiParticles.Semidiscretization(replacement_systems,
+                                                          semi_runtime.ranges_u,
+                                                          semi_runtime.ranges_v,
+                                                          semi_runtime.neighborhood_searches,
+                                                          semi_runtime.parallelization_backend,
+                                                          semi_runtime.update_callback_used,
+                                                          semi_runtime.integrate_tlsph)
+        vu_ode = deepcopy(ode.u0)
+        v_ode, u_ode = vu_ode.x
+        TrixiParticles.update_nhs!(semi_replaced, u_ode)
+
+        v1 = TrixiParticles.wrap_v(v_ode, replacement_systems[1], semi_replaced)
+        v2 = TrixiParticles.wrap_v(v_ode, replacement_systems[2], semi_replaced)
+        v1[end, :] .= -1.0
+        v2[end, :] .= -2.0
+
+        callback = DensityReinitializationCallback(system2, semi; interval=1).affect!
+        @test callback.system_index == 2
+
+        TrixiParticles.reinitialize_density!(callback, vu_ode, semi_replaced)
+
+        @test all(==(-1.0), v1[end, :])
+        @test all(isfinite, v2[end, :])
+        @test !all(==(-2.0), v2[end, :])
+    end
+
     @testset verbose=true "system validation" begin
         empty!(density_reinit_calls)
 
@@ -139,7 +208,10 @@
         other_semi = (; systems=(MockDensityReinitSystem(nothing, :other_fluid),))
 
         @test_throws MethodError DensityReinitializationCallback(; interval=1)
-        @test_throws MethodError DensityReinitializationCallback(system; interval=1)
+        @test DensityReinitializationCallback(system; interval=1).affect!.system_index == 0
+        @test_throws ArgumentError DensityReinitializationCallback(MockDensityReinitSystem(SummationDensity(),
+                                                                                           :fluid);
+                                                                   interval=1)
         @test_throws ArgumentError DensityReinitializationCallback(MockDensityReinitSystem(SummationDensity(),
                                                                                            :fluid),
                                                                    semi;
