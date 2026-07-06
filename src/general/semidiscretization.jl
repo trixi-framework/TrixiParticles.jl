@@ -26,7 +26,7 @@ The semidiscretization couples the passed systems to one simulation.
                             the interaction. Set a matrix entry to a method with
                             the same arguments as `interact!(...; kwargs...)` to use a custom
                             interaction function for this force computation. Disabled
-                            pairs are skipped in the RHS and in auxiliary neighbor loops such as
+                            pairs are skipped in the forces computation and in auxiliary neighbor loops such as
                             density summation, correction factors, surface normals, pressure
                             extrapolation, and particle shifting. The semidiscretization still
                             stores a full matrix of neighborhood searches for uniform indexing
