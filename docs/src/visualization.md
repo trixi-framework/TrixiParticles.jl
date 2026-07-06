@@ -2,8 +2,10 @@
 
 ## Export VTK files
 You can export particle data as VTK files by using the [`SolutionSavingCallback`](@ref).
-All our [predefined examples](examples.md) are already using this callback to export VTK files to the `out` directory (relative to the directory that you are running Julia from).
-VTK files can be read by visualization tools like [ParaView](https://www.paraview.org/) and [VisIt](https://visit.llnl.gov/).
+All [predefined examples](examples.md) already use this callback to export VTK files to the `out`
+directory relative to the current working directory.
+VTK files can be opened in visualization tools such as [ParaView](https://www.paraview.org/)
+and [VisIt](https://visit.llnl.gov/).
 
 ### ParaView
 
@@ -29,8 +31,8 @@ Then, in the Properties panel (bottom left), adjust the following settings:
 ![image](https://github.com/user-attachments/assets/194d9a09-5937-4ee4-b229-07078afe3ff0)
 
 #### Visualization with Macro
-To simplify the visualization of your particle data in ParaView, you can use a macro.
-This macro automates the manual steps in the previous section to a single click of a button.
+To simplify visualization of particle data in ParaView, you can use a macro.
+It reduces the manual steps from the previous section to a single click.
 Install the macro as follows.
 
 1. **Save the macro code** (see below) as a `.py` file, e.g. `PointGaussianMacro.py`.
@@ -77,8 +79,10 @@ sourceDisplay.GaussianRadius = 0.5
 ```
 
 #### Show results
-To now view the result variables **first** make sure you have "fluid_1.pvd" highlighted in the "Pipeline Browser" then select them in the variable selection combo box (see picture below).
-Let's, for example, pick "density". To now view the time progression of the result hit the "play button" (see picture below).
+To view the result variables, first make sure that "fluid_1.pvd" is highlighted in the
+"Pipeline Browser", then select a variable in the variable-selection combo box
+(see the image below). For example, choose "density". To view the time evolution,
+press the play button (also shown below).
 ![image](https://github.com/user-attachments/assets/10dcf7eb-5808-4d4d-9db8-4beb25b5e51a)
 
 ## API

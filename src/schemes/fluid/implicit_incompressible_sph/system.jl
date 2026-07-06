@@ -202,6 +202,8 @@ end
 # TODO: What do we do with the sound speed? This is needed for the viscosity.
 @inline system_sound_speed(system::ImplicitIncompressibleSPHSystem) = system.artificial_sound_speed
 
+@inline density_calculator(system::ImplicitIncompressibleSPHSystem) = nothing
+
 # Calculates the pressure values by solving a linear system with a relaxed Jacobi scheme
 function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
