@@ -794,7 +794,7 @@ function system_interaction!(dv_ode, v_ode, u_ode, semi)
     # Call `interact!` for each ordered pair of systems.
     foreach_system(semi) do system
         foreach_system(semi) do neighbor
-            has_system_interaction(system, neighbor, semi) || return
+            has_system_interaction(system, neighbor, semi) || return dv_ode
 
             # Construct string for the interactions timer.
             # Avoid allocations from string construction when no timers are used.
