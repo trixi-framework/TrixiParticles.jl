@@ -10,10 +10,11 @@
 # STL files are surface meshes and therefore naturally lead to thin 3D setups instead.
 
 # First, we import TrixiParticles.jl together with
+# `OrdinaryDiffEqLowStorageRK` of
 # [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl)
 # and [Plots.jl](https://docs.juliaplots.org/stable/).
 using TrixiParticles
-using OrdinaryDiffEq
+using OrdinaryDiffEqLowStorageRK
 using Plots
 
 # ## Resolution
@@ -113,7 +114,8 @@ viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 fluid_density_calculator = ContinuityDensity()
 density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 
-fluid_system = WeaklyCompressibleSPHSystem(setup.fluid, fluid_density_calculator,
+fluid_system = WeaklyCompressibleSPHSystem(setup.fluid;
+                                           density_calculator=fluid_density_calculator,
                                            state_equation, smoothing_kernel,
                                            smoothing_length, viscosity=viscosity,
                                            density_diffusion=density_diffusion,
