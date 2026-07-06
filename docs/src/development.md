@@ -3,24 +3,25 @@
 
 ## Preview of the documentation
 
-To generate the Documentation, first instantiate the `docs` environment
-by executing the following command from the TrixiParticles.jl root directory:
+To build the documentation, first instantiate the `docs` environment by running the
+following command from the TrixiParticles.jl root directory:
 ```bash
 julia --project=docs -e "using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()"
 ```
-This command only has to be run once. After that, maintain the `docs` environment
+You only need to run this command once. After that, maintain the `docs` environment
 as described under [Installation](@ref installation-issues).
 
-With an instantiated `docs` environment, generate the docs with the following command (again from the TrixiParticles.jl root directory):
+Once the `docs` environment is instantiated, build the documentation with the following
+command (again from the TrixiParticles.jl root directory):
 ```bash
 julia --project=docs --color=yes docs/make.jl
 ```
-You can then open the generated files in `docs/build` with your webbrowser.
+You can then open the generated files in `docs/build` in your web browser.
 Alternatively, run
 ```bash
 python3 -m http.server -d docs/build
 ```
-and open `localhost:8000` in your webbrowser.
+and open `localhost:8000` in your web browser.
 
 
 ## Release management
@@ -66,3 +67,45 @@ To create a new release for TrixiParticles.jl, perform the following steps:
    version should be `v0.3.1-dev`. If you just released `v0.2.4`, the new development
    version should be `v0.2.5-dev`.
 
+## [Writing GPU-compatible code](@id writing_gpu_code)
+
+When implementing new functionality that should run on both CPUs and GPUs,
+follow these rules:
+
+1. Data structures must be generic and parametric.
+   Do not hardcode concrete CPU array types like `Vector` or `Matrix` in fields.
+   Use type parameters, so the same structure can store CPU arrays and GPU arrays.
+2. Add an Adapt.jl rule in `src/general/gpu.jl`.
+   Register the new type with `Adapt.@adapt_structure ...`, so `adapt` can recursively
+   convert all arrays inside the structure to GPU arrays.
+   This conversion is then applied automatically inside `semidiscretize`.
+3. Use `@threaded` for all loops.
+   Accessing GPU arrays inside regular loops is not allowed.
+   With a GPU backend, `@threaded` loops are compiled to GPU kernels.
+4. Write type-stable code and do not allocate inside `@threaded` loops.
+   This is required for GPU kernels and is also essential for fast multithreaded CPU code.
+
+## [Writing fast GPU code](@id writing_fast_gpu_code)
+
+The following rules improve kernel performance and avoid common GPU pitfalls:
+
+1. Avoid exceptions and bounds errors inside kernels.
+   Perform all required checks before entering `@threaded` loops (that is, before GPU kernels).
+   Then use `@inbounds` directly at the loop where bounds are guaranteed.
+   In TrixiParticles.jl, we do not place `@inbounds` inside inner helper functions.
+   Instead, mark helper functions with `@propagate_inbounds` so the loop-level
+   `@inbounds` is propagated.
+2. Avoid implicit `Float64` literals in arithmetic.
+   For example, prefer `x / 2` over `0.5 * x` so `Float32` simulations stay in `Float32`.
+   Verify this with `@device_code`, or by confirming the kernel runs on an Apple GPU
+   (most Apple GPUs do not support `Float64`).
+3. Use `div_fast` in performance-critical divisions, but only after benchmarking (!).
+   It can significantly speed up kernels, but should not be applied indiscriminately.
+   When introducing `div_fast` in code, add a reference to [this section](@ref writing_fast_gpu_code)
+   to document the rationale and benchmarking context, e.g., like so:
+   ```julia
+   # Since this is one of the most performance critical functions, using fast divisions
+   # here gives a significant speedup on GPUs.
+   # See the docs page "Development" for more details on `div_fast`.
+   result = div_fast(dividend, divisor)
+   ```

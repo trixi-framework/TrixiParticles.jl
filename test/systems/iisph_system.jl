@@ -48,15 +48,10 @@
             smoothing_length = 0.362
 
             initial_condition = InitialCondition(; coordinates, mass, density)
-            system = ImplicitIncompressibleSPHSystem(initial_condition,
-                                                     smoothing_kernel,
-                                                     smoothing_length,
-                                                     reference_density,
-                                                     omega=omega,
-                                                     max_error=max_error,
-                                                     min_iterations=min_iterations,
-                                                     max_iterations=max_iterations,
-                                                     time_step=time_step)
+            system = ImplicitIncompressibleSPHSystem(initial_condition; smoothing_kernel,
+                                                     smoothing_length, reference_density,
+                                                     omega, max_error, min_iterations,
+                                                     max_iterations, time_step)
 
             # Constructor copies input fields, applies defaults, and respects the requested dimensionality
             @test system isa ImplicitIncompressibleSPHSystem{NDIMS}
@@ -76,32 +71,32 @@
 
             # A too-short acceleration vector triggers dimension validation
             error_str1 = "`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"
-            @test_throws ArgumentError(error_str1) ImplicitIncompressibleSPHSystem(initial_condition,
+            @test_throws ArgumentError(error_str1) ImplicitIncompressibleSPHSystem(initial_condition;
                                                                                    smoothing_kernel,
                                                                                    smoothing_length,
-                                                                                   density,
+                                                                                   reference_density=density,
                                                                                    acceleration=(0.0),
                                                                                    time_step=0.001)
 
             # Smoothing kernel dimensionality must match the problem dimension
             error_str2 = "smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"
-            @test_throws ArgumentError(error_str2) ImplicitIncompressibleSPHSystem(initial_condition,
-                                                                                   smoothing_kernel2,
+            @test_throws ArgumentError(error_str2) ImplicitIncompressibleSPHSystem(initial_condition;
+                                                                                   smoothing_kernel=smoothing_kernel2,
                                                                                    smoothing_length,
                                                                                    reference_density,
                                                                                    time_step=0.001)
 
             # Reference density must be positive
             error_str3 = "`reference_density` must be a positive number"
-            @test_throws ArgumentError(error_str3) ImplicitIncompressibleSPHSystem(initial_condition,
+            @test_throws ArgumentError(error_str3) ImplicitIncompressibleSPHSystem(initial_condition;
                                                                                    smoothing_kernel,
                                                                                    smoothing_length,
-                                                                                   0.0,
+                                                                                   reference_density=0.0,
                                                                                    time_step=0.001)
 
             # max_error is a percentage and must be in (0, 100]
             error_str4 = "`max_error` is given in percentage, so it must be a number between 0 and 100"
-            @test_throws ArgumentError(error_str4) ImplicitIncompressibleSPHSystem(initial_condition,
+            @test_throws ArgumentError(error_str4) ImplicitIncompressibleSPHSystem(initial_condition;
                                                                                    smoothing_kernel,
                                                                                    smoothing_length,
                                                                                    reference_density,
@@ -110,7 +105,7 @@
 
             # min_iterations must be strictly positive
             error_str5 = "`min_iterations` must be a positive number"
-            @test_throws ArgumentError(error_str5) ImplicitIncompressibleSPHSystem(initial_condition,
+            @test_throws ArgumentError(error_str5) ImplicitIncompressibleSPHSystem(initial_condition;
                                                                                    smoothing_kernel,
                                                                                    smoothing_length,
                                                                                    reference_density,
@@ -119,7 +114,7 @@
 
             # min_iterations must not exceed max_iterations
             error_str6 = "`min_iterations` must be smaller or equal to `max_iterations`"
-            @test_throws ArgumentError(error_str6) ImplicitIncompressibleSPHSystem(initial_condition,
+            @test_throws ArgumentError(error_str6) ImplicitIncompressibleSPHSystem(initial_condition;
                                                                                    smoothing_kernel,
                                                                                    smoothing_length,
                                                                                    reference_density,
@@ -128,12 +123,12 @@
                                                                                    time_step=0.001)
 
             # time_step must be strictly positive
-            error_str7 = "`time_step must be a positive number"
-            @test_throws ArgumentError(error_str6) ImplicitIncompressibleSPHSystem(initial_condition,
+            error_str7 = "`time_step` must be a positive number"
+            @test_throws ArgumentError(error_str7) ImplicitIncompressibleSPHSystem(initial_condition;
                                                                                    smoothing_kernel,
                                                                                    smoothing_length,
                                                                                    reference_density,
-                                                                                   min_iterations=10,
+                                                                                   min_iterations=1,
                                                                                    max_iterations=5,
                                                                                    time_step=0)
         end
@@ -169,7 +164,7 @@
 
             density_calculator = SummationDensity()
 
-            system = ImplicitIncompressibleSPHSystem(setup,
+            system = ImplicitIncompressibleSPHSystem(setup;
                                                      smoothing_kernel,
                                                      smoothing_length,
                                                      reference_density,
@@ -202,7 +197,7 @@
 
             # Acceleration vector length validation also applies to setup-based constructors
             error_str = "`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"
-            @test_throws ArgumentError(error_str) ImplicitIncompressibleSPHSystem(setup,
+            @test_throws ArgumentError(error_str) ImplicitIncompressibleSPHSystem(setup;
                                                                                   smoothing_kernel,
                                                                                   smoothing_length,
                                                                                   reference_density,
@@ -223,7 +218,7 @@
         smoothing_length = 0.362
 
         initial_condition = InitialCondition(; coordinates, mass, density)
-        system = ImplicitIncompressibleSPHSystem(initial_condition,
+        system = ImplicitIncompressibleSPHSystem(initial_condition;
                                                  smoothing_kernel,
                                                  smoothing_length,
                                                  reference_density,
@@ -261,7 +256,7 @@
         smoothing_length = 0.362
 
         initial_condition = InitialCondition(; coordinates, mass, density)
-        system = ImplicitIncompressibleSPHSystem(initial_condition,
+        system = ImplicitIncompressibleSPHSystem(initial_condition;
                                                  smoothing_kernel,
                                                  smoothing_length, reference_density,
                                                  time_step=0.001)
@@ -287,7 +282,7 @@
         initial_condition = InitialCondition(; coordinates, velocity, mass, density)
 
         # SummationDensity (is always in use)
-        system = ImplicitIncompressibleSPHSystem(initial_condition,
+        system = ImplicitIncompressibleSPHSystem(initial_condition;
                                                  smoothing_kernel,
                                                  smoothing_length,
                                                  reference_density,
@@ -316,8 +311,10 @@
             pressure_a = [0.8]
             ic_a = InitialCondition(; coordinates, velocity, mass=mass_a, density=density_a,
                                     pressure=pressure_a)
-            system = ImplicitIncompressibleSPHSystem(ic_a, smoothing_kernel,
-                                                     smoothing_length, 6.0,
+            system = ImplicitIncompressibleSPHSystem(ic_a;
+                                                     smoothing_kernel,
+                                                     smoothing_length,
+                                                     reference_density=6.0,
                                                      time_step=0.5)
 
             mass_b = [3.0]
@@ -325,8 +322,10 @@
             pressure_b = [1.2]
             ic_b = InitialCondition(; coordinates, velocity, mass=mass_b, density=density_b,
                                     pressure=pressure_b)
-            neighbor_system = ImplicitIncompressibleSPHSystem(ic_b, smoothing_kernel,
-                                                              smoothing_length, 5.0,
+            neighbor_system = ImplicitIncompressibleSPHSystem(ic_b;
+                                                              smoothing_kernel,
+                                                              smoothing_length,
+                                                              reference_density=5.0,
                                                               time_step=0.5)
 
             system.sum_d_ij_pj[:, 1] .= (0.4, -0.2)
@@ -363,8 +362,10 @@
             pressure_a = [0.8]
             ic_a = InitialCondition(; coordinates, velocity, mass=mass_a, density=density_a,
                                     pressure=pressure_a)
-            system = ImplicitIncompressibleSPHSystem(ic_a, smoothing_kernel,
-                                                     smoothing_length, 6.0,
+            system = ImplicitIncompressibleSPHSystem(ic_a;
+                                                     smoothing_kernel,
+                                                     smoothing_length,
+                                                     reference_density=6.0,
                                                      time_step=0.5)
             system.sum_d_ij_pj[:, 1] .= (0.4, -0.2)
 
@@ -429,9 +430,12 @@
                            0.0 0.2]
             velocity = zeros(2, 2)
             ic = InitialCondition(; coordinates, velocity, mass, density, pressure)
-            system_pressure = ImplicitIncompressibleSPHSystem(ic, smoothing_kernel,
-                                                              smoothing_length, 1000.0,
-                                                              omega=0.4, time_step=0.5)
+            system_pressure = ImplicitIncompressibleSPHSystem(ic;
+                                                              smoothing_kernel,
+                                                              smoothing_length,
+                                                              reference_density=1000.0,
+                                                              omega=0.4,
+                                                              time_step=0.5)
             system_pressure.predicted_density .= [990.0, 1010.0]
             system_pressure.sum_term .= [5.0, -2.0]
             system_pressure.a_ii .= [0.5, 1.0e-10]
@@ -463,9 +467,12 @@
                            0.0 0.2]
             velocity = zeros(2, 2)
             ic = InitialCondition(; coordinates, velocity, mass, density, pressure)
-            system_iters = ImplicitIncompressibleSPHSystem(ic, smoothing_kernel,
-                                                           smoothing_length, 1000.0,
-                                                           omega=0.6, max_error=0.25,
+            system_iters = ImplicitIncompressibleSPHSystem(ic;
+                                                           smoothing_kernel,
+                                                           smoothing_length,
+                                                           reference_density=1000.0,
+                                                           omega=0.6,
+                                                           max_error=0.25,
                                                            min_iterations=3,
                                                            max_iterations=7,
                                                            time_step=0.25)

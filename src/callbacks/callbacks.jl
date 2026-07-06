@@ -21,8 +21,8 @@ end
     #    (total #steps)       (#accepted steps)
     # We need to check the number of accepted steps since callbacks are not
     # activated after a rejected step.
-    return interval > 0 && ((integrator.stats.naccept % interval == 0) ||
-            (save_final_solution && isfinished(integrator)))
+    return (interval > 0 && integrator.stats.naccept % interval == 0) ||
+           (save_final_solution && isfinished(integrator))
 end
 
 function get_dvdu(integrator)
@@ -76,3 +76,5 @@ include("stepsize.jl")
 include("update.jl")
 include("steady_state_reached.jl")
 include("split_integration.jl")
+include("mechanical_work_calculator.jl")
+include("sorting.jl")

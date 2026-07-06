@@ -10,6 +10,7 @@ Choose a tutorial based on the task in front of you.
 2. [Modifying or extending components of TrixiParticles.jl within a simulation file](tutorials/tut_custom_kernel.md): replace selected parts of an existing setup without cloning the package.
 3. [Setting up a 2D simulation from geometry files](tutorials/tut_2d_geometry.md): load 2D geometry files, turn them into filled wall regions, and combine them with standard 2D fluid blocks.
 4. [Particle packing tutorial](tutorials/tut_packing.md): build a body-fitted particle configuration for complex geometries.
+5. [Fluid-structure interaction with rigid bodies](tutorials/tut_rigid_body_fsi.md): simulate objects moving in a fluid.
 
 ## Tutorials
 
@@ -21,10 +22,11 @@ Choose a tutorial based on the task in front of you.
      style="max-width: 360px; width: 100%; border-radius: 12px;" />
 ```
 
-Build a complete weakly compressible SPH dam break setup from particle spacing through semidiscretization, callbacks, and time integration.
+Build a complete Weakly Compressible SPH dam break setup from particle spacing through
+semidiscretization, callbacks, and time integration.
 
 - Focus: initial conditions, systems, semidiscretization, callbacks
-- Choose this if: you want the full workflow from a minimal example
+- Choose this if: you want the full workflow for a minimal example
 
 ### [Modifying or extending components of TrixiParticles.jl within a simulation file](tutorials/tut_custom_kernel.md)
 
@@ -34,10 +36,11 @@ Build a complete weakly compressible SPH dam break setup from particle spacing t
      style="max-width: 360px; width: 100%; border-radius: 12px;" />
 ```
 
-Start from an existing simulation and replace pieces such as the smoothing kernel directly in the file you run.
+Start from an existing simulation and replace pieces such as the smoothing kernel
+directly in the file you run.
 
 - Focus: `trixi_include`, custom kernels, rapid iteration
-- Choose this if: you want to prototype changes without rewriting a full setup
+- Choose this if: you want to prototype changes without cloning and modifying the package
 
 ### [Setting up a 2D simulation from geometry files](tutorials/tut_2d_geometry.md)
 
@@ -60,9 +63,23 @@ Load 2D geometry files, fill them with particles using `ComplexShape`, and build
      style="max-width: 360px; width: 100%; border-radius: 12px;" />
 ```
 
-Go from a geometry file to a packed particle distribution using signed distance fields together with boundary and interior sampling.
+Go from a geometry file to a packed particle distribution using signed distance fields
+together with boundary and interior sampling.
 
 - Focus: geometry import, signed distance fields, boundary sampling, `ParticlePackingSystem`
-- Choose this if: you need body-fitted particles for complex shapes
+- Choose this if: you need body-fitted particles for complex geometries
+
+### [Fluid-structure interaction with rigid bodies](tutorials/tut_rigid_body_fsi.md)
+
+```@raw html
+<img src="../tutorials/tut_rigid_body_fsi_step2.png"
+     alt="Rotating squares impacting a free surface water surface"
+     style="max-width: 360px; width: 100%; border-radius: 12px;" />
+```
+
+Simulate the interaction between fluids and moving rigid bodies.
+
+- Focus: fluid-structure interaction, rigid bodies, moving boundaries
+- Choose this if: you want to simulate objects moving in a fluid
 
 See also [Getting started](getting_started.md) and [Examples](examples.md).

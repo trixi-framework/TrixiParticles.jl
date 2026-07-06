@@ -60,8 +60,7 @@ struct Semidiscretization{BACKEND, S, RU, RV, NS, UCU, IT}
 
     # Dispatch at `systems` to distinguish this constructor from the one below when
     # 4 systems are passed.
-    # This is an internal constructor only used in `test/count_allocations.jl`
-    # and by Adapt.jl.
+    # This is an internal constructor only used in `test/count_allocations.jl`.
     function Semidiscretization(systems::Tuple, ranges_u, ranges_v, neighborhood_searches,
                                 parallelization_backend::PointNeighbors.ParallelizationBackend,
                                 update_callback_used, integrate_tlsph)
@@ -102,12 +101,13 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
                      for i in eachindex(sizes_v))
 
-    # Create a tuple of n neighborhood searches for each of the n systems.
+    # Create a n x n matrix of n neighborhood searches for each of the n systems.
     # We will need one neighborhood search for each pair of systems.
-    searches = Tuple(Tuple(create_neighborhood_search(neighborhood_search,
-                                                      system, neighbor)
-                           for neighbor in systems)
-                     for system in systems)
+    searches = [create_neighborhood_search(neighborhood_search,
+                                           system, neighbor)
+                for system in systems, neighbor in systems]
+
+    @assert isconcretetype(eltype(searches)) "neighborhood searches are not type-stable"
 
     # These will be set to true inside the `UpdateCallback`.
     # Some techniques require the use of this callback, and this flag can be used
@@ -133,7 +133,7 @@ function Base.show(io::IO, semi::Semidiscretization)
         print(io, system, ", ")
     end
     print(io, "neighborhood_search=")
-    print(io, semi.neighborhood_searches |> eltype |> eltype |> nameof)
+    print(io, semi.neighborhood_searches |> eltype |> nameof)
     print(io, ")")
 end
 
@@ -148,7 +148,7 @@ function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
         summary_line(io, "#spatial dimensions", ndims(semi.systems[1]))
         summary_line(io, "#systems", length(semi.systems))
         summary_line(io, "neighborhood search",
-                     semi.neighborhood_searches |> eltype |> eltype |> nameof)
+                     semi.neighborhood_searches |> eltype |> nameof)
         summary_line(io, "total #particles", sum(nparticles.(semi.systems)))
         summary_line(io, "eltype", eltype(semi.systems[1]))
         summary_line(io, "coordinates eltype", coordinates_eltype(semi.systems[1]))
@@ -159,7 +159,7 @@ end
 @inline function system_indices(system, semi)
     # Note that this takes only about 5 ns, while mapping systems to indices with a `Dict`
     # is ~30x slower because `hash(::System)` is very slow.
-    index = findfirst(==(system), semi.systems)
+    index = findfirst(s -> s === system, semi.systems)
 
     if isnothing(index)
         throw(ArgumentError("system is not in the semidiscretization"))
@@ -175,8 +175,16 @@ end
 
 @inline foreach_system(f, systems) = foreach_noalloc(f, systems)
 
+# This is just for readability to loop over all systems with wrapped arrays.
+@inline function foreach_system_wrapped(f, semi::Union{NamedTuple, Semidiscretization},
+                                        v_ode, u_ode)
+    foreach_system(semi) do system
+        @inline f(system, wrap_v(v_ode, system, semi), wrap_u(u_ode, system, semi))
+    end
+end
+
 """
-    semidiscretize(semi, tspan; reset_threads=true)
+    semidiscretize(semi, tspan; reset_threads=true, restart_with=nothing)
 
 Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
 
@@ -185,6 +193,14 @@ Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
 - `tspan`: The time span over which the simulation will be run.
 
 # Keywords
+- `restart_with`: Can be used to restart the simulation from VTK solution files (see [`SolutionSavingCallback`](@ref)).
+  This can be either `nothing` (default, no restart) or a `Tuple` of filenames,
+  one for each system in the [`Semidiscretization`](@ref).
+  The order of the filenames must match the order of the systems in the [`Semidiscretization`](@ref).
+  Note that `semidiscretize` replaces the initial time (`tspan[1]`) with the timestamp read
+  from the VTK files. If the user-provided `tspan[1]` does not match the restart time,
+  it is adjusted and an info message is logged. If multiple files are provided, their
+  timestamps must match.
 - `reset_threads`: A boolean flag to reset Polyester.jl threads before the simulation (default: `true`).
   After an error within a threaded loop, threading might be disabled. Resetting the threads before the simulation
   ensures that threading is enabled again for the simulation.
@@ -211,8 +227,15 @@ timespan: (0.0, 1.0)
 u0: ([...], [...]) *this line is ignored by filter*
 ```
 """
-function semidiscretize(semi, tspan; reset_threads=true)
+function semidiscretize(semi, tspan; reset_threads=true, restart_with=nothing)
     (; systems) = semi
+
+    if restart_with isa String
+        restart_with = (restart_with,)
+    elseif !isnothing(restart_with) && !(restart_with isa NTuple{<:Any, String})
+        throw(ArgumentError("`restart_with` must be `nothing`, a string, or a tuple of strings, " *
+                            "got $(typeof(restart_with))"))
+    end
 
     # Check that all systems have the same eltype
     first_system = first(systems)
@@ -259,48 +282,72 @@ function semidiscretize(semi, tspan; reset_threads=true)
     end
 
     # Set initial condition
-    foreach_system(semi) do system
-        u0_system = wrap_u(u0_ode, system, semi)
-        v0_system = wrap_v(v0_ode, system, semi)
-
-        write_u0!(u0_system, system)
-        write_v0!(v0_system, system)
-    end
+    set_initial_conditions!(v0_ode, u0_ode, semi, restart_with)
 
     # TODO initialize after adapting to the GPU.
     # Requires https://github.com/trixi-framework/PointNeighbors.jl/pull/86.
-    initialize_neighborhood_searches!(semi)
+    initialize_neighborhood_searches!(semi, u0_ode, restart_with)
 
     if semi.parallelization_backend isa KernelAbstractions.GPU
-        # Convert all arrays to the correct array type.
+        # Convert all arrays in the systems to the correct array type.
         # When e.g. `parallelization_backend=CUDABackend()`, this will convert all `Array`s
         # to `CuArray`s, moving data to the GPU.
         # See the comments in general/gpu.jl for more details.
-        semi_ = Adapt.adapt(semi.parallelization_backend, semi)
+        systems = Adapt.adapt(semi.parallelization_backend, semi.systems)
+        semi_ = @set semi.systems = systems
+
+        # Also convert the neighborhood searches to the GPU
+        neighborhood_searches = map(search -> Adapt.adapt(semi.parallelization_backend,
+                                                          search),
+                                    semi_.neighborhood_searches)
+        semi__ = @set semi_.neighborhood_searches = neighborhood_searches
 
         # We now have a new `Semidiscretization` with new systems.
         # This means that systems linking to other systems still point to old systems.
         # Therefore, we have to re-link them, which yields yet another `Semidiscretization`.
         # Note that this re-creates systems containing links, so it only works as long
         # as systems don't link to other systems containing links.
-        semi_new = @set semi_.systems = set_system_links.(semi_.systems, Ref(semi_))
+        semi_new = @set semi__.systems = set_system_links.(semi__.systems, Ref(semi__))
 
         @info "To move data to the GPU, `semidiscretize` creates a deep copy of the passed " *
-              "`Semidiscretization`. Use `semi = ode.p` to access simulation data."
+              "`Semidiscretization`. Use `semi = ode.p.semi` to access simulation data."
     else
         semi_new = semi
     end
 
     # Initialize all particle systems
-    foreach_system(semi_new) do system
-        # Initialize this system
-        initialize!(system, semi_new)
-    end
+    initialize!(semi_new, restart_with)
 
     # Reset callback flag that will be set by the `UpdateCallback`
     semi_new.update_callback_used[] = false
 
-    return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode, tspan, semi_new)
+    # Store the semidiscretization in `p.semi` to make it accessible during time integration.
+    # In case that a `SplitIntegrationCallback` is used, we will also need to store
+    # extra split integration data in `p`, for which we create a placeholder (`nothing`)
+    # here, since we cannot change `p` from within the callback (only its contents).
+    p = @NamedTuple{semi::typeof(semi_new), split_integration_data::Any}((semi_new,
+                                                                          nothing))
+
+    return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode,
+                               time_span(tspan, restart_with), p)
+end
+
+function set_initial_conditions!(v0_ode, u0_ode, semi, restart_with::Nothing)
+    foreach_system_wrapped(semi, v0_ode, u0_ode) do system, v0_system, u0_system
+        write_u0!(u0_system, system)
+        write_v0!(v0_system, system)
+    end
+end
+
+time_span(tspan, restart_with::Nothing) = tspan
+
+function initialize!(semi::Semidiscretization, restart_with::Nothing)
+    foreach_system(semi) do system
+        # Initialize this system
+        initialize!(system, semi)
+    end
+
+    return semi
 end
 
 """
@@ -313,7 +360,7 @@ in the solution `sol`.
 
 # Arguments
 - `semi`:   The semidiscretization
-- `sol`:    The `ODESolution` returned by `solve` of `OrdinaryDiffEq`
+- `sol`:    The `ODESolution` returned by `solve` of OrdinaryDiffEq.jl
 """
 function restart_with!(semi, sol; reset_threads=true)
     # Optionally reset Polyester.jl threads. See
@@ -325,10 +372,8 @@ function restart_with!(semi, sol; reset_threads=true)
 
     initialize_neighborhood_searches!(semi)
 
-    foreach_system(semi) do system
-        v = wrap_v(sol.u[end].x[1], system, semi)
-        u = wrap_u(sol.u[end].x[2], system, semi)
-
+    v_ode, u_ode = sol.u[end].x
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         restart_with!(system, v, u)
     end
 
@@ -346,8 +391,9 @@ end
     range = ranges_v[system_indices(system, semi)]
 
     @boundscheck begin
+        expected = v_nvariables(system) * n_integrated_particles(system)
         if length(range) != v_nvariables(system) * n_integrated_particles(system)
-            throw(DimensionMismatch("`v_ode` range length $range_length does not match " *
+            throw(DimensionMismatch("`v_ode` range length $(length(range)) does not match " *
                                     "expected number of entries $expected"))
         end
     end
@@ -404,64 +450,80 @@ function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization)
     end
 end
 
-function drift!(du_ode, v_ode, u_ode, semi, t)
+function drift!(du_ode, v_ode, u_ode, p, t)
+    (; semi) = p
+
     @trixi_timeit timer() "drift!" begin
-        @trixi_timeit timer() "reset ∂u/∂t" set_zero!(du_ode)
+        foreach_system(semi) do system
+            du = wrap_u(du_ode, system, semi)
+            v = wrap_v(v_ode, system, semi)
+            u = wrap_u(u_ode, system, semi)
 
-        @trixi_timeit timer() "velocity" begin
-            # Set velocity and add acceleration for each system
-            foreach_system(semi) do system
-                du = wrap_u(du_ode, system, semi)
-                v = wrap_v(v_ode, system, semi)
-                u = wrap_u(u_ode, system, semi)
-
-                @threaded semi for particle in each_integrated_particle(system)
-                    # This can be dispatched per system
-                    add_velocity!(du, v, u, particle, system, semi, t)
-                end
-            end
+            set_velocity!(du, v, u, system, semi, t)
         end
     end
 
     return du_ode
 end
 
-@inline function add_velocity!(du, v, u, particle, system, semi::Semidiscretization, t)
-    add_velocity!(du, v, u, particle, system, t)
+# Generic fallback for all systems that don't define this function
+function set_velocity!(du, v, u, system, semi, t)
+    set_velocity_default!(du, v, u, system, semi, t)
 end
 
-@inline function add_velocity!(du, v, u, particle, system::TotalLagrangianSPHSystem,
-                               semi::Semidiscretization, t)
-    # Only add velocity for TLSPH systems if they are integrated
+# Only set velocity for TLSPH systems if they are integrated
+function set_velocity!(du, v, u, system::TotalLagrangianSPHSystem, semi, t)
     if semi.integrate_tlsph[]
-        add_velocity!(du, v, u, particle, system, t)
-    end
-end
-
-@inline function add_velocity!(du, v, u, particle, system, t)
-    # Generic fallback for all systems that don't define this function
-    for i in 1:ndims(system)
-        @inbounds du[i, particle] = v[i, particle]
+        set_velocity_default!(du, v, u, system, semi, t)
+    else
+        set_zero!(du)
     end
 
     return du
 end
 
 # Solid wall boundary system doesn't integrate the particle positions
-@inline add_velocity!(du, v, u, particle, system::WallBoundarySystem, t) = du
+function set_velocity!(du, v, u, system::WallBoundarySystem, semi, t)
+    # Note that `du` is of length zero, so we don't have to set it to zero
+    return du
+end
 
-@inline function add_velocity!(du, v, u, particle, system::AbstractFluidSystem, t)
-    # This is zero unless a shifting technique is used
-    delta_v_ = delta_v(system, particle)
+# Fluid systems integrate the particle positions and can have a shifting velocity
+function set_velocity!(du, v, u, system::AbstractFluidSystem, semi, t)
+    @threaded semi for particle in each_integrated_particle(system)
+        delta_v_ = @inbounds delta_v(system, particle)
 
-    for i in 1:ndims(system)
-        @inbounds du[i, particle] = v[i, particle] + delta_v_[i]
+        for i in 1:ndims(system)
+            @inbounds du[i, particle] = v[i, particle] + delta_v_[i]
+        end
     end
 
     return du
 end
 
-function kick!(dv_ode, v_ode, u_ode, semi, t)
+function set_velocity_default!(du, v, u, system, semi, t)
+    @threaded semi for particle in each_integrated_particle(system)
+        for i in 1:ndims(system)
+            @inbounds du[i, particle] = v[i, particle]
+        end
+    end
+
+    return du
+end
+
+# This defaults to optimized GPU copy that is about 4x faster than the threaded version above
+function set_velocity_default!(du::AbstractGPUArray, v, u, system, semi, t)
+    indices = CartesianIndices(du)
+    copyto!(du, indices, v, indices)
+end
+
+function kick!(dv_ode, v_ode, u_ode, p, t)
+    (; semi, split_integration_data) = p
+
+    # This is a no-op if no split integration
+    # or split integration without stage-coupling is used.
+    split_integrate_stage!(v_ode, u_ode, t, split_integration_data)
+
     @trixi_timeit timer() "kick!" begin
         # Check that the `UpdateCallback` is used if required
         check_update_callback(semi)
@@ -474,8 +536,7 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
         @trixi_timeit timer() "system interaction" system_interaction!(dv_ode, v_ode, u_ode,
                                                                        semi)
 
-        @trixi_timeit timer() "source terms" add_source_terms!(dv_ode, v_ode, u_ode,
-                                                               semi, t)
+        add_source_terms!(dv_ode, v_ode, u_ode, semi, t)
     end
 
     return dv_ode
@@ -486,10 +547,7 @@ end
 function update_systems_and_nhs(v_ode, u_ode, semi, t)
     # First update step before updating the NHS
     # (for example for writing the current coordinates in the TLSPH system)
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_positions!(system, v, u, v_ode, u_ode, semi, t)
     end
 
@@ -500,43 +558,42 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
     # This is used to calculate density and pressure of the fluid systems
     # before updating the boundary systems,
     # since the fluid pressure is needed by the Adami interpolation.
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_quantities!(system, v, u, v_ode, u_ode, semi, t)
     end
 
     update_implicit_sph!(semi, v_ode, u_ode, t)
 
     # Perform correction and pressure calculation
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_pressure!(system, v, u, v_ode, u_ode, semi, t)
     end
 
     # This update depends on the computed quantities of the fluid system and therefore
     # needs to be after `update_quantities!`.
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_boundary_interpolation!(system, v, u, v_ode, u_ode, semi, t)
     end
 
     # Final update step for all remaining systems
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_final!(system, v, u, v_ode, u_ode, semi, t)
     end
 end
 
+# Some systems accumulate pairwise interaction state outside `dv_ode`. Reset that state once
+# at the beginning of every explicitly assembled interaction pass.
+function reset_interaction_caches!(semi::Union{NamedTuple, Semidiscretization})
+    foreach_system(semi) do system
+        reset_interaction_caches!(system)
+    end
+
+    return semi
+end
+
 # The `SplitIntegrationCallback` overwrites `semi_wrap` to use a different
 # semidiscretization for wrapping arrays.
+# `semi_wrap` is the small semidiscretization, `semi` is the large semidiscretization.
 # TODO `semi` is not used yet, but will be used when the source terms API is modified
 # to match the custom quantities API.
 function add_source_terms!(dv_ode, v_ode, u_ode, semi, t; semi_wrap=semi)
@@ -545,54 +602,65 @@ function add_source_terms!(dv_ode, v_ode, u_ode, semi, t; semi_wrap=semi)
         v = wrap_v(v_ode, system, semi_wrap)
         u = wrap_u(u_ode, system, semi_wrap)
 
-        @threaded semi for particle in each_integrated_particle(system)
-            # Dispatch by system type to exclude boundary systems.
-            # `integrate_tlsph` is extracted from the `semi_wrap`, so that this function
-            # can be used in the `SplitIntegrationCallback` as well.
-            add_acceleration!(dv, particle, system, semi_wrap.integrate_tlsph[])
-            add_source_terms_inner!(dv, v, u, particle, system, source_terms(system), t,
-                                    semi_wrap.integrate_tlsph[])
-        end
+        # `integrate_tlsph` is extracted from the `semi_wrap`, so that this function
+        # can be used in the `SplitIntegrationCallback` as well.
+        # In this case, `semi_wrap` will be the small sub-integration semidiscretization.
+        add_source_terms!(dv, v, u, system, semi, t, semi_wrap.integrate_tlsph[])
     end
 
     return dv_ode
 end
 
-@inline source_terms(system) = nothing
-@inline source_terms(system::Union{AbstractFluidSystem, AbstractStructureSystem}) = system.source_terms
-
-@inline function add_acceleration!(dv, particle, system, integrate_tlsph)
-    add_acceleration!(dv, particle, system)
+# This is a no-op by default but can be dispatched by system type
+function add_source_terms!(dv, v, u, system, semi, t, integrate_tlsph)
+    return dv
 end
 
-@inline function add_acceleration!(dv, particle, system::TotalLagrangianSPHSystem,
-                                   integrate_tlsph)
-    integrate_tlsph && add_acceleration!(dv, particle, system)
+function add_source_terms!(dv, v, u,
+                           system::Union{AbstractFluidSystem, AbstractStructureSystem},
+                           semi, t, integrate_tlsph)
+    add_source_terms_inner!(dv, v, u, system, semi, t)
 end
 
-@inline add_acceleration!(dv, particle, system) = dv
-
-@propagate_inbounds function add_acceleration!(dv, particle,
-                                               system::Union{AbstractFluidSystem,
-                                                             AbstractStructureSystem})
-    (; acceleration) = system
-
-    for i in 1:ndims(system)
-        dv[i, particle] += acceleration[i]
+function add_source_terms!(dv, v, u, system::TotalLagrangianSPHSystem,
+                           semi, t, integrate_tlsph)
+    if integrate_tlsph
+        add_source_terms_inner!(dv, v, u, system, semi, t)
     end
 
     return dv
 end
 
-@inline function add_source_terms_inner!(dv, v, u, particle, system, source_terms_, t,
-                                         integrate_tlsph)
-    add_source_terms_inner!(dv, v, u, particle, system, source_terms_, t)
+function add_source_terms_inner!(dv, v, u,
+                                 system::Union{AbstractFluidSystem,
+                                               AbstractStructureSystem},
+                                 semi, t)
+    if iszero(system.acceleration) && isnothing(source_terms(system))
+        # Nothing to do
+        return dv
+    end
+
+    @trixi_timeit timer() "source terms" begin
+        @threaded semi for particle in each_integrated_particle(system)
+            add_acceleration!(dv, system, particle)
+            add_source_terms_inner!(dv, v, u, particle, system, source_terms(system), t)
+        end
+    end
+
+    return dv
 end
 
-@inline function add_source_terms_inner!(dv, v, u, particle,
-                                         system::TotalLagrangianSPHSystem,
-                                         source_terms_, t, integrate_tlsph)
-    integrate_tlsph && add_source_terms_inner!(dv, v, u, particle, system, source_terms_, t)
+@inline source_terms(system) = nothing
+@inline source_terms(system::Union{AbstractFluidSystem, AbstractStructureSystem}) = system.source_terms
+
+@inline function add_acceleration!(dv, system, particle)
+    (; acceleration) = system
+
+    for i in 1:ndims(system)
+        @inbounds dv[i, particle] += acceleration[i]
+    end
+
+    return dv
 end
 
 @propagate_inbounds function add_source_terms_inner!(dv, v, u, particle,
@@ -672,6 +740,8 @@ end
 end
 
 function system_interaction!(dv_ode, v_ode, u_ode, semi)
+    reset_interaction_caches!(semi)
+
     # Call `interact!` for each pair of systems
     foreach_system(semi) do system
         foreach_system(semi) do neighbor
@@ -685,7 +755,7 @@ function system_interaction!(dv_ode, v_ode, u_ode, semi)
                 timer_str = ""
             end
 
-            interact!(dv_ode, v_ode, u_ode, system, neighbor, semi, timer_str=timer_str)
+            interact!(dv_ode, v_ode, u_ode, system, neighbor, semi; timer_str)
         end
     end
 
@@ -704,6 +774,8 @@ end
 # Function barrier to make benchmarking interactions easier.
 # One can benchmark, e.g. the fluid-fluid interaction, with:
 # dv_ode, du_ode = copy(sol.u[end]).x; v_ode, u_ode = copy(sol.u[end]).x;
+# For manual multi-pair interaction assembly, call `reset_interaction_caches!(semi)` once
+# before the first direct `interact!` call.
 # @btime TrixiParticles.interact!($dv_ode, $v_ode, $u_ode, $fluid_system, $fluid_system, $semi);
 @inline function interact!(dv_ode, v_ode, u_ode, system, neighbor, semi; timer_str="")
     dv = wrap_v(dv_ode, system, semi)
@@ -721,7 +793,7 @@ end
 function check_update_callback(semi)
     foreach_system(semi) do system
         # This check will be optimized away if the system does not require the callback
-        if requires_update_callback(system) && !semi.update_callback_used[]
+        if requires_update_callback(system, semi) && !semi.update_callback_used[]
             system_name = system |> typeof |> nameof
             throw(ArgumentError("`UpdateCallback` is required for `$system_name`"))
         end

@@ -6,11 +6,12 @@
 # which is one of our simplest example simulations.
 # For different setups and physics, take a look at [our other example files](@ref examples).
 
-# First, we import TrixiParticles.jl and
+# First, we import TrixiParticles.jl and the time integration sub-package
+# `OrdinaryDiffEqLowStorageRK` of
 # [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl), which we will
 # use at the very end for the time integration.
 using TrixiParticles
-using OrdinaryDiffEq
+using OrdinaryDiffEqLowStorageRK
 
 # ## Resolution
 
@@ -79,9 +80,9 @@ nothing # hide
 # Here, we use the [`RectangularTank`](@ref) setup, which generates a rectangular
 # fluid inside a rectangular tank, and supports a hydrostatic pressure gradient
 # by passing a gravitational acceleration and a state equation (see above).
-tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size,
-                       fluid_density, n_layers=boundary_layers,
-                       acceleration=(0.0, -gravity), state_equation=state_equation)
+tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density;
+                       n_layers=boundary_layers, acceleration=(0.0, -gravity),
+                       state_equation)
 nothing # hide
 # A `RectangularTank` consists of two [`InitialCondition`](@ref)s, `tank.fluid` and `tank.boundary`.
 # We can plot these initial conditions to visualize the initial setup.
@@ -120,10 +121,9 @@ nothing # hide
 # The simulation quality greatly benefits from using [density diffusion](@ref density_diffusion).
 fluid_density_calculator = ContinuityDensity()
 density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
-fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
-                                           state_equation, smoothing_kernel,
-                                           smoothing_length, viscosity=viscosity,
-                                           density_diffusion=density_diffusion,
+fluid_system = WeaklyCompressibleSPHSystem(tank.fluid; smoothing_kernel, smoothing_length,
+                                           density_calculator=fluid_density_calculator,
+                                           state_equation, viscosity, density_diffusion,
                                            acceleration=(0.0, -gravity))
 nothing # hide
 
@@ -136,9 +136,9 @@ nothing # hide
 # We will use the [`BoundaryModelDummyParticles`](@ref) with [`AdamiPressureExtrapolation`](@ref).
 # See [here](@ref boundary_models) for a comprehensive overview over boundary models.
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=state_equation,
                                              AdamiPressureExtrapolation(),
-                                             smoothing_kernel, smoothing_length)
+                                             smoothing_kernel, smoothing_length;
+                                             state_equation)
 boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
 nothing # hide
 
@@ -169,7 +169,7 @@ nothing # hide
 # We also want to save the current solution in regular intervals in terms of
 # simulation time as VTK, so that we can [look at the solution in ParaView](@ref Visualization).
 # The [`SolutionSavingCallback`](@ref) provides this functionality.
-# To pass the callbacks to OrdinaryDiffEq.jl, we have to bundle them into a
+# To pass the callbacks to the solver, we have to bundle them into a
 # `CallbackSet`.
 info_callback = InfoCallback(interval=50)
 saving_callback = SolutionSavingCallback(dt=0.02)
@@ -178,7 +178,8 @@ callbacks = CallbackSet(info_callback, saving_callback)
 nothing # hide
 
 # Finally, we can start the simulation by solving the `ODEProblem`.
-# We use the method `RDPK3SpFSAL35` of OrdinaryDiffEq.jl, which is a Runge-Kutta
+# We use the method `RDPK3SpFSAL35` from `OrdinaryDiffEqLowStorageRK`,
+# which is a Runge-Kutta
 # method with automatic (error based) time step size control.
 # This method is usually a good choice for prototyping, since we do not have to
 # worry about choosing a stable step size and can just run the simulation.

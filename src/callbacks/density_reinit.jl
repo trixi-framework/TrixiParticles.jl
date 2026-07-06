@@ -6,8 +6,10 @@ Callback to reinitialize the density field when using [`ContinuityDensity`](@ref
 # Keywords
 - `interval=0`:              Reinitialize the density every `interval` time steps.
 - `dt`:                      Reinitialize the density in regular intervals of `dt` in terms
-                             of integration time.
-- `reinit_initial_solution`: Reinitialize the initial solution (default=false)
+                             of integration time. This callback does not add extra time
+                             steps / `tstops`; instead, reinitialization is triggered at
+                             the first solver step after each `dt` interval has elapsed.
+- `reinit_initial_solution`: Reinitialize the initial solution (default=true)
 """
 mutable struct DensityReinitializationCallback{I}
     interval::I
@@ -67,7 +69,7 @@ function initialize_reinit_cb!(cb::DensityReinitializationCallback, u, t, integr
     # Reinitialize initial solution
     if cb.reinit_initial_solution
         # Update systems to compute quantities like density and pressure.
-        semi = integrator.p
+        semi = integrator.p.semi
         v_ode, u_ode = u.x
         update_systems_and_nhs(v_ode, u_ode, semi, t)
 
@@ -97,9 +99,11 @@ end
 # affect!
 function (reinit_callback::DensityReinitializationCallback)(integrator)
     vu_ode = integrator.u
-    semi = integrator.p
+    semi = integrator.p.semi
 
     @trixi_timeit timer() "reinit density" reinit_density!(vu_ode, semi)
 
     reinit_callback.last_t = integrator.t
+
+    derivative_discontinuity!(integrator, true)
 end

@@ -70,8 +70,8 @@ setup = RectangularTank(particle_spacing, (water_width, water_height),
 # `state_equation` has to be the same as for the WCSPH system.
 state_equation = StateEquationCole(sound_speed=10.0, exponent=1, reference_density=1000.0)
 setup = RectangularTank(particle_spacing, (water_width, water_height),
-                        (container_width, container_height), fluid_density,
-                        acceleration=(0.0, -9.81), state_equation=state_equation)
+                        (container_width, container_height), fluid_density;
+                        acceleration=(0.0, -9.81), state_equation)
 
 # 3D
 setup = RectangularTank(particle_spacing, (water_width, water_height, water_depth),
@@ -737,6 +737,7 @@ The selected walls of the tank will be placed at the new positions.
 """
 function reset_wall!(rectangular_tank, reset_faces, positions)
     (; boundary, particle_spacing, spacing_ratio, n_layers, face_indices) = rectangular_tank
+    boundary_spacing = particle_spacing / spacing_ratio
 
     for face in eachindex(reset_faces)
         dim = div(face - 1, 2) + 1
@@ -749,17 +750,17 @@ function reset_wall!(rectangular_tank, reset_faces, positions)
                 # For "odd" faces the layer direction is outwards
                 # and for "even" faces inwards.
                 layer_shift = if iseven(face)
-                    (layer - 1) * particle_spacing / spacing_ratio
+                    (layer - 1) * boundary_spacing
                 else
-                    # Odd faces need to be shifted outwards by `particle_spacing`
+                    # Odd faces need to be shifted outwards by `boundary_spacing`
                     # to be outside of the fluid.
-                    -(layer - 1) * particle_spacing / spacing_ratio - particle_spacing
+                    -(layer - 1) * boundary_spacing - boundary_spacing
                 end
 
                 # Set position
                 boundary.coordinates[dim,
                                      particle] = positions[face] + layer_shift +
-                                                 0.5particle_spacing
+                                                 0.5boundary_spacing
             end
         end
     end
