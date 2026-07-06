@@ -78,8 +78,8 @@
                                    system::MockDensityReinitSystem,
                                    neighbor::MockDensityReinitSystem,
                                    u_system, u_neighbor, semi) = nothing
-        TrixiParticles.u_modified!(integrator::MockDensityReinitIntegrator,
-                                   is_modified) = nothing
+        TrixiParticles.derivative_discontinuity!(integrator::MockDensityReinitIntegrator,
+                                                 is_modified) = nothing
 
         callback = DensityReinitializationCallback(system, semi; interval=1,
                                                    reinit_initial_solution=false).affect!

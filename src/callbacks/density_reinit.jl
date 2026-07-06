@@ -113,8 +113,8 @@ function (reinit_callback::DensityReinitializationCallbackAffect)(integrator)
 
     reinit_callback.last_t = integrator.t
 
-    # Tell OrdinaryDiffEq that `integrator.u` has been modified
-    u_modified!(integrator, true)
+    # Reinitializing density changes the ODE state and introduces a derivative discontinuity.
+    derivative_discontinuity!(integrator, true)
 
     return integrator
 end
