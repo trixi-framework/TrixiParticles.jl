@@ -67,7 +67,7 @@ semi = Semidiscretization(fluid_system, boundary_system;
 │ eltype: …………………………………………………………… Float64                                                          │
 │ coordinates eltype: …………………………… Float64                                                          │
 │ interaction matrix: …………………………… 1 disabled, 0 custom                                             │
-│ disabled pairs: ……………………………………… 1 -> 2                                                           │
+│ disabled interactions: …………………… 1 -> 2                                                           │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
@@ -187,89 +187,6 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     return Semidiscretization(systems, ranges_u, ranges_v, searches, interaction_matrix,
                               parallelization_backend, update_callback_used,
                               integrate_tlsph)
-end
-
-# Inline show function e.g. Semidiscretization(neighborhood_search=...)
-function Base.show(io::IO, semi::Semidiscretization)
-    @nospecialize semi # reduce precompilation time
-
-    print(io, "Semidiscretization(")
-    for system in semi.systems
-        print(io, system, ", ")
-    end
-    print(io, "neighborhood_search=")
-    print(io, semi.neighborhood_searches |> eltype |> nameof)
-    interaction_summary = interaction_matrix_summary(semi)
-    if !isnothing(interaction_summary)
-        print(io, ", interaction_matrix=", interaction_summary)
-    end
-    print(io, ")")
-end
-
-# Show used during summary printout
-function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
-    @nospecialize semi # reduce precompilation time
-
-    if get(io, :compact, false)
-        show(io, semi)
-    else
-        summary_header(io, "Semidiscretization")
-        summary_line(io, "#spatial dimensions", ndims(semi.systems[1]))
-        summary_line(io, "#systems", length(semi.systems))
-        summary_line(io, "neighborhood search",
-                     semi.neighborhood_searches |> eltype |> nameof)
-        summary_line(io, "total #particles", sum(nparticles.(semi.systems)))
-        summary_line(io, "eltype", eltype(semi.systems[1]))
-        summary_line(io, "coordinates eltype", coordinates_eltype(semi.systems[1]))
-        interaction_summary = interaction_matrix_summary(semi)
-        if !isnothing(interaction_summary)
-            summary_line(io, "interaction matrix", interaction_summary)
-            disabled_pairs = disabled_interaction_pairs(semi)
-            if !isnothing(disabled_pairs)
-                summary_line(io, "disabled pairs", disabled_pairs)
-            end
-
-            custom_pairs = custom_interaction_pairs(semi)
-            if !isnothing(custom_pairs)
-                summary_line(io, "custom pairs", custom_pairs)
-            end
-        end
-        summary_footer(io)
-    end
-end
-
-function interaction_matrix_summary(semi)
-    disabled = count(entry -> entry === false, semi.interaction_matrix)
-    custom = count(entry -> !(entry isa Bool), semi.interaction_matrix)
-
-    if disabled == 0 && custom == 0
-        return nothing
-    end
-
-    return "$disabled disabled, $custom custom"
-end
-
-function disabled_interaction_pairs(semi)
-    pairs = String[]
-    for system_index in axes(semi.interaction_matrix, 1),
-        neighbor_index in axes(semi.interaction_matrix, 2)
-        semi.interaction_matrix[system_index, neighbor_index] === false || continue
-        push!(pairs, "$system_index -> $neighbor_index")
-    end
-
-    return isempty(pairs) ? nothing : join(pairs, ", ")
-end
-
-function custom_interaction_pairs(semi)
-    pairs = String[]
-    for system_index in axes(semi.interaction_matrix, 1),
-        neighbor_index in axes(semi.interaction_matrix, 2)
-        interaction = semi.interaction_matrix[system_index, neighbor_index]
-        interaction isa Bool && continue
-        push!(pairs, "$system_index -> $neighbor_index ($(nameof(typeof(interaction))))")
-    end
-
-    return isempty(pairs) ? nothing : join(pairs, ", ")
 end
 
 @inline function system_indices(system, semi)
@@ -1033,3 +950,86 @@ function set_system_links(system::OpenBoundarySystem, semi)
 end
 
 set_system_links(system, semi) = system
+
+# Inline show function e.g. Semidiscretization(neighborhood_search=...)
+function Base.show(io::IO, semi::Semidiscretization)
+    @nospecialize semi # reduce precompilation time
+
+    print(io, "Semidiscretization(")
+    for system in semi.systems
+        print(io, system, ", ")
+    end
+    print(io, "neighborhood_search=")
+    print(io, semi.neighborhood_searches |> eltype |> nameof)
+    interaction_summary = interaction_matrix_summary(semi)
+    if !isnothing(interaction_summary)
+        print(io, ", interaction_matrix=", interaction_summary)
+    end
+    print(io, ")")
+end
+
+# Show used during summary printout
+function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
+    @nospecialize semi # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, semi)
+    else
+        summary_header(io, "Semidiscretization")
+        summary_line(io, "#spatial dimensions", ndims(semi.systems[1]))
+        summary_line(io, "#systems", length(semi.systems))
+        summary_line(io, "neighborhood search",
+                     semi.neighborhood_searches |> eltype |> nameof)
+        summary_line(io, "total #particles", sum(nparticles.(semi.systems)))
+        summary_line(io, "eltype", eltype(semi.systems[1]))
+        summary_line(io, "coordinates eltype", coordinates_eltype(semi.systems[1]))
+        interaction_summary = interaction_matrix_summary(semi)
+        if !isnothing(interaction_summary)
+            summary_line(io, "interaction matrix", interaction_summary)
+            disabled_pairs = disabled_interaction_pairs(semi)
+            if !isnothing(disabled_pairs)
+                summary_line(io, "disabled interactions", disabled_pairs)
+            end
+
+            custom_pairs = custom_interaction_pairs(semi)
+            if !isnothing(custom_pairs)
+                summary_line(io, "custom pairs", custom_pairs)
+            end
+        end
+        summary_footer(io)
+    end
+end
+
+function interaction_matrix_summary(semi)
+    disabled = count(entry -> entry === false, semi.interaction_matrix)
+    custom = count(entry -> !(entry isa Bool), semi.interaction_matrix)
+
+    if disabled == 0 && custom == 0
+        return nothing
+    end
+
+    return "$disabled disabled, $custom custom"
+end
+
+function disabled_interaction_pairs(semi)
+    pairs = String[]
+    for system_index in axes(semi.interaction_matrix, 1),
+        neighbor_index in axes(semi.interaction_matrix, 2)
+        semi.interaction_matrix[system_index, neighbor_index] === false || continue
+        push!(pairs, "$system_index -> $neighbor_index")
+    end
+
+    return isempty(pairs) ? nothing : join(pairs, ", ")
+end
+
+function custom_interaction_pairs(semi)
+    pairs = String[]
+    for system_index in axes(semi.interaction_matrix, 1),
+        neighbor_index in axes(semi.interaction_matrix, 2)
+        interaction = semi.interaction_matrix[system_index, neighbor_index]
+        interaction isa Bool && continue
+        push!(pairs, "$system_index -> $neighbor_index ($(nameof(typeof(interaction))))")
+    end
+
+    return isempty(pairs) ? nothing : join(pairs, ", ")
+end

@@ -403,7 +403,7 @@
             @test system_dv(dv_ode, semi, 2)[1, 1] == 1000
         end
 
-        @testset "disabled pairs skip correction values" begin
+        @testset "disabled interactions skip correction values" begin
             all_enabled_coefficient,
             _ = shepard_correction_coefficient((make_shepard_fluid_system(0.0),
                                                 make_shepard_fluid_system(0.5)),
@@ -529,7 +529,7 @@
         │ eltype: …………………………………………………………… Float64                                                          │
         │ coordinates eltype: …………………………… Float32                                                          │
         │ interaction matrix: …………………………… 1 disabled, 1 custom                                             │
-        │ disabled pairs: ……………………………………… 1 -> 2                                                           │
+        │ disabled interactions: …………………… 1 -> 2                                                           │
         │ custom pairs: …………………………………………… 2 -> 1 (ShowInteraction)                                         │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", semi_custom) == show_custom_box
