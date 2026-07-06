@@ -169,8 +169,8 @@
 
     @testset verbose=true "Interaction Matrix" begin
         function test_interaction(dv, v_system, u_system, v_neighbor,
-                                                u_neighbor, system, neighbor, semi;
-                                                kwargs...)
+                                  u_neighbor, system, neighbor, semi;
+                                  kwargs...)
             dv[1, 1] += 10_000
             return dv
         end
