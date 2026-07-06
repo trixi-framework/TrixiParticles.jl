@@ -168,16 +168,10 @@
     end
 
     @testset verbose=true "Interaction Matrix" begin
-        struct TestInteraction
-            calls::Base.RefValue{Int}
-        end
-        TestInteraction() = TestInteraction(Ref(0))
-
-        function (interaction::TestInteraction)(dv, v_system, u_system, v_neighbor,
+        function test_interaction(dv, v_system, u_system, v_neighbor,
                                                 u_neighbor, system, neighbor, semi;
                                                 kwargs...)
-            interaction.calls[] += 1
-            dv[1, 1] += 50
+            dv[1, 1] += 10_000
             return dv
         end
 
