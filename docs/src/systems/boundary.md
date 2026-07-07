@@ -41,8 +41,10 @@ In the literature, this kind of boundary particles is referred to as
 The key detail of this boundary condition and the only difference between the boundary models
 in these references is the way the density and pressure of boundary particles is computed.
 
-Since boundary particles are treated like fluid particles, the pressure force on fluid particle
-``a`` due to boundary particle ``b`` is
+Since boundary particles are treated like fluid particles, their density and pressure enter
+the pressure-acceleration operator selected by the interacting fluid system. For the
+summation-density pressure operator, the pressure force on fluid particle ``a`` due to
+boundary particle ``b`` is
 ```math
 \bm{f}_{ab}^{p}
 = -m_a m_b \left( \frac{p_a}{\rho_a^2} + \frac{p_b}{\rho_b^2} \right)
@@ -133,7 +135,8 @@ reference pressure (the corresponding pressure to the reference density by the s
 #### 6. [`PressureMirroring`](@ref)
 
 Instead of calculating density and pressure for each boundary particle, we modify the
-pressure force,
+boundary pressure used in the pressure-acceleration operator. For the summation-density
+pressure operator, this corresponds to modifying the pressure force
 ```math
 \bm{F}_a^{p} = -m_a \sum_b m_b \left( \frac{p_a}{\rho_a^2} + \frac{p_b}{\rho_b^2} \right) \nabla_a W_{ab},
 ```
@@ -188,15 +191,15 @@ with
 \tilde{\bm{f}}_{ab} =
 \frac{K}{\beta^{n-1}} \frac{\bm{r}_{ab}}
 {\Vert \bm{r}_{ab} \Vert (\Vert \bm{r}_{ab} \Vert - d)}
-\Phi(\Vert \bm{r}_{ab} \Vert, h)\,
-\frac{2 m_b}{m_a + m_b},
+\Phi(\Vert \bm{r}_{ab} \Vert, h),
 ```
 where ``m_a`` and ``m_b`` are the masses of fluid particle ``a`` and boundary particle ``b``
 respectively, ``\bm{r}_{ab} = \bm{r}_a - \bm{r}_b`` is the difference of the coordinates of particles
 ``a`` and ``b``, ``d`` denotes the boundary particle spacing and ``n`` denotes the number of
 dimensions (see [Monaghan & Kajtar, 2009](@cite Monaghan2009), Equation (3.1) and [Valizadeh & Monaghan, 2015](@cite Valizadeh2015)).
-Note that the repulsive acceleration $\tilde{f}_{ab}$ does not depend on the masses of
-the boundary particles.
+The implemented repulsive acceleration ``\tilde{\bm{f}}_{ab}`` does not depend on the particle masses.
+The denominator ``\Vert \bm{r}_{ab} \Vert - d`` is clipped from below by ``d/100`` in the
+implementation to avoid the singularity at ``\Vert \bm{r}_{ab} \Vert = d``.
 Here, ``\Phi`` denotes the 1D Wendland C4 kernel, normalized to ``1.77`` for ``q=0``
 ([Monaghan & Kajtar, 2009](@cite Monaghan2009), Section 4), with ``\Phi(r, h) = w(r/h)`` and
 ```math
@@ -219,8 +222,8 @@ In [Monaghan & Kajtar (2009)](@cite Monaghan2009), a value of ``gD`` is used for
 where ``g`` is the gravitational acceleration and ``D`` is the depth of the fluid.
 
 The viscosity ``\Pi_{ab}`` is calculated according to the viscosity used in the
-simulation, where the density of the boundary particle if needed is assumed to be
-identical to the density of the fluid particle.
+simulation. When a boundary density is needed, it is computed from the boundary
+hydrodynamic mass and boundary particle spacing as ``m_b / d^n``.
 
 ### No-slip condition
 

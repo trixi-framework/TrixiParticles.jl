@@ -298,11 +298,12 @@ In the following table some values are shown for reference. The values marked wi
 
 ### [Akinci-based intra-particle force surface tension and wall adhesion model](@id akinci_ipf)
 
-The [Akinci](@cite Akinci2013) model divides surface tension into distinct force components:
+The [Akinci](@cite Akinci2013) model divides surface tension into distinct force components,
+which TrixiParticles.jl applies as acceleration contributions.
 
-#### Cohesion force
+#### Cohesion contribution
 
-The cohesion force captures the attraction between particles at the fluid interface, creating the effect of surface tension.
+The cohesion contribution captures the attraction between particles at the fluid interface, creating the effect of surface tension.
 It is defined by the distance between particles and the support radius ``h_c``, using a kernel-based formulation.
 
 **Key features:**
@@ -310,10 +311,11 @@ It is defined by the distance between particles and the support radius ``h_c``, 
 - Particles within half the support radius experience a repulsive force to prevent clustering.
 - Particles beyond half the radius but within the support radius experience an attractive force to simulate cohesion.
 
-The pairwise cohesion force is
+In the acceleration form used by TrixiParticles.jl, the pairwise cohesion contribution is
 
 ```math
-\bm{F}_{\text{cohesion}} = -\sigma m_b C(r) \frac{\bm{r}}{\Vert \bm{r} \Vert},
+\left.\frac{\mathrm{d}\bm{v}_a}{\mathrm{d} t}\right|_{ab}^{\text{cohesion}}
+= -\sigma m_b C(r) \frac{\bm{r}}{\Vert \bm{r} \Vert},
 ```
 
 where ``C(r)``, the cohesion kernel, is defined as:
@@ -327,29 +329,24 @@ C(r)=\frac{32}{\pi h_c^9}
 \end{cases}
 ```
 
-#### Surface area minimization force
+#### Surface area minimization contribution
 
-The surface area minimization force models curvature reduction and acts on the
-difference in surface normals:
-
-```math
-\bm{F}_{\text{curvature}} = -\sigma (\bm{n}_a - \bm{n}_b),
-```
-
-where ``\bm{n}_a`` and ``\bm{n}_b`` are the surface normals of the interacting particles.
-In acceleration form, TrixiParticles.jl uses the local smoothing length:
+The surface area minimization contribution models curvature reduction and acts on the
+difference in surface normals. TrixiParticles.jl uses the local smoothing length:
 ```math
 \left.\frac{\mathrm{d}\bm{v}_a}{\mathrm{d} t}\right|_{ab}^{\text{curvature}}
 = -\sigma h (\bm{n}_a - \bm{n}_b),
 ```
+where ``\bm{n}_a`` and ``\bm{n}_b`` are the surface normals of the interacting particles.
 
-#### Wall adhesion force
+#### Wall adhesion contribution
 
-This force models the interaction between fluid and solid boundaries, simulating adhesion effects at walls.
+This contribution models the interaction between fluid and solid boundaries, simulating adhesion effects at walls.
 It uses a custom kernel with a peak at 0.75 times the support radius:
 
 ```math
-\bm{F}_{\text{adhesion}} = -\beta m_b A(r) \frac{\bm{r}}{\Vert \bm{r} \Vert},
+\left.\frac{\mathrm{d}\bm{v}_a}{\mathrm{d} t}\right|_{ab}^{\text{adhesion}}
+= -\beta m_b A(r) \frac{\bm{r}}{\Vert \bm{r} \Vert},
 ```
 
 where ``A(r)`` is the adhesion kernel:
