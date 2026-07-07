@@ -270,6 +270,7 @@ else
 
     # Move the fin to the center of the tank.
     foot_pocket.coordinates .+= center
+    beam.coordinates .+= center
 
     fluid = setdiff(tank.fluid, union(foot_pocket, beam))
 end
