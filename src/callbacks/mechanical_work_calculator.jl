@@ -157,8 +157,8 @@ function (callback::MechanicalWorkCalculatorCallback)(integrator)
                                        callback.only_compute_force_on_fluid, callback.dv,
                                        v_ode, u_ode, semi, t, dt)
 
-    # Tell OrdinaryDiffEq that `u` has not been modified
-    u_modified!(integrator, false)
+    # This callback only processes results and does not change the result of the right-hand side.
+    derivative_discontinuity!(integrator, false)
 
     return integrator
 end
