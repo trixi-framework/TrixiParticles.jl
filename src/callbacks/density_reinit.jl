@@ -105,5 +105,5 @@ function (reinit_callback::DensityReinitializationCallback)(integrator)
 
     reinit_callback.last_t = integrator.t
 
-    u_modified!(integrator, true)
+    derivative_discontinuity!(integrator, true)
 end
