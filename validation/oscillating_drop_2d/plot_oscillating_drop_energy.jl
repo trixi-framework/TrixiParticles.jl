@@ -10,7 +10,7 @@ using TrixiParticles.JSON
 save_figures = true
 include_sim_results = true
 
-period = 4.567375
+period = 4.827343
 case_dir = joinpath(validation_dir(), "oscillating_drop_2d")
 
 function find_series(json_data, quantity)
