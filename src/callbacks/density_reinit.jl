@@ -27,8 +27,6 @@ function Base.show(io::IO, ::MIME"text/plain",
 end
 
 """
-    DensityReinitializationCallback(system; interval::Integer=0, dt=0.0,
-                                    reinit_initial_solution=true)
     DensityReinitializationCallback(system, semi; interval::Integer=0, dt=0.0,
                                     reinit_initial_solution=true)
 
@@ -37,8 +35,6 @@ Callback to reinitialize the density field when using [`ContinuityDensity`](@ref
 Pass `system` and the [`Semidiscretization`](@ref) containing it. The callback stores
 the system index and uses the corresponding system from the integrator semidiscretization
 at runtime, which remains valid if [`semidiscretize`](@ref) replaces systems internally.
-The one-argument constructor is retained for compatibility and reinitializes all eligible
-systems in the integrator semidiscretization.
 
 # Keywords
 - `interval=0`: Reinitialize the density every `interval` time steps.
@@ -55,13 +51,6 @@ function DensityReinitializationCallback(system, semi; interval::Integer=0, dt=0
 
     return density_reinitialization_callback(system_index, interval, dt,
                                              reinit_initial_solution)
-end
-
-function DensityReinitializationCallback(system; interval::Integer=0, dt=0.0,
-                                         reinit_initial_solution=true)
-    check_density_reinit_system(system)
-
-    return density_reinitialization_callback(0, interval, dt, reinit_initial_solution)
 end
 
 function density_reinitialization_callback(system_index, interval, dt,
@@ -89,8 +78,7 @@ end
 
 function initialize_reinit_cb!(cb::DensityReinitializationCallback, u, t, integrator)
     semi = integrator.p.semi
-    reinitialize_all_systems(cb) ||
-        check_density_reinit_system(current_reinit_system(cb.system_index, semi))
+    check_density_reinit_system(current_reinit_system(cb.system_index, semi))
 
     if cb.reinit_initial_solution
         # Update systems to compute quantities like density and pressure.
@@ -139,11 +127,6 @@ end
 
 function reinitialize_density!(reinit_callback::DensityReinitializationCallback,
                                vu_ode, semi)
-    if reinitialize_all_systems(reinit_callback)
-        reinit_density!(vu_ode, semi)
-        return reinit_callback
-    end
-
     v_ode, u_ode = vu_ode.x
 
     particle_system = current_reinit_system(reinit_callback.system_index, semi)
@@ -156,8 +139,6 @@ function reinitialize_density!(reinit_callback::DensityReinitializationCallback,
 
     return reinit_callback
 end
-
-reinitialize_all_systems(reinit_callback) = iszero(reinit_callback.system_index)
 
 function current_reinit_system(system_index, semi)
     if !(1 <= system_index <= length(semi.systems))

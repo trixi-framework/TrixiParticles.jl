@@ -108,22 +108,6 @@
         @test density_reinit_calls == [:fluid1]
     end
 
-    @testset verbose=true "legacy constructor" begin
-        empty!(density_reinit_calls)
-
-        system1 = MockDensityReinitSystem(nothing, :fluid1)
-        system2 = MockDensityReinitSystem(nothing, :fluid2)
-        vu_ode = (; x=(:v_ode, :u_ode))
-        semi = (; systems=(system1, system2))
-        callback = DensityReinitializationCallback(system1; interval=1).affect!
-
-        @test callback.system_index == 0
-
-        TrixiParticles.reinitialize_density!(callback, vu_ode, semi)
-
-        @test density_reinit_calls == [:fluid1, :fluid2]
-    end
-
     @testset verbose=true "selected semidiscretized system" begin
         empty!(density_reinit_calls)
 
@@ -147,7 +131,7 @@
                                                                         (; systems=()))
     end
 
-    @testset verbose=true "selected replaced semidiscretization" begin
+    @testset verbose=true "semidiscretization index lookup and validation" begin
         coordinates1 = [0.0 0.1
                         0.0 0.0]
         coordinates2 = [0.3 0.4
@@ -172,6 +156,9 @@
         semi = Semidiscretization(system1, system2; neighborhood_search=nothing)
         ode = semidiscretize(semi, (0.0, 1.0))
 
+        # `semidiscretize` can replace systems with runtime copies. The callback must
+        # therefore resolve its stored index against the integrator semidiscretization
+        # instead of closing over the original system object.
         semi_runtime = ode.p.semi
         replacement_systems = deepcopy(semi_runtime.systems)
         semi_replaced = TrixiParticles.Semidiscretization(replacement_systems,
@@ -185,6 +172,8 @@
         v_ode, u_ode = vu_ode.x
         TrixiParticles.update_nhs!(semi_replaced, u_ode)
 
+        # Use distinct densities to verify that the callback updates only
+        # the selected runtime system at the stored index.
         v1 = TrixiParticles.wrap_v(v_ode, replacement_systems[1], semi_replaced)
         v2 = TrixiParticles.wrap_v(v_ode, replacement_systems[2], semi_replaced)
         v1[end, :] .= -1.0
@@ -198,20 +187,15 @@
         @test all(==(-1.0), v1[end, :])
         @test all(isfinite, v2[end, :])
         @test !all(==(-2.0), v2[end, :])
-    end
 
-    @testset verbose=true "system validation" begin
         empty!(density_reinit_calls)
 
         system = MockDensityReinitSystem(nothing, :fluid)
         semi = (; systems=(system,))
         other_semi = (; systems=(MockDensityReinitSystem(nothing, :other_fluid),))
 
+        # Constructor validation catches invalid systems before an index is stored.
         @test_throws MethodError DensityReinitializationCallback(; interval=1)
-        @test DensityReinitializationCallback(system; interval=1).affect!.system_index == 0
-        @test_throws ArgumentError DensityReinitializationCallback(MockDensityReinitSystem(SummationDensity(),
-                                                                                           :fluid);
-                                                                   interval=1)
         @test_throws ArgumentError DensityReinitializationCallback(MockDensityReinitSystem(SummationDensity(),
                                                                                            :fluid),
                                                                    semi;
@@ -225,6 +209,8 @@
         callback = DensityReinitializationCallback(system, semi; interval=1).affect!
         vu_ode = (; x=(:v_ode, :u_ode))
 
+        # Runtime validation catches a callback whose stored index points at an
+        # incompatible system in the integrator semidiscretization.
         @test_throws ArgumentError TrixiParticles.reinitialize_density!(callback, vu_ode,
                                                                         (;
                                                                          systems=(MockNoDensityReinitSystem(:boundary),)))
