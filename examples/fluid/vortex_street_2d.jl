@@ -102,6 +102,8 @@ fluid_system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel, smoothing_le
 # ==== Open Boundary
 open_boundary_model = BoundaryModelMirroringTafuni(; mirror_method=ZerothOrderMirroring())
 
+# Note that we use bidirectional flow for both the inlet and outlet.
+# True inflow and outflow zones are only necessary for the Lastiwka model.
 face_in = ([0.0, 0.0], [0.0, domain_size[2]])
 inflow = BoundaryZone(; boundary_face=face_in, face_normal=flow_direction,
                       open_boundary_layers, density=fluid_density, particle_spacing,
