@@ -184,7 +184,7 @@ end
 end
 
 """
-    semidiscretize(semi, tspan; reset_threads=true)
+    semidiscretize(semi, tspan; reset_threads=true, restart_with=nothing)
 
 Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
 
@@ -193,6 +193,14 @@ Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
 - `tspan`: The time span over which the simulation will be run.
 
 # Keywords
+- `restart_with`: Can be used to restart the simulation from VTK solution files (see [`SolutionSavingCallback`](@ref)).
+  This can be either `nothing` (default, no restart) or a `Tuple` of filenames,
+  one for each system in the [`Semidiscretization`](@ref).
+  The order of the filenames must match the order of the systems in the [`Semidiscretization`](@ref).
+  Note that `semidiscretize` replaces the initial time (`tspan[1]`) with the timestamp read
+  from the VTK files. If the user-provided `tspan[1]` does not match the restart time,
+  it is adjusted and an info message is logged. If multiple files are provided, their
+  timestamps must match.
 - `reset_threads`: A boolean flag to reset Polyester.jl threads before the simulation (default: `true`).
   After an error within a threaded loop, threading might be disabled. Resetting the threads before the simulation
   ensures that threading is enabled again for the simulation.
@@ -219,8 +227,15 @@ timespan: (0.0, 1.0)
 u0: ([...], [...]) *this line is ignored by filter*
 ```
 """
-function semidiscretize(semi, tspan; reset_threads=true)
+function semidiscretize(semi, tspan; reset_threads=true, restart_with=nothing)
     (; systems) = semi
+
+    if restart_with isa String
+        restart_with = (restart_with,)
+    elseif !isnothing(restart_with) && !(restart_with isa NTuple{<:Any, String})
+        throw(ArgumentError("`restart_with` must be `nothing`, a string, or a tuple of strings, " *
+                            "got $(typeof(restart_with))"))
+    end
 
     # Check that all systems have the same eltype
     first_system = first(systems)
@@ -267,14 +282,11 @@ function semidiscretize(semi, tspan; reset_threads=true)
     end
 
     # Set initial condition
-    foreach_system_wrapped(semi, v0_ode, u0_ode) do system, v0_system, u0_system
-        write_u0!(u0_system, system)
-        write_v0!(v0_system, system)
-    end
+    set_initial_conditions!(v0_ode, u0_ode, semi, restart_with)
 
     # TODO initialize after adapting to the GPU.
     # Requires https://github.com/trixi-framework/PointNeighbors.jl/pull/86.
-    initialize_neighborhood_searches!(semi)
+    initialize_neighborhood_searches!(semi, u0_ode, restart_with)
 
     if semi.parallelization_backend isa KernelAbstractions.GPU
         # Convert all arrays in the systems to the correct array type.
@@ -304,10 +316,7 @@ function semidiscretize(semi, tspan; reset_threads=true)
     end
 
     # Initialize all particle systems
-    foreach_system(semi_new) do system
-        # Initialize this system
-        initialize!(system, semi_new)
-    end
+    initialize!(semi_new, restart_with)
 
     # Reset callback flag that will be set by the `UpdateCallback`
     semi_new.update_callback_used[] = false
@@ -318,7 +327,27 @@ function semidiscretize(semi, tspan; reset_threads=true)
     # here, since we cannot change `p` from within the callback (only its contents).
     p = @NamedTuple{semi::typeof(semi_new), split_integration_data::Any}((semi_new,
                                                                           nothing))
-    return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode, tspan, p)
+
+    return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode,
+                               time_span(tspan, restart_with), p)
+end
+
+function set_initial_conditions!(v0_ode, u0_ode, semi, restart_with::Nothing)
+    foreach_system_wrapped(semi, v0_ode, u0_ode) do system, v0_system, u0_system
+        write_u0!(u0_system, system)
+        write_v0!(v0_system, system)
+    end
+end
+
+time_span(tspan, restart_with::Nothing) = tspan
+
+function initialize!(semi::Semidiscretization, restart_with::Nothing)
+    foreach_system(semi) do system
+        # Initialize this system
+        initialize!(system, semi)
+    end
+
+    return semi
 end
 
 """
