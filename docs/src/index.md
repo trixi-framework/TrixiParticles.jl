@@ -1,6 +1,7 @@
 # TrixiParticles.jl
 
-**TrixiParticles.jl** is a high-performance simulation framework for particle-based methods in complex multiphysics applications. It combines an accessible user interface with an extensible architecture for developing new methods, while also providing GPU-accelerated execution.
+**TrixiParticles.jl** is a high-performance numerical simulation framework for particle-based methods in complex multiphysics applications.
+It combines an accessible user interface with an extensible architecture for developing new methods, while offering high performance on both CPU and GPU.
 
 TrixiParticles.jl focuses on the following use cases:
 
@@ -15,8 +16,8 @@ Its main features include:
   - Methods: Weakly Compressible Smoothed Particle Hydrodynamics (WCSPH), Entropically Damped Artificial Compressibility (EDAC), Implicit Incompressible Smoothed Particle Hydrodynamics (IISPH)
   - Models: Surface Tension, Open Boundaries
 - Structural mechanics
-  - Methods: Total Lagrangian SPH (TLSPH), Discrete Element Method (DEM)
-- Fluid-Structure Interaction
+  - Methods: Total Lagrangian SPH (TLSPH), Discrete Element Method (DEM), Rigid Body Dynamics (RBD)
+- Fluid-Structure Interaction with elastic structures and rigid bodies
 - Particle sampling of complex geometries from `.stl`, `.asc`, and `.dxf` files
 - Output formats:
   - VTK
