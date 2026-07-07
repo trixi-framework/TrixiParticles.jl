@@ -131,7 +131,7 @@
                                                                         (; systems=()))
     end
 
-    @testset verbose=true "semidiscretization index lookup and validation" begin
+    @testset verbose=true "semidiscretization index lookup" begin
         coordinates1 = [0.0 0.1
                         0.0 0.0]
         coordinates2 = [0.3 0.4
