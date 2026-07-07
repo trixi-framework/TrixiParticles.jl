@@ -16,11 +16,6 @@ Pages = [joinpath("schemes", "boundary", "prescribed_motion.jl")]
 
 # [Boundary Models](@id boundary_models)
 
-!!! note
-    The pairwise interaction terms below are written in force form, following the SPH literature.
-    TrixiParticles.jl applies the corresponding accelerations internally. Where the implemented
-    boundary discretization differs from the literature formula, both forms are stated explicitly.
-
 ## Dummy Particles
 
 Boundaries modeled as dummy particles, which are treated like fluid particles,
@@ -46,8 +41,8 @@ In the literature, this kind of boundary particles is referred to as
 The key detail of this boundary condition and the only difference between the boundary models
 in these references is the way the density and pressure of boundary particles is computed.
 
-For the standard summation-density pressure force, the force on fluid particle ``a``
-due to boundary particle ``b`` is
+Since boundary particles are treated like fluid particles, the pressure force on fluid particle
+``a`` due to boundary particle ``b`` is
 ```math
 \bm{f}_{ab}^{p}
 = -m_a m_b \left( \frac{p_a}{\rho_a^2} + \frac{p_b}{\rho_b^2} \right)
@@ -107,7 +102,7 @@ where the sum is over all fluid particles, ``\rho_f`` and ``p_f`` denote the den
 
 #### 2. [`BernoulliPressureExtrapolation`](@ref)
 Identical to the pressure ``p_b`` calculated via [`AdamiPressureExtrapolation`](@ref),
-but it adds an additional dynamic pressure term:
+but with an added dynamic pressure term:
 ```math
 p_b = \frac{\sum_f (p_f + p_{f,\mathrm{dyn}} + \rho_f (\bm{g} - \bm{a}_b) \cdot \bm{r}_{bf}) W(\Vert r_{bf} \Vert, h)}{\sum_f W(\Vert r_{bf} \Vert, h)},
 ```
@@ -119,8 +114,8 @@ p_{f,\mathrm{dyn}} = \frac{1}{2} \, \text{factor} \, \rho_f
 \right)^2,
 ```
 where ``\bm{v}_f`` is the fluid velocity and ``\bm{v}_b`` is the boundary velocity.
-This adjustment provides a higher boundary pressure for bodies moving with a relative velocity to the fluid to prevent penetration.
-This modification is original and not derived from any literature source.
+This implementation-specific term raises the boundary pressure based on the normal
+component of the relative boundary-fluid velocity and is not taken from a literature formula.
 
 ```@docs
     BernoulliPressureExtrapolation
@@ -182,8 +177,8 @@ condition is applied.
 
 ## Repulsive Particles
 
-Boundaries modeled as boundary particles which exert repulsive interactions on the fluid particles ([Monaghan, Kajtar, 2009](@cite Monaghan2009)).
-The literature force on fluid particle ``a`` due to boundary particle ``b`` is
+Boundaries modeled as boundary particles which exert forces on the fluid particles ([Monaghan, Kajtar, 2009](@cite Monaghan2009)).
+The force on fluid particle ``a`` due to boundary particle ``b`` is
 ```math
 \bm{f}_{ab} = m_a \left(\tilde{\bm{f}}_{ab} - m_b \Pi_{ab}
 \nabla_{r_a} W(\Vert r_a - r_b \Vert, h)\right)

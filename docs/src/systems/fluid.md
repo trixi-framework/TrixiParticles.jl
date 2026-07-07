@@ -4,12 +4,6 @@ Currently available fluid methods are the [weakly compressible SPH method](@ref 
 [entropically damped artificial compressibility for SPH](@ref edac).
 This page lists models and techniques that apply to both of these methods.
 
-!!! note
-    The formulas on this page follow the force notation commonly used in the SPH literature.
-    TrixiParticles.jl usually evaluates the corresponding acceleration contributions internally.
-    Whenever the implemented discretization differs from the literature formula, both forms are
-    stated explicitly.
-
 ## [Viscosity](@id viscosity_sph)
 
 Viscosity is a critical physical property governing momentum diffusion within a fluid.
@@ -61,7 +55,7 @@ by Balsara ([Balsara1995](@cite)) or Morris ([Morris1997](@cite)).
 
 ##### Mathematical Formulation
 
-The implemented acceleration contribution from particle ``b`` to particle ``a`` is
+The acceleration contribution from particle ``b`` to particle ``a`` is
 
 ```math
 \left.\frac{\mathrm{d}\bm{v}_a}{\mathrm{d}t}\right|_{ab}^{\text{AV}} =
@@ -249,12 +243,7 @@ where:
 - ``\rho_b`` is the density of particle ``b``,
 - ``\nabla_a W_{ab}`` is the gradient of the smoothing kernel ``W_{ab}`` with respect to particle ``a``.
 
-Implementation note: for the single-fluid surface-normal calculation in TrixiParticles.jl,
-this reduces to
-```math
-\bm{n}_a = \sum_b m_b \frac{1}{\rho_b} \nabla_a W_{ab},
-```
-i.e. effectively ``c_b = 1`` for neighboring fluid particles.
+For single-fluid surface-normal calculations, ``c_b = 1`` for neighboring fluid particles.
 
 #### Normalization of surface normals
 
@@ -348,15 +337,11 @@ difference in surface normals:
 ```
 
 where ``\bm{n}_a`` and ``\bm{n}_b`` are the surface normals of the interacting particles.
-Implementation note: TrixiParticles.jl uses
+In acceleration form, TrixiParticles.jl uses the local smoothing length:
 ```math
 \left.\frac{\mathrm{d}\bm{v}_a}{\mathrm{d} t}\right|_{ab}^{\text{curvature}}
 = -\sigma h (\bm{n}_a - \bm{n}_b),
 ```
-which uses the same normal-difference direction but scales the magnitude with the
-local smoothing length ``h``. For constant ``h``, this factor can be absorbed into
-the coefficient ``\sigma``; for variable smoothing lengths, it makes the curvature
-contribution depend on the local kernel support.
 
 #### Wall adhesion force
 
@@ -433,13 +418,11 @@ This divergence can be computed numerically in the SPH framework as
 = m_a \sum_b \frac{m_b}{\rho_a \rho_b} (\bm{S}_a + \bm{S}_b) \nabla_a W_{ab}.
 ```
 
-Implementation note: TrixiParticles.jl evaluates the corresponding acceleration and uses
-the stabilized stress tensor
+TrixiParticles.jl stores ``\sigma`` outside the tensor and uses the stabilized tensor
 ```math
 \bm{S}_a^{\text{impl}}
 = \delta_{s,a} (I - \hat{\bm{n}}_a \otimes \hat{\bm{n}}_a) - \delta_{s,\max} I,
 ```
-with the factor ``\sigma`` applied outside the pairwise sum.
 
 #### Advantages and limitations
 
