@@ -25,25 +25,15 @@ fluid_particle_spacing = 0.05
 
 # ==========================================================================================
 # ==== Experiment Setup
-period = 4.567375
 n_periods = 12
-tspan = (0.0, n_periods * period)
-
-fluid_density = 1000.0
-sound_speed = 10.0
-
-# The compressible energy diagnostic below uses the closed form for the linear equation
-# of state used in the paper.
-state_equation = StateEquationCole(; sound_speed, exponent=1,
-                                   reference_density=fluid_density)
 
 # The paper's energy balance is for the inviscid oscillating drop with density diffusion.
 viscosity = nothing
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "oscillating_drop_2d.jl");
-              fluid_particle_spacing, tspan, fluid_density, sound_speed,
-              state_equation, viscosity, #density_diffusion=nothing,
-              sol=nothing, error_A=nothing)
+              fluid_particle_spacing, n_periods, sigma=1.0,
+              viscosity, #density_diffusion=nothing,
+              sol=nothing, error_A=nothing, parallelization_backend=PolyesterBackend())
 
 formatted_spacing = replace(@sprintf("%.4f", fluid_particle_spacing), "." => "p")
 filename = "validation_result_oscillating_drop_2d_dx_$formatted_spacing"
@@ -53,7 +43,7 @@ q_delta = DeltaSPHHeat()
 postprocess_callback = PostprocessCallback(; output_directory="out",
                                            filename,
                                            write_file_interval=1000,
-                                           interval=1,
+                                           interval=10,
                                            kinetic_energy,
                                            potential_energy,
                                            compressible_energy,
@@ -63,9 +53,10 @@ postprocess_callback = PostprocessCallback(; output_directory="out",
 info_callback = InfoCallback(interval=500)
 callbacks = CallbackSet(info_callback, postprocess_callback)
 
-sol = solve(ode, RDPK3SpFSAL49(),
-            abstol=1e-7,
-            reltol=1e-4,
-            save_everystep=false, callback=callbacks)
+
+time_integration_scheme = CarpenterKennedy2N54(williamson_condition=false)
+sol = solve(ode, time_integration_scheme,
+            dt=1e-3,
+            save_everystep=false, callback=callbacks);
 
 println("Oscillating drop energy validation written to out/$filename.json")
