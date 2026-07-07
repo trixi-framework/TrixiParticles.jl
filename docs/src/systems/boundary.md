@@ -106,14 +106,17 @@ where the sum is over all fluid particles, ``\rho_f`` and ``p_f`` denote the den
 ```
 
 #### 2. [`BernoulliPressureExtrapolation`](@ref)
-Identical to the pressure ``p_b`` calculated via [`AdamiPressureExtrapolation`](@ref), but it adds an additional dynamic pressure term. For moving wall boundaries, the implementation uses
+Identical to the pressure ``p_b`` calculated via [`AdamiPressureExtrapolation`](@ref),
+but it adds an additional dynamic pressure term:
 ```math
 p_b = \frac{\sum_f (p_f + p_{f,\mathrm{dyn}} + \rho_f (\bm{g} - \bm{a}_b) \cdot \bm{r}_{bf}) W(\Vert r_{bf} \Vert, h)}{\sum_f W(\Vert r_{bf} \Vert, h)},
 ```
 with
 ```math
 p_{f,\mathrm{dyn}} = \frac{1}{2} \, \text{factor} \, \rho_f
-\frac{\left((\bm{v}_b - \bm{v}_f) \cdot \bm{r}_{bf}\right)^2}{\Vert \bm{r}_{bf} \Vert},
+\left(
+\frac{(\bm{v}_b - \bm{v}_f) \cdot \bm{r}_{bf}}{\Vert \bm{r}_{bf} \Vert}
+\right)^2,
 ```
 where ``\bm{v}_f`` is the fluid velocity and ``\bm{v}_b`` is the boundary velocity.
 This adjustment provides a higher boundary pressure for bodies moving with a relative velocity to the fluid to prevent penetration.

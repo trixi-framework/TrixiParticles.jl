@@ -387,7 +387,7 @@ However,  the off-diagonal term ``\sum_{j \neq i} a_{ij} p_j`` in the relaxed Ja
 changes slightly.
 For pressure boundaries it takes the form
 ```math
-\sum_{j \neq i} a_{ij} p_j = \sum_f m_f \left( \sum_k d_{ik} p_k - d_{ff} p_f - \sum_{k \neq f} d_{fk} p_k \right) \cdot \nabla W_{if}
+\sum_{j \neq i} a_{ij} p_j = \sum_f m_f \left( \sum_k d_{ik} p_k - d_{ff} p_f - \sum_{k \neq i} d_{fk} p_k \right) \cdot \nabla W_{if}
 + \sum_b m_b \left( \sum_k d_{ik} p_k  \right) \cdot \nabla W_{ib},
 ```
 where ``k`` represents all neighboring particles of ``i`` (both fluid and boundary).

@@ -61,22 +61,19 @@ by Balsara ([Balsara1995](@cite)) or Morris ([Morris1997](@cite)).
 
 ##### Mathematical Formulation
 
-The force exerted by particle ``b`` on particle ``a`` due to artificial viscosity is given by
+The implemented acceleration contribution from particle ``b`` to particle ``a`` is
 
 ```math
-\bm{F}_{ab}^{\text{AV}} = - m_a m_b \Pi_{ab} \nabla_a W_{ab}.
+\left.\frac{\mathrm{d}\bm{v}_a}{\mathrm{d}t}\right|_{ab}^{\text{AV}} =
+\begin{cases}
+    m_b \frac{\alpha c \mu_{ab} + \beta \mu_{ab}^2}{\bar{\rho}_{ab}}
+    \nabla_a W_{ab}, & \text{if } \bm{v}_{ab} \cdot \bm{r}_{ab} < 0, \\
+    0, & \text{otherwise}.
+\end{cases}
 ```
 
 where:
 
-- ``\Pi_{ab}`` is the artificial viscosity term defined as:
-  ```math
-  \Pi_{ab} =
-  \begin{cases}
-      -\frac{\alpha c \mu_{ab} + \beta \mu_{ab}^2}{\bar{\rho}_{ab}} & \text{if } \mathbf{v}_{ab} \cdot \mathbf{r}_{ab} < 0, \\
-      0 & \text{otherwise}
-  \end{cases}
-  ```
 - ``\alpha`` and ``\beta`` are viscosity parameters,
 - ``c`` is the local speed of sound,
 - ``\bar{\rho}_{ab}`` is the arithmetic mean of the densities of particles ``a`` and ``b``.

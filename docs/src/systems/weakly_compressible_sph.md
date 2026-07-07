@@ -52,10 +52,11 @@ pressure field. It is highly recommended to use density diffusion when using WCS
 ### Formulation
 
 All density diffusion terms extend the continuity equation (see [`ContinuityDensity`](@ref))
-by an additional term. In the literature, this is typically written for a fixed smoothing
-length ``h`` as
+by an additional term. With the continuity formulation used in TrixiParticles.jl,
+this is written for a fixed smoothing length ``h`` as
 ```math
-\frac{\mathrm{d}\rho_a}{\mathrm{d}t} = \sum_{b} m_b v_{ab} \cdot \nabla W_{ab}
+\frac{\mathrm{d}\rho_a}{\mathrm{d}t} =
+    \sum_{b} m_b \frac{\rho_a}{\rho_b} v_{ab} \cdot \nabla W_{ab}
     + \delta h c \sum_{b} V_b \psi_{ab} \cdot \nabla W_{ab},
 ```
 where ``V_b = m_b / \rho_b`` is the volume of particle ``b`` and ``\psi_{ab}`` depends on
@@ -66,7 +67,8 @@ difference of the coordinates, ``v_{ab} = v_a - v_b`` of the velocities of parti
 ``a`` and ``b``. When particle-wise smoothing lengths are used, the corresponding
 pairwise form is
 ```math
-\frac{\mathrm{d}\rho_a}{\mathrm{d}t} = \sum_{b} m_b v_{ab} \cdot \nabla W_{ab}
+\frac{\mathrm{d}\rho_a}{\mathrm{d}t} =
+    \sum_{b} m_b \frac{\rho_a}{\rho_b} v_{ab} \cdot \nabla W_{ab}
     + \delta c \sum_{b} \bar{h}_{ab} V_b \psi_{ab} \cdot \nabla W_{ab},
 ```
 with ``\bar{h}_{ab} = \frac{1}{2}(h_a + h_b)``. TrixiParticles.jl uses this pairwise
@@ -138,6 +140,9 @@ in such simulations.
 ### Mathematical formulation
 
 We use the following formulation by [Sun et al. (2018)](@cite Sun2018).
+The relation ``\text{CFL} \cdot \text{Ma} = \Delta t \, v_\text{max} / h``
+is stated there on page 29, immediately above Equation 9, and gives the
+dimensional form below.
 After each time step, a correction term ``\delta \bm{r}_a`` is added to the position ``\bm{r}_a``
 of particle ``a``, which is given by
 ```math
@@ -162,15 +167,16 @@ In TrixiParticles.jl, the same correction is applied through a shifting velocity
 ```
 with
 ```math
-\delta \bm{v}_a = - v_\text{max} \frac{(2h)^2}{2\Delta x}
+\delta \bm{v}_a = - v_* \frac{(2h)^2}{2\Delta x}
     \sum_b \left( 1 + \frac{2}{10} \left( \frac{W_{ab}}{W(\Delta x)} \right)^4 \right)
     \frac{m_b}{\rho_a + \rho_b} \nabla_a W_{ab}.
 ```
+Here, ``v_*`` is the velocity scale configured by the shifting technique. It is either
+``v_\text{factor}\max_a \Vert \bm{v}_a \Vert`` when `v_max_factor` is used, or
+``v_\text{factor} c`` when `sound_speed_factor` is used.
 This corresponds to the same PST idea, but with the commonly used constants fixed to
 ``R = 0.2`` and ``n = 4``. The prefactor is written in a form that keeps the magnitude of
-the shifting correction consistent when the smoothing-length factor changes. In particular,
-``\text{CFL} \cdot \text{Ma}`` is replaced by ``\Delta t \, v_\text{max} / h``, as explained
-by [Sun et al. (2018)](@cite Sun2018) on page 29, immediately above Equation 9.
+the shifting correction consistent when the smoothing-length factor changes.
 
 The ``\delta``-SPH method (WCSPH with density diffusion) together with this formulation
 of PST is commonly referred to as ``\delta^+``-SPH.
