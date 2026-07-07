@@ -5,6 +5,8 @@ include("../validation_util.jl")
 using CairoMakie
 using Glob
 using TrixiParticles
+using TrixiParticles.CSV
+using TrixiParticles.DataFrames
 using TrixiParticles.JSON
 
 save_figures = true
@@ -58,6 +60,9 @@ compressible_relative = (compressible .- compressible_initial) ./ mechanical_ini
 q_delta_relative = -q_delta ./ mechanical_initial
 total_relative = (total .- total_initial) ./ mechanical_initial
 
+reference = CSV.read(joinpath(case_dir, "reference_antuono_2015.csv"), DataFrame;
+                     delim=';', normalizenames=true)
+
 fig = Figure(size=(1200, 650))
 ax = Axis(fig[1, 1],
           xlabel="t / T",
@@ -70,16 +75,25 @@ lines!(ax, t_over_period, total_relative;
 lines!(ax, t_over_period, compressible_relative;
        color=:purple, linewidth=2.5,
        label="(E_C - E_C0) / E_M0")
+lines!(ax, reference.t_T, reference.E_C;
+       color=:purple, linestyle=:dot, linewidth=2.5)
 lines!(ax, t_over_period, mechanical_relative;
-       color=:blue, linestyle=:dash, linewidth=2.5,
+       color=:blue, linewidth=2.5,
        label="E_M / E_M0 - 1")
+lines!(ax, reference.t_T, reference.E_M;
+       color=:blue, linestyle=:dot, linewidth=2.5)
 lines!(ax, t_over_period, q_delta_relative;
        color=:green, linewidth=2.5,
        label="-Q_delta / E_M0")
+lines!(ax, reference.t_T, reference.Q_delta;
+       color=:green, linestyle=:dot, linewidth=2.5)
+lines!(ax, [NaN], [NaN];
+       color=:black, linestyle=:dot, linewidth=2.5,
+       label="Antuono et al. 2015")
 
 xlims!(ax, 0, maximum(t_over_period))
 ylims!(ax, -0.018, 0.005)
-axislegend(ax; position=:rt)
+axislegend(ax; position=:lb)
 
 if save_figures
     output_file = "oscillating_drop_energy.svg"
