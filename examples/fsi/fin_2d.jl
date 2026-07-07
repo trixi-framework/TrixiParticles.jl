@@ -17,8 +17,14 @@ tspan = (0.0, 2.0)
 
 fin_length = 0.502
 fin_thickness = 30e-3
+blade_width = 19e-2
 real_modulus = 125e9
 poisson_ratio = 0.3
+real_modulus_foot_pocket = 50e6
+
+foot_pocket_width_at_right_end = 2e-2
+foot_pocket_full_width = 10e-2
+foot_pocket_width_ramp_length = 15e-2
 
 # Real blade thickness profile along the flexible blade:
 # x = 0 is the attachment to the foot pocket, x = 1 is the blade tip.
@@ -36,6 +42,24 @@ end
 # E_artificial * t_artificial^3 matches the real bending stiffness E_real * t_real^3.
 function artificial_modulus(real_modulus, real_thickness, artificial_thickness)
     return real_modulus * (real_thickness / artificial_thickness)^3
+end
+
+# The 2D model represents the blade width in the unmodeled third dimension. The
+# foot pocket is narrower than the 19 cm blade, so scale its modulus by the local
+# width ratio to preserve the correct out-of-plane integrated stiffness.
+function foot_pocket_width(distance_from_right_end)
+    ramp_coordinate = clamp(distance_from_right_end / foot_pocket_width_ramp_length,
+                            0.0, 1.0)
+    width_range = foot_pocket_full_width - foot_pocket_width_at_right_end
+    return foot_pocket_width_at_right_end +
+           ramp_coordinate * width_range
+end
+
+function foot_pocket_modulus(x, foot_pocket_right_end_x, blade_width,
+                             real_modulus_foot_pocket)
+    distance_from_right_end = foot_pocket_right_end_x - x
+    return foot_pocket_width(distance_from_right_end) / blade_width *
+           real_modulus_foot_pocket
 end
 
 # Scale density so rho_artificial * t_artificial keeps the same mass per blade area
@@ -79,6 +103,14 @@ shape_sampled = ComplexShape(geometry; particle_spacing, density=density,
                              grid_offset=center, point_in_geometry_algorithm)
 shape_sampled = TrixiParticles.@set shape_sampled.coordinates = Float64.(shape_sampled.coordinates)
 
+# These coordinates are before the final translation to the center position.
+foot_pocket_left_end_x = minimum(shape_sampled.coordinates[1, :])
+foot_pocket_right_end_x = maximum(shape_sampled.coordinates[1, :])
+
+# The foot pocket is modeled as a rigid structure on the left side,
+# and as an elastic structure on the right side.
+foot_pocket_rigid_elastic_split_x = (foot_pocket_left_end_x + foot_pocket_right_end_x) / 2
+
 # Beam and clamped particles
 length_clamp = round(Int, 0.15 / particle_spacing) * particle_spacing # m
 n_particles_per_dimension = (round(Int, (fin_length + length_clamp) / particle_spacing) + 2,# + n_particles_clamp_x,
@@ -90,9 +122,8 @@ n_particles_per_dimension = (round(Int, (fin_length + length_clamp) / particle_s
 beam = RectangularShape(particle_spacing, n_particles_per_dimension,
                         (-length_clamp, 0.0), density=density, place_on_shell=true)
 
-fixed_particles = setdiff(shape_sampled, beam)
-
-# structure = union(beam, fixed_particles)
+# Cut out the beam from the shape to avoid overlapping particles.
+foot_pocket = setdiff(shape_sampled, beam)
 
 # Make sure that the kernel support of fluid particles at a boundary is always fully sampled
 boundary_layers = 3
@@ -144,7 +175,7 @@ if packing
 
     background_pressure = 1.0
     smoothing_length_packing = 0.8 * particle_spacing
-    foot_packing_system = ParticlePackingSystem(fixed_particles; smoothing_length=smoothing_length_packing,
+    foot_packing_system = ParticlePackingSystem(foot_pocket; smoothing_length=smoothing_length_packing,
                                                 signed_distance_field=foot_sdf, background_pressure)
 
     fluid_packing_system = ParticlePackingSystem(boundary_packing; smoothing_length=smoothing_length_packing,
@@ -180,28 +211,29 @@ if packing
     packed_foot.coordinates .+= center
     beam.coordinates .+= center
 
-    # `union(packed_foot, beam)`, but when particles are too close together, keep the ones
-    # from `beam` instead of `packed_foot` to ensure that the blade doesn't have holes.
-    structure = union(setdiff(packed_foot, beam), beam)
+    # When particles are too close together, keep the ones from `beam`
+    # instead of `packed_foot` to ensure that the blade doesn't have holes.
+    foot_pocket = setdiff(packed_foot, beam)
+    structure = union(foot_pocket, beam)
     fluid = setdiff(tank.fluid, structure)
 
     # Pack the fluid against the fin and the tank boundary
+
     pack_window = TrixiParticles.Polygon(stack([
-                                                [0.15, 0.42],
-                                                [0.3, 0.42],
-                                                [0.44, 0.48],
-                                                [1.12, 0.48],
-                                                [1.12, 0.52],
-                                                [0.55, 0.52],
-                                                [0.5, 0.56],
-                                                [0.24, 0.6],
-                                                [0.15, 0.6],
-                                                [0.15, 0.42]
+                                                center .+ [-0.4, -0.08],
+                                                center .+ [-0.2, -0.08],
+                                                center .+ [-0.06, -0.02],
+                                                center .+ [0.62, -0.02],
+                                                center .+ [0.62, 0.02],
+                                                center .+ [0.05, 0.02],
+                                                center .+ [-0.1, 0.1],
+                                                center .+ [-0.4, 0.1],
+                                                center .+ [-0.4, -0.08]
                                             ]))
 
     # Then, we extract the particles that fall inside this window
     pack_fluid = intersect(fluid, pack_window)
-    # and those outside the window
+    # and those outside the window.
     fixed_fluid = setdiff(fluid, pack_fluid)
     fixed_union = union(fixed_fluid, structure)
 
@@ -224,7 +256,7 @@ if packing
     sol_packing = solve(ode_packing, RDPK3SpFSAL35();
                 save_everystep=false,
                 callback=CallbackSet(InfoCallback(interval=50),
-                                    #  SolutionSavingCallback(interval=50, prefix="packing"),
+                                     SolutionSavingCallback(interval=50, prefix="packing"),
                                     UpdateCallback()),
                 abstol=1e-8,
                 dtmax=1e-2)
@@ -232,11 +264,24 @@ if packing
     fluid = InitialCondition(sol_packing, fluid_packing_system, semi_packing)
     fluid = union(fluid, fixed_fluid)
 else
-    structure = union(fixed_particles, beam)
-    # Move the fin to the center of the tank
-    structure.coordinates .+= center
+    # When particles are too close together, keep the ones from `beam`
+    # instead of `packed_foot` to ensure that the blade doesn't have holes.
+    foot_pocket = setdiff(foot_pocket, beam)
 
-    fluid = setdiff(tank.fluid, structure)
+    # Move the fin to the center of the tank.
+    foot_pocket.coordinates .+= center
+
+    fluid = setdiff(tank.fluid, union(foot_pocket, beam))
+end
+
+# Foot-pocket reference points in the translated tank coordinates used by `structure`.
+foot_pocket_right_end_x += center[1]
+foot_pocket_rigid_elastic_split_x += center[1]
+
+function is_clamped_foot_pocket_particle(coordinates, particle,
+                                         foot_pocket_rigid_elastic_split_x)
+    x = coordinates[1, particle]
+    return x <= foot_pocket_rigid_elastic_split_x
 end
 
 # Convert particle x-positions to the relative blade coordinate used by `real_thickness`.
@@ -245,21 +290,36 @@ function normalized_blade_coordinate(coordinates, particle)
     return (coordinates[1, particle] - center[1]) / fin_length
 end
 
-real_thickness_structure = [real_thickness(normalized_blade_coordinate(structure.coordinates,
-                                                                       particle))
-                            for particle in 1:nparticles(structure)]
+real_thickness_beam = [real_thickness(normalized_blade_coordinate(beam.coordinates,
+                                                                  particle))
+                       for particle in 1:nparticles(beam)]
 
-modulus = [artificial_modulus(real_modulus, thickness, fin_thickness)
-           for thickness in real_thickness_structure]
+modulus_beam = [artificial_modulus(real_modulus, real_thickness, fin_thickness)
+                for real_thickness in real_thickness_beam]
+
+modulus_foot_pocket = [foot_pocket_modulus(foot_pocket.coordinates[1, particle],
+                                           foot_pocket_right_end_x, blade_width,
+                                           real_modulus_foot_pocket)
+                       for particle in 1:nparticles(foot_pocket)]
 
 # Update both density and mass based on the artificial thickness to ensure that
 # the structure has the same mass per blade area as the real fin,
 # while keeping the same bending stiffness.
-structure.density .= [artificial_density(real_density, thickness, fin_thickness)
-                      for thickness in real_thickness_structure]
-structure.mass .= structure.density .* particle_spacing^2
+beam.density .= [artificial_density(real_density, thickness, fin_thickness)
+                 for thickness in real_thickness_beam]
+beam.mass .= beam.density .* particle_spacing^2
 
-n_clamped_particles = nparticles(structure) - nparticles(beam)
+clamped_foot_pocket_particles = findall(particle -> is_clamped_foot_pocket_particle(foot_pocket.coordinates,
+                                                                                    particle,
+                                                                                    foot_pocket_rigid_elastic_split_x),
+                                        1:nparticles(foot_pocket))
+
+structure = union(foot_pocket, beam)
+
+# Make sure that no overlapping particles have been removed. This should've been
+# handled by the `setdiff` calls above.
+@assert nparticles(structure) == nparticles(foot_pocket) + nparticles(beam)
+modulus = vcat(modulus_foot_pocket, modulus_beam)
 
 # Movement function (parameters chosen to match video)
 frequency = 1.062 # Hz
@@ -298,7 +358,7 @@ boundary_model_structure = BoundaryModelDummyParticles(hydrodynamic_densites,
 viscosity_structure = ArtificialViscosityMonaghan(alpha=1.0)
 structure_system = TotalLagrangianSPHSystem(structure; smoothing_kernel, smoothing_length=smoothing_length_structure,
                                         young_modulus=modulus, poisson_ratio,
-                                        clamped_particles=1:n_clamped_particles,
+                                        clamped_particles=clamped_foot_pocket_particles,
                                         clamped_particles_motion=boundary_motion,
                                         boundary_model=boundary_model_structure,
                                         velocity_averaging=TrixiParticles.VelocityAveraging(time_constant=5e-4),
