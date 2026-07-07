@@ -97,7 +97,7 @@ makedocs(sitename="TrixiParticles.jl",
                  ],
                  "Preprocessing" => [
                      "Setting up a 2D simulation from geometry files" => joinpath("tutorials",
-                                                                                   "tut_2d_geometry.md"),
+                                                                                  "tut_2d_geometry.md"),
                      "Particle packing tutorial" => joinpath("tutorials",
                                                              "tut_packing.md")
                  ]
