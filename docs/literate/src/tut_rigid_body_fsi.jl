@@ -381,12 +381,12 @@ nothing # hide
 # ### Loading Geometries from Files
 #
 # Instead of using predefined shapes like `RectangularShape` or `SphereShape`, you can load
-# custom geometries from external files. For 2D, `TrixiParticles.jl` supports a simple
+# custom geometries from external files. For 2D, TrixiParticles.jl supports a simple
 # ASCII format with the extension `.asc`.
 #
 # An `.asc` file should contain a list of 2D coordinates, with x and y values separated by a space,
 # and one point per line. The points should form a closed polygon.
-# `TrixiParticles.jl` includes some example files in the `examples/preprocessing/data` directory.
+# TrixiParticles.jl includes some example files in the `examples/preprocessing/data` directory.
 #
 # Here is how you can load the `hexagon.asc` file from this directory, create a `ComplexShape` from it,
 # and then use it in a simulation.
@@ -432,7 +432,7 @@ nothing # hide
 #
 # You can find the `.asc` files used in this tutorial and other examples in the
 # [`examples/preprocessing/data`](https://github.com/trixi-framework/TrixiParticles.jl/blob/main/examples/preprocessing/data/)
-# directory of the `TrixiParticles.jl` repository.
+# directory of the TrixiParticles.jl repository.
 #
 # Some files can be found in examples/preprocessing/data.
 # To use them, you can use `pkgdir` as shown above, for example:
