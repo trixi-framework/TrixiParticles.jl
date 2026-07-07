@@ -8,7 +8,7 @@ The easiest way to start is to run one of the predefined example files.
 We will run the file `examples/fluid/hydrostatic_water_column_2d.jl`, which simulates a fluid resting in a rectangular tank.
 Since TrixiParticles.jl uses multithreading, you should start Julia with the flag `--threads auto` (or, e.g. `--threads 4` for 4 threads).
 
-In the Julia REPL, first load `TrixiParticles.jl`.
+In the Julia REPL, first load TrixiParticles.jl.
 ```jldoctest getting_started
 julia> using TrixiParticles
 ```
