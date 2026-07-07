@@ -92,7 +92,7 @@
         @test density_reinit_calls == [:fluid]
     end
 
-    @testset verbose=true "selected system" begin
+    @testset verbose=true "only selected systems are affected" begin
         empty!(density_reinit_calls)
 
         system1 = MockDensityReinitSystem(nothing, :fluid1)
