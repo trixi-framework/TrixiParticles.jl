@@ -168,10 +168,20 @@
     end
 
     @testset verbose=true "Interaction Matrix" begin
-        function test_interaction(dv, v_system, u_system, v_neighbor,
-                                  u_neighbor, system, neighbor, semi;
-                                  kwargs...)
-            dv[1, 1] += 10_000
+        # Mock custom interaction used as an `interaction_matrix` entry. The call counter
+        # verifies that split integration routes each ordered pair through the matrix.
+        struct TestInteraction
+            calls::Base.RefValue{Int}
+
+            TestInteraction() = new(Ref(0))
+        end
+
+        function (interaction::TestInteraction)(dv, v_system, u_system, v_neighbor,
+                                                u_neighbor, system, neighbor, semi;
+                                                kwargs...)
+            interaction.calls[] += 1
+            # Use a contribution distinct from the default mock `interact!` methods.
+            dv[1, 1] += 50
             return dv
         end
 
