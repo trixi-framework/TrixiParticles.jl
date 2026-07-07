@@ -43,6 +43,10 @@ function Base.show(io::IO, model::BoundaryModelMonaghanKajtar)
     print(io, ")")
 end
 
+@inline function density_calculator(model::BoundaryModelMonaghanKajtar)
+    return nothing
+end
+
 @inline function pressure_acceleration(particle_system,
                                        neighbor_system::Union{WallBoundarySystem{<:BoundaryModelMonaghanKajtar},
                                                               TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
