@@ -75,8 +75,7 @@ end
             current_pos_diff = convert.(eltype(system), current_pos_diff_)
             current_distance = norm(current_pos_diff)
 
-            # dv_particle[] += m_b * (pk1_rho2_a + pk1_rho2_b) * grad_kernel
-            dv_particle[] += m_b * (pk1_rho2_a * rho_a^2 + pk1_rho2_b * rho_b^2) / (rho_a * rho_b) * grad_kernel
+            dv_particle[] += m_b * (pk1_rho2_a + pk1_rho2_b) * grad_kernel
 
             @inbounds dv_penalty_force!(dv_particle, penalty_force, particle, neighbor,
                                         initial_pos_diff, initial_distance,
