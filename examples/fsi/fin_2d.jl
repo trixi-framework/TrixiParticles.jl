@@ -96,7 +96,7 @@ foot_pocket_right_end_x = maximum(shape_sampled.coordinates[1, :])
 
 # The foot pocket is modeled as a rigid structure on the left side,
 # and as an elastic structure on the right side.
-foot_pocket_rigid_elastic_split_x = (foot_pocket_left_end_x + foot_pocket_right_end_x) / 2
+foot_pocket_rigid_elastic_split_x = -0.27
 
 # Beam and clamped particles
 length_clamp = round(Int, 0.15 / particle_spacing) * particle_spacing # m
