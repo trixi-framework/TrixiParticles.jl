@@ -17,6 +17,21 @@ end
 
 @inline foreach_noalloc(func, collection::Tuple{}) = nothing
 
+# Pass invariant arguments through the unrolled loop without capturing them in another
+# closure. The two-collection overload below intentionally keeps its zipped iteration
+# semantics and passes `(element1, element2)` to `func`.
+@inline function foreach_noalloc(func, collection, arg1, arg2, args...)
+    element = first(collection)
+    remaining_collection = Base.tail(collection)
+
+    @inline func(element, arg1, arg2, args...)
+
+    # Process remaining collection
+    foreach_noalloc(func, remaining_collection, arg1, arg2, args...)
+end
+
+@inline foreach_noalloc(func, collection::Tuple{}, arg1, arg2, args...) = nothing
+
 @inline function foreach_noalloc(func, collection1, collection2)
     element1 = first(collection1)
     remaining_collection1 = Base.tail(collection1)

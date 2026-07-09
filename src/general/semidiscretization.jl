@@ -218,7 +218,15 @@ end
     return foreach_noalloc(f, semi.systems)
 end
 
+@inline function foreach_system(f, semi::Union{NamedTuple, Semidiscretization},
+                                arg1, arg2, args...)
+    return foreach_noalloc(f, semi.systems, arg1, arg2, args...)
+end
+
 @inline foreach_system(f, systems) = foreach_noalloc(f, systems)
+@inline foreach_system(f, systems, arg1, arg2, args...) = foreach_noalloc(f, systems,
+                                                                          arg1, arg2,
+                                                                          args...)
 
 # This is just for readability to loop over all systems with wrapped arrays.
 @inline function foreach_system_wrapped(f, semi::Union{NamedTuple, Semidiscretization},
@@ -228,10 +236,23 @@ end
 
 @inline function foreach_system_wrapped(f, _semi::Union{NamedTuple, Semidiscretization},
                                         v_ode, u_ode, semi_wrap)
-    foreach_system(semi_wrap) do system
-        @inline f(system, wrap_v(v_ode, system, semi_wrap),
-                  wrap_u(u_ode, system, semi_wrap))
-    end
+    return foreach_system(_foreach_system_wrapped, semi_wrap, f, semi_wrap, v_ode,
+                          u_ode)
+end
+
+# Keep the wrapped-system traversal as an explicit helper passed through `foreach_system`.
+# This avoids wrapping `foreach_system` in another closure while still keeping every
+# heterogeneous system type visible to inference at the call site.
+@inline function _foreach_system_wrapped(system, f, semi_wrap, v_ode, u_ode)
+    v = wrap_v(v_ode, system, semi_wrap)
+    u = wrap_u(u_ode, system, semi_wrap)
+
+    # This mirrors the explicit inline callback invocation used by `foreach_noalloc`.
+    # Without it, large do-block environments can allocate even though the tuple traversal
+    # itself is allocation-free.
+    @inline f(system, v, u)
+
+    return nothing
 end
 
 """
