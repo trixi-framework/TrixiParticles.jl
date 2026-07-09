@@ -212,7 +212,7 @@
             ]
             @test sol.retcode == ReturnCode.Success
             @test count_rhs_allocations(sol) == 0
-            v_ode, u_ode = sol[end].x
+            v_ode, u_ode = sol.u[end].x
             @test eltype(v_ode) == Float32
             @test eltype(u_ode) == Float64
         end
@@ -529,6 +529,15 @@
             r"└ @ TrixiParticles .*boundary_zones\.jl:\d+\n"
         ]
         @test fluid_system isa WeaklyCompressibleSPHSystem
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol) == 0
+    end
+
+    @trixi_testset "fluid/vortex_street_2d.jl" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "vortex_street_2d.jl"),
+                                         tspan=(0.0, 0.2))
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol) == 0
     end
