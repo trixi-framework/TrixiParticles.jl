@@ -20,7 +20,7 @@ fin_thickness = 30e-3
 blade_width = 19e-2
 real_modulus = 125e9
 poisson_ratio = 0.3
-real_modulus_foot_pocket = 50e6
+real_modulus_foot_pocket = 4e6
 
 foot_pocket_width_at_right_end = 2e-2
 foot_pocket_full_width = 10e-2
@@ -49,18 +49,13 @@ function foot_pocket_width(distance_from_right_end)
            ramp_coordinate * width_range
 end
 
-# Scale density so rho_artificial * t_artificial keeps the same mass per blade area
-# as rho_real * t_real.
-function artificial_density(real_density, real_thickness, artificial_thickness)
-    return real_density * real_thickness / artificial_thickness
-end
-
 fiber_volume_fraction = 0.6
 fiber_density = 1800.0
 epoxy_density = 1250.0
-real_density = fiber_volume_fraction * fiber_density +
-          (1 - fiber_volume_fraction) * epoxy_density
-density = real_density
+real_blade_density = fiber_volume_fraction * fiber_density +
+                     (1 - fiber_volume_fraction) * epoxy_density
+real_foot_pocket_density = 1000.0
+density = real_blade_density
 
 tank_size = (2.0, 1.5)
 center = (tank_size[2] / 2, tank_size[2] / 2)
@@ -330,11 +325,12 @@ function density_for_properties(x)
 
     # The 2D model represents the blade width. Scale the foot-pocket contribution
     # by its local out-of-plane width so the represented mass stays correct.
-    intended_real_thickness = blade_thickness +
-                              foot_pocket_width_ratio_for_properties(x) *
-                              foot_pocket_thickness
-    return artificial_density(real_density, intended_real_thickness,
-                              artificial_thickness)
+    blade_mass_per_area = real_blade_density * blade_thickness
+    foot_pocket_mass_per_area = real_foot_pocket_density *
+                                foot_pocket_width_ratio_for_properties(x) *
+                                foot_pocket_thickness
+
+    return (blade_mass_per_area + foot_pocket_mass_per_area) / artificial_thickness
 end
 
 function modulus_for_properties(x)
@@ -363,10 +359,10 @@ clamped_structure_particles = findall(particle -> is_clamped_structure_particle(
                                       1:nparticles(structure))
 
 # Movement function (parameters chosen to match video)
-frequency = 1.062 # Hz
+frequency = 1.06 # Hz
 amplitude = 0.28 # m
 rotation_deg = 30 # degrees
-rotation_phase_offset = 0.15 # periods
+rotation_phase_offset = 0.14 # periods
 translation_vector = SVector(0.0, amplitude)
 rotation_angle = rotation_deg * pi / 180
 
