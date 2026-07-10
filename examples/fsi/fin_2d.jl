@@ -361,7 +361,7 @@ clamped_structure_particles = findall(particle -> is_clamped_structure_particle(
 # Movement function (parameters chosen to match video)
 frequency = 1.06 # Hz
 amplitude = 0.28 # m
-rotation_deg = 30 # degrees
+rotation_deg = 28 # degrees
 rotation_phase_offset = 0.14 # periods
 translation_vector = SVector(0.0, amplitude)
 rotation_angle = rotation_deg * pi / 180
