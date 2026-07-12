@@ -413,7 +413,7 @@ fluid_system = WeaklyCompressibleSPHSystem(fluid; density_calculator=fluid_densi
                                            viscosity=viscosity_fluid,
                                            density_diffusion,
                                            shifting_technique=ParticleShiftingTechnique(sound_speed_factor=0.2, v_max_factor=0.0),
-                                           pressure_acceleration=tensile_instability_control,
+                                           pressure_acceleration=nothing,
                                            buffer_size=n_buffer_particles)
 
 # ==========================================================================================
