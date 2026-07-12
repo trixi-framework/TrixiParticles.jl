@@ -238,7 +238,7 @@ if packing
     sol_packing = solve(ode_packing, RDPK3SpFSAL35();
                 save_everystep=false,
                 callback=CallbackSet(InfoCallback(interval=50),
-                                     SolutionSavingCallback(interval=50, prefix="packing"),
+                                    #  SolutionSavingCallback(interval=50, prefix="packing"),
                                     UpdateCallback()),
                 abstol=1e-8,
                 dtmax=1e-2)
@@ -361,8 +361,8 @@ clamped_structure_particles = findall(particle -> is_clamped_structure_particle(
 # Movement function (parameters chosen to match video)
 frequency = 1.06 # Hz
 amplitude = 0.28 # m
-rotation_deg = 28 # degrees
-rotation_phase_offset = 0.14 # periods
+rotation_deg = 26 # degrees
+rotation_phase_offset = 0.13 # periods
 translation_vector = SVector(0.0, amplitude)
 rotation_angle = rotation_deg * pi / 180
 
