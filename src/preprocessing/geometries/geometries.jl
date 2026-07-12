@@ -53,7 +53,8 @@ function Base.intersect(initial_condition::InitialCondition,
     mass = initial_condition.mass[keep_indices]
     density = initial_condition.density[keep_indices]
     pressure = initial_condition.pressure[keep_indices]
-    normals = isnothing(initial_condition.normals) ? nothing : initial_condition.normals
+    normals = isnothing(initial_condition.normals) ? nothing :
+              initial_condition.normals[:, keep_indices]
 
     result = InitialCondition{ndims(initial_condition)}(coordinates, velocity, mass,
                                                         density, pressure,

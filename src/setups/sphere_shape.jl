@@ -125,7 +125,7 @@ function SphereShape(particle_spacing, radius, center_position, density;
     particles_not_in_cutout = map(!in_cutout, axes(coordinates, 2))
     coordinates = coordinates[:, particles_not_in_cutout]
 
-    normals = calculate_sphere_normals(coordinates, collect(center_position), radius,
+    normals = calculate_sphere_normals(coordinates, SVector{NDIMS}(center_position), radius,
                                        Val(NDIMS))
 
     return InitialCondition(; coordinates, velocity, mass, density, pressure,

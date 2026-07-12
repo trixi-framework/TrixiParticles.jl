@@ -1,6 +1,6 @@
 @doc raw"""
     InitialCondition(; coordinates, density, velocity=zeros(size(coordinates, 1)),
-                     mass=nothing, pressure=0.0, particle_spacing=-1.0)
+                     mass=nothing, pressure=0.0, particle_spacing=-1.0, normals=nothing)
 
 Struct to hold the initial configuration of the particles.
 
@@ -41,7 +41,11 @@ To add a rotational contribution to an existing initial condition, use
 - `particle_spacing`: The spacing between the particles. This is a scalar, as the spacing
                       is assumed to be uniform. This is only needed when using
                       set operations on the `InitialCondition` or for automatic mass calculation.
-
+- `normals`:    Either `nothing` (default) if surface normal vectors are not used, or an
+                array where the $i$-th column holds the surface normal vector of particle $i$.
+                Note that automatic computation of normal vectors is currently not supported
+                for all shapes; it is only available when using [`RectangularTank`](@ref)
+                and [`SphereShape`](@ref).
 
 # Examples
 ```jldoctest; output = false
@@ -132,7 +136,7 @@ function InitialCondition{NDIMS}(coordinates, velocity, mass, density,
     if n_particles == 0
         return InitialCondition(particle_spacing, coordinates, zeros(ELTYPE, NDIMS, 0),
                                 zeros(ELTYPE, 0), zeros(ELTYPE, 0), zeros(ELTYPE, 0),
-                                normals)
+                                zeros(ELTYPE, NDIMS, 0))
     end
 
     # SVector of coordinates to pass to functions.
@@ -204,10 +208,8 @@ function InitialCondition{NDIMS}(coordinates, velocity, mass, density,
         masses = mass_fun.(coordinates_svector)
     end
 
-    if !isnothing(normals)
-        if size(coordinates) != size(normals)
-            throw(ArgumentError("`coordinates` and `normals` must be of the same size"))
-        end
+    if !isnothing(normals) && size(coordinates) != size(normals)
+        throw(ArgumentError("`coordinates` and `normals` must be of the same size"))
     end
 
     return InitialCondition(particle_spacing, coordinates, ELTYPE.(velocities),
@@ -330,7 +332,7 @@ function Base.setdiff(initial_condition::InitialCondition, initial_conditions...
     mass = initial_condition.mass[valid_particles]
     density = initial_condition.density[valid_particles]
     pressure = initial_condition.pressure[valid_particles]
-    normals = isnothing(initial_condition.normals) ? nothing : initial_condition.normals
+    normals = isnothing(initial_condition.normals) ? nothing : initial_condition.normals[:, valid_particles]
 
     result = InitialCondition{ndims(ic)}(coordinates, velocity, mass, density, pressure,
                                          particle_spacing, normals)
@@ -463,6 +465,10 @@ function move_particles_to_end!(ic::InitialCondition, particle_ids_to_move)
     ic.mass .= ic.mass[permutation]
     ic.density .= ic.density[permutation]
     ic.pressure .= ic.pressure[permutation]
+
+    if !isnothing(ic.normals)
+        ic.normals .= ic.normals[:, permutation]
+    end
 
     return ic
 end
