@@ -81,6 +81,16 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                                               density_diffusion(fluid_system) : nothing)
     boundary_zones_ = filter(bz -> !isnothing(bz), boundary_zones)
 
+    if boundary_model isa BoundaryModelDynamicalPressureZhang &&
+       !isnothing(shifting_technique)
+        # When dynamical pressure is used with shifting, the shifting is ramped up until
+        # it reaches the full value at two compact supports away from the free surface
+        # of the boundary zone.
+        # In order to prevent discontinuities in the shifting velocity, the boundary zone
+        # must be wide enough to accommodate this ramping region.
+        check_boundary_zone_widths(boundary_zones_, fluid_system)
+    end
+
     initial_conditions = union((bz.initial_condition for bz in boundary_zones_)...)
 
     buffer = SystemBuffer(nparticles(initial_conditions), buffer_size)
@@ -132,6 +142,9 @@ function initialize!(system::OpenBoundarySystem, semi)
 
     return system
 end
+
+# Skip during restart, as boundary zone indices are updated in `restore_previous_state!`
+initialize_restart!(system::OpenBoundarySystem, semi) = system
 
 function create_cache_open_boundary(boundary_model, fluid_system, initial_condition,
                                     density_diffusion, calculate_flow_rate, boundary_zones)
@@ -235,7 +248,7 @@ end
 @inline buffer(system::OpenBoundarySystem) = system.buffer
 
 # The `UpdateCallback` is required to update particle positions between time steps
-@inline requires_update_callback(system::OpenBoundarySystem) = true
+@inline requires_update_callback(system::OpenBoundarySystem, semi) = true
 
 function smoothing_length(system::OpenBoundarySystem, particle)
     return system.smoothing_length
@@ -250,6 +263,8 @@ end
 @inline function shifting_technique(system::OpenBoundarySystem)
     return system.shifting_technique
 end
+
+@inline density_calculator(system::OpenBoundarySystem) = nothing
 
 system_sound_speed(system::OpenBoundarySystem) = system_sound_speed(system.fluid_system)
 
@@ -345,8 +360,8 @@ function update_open_boundary_eachstep!(system::OpenBoundarySystem, v_ode, u_ode
         end
     end
 
-    # Tell OrdinaryDiffEq that `integrator.u` has been modified
-    u_modified!(integrator, true)
+    # Activating or deactivating boundary particles introduces a derivative discontinuity.
+    derivative_discontinuity!(integrator, true)
 
     return system
 end
@@ -605,15 +620,30 @@ end
                                  -boundary_zone.face_normal)
         dist_free_surface = boundary_zone.zone_width - dist_to_transition
 
-        if dist_free_surface < compact_support(fluid_system, fluid_system)
-            # Ramp shifting velocity near the free surface using a kernel-weighted transition.
+        # Width of the free-surface region where shifting is disabled.
+        free_surface_region_width = compact_support(fluid_system, fluid_system)
+        # Width of the ramp region behind the free-surface region where shifting is ramped
+        # from zero to the unmodified value.
+        ramp_width = free_surface_region_width
+
+        if dist_free_surface <= free_surface_region_width
+            # The free-surface region is the layer within one compact support of the
+            # free surface. Shifting is disabled there to avoid shifting particles with
+            # incomplete support.
+            for dim in 1:ndims(system)
+                cache.delta_v[dim, particle] = zero(eltype(system))
+            end
+        elseif dist_free_surface < free_surface_region_width + ramp_width
+            # Between one and two compact supports from the free surface, shifting is
+            # ramped from zero to the unmodified shifting velocity with a kernel-weighted
+            # transition.
             # According to our experiments, the proposed alternative approaches lead to particle disorder:
             # - Sun et al. 2017: only use surface-tangential component
             # - Zhang et al. 2025: disable shifting entirely
             kernel_max = smoothing_kernel(system, 0, particle)
-            dist_from_cutoff = compact_support(fluid_system, fluid_system) -
-                               dist_free_surface
-            shifting_weight = smoothing_kernel(system, dist_from_cutoff, particle) /
+            # Distance from the area where full shifting is applied.
+            dist_from_ramp_end = free_surface_region_width + ramp_width - dist_free_surface
+            shifting_weight = smoothing_kernel(system, dist_from_ramp_end, particle) /
                               kernel_max
             delta_v_ramped = delta_v(system, particle) * shifting_weight
             for dim in 1:ndims(system)
@@ -680,6 +710,72 @@ function interpolate_velocity!(system::OpenBoundarySystem, boundary_zone,
     return system
 end
 
+function restart_u(system::OpenBoundarySystem, data)
+    coords_total = zeros(coordinates_eltype(system), u_nvariables(system),
+                         n_integrated_particles(system))
+    coords_total .= coordinates_eltype(system)(1e16)
+
+    # Since only active particles are written during saving, the loaded `data` contains
+    # only active particles. These are placed at the beginning of the array, leaving the
+    # inactive buffer particles at the end. Thus, we can safely activate the first N particles.
+    coords_active = data.coordinates
+    for particle in axes(coords_active, 2)
+        for dim in 1:ndims(system)
+            coords_total[dim, particle] = coords_active[dim, particle]
+        end
+    end
+
+    system.buffer.active_particle .= false
+    system.buffer.active_particle[1:size(coords_active, 2)] .= true
+
+    update_system_buffer!(system.buffer)
+
+    return coords_total
+end
+
+function restart_v(system::OpenBoundarySystem, data)
+    v_total = zeros(eltype(system), v_nvariables(system),
+                    n_integrated_particles(system))
+
+    # Since only active particles are written during saving, the loaded `data` contains
+    # only active particles. These are placed at the beginning of the array, leaving the
+    # inactive buffer particles at the end. Thus, we can safely activate the first N particles.
+    v_active = zeros(eltype(system), v_nvariables(system), size(data.velocity, 2))
+
+    v_active[1:ndims(system), :] = data.velocity
+    write_density_and_pressure!(v_active, system.fluid_system,
+                                density_calculator(system), data.pressure, data.density)
+
+    for particle in axes(v_active, 2)
+        for i in axes(v_active, 1)
+            v_total[i, particle] = v_active[i, particle]
+        end
+    end
+
+    return v_total
+end
+
+function restore_previous_state!(system::OpenBoundarySystem, file)
+    # We cannot simply use `update_boundary_zone_indices!` because rounding errors during file I/O
+    # may result in particles being located outside their intended boundary zone, even though they
+    # were written as active particles.
+    set_zero!(system.boundary_zone_indices)
+
+    values = vtk2trixi(file; create_initial_condition=false)
+    system.boundary_zone_indices[each_integrated_particle(system)] .= values.zone_id
+
+    if any(pm -> isa(pm, AbstractPressureModel), system.cache.pressure_reference_values)
+        for (i, pressure_model) in enumerate(system.cache.pressure_reference_values)
+            if pressure_model isa AbstractPressureModel
+                pressure_model.pressure[] = values[Symbol(:boundary_zone_pressure_, i)]
+                pressure_model.flow_rate[] = values[Symbol(:Q_, i)]
+            end
+        end
+    end
+
+    return system
+end
+
 # Open-boundary interpolation should reconstruct the surrounding fluid-like velocity field.
 # Therefore, only actual fluid systems and other open-boundary particles contribute;
 # rigid bodies, walls, and other non-fluid systems are intentionally excluded.
@@ -689,8 +785,7 @@ end
 
 @inline use_open_boundary_interpolation_neighbor(system) = false
 
-function check_configuration(system::OpenBoundarySystem, systems,
-                             neighborhood_search::PointNeighbors.AbstractNeighborhoodSearch)
+function check_configuration(system::OpenBoundarySystem, systems, neighborhood_search)
     (; boundary_model, boundary_zones) = system
 
     # Store index of the fluid system. This is necessary for re-linking
@@ -709,4 +804,20 @@ function check_configuration(system::OpenBoundarySystem, systems,
                             "that does not require an update for the first set of coordinates (e.g. `GridNeighborhoodSearch`). " *
                             "See the PointNeighbors.jl documentation for more details."))
     end
+end
+
+function check_boundary_zone_widths(boundary_zones, fluid_system)
+    support = compact_support(system_smoothing_kernel(fluid_system),
+                              initial_smoothing_length(fluid_system))
+    minimum_width = 2 * support
+
+    for (i, zone) in enumerate(boundary_zones)
+        if zone.zone_width < minimum_width
+            throw(ArgumentError("boundary zone $i has width $(zone.zone_width), " *
+                                "but must be at least two compact supports " *
+                                "($(minimum_width))"))
+        end
+    end
+
+    return nothing
 end
