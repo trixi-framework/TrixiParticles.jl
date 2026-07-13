@@ -557,7 +557,7 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{2},
                                                  (layer_offset, 0.0),
                                                  loop_order=:x_first)
 
-        # Store coordinates of left boundary
+        # Append coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, left_boundary)
 
         # Store the indices of each particle
@@ -575,7 +575,7 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{2},
                                                   (tank_size[1], 0.0),
                                                   loop_order=:x_first)
 
-        # Store coordinates of left boundary
+        # Append coordinates of right boundary
         boundary_coordinates = hcat(boundary_coordinates, right_boundary)
 
         # Store the indices of each particle
@@ -593,7 +593,7 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{2},
                                                    (0.0, layer_offset),
                                                    loop_order=:y_first)
 
-        # Store coordinates of left boundary
+        # Append coordinates of bottom boundary
         boundary_coordinates = hcat(boundary_coordinates, bottom_boundary)
 
         # Store the indices of each particle
@@ -611,7 +611,7 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{2},
                                                 (0.0, tank_size[2]),
                                                 loop_order=:y_first)
 
-        # Store coordinates of left boundary
+        # Append coordinates of top boundary
         boundary_coordinates = hcat(boundary_coordinates, top_boundary)
 
         # Store the indices of each particle
