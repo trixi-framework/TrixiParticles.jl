@@ -478,7 +478,9 @@ end
                                    boundary_zone, particle, particle_new,
                                    v, u, v_fluid, u_fluid, periodic_box)
     # Position relative to the origin of the transition face
-    relative_position = current_coords(u, system, particle) - boundary_zone.zone_origin
+    nonperiodic_coords = current_coords(u, system, particle)
+    particle_coords = PointNeighbors.periodic_coords(nonperiodic_coords, periodic_box)
+    relative_position = particle_coords - boundary_zone.zone_origin
 
     # Check if particle is in- or outside the fluid domain.
     # `face_normal` is always pointing into the fluid domain.
@@ -508,8 +510,7 @@ end
     end
 
     # Verify the particle remains inside the boundary zone after the reset; deactivate it if not.
-    particle_coords = PointNeighbors.periodic_coords(current_coords(u, system, particle),
-                                                     periodic_box)
+    particle_coords = current_coords(u, system, particle)
     if !is_in_boundary_zone(boundary_zone, particle_coords)
         deactivate_particle!(system, particle, v, u)
 
@@ -550,8 +551,8 @@ end
     pressure = current_pressure(v_old, system_old, particle_old)
     set_particle_pressure!(v_new, system_new, particle_new, pressure)
 
-    particle_coords = current_coords(u_old, system_old, particle_old)
-    particle_coords = PointNeighbors.periodic_coords(particle_coords, periodic_box)
+    nonperiodic_coords = current_coords(u_old, system_old, particle_old)
+    particle_coords = PointNeighbors.periodic_coords(nonperiodic_coords, periodic_box)
 
     # Exchange position and velocity
     for dim in 1:ndims(system_new)
