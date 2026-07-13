@@ -32,10 +32,13 @@ function real_thickness(x)
     real_thickness_at_attachment = 1.2e-3
     real_thickness_at_tip = 0.7e-3
 
+    # `p = 1` is a linear profile.
+    p = 1
+
     # Clamp to use constant material properties for the clamped region and foot pocket.
     x_clamped = clamp(x, 0.0, 1.0)
-    return real_thickness_at_attachment +
-           x_clamped * (real_thickness_at_tip - real_thickness_at_attachment)
+    return real_thickness_at_tip +
+           (1 - x_clamped)^p * (real_thickness_at_attachment - real_thickness_at_tip)
 end
 
 # The 2D model represents the blade width in the unmodeled third dimension. The
