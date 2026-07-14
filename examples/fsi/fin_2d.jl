@@ -542,7 +542,7 @@ mechanical_work_calculator = MechanicalWorkCalculator(semi.systems[4], semi)
 thrust_calculator = ThrustCalculator(semi.systems[4], semi, direction=SVector(1.0, 0.0))
 calculator_cb = PostprocessCallback(; mechanical_work_calculator, thrust_calculator,
                                     interval=100, filename="$(prefix)_efficiency",
-                                    write_file_interval=1000)
+                                    write_file_interval=10)
 
 callbacks = CallbackSet(info_callback, saving_callback,
                         stepsize_callback, split_integration, pp_cb, interpolate_cb,
