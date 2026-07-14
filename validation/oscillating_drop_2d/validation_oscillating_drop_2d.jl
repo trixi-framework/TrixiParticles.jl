@@ -51,7 +51,7 @@ extra_callback = PostprocessCallback(; filename, output_directory="out",
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "oscillating_drop_2d.jl");
               fluid_particle_spacing, n_periods, omega, viscosity, sphere_type,
-              extra_callback, info_callback = InfoCallback(interval=500),
+              extra_callback, info_callback=InfoCallback(interval=500),
               saving_callback=nothing,
               parallelization_backend=PolyesterBackend())
 
