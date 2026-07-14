@@ -9,7 +9,7 @@ using TrixiParticles.CSV
 using TrixiParticles.DataFrames
 using TrixiParticles.JSON
 
-save_figures = true
+save_figures = false
 include_sim_results = true
 include_trixiparticles_reference = true
 include_paper_reference = true
