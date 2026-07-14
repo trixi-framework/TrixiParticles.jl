@@ -44,7 +44,7 @@ q_delta = DeltaSPHHeat()
 # Note that `interval` also controls the time step size for the integration of Q_δ,
 # not just the output frequency.
 extra_callback = PostprocessCallback(; filename, output_directory="out",
-                                     interval=10, write_file_interval=1000,
+                                     interval=10, write_file_interval=500,
                                      kinetic_energy,
                                      potential_energy=potential_energy(omega),
                                      compressible_energy, q_delta)
