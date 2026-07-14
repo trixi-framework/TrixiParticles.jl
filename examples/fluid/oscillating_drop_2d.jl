@@ -77,14 +77,15 @@ semi = Semidiscretization(fluid_system; parallelization_backend=PolyesterBackend
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=50)
-saving_callback = SolutionSavingCallback(dt=0.04, prefix="")
+saving_callback = nothing#SolutionSavingCallback(dt=0.04, prefix="")
+stepsize_callback = StepsizeCallback(cfl=2.6)
+extra_callback = nothing # This can be overwritten with `trixi_include`.
 
-callbacks = CallbackSet(info_callback, saving_callback)
+callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback, extra_callback)
 
-# Use a Runge-Kutta method with automatic (error based) time step size control.
-sol = solve(ode, RDPK3SpFSAL49(),
-            abstol=1e-7, # Default abstol is 1e-6 (may need to be tuned to prevent intabilities)
-            reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent intabilities)
+time_integration_scheme = CarpenterKennedy2N54(williamson_condition=false)
+sol = solve(ode, time_integration_scheme,
+            dt=1.0, # This is overwritten by the stepsize callback.
             save_everystep=false, callback=callbacks);
 
 # Use `let` block to define the function with the *current values* of the global variables,

@@ -26,37 +26,32 @@ fluid_particle_spacing = 0.05
 # ==========================================================================================
 # ==== Experiment Setup
 n_periods = 12
+omega = 1.0
+
+# `VoxelSphere` matches the initial drop in mechanical energy seen in the paper,
+# while `RoundSphere` starts with an initial configuration close to equilibrium,
+# resulting in a cleaner energy plot.
+sphere_type = VoxelSphere()
 
 # The paper's energy balance is for the inviscid oscillating drop with density diffusion.
 viscosity = nothing
-
-trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "oscillating_drop_2d.jl");
-              fluid_particle_spacing, n_periods, sigma=1.0,
-              viscosity, #density_diffusion=nothing,
-              sol=nothing, error_A=nothing, parallelization_backend=PolyesterBackend())
 
 formatted_spacing = replace(@sprintf("%.4f", fluid_particle_spacing), "." => "p")
 filename = "validation_result_oscillating_drop_2d_dx_$formatted_spacing"
 
 q_delta = DeltaSPHHeat()
 
-postprocess_callback = PostprocessCallback(; output_directory="out",
-                                           filename,
-                                           write_file_interval=1000,
-                                           interval=10,
-                                           kinetic_energy,
-                                           potential_energy,
-                                           compressible_energy,
-                                           delta_sph_diffusive_power,
-                                           q_delta)
+# Note that `interval` also controls the time step size for the integration of Q_δ,
+# not just the output frequency.
+extra_callback = PostprocessCallback(; filename, output_directory="out",
+                                     interval=10, write_file_interval=1000,
+                                     kinetic_energy,
+                                     potential_energy=potential_energy(omega),
+                                     compressible_energy, q_delta)
 
-info_callback = InfoCallback(interval=500)
-callbacks = CallbackSet(info_callback, postprocess_callback)
-
-
-time_integration_scheme = CarpenterKennedy2N54(williamson_condition=false)
-sol = solve(ode, time_integration_scheme,
-            dt=1e-3,
-            save_everystep=false, callback=callbacks);
+trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "oscillating_drop_2d.jl");
+              fluid_particle_spacing, n_periods, omega, viscosity, extra_callback,
+              info_callback = InfoCallback(interval=500), saving_callback=nothing,
+              parallelization_backend=PolyesterBackend())
 
 println("Oscillating drop energy validation written to out/$filename.json")
