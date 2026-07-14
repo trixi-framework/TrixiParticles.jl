@@ -13,7 +13,7 @@ function kinetic_energy(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
     squared_velocity = sum(abs2, velocity; dims=1)
     mass = view(system.mass, each_active_particle(system))
 
-    return mapreduce(*, +, squared_velocity, mass) / 2
+    return mapreduce(*,+,squared_velocity,mass) / 2
 end
 
 function kinetic_energy(system::AbstractStructureSystem,
