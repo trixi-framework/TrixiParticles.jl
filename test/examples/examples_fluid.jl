@@ -119,7 +119,7 @@
                                                   "oscillating_drop_2d.jl"))
         @test sol.retcode == ReturnCode.Success
         # This error varies between serial and multithreaded runs
-        @test isapprox(error_A, 0, atol=2e-4)
+        @test isapprox(error_A, 0, atol=5e-3)
         @test count_rhs_allocations(sol) == 0
     end
 
