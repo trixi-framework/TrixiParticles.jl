@@ -135,4 +135,42 @@
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol) == 0
     end
+
+    @trixi_testset "oscillating_drop_2d" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(validation_dir(),
+                                                  "oscillating_drop_2d",
+                                                  "validation_oscillating_drop_2d.jl"),
+                                         n_periods=1)
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol) == 0
+
+        filename = "validation_result_oscillating_drop_2d_dx_0p0500.json"
+        result_file = joinpath("out", filename)
+        reference_file = joinpath(validation_dir(), "oscillating_drop_2d", filename)
+
+        json_result = JSON.parsefile(result_file)
+        json_reference = JSON.parsefile(reference_file)
+
+        time = json_result["kinetic_energy_fluid_1"]["time"]
+        kinetic = json_result["kinetic_energy_fluid_1"]["values"]
+        potential = json_result["potential_energy_fluid_1"]["values"]
+        compressible = json_result["compressible_energy_fluid_1"]["values"]
+        q_delta = json_result["q_delta_fluid_1"]["values"]
+
+        kinetic_reference = json_reference["kinetic_energy_fluid_1"]["values"]
+        potential_reference = json_reference["potential_energy_fluid_1"]["values"]
+        compressible_reference = json_reference["compressible_energy_fluid_1"]["values"]
+        q_delta_reference = json_reference["q_delta_fluid_1"]["values"]
+
+        # The last time of the simulation is at exactly 1 period, which is not included
+        # in the reference data, so we compare only up to the second last time step,
+        # where the times match exactly.
+        length_ = length(time) - 1
+
+        @test isapprox(kinetic[1:length_], kinetic_reference[1:length_], atol=1e-8)
+        @test isapprox(potential[1:length_], potential_reference[1:length_], atol=1e-8)
+        @test isapprox(compressible[1:length_], compressible_reference[1:length_], atol=1e-8)
+        @test isapprox(q_delta[1:length_], q_delta_reference[1:length_], atol=1e-8)
+    end
 end
