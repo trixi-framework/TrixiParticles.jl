@@ -1,5 +1,7 @@
 using TrixiParticles
 
+include("analytical_solution.jl")
+
 # ==========================================================================================
 # 2D Periodic Poiseuille Flow Validation for Carreau-Yasuda Fluids
 #
@@ -10,28 +12,33 @@ using TrixiParticles
 
 # ==========================================================================================
 # ==== Resolution
-# The default resolution is intentionally modest so this validation is practical to run
-# during review. For the high-resolution run inspired by Coclite et al. (2020), use
-# `ny = 200`.
-ny = length(ARGS) >= 1 ? parse(Int, ARGS[1]) : 50
+# The default resolution is intentionally modest so this validation is practical to run.
+# Override it interactively via `trixi_include(...; ny=...)`.
+ny = 50
 
 # ==========================================================================================
 # ==== Experiment Setup
-# Optional command line arguments:
-#   1. ny
-#   2. t_end_factor
-#   3. eps_factor
-#   4. sound_speed_factor
-#   5. initial condition mode: "newtonian", "analytical", or "zero"
-#   6. comma-separated Carreau-Yasuda n values
 default_n_values = (1.0, 1.5, 0.5, 0.25)
-n_values = length(ARGS) >= 6 ? Tuple(parse.(Float64, split(ARGS[6], ','))) :
-           default_n_values
+n_values = default_n_values
 
-t_end_factor = length(ARGS) >= 2 ? parse(Float64, ARGS[2]) : 0.1
-eps_factor = length(ARGS) >= 3 ? parse(Float64, ARGS[3]) : 1.0
-sound_speed_factor = length(ARGS) >= 4 ? parse(Float64, ARGS[4]) : 60.0
-initial_condition_mode = length(ARGS) >= 5 ? lowercase(strip(ARGS[5])) : "analytical"
+t_end_factor = 0.1
+eps_factor = 1.0
+sound_speed_factor = 60.0
+initial_condition_mode = :analytical
+parallelization_backend = PolyesterBackend()
+
+channel_height = 1.0
+channel_length = 6.0 * channel_height
+fluid_density = 1000.0
+nu0 = 1.0e-3
+nu_inf = 0.0
+lambda_exponent = 2.0
+reynolds_number = 200.0
+
+reference_velocity = reynolds_number * nu0 / channel_height
+pressure_gradient = 8.0 * fluid_density * reference_velocity^2 /
+                    (reynolds_number * channel_height)
+carreau_time_constant = channel_height / reference_velocity
 
 # These bounds are intentionally looser than the observed high-resolution values
 # so that the validation checks the expected behaviour without becoming brittle
@@ -44,15 +51,53 @@ relative_l2_error_bounds = Dict(0.25 => 0.06,
 final_relative_l2_errors = Dict{Float64, Float64}()
 final_max_velocity_errors = Dict{Float64, Float64}()
 
-function final_error_values(output_directory, result_filename)
-    csv_file = joinpath(output_directory, result_filename * ".csv")
-    data = TrixiParticles.CSV.read(csv_file, TrixiParticles.DataFrame)
-    column_names = string.(names(data))
-    l2_column = Symbol(only(filter(name -> startswith(name, "l2_velocity_error"),
-                                   column_names)))
-    max_column = Symbol(only(filter(name -> startswith(name, "max_velocity_error"),
-                                    column_names)))
-    return data[!, l2_column][end], data[!, max_column][end]
+mean_velocity_x(system, data, t) = nothing
+function mean_velocity_x(system::TrixiParticles.AbstractFluidSystem, data, t)
+    return sum(@view data.velocity[1, :]) / size(data.velocity, 2)
+end
+
+interpolated_velocity_profile(system, dv_ode, du_ode, v_ode, u_ode, semi, t) = nothing
+
+function interpolated_velocity_profile(system::TrixiParticles.AbstractFluidSystem,
+                                       dv_ode, du_ode, v_ode, u_ode, semi, t)
+    interpolation_result = interpolate_line([0.5 * channel_length, 0.0],
+                                            [0.5 * channel_length, channel_height],
+                                            ny + 1, semi, system, v_ode, u_ode;
+                                            endpoint=true, cut_off_bnd=false)
+
+    return collect(stack(interpolation_result.velocity)[1, :])
+end
+
+function profile_history(output_directory, result_filename)
+    json_file = joinpath(output_directory, result_filename * ".json")
+    data = TrixiParticles.JSON.parsefile(json_file; allownan=true)
+    profile_key = only(filter(name -> startswith(name, "interpolated_velocity_profile"),
+                              collect(keys(data))))
+    times = Float64.(data[profile_key]["time"])
+    profiles = [replace!(Float64.(profile), NaN => 0.0)
+                for profile in data[profile_key]["values"]]
+
+    return times, profiles
+end
+
+function error_history(profiles, power_law_index)
+    y_positions = collect(range(0.0, channel_height; length=length(first(profiles))))
+    analytical_velocity = analytical_ux_profile(y_positions, power_law_index,
+                                                channel_height, fluid_density, nu0,
+                                                nu_inf, carreau_time_constant,
+                                                lambda_exponent, pressure_gradient)
+
+    relative_l2_errors = Float64[]
+    max_velocity_errors = Float64[]
+
+    for profile in profiles
+        relative_l2_error, max_velocity_error = velocity_profile_errors(profile,
+                                                                        analytical_velocity)
+        push!(relative_l2_errors, relative_l2_error)
+        push!(max_velocity_errors, max_velocity_error)
+    end
+
+    return relative_l2_errors, max_velocity_errors
 end
 
 # ==========================================================================================
@@ -61,18 +106,30 @@ for power_law_index in n_values
     println("\n--- Running Carreau-Yasuda Poiseuille validation with n = ",
             power_law_index, " ---")
 
-    trixi_include(@__MODULE__,
-                  joinpath(examples_dir(), "fluid", "poiseuille_carreau_2d.jl");
-                  ny, t_end_factor, eps_factor, sound_speed_factor,
-                  initial_condition_mode, power_law_index)
-
     n_label = replace(string(power_law_index), "." => "p")
     output_directory = joinpath("out_poiseuille_carreau", "n_$power_law_index")
     result_filename = "validation_run_poiseuille_carreau_2d_n_$(n_label)_ny_$ny"
 
-    relative_l2_error,
-    max_velocity_error = final_error_values(output_directory,
-                                            result_filename)
+    pp_callback = PostprocessCallback(; dt=t_end_factor * channel_height /
+                                           reference_velocity / 20,
+                                      output_directory,
+                                      filename=result_filename,
+                                      mean_velocity_x,
+                                      interpolated_velocity_profile,
+                                      write_csv=false,
+                                      write_file_interval=0)
+
+    trixi_include(@__MODULE__,
+                  joinpath(examples_dir(), "fluid", "poiseuille_carreau_2d.jl");
+                  ny, t_end_factor, eps_factor, sound_speed_factor,
+                  initial_condition_mode=QuoteNode(initial_condition_mode),
+                  power_law_index, parallelization_backend, pp_callback)
+
+    _, profiles = profile_history(output_directory, result_filename)
+    relative_l2_errors, max_velocity_errors = error_history(profiles, power_law_index)
+
+    relative_l2_error = last(relative_l2_errors)
+    max_velocity_error = last(max_velocity_errors)
     final_relative_l2_errors[power_law_index] = relative_l2_error
     final_max_velocity_errors[power_law_index] = max_velocity_error
 

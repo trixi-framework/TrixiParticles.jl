@@ -4,6 +4,16 @@ using OrdinaryDiffEqLowStorageRK
 # ==========================================================================================
 # 2D Periodic Poiseuille Flow with Carreau-Yasuda Viscosity
 #
+# Based on:
+#   P. J. Carreau. "Rheological Equations from Molecular Network Theories".
+#   Transactions of the Society of Rheology, Volume 16, Issue 1 (1972), pages 99-127.
+#   https://doi.org/10.1122/1.549276
+#
+#   K. Yasuda, R. C. Armstrong, R. E. Cohen.
+#   "Shear flow properties of concentrated solutions of linear and star branched
+#   polystyrenes". Rheologica Acta, Volume 20, Issue 2 (1981), pages 163-178.
+#   https://doi.org/10.1007/BF01513059
+#
 # This example simulates pressure-driven channel flow with the
 # `ViscosityCarreauYasuda` non-Newtonian viscosity model. The driving pressure
 # gradient is represented by an equivalent body acceleration.
@@ -18,8 +28,9 @@ ny = 50
 t_end_factor = 0.1
 eps_factor = 1.0
 sound_speed_factor = 60.0
-initial_condition_mode = "analytical"
+initial_condition_mode = :analytical
 power_law_index = 1.0
+parallelization_backend = PolyesterBackend()
 
 channel_height = 1.0
 channel_length = 6.0 * channel_height
@@ -36,18 +47,17 @@ reference_velocity = reynolds_number * nu0 / channel_height
 pressure_gradient = 8.0 * fluid_density * reference_velocity^2 /
                     (reynolds_number * channel_height)
 acceleration_x = pressure_gradient / fluid_density
-carreau_time_constant = channel_height / max(reference_velocity, eps())
+carreau_time_constant = channel_height / reference_velocity
 
-t_end = t_end_factor * channel_height / max(reference_velocity, eps())
+t_end = t_end_factor * channel_height / reference_velocity
 tspan = (0.0, t_end)
 
-if !(initial_condition_mode in ("newtonian", "analytical", "zero"))
-    throw(ArgumentError("initial condition mode must be \"newtonian\", " *
-                        "\"analytical\", or \"zero\""))
+if !(initial_condition_mode in (:newtonian, :analytical, :zero))
+    throw(ArgumentError("initial condition mode must be :newtonian, :analytical, or :zero"))
 end
 
 # ==========================================================================================
-# ==== Analytical Solution
+# ==== Initial Condition Helpers
 function linear_interpolation_clamped(x, y, interpolation_point)
     interpolation_point <= first(x) && return first(y)
     interpolation_point >= last(x) && return last(y)
@@ -141,58 +151,11 @@ function newtonian_ux(y, channel_height, density, nu0, pressure_gradient)
     return pressure_gradient / (2.0 * density * nu0) * y * (channel_height - y)
 end
 
-function l2_velocity_error(system::TrixiParticles.AbstractFluidSystem,
-                           dv_ode, du_ode, v_ode, u_ode, semi, t)
-    v = TrixiParticles.wrap_v(v_ode, system, semi)
-    u = TrixiParticles.wrap_u(u_ode, system, semi)
-
-    y_positions = [TrixiParticles.current_coords(u, system, particle)[2]
-                   for particle in TrixiParticles.eachparticle(system)]
-    analytical_velocity = analytical_ux_profile(y_positions, power_law_index,
-                                                channel_height, fluid_density, nu0,
-                                                nu_inf, carreau_time_constant,
-                                                lambda_exponent, pressure_gradient)
-
-    squared_error = 0.0
-    squared_reference = 0.0
-    for (i, particle) in enumerate(TrixiParticles.eachparticle(system))
-        ux = TrixiParticles.current_velocity(v, system, particle)[1]
-        squared_error += (ux - analytical_velocity[i])^2
-        squared_reference += analytical_velocity[i]^2
-    end
-
-    return sqrt(squared_error / nparticles(system)) /
-           (sqrt(squared_reference / nparticles(system)) + eps())
-end
-l2_velocity_error(system, dv_ode, du_ode, v_ode, u_ode, semi, t) = nothing
-
-function max_velocity_error(system::TrixiParticles.AbstractFluidSystem,
-                            dv_ode, du_ode, v_ode, u_ode, semi, t)
-    v = TrixiParticles.wrap_v(v_ode, system, semi)
-    u = TrixiParticles.wrap_u(u_ode, system, semi)
-
-    y_positions = [TrixiParticles.current_coords(u, system, particle)[2]
-                   for particle in TrixiParticles.eachparticle(system)]
-    analytical_velocity = analytical_ux_profile(y_positions, power_law_index,
-                                                channel_height, fluid_density, nu0,
-                                                nu_inf, carreau_time_constant,
-                                                lambda_exponent, pressure_gradient)
-
-    error = 0.0
-    for (i, particle) in enumerate(TrixiParticles.eachparticle(system))
-        ux = TrixiParticles.current_velocity(v, system, particle)[1]
-        error = max(error, abs(ux - analytical_velocity[i]))
-    end
-
-    return error
-end
-max_velocity_error(system, dv_ode, du_ode, v_ode, u_ode, semi, t) = nothing
-
 # ==========================================================================================
 # ==== Initial Condition
-initial_velocity = if initial_condition_mode == "zero"
+initial_velocity = if initial_condition_mode == :zero
     (0.0, 0.0)
-elseif initial_condition_mode == "analytical"
+elseif initial_condition_mode == :analytical
     y_reference = collect(range(0.0, channel_height; length=4 * ny + 1))
     ux_reference = analytical_ux_profile(y_reference, power_law_index,
                                          channel_height, fluid_density, nu0,
@@ -252,28 +215,23 @@ boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
 # ==== Simulation
 periodic_box = PeriodicBox(min_corner=[0.0, -10.0 * channel_height],
                            max_corner=[channel_length, 10.0 * channel_height])
-neighborhood_search = GridNeighborhoodSearch{2}(; periodic_box)
+cell_list = FullGridCellList(; min_corner=periodic_box.min_corner,
+                             max_corner=periodic_box.max_corner)
+neighborhood_search = GridNeighborhoodSearch{2}(; periodic_box, cell_list)
 
 semi = Semidiscretization(fluid_system, boundary_system;
                           neighborhood_search,
-                          parallelization_backend=PolyesterBackend())
+                          parallelization_backend)
 
 ode = semidiscretize(semi, tspan)
 
-n_label = replace(string(power_law_index), "." => "p")
 output_directory = joinpath("out_poiseuille_carreau", "n_$power_law_index")
-result_filename = "validation_run_poiseuille_carreau_2d_n_$(n_label)_ny_$ny"
 
 info_callback = InfoCallback(interval=200)
 saving_callback = SolutionSavingCallback(; dt=t_end / 20,
                                          prefix="",
                                          output_directory)
-pp_callback = PostprocessCallback(; dt=t_end / 20,
-                                  output_directory,
-                                  filename=result_filename,
-                                  l2_velocity_error,
-                                  max_velocity_error,
-                                  write_csv=true)
+pp_callback = nothing
 cfl_callback = StepsizeCallback(cfl=0.2)
 callbacks = CallbackSet(info_callback, saving_callback, pp_callback,
                         cfl_callback, UpdateCallback())
