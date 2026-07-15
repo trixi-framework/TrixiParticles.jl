@@ -170,7 +170,8 @@
 
         @test isapprox(kinetic[1:length_], kinetic_reference[1:length_], atol=1e-8)
         @test isapprox(potential[1:length_], potential_reference[1:length_], atol=1e-8)
-        @test isapprox(compressible[1:length_], compressible_reference[1:length_], atol=1e-8)
+        @test isapprox(compressible[1:length_], compressible_reference[1:length_],
+                       atol=1e-8)
         @test isapprox(q_delta[1:length_], q_delta_reference[1:length_], atol=1e-8)
     end
 end
