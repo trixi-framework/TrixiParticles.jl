@@ -54,7 +54,7 @@ after the run from those JSON files.
 Default run:
 
 ```bash
-julia --project=test validation/poiseuille_carreau_2d/validation_poiseuille_carreau_2d.jl
+julia --project=run validation/poiseuille_carreau_2d/validation_poiseuille_carreau_2d.jl
 ```
 
 The default uses `ny = 50`, `t_end_factor = 0.1`, and analytical initial
@@ -103,8 +103,9 @@ velocity scale changes strongly for shear-thinning cases such as `n = 0.25`.
 After a run, create comparison plots with:
 
 ```bash
-julia --project=test -e 'append!(ARGS, ["out_poiseuille_carreau"]); include("validation/poiseuille_carreau_2d/plot_carreau_comparison.jl")'
+julia --project=run -e 'append!(ARGS, ["out_poiseuille_carreau"]); include("validation/poiseuille_carreau_2d/plot_carreau_comparison.jl")'
 ```
 
-The plotting helper uses optional plotting packages that are available through
-the test environment. They are not runtime dependencies of TrixiParticles.jl.
+The plotting helper uses optional plotting packages that should be installed in
+the separate developer `run` environment. They are not runtime dependencies of
+TrixiParticles.jl.
