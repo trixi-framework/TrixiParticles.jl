@@ -13,14 +13,14 @@ n_particles_y = 4
 
 # ==========================================================================================
 # ==== Experiment Setup
-tspan = (0.0, 2.0)
+tspan = (0.0, 3.0)
 
-fin_length = 0.502
+fin_length = 0.522
 fin_thickness = 30e-3
 blade_width = 19e-2
-real_modulus = 125e9
+real_modulus = 40e9
 poisson_ratio = 0.3
-real_modulus_foot_pocket = 4e6
+real_modulus_foot_pocket = 1e6
 
 foot_pocket_width_at_right_end = 2e-2
 foot_pocket_full_width = 10e-2
@@ -39,6 +39,16 @@ function real_thickness(x)
     x_clamped = clamp(x, 0.0, 1.0)
     return real_thickness_at_tip +
            (1 - x_clamped)^p * (real_thickness_at_attachment - real_thickness_at_tip)
+end
+
+# Real blade width profile along the flexible blade, where `x` is the distance
+# from the blade attachment in meters.
+function real_blade_width(x)
+    if x > 0.12
+        return blade_width
+    end
+    width = -1.199 * x^2 + 0.346 * x + 0.167
+    return clamp(width, 7.5e-2, blade_width)
 end
 
 # The 2D model represents the blade width in the unmodeled third dimension. The
@@ -337,14 +347,17 @@ function density_for_properties(x)
 end
 
 function modulus_for_properties(x)
-    blade_thickness = real_thickness(normalized_blade_coordinate(x))
+    normalized_x = normalized_blade_coordinate(x)
+    blade_thickness = real_thickness(normalized_x)
+    blade_width_ratio = real_blade_width(clamp(normalized_x, 0.0, 1.0) * fin_length) /
+                        blade_width
     foot_pocket_height = foot_pocket_height_for_properties(x)
     artificial_thickness = artificial_structure_thickness(x)
 
     foot_pocket_modulus = foot_pocket_width_ratio_for_properties(x) *
                           real_modulus_foot_pocket
     foot_pocket_area_moment = max(foot_pocket_height^3 - blade_thickness^3, 0.0) / 12
-    flexural_rigidity = real_modulus * blade_thickness^3 / 12 +
+    flexural_rigidity = blade_width_ratio * real_modulus * blade_thickness^3 / 12 +
                         foot_pocket_modulus * foot_pocket_area_moment
 
     return 12 * flexural_rigidity / artificial_thickness^3
@@ -363,9 +376,9 @@ clamped_structure_particles = findall(particle -> is_clamped_structure_particle(
 
 # Movement function (parameters chosen to match video)
 frequency = 1.06 # Hz
-amplitude = 0.28 # m
-rotation_deg = 26 # degrees
-rotation_phase_offset = 0.13 # periods
+amplitude = 0.24 # m
+rotation_deg = 22 # degrees
+rotation_phase_offset = 0.18 # periods
 translation_vector = SVector(0.0, amplitude)
 rotation_angle = rotation_deg * pi / 180
 
@@ -374,7 +387,7 @@ boundary_motion = OscillatingMotion2D(; frequency,
                                       rotation_angle, rotation_center=center,
                                       rotation_phase_offset, ramp_up_tspan=(0.0, 0.5))
 
-sound_speed = 40.0
+sound_speed = 60.0
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1, background_pressure=0.0)
 
