@@ -41,8 +41,8 @@ OrdinaryDiffEqSymplecticRK = "fa646aed-7ef9-47eb-84c4-9443fc8cbfa8"
 Static = "aedffcd0-7271-4cad-89d0-dc628f76c6d3"
 
 [extensions]
-TrixiParticlesOrdinaryDiffEqSymplecticRKExt = ["OrdinaryDiffEqSymplecticRK", "OrdinaryDiffEqCore"]
 TrixiParticlesCUDAExt = "CUDA"
+TrixiParticlesOrdinaryDiffEqSymplecticRKExt = ["OrdinaryDiffEqSymplecticRK", "OrdinaryDiffEqCore"]
 
 [compat]
 Accessors = "0.1.43"
@@ -60,8 +60,8 @@ GPUArraysCore = "0.2"
 JSON = "1"
 KernelAbstractions = "0.9"
 LinearAlgebra = "1"
-OrdinaryDiffEqLowStorageRK = "3"
 OrdinaryDiffEqCore = "4"
+OrdinaryDiffEqLowStorageRK = "3"
 OrdinaryDiffEqSymplecticRK = "2"
 PointNeighbors = "0.6.6"
 Polyester = "0.7.10"
@@ -75,7 +75,7 @@ Static = "<1.4"
 StaticArrays = "1"
 Statistics = "1"
 StrideArraysCore = "0.5.7"
-TimerOutputs = "0.5.25"
+TimerOutputs = "0.5.25, 1"
 TrixiBase = "0.1.5"
 WriteVTK = "1.21.2"
 julia = "1.10"
