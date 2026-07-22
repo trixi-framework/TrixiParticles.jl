@@ -284,4 +284,39 @@
 
         @test v0 == vcat(velocity, density')
     end
+
+    @testset verbose=true "reinit_density! with inactive buffer particles" begin
+        coordinates = [0.0 0.1
+                       0.0 0.0]
+        mass = [1.0, 1.0]
+        density = [1000.0, 1000.0]
+        smoothing_kernel = WendlandC2Kernel{2}()
+        smoothing_length = 0.2
+        state_equation = StateEquationCole(; sound_speed=10.0, reference_density=1000.0,
+                                           exponent=1)
+
+        initial_condition = InitialCondition(; coordinates, mass, density,
+                                             particle_spacing=0.1)
+        system = WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
+                                             smoothing_length,
+                                             density_calculator=ContinuityDensity(),
+                                             state_equation, buffer_size=2)
+        semi = Semidiscretization(system; neighborhood_search=nothing)
+        ode = semidiscretize(semi, (0.0, 1.0))
+
+        semi = ode.p.semi
+        system = semi.systems[1]
+        vu_ode = deepcopy(ode.u0)
+        v_ode, u_ode = vu_ode.x
+        v = TrixiParticles.wrap_v(v_ode, system, semi)
+        u = TrixiParticles.wrap_u(u_ode, system, semi)
+        inactive_particles = findall(particle -> !particle, system.buffer.active_particle)
+
+        @test !isempty(inactive_particles)
+
+        TrixiParticles.reinit_density!(system, v, u, v_ode, u_ode, semi)
+
+        @test all(isfinite, v[end, :])
+        @test all(iszero, v[end, inactive_particles])
+    end
 end
