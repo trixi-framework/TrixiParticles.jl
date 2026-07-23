@@ -363,6 +363,72 @@ function modulus_for_properties(x)
     return 12 * flexural_rigidity / artificial_thickness^3
 end
 
+const FIN_MOTION_FREQUENCY = 1.06
+const FIN_MOTION_PERIOD_START = 1.0
+const FIN_MOTION_REFERENCE = SVector(center[1], center[2] + fin_thickness / 2)
+const FIN_TRANSLATION_X_COEFFICIENTS = (-12.806917764769953, -3.0303457592946477, -2.3619440315595286, -6.596342617780676, 10.147967943261595, 1.6701714018007443, -0.753248176125403, 1.1049047920757982, -2.309571815723685)
+const FIN_TRANSLATION_Y_COEFFICIENTS = (8.238789990145717, 36.492667336354685, 233.1179370123477, 2.748787827252771, -0.542272634784335, 6.639630128273474, -6.0841959049116765, 0.48789188369953673, -0.14154297148482692)
+const FIN_ROTATION_COEFFICIENTS = (0.9821743002411218, -43.87937992072254, 13.295138772155541, 0.8057808770021837, 0.14656663179778703, 3.0936007063613857, 0.15219421833610516, -0.26097594464357143, 0.06084159719766363)
+
+@inline function spectral_value(t, coefficients)
+    theta = 2pi * FIN_MOTION_FREQUENCY *
+            (t - FIN_MOTION_PERIOD_START)
+    value = coefficients[1]
+
+    @inbounds for harmonic in 1:((length(coefficients) - 1) ÷ 2)
+        sine, cosine = sincos(harmonic * theta)
+        value += coefficients[2harmonic] * cosine +
+                 coefficients[2harmonic + 1] * sine
+    end
+
+    return value
+end
+
+@inline function fitted_movement(x, t)
+    # Smooth startup matching the previous 0.5 s ramp.
+    tau = clamp(t / 0.5, 0, 1)
+    ramp = tau^3 * (10 + tau * (-15 + 6tau))
+
+    translation = 1e-3 * SVector(
+        spectral_value(t, FIN_TRANSLATION_X_COEFFICIENTS),
+        spectral_value(t, FIN_TRANSLATION_Y_COEFFICIENTS),
+    )
+
+    angle = deg2rad(spectral_value(t, FIN_ROTATION_COEFFICIENTS))
+
+    sine, cosine = sincos(angle)
+    relative_position = x - FIN_MOTION_REFERENCE
+    rotated_position = SVector(
+        cosine * relative_position[1] - sine * relative_position[2],
+        sine * relative_position[1] + cosine * relative_position[2],
+    )
+    target_position = FIN_MOTION_REFERENCE + rotated_position + translation
+
+    # Ramp the complete displacement, as done by `OscillatingMotion2D`.
+    return x + ramp * (target_position - x)
+end
+
+simulate_foot_pocket = true
+if simulate_foot_pocket
+    # Movement function (parameters chosen to match video)
+    frequency = 1.06 # Hz
+    amplitude = 0.24 # m
+    rotation_deg = 22 # degrees
+    rotation_phase_offset = 0.18 # periods
+    rotation_center = center
+    rotation_angle = rotation_deg * pi / 180
+    boundary_motion = OscillatingMotion2D(; frequency,
+                                          translation_vector=SVector(0.0, amplitude),
+                                          rotation_angle, rotation_center,
+                                          rotation_phase_offset, ramp_up_tspan=(0.0, 0.5))
+
+else
+    structure = blade
+    foot_pocket_rigid_elastic_split_x = center[1]
+
+    boundary_motion = PrescribedMotion(fitted_movement, Returns(true))
+end
+
 structure.density .= [density_for_properties(structure.coordinates[1, particle])
                       for particle in 1:nparticles(structure)]
 structure.mass .= structure.density .* particle_spacing^2
@@ -373,19 +439,6 @@ clamped_structure_particles = findall(particle -> is_clamped_structure_particle(
                                                                                 particle,
                                                                                 foot_pocket_rigid_elastic_split_x),
                                       1:nparticles(structure))
-
-# Movement function (parameters chosen to match video)
-frequency = 1.06 # Hz
-amplitude = 0.24 # m
-rotation_deg = 22 # degrees
-rotation_phase_offset = 0.18 # periods
-translation_vector = SVector(0.0, amplitude)
-rotation_angle = rotation_deg * pi / 180
-
-boundary_motion = OscillatingMotion2D(; frequency,
-                                      translation_vector=SVector(0.0, amplitude),
-                                      rotation_angle, rotation_center=center,
-                                      rotation_phase_offset, ramp_up_tspan=(0.0, 0.5))
 
 sound_speed = 60.0
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
@@ -503,8 +556,8 @@ semi = Semidiscretization(fluid_system, boundary_system, open_boundary_system, s
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
-prefix = ""
-saving_callback = SolutionSavingCallback(dt=1/120; prefix)
+solution_prefix = ""
+saving_callback = SolutionSavingCallback(dt=1/120; prefix=solution_prefix)
 
 split_cfl = 1.5
 # SSPRK104 CFL = 2.5, 15k RHS evaluations
@@ -518,7 +571,7 @@ split_cfl = 1.5
 #     return data.velocity[2254]
 # end
 # pp_tip = PostprocessCallback(; tip_velocity, interval=1,
-#                             filename="$(prefix)_tip_velocity", write_file_interval=10_000)
+#                             filename="$(solution_prefix)_tip_velocity", write_file_interval=10_000)
 split_integration = SplitIntegrationCallback(CarpenterKennedy2N54(williamson_condition=false), adaptive=false,
                                              stage_coupling=true,
                                              dt=1e-5, # This is overwritten by the stepsize callback
@@ -535,17 +588,17 @@ function total_volume(system, data, t)
     return nothing
 end
 pp_cb = PostprocessCallback(; total_volume, interval=100,
-                            filename="$(prefix)_total_volume", write_file_interval=50)
+                            filename="$(solution_prefix)_total_volume", write_file_interval=50)
 
 function plane_vtk(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
     return nothing
 end
 function plane_vtk(system::WeaklyCompressibleSPHSystem, dv_ode, du_ode, v_ode, u_ode, semi, t)
     resolution = fluid_particle_spacing / 6
-    pvd = TrixiParticles.paraview_collection("out/$(prefix)_plane"; append=t > 0)
+    pvd = TrixiParticles.paraview_collection("out/$(solution_prefix)_plane"; append=t > 0)
     interpolate_plane_2d_vtk(min_corner, max_corner, resolution,
                              semi, semi.systems[1], v_ode, u_ode, include_wall_velocity=true,
-                             filename="$(prefix)_plane_$(round(Int, t * 1000))", pvd=pvd, t=t)
+                             filename="$(solution_prefix)_plane_$(round(Int, t * 1000))", pvd=pvd, t=t)
     TrixiParticles.vtk_save(pvd)
     return nothing
 end
@@ -556,11 +609,78 @@ mechanical_work_calculator = MechanicalWorkCalculator(semi.systems[4], semi)
 thrust_calculator = ThrustCalculator(semi.systems[4], semi, direction=SVector(1.0, 0.0))
 calculator_cb = PostprocessCallback(; mechanical_work_calculator, thrust_calculator,
                                     interval=efficiency_interval, write_file_interval=10,
-                                    filename="$(prefix)_efficiency")
+                                    filename="$(solution_prefix)_efficiency")
+
+# Reconstruct the motion of the blade centerline at its attachment (`x = 0` in blade
+# coordinates) from the surrounding SPH particles. The displacement and deformation
+# gradient are interpolated in the initial configuration with volume-weighted kernel
+# values and Shepard normalization. The rotation is the rotational part of the
+# interpolated deformation gradient.
+const BLADE_ATTACHMENT_REFERENCE = FIN_MOTION_REFERENCE
+blade_motion_system = semi.systems[4]
+blade_motion_search_radius = TrixiParticles.compact_support(blade_motion_system,
+                                                            blade_motion_system)
+
+# The reference configuration is fixed, so determine the kernel support only once.
+const BLADE_MOTION_PARTICLES = findall(1:nparticles(blade_motion_system)) do particle
+    initial_position = TrixiParticles.initial_coords(blade_motion_system, particle)
+    distance2 = sum(abs2, initial_position - BLADE_ATTACHMENT_REFERENCE)
+    return distance2 <= blade_motion_search_radius^2
+end
+@assert !isempty(BLADE_MOTION_PARTICLES)
+
+const BLADE_MOTION_WEIGHTS = map(BLADE_MOTION_PARTICLES) do particle
+    initial_position = TrixiParticles.initial_coords(blade_motion_system, particle)
+    distance = sqrt(sum(abs2, initial_position - BLADE_ATTACHMENT_REFERENCE))
+    kernel_weight = TrixiParticles.kernel(blade_motion_system.smoothing_kernel, distance,
+                                          blade_motion_system.smoothing_length)
+    volume = blade_motion_system.mass[particle] /
+             blade_motion_system.material_density[particle]
+    return volume * kernel_weight
+end
+const BLADE_MOTION_WEIGHT_SUM = sum(BLADE_MOTION_WEIGHTS)
+@assert BLADE_MOTION_WEIGHT_SUM > eps(BLADE_MOTION_WEIGHT_SUM)
+
+function blade_attachment_motion(system)
+    displacement = zero(BLADE_ATTACHMENT_REFERENCE)
+    deformation_grad = zero(TrixiParticles.deformation_gradient(system,
+                                                                 first(BLADE_MOTION_PARTICLES)))
+
+    @inbounds for i in eachindex(BLADE_MOTION_PARTICLES)
+        particle = BLADE_MOTION_PARTICLES[i]
+        weight = BLADE_MOTION_WEIGHTS[i]
+
+        displacement += weight * (TrixiParticles.current_coords(system, particle) -
+                                  TrixiParticles.initial_coords(system, particle))
+        deformation_grad += weight *
+                            TrixiParticles.deformation_gradient(system, particle)
+    end
+
+    displacement /= BLADE_MOTION_WEIGHT_SUM
+    deformation_grad /= BLADE_MOTION_WEIGHT_SUM
+
+    # In 2D, this is the angle of the proper orthogonal factor in the polar
+    # decomposition of the deformation gradient.
+    rotation = atan(deformation_grad[2, 1] - deformation_grad[1, 2],
+                    deformation_grad[1, 1] + deformation_grad[2, 2])
+
+    return displacement, rotation
+end
+
+function blade_motion(system::TotalLagrangianSPHSystem, data, t)
+    translation, rotation = blade_attachment_motion(system)
+    return translation, rotation
+end
+
+blade_motion(system, data, t) = nothing
+
+blade_motion_cb = PostprocessCallback(; blade_motion, dt=1 / 120,
+                                      write_file_interval=10,
+                                      filename="$(solution_prefix)_blade_motion")
 
 callbacks = CallbackSet(info_callback, saving_callback,
                         stepsize_callback, split_integration, pp_cb, interpolate_cb,
-                        calculator_cb,
+                        calculator_cb, blade_motion_cb,
                         UpdateCallback(), SortingCallback(interval=10_000))
 
 dt_fluid = 1.25e-4
