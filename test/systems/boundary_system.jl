@@ -124,6 +124,27 @@
         @test system.boundary_model.cache.initial_density == v_new[1, :]
     end
 
+    @testset "Restart SummationDensity" begin
+        coordinates = coordinates_[1]
+        initial_condition = InitialCondition(; coordinates, mass, density)
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        boundary_model = BoundaryModelDummyParticles(density, mass,
+                                                     SummationDensity(),
+                                                     smoothing_kernel, 1.0)
+        system = WallBoundarySystem(initial_condition, boundary_model)
+        system.boundary_model.cache.density .= [900.0, 901.0]
+        density_before_restart = copy(system.boundary_model.cache.density)
+
+        v_new = zeros(TrixiParticles.v_nvariables(system),
+                      TrixiParticles.n_integrated_particles(system))
+        u_new = zeros(0, TrixiParticles.n_integrated_particles(system))
+
+        restarted_system = TrixiParticles.restart_with!(system, v_new, u_new)
+
+        @test restarted_system === system
+        @test system.boundary_model.cache.density == density_before_restart
+    end
+
     # Use `@trixi_testset` to isolate the mock functions in a separate namespace
     @trixi_testset "show" begin
         coordinates = [1.0 2.0
