@@ -71,7 +71,7 @@
         smoothing_kernel = SchoenbergCubicSplineKernel{2}()
         smoothing_length = 1.0
 
-        boundary = InitialCondition(; coordinates=[0.0; 0.0][:, :],
+        boundary = InitialCondition(; coordinates=[0.0; 0.0;;],
                                     density=[3.0], mass=[1.0],
                                     particle_spacing=1.0)
         movement = PrescribedMotion((x, t) -> x, t -> true)
