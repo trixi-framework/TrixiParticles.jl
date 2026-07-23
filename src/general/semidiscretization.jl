@@ -219,15 +219,32 @@ end
 end
 
 @inline function foreach_system(f, semi::Union{NamedTuple, Semidiscretization},
+                                arg)
+    return foreach_system(f, semi.systems, arg)
+end
+
+@inline function foreach_system(f, semi::Union{NamedTuple, Semidiscretization},
                                 arg1, arg2, args...)
     return foreach_noalloc(f, semi.systems, arg1, arg2, args...)
 end
 
 @inline foreach_system(f, systems) = foreach_noalloc(f, systems)
+
+# The three-argument `foreach_noalloc` overload is reserved for zipped iteration, so keep
+# single-argument forwarding in `foreach_system`.
+@inline function foreach_system(f, systems, arg)
+    system = first(systems)
+    remaining_systems = Base.tail(systems)
+
+    @inline f(system, arg)
+
+    return foreach_system(f, remaining_systems, arg)
+end
+
+@inline foreach_system(f, systems::Tuple{}, arg) = nothing
+
 @inline foreach_system(f, systems, arg1, arg2,
-                       args...) = foreach_noalloc(f, systems,
-                                                  arg1, arg2,
-                                                  args...)
+                       args...) = foreach_noalloc(f, systems, arg1, arg2, args...)
 
 # This is just for readability to loop over all systems with wrapped arrays.
 @inline function foreach_system_wrapped(f, semi::Union{NamedTuple, Semidiscretization},

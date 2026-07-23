@@ -1,3 +1,36 @@
+@testset verbose=true "foreach_noalloc" begin
+    visited = Int[]
+    returned = TrixiParticles.foreach_noalloc((1, 2, 3)) do element
+        push!(visited, element)
+        return nothing
+    end
+    @test returned === nothing
+    @test visited == [1, 2, 3]
+
+    visited_pairs = Tuple{Int, Symbol}[]
+    returned = TrixiParticles.foreach_noalloc((1, 2), (:first, :second)) do pair
+        push!(visited_pairs, pair)
+        return nothing
+    end
+    @test returned === nothing
+    @test visited_pairs == [(1, :first), (2, :second)]
+
+    called = Ref(false)
+    returned = TrixiParticles.foreach_noalloc(()) do element
+        called[] = true
+        return nothing
+    end
+    @test returned === nothing
+    @test !called[]
+
+    returned = TrixiParticles.foreach_noalloc((), ()) do pair
+        called[] = true
+        return nothing
+    end
+    @test returned === nothing
+    @test !called[]
+end
+
 @testset verbose=true "ThreadedBroadcastArray" begin
     A = TrixiParticles.ThreadedBroadcastArray(ones(3, 3))
     B = ones(3, 3)
