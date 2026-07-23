@@ -230,8 +230,8 @@ end
 
 @inline foreach_system(f, systems) = foreach_noalloc(f, systems)
 
-# The three-argument `foreach_noalloc` overload is reserved for zipped iteration, so keep
-# single-argument forwarding in `foreach_system`.
+# `foreach_noalloc(f, systems, arg)` treats `arg` as a second collection. Therefore,
+# single-argument forwarding is implemented here.
 @inline function foreach_system(f, systems, arg)
     system = first(systems)
     remaining_systems = Base.tail(systems)
