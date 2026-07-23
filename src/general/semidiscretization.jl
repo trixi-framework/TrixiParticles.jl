@@ -258,16 +258,12 @@ end
                           u_ode)
 end
 
-# Keep the wrapped-system traversal as an explicit helper passed through `foreach_system`.
-# This avoids wrapping `foreach_system` in another closure while still keeping every
-# heterogeneous system type visible to inference at the call site.
+# Define an explicit function to be passed to `foreach_system` instead of using a closure
+# because nested closures can cause allocations.
 @inline function _foreach_system_wrapped(system, f, semi_wrap, v_ode, u_ode)
     v = wrap_v(v_ode, system, semi_wrap)
     u = wrap_u(u_ode, system, semi_wrap)
 
-    # This mirrors the explicit inline callback invocation used by `foreach_noalloc`.
-    # Without it, large do-block environments can allocate even though the tuple traversal
-    # itself is allocation-free.
     @inline f(system, v, u)
 
     return nothing
