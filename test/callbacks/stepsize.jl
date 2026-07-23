@@ -20,13 +20,13 @@ mutable struct StepsizeTestIntegrator
     opts::StepsizeTestOpts
     dtcache::Float64
     proposed_dt::Float64
-    u_modified_flag::Bool
+    derivative_discontinuity_flag::Bool
 end
 
 function StepsizeTestIntegrator(v_ode, u_ode, semi; adaptive=false)
     state = (; x=(v_ode, u_ode))
     opts = StepsizeTestOpts(adaptive, 0.0, (; discrete_callbacks=()))
-    return StepsizeTestIntegrator(state, semi, opts, 0.0, 0.0, true)
+    return StepsizeTestIntegrator(state, (; semi), opts, 0.0, 0.0, true)
 end
 
 function TrixiParticles.set_proposed_dt!(integrator::StepsizeTestIntegrator, dt)
@@ -34,8 +34,8 @@ function TrixiParticles.set_proposed_dt!(integrator::StepsizeTestIntegrator, dt)
     return integrator
 end
 
-function TrixiParticles.u_modified!(integrator::StepsizeTestIntegrator, flag)
-    integrator.u_modified_flag = flag
+function TrixiParticles.derivative_discontinuity!(integrator::StepsizeTestIntegrator, flag)
+    integrator.derivative_discontinuity_flag = flag
     return integrator
 end
 
@@ -91,7 +91,7 @@ end
         @test integrator.proposed_dt == expected_dt
         @test integrator.opts.dtmax == expected_dt
         @test integrator.dtcache == expected_dt
-        @test integrator.u_modified_flag == false
+        @test integrator.derivative_discontinuity_flag == false
     end
 
     @testset verbose=true "initialize" begin

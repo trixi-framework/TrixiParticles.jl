@@ -452,6 +452,8 @@ function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization)
     dt_interfaces = Inf
     nsystems = length(systems)
 
+    # This is evaluated only once when the constant stepsize callback is initialized.
+    # Pairs without an interface-specific restriction return `Inf` through dispatch.
     for i in 1:(nsystems - 1)
         system = systems[i]
         if system isa TotalLagrangianSPHSystem && !semi.integrate_tlsph[]
@@ -463,7 +465,6 @@ function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization)
             if neighbor_system isa TotalLagrangianSPHSystem && !semi.integrate_tlsph[]
                 continue
             end
-            should_calculate_interface_dt(system, neighbor_system) || continue
 
             dt_interfaces = min(dt_interfaces,
                                 calculate_interface_dt(v_ode, u_ode, cfl_number,
@@ -472,15 +473,6 @@ function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization)
     end
 
     return min(dt_systems, dt_interfaces)
-end
-
-@inline should_calculate_interface_dt(system, neighbor_system) = true
-
-@inline function should_calculate_interface_dt(system::WeaklyCompressibleSPHSystem,
-                                               neighbor_system::WeaklyCompressibleSPHSystem)
-    rho_system = system.state_equation.reference_density
-    rho_neighbor_system = neighbor_system.state_equation.reference_density
-    return !isapprox(rho_system, rho_neighbor_system)
 end
 
 @inline function calculate_interface_dt(v_ode, u_ode, cfl_number, system, neighbor_system,
