@@ -82,8 +82,8 @@
                                              prescribed_motion=movement)
         boundary_system.cache.velocity[:, 1] .= [5.0, 0.0]
 
-        fluid = InitialCondition(; coordinates=[2.0; 0.0][:, :],
-                                 velocity=[1.0; 0.0][:, :],
+        fluid = InitialCondition(; coordinates=[2.0; 0.0;;],
+                                 velocity=[1.0; 0.0;;],
                                  density=[3.0], mass=[1.0],
                                  particle_spacing=1.0)
         fluid_system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
