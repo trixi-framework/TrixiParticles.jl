@@ -3,18 +3,21 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::TotalLagrangianSPHSystem,
                    neighbor_system::TotalLagrangianSPHSystem, semi;
-                   integrate_tlsph=semi.integrate_tlsph[])
+                   integrate_tlsph=semi.integrate_tlsph[],
+                   eachparticle=each_integrated_particle(particle_system))
     # Different structures do not interact with each other (yet)
     particle_system === neighbor_system || return dv
 
     # Skip interaction if TLSPH systems are integrated separately
     integrate_tlsph || return dv
 
-    interact_structure_structure!(dv, v_particle_system, particle_system, semi)
+    interact_structure_structure!(dv, v_particle_system, particle_system, semi;
+                                  eachparticle)
 end
 
 # Function barrier without dispatch for unit testing
-@inline function interact_structure_structure!(dv, v_system, system, semi)
+@inline function interact_structure_structure!(dv, v_system, system, semi;
+                                               eachparticle=each_integrated_particle(system))
     (; penalty_force) = system
 
     # Everything here is done in the initial coordinates
@@ -31,7 +34,7 @@ end
     h = initial_smoothing_length(system)
     almostzero = sqrt(eps(h^2))
 
-    @threaded semi for particle in each_integrated_particle(system)
+    @threaded semi for particle in eachparticle
         # We are looping over the particles of `system`, so it is guaranteed
         # that `particle` is in bounds of `system`.
         m_a = @inbounds system.mass[particle]
@@ -103,13 +106,14 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::TotalLagrangianSPHSystem,
                    neighbor_system::AbstractFluidSystem, semi;
-                   integrate_tlsph=semi.integrate_tlsph[])
+                   integrate_tlsph=semi.integrate_tlsph[],
+                   eachparticle=each_integrated_particle(particle_system))
     # Skip interaction if TLSPH systems are integrated separately
     integrate_tlsph || return dv
 
     return interact_structure_fluid!(dv, v_particle_system, u_particle_system,
                                      v_neighbor_system, u_neighbor_system,
-                                     particle_system, neighbor_system, semi)
+                                     particle_system, neighbor_system, semi; eachparticle)
 end
 
 # Structure-boundary interaction
@@ -117,7 +121,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::TotalLagrangianSPHSystem,
                    neighbor_system::Union{WallBoundarySystem, OpenBoundarySystem}, semi;
-                   integrate_tlsph=semi.integrate_tlsph[])
+                   integrate_tlsph=semi.integrate_tlsph[],
+                   eachparticle=each_integrated_particle(particle_system))
     # TODO continuity equation?
     return dv
 end

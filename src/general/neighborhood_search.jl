@@ -2,7 +2,8 @@
 # Loop over all pairs of particles and neighbors within the kernel cutoff.
 # `f(particle, neighbor, pos_diff, distance)` is called for every particle-neighbor pair.
 # By default, loop over `eachparticle(system)`.
-function PointNeighbors.foreach_point_neighbor(f, system, neighbor_system,
+function PointNeighbors.foreach_point_neighbor(f, system::AbstractSystem,
+                                               neighbor_system::AbstractSystem,
                                                system_coords, neighbor_coords, semi;
                                                points=eachparticle(system),
                                                parallelization_backend=semi.parallelization_backend)
@@ -260,6 +261,11 @@ end
 end
 
 # === Initialization ===
+
+function initialize_neighborhood_searches!(semi, u0_ode, restart_with::Nothing)
+    initialize_neighborhood_searches!(semi)
+end
+
 function initialize_neighborhood_searches!(semi)
     foreach_system(semi) do system
         foreach_system(semi) do neighbor

@@ -48,9 +48,7 @@ end
 function (info_callback::InfoCallback)(u, t, integrator)
     (; interval) = info_callback
 
-    return interval != 0 &&
-           integrator.stats.naccept % interval == 0 ||
-           isfinished(integrator)
+    return condition_integrator_interval(integrator, interval)
 end
 
 # affect!
@@ -69,8 +67,8 @@ function (info_callback::InfoCallback)(integrator)
                 @sprintf("│ run time: %.4e s", runtime_absolute))
     end
 
-    # Tell OrdinaryDiffEq that u has not been modified
-    u_modified!(integrator, false)
+    # This callback only reports progress and does not change the result of the right-hand side.
+    derivative_discontinuity!(integrator, false)
 
     return nothing
 end
@@ -97,7 +95,7 @@ function initialize_info_callback(discrete_callback, u, t, integrator;
                            :total_width => 100,
                            :indentation_level => 0)
 
-    semi = integrator.p
+    semi = integrator.p.semi
     show(io_context, MIME"text/plain"(), semi)
     println(io, "\n")
     foreach_system(semi) do system
@@ -128,7 +126,7 @@ function initialize_info_callback(discrete_callback, u, t, integrator;
         push!(setup,
               "abstol" => integrator.opts.abstol,
               "reltol" => integrator.opts.reltol,
-              "controller" => integrator.opts.controller)
+              "controller" => integrator.controller_cache.controller)
     end
     summary_box(io, "Time integration", setup)
     println()

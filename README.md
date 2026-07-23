@@ -15,30 +15,31 @@
   <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/479ff0c6-3c65-44fe-b3e0-2ed653e7e3a5" alt="TrixiP_logo" width="40%"/>
 </p>
 
-**TrixiParticles.jl** is a high-performance numerical simulation framework for particle-based methods, focused on the simulation of complex multiphysics problems, and written in [Julia](https://julialang.org).
+**TrixiParticles.jl** is a high-performance numerical simulation framework for particle-based methods in complex multiphysics applications, written in [Julia](https://julialang.org).
+It combines an accessible user interface with an extensible architecture for developing new methods, while offering high performance on both CPU and GPU.
 
 TrixiParticles.jl focuses on the following use cases:
-- Accurate and efficient physics-based modelling of complex multiphysics problems.
-- Development of new particle-based methods and models.
-- Easy setup of accessible simulations for educational purposes, including student projects, coursework, and thesis work.
 
-It offers intuitive configuration, robust pre- and post-processing, and vendor-agnostic GPU-support based on the Julia package [KernelAbstractions.jl](https://github.com/JuliaGPU/KernelAbstractions.jl).
+- Accurate and efficient physics-based modeling of complex multiphysics problems.
+- Development of new particle-based methods and models.
+- Accessible simulation setup for educational purposes, including student projects, coursework, and thesis work.
+
+It offers intuitive configuration, robust pre- and post-processing, and vendor-agnostic GPU support based on the Julia package [KernelAbstractions.jl](https://github.com/JuliaGPU/KernelAbstractions.jl).
 
 [![YouTube](https://github.com/user-attachments/assets/dc2be627-a799-4bfd-9226-2077f737c4b0)](https://www.youtube.com/watch?v=V7FWl4YumcA&t=4667s)
 
 ## Features
-- Incompressible Navier-Stokes
-  - Methods: Weakly Compressible Smoothed Particle Hydrodynamics (WCSPH),
-    Entropically Damped Artificial Compressibility (EDAC),
-    Implicit Incompressible SPH (IISPH)
+- Incompressible Navier-Stokes flows
+  - Methods: Weakly Compressible Smoothed Particle Hydrodynamics (WCSPH), Entropically Damped Artificial Compressibility (EDAC),
+    Implicit Incompressible Smoothed Particle Hydrodynamics (IISPH)
   - Models: Surface Tension, Open Boundaries
-- Solid-body mechanics
-  - Methods:  Total Lagrangian SPH (TLSPH), Discrete Element Method (DEM), Rigid Body Dynamics (RBD)
-- Fluid-Structure Interaction
-- Particle sampling of complex geometries from `.stl` and `.asc` files.
+- Structural mechanics
+  - Methods: Total Lagrangian SPH (TLSPH), Discrete Element Method (DEM), Rigid Body Dynamics (RBD)
+- Fluid-Structure Interaction with elastic structures and rigid bodies
+- Particle sampling of complex geometries from `.stl`, `.asc`, and `.dxf` files.
 - Output formats:
   - VTK
-- Support for GPUs by Nvidia, AMD and Apple (experimental)
+- GPU support for NVIDIA, AMD, and Apple devices
 
 ## Examples
 We provide several example simulation setups in the `examples` folder (which can be accessed from Julia via `examples_dir()`).
@@ -68,7 +69,7 @@ We provide several example simulation setups in the `examples` folder (which can
 
 
 ## Installation
-If you have not yet installed Julia, please [follow the instructions for your
+If you have not installed Julia yet, please [follow the instructions for your
 operating system](https://julialang.org/downloads/platform/). TrixiParticles.jl works
 with Julia v1.10 and newer. We recommend using the latest stable release of Julia.
 
@@ -116,7 +117,12 @@ Then start the simulation by executing
 julia> trixi_include(joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"))
 ```
 
-This will open a new window with a 2D visualization of the final solution:
+To visualize the result quickly, use Plots.jl:
+```julia
+julia> using Plots; plot(sol)
+```
+
+This opens a new window with a 2D visualization of the final solution:
 <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/44124897/95821154-577d-4323-ba57-16ef02ea24e0" width="400">
 
 Further details can be found in the [documentation](https://trixi-framework.github.io/TrixiParticles.jl/stable).
@@ -184,10 +190,51 @@ To get in touch with the developers,
 or [create an issue](https://github.com/trixi-framework/TrixiParticles.jl/issues/new).
 
 ## Acknowledgments
+
+The project has benefited from funding from [hereon](https://www.hereon.de/),
+[HiRSE](https://www.helmholtz-hirse.de/), and through
+[ScienceServe](https://www.helmholtz.de/en/research/current-calls-for-applications/article/scienceserve-boosting-research-software-at-helmholtz/)
+for the MATRIX project.
+
 <p align="center">
-  <img align="middle" src="https://github.com/trixi-framework/TrixiParticles.jl/assets/44124897/05132bf1-180f-4228-b30a-37dfb6e36ed5" width=20%/>&nbsp;&nbsp;&nbsp;
-  <img align="middle" src="https://github.com/user-attachments/assets/480ceabe-b44c-4dc2-a4ce-d99ba49767f4" width=20%/>&nbsp;&nbsp;&nbsp;
-  <img align="middle" src="https://github.com/user-attachments/assets/80e897bd-c3fc-4bfc-aafb-a6d5810e0206" width=20%/>&nbsp;&nbsp;&nbsp;
+  <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/44124897/05132bf1-180f-4228-b30a-37dfb6e36ed5" height="65" alt="hereon"/>&nbsp;&nbsp;&nbsp;
+  <img src="https://github.com/user-attachments/assets/480ceabe-b44c-4dc2-a4ce-d99ba49767f4" height="65" alt="HiRSE"/>&nbsp;&nbsp;&nbsp;
+  <img src="https://github.com/user-attachments/assets/80e897bd-c3fc-4bfc-aafb-a6d5810e0206" height="65" alt="ScienceServe"/>
 </p>
 
-The project has benefited from funding from [hereon](https://www.hereon.de/), [HiRSE](https://www.helmholtz-hirse.de/), and through [ScienceServe](https://www.helmholtz.de/en/research/current-calls-for-applications/article/scienceserve-boosting-research-software-at-helmholtz/) for the MATRIX project.
+Work on TrixiParticles.jl has also been supported by the Federal Ministry of
+Research, Technology and Space (BMFTR) under funding code **01QE2614C** as
+part of the EUREKA project **RESIST**. The responsibility for the content of
+this publication lies with the authors.
+
+<p align="center">
+  <a href="https://www.bmftr.bund.de/EN/Home/home_node.html">
+    <img
+      src="https://github.com/user-attachments/assets/d863c64c-b7d0-40c4-aede-874c0b22ee4c"
+      alt="With funding from the Federal Ministry of Research, Technology and Space"
+      height="120"
+    />
+  </a>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="https://www.eurekanetwork.org/programmes-and-calls/eurostars/">
+    <img
+      src="https://github.com/user-attachments/assets/d9861c0f-3e19-485e-9e57-e27c44d2d3b8"
+      alt="Eurostars"
+      height="120"
+    />
+  </a>
+</p>
+
+This project is co-funded by the European Union. Views and opinions expressed
+are however those of the authors only and do not necessarily reflect those of
+the European Union or the granting authorities.
+
+<p align="center">
+  <a href="https://ec.europa.eu/regional_policy/information-sources/logo-download-center_en">
+    <img
+      src="https://github.com/user-attachments/assets/f562f643-4179-4569-9ffb-b10871be6ee4"
+      alt="Co-funded by the European Union"
+      height="75"
+    />
+  </a>
+</p>
