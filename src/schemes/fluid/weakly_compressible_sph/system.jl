@@ -405,7 +405,9 @@ function reinit_density!(system::WeaklyCompressibleSPHSystem, ::ContinuityDensit
     kernel_correction_coefficient = zeros(size(v[end, :]))
     compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode, semi,
                            kernel_correction_coefficient)
-    v[end, :] ./= kernel_correction_coefficient
+    @threaded semi for particle in eachparticle(system)
+        v[end, particle] /= kernel_correction_coefficient[particle]
+    end
 
     compute_pressure!(system, v, semi)
 
