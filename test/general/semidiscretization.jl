@@ -168,20 +168,19 @@
     end
 
     @testset verbose=true "Interaction Matrix" begin
-        # Mock custom interaction used as an `interaction_matrix` entry. The call counter
-        # verifies that split integration routes each ordered pair through the matrix.
-        struct TestInteraction
-            calls::Base.RefValue{Int}
-
-            TestInteraction() = new(Ref(0))
+        # Mock custom interactions used as `interaction_matrix` entries. Their distinct
+        # derivative sentinels verify that split integration routes each ordered pair through
+        # the matrix.
+        function test_interaction(dv, v_system, u_system, v_neighbor, u_neighbor, system,
+                                  neighbor, semi; kwargs...)
+            # Use a contribution distinct from the default mock `interact!` methods.
+            dv[1, 1] += 10_000
+            return dv
         end
 
-        function (interaction::TestInteraction)(dv, v_system, u_system, v_neighbor,
-                                                u_neighbor, system, neighbor, semi;
-                                                kwargs...)
-            interaction.calls[] += 1
-            # Use a contribution distinct from the default mock `interact!` methods.
-            dv[1, 1] += 50
+        function test_cross_interaction(dv, v_system, u_system, v_neighbor, u_neighbor,
+                                        system, neighbor, semi; kwargs...)
+            dv[1, 1] += 100_000
             return dv
         end
 
@@ -328,18 +327,16 @@
             @test semi_abstract_union.interaction_matrix isa Matrix{Bool}
             @test semi_abstract_union.interaction_matrix == trues(2, 2)
 
-            interaction = TestInteraction()
-            interaction_matrix = Matrix{Union{Bool, typeof(interaction)}}(trues(2, 2))
-            interaction_matrix[1, 2] = interaction
+            interaction_matrix = Matrix{Union{Bool, typeof(test_interaction)}}(trues(2, 2))
+            interaction_matrix[1, 2] = test_interaction
             semi_custom = Semidiscretization(system1, system2;
                                              neighborhood_search=nothing,
                                              interaction_matrix)
             interaction_matrix[1, 2] = false
 
-            @test semi_custom.interaction_matrix[1, 2] === interaction
+            @test semi_custom.interaction_matrix[1, 2] === test_interaction
 
-            interaction_any = TestInteraction()
-            interaction_matrix_any = Any[true interaction_any;
+            interaction_matrix_any = Any[true test_interaction;
                                          false true]
             semi_any_custom = Semidiscretization(system1, system2;
                                                  neighborhood_search=nothing,
@@ -347,8 +344,8 @@
             interaction_matrix_any[1, 2] = false
 
             @test eltype(semi_any_custom.interaction_matrix) ==
-                  Union{Bool, typeof(interaction_any)}
-            @test semi_any_custom.interaction_matrix[1, 2] === interaction_any
+                  Union{Bool, typeof(test_interaction)}
+            @test semi_any_custom.interaction_matrix[1, 2] === test_interaction
         end
 
         @testset "disabled interactions are skipped" begin
@@ -369,9 +366,8 @@
         end
 
         @testset "custom interaction function" begin
-            interaction = TestInteraction()
-            interaction_matrix = Matrix{Union{Bool, typeof(interaction)}}(trues(2, 2))
-            interaction_matrix[1, 2] = interaction
+            interaction_matrix = Matrix{Union{Bool, typeof(test_interaction)}}(trues(2, 2))
+            interaction_matrix[1, 2] = test_interaction
             interaction_matrix[2, 1] = false
 
             semi = Semidiscretization(system1, system2; neighborhood_search=nothing,
@@ -380,9 +376,8 @@
 
             TrixiParticles.system_interaction!(dv_ode, v_ode, u_ode, semi)
 
-            @test interaction.calls[] == 1
-            @test semi.interaction_matrix[1, 2] === interaction
-            @test system_dv(dv_ode, semi, 1)[1, 1] == 51
+            @test semi.interaction_matrix[1, 2] === test_interaction
+            @test system_dv(dv_ode, semi, 1)[1, 1] == 10_001
             @test system_dv(dv_ode, semi, 2)[1, 1] == 1000
         end
 
@@ -412,35 +407,32 @@
 
         @testset "split interaction uses original interaction matrix" begin
             structure, fluid = make_tlsph_fluid_systems()
-            interaction = TestInteraction()
-            interaction_matrix = Matrix{Union{Bool, typeof(interaction)}}(trues(2, 2))
-            interaction_matrix[1, 2] = interaction
+            interaction_matrix = Matrix{Union{Bool, typeof(test_interaction)}}(trues(2, 2))
+            interaction_matrix[1, 2] = test_interaction
 
             semi = Semidiscretization(structure, fluid; neighborhood_search=nothing,
                                       interaction_matrix)
             semi_split = Semidiscretization(semi.systems[1]; neighborhood_search=nothing)
-            v_ode, u_ode, _ = initialized_ode_state(semi)
+            v_ode, u_ode, dv_ode = initialized_ode_state(semi)
             _, _, dv_ode_split = initialized_ode_state(semi_split)
 
             semi.integrate_tlsph[] = false
-            TrixiParticles.system_interaction!(zero(v_ode), v_ode, u_ode, semi)
-            @test interaction.calls[] == 0
+            TrixiParticles.system_interaction!(dv_ode, v_ode, u_ode, semi)
+            @test system_dv(dv_ode, semi, 1)[1, 1] == 0
 
             TrixiParticles.other_interaction_split!(dv_ode_split, semi, v_ode, u_ode,
                                                     semi_split)
 
-            @test interaction.calls[] == 1
-            @test system_dv(dv_ode_split, semi_split, 1)[1, 1] == 50
+            @test system_dv(dv_ode_split, semi_split, 1)[1, 1] == 10_000
         end
 
         @testset "split interaction separates TLSPH self and cross interactions" begin
             structure1 = first(make_tlsph_fluid_systems())
             structure2 = first(make_tlsph_fluid_systems())
-            self_interaction = TestInteraction()
-            cross_interaction = TestInteraction()
-            interaction_matrix = Matrix{Union{Bool, typeof(self_interaction)}}(falses(2, 2))
-            interaction_matrix[1, 1] = self_interaction
-            interaction_matrix[1, 2] = cross_interaction
+            interaction_matrix = Matrix{Union{Bool, typeof(test_interaction),
+                                              typeof(test_cross_interaction)}}(falses(2, 2))
+            interaction_matrix[1, 1] = test_interaction
+            interaction_matrix[1, 2] = test_cross_interaction
 
             semi = Semidiscretization(structure1, structure2; neighborhood_search=nothing,
                                       interaction_matrix)
@@ -452,17 +444,14 @@
             TrixiParticles.self_interaction_split!(dv_ode_split, v_ode_split,
                                                    u_ode_split, semi_split, semi)
 
-            @test self_interaction.calls[] == 1
-            @test cross_interaction.calls[] == 0
-            @test system_dv(dv_ode_split, semi_split, 1)[1, 1] == 50
+            @test system_dv(dv_ode_split, semi_split, 1)[1, 1] == 10_000
             @test system_dv(dv_ode_split, semi_split, 2)[1, 1] == 0
 
             fill!(dv_ode_split, 0)
             TrixiParticles.other_interaction_split!(dv_ode_split, semi, v_ode, u_ode,
                                                     semi_split)
 
-            @test cross_interaction.calls[] == 1
-            @test system_dv(dv_ode_split, semi_split, 1)[1, 1] == 50
+            @test system_dv(dv_ode_split, semi_split, 1)[1, 1] == 100_000
             @test system_dv(dv_ode_split, semi_split, 2)[1, 1] == 0
         end
     end
