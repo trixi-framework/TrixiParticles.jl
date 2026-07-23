@@ -261,6 +261,11 @@ end
 end
 
 # === Initialization ===
+
+function initialize_neighborhood_searches!(semi, u0_ode, restart_with::Nothing)
+    initialize_neighborhood_searches!(semi)
+end
+
 function initialize_neighborhood_searches!(semi)
     foreach_system(semi) do system
         foreach_system(semi) do neighbor

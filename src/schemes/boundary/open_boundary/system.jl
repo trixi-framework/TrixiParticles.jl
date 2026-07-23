@@ -143,6 +143,9 @@ function initialize!(system::OpenBoundarySystem, semi)
     return system
 end
 
+# Skip during restart, as boundary zone indices are updated in `restore_previous_state!`
+initialize_restart!(system::OpenBoundarySystem, semi) = system
+
 function create_cache_open_boundary(boundary_model, fluid_system, initial_condition,
                                     density_diffusion, calculate_flow_rate, boundary_zones)
     reference_values = map(bz -> bz.reference_values, boundary_zones)
@@ -261,6 +264,8 @@ end
     return system.shifting_technique
 end
 
+@inline density_calculator(system::OpenBoundarySystem) = nothing
+
 system_sound_speed(system::OpenBoundarySystem) = system_sound_speed(system.fluid_system)
 
 @inline hydrodynamic_mass(system::OpenBoundarySystem, particle) = system.mass[particle]
@@ -355,8 +360,8 @@ function update_open_boundary_eachstep!(system::OpenBoundarySystem, v_ode, u_ode
         end
     end
 
-    # Tell OrdinaryDiffEq that `integrator.u` has been modified
-    u_modified!(integrator, true)
+    # Activating or deactivating boundary particles introduces a derivative discontinuity.
+    derivative_discontinuity!(integrator, true)
 
     return system
 end
@@ -392,12 +397,15 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
 
     u_fluid = wrap_u(u_ode, fluid_system, semi)
     v_fluid = wrap_v(v_ode, fluid_system, semi)
+    periodic_box = get_neighborhood_search(fluid_system, system, semi).periodic_box
 
     boundary_candidates .= false
 
     # Check the boundary particles whether they're leaving the boundary zone
     @threaded semi for particle in each_integrated_particle(system)
-        particle_coords = current_coords(u, system, particle)
+        particle_coords = PointNeighbors.periodic_coords(current_coords(u, system,
+                                                                        particle),
+                                                         periodic_box)
 
         # Check if boundary particle is outside the boundary zone
         boundary_zone = current_boundary_zone(system, particle)
@@ -418,7 +426,7 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
 
         boundary_zone = current_boundary_zone(system, particle)
         convert_particle!(system, fluid_system, boundary_zone, particle, particle_new,
-                          v, u, v_fluid, u_fluid)
+                          v, u, v_fluid, u_fluid, periodic_box)
     end
 
     update_system_buffer!(system.buffer)
@@ -428,7 +436,9 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
 
     # Check the fluid particles whether they're entering the boundary zone
     @threaded semi for fluid_particle in each_integrated_particle(fluid_system)
-        fluid_coords = current_coords(u_fluid, fluid_system, fluid_particle)
+        fluid_coords = PointNeighbors.periodic_coords(current_coords(u_fluid, fluid_system,
+                                                                     fluid_particle),
+                                                      periodic_box)
 
         # Check if fluid particle is in any boundary zone
         for boundary_zone in boundary_zones
@@ -449,7 +459,7 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
         particle_new = available_boundary_particles[i]
 
         convert_particle!(fluid_system, system, particle, particle_new,
-                          v, u, v_fluid, u_fluid)
+                          v, u, v_fluid, u_fluid, periodic_box)
     end
 
     update_system_buffer!(system.buffer)
@@ -466,9 +476,11 @@ end
 # Buffer particle is outside the boundary zone
 @inline function convert_particle!(system::OpenBoundarySystem, fluid_system,
                                    boundary_zone, particle, particle_new,
-                                   v, u, v_fluid, u_fluid)
+                                   v, u, v_fluid, u_fluid, periodic_box)
     # Position relative to the origin of the transition face
-    relative_position = current_coords(u, system, particle) - boundary_zone.zone_origin
+    nonperiodic_coords = current_coords(u, system, particle)
+    particle_coords = PointNeighbors.periodic_coords(nonperiodic_coords, periodic_box)
+    relative_position = particle_coords - boundary_zone.zone_origin
 
     # Check if particle is in- or outside the fluid domain.
     # `face_normal` is always pointing into the fluid domain.
@@ -483,7 +495,8 @@ end
     end
 
     # Activate a new particle in simulation domain
-    transfer_particle!(fluid_system, system, particle, particle_new, v_fluid, u_fluid, v, u)
+    transfer_particle!(fluid_system, system, particle, particle_new,
+                       v_fluid, u_fluid, v, u, periodic_box)
 
     # Reset position of boundary particle back to the beginning of the boundary zone.
     # If we translated it by exactly `zone_width` along `-face_normal`, rounding
@@ -513,9 +526,11 @@ end
 
 # Fluid particle is in boundary zone
 @inline function convert_particle!(fluid_system::AbstractFluidSystem, system,
-                                   particle, particle_new, v, u, v_fluid, u_fluid)
+                                   particle, particle_new, v, u, v_fluid, u_fluid,
+                                   periodic_box)
     # Activate particle in boundary zone
-    transfer_particle!(system, fluid_system, particle, particle_new, v, u, v_fluid, u_fluid)
+    transfer_particle!(system, fluid_system, particle, particle_new,
+                       v, u, v_fluid, u_fluid, periodic_box)
 
     # Deactivate particle in interior domain
     deactivate_particle!(fluid_system, particle, v_fluid, u_fluid)
@@ -524,7 +539,7 @@ end
 end
 
 @inline function transfer_particle!(system_new, system_old, particle_old, particle_new,
-                                    v_new, u_new, v_old, u_old)
+                                    v_new, u_new, v_old, u_old, periodic_box)
     # Activate new particle
     system_new.buffer.active_particle[particle_new] = true
 
@@ -536,9 +551,12 @@ end
     pressure = current_pressure(v_old, system_old, particle_old)
     set_particle_pressure!(v_new, system_new, particle_new, pressure)
 
+    nonperiodic_coords = current_coords(u_old, system_old, particle_old)
+    particle_coords = PointNeighbors.periodic_coords(nonperiodic_coords, periodic_box)
+
     # Exchange position and velocity
     for dim in 1:ndims(system_new)
-        u_new[dim, particle_new] = u_old[dim, particle_old]
+        u_new[dim, particle_new] = particle_coords[dim]
         v_new[dim, particle_new] = v_old[dim, particle_old]
     end
 
@@ -698,6 +716,72 @@ function interpolate_velocity!(system::OpenBoundarySystem, boundary_zone,
         if @inbounds shepard_coefficient[point] > eps(eltype(shepard_coefficient))
             for i in axes(sample_velocity, 1)
                 @inbounds sample_velocity[i, point] /= shepard_coefficient[point]
+            end
+        end
+    end
+
+    return system
+end
+
+function restart_u(system::OpenBoundarySystem, data)
+    coords_total = zeros(coordinates_eltype(system), u_nvariables(system),
+                         n_integrated_particles(system))
+    coords_total .= coordinates_eltype(system)(1e16)
+
+    # Since only active particles are written during saving, the loaded `data` contains
+    # only active particles. These are placed at the beginning of the array, leaving the
+    # inactive buffer particles at the end. Thus, we can safely activate the first N particles.
+    coords_active = data.coordinates
+    for particle in axes(coords_active, 2)
+        for dim in 1:ndims(system)
+            coords_total[dim, particle] = coords_active[dim, particle]
+        end
+    end
+
+    system.buffer.active_particle .= false
+    system.buffer.active_particle[1:size(coords_active, 2)] .= true
+
+    update_system_buffer!(system.buffer)
+
+    return coords_total
+end
+
+function restart_v(system::OpenBoundarySystem, data)
+    v_total = zeros(eltype(system), v_nvariables(system),
+                    n_integrated_particles(system))
+
+    # Since only active particles are written during saving, the loaded `data` contains
+    # only active particles. These are placed at the beginning of the array, leaving the
+    # inactive buffer particles at the end. Thus, we can safely activate the first N particles.
+    v_active = zeros(eltype(system), v_nvariables(system), size(data.velocity, 2))
+
+    v_active[1:ndims(system), :] = data.velocity
+    write_density_and_pressure!(v_active, system.fluid_system,
+                                density_calculator(system), data.pressure, data.density)
+
+    for particle in axes(v_active, 2)
+        for i in axes(v_active, 1)
+            v_total[i, particle] = v_active[i, particle]
+        end
+    end
+
+    return v_total
+end
+
+function restore_previous_state!(system::OpenBoundarySystem, file)
+    # We cannot simply use `update_boundary_zone_indices!` because rounding errors during file I/O
+    # may result in particles being located outside their intended boundary zone, even though they
+    # were written as active particles.
+    set_zero!(system.boundary_zone_indices)
+
+    values = vtk2trixi(file; create_initial_condition=false)
+    system.boundary_zone_indices[each_integrated_particle(system)] .= values.zone_id
+
+    if any(pm -> isa(pm, AbstractPressureModel), system.cache.pressure_reference_values)
+        for (i, pressure_model) in enumerate(system.cache.pressure_reference_values)
+            if pressure_model isa AbstractPressureModel
+                pressure_model.pressure[] = values[Symbol(:boundary_zone_pressure_, i)]
+                pressure_model.flow_rate[] = values[Symbol(:Q_, i)]
             end
         end
     end
