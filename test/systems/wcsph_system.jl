@@ -225,7 +225,7 @@
                                              surface_tension=SurfaceTensionMorris(),
                                              reference_particle_spacing=0.1)
 
-        @testnowarn repr(system)
+        @test_nowarn repr(system)
     end
 
     @testset verbose=true "write_u0!" begin
