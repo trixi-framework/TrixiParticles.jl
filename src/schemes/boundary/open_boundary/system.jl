@@ -376,8 +376,8 @@ function calculate_flow_rate!(system::OpenBoundarySystem{<:Any, ELTYPE, NDIMS},
         (; boundary_zones) = system
         (; boundary_zones_flow_rate) = system.cache
 
-        foreach_noalloc(boundary_zones,
-                        boundary_zones_flow_rate) do (boundary_zone, flow_rate)
+        foreach_noalloc_zip(boundary_zones,
+                            boundary_zones_flow_rate) do (boundary_zone, flow_rate)
             (; face_normal) = boundary_zone
             (; sample_velocity, area_increment) = boundary_zone.cache
 

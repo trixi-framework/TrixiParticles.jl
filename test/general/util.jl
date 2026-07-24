@@ -7,8 +7,16 @@
     @test returned === nothing
     @test visited == [1, 2, 3]
 
+    visited_with_context = Tuple{Int, Symbol}[]
+    returned = TrixiParticles.foreach_noalloc((1, 2), :context) do element, context
+        push!(visited_with_context, (element, context))
+        return nothing
+    end
+    @test returned === nothing
+    @test visited_with_context == [(1, :context), (2, :context)]
+
     visited_pairs = Tuple{Int, Symbol}[]
-    returned = TrixiParticles.foreach_noalloc((1, 2), (:first, :second)) do pair
+    returned = TrixiParticles.foreach_noalloc_zip((1, 2), (:first, :second)) do pair
         push!(visited_pairs, pair)
         return nothing
     end
@@ -23,7 +31,7 @@
     @test returned === nothing
     @test !called[]
 
-    returned = TrixiParticles.foreach_noalloc((), ()) do pair
+    returned = TrixiParticles.foreach_noalloc_zip((), ()) do pair
         called[] = true
         return nothing
     end
