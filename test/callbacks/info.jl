@@ -172,7 +172,7 @@
                                                              iter=1023))))
 
         TrixiParticles.isfinished(::NamedTuple) = true
-        TrixiParticles.u_modified!(::NamedTuple, _) = nothing
+        TrixiParticles.derivative_discontinuity!(::NamedTuple, _) = nothing
 
         expected = """
         ────────────────────────────────────────────────────────────────────────────────────────────────────
