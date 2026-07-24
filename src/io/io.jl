@@ -62,7 +62,7 @@ function add_simulation_info!(info, git_hash, integrator)
     if integrator.opts.adaptive
         info["time_integrator"]["abstol"] = integrator.opts.abstol
         info["time_integrator"]["reltol"] = integrator.opts.reltol
-        info["time_integrator"]["controller"] = type2string(integrator.opts.controller)
+        info["time_integrator"]["controller"] = type2string(integrator.controller_cache.controller)
     else
         info["time_integrator"]["dt"] = integrator.dt
         info["time_integrator"]["dt_max"] = integrator.opts.dtmax

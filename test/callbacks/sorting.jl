@@ -40,7 +40,7 @@
         TrixiParticles.v_nvariables(::SortingCallbackMockSystem) = 2
         TrixiParticles.u_nvariables(::SortingCallbackMockSystem) = 2
         TrixiParticles.n_integrated_particles(::SortingCallbackMockSystem) = 1
-        TrixiParticles.u_modified!(::NamedTuple, _) = nothing
+        TrixiParticles.derivative_discontinuity!(::NamedTuple, _) = nothing
 
         function TrixiParticles.sort_particles!(system::SortingCallbackMockSystem, v, u,
                                                 semi)
