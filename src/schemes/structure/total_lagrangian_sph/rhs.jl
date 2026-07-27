@@ -108,6 +108,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                    neighbor_system::AbstractFluidSystem, semi;
                    integrate_tlsph=semi.integrate_tlsph[],
                    eachparticle=each_integrated_particle(particle_system))
+    (; boundary_model) = particle_system
+
     # Skip interaction if TLSPH systems are integrated separately
     integrate_tlsph || return dv
 

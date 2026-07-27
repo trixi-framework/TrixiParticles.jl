@@ -284,6 +284,9 @@ function semidiscretize(semi, tspan; reset_threads=true, restart_with=nothing)
     # Set initial condition
     set_initial_conditions!(v0_ode, u0_ode, semi, restart_with)
 
+    # Update tspan when restarting from files
+    tspan = time_span(tspan, restart_with)
+
     # TODO initialize after adapting to the GPU.
     # Requires https://github.com/trixi-framework/PointNeighbors.jl/pull/86.
     initialize_neighborhood_searches!(semi, u0_ode, restart_with)
@@ -318,6 +321,11 @@ function semidiscretize(semi, tspan; reset_threads=true, restart_with=nothing)
     # Initialize all particle systems
     initialize!(semi_new, restart_with)
 
+    # Initialize the averaged velocity for TLSPH systems.
+    foreach_system(semi) do system
+        initialize_averaged_velocity!(system, v0_ode, semi, tspan[1])
+    end
+
     # Reset callback flag that will be set by the `UpdateCallback`
     semi_new.update_callback_used[] = false
 
@@ -328,8 +336,7 @@ function semidiscretize(semi, tspan; reset_threads=true, restart_with=nothing)
     p = @NamedTuple{semi::typeof(semi_new), split_integration_data::Any}((semi_new,
                                                                           nothing))
 
-    return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode,
-                               time_span(tspan, restart_with), p)
+    return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode, tspan, p)
 end
 
 function set_initial_conditions!(v0_ode, u0_ode, semi, restart_with::Nothing)

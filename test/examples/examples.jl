@@ -91,7 +91,7 @@
             end
         end
 
-        @trixi_testset "structure/oscillating_beam_2d.jl with MechanicalWorkCalculatorCallback" begin
+        @trixi_testset "structure/oscillating_beam_2d.jl with MechanicalWorkCalculator" begin
             # Load variables from the example
             trixi_include(@__MODULE__,
                           joinpath(examples_dir(), "structure", "oscillating_beam_2d.jl"),
@@ -129,17 +129,18 @@
                 ode = semidiscretize(semi, (0.0, 1.0))
                 system = ode.p.semi.systems[1]
 
-                mechanical_work_calculator = MechanicalWorkCalculatorCallback(system, semi;
-                                                                              interval=1)
+                mechanical_work = MechanicalWorkCalculator(system, semi)
+                postprocess_callback = PostprocessCallback(; interval=1, mechanical_work,
+                                                           write_file_interval=0)
 
                 sol = @trixi_test_nowarn solve(ode, RDPK3SpFSAL49(), save_everystep=false,
-                                               callback=mechanical_work_calculator)
+                                               callback=postprocess_callback)
 
                 @test sol.retcode == ReturnCode.Success
                 @test count_rhs_allocations(sol) == 0
 
                 # Potential energy difference should be m * g * h
-                @test isapprox(calculated_mechanical_work(mechanical_work_calculator),
+                @test isapprox(calculated_mechanical_work(mechanical_work),
                                sum(system.mass) * gravity * 1,
                                rtol=rtol[name])
             end
@@ -156,9 +157,9 @@
     end
 
     @testset verbose=true "FSI" begin
-        @trixi_testset "fluid/hydrostatic_water_column_2d.jl with MechanicalWorkCalculatorCallback and moving TLSPH walls" begin
+        @trixi_testset "fluid/hydrostatic_water_column_2d.jl with MechanicalWorkCalculator and moving TLSPH walls" begin
             # In this test, we move a water-filled tank up against gravity by 1 unit
-            # and verify that the work accumulated by the `MechanicalWorkCalculatorCallback`
+            # and verify that the work accumulated by the `MechanicalWorkCalculator`
             # matches the expected potential energy difference.
 
             # Load variables from the example
@@ -181,7 +182,7 @@
 
             # Create TLSPH system for the tank walls and clamp all particles.
             # This is identical to a `WallBoundarySystem`, but now we can
-            # use the `MechanicalWorkCalculatorCallback` to compute the mechanical work.
+            # use the `MechanicalWorkCalculator` to compute the mechanical work.
             boundary_spacing = tank.boundary.particle_spacing
             tlsph_kernel = WendlandC2Kernel{2}()
             tlsph_smoothing_length = sqrt(2) * boundary_spacing
@@ -203,18 +204,17 @@
             tlsph_system_new = ode.p.semi.systems[2]
 
             # Mechanical work calculators for fluid + tank and fluid only
-            mechanical_work_calculator1 = MechanicalWorkCalculatorCallback(tlsph_system_new,
-                                                                           semi;
-                                                                           interval=1)
-            mechanical_work_calculator2 = MechanicalWorkCalculatorCallback(tlsph_system_new,
-                                                                           semi;
-                                                                           interval=1,
-                                                                           only_compute_force_on_fluid=true)
+            mechanical_work1 = MechanicalWorkCalculator(tlsph_system_new, semi)
+            mechanical_work2 = MechanicalWorkCalculator(tlsph_system_new, semi;
+                                                        only_compute_force_on_fluid=true)
+            thrust = ThrustCalculator(tlsph_system_new, semi; direction=SVector(0.0, 1.0))
+            postprocess_callback = PostprocessCallback(; interval=1, mechanical_work1,
+                                                       mechanical_work2, thrust,
+                                                       write_file_interval=0)
 
             sol = @trixi_test_nowarn solve(ode, RDPK3SpFSAL35(), save_everystep=false,
                                            callback=CallbackSet(info_callback,
-                                                                mechanical_work_calculator1,
-                                                                mechanical_work_calculator2))
+                                                                postprocess_callback))
 
             @test sol.retcode == ReturnCode.Success
             @test count_rhs_allocations(sol) == 0
@@ -229,11 +229,12 @@
             # compressible and is deformed during the simulation.
             # A slower prescribed motion (e.g., over 2 seconds instead of 1) or a higher
             # speed of sound in the fluid would improve accuracy (and increase runtime).
-            @test isapprox(calculated_mechanical_work(mechanical_work_calculator1),
+            @test isapprox(calculated_mechanical_work(mechanical_work1),
                            expected_energy_fluid + expected_energy_tank, rtol=5e-4)
-            @test isapprox(calculated_mechanical_work(mechanical_work_calculator2),
+            @test isapprox(calculated_mechanical_work(mechanical_work2),
                            expected_energy_fluid,
                            rtol=5e-4)
+            @test isfinite(calculated_thrust(thrust))
         end
 
         @trixi_testset "fsi/falling_water_column_2d.jl" begin

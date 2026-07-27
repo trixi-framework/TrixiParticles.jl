@@ -538,20 +538,7 @@ function UpdateAveragedVelocityCallback()
     # The first one is the `condition`, the second the `affect!`
     return DiscreteCallback(update_averaged_velocity_callback!,
                             update_averaged_velocity_callback!,
-                            initialize=(initialize_averaged_velocity_callback!),
                             save_positions=(false, false))
-end
-
-# `initialize`
-function initialize_averaged_velocity_callback!(cb, vu_ode, t, integrator)
-    v_ode, u_ode = vu_ode.x
-    semi = integrator.p.semi
-
-    foreach_system(semi) do system
-        initialize_averaged_velocity!(system, v_ode, semi, t)
-    end
-
-    return cb
 end
 
 # `condition`
