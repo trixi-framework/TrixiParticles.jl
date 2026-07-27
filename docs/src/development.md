@@ -93,7 +93,7 @@ project-specific conventions:
   doctests. Very short docstrings don't require these sections.
 - Do not add docstrings to non-exported internal functions and types. Use
   regular comments to explain their purpose and usage.
-- When validating user inpout, use `throw(ArgumentError(...))`.
+- When validating user input, use `throw(ArgumentError(...))`.
   Reserve `@assert` for internal invariants and states that should be impossible.
 - Use `@inbounds` only on individual lines whose bounds are guaranteed.
   Do not mark full loops, blocks, or functions as `@inbounds`. See
