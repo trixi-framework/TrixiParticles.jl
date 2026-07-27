@@ -75,6 +75,7 @@ clamped_particles = RectangularShape(structure_particle_spacing,
                                      coordinates_eltype=Float64)
 
 structure = union(clamped_particles, plate)
+material_mass = rectangular_shape_material_mass(structure)
 
 # ==========================================================================================
 # ==== Fluid
@@ -135,6 +136,7 @@ structure_system = TotalLagrangianSPHSystem(structure;
                                             smoothing_kernel=structure_smoothing_kernel,
                                             smoothing_length=structure_smoothing_length,
                                             young_modulus=E, poisson_ratio=nu,
+                                            material_mass,
                                             boundary_model=boundary_model_structure,
                                             clamped_particles=1:nparticles(clamped_particles),
                                             acceleration=(0.0, -gravity),

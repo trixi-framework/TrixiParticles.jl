@@ -415,6 +415,8 @@ function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem)
     end
 
     vtk["material_density"] = system.material_density
+    vtk["mass"] = system.mass
+    vtk["material_mass"] = system.material_mass
 
     write2vtk!(vtk, v, u, t, system.boundary_model, system)
 end

@@ -57,6 +57,27 @@ are the Lamé coefficients, where $E$ is the Young's modulus and $\nu$ is the Po
 
 The term $\bm{f}_a^{PF}$ is an optional penalty force. See e.g. [`PenaltyForceGanzenmueller`](@ref).
 
+## Operator Mass and Physical Material Mass
+
+For TLSPH particles placed on the geometric boundary, one particle array serves two
+mathematically different roles:
+
+1. The `mass` stored in the initial condition supplies the quadrature weights in the
+   corrected TLSPH collocation operators. It is also the denominator used to map the
+   pairwise FSI force to structural acceleration.
+2. The optional `material_mass` supplies physical lumped weights for integral quantities,
+   such as total mass and kinetic energy.
+
+These arrays are intentionally separate. Changing the operator weights changes the discrete
+stress-divergence and FSI operators, even when the goal is only to correct the physical mass
+represented by boundary nodes. When `material_mass` is omitted, it defaults to a copy of
+`mass`, preserving existing behavior.
+
+For a complete Cartesian structure created by [`RectangularShape`](@ref) with
+`place_on_shell=true`, [`rectangular_shape_material_mass`](@ref) computes tensor-product
+trapezoidal weights. Boundary nodes receive half the interior weight in each boundary
+direction, so the physical mass integrates over the domain bounded by the outermost nodes.
+
 ```@autodocs
 Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "structure", "total_lagrangian_sph", "system.jl")]

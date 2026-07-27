@@ -9,7 +9,7 @@ function kinetic_energy(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
     velocity = reinterpret(reshape, SVector{ndims(system), eltype(v)},
                            view(current_velocity(v, system), :,
                                 each_active_particle(system)))
-    mass = view(system.mass, each_active_particle(system))
+    mass = view(physical_mass(system), each_active_particle(system))
 
     return mapreduce(+, velocity, mass) do v_i, m_i
         return m_i * dot(v_i, v_i) / 2
@@ -19,12 +19,11 @@ end
 function kinetic_energy(system::AbstractStructureSystem,
                         dv_ode, du_ode, v_ode, u_ode, semi, t)
     v = wrap_v(v_ode, system, semi)
-    mass = system.mass
-    energy = zero(eltype(system))
+    mass = physical_mass(system)
 
     return sum(each_active_particle(system)) do particle
         v_i = current_velocity(v, system, particle)
-        energy += mass[particle] * dot(v_i, v_i) / 2
+        return mass[particle] * dot(v_i, v_i) / 2
     end
 end
 
@@ -39,7 +38,7 @@ end
 Returns the total mass of all particles in a system.
 """
 function total_mass(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
-    return sum(system.mass)
+    return sum(physical_mass(system))
 end
 
 function total_mass(system::AbstractBoundarySystem, dv_ode, du_ode, v_ode, u_ode, semi, t)

@@ -1,6 +1,7 @@
 @doc raw"""
     TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing_length,
                              young_modulus, poisson_ratio,
+                             material_mass=nothing,
                              clamped_particles=Int[],
                              clamped_particles_motion=nothing,
                              acceleration=ntuple(_ -> 0.0, NDIMS),
@@ -26,6 +27,14 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
                         See [Smoothing Kernels](@ref smoothing_kernel).
 - `young_modulus`:      Young's modulus.
 - `poisson_ratio`:      Poisson ratio.
+- `material_mass`:      Physical lumped mass of each material node, used for integral
+                        diagnostics such as total mass and kinetic energy. By default,
+                        this is a copy of `initial_condition.mass`. The latter remains the
+                        quadrature mass used by the TLSPH and FSI operators. Keeping these
+                        measures separate preserves the validated collocation dynamics.
+                        For a rectangular structure created with `place_on_shell=true`, use
+                        [`rectangular_shape_material_mass`](@ref) to obtain consistent
+                        trapezoidal-rule masses.
 - `clamped_particles`:  Indices specifying the clamped particles that are fixed
                         and not integrated to clamp the structure.
 - `clamped_particles_motion`: Prescribed motion of the clamped particles.
@@ -80,7 +89,8 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
     initial_coordinates :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
     # `current_coordinates` contains `u` plus coordinates of the fixed particles
     current_coordinates      :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
-    mass                     :: ARRAY1D # Array{ELTYPE, 1}: [particle]
+    mass                     :: ARRAY1D # TLSPH operator mass: [particle]
+    material_mass            :: ARRAY1D # Physical lumped mass: [particle]
     correction_matrix        :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
     pk1_rho2                 :: ARRAY3D # PK1 corrected divided by rho^2: [i, j, particle]
     deformation_grad         :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
@@ -105,7 +115,8 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
 end
 
 function TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing_length,
-                                  young_modulus, poisson_ratio, clamped_particles=Int[],
+                                  young_modulus, poisson_ratio, material_mass=nothing,
+                                  clamped_particles=Int[],
                                   clamped_particles_motion=nothing,
                                   acceleration=ntuple(_ -> zero(eltype(initial_condition)),
                                                       ndims(smoothing_kernel)),
@@ -116,6 +127,25 @@ function TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing
     NDIMS = ndims(initial_condition)
     ELTYPE = eltype(initial_condition)
     n_particles = nparticles(initial_condition)
+
+    material_mass_ = if isnothing(material_mass)
+        copy(initial_condition.mass)
+    else
+        if !(material_mass isa AbstractVector)
+            throw(ArgumentError("`material_mass` must be an `AbstractVector` or `nothing`"))
+        end
+        if length(material_mass) != n_particles
+            throw(ArgumentError("expected `length(material_mass) == $n_particles`, " *
+                                "got $(length(material_mass))"))
+        end
+        if any(mass -> !isfinite(mass) || mass <= zero(mass), material_mass)
+            throw(ArgumentError("all entries of `material_mass` must be finite and positive"))
+        end
+
+        result = similar(initial_condition.mass)
+        result .= material_mass
+        result
+    end
 
     if ndims(smoothing_kernel) != NDIMS
         throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
@@ -135,14 +165,17 @@ function TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing
         initial_condition_sorted = deepcopy(initial_condition)
         young_modulus_sorted = copy(young_modulus)
         poisson_ratio_sorted = copy(poisson_ratio)
+        material_mass_sorted = copy(material_mass_)
         move_particles_to_end!(initial_condition_sorted, clamped_particles)
         move_particles_to_end!(young_modulus_sorted, clamped_particles)
         move_particles_to_end!(poisson_ratio_sorted, clamped_particles)
+        move_particles_to_end!(material_mass_sorted, clamped_particles)
     else
         n_clamped_particles = 0
         initial_condition_sorted = initial_condition
         young_modulus_sorted = young_modulus
         poisson_ratio_sorted = poisson_ratio
+        material_mass_sorted = material_mass_
     end
 
     initial_coordinates = copy(initial_condition_sorted.coordinates)
@@ -168,7 +201,8 @@ function TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing
              create_cache_tlsph(velocity_averaging, initial_condition_sorted)...)
 
     return TotalLagrangianSPHSystem(initial_condition_sorted, initial_coordinates,
-                                    current_coordinates, mass, correction_matrix,
+                                    current_coordinates, mass, material_mass_sorted,
+                                    correction_matrix,
                                     pk1_rho2, deformation_grad, material_density,
                                     n_integrated_particles, young_modulus_sorted,
                                     poisson_ratio_sorted,
@@ -228,6 +262,7 @@ function initialize_self_interaction_nhs(system::TotalLagrangianSPHSystem,
     return TotalLagrangianSPHSystem(system.initial_condition,
                                     system.initial_coordinates,
                                     system.current_coordinates, system.mass,
+                                    system.material_mass,
                                     system.correction_matrix, system.pk1_rho2,
                                     system.deformation_grad, system.material_density,
                                     system.n_integrated_particles, system.young_modulus,
@@ -287,6 +322,8 @@ end
 end
 
 @inline initial_coordinates(system::TotalLagrangianSPHSystem) = system.initial_coordinates
+
+@inline physical_mass(system::TotalLagrangianSPHSystem) = system.material_mass
 
 @inline function current_coordinates(u, system::TotalLagrangianSPHSystem)
     return system.current_coordinates
@@ -728,7 +765,7 @@ end
 end
 
 function system_data(system::TotalLagrangianSPHSystem, dv_ode, du_ode, v_ode, u_ode, semi)
-    (; mass, material_density, deformation_grad, young_modulus,
+    (; mass, material_mass, material_density, deformation_grad, young_modulus,
      poisson_ratio, lame_lambda, lame_mu) = system
 
     dv = wrap_v(dv_ode, system, semi)
@@ -743,8 +780,8 @@ function system_data(system::TotalLagrangianSPHSystem, dv_ode, du_ode, v_ode, u_
                      for particle in eachparticle(system)]
 
     return (; coordinates, initial_coordinates=initial_coordinates_, velocity, mass,
-            material_density, deformation_grad, pk1_corrected, young_modulus, poisson_ratio,
-            lame_lambda, lame_mu, acceleration)
+            material_mass, material_density, deformation_grad, pk1_corrected,
+            young_modulus, poisson_ratio, lame_lambda, lame_mu, acceleration)
 end
 
 function system_data_acceleration(dv, system::TotalLagrangianSPHSystem, ::Nothing)
@@ -757,9 +794,9 @@ function system_data_acceleration(dv, system::TotalLagrangianSPHSystem, ::Prescr
 end
 
 function available_data(::TotalLagrangianSPHSystem)
-    return (:coordinates, :initial_coordinates, :velocity, :mass, :material_density,
-            :deformation_grad, :pk1_corrected, :young_modulus, :poisson_ratio,
-            :lame_lambda, :lame_mu, :acceleration)
+    return (:coordinates, :initial_coordinates, :velocity, :mass, :material_mass,
+            :material_density, :deformation_grad, :pk1_corrected, :young_modulus,
+            :poisson_ratio, :lame_lambda, :lame_mu, :acceleration)
 end
 
 function Base.show(io::IO, system::TotalLagrangianSPHSystem)

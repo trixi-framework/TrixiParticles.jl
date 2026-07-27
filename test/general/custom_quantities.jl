@@ -27,6 +27,21 @@
 
     v_ode, u_ode = semidiscretize(semi, (0, 1)).u0.x
     dv_ode, du_ode = similar(v_ode)
+
+    material_mass = [1.0, 2.0, 3.0]
+    structure_system_ = TotalLagrangianSPHSystem(initial_condition;
+                                                 smoothing_kernel,
+                                                 smoothing_length,
+                                                 young_modulus=1.0,
+                                                 poisson_ratio=0.25,
+                                                 material_mass)
+    structure_semi_ = Semidiscretization(structure_system_)
+    structure_ode = semidiscretize(structure_semi_, (0, 1))
+    structure_v_ode, structure_u_ode = structure_ode.u0.x
+    structure_dv_ode, structure_du_ode = similar(structure_v_ode)
+    structure_semi = structure_ode.p.semi
+    structure_system = structure_semi.systems[1]
+
     t = 0.0
 
     @testset "Kinetic Energy" begin
@@ -44,6 +59,19 @@
             ekin = kinetic_energy(boundary_system, dv_ode, du_ode, v_ode, u_ode, semi, t)
             @test ekin == 0
         end
+
+        @testset "TLSPH System" begin
+            ekin = kinetic_energy(structure_system,
+                                  structure_dv_ode, structure_du_ode,
+                                  structure_v_ode, structure_u_ode,
+                                  structure_semi, t)
+            expected_ekin = sum(eachindex(material_mass)) do particle
+                velocity = velocities[:, particle]
+                return material_mass[particle] * dot(velocity, velocity) / 2
+            end
+
+            @test ekin ≈ expected_ekin
+        end
     end
 
     @testset "Total Mass" begin
@@ -58,6 +86,14 @@
             mass = total_mass(boundary_system, dv_ode, du_ode, v_ode, u_ode, semi, t)
 
             @test isnan(mass)
+        end
+
+        @testset "TLSPH System" begin
+            mass = total_mass(structure_system,
+                              structure_dv_ode, structure_du_ode,
+                              structure_v_ode, structure_u_ode,
+                              structure_semi, t)
+            @test mass ≈ sum(material_mass)
         end
     end
 

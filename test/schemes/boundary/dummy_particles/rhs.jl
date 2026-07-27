@@ -306,4 +306,47 @@
             end
         end
     end
+
+    @testset "TLSPH FSI force-to-acceleration mapping" begin
+        coordinates = [0.0 1.0
+                       0.0 0.0]
+        operator_mass = [2.0, 3.0]
+        material_mass = [5.0, 7.0]
+        initial_condition = InitialCondition(; coordinates, mass=operator_mass,
+                                             density=ones(2))
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        hydrodynamic_mass = [13.0, 17.0]
+        boundary_model = BoundaryModelDummyParticles(ones(2), hydrodynamic_mass,
+                                                     PressureZeroing(),
+                                                     smoothing_kernel, 1.2)
+        structure_system = TotalLagrangianSPHSystem(initial_condition;
+                                                    smoothing_kernel,
+                                                    smoothing_length=1.2,
+                                                    young_modulus=1.0,
+                                                    poisson_ratio=0.25,
+                                                    material_mass,
+                                                    boundary_model)
+
+        fluid_mass = 11.0
+        operator_fluid_acceleration = SVector(0.4, -0.3)
+        dv = zeros(2, 2)
+
+        for particle in eachparticle(structure_system)
+            @test TrixiParticles.hydrodynamic_mass(structure_system, particle) ==
+                  hydrodynamic_mass[particle]
+
+            TrixiParticles.accumulate_structure_fluid_pair!(dv,
+                                                            operator_fluid_acceleration,
+                                                            structure_system, particle,
+                                                            fluid_mass)
+
+            @test dv[:, particle] ≈
+                  fluid_mass * operator_fluid_acceleration / operator_mass[particle]
+        end
+
+        # A separate diagnostic mass must not change the validated FSI collocation
+        # operator or its hydrodynamic quadrature.
+        @test structure_system.mass == operator_mass
+        @test structure_system.material_mass == material_mass
+    end
 end

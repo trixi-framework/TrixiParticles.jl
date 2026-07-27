@@ -26,6 +26,11 @@ vtkname(system::AbstractBoundarySystem) = "boundary"
 # Number of particles in the system
 @inline nparticles(system) = length(system.mass)
 
+# Physical particle masses used for integral diagnostic quantities.
+# Most systems use their SPH mass for this purpose. `TotalLagrangianSPHSystem`
+# specializes this because its operator mass and physical material mass can differ.
+@inline physical_mass(system) = system.mass
+
 # Number of particles in the system whose positions are to be integrated (corresponds to the size of u and du)
 @inline n_integrated_particles(system) = nparticles(system)
 

@@ -189,6 +189,47 @@
     end
 end
 
+@testset verbose=true "Rectangular Shape Material Mass" begin
+    particle_spacing = 0.1
+    density = 2.5
+
+    configurations = (((3, 4), :x_first), ((3, 4, 2), :y_first))
+    for (n_particles_per_dimension, loop_order) in configurations
+        shape = RectangularShape(particle_spacing, n_particles_per_dimension,
+                                 ntuple(_ -> -0.2,
+                                        length(n_particles_per_dimension));
+                                 density, place_on_shell=true, loop_order)
+        material_mass = rectangular_shape_material_mass(shape)
+
+        physical_volume = prod(n -> (n - 1) * particle_spacing,
+                               n_particles_per_dimension)
+        @test sum(material_mass) ≈ density * physical_volume
+
+        min_coordinates = vec(minimum(shape.coordinates, dims=2))
+        max_coordinates = vec(maximum(shape.coordinates, dims=2))
+        for particle in eachparticle(shape)
+            n_boundary_dimensions = count(1:ndims(shape)) do dimension
+                coordinate = shape.coordinates[dimension, particle]
+                coordinate ≈ min_coordinates[dimension] ||
+                    coordinate ≈ max_coordinates[dimension]
+            end
+            expected_mass = density * particle_spacing^ndims(shape) /
+                            2^n_boundary_dimensions
+            @test material_mass[particle] ≈ expected_mass
+        end
+    end
+
+    shape = RectangularShape(particle_spacing, (3, 4), (0.0, 0.0);
+                             density, place_on_shell=true)
+    incomplete_shape = InitialCondition(;
+                                        coordinates=shape.coordinates[:, 1:(end - 1)],
+                                        velocity=shape.velocity[:, 1:(end - 1)],
+                                        mass=shape.mass[1:(end - 1)],
+                                        density=shape.density[1:(end - 1)],
+                                        particle_spacing)
+    @test_throws ArgumentError rectangular_shape_material_mass(incomplete_shape)
+end
+
 # 3D
 @testset verbose=true "Rectangular Shape 3D" begin
     @testset verbose=true "No Hydrostatic Pressure" begin
