@@ -176,5 +176,47 @@
             @test occursin("tmp_file_fluid_overwrite_current.vtu",
                            current_collection)
         end
+
+        @testset verbose=true "TLSPH Mass Fields" begin
+            particle_spacing = 0.1
+            initial_condition = RectangularShape(particle_spacing, (3, 3), (0.0, 0.0);
+                                                 density=1.0)
+            operator_mass = copy(initial_condition.mass)
+            material_mass = 2 .* operator_mass
+            structure_system = TotalLagrangianSPHSystem(initial_condition;
+                                                        smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
+                                                        smoothing_length=1.2particle_spacing,
+                                                        young_modulus=1.0,
+                                                        poisson_ratio=0.25,
+                                                        material_mass)
+            structure_semi = Semidiscretization(structure_system,
+                                                parallelization_backend=SerialBackend())
+            structure_ode = semidiscretize(structure_semi, (0.0, 1.0))
+            structure_system = only(structure_ode.p.semi.systems)
+            structure_semi = structure_ode.p.semi
+            structure_v_ode, structure_u_ode = structure_ode.u0.x
+            structure_dv_ode = zero(structure_v_ode)
+
+            data = TrixiParticles.system_data(structure_system, structure_dv_ode,
+                                              zero(structure_u_ode), structure_v_ode,
+                                              structure_u_ode, structure_semi)
+            @test data.mass == operator_mass
+            @test data.material_mass == material_mass
+            @test :mass in TrixiParticles.available_data(structure_system)
+            @test :material_mass in TrixiParticles.available_data(structure_system)
+
+            structure_vu_ode = (; x=(structure_v_ode, structure_u_ode))
+            trixi2vtk(structure_system, nothing, structure_vu_ode, structure_semi, 0.0,
+                      nothing; system_name="tmp_file_tlsph", output_directory=tmp_dir,
+                      iter=1)
+
+            vtk_file = TrixiParticles.ReadVTK.VTKFile(joinpath(tmp_dir,
+                                                               "tmp_file_tlsph_1.vtu"))
+            point_data = TrixiParticles.ReadVTK.get_point_data(vtk_file)
+            @test vec(Array(TrixiParticles.ReadVTK.get_data(point_data["mass"]))) ==
+                  operator_mass
+            @test vec(Array(TrixiParticles.ReadVTK.get_data(point_data["material_mass"]))) ==
+                  material_mass
+        end
     end
 end

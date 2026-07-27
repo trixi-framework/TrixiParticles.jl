@@ -138,12 +138,11 @@ function TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing
             throw(ArgumentError("expected `length(material_mass) == $n_particles`, " *
                                 "got $(length(material_mass))"))
         end
-        if any(mass -> !isfinite(mass) || mass <= zero(mass), material_mass)
-            throw(ArgumentError("all entries of `material_mass` must be finite and positive"))
-        end
-
         result = similar(initial_condition.mass)
         result .= material_mass
+        if any(mass -> !isfinite(mass) || mass <= zero(mass), result)
+            throw(ArgumentError("all entries of `material_mass` must be finite and positive"))
+        end
         result
     end
 
@@ -323,7 +322,19 @@ end
 
 @inline initial_coordinates(system::TotalLagrangianSPHSystem) = system.initial_coordinates
 
-@inline physical_mass(system::TotalLagrangianSPHSystem) = system.material_mass
+function kinetic_energy(system::TotalLagrangianSPHSystem,
+                        dv_ode, du_ode, v_ode, u_ode, semi, t)
+    v = wrap_v(v_ode, system, semi)
+
+    return sum(each_active_particle(system)) do particle
+        v_i = current_velocity(v, system, particle)
+        return system.material_mass[particle] * dot(v_i, v_i) / 2
+    end
+end
+
+function total_mass(system::TotalLagrangianSPHSystem, dv_ode, du_ode, v_ode, u_ode, semi, t)
+    return sum(system.material_mass)
+end
 
 @inline function current_coordinates(u, system::TotalLagrangianSPHSystem)
     return system.current_coordinates

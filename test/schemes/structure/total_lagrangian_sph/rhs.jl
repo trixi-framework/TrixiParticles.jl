@@ -202,4 +202,32 @@
             end
         end
     end
+
+    @testset "Material Mass Does Not Affect Full RHS" begin
+        particle_spacing = 0.1
+        initial_condition = RectangularShape(particle_spacing, (3, 3), (0.0, 0.0);
+                                             density=1.0)
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+
+        function calculate_rhs(material_mass)
+            system = TotalLagrangianSPHSystem(initial_condition; smoothing_kernel,
+                                              smoothing_length=1.2particle_spacing,
+                                              young_modulus=1.0, poisson_ratio=0.25,
+                                              material_mass)
+            semi = Semidiscretization(system, parallelization_backend=SerialBackend())
+            ode = semidiscretize(semi, (0.0, 1.0))
+            system = only(ode.p.semi.systems)
+            v_ode, u_ode = ode.u0.x
+            u_ode = copy(u_ode)
+            u = TrixiParticles.wrap_u(u_ode, system, ode.p.semi)
+            u[1, 5] += 0.01
+
+            dv_ode = zero(v_ode)
+            TrixiParticles.kick!(dv_ode, v_ode, u_ode, ode.p, 0.0)
+            return dv_ode
+        end
+
+        operator_mass = initial_condition.mass
+        @test calculate_rhs(operator_mass) ≈ calculate_rhs(2 .* operator_mass)
+    end
 end;

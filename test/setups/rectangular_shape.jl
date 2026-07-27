@@ -228,6 +228,29 @@ end
                                         density=shape.density[1:(end - 1)],
                                         particle_spacing)
     @test_throws ArgumentError rectangular_shape_material_mass(incomplete_shape)
+
+    empty_shape = InitialCondition(; coordinates=zeros(2, 0), density=Float64[],
+                                   particle_spacing)
+    @test_throws ArgumentError rectangular_shape_material_mass(empty_shape)
+
+    invalid_spacing_shape = InitialCondition(; coordinates=shape.coordinates,
+                                             velocity=shape.velocity, mass=shape.mass,
+                                             density=shape.density, particle_spacing=0.0)
+    @test_throws ArgumentError rectangular_shape_material_mass(invalid_spacing_shape)
+
+    duplicate_coordinates = copy(shape.coordinates)
+    duplicate_coordinates[:, 2] = duplicate_coordinates[:, 1]
+    duplicate_shape = InitialCondition(; coordinates=duplicate_coordinates,
+                                       velocity=shape.velocity, mass=shape.mass,
+                                       density=shape.density, particle_spacing)
+    @test_throws ArgumentError rectangular_shape_material_mass(duplicate_shape)
+
+    off_grid_coordinates = copy(shape.coordinates)
+    off_grid_coordinates[1, 2] += particle_spacing / 3
+    off_grid_shape = InitialCondition(; coordinates=off_grid_coordinates,
+                                      velocity=shape.velocity, mass=shape.mass,
+                                      density=shape.density, particle_spacing)
+    @test_throws ArgumentError rectangular_shape_material_mass(off_grid_shape)
 end
 
 # 3D

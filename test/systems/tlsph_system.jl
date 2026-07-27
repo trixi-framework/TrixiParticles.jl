@@ -65,7 +65,6 @@
         # including the physical material mass, must follow the same permutation.
         @test system.mass == [1.0, 3.0, 2.0, 4.0]
         @test system.material_mass == [10.0, 30.0, 20.0, 40.0]
-        @test TrixiParticles.physical_mass(system) == system.material_mass
 
         constructor = material_mass -> TotalLagrangianSPHSystem(initial_condition;
                                                                 smoothing_kernel,
@@ -77,6 +76,21 @@
         @test_throws ArgumentError constructor([1.0, 2.0, 0.0, 4.0])
         @test_throws ArgumentError constructor([1.0, 2.0, NaN, 4.0])
         @test_throws ArgumentError constructor(1.0)
+
+        initial_condition_32 = InitialCondition(;
+                                                coordinates=Float32[0 1; 0 0],
+                                                mass=Float32[1, 1],
+                                                density=Float32[1, 1],
+                                                particle_spacing=1.0f0)
+        constructor_32 = material_mass -> TotalLagrangianSPHSystem(initial_condition_32;
+                                                                   smoothing_kernel,
+                                                                   smoothing_length=1.0f0,
+                                                                   young_modulus=1.0f0,
+                                                                   poisson_ratio=0.25f0,
+                                                                   material_mass)
+        @test_throws ArgumentError constructor_32(Float64[1e-50, 2.0])
+        @test_throws ArgumentError constructor_32(Float64[1e40, 2.0])
+        @test constructor_32(Float64[1.5, 2.0]).material_mass == Float32[1.5, 2.0]
     end
 
     # Use `@trixi_testset` to isolate the mock functions in a separate namespace

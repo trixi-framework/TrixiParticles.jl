@@ -71,12 +71,19 @@ mathematically different roles:
 These arrays are intentionally separate. Changing the operator weights changes the discrete
 stress-divergence and FSI operators, even when the goal is only to correct the physical mass
 represented by boundary nodes. When `material_mass` is omitted, it defaults to a copy of
-`mass`, preserving existing behavior.
+`mass`, preserving the existing operator and FSI dynamics.
 
 For a complete Cartesian structure created by [`RectangularShape`](@ref) with
 `place_on_shell=true`, [`rectangular_shape_material_mass`](@ref) computes tensor-product
 trapezoidal weights. Boundary nodes receive half the interior weight in each boundary
 direction, so the physical mass integrates over the domain bounded by the outermost nodes.
+
+!!! warning
+    `material_mass` changes diagnostic quantities only. It does not change the TLSPH or FSI
+    force-to-acceleration operator, and `MechanicalWorkCalculatorCallback` continues to use
+    `mass` to reconstruct force. Consequently, physical-mass-weighted energy and momentum
+    diagnostics, and callback-reported work, are not generally conservative or energy-conjugate
+    when `material_mass` differs from `mass`.
 
 ```@autodocs
 Modules = [TrixiParticles]
