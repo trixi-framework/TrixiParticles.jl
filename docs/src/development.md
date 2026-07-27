@@ -81,7 +81,7 @@ project-specific conventions:
   `kernel_gradient` instead of `ker_grad`.
   Standard SPH and time-integration notation is fine for local formula
   variables, e.g., `m_a`, `rho_b`, `v_ode`, and `u_ode`.
-- Comments start uppercase and end with a period.
+- Comments start uppercase and when they span multiple lines, they must end with a period.
 - Error messages start lowercase and do not have a period unless they contain
   multiple sentences.
 - Keep package-code imports centralized in `src/TrixiParticles.jl`.
@@ -93,7 +93,7 @@ project-specific conventions:
   doctests. Very short docstrings don't require these sections.
 - Do not add docstrings to non-exported internal functions and types. Use
   regular comments to explain their purpose and usage.
-- Validate user input with explicit `throw(ArgumentError(...))`.
+- When validating user inpout, use `throw(ArgumentError(...))`.
   Reserve `@assert` for internal invariants and states that should be impossible.
 - Use `@inbounds` only on individual lines whose bounds are guaranteed.
   Do not mark full loops, blocks, or functions as `@inbounds`. See
