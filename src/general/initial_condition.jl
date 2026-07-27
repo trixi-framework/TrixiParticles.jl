@@ -286,12 +286,6 @@ function Base.union(initial_condition::InitialCondition, initial_conditions...)
         throw(ArgumentError("all passed initial conditions must have the same particle spacing"))
     end
 
-    if isnothing(initial_condition.normals) != isnothing(ic.normals)
-        @warn "Unioning InitialConditions with mixed normal definitions: one geometry has " *
-              "surface normals while the other does not. Surface normals will be " *
-              "discarded (`nothing`) in the combined result."
-    end
-
     too_close = find_too_close_particles(ic.coordinates, initial_condition.coordinates,
                                          0.75particle_spacing)
     valid_particles = setdiff(eachparticle(ic), too_close)
