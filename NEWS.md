@@ -4,6 +4,12 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.5.3
+
+### Features
+
+- Added the computation of boundary normals for `RectangularTank`s and `SphereShape`s.
+
 ## Version 0.5.2
 
 ### API Changes
