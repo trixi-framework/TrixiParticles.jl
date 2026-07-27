@@ -202,9 +202,9 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::AbstractFluidSystem, sem
     # TODO variable smoothing length
     smoothing_length_ = initial_smoothing_length(system)
 
-    dt_viscosity = 0.125 * smoothing_length_^2
+    dt_viscosity = Inf
     if !isnothing(system.viscosity)
-        dt_viscosity = dt_viscosity /
+        dt_viscosity = 0.125 * smoothing_length_^2 /
                        kinematic_viscosity(system, viscosity, smoothing_length_,
                                            system_sound_speed(system))
     end
@@ -226,6 +226,7 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::AbstractFluidSystem, sem
 
     # Eq. 28 in Morris (2000)
     dt = min(dt_viscosity, dt_acceleration, dt_sound_speed)
+
     if surface_tension isa SurfaceTensionMorris ||
        surface_tension isa SurfaceTensionMomentumMorris
         v = wrap_v(v_ode, system, semi)
