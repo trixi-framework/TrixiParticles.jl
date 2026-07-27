@@ -62,6 +62,21 @@ function foot_pocket_width(distance_from_right_end)
            ramp_coordinate * width_range
 end
 
+function foot_pocket_height_top(x_normalized)
+    # Linear approximation of the top edge of the foot pocket.
+    # This is only used to limit the material interface blending width, so it doesn't
+    # need to be exact, and it can be clamped once it's larger than the blending width.
+    return clamp(-0.086 * x_normalized / 0.135, 0.0, 0.08)
+end
+
+function foot_pocket_height_bottom(x_normalized)
+    # Cubic polynomial fitted to the bottom edge of the foot pocket.
+    # This is only used to limit the material interface blending width, so it doesn't
+    # need to be exact, and it can be clamped once it's larger than the blending width.
+    poly = 2.09 * x_normalized^3 + 1.25 * x_normalized^2 + 0.135 * x_normalized + 0.003
+    return clamp(poly, 0.0, 0.015)
+end
+
 fiber_volume_fraction = 0.6
 fiber_density = 1800.0
 epoxy_density = 1250.0
@@ -190,7 +205,7 @@ if packing
     semi_packing = Semidiscretization(foot_packing_system, fluid_packing_system,
                                     blade_packing_system; neighborhood_search)
 
-    ode_packing = semidiscretize(semi_packing, (0.0, 10.0))
+    ode_packing = semidiscretize(semi_packing, (0.0, 100.0))
 
     sol_packing = solve(ode_packing, RDPK3SpFSAL35();
                 abstol=1e-8,
@@ -198,7 +213,7 @@ if packing
                 callback=CallbackSet(InfoCallback(interval=50),
                                     #  SolutionSavingCallback(interval=50, prefix="packing_foot"),
                                     UpdateCallback()),
-                dtmax=1e-2)
+                dtmax=1e-1)
 
     packed_foot = InitialCondition(sol_packing, foot_packing_system, semi_packing)
 
@@ -315,12 +330,24 @@ end
     x >= center[1] && return 0.0
 
     y0 = center[2] + fin_thickness / 2
-    distance_from_blade_center = abs(y - y0)
 
-    u = (distance_from_blade_center - fin_thickness / 2) / material_blend_width + 0.5
+    # Subtract a small epsilon to avoid issues outside of the foot pocket
+    # where the blend width is zero.
+    distance_from_blade_center = abs(y - y0) - 10 * eps()
+    foot_pocket_height = if y >= y0
+        max(foot_pocket_height_top(x - center[1]) - fin_thickness, 0.0)
+    else
+        foot_pocket_height_bottom(x - center[1])
+    end
+    local_blend_width = min(material_blend_width, foot_pocket_height)
+    if local_blend_width < fluid_particle_spacing
+        local_blend_width = 0.0
+    end
+
+    u = (distance_from_blade_center - fin_thickness / 2) / local_blend_width + 0.5
 
     return rigidity_preserving_smoothstep(clamp(u, 0.0, 1.0), fin_thickness,
-                                          material_blend_width)
+                                          local_blend_width)
 end
 
 function density_for_properties(x, y)
