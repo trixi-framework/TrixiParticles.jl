@@ -2,9 +2,9 @@
 @propagate_inbounds function accumulate_structure_fluid_pair!(dv, dv_fs,
                                                               particle_system::TotalLagrangianSPHSystem,
                                                               particle, m_b)
-    material_mass = particle_system.mass[particle]
+    operator_mass = particle_system.mass[particle]
     for dim in eachindex(dv_fs)
-        dv[dim, particle] += dv_fs[dim] * m_b / material_mass
+        dv[dim, particle] += dv_fs[dim] * m_b / operator_mass
     end
 end
 

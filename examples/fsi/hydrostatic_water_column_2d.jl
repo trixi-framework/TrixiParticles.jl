@@ -66,6 +66,7 @@ right_wall = RectangularShape(structure_particle_spacing, (3, n_particles_plate_
 fixed_particles = union(left_wall, right_wall)
 
 structure_geometry = union(fixed_particles, plate)
+material_mass = rectangular_shape_material_mass(structure_geometry)
 
 # ==========================================================================================
 # ==== Smoothing Kernel, Boundary, and Related Quantities
@@ -128,6 +129,7 @@ structure_system = TotalLagrangianSPHSystem(structure_geometry;
                                             smoothing_kernel,
                                             smoothing_length=smoothing_length_structure,
                                             young_modulus=E, poisson_ratio=nu,
+                                            material_mass,
                                             boundary_model=boundary_model_structure,
                                             clamped_particles=1:nparticles(fixed_particles),
                                             acceleration=(0.0, -gravity))

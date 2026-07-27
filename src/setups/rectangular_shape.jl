@@ -153,6 +153,109 @@ function RectangularShape(particle_spacing, n_particles_per_dimension, min_coord
                             particle_spacing)
 end
 
+@doc raw"""
+    rectangular_shape_material_mass(initial_condition)
+
+Compute physical lumped masses for a boundary-aligned Cartesian rectangle using the
+tensor-product trapezoidal rule.
+
+The `initial_condition` must contain a complete, uniformly spaced Cartesian grid whose
+particles lie on the geometric boundary, as produced by [`RectangularShape`](@ref) with
+`place_on_shell=true`. In each coordinate direction, boundary nodes receive half the
+interior weight. Thus, corners receive $1/4$ of the interior mass in 2D and $1/8$ in 3D.
+
+The returned masses are intended for the `material_mass` keyword of
+[`TotalLagrangianSPHSystem`](@ref). The TLSPH operator continues to use
+`initial_condition.mass`.
+
+# Example
+```jldoctest
+shape = RectangularShape(0.1, (3, 4), (0.0, 0.0), density=2.0,
+                         place_on_shell=true)
+material_mass = rectangular_shape_material_mass(shape)
+sum(material_mass)
+
+# output
+0.12000000000000002
+```
+"""
+function rectangular_shape_material_mass(initial_condition::InitialCondition)
+    particle_spacing = initial_condition.particle_spacing
+    if particle_spacing <= zero(particle_spacing)
+        throw(ArgumentError("`initial_condition` must store a positive particle spacing"))
+    end
+
+    n_particles = nparticles(initial_condition)
+    if iszero(n_particles)
+        throw(ArgumentError("`initial_condition` must contain at least one particle"))
+    end
+
+    coordinates = initial_condition.coordinates
+    min_coordinates = vec(minimum(coordinates, dims=2))
+    max_coordinates = vec(maximum(coordinates, dims=2))
+
+    coordinate_type = float(eltype(coordinates))
+    tolerance = 100 * eps(coordinate_type)
+
+    n_particles_per_dimension = ntuple(ndims(initial_condition)) do dimension
+        extent = max_coordinates[dimension] - min_coordinates[dimension]
+        n_intervals = round(Int, extent / particle_spacing)
+        expected_extent = n_intervals * particle_spacing
+
+        if n_intervals < 1 ||
+           !isapprox(extent, expected_extent; atol=tolerance * particle_spacing,
+                     rtol=tolerance)
+            throw(ArgumentError("particles must span at least one complete particle " *
+                                "interval in each coordinate direction"))
+        end
+
+        return n_intervals + 1
+    end
+
+    if prod(n_particles_per_dimension) != n_particles
+        throw(ArgumentError("particles must form a complete Cartesian rectangle"))
+    end
+
+    NDIMS = ndims(initial_condition)
+    occupied_nodes = Set{NTuple{NDIMS, Int}}()
+    material_mass = similar(initial_condition.mass)
+    interior_volume = particle_spacing^NDIMS
+
+    for particle in eachparticle(initial_condition)
+        node = ntuple(NDIMS) do dimension
+            relative_position = ((coordinates[dimension, particle] -
+                                  min_coordinates[dimension]) / particle_spacing)
+            index = round(Int, relative_position)
+            expected_coordinate = min_coordinates[dimension] +
+                                  index * particle_spacing
+
+            if !(0 <= index < n_particles_per_dimension[dimension]) ||
+               !isapprox(coordinates[dimension, particle], expected_coordinate;
+                         atol=tolerance * particle_spacing, rtol=tolerance)
+                throw(ArgumentError("particles must lie on a uniformly spaced " *
+                                    "Cartesian grid"))
+            end
+
+            return index
+        end
+
+        if node in occupied_nodes
+            throw(ArgumentError("particles must occupy unique Cartesian grid nodes"))
+        end
+        push!(occupied_nodes, node)
+
+        weight = prod(1:NDIMS) do dimension
+            index = node[dimension]
+            return index == 0 ||
+                   index == n_particles_per_dimension[dimension] - 1 ? 0.5 : 1.0
+        end
+        material_mass[particle] = initial_condition.density[particle] *
+                                  interior_volume * weight
+    end
+
+    return material_mass
+end
+
 # 1D
 function loop_permutation(loop_order, NDIMS::Val{1})
     if loop_order === :x_first || loop_order === nothing

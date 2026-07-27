@@ -9,6 +9,12 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 ### Features
 
 - Added the computation of boundary normals for `RectangularTank`s and `SphereShape`s.
+- Added physical `material_mass` diagnostics and VTK output for `TotalLagrangianSPHSystem`,
+  including `rectangular_shape_material_mass` for boundary-aligned Cartesian structures.
+
+### Important Bugfixes
+
+- Corrected kinetic-energy accumulation for `TotalLagrangianSPHSystem` diagnostics.
 
 ## Version 0.5.2
 

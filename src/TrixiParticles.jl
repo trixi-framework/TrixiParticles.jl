@@ -99,7 +99,8 @@ export PrescribedMotion, OscillatingMotion2D
 export RCRWindkesselModel
 export examples_dir, validation_dir
 export trixi2vtk, vtk2trixi
-export RectangularTank, RectangularShape, SphereShape, ComplexShape
+export RectangularTank, RectangularShape, rectangular_shape_material_mass,
+       SphereShape, ComplexShape
 export ParticlePackingSystem, SignedDistanceField
 export WindingNumberHormann, WindingNumberJacobson
 export VoxelSphere, RoundSphere, reset_wall!, extrude_geometry, load_geometry,
