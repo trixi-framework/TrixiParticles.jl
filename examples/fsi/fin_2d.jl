@@ -73,8 +73,8 @@ function foot_pocket_height_bottom(x_normalized)
     # Cubic polynomial fitted to the bottom edge of the foot pocket.
     # This is only used to limit the material interface blending width, so it doesn't
     # need to be exact, and it can be clamped once it's larger than the blending width.
-    poly = 2.09 * x_normalized^3 + 1.25 * x_normalized^2 + 0.135 * x_normalized + 0.003
-    return clamp(poly, 0.0, 0.015)
+    x = clamp(x_normalized, -0.3, -0.1)
+    return clamp(2.09 * x^3 + 1.25 * x^2 + 0.135 * x + 0.003, 0.0, 0.015)
 end
 
 fiber_volume_fraction = 0.6
@@ -92,7 +92,7 @@ initial_velocity = (1.0, 0.0)
 
 # The structure starts at the position of the first particle and ends
 # at the position of the last particle.
-particle_spacing = fin_thickness / (n_particles_y - 1)
+particle_spacing = fin_thickness / n_particles_y
 fluid_particle_spacing = particle_spacing
 
 smoothing_length_structure = sqrt(2) * particle_spacing
@@ -102,15 +102,13 @@ smoothing_kernel = WendlandC2Kernel{2}()
 file = joinpath(examples_dir(), "preprocessing", "data", "hyper_bifins_x.dxf")
 geometry = load_geometry(file)
 
-# trixi2vtk(geometry)
-
 point_in_geometry_algorithm = WindingNumberJacobson(; geometry,
                                                     winding_number_factor=0.4,
                                                     hierarchical_winding=true)
 
 # Returns `InitialCondition`
 shape_sampled = ComplexShape(geometry; particle_spacing, density=density,
-                             grid_offset=center, point_in_geometry_algorithm)
+                             grid_offset=particle_spacing / 2, point_in_geometry_algorithm)
 shape_sampled = TrixiParticles.@set shape_sampled.coordinates = Float64.(shape_sampled.coordinates)
 
 # These coordinates are before the final translation to the center position.
@@ -123,14 +121,11 @@ foot_pocket_rigid_elastic_split_x = -0.27
 
 # Beam and clamped particles
 length_clamp = round(Int, 0.3 / particle_spacing) * particle_spacing # m
-n_particles_per_dimension = (round(Int, (fin_length + length_clamp) / particle_spacing) + 2,# + n_particles_clamp_x,
+n_particles_per_dimension = (round(Int, (fin_length + length_clamp) / particle_spacing) + 2,
                              n_particles_y)
 
-# Note that the `RectangularShape` puts the first particle half a particle spacing away
-# from the boundary, which is correct for fluids, but not for structures.
-# We therefore need to pass `place_on_shell=true`.
 beam = RectangularShape(particle_spacing, n_particles_per_dimension,
-                        (-length_clamp, 0.0), density=density, place_on_shell=true)
+                        (-length_clamp, -fin_thickness / 2), density=density)
 
 # Cut out the beam from the shape to avoid overlapping particles.
 foot_pocket = setdiff(shape_sampled, beam)
@@ -148,7 +143,6 @@ fluid_density = 1000.0
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
                        n_layers=boundary_layers,
                        faces=(false, false, true, true), velocity=initial_velocity)
-# fluid = setdiff(tank.fluid, structure)
 
 open_boundary_size = (fluid_particle_spacing * open_boundary_layers, tank_size[2])
 
@@ -313,7 +307,7 @@ function foot_pocket_width_ratio_for_properties(x)
 end
 
 # Smooth the material interface around the edge of the artificially thick blade.
-material_blend_width = 2.5 * particle_spacing
+material_blend_width = 3 * particle_spacing
 if material_blend_width > fin_thickness
     throw(ArgumentError("material_blend_width must not exceed the artificial blade thickness"))
 end
@@ -329,17 +323,18 @@ end
     # There is no material interface along the free part of the blade.
     x >= center[1] && return 0.0
 
-    y0 = center[2] + fin_thickness / 2
+    y0 = center[2]
 
     # Subtract a small epsilon to avoid issues outside of the foot pocket
     # where the blend width is zero.
     distance_from_blade_center = abs(y - y0) - 10 * eps()
     foot_pocket_height = if y >= y0
-        max(foot_pocket_height_top(x - center[1]) - fin_thickness, 0.0)
+        foot_pocket_height_top(x - center[1])
     else
         foot_pocket_height_bottom(x - center[1])
     end
-    local_blend_width = min(material_blend_width, foot_pocket_height)
+    foot_pocket_height -= fin_thickness / 2
+    local_blend_width = min(material_blend_width, 2 * foot_pocket_height)
     if local_blend_width < fluid_particle_spacing
         local_blend_width = 0.0
     end
