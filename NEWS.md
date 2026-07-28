@@ -4,6 +4,14 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.5.3
+
+### Features
+
+- Added `flush` keyword argument to `InfoCallback` to flush `stdout` after each output,
+  useful for monitoring progress in real-time on clusters or batch systems (#1246).
+- Added the computation of boundary normals for `RectangularTank`s and `SphereShape`s.
+
 ## Version 0.5.2
 
 ### API Changes
