@@ -92,7 +92,7 @@ initial_velocity = (1.0, 0.0)
 
 # The structure starts at the position of the first particle and ends
 # at the position of the last particle.
-particle_spacing = fin_thickness / n_particles_y
+particle_spacing = fin_thickness / (n_particles_y - 1)
 fluid_particle_spacing = particle_spacing
 
 smoothing_length_structure = sqrt(2) * particle_spacing
@@ -108,7 +108,7 @@ point_in_geometry_algorithm = WindingNumberJacobson(; geometry,
 
 # Returns `InitialCondition`
 shape_sampled = ComplexShape(geometry; particle_spacing, density=density,
-                             grid_offset=particle_spacing / 2, point_in_geometry_algorithm)
+                             grid_offset=(0.0, particle_spacing / 2), point_in_geometry_algorithm)
 shape_sampled = TrixiParticles.@set shape_sampled.coordinates = Float64.(shape_sampled.coordinates)
 
 # These coordinates are before the final translation to the center position.
@@ -124,8 +124,12 @@ length_clamp = round(Int, 0.3 / particle_spacing) * particle_spacing # m
 n_particles_per_dimension = (round(Int, (fin_length + length_clamp) / particle_spacing) + 2,
                              n_particles_y)
 
+# Note that the `RectangularShape` puts the first particle half a particle spacing away
+# from the boundary, which is correct for fluids, but not for structures.
+# We therefore need to pass `place_on_shell=true`.
 beam = RectangularShape(particle_spacing, n_particles_per_dimension,
-                        (-length_clamp, -fin_thickness / 2), density=density)
+                        (-length_clamp, -fin_thickness / 2), density=density,
+                        place_on_shell=true)
 
 # Cut out the beam from the shape to avoid overlapping particles.
 foot_pocket = setdiff(shape_sampled, beam)
@@ -306,67 +310,101 @@ function foot_pocket_width_ratio_for_properties(x)
     return foot_pocket_width(distance_from_center) / blade_width
 end
 
-# Smooth the material interface around the edge of the artificially thick blade.
-material_blend_width = 3 * particle_spacing
-if material_blend_width > fin_thickness
-    throw(ArgumentError("material_blend_width must not exceed the artificial blade thickness"))
+# Blend the material interface around the edge of the artificially thick blade.
+# The discontinuity is half a particle spacing beyond the outer blade particles.
+@inline material_discontinuity_distance() = fin_thickness / 2 + particle_spacing / 2
+
+@inline function local_material_blend_widths(foot_pocket_height)
+    material_blend_outer_width = fin_thickness * 5 / 6
+    discontinuity_distance = material_discontinuity_distance()
+    available_outer_height = max(foot_pocket_height - discontinuity_distance, 0.0)
+    height_scale = min(available_outer_height / material_blend_outer_width, 1.0)
+
+    # Reduce both sides by the same factor when the surrounding pocket is too thin.
+    inner_width = height_scale * fin_thickness / 6
+    outer_width = height_scale * material_blend_outer_width
+
+    # A sub-particle transition cannot be resolved. Treat it as sharp instead.
+    if inner_width + outer_width < fluid_particle_spacing
+        return 0.0, 0.0
+    end
+
+    return inner_width, outer_width
 end
 
-@inline function rigidity_preserving_smoothstep(u, fin_thickness, material_blend_width)
-    smoothstep = 3 * u^2 - 2 * u^3
-    c = (21 * fin_thickness * material_blend_width) /
-        (7 * fin_thickness^2 + material_blend_width^2)
-    return smoothstep + c * u^2 * (1 - u)^2
+@inline function log_linear_blend(left_value, right_value, alpha)
+    if !(left_value > 0 && right_value > 0)
+        throw(DomainError((left_value, right_value),
+                          "log-linear blending requires positive endpoint values"))
+    end
+
+    alpha <= 0 && return left_value
+    alpha >= 1 && return right_value
+
+    return exp(log(left_value) +
+               alpha * (log(right_value) - log(left_value)))
 end
 
-@inline function blade_blend_alpha(x, y)
+@inline function blade_blend_alpha(x, y, blade_modulus, foot_pocket_modulus)
     # There is no material interface along the free part of the blade.
     x >= center[1] && return 0.0
 
-    y0 = center[2]
+    blade_center_y = center[2]
+    discontinuity_distance = material_discontinuity_distance()
 
-    # Subtract a small epsilon to avoid issues outside of the foot pocket
-    # where the blend width is zero.
-    distance_from_blade_center = abs(y - y0) - 10 * eps()
-    foot_pocket_height = if y >= y0
+    distance_from_blade_center = abs(y - blade_center_y)
+    foot_pocket_height = if y >= blade_center_y
         foot_pocket_height_top(x - center[1])
     else
         foot_pocket_height_bottom(x - center[1])
     end
-    foot_pocket_height -= fin_thickness / 2
-    local_blend_width = min(material_blend_width, 2 * foot_pocket_height)
-    if local_blend_width < fluid_particle_spacing
-        local_blend_width = 0.0
+    inner_width, outer_width = local_material_blend_widths(foot_pocket_height)
+
+    if iszero(inner_width + outer_width)
+        return distance_from_blade_center <= discontinuity_distance ? 0.0 : 1.0
     end
 
-    u = (distance_from_blade_center - fin_thickness / 2) / local_blend_width + 0.5
+    inner_edge = discontinuity_distance - inner_width
+    outer_edge = discontinuity_distance + outer_width
+    distance_from_blade_center <= inner_edge && return 0.0
+    distance_from_blade_center >= outer_edge && return 1.0
 
-    return rigidity_preserving_smoothstep(clamp(u, 0.0, 1.0), fin_thickness,
-                                          local_blend_width)
+    return clamp((distance_from_blade_center - inner_edge) / (outer_edge - inner_edge), 0, 1)
 end
 
-function density_for_properties(x, y)
-    real_blade_thickness = real_thickness(normalized_blade_coordinate(x))
-    foot_pocket_width_ratio = foot_pocket_width_ratio_for_properties(x)
-    foot_pocket_density = foot_pocket_width_ratio * real_foot_pocket_density
-    blade_density = real_blade_density * real_blade_thickness / fin_thickness
-    alpha = blade_blend_alpha(x, y)
-
-    return blade_density + alpha * (foot_pocket_density - blade_density)
-end
-
-function modulus_for_properties(x, y)
+function material_property_endpoints(x)
     normalized_x = normalized_blade_coordinate(x)
     real_blade_thickness = real_thickness(normalized_x)
+    foot_pocket_width_ratio = foot_pocket_width_ratio_for_properties(x)
+
+    foot_pocket_density = foot_pocket_width_ratio * real_foot_pocket_density
+    blade_density = real_blade_density * real_blade_thickness / fin_thickness
 
     real_width = real_blade_width(clamp(normalized_x, 0.0, 1.0) * fin_length)
     flexural_rigidity = real_modulus * real_width * real_blade_thickness^3 / 12
-    artificial_modulus = flexural_rigidity * 12 / (blade_width * fin_thickness^3)
-    foot_pocket_modulus = foot_pocket_width_ratio_for_properties(x) *
-                          real_modulus_foot_pocket
-    alpha = blade_blend_alpha(x, y)
+    blade_modulus = flexural_rigidity * 12 / (blade_width * fin_thickness^3)
+    foot_pocket_modulus = foot_pocket_width_ratio * real_modulus_foot_pocket
 
-    return artificial_modulus + alpha * (foot_pocket_modulus - artificial_modulus)
+    return (; blade_density, foot_pocket_density, blade_modulus,
+            foot_pocket_modulus)
+end
+
+function density_for_properties(x, y)
+    properties = material_property_endpoints(x)
+    alpha = blade_blend_alpha(x, y, properties.blade_modulus,
+                              properties.foot_pocket_modulus)
+
+    # return properties.blade_density * (1 - alpha) + properties.foot_pocket_density * alpha
+    return log_linear_blend(properties.blade_density, properties.foot_pocket_density, alpha)
+end
+
+function modulus_for_properties(x, y)
+    properties = material_property_endpoints(x)
+    alpha = blade_blend_alpha(x, y, properties.blade_modulus,
+                              properties.foot_pocket_modulus)
+
+    # return properties.blade_modulus * (1 - alpha) + properties.foot_pocket_modulus * alpha
+    return log_linear_blend(properties.blade_modulus, properties.foot_pocket_modulus, alpha)
 end
 
 const FIN_MOTION_FREQUENCY = 1.06
