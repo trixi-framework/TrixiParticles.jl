@@ -45,28 +45,6 @@
         return dv
     end
 
-    @inline function count_system_visits!(system, counter)
-        counter[] += 1
-        return nothing
-    end
-
-    @inline function foreach_system_with_counter!(semi, counter)
-        return TrixiParticles.foreach_system(count_system_visits!, semi, counter)
-    end
-
-    struct WrappedSystemCounter{COUNTER}
-        counter::COUNTER
-    end
-
-    @inline function (callback::WrappedSystemCounter)(system, v, u)
-        callback.counter[] += 1
-        return nothing
-    end
-
-    @inline function foreach_system_wrapped_with_counter!(callback, semi, v_ode, u_ode)
-        return TrixiParticles.foreach_system_wrapped(callback, semi, v_ode, u_ode)
-    end
-
     @testset verbose=true "Constructor" begin
         semi = Semidiscretization(system1, system2, neighborhood_search=nothing)
 
@@ -86,80 +64,18 @@
     end
 
     @testset verbose=true "foreach_system" begin
-        semi = Semidiscretization(system1, system2, neighborhood_search=nothing)
-        expected_system_types = [System1, System2]
-
-        visited = DataType[]
-        returned = TrixiParticles.foreach_system(semi) do system
-            push!(visited, typeof(system))
-            return nothing
+        systems = (1, 2)
+        visited = [0, 0]
+        TrixiParticles.foreach_system(systems) do system
+            visited[system] += 1
         end
-        @test returned === nothing
-        @test visited == expected_system_types
+        @test visited == [1, 1]
 
-        scalar_context = 1
-        visited = Any[]
-        named_semi = (; systems=semi.systems)
-        returned = TrixiParticles.foreach_system(named_semi,
-                                                 scalar_context) do system, context
-            push!(visited, (typeof(system), context))
-            return nothing
+        # Additional arguments should be passed through unchanged.
+        TrixiParticles.foreach_system(systems, 42) do system, arg
+            visited[system] += arg
         end
-        @test returned === nothing
-        @test visited == [(System1, scalar_context), (System2, scalar_context)]
-
-        tuple_context = (Ref(:first), Ref(:second))
-        visited = Any[]
-        returned = TrixiParticles.foreach_system(semi.systems,
-                                                 tuple_context) do system, context
-            push!(visited, (typeof(system), context))
-            return nothing
-        end
-        @test returned === nothing
-        @test [visit[1] for visit in visited] == expected_system_types
-        @test all(visit -> visit[2] === tuple_context, visited)
-
-        context1, context2, context3 = Ref(:first), Ref(:second), Ref(:third)
-        visited = Any[]
-        returned = TrixiParticles.foreach_system(semi, context1, context2,
-                                                 context3) do system,
-                                                              arg1, arg2, arg3
-            push!(visited, (typeof(system), arg1, arg2, arg3))
-            return nothing
-        end
-        @test returned === nothing
-        @test [visit[1] for visit in visited] == expected_system_types
-        @test all(visit -> visit[2] === context1 && visit[3] === context2 &&
-                           visit[4] === context3, visited)
-
-        called = Ref(false)
-        returned = TrixiParticles.foreach_system((), Ref(:context)) do system, context
-            called[] = true
-            return nothing
-        end
-        @test returned === nothing
-        @test !called[]
-
-        counter = Ref(0)
-        @test foreach_system_with_counter!(semi, counter) === nothing
-        counter[] = 0
-        @test @allocated(foreach_system_with_counter!(semi, counter)) == 0
-        @test counter[] == length(semi.systems)
-
-        n_u = sum(TrixiParticles.u_nvariables(system) *
-                  TrixiParticles.n_integrated_particles(system) for system in semi.systems)
-        n_v = sum(TrixiParticles.v_nvariables(system) *
-                  TrixiParticles.n_integrated_particles(system) for system in semi.systems)
-        v_ode = zeros(n_v)
-        u_ode = zeros(n_u)
-        wrapped_counter = Ref(0)
-        wrapped_callback = WrappedSystemCounter(wrapped_counter)
-        @test foreach_system_wrapped_with_counter!(wrapped_callback, semi, v_ode, u_ode) ===
-              nothing
-        wrapped_counter[] = 0
-        @test @allocated(foreach_system_wrapped_with_counter!(wrapped_callback, semi,
-                                                              v_ode, u_ode)) == 0
-        @test wrapped_counter[] == length(semi.systems)
+        @test visited == [43, 43]
     end
 
     @testset verbose=true "Check Configuration" begin

@@ -1,42 +1,17 @@
 @testset verbose=true "foreach_noalloc" begin
-    visited = Int[]
-    returned = TrixiParticles.foreach_noalloc((1, 2, 3)) do element
-        push!(visited, element)
-        return nothing
+    collection1 = (1, 2)
+    visited = [0, 0]
+    TrixiParticles.foreach_noalloc(collection1) do collection
+        visited[collection] += 1
     end
-    @test returned === nothing
-    @test visited == [1, 2, 3]
+    @test visited == [1, 1]
 
-    visited_with_context = Tuple{Int, Symbol}[]
-    returned = TrixiParticles.foreach_noalloc((1, 2), :context) do element, context
-        push!(visited_with_context, (element, context))
-        return nothing
+    collection2 = (3, 4)
+    visited = []
+    TrixiParticles.foreach_noalloc_zip(collection1, collection2) do (i, j)
+        push!(visited, (i, j))
     end
-    @test returned === nothing
-    @test visited_with_context == [(1, :context), (2, :context)]
-
-    visited_pairs = Tuple{Int, Symbol}[]
-    returned = TrixiParticles.foreach_noalloc_zip((1, 2), (:first, :second)) do pair
-        push!(visited_pairs, pair)
-        return nothing
-    end
-    @test returned === nothing
-    @test visited_pairs == [(1, :first), (2, :second)]
-
-    called = Ref(false)
-    returned = TrixiParticles.foreach_noalloc(()) do element
-        called[] = true
-        return nothing
-    end
-    @test returned === nothing
-    @test !called[]
-
-    returned = TrixiParticles.foreach_noalloc_zip((), ()) do pair
-        called[] = true
-        return nothing
-    end
-    @test returned === nothing
-    @test !called[]
+    @test visited == [(1, 3), (2, 4)]
 end
 
 @testset verbose=true "ThreadedBroadcastArray" begin
