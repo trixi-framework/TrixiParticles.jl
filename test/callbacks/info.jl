@@ -2,7 +2,7 @@
     @testset verbose=true "show" begin
         callback = InfoCallback(interval=10)
 
-        show_compact = "InfoCallback(interval=10)"
+        show_compact = "InfoCallback(interval=10, flush=false)"
         @test repr(callback) == show_compact
 
         show_box = """
@@ -10,6 +10,21 @@
         │ InfoCallback                                                                                     │
         │ ════════════                                                                                     │
         │ interval: ……………………………………………………… 10                                                               │
+        │ flush: ……………………………………………………………… no                                                               │
+        └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
+        @test repr("text/plain", callback) == show_box
+
+        callback = InfoCallback(interval=11, flush=true)
+
+        show_compact = "InfoCallback(interval=11, flush=true)"
+        @test repr(callback) == show_compact
+
+        show_box = """
+        ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+        │ InfoCallback                                                                                     │
+        │ ════════════                                                                                     │
+        │ interval: ……………………………………………………… 11                                                               │
+        │ flush: ……………………………………………………………… yes                                                              │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", callback) == show_box
     end
