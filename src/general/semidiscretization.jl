@@ -235,13 +235,15 @@ end
 
 @inline function foreach_system_wrapped(f, _semi::Union{NamedTuple, Semidiscretization},
                                         v_ode, u_ode, semi_wrap)
-    return foreach_system(_foreach_system_wrapped, semi_wrap, f, semi_wrap, v_ode,
-                          u_ode)
+    return foreach_system(_foreach_system_wrapped, semi_wrap, 
+                          (f, semi_wrap, v_ode, u_ode))
 end
 
 # Define an explicit function to be passed to `foreach_system` instead of using a closure
 # because nested closures can cause allocations.
-@inline function _foreach_system_wrapped(system, f, semi_wrap, v_ode, u_ode)
+@inline function _foreach_system_wrapped(system, data)
+    f, semi_wrap, v_ode, u_ode = data
+    
     v = wrap_v(v_ode, system, semi_wrap)
     u = wrap_u(u_ode, system, semi_wrap)
 
