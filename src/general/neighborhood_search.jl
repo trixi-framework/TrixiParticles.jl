@@ -314,14 +314,23 @@ required search radius, instead of one search for every ordered pair of systems.
 For a query involving `(system, neighbor)`, it selects the stored search for the
 neighbor system with a radius large enough for that pair's compact support.
 
-This handler is only compatible with neighborhood searches that can query
-neighbors of arbitrary points in space after an update,
-e.g. [`GridNeighborhoodSearch`](@ref) and [`TrivialNeighborhoodSearch`](@ref).
-[`PrecomputedNeighborhoodSearch`](@ref) is not compatible because it can only
-query neighbors for the particles that were used to update the search.
+This handler reuses the same neighborhood search for all interactions
+that have the same neighbor system and search radius. This is only possible if the
+neighborhood search stores information about the neighbor particles only.
+For example, a grid-based search can be shared because it stores the neighbor
+particles in grid cells and it does not store information about the first particle set.
+In contrast, a precomputed neighbor list cannot be shared because its
+stored neighbors are tied to the specific query particles used during initialization.
 
 The `SharedNHSHandler` is the default handler for compatible neighborhood search
 implementations because it avoids storing and updating redundant neighborhood searches.
+
+!!! warning
+    This handler is only compatible with neighborhood searches that can query
+    neighbors of arbitrary points in space after an update,
+    e.g. [`GridNeighborhoodSearch`](@ref) and [`TrivialNeighborhoodSearch`](@ref).
+    [`PrecomputedNeighborhoodSearch`](@ref) is not compatible because it can only
+    query neighbors for the particles that were used to update the search.
 
 # Examples
 ```jldoctest semi_example; output=false, setup = :(using TrixiParticles; trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing); system1 = fluid_system; system2 = boundary_system)
@@ -373,6 +382,8 @@ end
 function get_neighborhood_search(handler::SharedNHSHandler, system_index, neighbor_index,
                                  search_radius)
     radii = handler.search_radii[neighbor_index]
+
+    # Subtract `eps` to avoid selecting the next larger radius due to rounding errors.
     radius_index = searchsortedfirst(radii, search_radius - eps(search_radius))
 
     @boundscheck if radius_index > length(radii)
