@@ -68,6 +68,7 @@
             @test system.max_iterations == max_iterations
             @test system.time_step == time_step
             @test length(system.density) == size(coordinates, 2)
+            @test TrixiParticles.system_state_equation(system) === nothing
 
             # A too-short acceleration vector triggers dimension validation
             error_str1 = "`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"
