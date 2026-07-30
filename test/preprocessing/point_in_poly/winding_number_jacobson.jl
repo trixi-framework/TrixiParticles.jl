@@ -22,8 +22,7 @@
             └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", winding) == show_box
 
-        winding = WindingNumberJacobson(; geometry, winding_number_factor=pi,
-                                        hierarchical_winding=true)
+        winding = WindingNumberJacobson(; geometry, winding_number_factor=pi)
         show_compact = "WindingNumberJacobson{HierarchicalWinding}()"
         @test repr(winding) == show_compact
 
@@ -40,8 +39,9 @@
     @testset verbose=true "Point Matrix Input" begin
         geometry = TrixiParticles.Polygon([0.0 1.0 1.0 0.0 0.0;
                                            0.0 0.0 1.0 1.0 0.0])
-        points = [0.5 1.5;
-                  0.5 1.5]
+        point_storage = [0.5 0.0 1.5;
+                         0.5 0.0 1.5]
+        points = @view point_storage[:, 1:2:3]
 
         expected = Bool[true, false]
 

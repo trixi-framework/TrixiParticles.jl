@@ -51,15 +51,15 @@ end
 
 """
     WindingNumberJacobson(; geometry=nothing, winding_number_factor=sqrt(eps()),
-                          hierarchical_winding=false)
+                          hierarchical_winding=!isnothing(geometry))
 Algorithm for inside-outside segmentation of a complex geometry proposed by [Jacobson2013](@cite).
 
 # Keywords
 - `geometry`: Complex geometry returned by [`load_geometry`](@ref) and is only required when using
               `hierarchical_winding=true`.
 - `hierarchical_winding`: If set to `true`, an optimized hierarchical approach will be used,
-                          which gives a significant speedup. It defaults to `false` so the algorithm
-                          can be constructed without passing `geometry`. For further information see
+                          which gives a significant speedup. It defaults to `true` when `geometry`
+                          is passed and `false` otherwise. For further information see
                           [Hierarchical Winding](@ref hierarchical_winding).
 - `winding_number_factor`: For leaky geometries, a factor of `0.4` will give a better inside-outside segmentation.
 
@@ -71,7 +71,7 @@ struct WindingNumberJacobson{ELTYPE, W}
     winding               :: W
 
     function WindingNumberJacobson(; geometry=nothing, winding_number_factor=sqrt(eps()),
-                                   hierarchical_winding=false)
+                                   hierarchical_winding=!isnothing(geometry))
         if hierarchical_winding && geometry isa Nothing
             throw(ArgumentError("`geometry` must be of type `Polygon` (2D) or `TriangleMesh` (3D) when using hierarchical winding"))
         end

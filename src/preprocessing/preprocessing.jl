@@ -4,8 +4,11 @@ function wrap_points(points, ::Val{NDIMS}) where {NDIMS}
             throw(ArgumentError("point matrix must have $NDIMS rows"))
         end
 
-        # Interpret an `NDIMS`-by-`N` matrix as one static vector per column.
-        return reinterpret(reshape, SVector{NDIMS, eltype(points)}, points)
+        # Interpret an `NDIMS`-by-`N` matrix as one static vector per column. Constructing
+        # the vectors explicitly also supports non-contiguous matrix views.
+        return map(eachcol(points)) do point
+            return SVector{NDIMS, eltype(points)}(point)
+        end
     end
 
     return points
