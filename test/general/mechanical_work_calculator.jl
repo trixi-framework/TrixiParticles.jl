@@ -1,4 +1,4 @@
-@testset verbose=true "MechanicalWorkCalculatorCallback" begin
+@testset verbose=true "MechanicalWorkCalculator" begin
     # Mock system
     struct MockSystem <: TrixiParticles.AbstractStructureSystem{2}
         eltype::Type
@@ -18,46 +18,44 @@
 
     @testset "Constructor and Basic Properties" begin
         # Test default constructor
-        callback = MechanicalWorkCalculatorCallback(system64, semi64)
-        @test callback.affect!.system_index == 1
-        @test callback.affect!.interval == 1
-        @test callback.affect!.t[] == 0.0
-        @test callback.affect!.work[] == 0.0
-        @test callback.affect!.dv isa Array{Float64, 2}
-        @test size(callback.affect!.dv) == (2, 4)
-        @test callback.affect!.eachparticle == 5:4
-        @test calculated_mechanical_work(callback) == 0.0
+        calculator = MechanicalWorkCalculator(system64, semi64)
+        @test calculator.system_index == 1
+        @test calculator.t == 0.0
+        @test calculator.work == 0.0
+        @test calculator.power == 0.0
+        @test !calculator.initialized
+        @test calculator.dv isa Array{Float64, 2}
+        @test size(calculator.dv) == (2, 4)
+        @test calculator.eachparticle == 5:4
+        @test calculated_mechanical_work(calculator) == 0.0
 
-        # Test constructor with interval
-        callback = MechanicalWorkCalculatorCallback(system64, semi64; interval=5)
-        @test callback.affect!.interval == 5
-        @test eltype(callback.affect!.work) == Float64
-        @test eltype(callback.affect!.t) == Float64
+        # Test constructor with explicit particle range
+        calculator = MechanicalWorkCalculator(system64, semi64; eachparticle=1:2)
+        @test calculator.eachparticle == 1:2
+        @test eltype(calculator.work) == Float64
+        @test eltype(calculator.t) == Float64
+        @test eltype(calculator.power) == Float64
 
         # Test with specific element type
-        callback = MechanicalWorkCalculatorCallback(system32, semi32; interval=2)
-        @test eltype(callback.affect!.work) == Float32
-        @test eltype(callback.affect!.t) == Float32
+        calculator = MechanicalWorkCalculator(system32, semi32)
+        @test eltype(calculator.work) == Float32
+        @test eltype(calculator.t) == Float32
+        @test eltype(calculator.power) == Float32
     end
 
-    @testset "show" begin
-        callback = MechanicalWorkCalculatorCallback(system64, semi64; interval=10)
+    @testset "reset_custom_quantity!" begin
+        calculator = MechanicalWorkCalculator(system64, semi64)
+        calculator.initialized = true
 
-        # Test compact representation
-        show_compact = "MechanicalWorkCalculatorCallback{Float64}(interval=10)"
-        @test repr(callback) == show_compact
-
-        # Test detailed representation - check against expected box format
-        show_box = """
-        ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-        │ MechanicalWorkCalculatorCallback{Float64}                                                        │
-        │ ═════════════════════════════════════════                                                        │
-        │ interval: ……………………………………………………… 10                                                               │
-        └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
-        @test repr("text/plain", callback) == show_box
+        @test TrixiParticles.reset_custom_quantity!(calculator) === calculator
+        @test !calculator.initialized
     end
 
-    @testset "update_mechanical_work_calculator!" begin
+    @testset "trapezoidal integration" begin
+        @test TrixiParticles.update_mechanical_work(1.0, 2.0, 6.0, 0.25) == 2.0
+    end
+
+    @testset "calculate_mechanical_power" begin
         # In the first test, we just move the 2x2 grid of particles up against gravity
         # and test that the accumulated work is just the potential energy difference.
         # In the other tests, we clamp the top row of particles and offset them to create
@@ -110,56 +108,54 @@
             TrixiParticles.update_quantities!(system, v, u, v_ode, u_ode, semi, 0.0)
 
             # Set up test parameters
-            work1 = Ref(0.0)
+            work1 = 0.0
             dt1 = 0.1
 
             # Test that mechanical work is integrated, i.e., values of instantaneous
             # power are accumulated over time. This initial work should just be an offset.
             # Also, half the step size means half the work increase.
-            work2 = Ref(1.0)
+            work2 = 1.0
             dt2 = 0.05
 
             # Test `only_compute_force_on_fluid`
-            work3 = Ref(0.0)
+            work3 = 0.0
             dt3 = 0.1
 
             eachparticle = (TrixiParticles.n_integrated_particles(system) + 1):nparticles(system)
             dv = zeros(2, nparticles(system))
 
-            TrixiParticles.update_mechanical_work_calculator!(work1, system, eachparticle,
-                                                              false,
-                                                              dv, v_ode, u_ode, semi, 0.0,
-                                                              dt1)
-            TrixiParticles.update_mechanical_work_calculator!(work2, system, eachparticle,
-                                                              false,
-                                                              dv, v_ode, u_ode, semi, 0.0,
-                                                              dt2)
-            TrixiParticles.update_mechanical_work_calculator!(work3, system, eachparticle,
-                                                              true,
-                                                              dv, v_ode, u_ode, semi, 0.0,
-                                                              dt3)
+            power = TrixiParticles.calculate_mechanical_power(system, eachparticle,
+                                                              false, dv, v_ode, u_ode,
+                                                              semi, 0.0)
+            power_fluid = TrixiParticles.calculate_mechanical_power(system, eachparticle,
+                                                                    true, dv, v_ode,
+                                                                    u_ode, semi, 0.0)
+            work1 = TrixiParticles.update_mechanical_work(work1, power, power, dt1)
+            work2 = TrixiParticles.update_mechanical_work(work2, power, power, dt2)
+            work3 = TrixiParticles.update_mechanical_work(work3, power_fluid,
+                                                          power_fluid, dt3)
 
             if i == 1
-                @test isapprox(work1[], 0.8)
-                @test isapprox(work2[], 1.0 + 0.4)
+                @test isapprox(work1, 0.8)
+                @test isapprox(work2, 1.0 + 0.4)
             elseif i == 2
                 # For very soft material, we can just pull up the top row of particles
                 # and the work required is almost just the potential energy difference.
-                @test isapprox(work1[], 0.4080357142857143)
-                @test isapprox(work2[], 1.0 + 0.5 * 0.4080357142857143)
+                @test isapprox(work1, 0.4080357142857143)
+                @test isapprox(work2, 1.0 + 0.5 * 0.4080357142857143)
             elseif i == 3
                 # For a stiffer material, the stress from the offset creates larger forces
                 # pulling the clamped particles back down, so we need a lot of work
                 # to pull the material apart.
-                @test isapprox(work1[], 803.9714285714281)
-                @test isapprox(work2[], 1.0 + 0.5 * 803.9714285714281)
+                @test isapprox(work1, 803.9714285714281)
+                @test isapprox(work2, 1.0 + 0.5 * 803.9714285714281)
             elseif i == 4
                 # For a very stiff material, the work is even larger.
-                @test isapprox(work1[], 80357.5428571428)
-                @test isapprox(work2[], 1.0 + 0.5 * 80357.5428571428)
+                @test isapprox(work1, 80357.5428571428)
+                @test isapprox(work2, 1.0 + 0.5 * 80357.5428571428)
             end
 
-            @test isapprox(work3[], 0.0)
+            @test isapprox(work3, 0.0)
         end
     end
 end

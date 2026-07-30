@@ -15,6 +15,10 @@
                                                                                      t) -> 1)
     end
 
+    @testset verbose=true "reset custom quantity" begin
+        @test TrixiParticles.reset_custom_quantity!(identity) === identity
+    end
+
     @testset verbose=true "show" begin
         function example_function(system, v_ode, u_ode, semi, t)
             return 0
