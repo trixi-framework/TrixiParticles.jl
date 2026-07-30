@@ -87,9 +87,11 @@
 
         closed_polygon = TrixiParticles.Polygon(open_square)
         open_polygon = TrixiParticles.Polygon(open_square; close_curve=false)
-        partial_polygon = deleteat!(TrixiParticles.Polygon(open_square), 2)
+        partial_polygon = delete_faces(closed_polygon, 2)
+        rebuilt_closed_polygon = delete_faces(closed_polygon, Int[])
 
         @test TrixiParticles.is_closed_geometry(closed_polygon)
+        @test TrixiParticles.is_closed_geometry(rebuilt_closed_polygon)
         @test !TrixiParticles.is_closed_geometry(open_polygon)
         @test !TrixiParticles.is_closed_geometry(partial_polygon)
 
@@ -105,6 +107,36 @@
         @test !TrixiParticles.is_closed_geometry(planar_geometry)
         @test TrixiParticles.is_closed_geometry(closed_mesh)
         @test !TrixiParticles.is_closed_geometry(open_mesh)
+    end
+
+    @testset verbose=true "`delete_faces` Rebuilds Derived Data" begin
+        triangle = [0.0 1.0 0.5 0.0;
+                    0.0 0.0 0.7 0.0]
+
+        edge_only = TrixiParticles.delete_faces(TrixiParticles.Polygon(triangle), [1, 2])
+
+        @test TrixiParticles.nfaces(edge_only) == 1
+        @test length(edge_only.vertices) == 2
+        @test length(edge_only.vertex_normals) == 1
+        @test edge_only.min_corner == min.(edge_only.edge_vertices[1]...)
+        @test edge_only.max_corner == max.(edge_only.edge_vertices[1]...)
+        @test edge_only.vertex_normals[1] == (edge_only.edge_normals[1],
+                                              edge_only.edge_normals[1])
+
+        A = SVector(0.0, 0.0, 0.0)
+        B = SVector(1.0, 0.0, 0.0)
+        C = SVector(0.0, 1.0, 0.0)
+        D = SVector(1.0, 1.0, 0.0)
+        face_vertices = [(A, B, C), (B, D, C)]
+        face_normals = [SVector(0.0, 0.0, 1.0), SVector(0.0, 0.0, 1.0)]
+        mesh = TrixiParticles.TriangleMesh(face_vertices, face_normals, [A, B, C, D])
+
+        mesh = TrixiParticles.delete_faces(mesh, 1)
+
+        @test TrixiParticles.nfaces(mesh) == 1
+        @test length(mesh.vertices) == 3
+        @test length(mesh.edge_normals) == 3
+        @test mesh.face_vertices == [face_vertices[2]]
     end
 
     @testset verbose=true "Real World Data" begin

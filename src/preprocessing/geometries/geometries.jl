@@ -10,14 +10,22 @@ include("io.jl")
 Return `true` if a polygon or triangle mesh forms a closed region or surface.
 """
 function is_closed_geometry(polygon::Polygon)
-    vertices_close = isapprox(first(polygon.vertices), last(polygon.vertices))
-    vertices_close || return false
+    vertex_degrees = polygon_vertex_degrees(polygon)
 
-    expected_edges = count(1:(length(polygon.vertices) - 1)) do i
-        !isapprox(polygon.vertices[i], polygon.vertices[i + 1])
+    return !isempty(vertex_degrees) && all(==(2), values(vertex_degrees))
+end
+
+function polygon_vertex_degrees(polygon)
+    VERTEX = typeof(first(first(polygon.edge_vertices)))
+    vertex_degrees = Dict{VERTEX, Int}()
+
+    for edge in polygon.edge_vertices
+        for vertex in edge
+            vertex_degrees[vertex] = get(vertex_degrees, vertex, 0) + 1
+        end
     end
 
-    return nfaces(polygon) == expected_edges
+    return vertex_degrees
 end
 
 function is_closed_geometry(mesh::TriangleMesh)
@@ -34,13 +42,12 @@ function require_closed_geometry(geometry, operation)
 end
 
 function closure_error_detail(polygon::Polygon)
-    if !isapprox(first(polygon.vertices), last(polygon.vertices))
-        return "The first and last polygon vertices are different. " *
-               "If the vertices already trace a complete 2D boundary, construct or load " *
-               "the geometry with `close_curve=true`; otherwise provide a closed boundary."
-    end
+    invalid_vertices = count(!=(2), values(polygon_vertex_degrees(polygon)))
 
-    return "The polygon edge list does not form a complete closed curve."
+    return "Found $invalid_vertices polygon vertices with an incident-edge count " *
+           "different from 2. If the vertices already trace a complete 2D boundary, " *
+           "construct or load the geometry with `close_curve=true`; otherwise provide " *
+           "a closed boundary."
 end
 
 function closure_error_detail(mesh::TriangleMesh)
