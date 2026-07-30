@@ -141,7 +141,8 @@ nothing # hide
 
 # ## [Semidiscretization](@id tut_setup_semi)
 
-# The key component of every simulation is the [`Semidiscretization`](@ref),
+# The key component of every simulation is the
+# [`Semidiscretization`](@ref TrixiParticles.Semidiscretization),
 # which couples all systems of the simulation.
 # All simulation methods in TrixiParticles.jl are semidiscretizations, which discretize
 # the equations in space to provide an ordinary differential equation that still
