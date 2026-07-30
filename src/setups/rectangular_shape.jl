@@ -125,9 +125,8 @@ function RectangularShape(particle_spacing, n_particles_per_dimension, min_coord
 
         if state_equation === nothing
             if density === nothing
-                throw(ArgumentError("`density` must be specified when not using " *
-                                    "`acceleration` and `state_equation` " *
-                                    "(hydrostatic pressure gradient)"))
+                throw(ArgumentError("`density` must be specified when using " *
+                                    "`acceleration` without `state_equation`"))
             end
         else
             if density !== nothing
