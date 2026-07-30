@@ -274,8 +274,8 @@ when it is not already repeated. This is only a convenience for complete, ordere
 boundaries that omit the final duplicate point; it does not repair missing
 segments, gaps, self-intersections, or incorrectly ordered points. Use
 `load_geometry(file; close_curve=false)` for intentional open curves. Operations
-that sample or classify a region, such as [`ComplexShape`](@ref), [`intersect`](@ref),
-and [`setdiff`](@ref), require closed geometries. Boundary packing with
+that sample or classify a region, such as [`ComplexShape`](@ref), `intersect`,
+and `setdiff`, require closed geometries. Boundary packing with
 [`SignedDistanceField`](@ref) also requires a closed geometry, since it needs a
 well-defined outside region.
 This format is easy to generate and inspect manually.
@@ -315,6 +315,10 @@ Pages = [joinpath("preprocessing", "geometries", "io.jl")]
 ```@autodocs
 Modules = [TrixiParticles]
 Pages = [joinpath("preprocessing", "geometries", "triangle_mesh.jl")]
+```
+
+```@docs
+TrixiParticles.is_closed_geometry
 ```
 
 
