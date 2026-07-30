@@ -239,8 +239,8 @@ end
 
 # Define an explicit function to be passed to `foreach_system` instead of using a closure
 # because nested closures can cause allocations.
-@inline function _foreach_system_wrapped(system, data)
-    f, semi_wrap, v_ode, u_ode = data
+@inline function _foreach_system_wrapped(system, f, data)
+    semi_wrap, v_ode, u_ode = data
 
     v = wrap_v(v_ode, system, semi_wrap)
     u = wrap_u(u_ode, system, semi_wrap)
