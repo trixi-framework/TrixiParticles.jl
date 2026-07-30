@@ -141,6 +141,29 @@
             @test_throws ArgumentError(error_str) Semidiscretization(fluid_system,
                                                                      boundary_system)
         end
+
+        @testset verbose=true "Fluid Surface Tension Consistency" begin
+            struct FluidSurfaceMock <: TrixiParticles.AbstractFluidSystem{2}
+                surface_tension
+                surface_normal_method
+            end
+
+            system_with_surface = FluidSurfaceMock(SurfaceTensionMorris(),
+                                                   ColorfieldSurfaceNormal())
+            system_with_normal = FluidSurfaceMock(nothing, ColorfieldSurfaceNormal())
+            system_without_surface = FluidSurfaceMock(nothing, nothing)
+
+            error_str = "either none or all fluid systems in a simulation need " *
+                        "to use a surface tension model or a surface normal method."
+            @test_throws ArgumentError(error_str) TrixiParticles.check_configuration(system_with_surface,
+                                                                                     (system_with_surface,
+                                                                                      system_without_surface),
+                                                                                     nothing)
+            @test_nowarn TrixiParticles.check_configuration(system_with_surface,
+                                                            (system_with_surface,
+                                                             system_with_normal),
+                                                            nothing)
+        end
     end
 
     @testset verbose=true "`show`" begin
