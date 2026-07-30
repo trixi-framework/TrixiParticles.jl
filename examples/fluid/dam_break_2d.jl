@@ -111,8 +111,10 @@ extra_callback = nothing
 extra_callback2 = nothing
 
 use_reinit = false
+# The callback stores the system index, so it remains valid if `semidiscretize`
+# replaces systems internally.
 density_reinit_cb = use_reinit ?
-                    DensityReinitializationCallback(semi.systems[1], interval=10) :
+                    DensityReinitializationCallback(fluid_system, semi; interval=10) :
                     nothing
 stepsize_callback = StepsizeCallback(cfl=0.9)
 
