@@ -214,18 +214,12 @@ end
 end
 
 # This is just for readability to loop over all systems without allocations
-const foreach_system = foreach_noalloc
-
-@inline function foreach_system(f, semi::Union{NamedTuple, Semidiscretization}, args...)
-    return foreach_noalloc(f, semi.systems, args...)
+@inline function foreach_system(f, semi::Union{NamedTuple, Semidiscretization})
+    return foreach_noalloc(f, semi.systems)
 end
 
-# Inference limits recursion through these methods on Julia 1.10, causing runtime
-# dispatch. Recursion here always terminates (`collection` shrinks each level),
-# so tell the compiler it may keep inferring through it.
-for m in methods(foreach_noalloc)
-    m.recursion_relation = (method, topmost, sig, topmost_sig) -> true
-end
+@inline foreach_system(f, systems) = foreach_noalloc(f, systems)
+
 
 # This is just for readability to loop over all systems with wrapped arrays.
 @inline function foreach_system_wrapped(f, semi::Union{NamedTuple, Semidiscretization},
@@ -235,7 +229,7 @@ end
 
 @inline function foreach_system_wrapped(f, _semi::Union{NamedTuple, Semidiscretization},
                                         v_ode, u_ode, semi_wrap)
-    return foreach_system(_foreach_system_wrapped, semi_wrap, 
+    return foreach_system(_foreach_system_wrapped, semi_wrap,
                           (f, semi_wrap, v_ode, u_ode))
 end
 
@@ -243,7 +237,7 @@ end
 # because nested closures can cause allocations.
 @inline function _foreach_system_wrapped(system, data)
     f, semi_wrap, v_ode, u_ode = data
-    
+
     v = wrap_v(v_ode, system, semi_wrap)
     u = wrap_u(u_ode, system, semi_wrap)
 

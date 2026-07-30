@@ -6,6 +6,7 @@ end
 
 # Same as `foreach`, but it is unrolled by the compiler for small input tuples. Additional
 # arguments are passed unchanged to `func` for every element.
+# Note that this might allocate for 3 or more `args` in Julia 1.10.
 @inline function foreach_noalloc(func, collection, args...)
     element = first(collection)
     remaining_collection = Base.tail(collection)
