@@ -202,12 +202,12 @@ end
 
 @inline function backup_condition(cb::PostprocessCallback{Int}, integrator)
     return integrator.stats.naccept > 0 &&
-           round(integrator.stats.naccept / cb.interval) % cb.write_file_interval == 0
+           (integrator.stats.naccept ÷ cb.interval) % cb.write_file_interval == 0
 end
 
 @inline function backup_condition(cb::PostprocessCallback, integrator)
     return integrator.stats.naccept > 0 &&
-           round(Int, integrator.t / cb.interval) % cb.write_file_interval == 0
+           get_iter(cb.interval, integrator) % cb.write_file_interval == 0
 end
 
 # After the simulation has finished, this function is called to write the data to a JSON file
