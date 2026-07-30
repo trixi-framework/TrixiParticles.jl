@@ -140,8 +140,8 @@ pressure operator, this corresponds to modifying the pressure force
 ```math
 \bm{F}_a^{p} = -m_a \sum_b m_b \left( \frac{p_a}{\rho_a^2} + \frac{p_b}{\rho_b^2} \right) \nabla_a W_{ab},
 ```
-to replace the unknown density $\rho_b$ if $b$ is a boundary particle by the reference density
-and the unknown pressure $p_b$ if $b$ is a boundary particle by the pressure $p_a$ of the
+to replace the unknown density ``\rho_b`` if ``b`` is a boundary particle by the reference density
+and the unknown pressure ``p_b`` if ``b`` is a boundary particle by the pressure ``p_a`` of the
 interacting fluid particle. The force therefore becomes
 ```math
 \bm{F}_a^{p} = -m_a \sum_f m_f \left( \frac{p_a}{\rho_a^2} + \frac{p_f}{\rho_f^2} \right) \nabla_a W_{af}
