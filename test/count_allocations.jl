@@ -72,7 +72,7 @@ function count_rhs_allocations(sol; split_integration=nothing)
     du_ode = similar(u_ode)
 
     # Wrap neighborhood searches to avoid counting allocations in the NHS update.
-    # Note that `p.split_integration_data.split_integrator.p.semi_large` is still the old
+    # Note that `p.split_integration_data.integrator.p.semi_large` is still the old
     # semidiscretization with the original NHS.
     # However, we call `kick!` twice with the same `t` below, so in the second call,
     # where the allocations are counted, the split integration does nothing because

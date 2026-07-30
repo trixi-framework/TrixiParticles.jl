@@ -8,9 +8,11 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Features
 
+- Added the computation of boundary normals for `RectangularTank`s and `SphereShape`s.
 - Added `flush` keyword argument to `InfoCallback` to flush `stdout` after each output,
   useful for monitoring progress in real-time on clusters or batch systems (#1246).
-- Added the computation of boundary normals for `RectangularTank`s and `SphereShape`s.
+- Added the number of split integration time steps to the `InfoCallback` output
+  when a `SplitIntegrationCallback` is used (#1194).
 
 ## Version 0.5.2
 
