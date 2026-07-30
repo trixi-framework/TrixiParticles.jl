@@ -2,7 +2,7 @@
     @testset verbose=true "show" begin
         callback = InfoCallback(interval=10)
 
-        show_compact = "InfoCallback(interval=10)"
+        show_compact = "InfoCallback(interval=10, flush=false)"
         @test repr(callback) == show_compact
 
         show_box = """
@@ -10,6 +10,21 @@
         │ InfoCallback                                                                                     │
         │ ════════════                                                                                     │
         │ interval: ……………………………………………………… 10                                                               │
+        │ flush: ……………………………………………………………… no                                                               │
+        └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
+        @test repr("text/plain", callback) == show_box
+
+        callback = InfoCallback(interval=11, flush=true)
+
+        show_compact = "InfoCallback(interval=11, flush=true)"
+        @test repr(callback) == show_compact
+
+        show_box = """
+        ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+        │ InfoCallback                                                                                     │
+        │ ════════════                                                                                     │
+        │ interval: ……………………………………………………… 11                                                               │
+        │ flush: ……………………………………………………………… yes                                                              │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", callback) == show_box
     end
@@ -27,8 +42,8 @@
         integrator = (; p=(; semi),
                       opts=(;
                             callback=(; continuous_callbacks, discrete_callbacks),
-                            adaptive=true, abstol=1e-2, reltol=1e-1,
-                            controller=:controller),
+                            adaptive=true, abstol=1e-2, reltol=1e-1),
+                      controller_cache=(; controller=:controller),
                       alg=Val(:alg),
                       sol=(; prob=(; tspan=(0.1, 0.5))))
 
@@ -101,7 +116,7 @@
                       sol=(; prob=(; tspan=(0.0, 30.0))))
 
         TrixiParticles.isfinished(::NamedTuple) = false
-        TrixiParticles.u_modified!(::NamedTuple, _) = nothing
+        TrixiParticles.derivative_discontinuity!(::NamedTuple, _) = nothing
 
         expected = "#timesteps:    453 │ Δt: 1.4548e-03 │ sim. time: 2.3420e+01 (78.067%)  │ run time: 1.0000e+100 s\n"
 
@@ -130,7 +145,7 @@
                       dt=1e-3)
 
         TrixiParticles.isfinished(::NamedTuple) = true
-        TrixiParticles.u_modified!(::NamedTuple, _) = nothing
+        TrixiParticles.derivative_discontinuity!(::NamedTuple, _) = nothing
 
         expected = """
         ────────────────────────────────────────────────────────────────────────────────────────────────────
