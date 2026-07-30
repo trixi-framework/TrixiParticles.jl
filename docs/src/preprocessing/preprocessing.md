@@ -308,6 +308,10 @@ Modules = [TrixiParticles]
 Pages = [joinpath("preprocessing", "geometries", "triangle_mesh.jl")]
 ```
 
+```@docs
+delete_faces
+```
+
 
 # [Particle Packing](@id particle_packing)
 To obtain a body-fitted and isotropic particle distribution, an initial configuration (see [Sampling of Geometries](@ref sampling_of_geometries)) is first generated. This configuration is then packed using a [`ParticlePackingSystem`](@ref) following the steps introduced in [Neher2026](@cite).

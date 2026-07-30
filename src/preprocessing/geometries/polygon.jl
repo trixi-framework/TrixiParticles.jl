@@ -104,7 +104,29 @@ struct Polygon{NDIMS, ELTYPE}
     end
 end
 
-function rebuild_polygon_from_edges(edge_vertices, vertex_normals, edge_normals)
+function vertex_normals_from_edges(edge_vertices, edge_normals)
+    VERTEX = typeof(first(first(edge_vertices)))
+    normal_sums = Dict{VERTEX, VERTEX}()
+
+    for (edge, edge_normal) in zip(edge_vertices, edge_normals)
+        for vertex in edge
+            normal_sums[vertex] = get(normal_sums, vertex, zero(edge_normal)) + edge_normal
+        end
+    end
+
+    return map(edge_vertices, edge_normals) do edge, edge_normal
+        normals = map(edge) do vertex
+            normal_sum = normal_sums[vertex]
+            normal_norm = norm(normal_sum)
+
+            return iszero(normal_norm) ? edge_normal : normal_sum / normal_norm
+        end
+
+        return Tuple(normals)
+    end
+end
+
+function rebuild_polygon_from_edges(edge_vertices, edge_normals)
     NDIMS = length(first(edge_normals))
     ELTYPE = eltype(first(edge_normals))
     vertices = SVector{NDIMS, ELTYPE}[]
@@ -126,6 +148,7 @@ function rebuild_polygon_from_edges(edge_vertices, vertex_normals, edge_normals)
 
     min_corner = SVector([minimum(v[i] for v in vertices) for i in 1:NDIMS]...)
     max_corner = SVector([maximum(v[i] for v in vertices) for i in 1:NDIMS]...)
+    vertex_normals = vertex_normals_from_edges(edge_vertices, edge_normals)
 
     return Polygon{NDIMS, ELTYPE}(vertices, edge_vertices, vertex_normals, edge_normals,
                                   edge_vertices_ids, min_corner, max_corner)
@@ -160,18 +183,16 @@ Return a geometry with the faces at `indices` removed and derived geometry data 
 """
 @inline function delete_faces(polygon::Polygon, indices)
     edge_vertices = copy(polygon.edge_vertices)
-    vertex_normals = copy(polygon.vertex_normals)
     edge_normals = copy(polygon.edge_normals)
 
     deleteat!(edge_vertices, indices)
-    deleteat!(vertex_normals, indices)
     deleteat!(edge_normals, indices)
 
     if isempty(edge_vertices)
         throw(ArgumentError("cannot delete all polygon edges"))
     end
 
-    return rebuild_polygon_from_edges(edge_vertices, vertex_normals, edge_normals)
+    return rebuild_polygon_from_edges(edge_vertices, edge_normals)
 end
 
 @inline nfaces(mesh::Polygon) = length(mesh.edge_normals)
