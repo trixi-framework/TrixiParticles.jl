@@ -269,6 +269,15 @@ For example:
 0.0 1.0
 ```
 It is the user’s responsibility to ensure the points are ordered correctly.
+For 2D `.asc` and `.dxf` files, `load_geometry` appends the first point by default
+when it is not already repeated. This is only a convenience for complete, ordered
+boundaries that omit the final duplicate point; it does not repair missing
+segments, gaps, self-intersections, or incorrectly ordered points. Use
+`load_geometry(file; close_curve=false)` for intentional open curves. Operations
+that sample or classify a region, such as [`ComplexShape`](@ref), [`intersect`](@ref),
+and [`setdiff`](@ref), require closed geometries. Boundary packing with
+[`SignedDistanceField`](@ref) also requires a closed geometry, since it needs a
+well-defined outside region.
 This format is easy to generate and inspect manually.
 
 ## DXF Format (.dxf) – recommended
