@@ -328,6 +328,10 @@ function Base.show(io::IO, model::BoundaryModelDummyParticles)
     print(io, ")")
 end
 
+@inline function density_calculator(model::BoundaryModelDummyParticles)
+    return model.density_calculator
+end
+
 # Set the initial pressure to zero for visualization
 function initial_boundary_pressure(initial_density, density_calculator, _)
     return zero(initial_density)
@@ -675,10 +679,10 @@ end
     if system.ismoving[]
         relative_velocity = current_velocity(v, system, particle) .-
                             current_velocity(v_neighbor_system, neighbor_system, neighbor)
-        normal_velocity = dot(relative_velocity, pos_diff)
+        normal_velocity = dot(relative_velocity, pos_diff) / distance
 
         return boundary_density_calculator.factor * density_neighbor *
-               normal_velocity^2 / distance / 2
+               normal_velocity^2 / 2
     end
     return zero(density_neighbor)
 end

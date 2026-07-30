@@ -293,7 +293,7 @@ For a less technical approach, we recommend using [Inkscape](https://inkscape.or
 SVG vector graphics can also be used as a basis for geometry.
 Use Inkscape to open or create the SVG.
 You can simply draw a Bezier curve by pressing "B" on your keyboard.
-We reommend the mode "Create spiro paths" for a smooth curve.
+We recommend the mode "Create spiro paths" for a smooth curve.
 Select the relevant path and export it as DXF:
 - Go to "File > Save As...".
 - Choose "Desktop Cutting Plotter (AutoCAD DXF R12)(*.dxf)" format.
