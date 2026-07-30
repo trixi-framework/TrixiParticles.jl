@@ -220,7 +220,6 @@ end
 
 @inline foreach_system(f, systems, args...) = foreach_noalloc(f, systems, args...)
 
-
 # This is just for readability to loop over all systems with wrapped arrays.
 @inline function foreach_system_wrapped(f, semi::Union{NamedTuple, Semidiscretization},
                                         v_ode, u_ode)
