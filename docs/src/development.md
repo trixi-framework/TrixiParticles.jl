@@ -22,7 +22,6 @@ python3 -m http.server -d docs/build
 ```
 and open `localhost:8000` in your web browser.
 
-
 ## Release Management
 
 To create a new release for TrixiParticles.jl, perform the following steps:
@@ -41,10 +40,12 @@ To create a new release for TrixiParticles.jl, perform the following steps:
    - If the new release only contains minor modifications and/or bug fixes, the *minor*
      version is kept as-is and the *patch* version is increased by one. In our example, the
      new version should thus be `v0.2.4`.
-4. Edit the `version` string in the
+4. Review and update the `NEWS.md` file to ensure all relevant changes, features, and bugfixes
+   are documented for this release under the appropriate version header.
+5. Edit the `version` string in the
    [`Project.toml`](https://github.com/trixi-framework/TrixiParticles.jl/blob/main/Project.toml)
    and set it to the new version. Push/merge this change to `main`.
-5. Go to GitHub and add a comment to the commit that you would like to become the new
+6. Go to GitHub and add a comment to the commit that you would like to become the new
    release (typically this will be the commit where you just updated the version). You can
    comment on a commit by going to the
    [commit overview](https://github.com/trixi-framework/TrixiParticles.jl/commits/main/) and clicking
@@ -52,19 +53,56 @@ To create a new release for TrixiParticles.jl, perform the following steps:
    ```
    @JuliaRegistrator register
    ```
-6. Wait for the magic to happen. Specifically, JuliaRegistrator will create a new PR to the
+7. Wait for the magic to happen. Specifically, JuliaRegistrator will create a new PR to the
    Julia registry with the new release information. After a grace period of ~15 minutes,
    this PR will be merged automatically. A short while after,
    [TagBot](https://github.com/trixi-framework/TrixiParticles.jl/blob/main/.github/workflows/TagBot.yml)
    will create a new release of TrixiParticles.jl in our GitHub repository.
-7. Once the new release has been created, the new version can be obtained through the Julia
+8. Once the new release has been created, the new version can be obtained through the Julia
    package manager as usual.
-8. To make sure people do not mistake the latest state of `main` as the latest release, we
+9. To make sure people do not mistake the latest state of `main` as the latest release, we
    set the version in the `Project.toml` to a *development* version. The development version
    should be the latest released version, with the patch version incremented by one, and the
    `-dev` suffix added. For example, if you just released `v0.3.0`, the new development
    version should be `v0.3.1-dev`. If you just released `v0.2.4`, the new development
    version should be `v0.2.5-dev`.
+
+## Coding conventions
+
+TrixiParticles.jl mostly follows the
+[SciMLStyle](https://github.com/SciML/SciMLStyle). In addition, follow these
+project-specific conventions:
+
+- Apply `JuliaFormatter@2.1.1` before opening a PR.
+- Stay within the 92 character limit, also for comments and markdown (where practical).
+- Use descriptive variable and function names, and avoid unclear abbreviations.
+  For example, use `boundary_pressure` instead of `bnd_press`, and
+  `kernel_gradient` instead of `ker_grad`.
+  Standard SPH and time-integration notation is fine for local formula
+  variables, e.g., `m_a`, `rho_b`, `v_ode`, and `u_ode`.
+- Comments start uppercase and when they span multiple lines, they must end with a period.
+- Error messages start lowercase and do not have a period unless they contain
+  multiple sentences.
+- Keep package-code imports centralized in `src/TrixiParticles.jl`.
+  Use explicit import lists, and import the package module itself only when
+  qualified calls like `Package.function` are needed.
+- Add docstrings to public API functions and types. Start with a signature
+  block, use `# Arguments`, `# Keywords`, and `# Examples` sections where
+  applicable, and use `@doc raw"""..."""` for docstrings containing LaTeX or
+  doctests. Very short docstrings don't require these sections.
+- Do not add docstrings to non-exported internal functions and types. Use
+  regular comments to explain their purpose and usage.
+- When validating user input, use `throw(ArgumentError(...))`.
+  Reserve `@assert` for internal invariants and states that should be impossible.
+- Use `@inbounds` only on individual lines whose bounds are guaranteed.
+  Do not mark full loops, blocks, or functions as `@inbounds`. See
+  [Writing fast GPU code](@ref writing_fast_gpu_code) for more details.
+- Use `NDIMS` for spatial-dimension type parameters and `ELTYPE` for numeric
+  element-type parameters. Prefer accessors like `ndims(system)` and
+  `eltype(system)` over dispatching with `where` clauses.
+- For new user-facing types that will be shown in the summary output of the
+  `InfoCallback`, implement compact `Base.show` output and rich `MIME"text/plain"`
+  output with `summary_header`, `summary_line`, and `summary_footer`.
 
 ## [Writing GPU-compatible code](@id writing_gpu_code)
 
@@ -90,9 +128,9 @@ The following rules improve kernel performance and avoid common GPU pitfalls:
 
 1. Avoid exceptions and bounds errors inside kernels.
    Perform all required checks before entering `@threaded` loops (that is, before GPU kernels).
-   Then use `@inbounds` directly at the loop where bounds are guaranteed.
+   Then use `@inbounds` on individual lines inside the loop where bounds are guaranteed.
    In TrixiParticles.jl, we do not place `@inbounds` inside inner helper functions.
-   Instead, mark helper functions with `@propagate_inbounds` so the loop-level
+   Instead, mark helper functions with `@propagate_inbounds` so the line-level
    `@inbounds` is propagated.
 2. Avoid implicit `Float64` literals in arithmetic.
    For example, prefer `x / 2` over `0.5 * x` so `Float32` simulations stay in `Float32`.
