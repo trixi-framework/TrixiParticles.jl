@@ -214,11 +214,11 @@ end
 end
 
 # This is just for readability to loop over all systems without allocations
-@inline function foreach_system(f, semi::Union{NamedTuple, Semidiscretization})
-    return foreach_noalloc(f, semi.systems)
+@inline function foreach_system(f, semi::Union{NamedTuple, Semidiscretization}, args...)
+    return foreach_noalloc(f, semi.systems, args...)
 end
 
-@inline foreach_system(f, systems) = foreach_noalloc(f, systems)
+@inline foreach_system(f, systems, args...) = foreach_noalloc(f, systems, args...)
 
 
 # This is just for readability to loop over all systems with wrapped arrays.
