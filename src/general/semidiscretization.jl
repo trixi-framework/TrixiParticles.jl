@@ -229,8 +229,12 @@ end
 
 @inline function foreach_system_wrapped(f, _semi::Union{NamedTuple, Semidiscretization},
                                         v_ode, u_ode, semi_wrap)
-    return foreach_system(_foreach_system_wrapped, semi_wrap,
-                          (f, semi_wrap, v_ode, u_ode))
+    # Wrap extra arguments in a tuple to avoid allocations because Julia 1.10 avoids
+    # specialization for too many arguments, which causes dynamic dispatch.
+    # Make sure that `f` is passed separately (not inside the tuple) or Julia will
+    # not specialize on the type of `f` and allocate through dynamic dispatch.
+    return foreach_system(_foreach_system_wrapped, semi_wrap, f
+                          (semi_wrap, v_ode, u_ode))
 end
 
 # Define an explicit function to be passed to `foreach_system` instead of using a closure
