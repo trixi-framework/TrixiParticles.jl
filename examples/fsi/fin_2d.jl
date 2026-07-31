@@ -2,7 +2,8 @@ using TrixiParticles
 using OrdinaryDiffEqLowStorageRK
 using OrdinaryDiffEqSymplecticRK
 
-include("fin_2d/setup.jl")
+include("fin_2d/packing.jl")
+include("fin_2d/geometry.jl")
 
 function convert_ic(ic, T)
     return InitialCondition{ndims(ic)}(ic.coordinates, ic.velocity, ic.mass, ic.density,
@@ -17,75 +18,41 @@ n_particles_y = 4
 # ==== Experiment Setup
 tspan = (0.0, 3.0)
 
-fin_length = 0.522
-fin_thickness = 30e-3
-blade_width = 19e-2
+# Length of the blade from the attachment to the tip.
+blade_length = 0.522
+
+# The blade is artificially thickened to allow for a coarser resolution.
+artificial_blade_thickness = 30e-3
+
+# We simulate a 2D slice with this thickness in the unmodeled third dimension.
+# Parts of the fin that are thinner than this will have their density and modulus
+# scaled accordingly.
+max_blade_width = 19e-2
+
+# The (estimated) real material parameters of the blade.
 real_modulus = 40e9
 poisson_ratio = 0.3
+
+# The (estimated) real modulus of the foot pocket including the foot.
 real_modulus_foot_pocket = 5e5
 
-foot_pocket_width_at_right_end = 2e-2
-foot_pocket_full_width = 10e-2
-foot_pocket_width_ramp_length = 15e-2
+# Simulate the blade clamped in the foot pocket or just the blade.
+simulate_foot_pocket = true
 
 # Real blade thickness profile along the flexible blade:
 # x = 0 is the attachment to the foot pocket, x = 1 is the blade tip.
-function real_thickness(x)
+function real_thickness(x_normalized)
     real_thickness_at_attachment = 1.2e-3
     real_thickness_at_tip = 0.7e-3
 
     # `p = 1` is a linear profile.
     p = 1
 
-    # Clamp to use constant material properties for the clamped region and foot pocket.
-    x_clamped = clamp(x, 0.0, 1.0)
+    # Clamp to use constant material properties for the clamped part of the blade.
+    x_clamped = clamp(x_normalized, 0.0, 1.0)
     return real_thickness_at_tip +
            (1 - x_clamped)^p * (real_thickness_at_attachment - real_thickness_at_tip)
 end
-
-# Real blade width profile along the flexible blade, where `x` is the distance
-# from the blade attachment in meters.
-function real_blade_width(x)
-    if x > 0.12
-        return blade_width
-    end
-    width = -1.199 * x^2 + 0.346 * x + 0.167
-    return clamp(width, 7.5e-2, blade_width)
-end
-
-# The 2D model represents the blade width in the unmodeled third dimension. The
-# foot pocket is narrower than the 19 cm blade, so scale its modulus by the local
-# width ratio to preserve the correct out-of-plane integrated stiffness.
-function foot_pocket_width(distance_from_right_end)
-    ramp_coordinate = clamp(distance_from_right_end / foot_pocket_width_ramp_length,
-                            0.0, 1.0)
-    width_range = foot_pocket_full_width - foot_pocket_width_at_right_end
-    return foot_pocket_width_at_right_end +
-           ramp_coordinate * width_range
-end
-
-function foot_pocket_height_top(x_normalized)
-    # Linear approximation of the top edge of the foot pocket.
-    # This is only used to limit the material interface blending width, so it doesn't
-    # need to be exact, and it can be clamped once it's larger than the blending width.
-    return clamp(-0.086 * x_normalized / 0.135, 0.0, 0.08)
-end
-
-function foot_pocket_height_bottom(x_normalized)
-    # Cubic polynomial fitted to the bottom edge of the foot pocket.
-    # This is only used to limit the material interface blending width, so it doesn't
-    # need to be exact, and it can be clamped once it's larger than the blending width.
-    x = clamp(x_normalized, -0.3, -0.1)
-    return clamp(2.09 * x^3 + 1.25 * x^2 + 0.135 * x + 0.003, 0.0, 0.015)
-end
-
-fiber_volume_fraction = 0.6
-fiber_density = 1800.0
-epoxy_density = 1250.0
-real_blade_density = fiber_volume_fraction * fiber_density +
-                     (1 - fiber_volume_fraction) * epoxy_density
-real_foot_pocket_density = 1000.0
-density = real_blade_density
 
 tank_size = (2.0, 1.5)
 center = (tank_size[2] / 2, tank_size[2] / 2)
@@ -94,33 +61,28 @@ initial_velocity = (1.0, 0.0)
 
 # The structure starts at the position of the first particle and ends
 # at the position of the last particle.
-particle_spacing = fin_thickness / (n_particles_y - 1)
+particle_spacing = artificial_blade_thickness / (n_particles_y - 1)
 fluid_particle_spacing = particle_spacing
 
 smoothing_length_structure = sqrt(2) * particle_spacing
 smoothing_length_fluid = 1.5 * fluid_particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
-simulate_foot_pocket = true
-
 # When the foot pocket is simulated, extend the blade into the foot pocket to guarantee
 # a good particle distribution. Without a foot pocket, clamp 1cm of the blade.
 length_clamp = simulate_foot_pocket ? 0.3 : 0.01
 length_clamp = round(Int, length_clamp / particle_spacing) * particle_spacing # m
 
-n_particles_per_dimension = (round(Int, (fin_length + length_clamp) / particle_spacing) + 1,
-                             n_particles_y)
+n_particles_x = round(Int, (blade_length + length_clamp) / particle_spacing) + 1
+n_particles_per_dimension = (n_particles_x, n_particles_y)
 
 # Note that the `RectangularShape` puts the first particle half a particle spacing away
 # from the boundary, which is correct for fluids, but not for structures.
 # We therefore need to pass `place_on_shell=true`.
+# The density is arbitrary, as density and mass will be overwritten later.
 blade = RectangularShape(particle_spacing, n_particles_per_dimension,
-                        (-length_clamp, -fin_thickness / 2), density=density,
-                        place_on_shell=true)
-
-# The foot pocket is modeled as a rigid structure on the left side,
-# and as an elastic structure on the right side.
-rigid_elastic_split_x = -0.27
+                         (-length_clamp, -artificial_blade_thickness / 2),
+                         density=1000.0, place_on_shell=true)
 
 # Make sure that the kernel support of fluid particles at a boundary is always fully sampled
 boundary_layers = 3
@@ -174,129 +136,15 @@ else
     fluid = setdiff(tank.fluid, fin)
 end
 
-# Foot-pocket reference point in the translated tank coordinates used by `structure`.
-rigid_elastic_split_x += center[1]
-
-function is_clamped_structure_particle(coordinates, particle,
-                                       rigid_elastic_split_x)
-    x = coordinates[1, particle]
-    return x <= rigid_elastic_split_x
-end
-
 structure = union(blade, foot_pocket)
 
 # Make sure that no overlapping particles have been removed. This should've been
 # handled by the `setdiff` calls above.
 @assert nparticles(structure) == nparticles(foot_pocket) + nparticles(blade)
 
-# Convert particle x-positions to the relative blade coordinate used by `real_thickness`.
-# A value of 0 corresponds to the blade attachment, and a value of 1 corresponds to the tip.
-function normalized_blade_coordinate(x)
-    return (x - center[1]) / fin_length
-end
-
-function foot_pocket_width_ratio_for_properties(x)
-    distance_from_center = max(center[1] - x, 0.0)
-    return foot_pocket_width(distance_from_center) / blade_width
-end
-
-# Blend the material interface around the edge of the artificially thick blade.
-# The discontinuity is half a particle spacing beyond the outer blade particles.
-material_discontinuity_distance = fin_thickness / 2 + particle_spacing / 2
-
-@inline function local_material_blend_widths(foot_pocket_height)
-    material_blend_outer_width = fin_thickness * 5 / 6
-    available_outer_height = max(foot_pocket_height - material_discontinuity_distance, 0.0)
-    height_scale = min(available_outer_height / material_blend_outer_width, 1.0)
-
-    # Reduce both sides by the same factor when the surrounding pocket is too thin.
-    inner_width = height_scale * fin_thickness / 6
-    outer_width = height_scale * material_blend_outer_width
-
-    # A sub-particle transition cannot be resolved. Treat it as sharp instead.
-    if inner_width + outer_width < fluid_particle_spacing
-        return 0.0, 0.0
-    end
-
-    return inner_width, outer_width
-end
-
-@inline function log_linear_blend(left_value, right_value, alpha)
-    if !(left_value > 0 && right_value > 0)
-        throw(DomainError((left_value, right_value),
-                          "log-linear blending requires positive endpoint values"))
-    end
-
-    alpha <= 0 && return left_value
-    alpha >= 1 && return right_value
-
-    return exp(log(left_value) +
-               alpha * (log(right_value) - log(left_value)))
-end
-
-@inline function blade_blend_alpha(x, y, blade_modulus, foot_pocket_modulus)
-    # There is no material interface along the free part of the blade.
-    x >= center[1] && return 0.0
-
-    blade_center_y = center[2]
-
-    distance_from_blade_center = abs(y - blade_center_y)
-    foot_pocket_height = if y >= blade_center_y
-        foot_pocket_height_top(x - center[1])
-    else
-        foot_pocket_height_bottom(x - center[1])
-    end
-    inner_width, outer_width = local_material_blend_widths(foot_pocket_height)
-
-    if iszero(inner_width + outer_width)
-        return distance_from_blade_center <= material_discontinuity_distance ? 0.0 : 1.0
-    end
-
-    inner_edge = material_discontinuity_distance - inner_width
-    outer_edge = material_discontinuity_distance + outer_width
-    distance_from_blade_center <= inner_edge && return 0.0
-    distance_from_blade_center >= outer_edge && return 1.0
-
-    return clamp((distance_from_blade_center - inner_edge) / (outer_edge - inner_edge),
-                 0, 1)
-end
-
-function material_property_endpoints(x)
-    normalized_x = normalized_blade_coordinate(x)
-    real_blade_thickness = real_thickness(normalized_x)
-    foot_pocket_width_ratio = foot_pocket_width_ratio_for_properties(x)
-
-    foot_pocket_density = foot_pocket_width_ratio * real_foot_pocket_density
-    blade_density = real_blade_density * real_blade_thickness / fin_thickness
-
-    real_width = real_blade_width(clamp(normalized_x, 0.0, 1.0) * fin_length)
-    flexural_rigidity = real_modulus * real_width * real_blade_thickness^3 / 12
-    blade_modulus = flexural_rigidity * 12 / (blade_width * fin_thickness^3)
-    foot_pocket_modulus = foot_pocket_width_ratio * real_modulus_foot_pocket
-
-    return (; blade_density, foot_pocket_density, blade_modulus,
-            foot_pocket_modulus)
-end
-
-function density_for_properties(x, y)
-    properties = material_property_endpoints(x)
-    alpha = blade_blend_alpha(x, y, properties.blade_modulus,
-                              properties.foot_pocket_modulus)
-
-    return log_linear_blend(properties.blade_density, properties.foot_pocket_density, alpha)
-end
-
-function modulus_for_properties(x, y)
-    properties = material_property_endpoints(x)
-    alpha = blade_blend_alpha(x, y, properties.blade_modulus,
-                              properties.foot_pocket_modulus)
-
-    return log_linear_blend(properties.blade_modulus, properties.foot_pocket_modulus, alpha)
-end
-
 const FIN_MOTION_FREQUENCY = 1.06
 const FIN_MOTION_PERIOD_START = 1.0
-const FIN_MOTION_REFERENCE = SVector(center[1], center[2] + fin_thickness / 2)
+const FIN_MOTION_REFERENCE = SVector(center[1], center[2] + artificial_blade_thickness / 2)
 const FIN_TRANSLATION_X_COEFFICIENTS = (-12.806917764769953, -3.0303457592946477, -2.3619440315595286, -6.596342617780676, 10.147967943261595, 1.6701714018007443, -0.753248176125403, 1.1049047920757982, -2.309571815723685)
 const FIN_TRANSLATION_Y_COEFFICIENTS = (8.238789990145717, 36.492667336354685, 233.1179370123477, 2.748787827252771, -0.542272634784335, 6.639630128273474, -6.0841959049116765, 0.48789188369953673, -0.14154297148482692)
 const FIN_ROTATION_COEFFICIENTS = (0.9821743002411218, -43.87937992072254, 13.295138772155541, 0.8057808770021837, 0.14656663179778703, 3.0936007063613857, 0.15219421833610516, -0.26097594464357143, 0.06084159719766363)
@@ -351,26 +199,11 @@ if simulate_foot_pocket
                                           translation_vector=SVector(0.0, amplitude),
                                           rotation_angle, rotation_center,
                                           rotation_phase_offset, ramp_up_tspan=(0.0, 0.5))
-
 else
     structure = blade
-    rigid_elastic_split_x = center[1]
 
     boundary_motion = PrescribedMotion(fitted_movement, Returns(true))
 end
-
-structure.density .= [density_for_properties(structure.coordinates[1, particle],
-                                             structure.coordinates[2, particle])
-                      for particle in 1:nparticles(structure)]
-structure.mass .= structure.density .* particle_spacing^2
-modulus = [modulus_for_properties(structure.coordinates[1, particle],
-                                  structure.coordinates[2, particle])
-           for particle in 1:nparticles(structure)]
-
-clamped_structure_particles = findall(particle -> is_clamped_structure_particle(structure.coordinates,
-                                                                                particle,
-                                                                                rigid_elastic_split_x),
-                                      1:nparticles(structure))
 
 sound_speed = 60.0
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
@@ -393,27 +226,33 @@ boundary_model_structure = BoundaryModelDummyParticles(hydrodynamic_densites,
                                                    smoothing_kernel, smoothing_length_fluid,
                                                    viscosity=viscosity_fin)
 
+# Compute mass, density and modulus.
+apply_material_properties!(structure, simulate_foot_pocket)
+modulus = artificial_modulus(structure, simulate_foot_pocket)
+clamped_structure_particles = clamped_structure_particles(structure, simulate_foot_pocket)
+
 viscosity_structure = ArtificialViscosityMonaghan(alpha=1.0)
-structure_system = TotalLagrangianSPHSystem(structure; smoothing_kernel, smoothing_length=smoothing_length_structure,
-                                        young_modulus=modulus, poisson_ratio,
-                                        clamped_particles=clamped_structure_particles,
-                                        clamped_particles_motion=boundary_motion,
-                                        boundary_model=boundary_model_structure,
-                                        velocity_averaging=TrixiParticles.VelocityAveraging(time_constant=5e-4),
-                                        viscosity=viscosity_structure,
-                                        penalty_force=PenaltyForceGanzenmueller(alpha=0.1))
+structure_system = TotalLagrangianSPHSystem(structure; smoothing_kernel,
+                                            smoothing_length=smoothing_length_structure,
+                                            young_modulus=modulus, poisson_ratio,
+                                            clamped_particles=clamped_structure_particles,
+                                            clamped_particles_motion=boundary_motion,
+                                            boundary_model=boundary_model_structure,
+                                            velocity_averaging=TrixiParticles.VelocityAveraging(time_constant=5e-4),
+                                            viscosity=viscosity_structure,
+                                            penalty_force=PenaltyForceGanzenmueller(alpha=0.1))
 
 # ==========================================================================================
 # ==== Fluid
 fluid_density_calculator = ContinuityDensity()
 density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 
+shifting_technique = ParticleShiftingTechnique(sound_speed_factor=0.2, v_max_factor=0.0)
 fluid_system = WeaklyCompressibleSPHSystem(fluid; density_calculator=fluid_density_calculator,
                                            state_equation, smoothing_kernel,
                                            smoothing_length=smoothing_length_fluid,
                                            viscosity=viscosity_fluid,
-                                           density_diffusion,
-                                           shifting_technique=ParticleShiftingTechnique(sound_speed_factor=0.2, v_max_factor=0.0),
+                                           density_diffusion, shifting_technique,
                                            pressure_acceleration=nothing,
                                            buffer_size=n_buffer_particles)
 
@@ -432,7 +271,6 @@ else
     periodic_box = nothing
 
     open_boundary_model = BoundaryModelDynamicalPressureZhang()
-    # open_boundary_model = BoundaryModelMirroringTafuni(; mirror_method=ZerothOrderMirroring())
     reference_velocity_in = SVector(1.0, 0.0)
     reference_pressure_in = 0.0
     reference_density_in = nothing
@@ -440,11 +278,11 @@ else
     face_in = ([0.0, 0.0], [0.0, tank_size[2]])
     flow_direction = [1.0, 0.0]
     inflow = BoundaryZone(; boundary_face=face_in, face_normal=flow_direction,
-                        open_boundary_layers, density=fluid_density, particle_spacing,
-                        reference_density=reference_density_in,
-                        reference_pressure=reference_pressure_in,
-                        reference_velocity=reference_velocity_in,
-                        initial_condition=inlet.fluid, boundary_type=boundary_type_in)
+                          open_boundary_layers, density=fluid_density, particle_spacing,
+                          reference_density=reference_density_in,
+                          reference_pressure=reference_pressure_in,
+                          reference_velocity=reference_velocity_in,
+                          initial_condition=inlet.fluid, boundary_type=boundary_type_in)
 
     reference_velocity_out = SVector(1.0, 0.0)
     reference_pressure_out = nothing
@@ -452,15 +290,15 @@ else
     boundary_type_out = OutFlow()
     face_out = ([min_coords_outlet[1], 0.0], [min_coords_outlet[1], tank_size[2]])
     outflow = BoundaryZone(; boundary_face=face_out, face_normal=(-flow_direction),
-                        open_boundary_layers, density=fluid_density, particle_spacing,
-                        reference_density=reference_density_out,
-                        reference_pressure=reference_pressure_out,
-                        reference_velocity=reference_velocity_out,
-                        initial_condition=outlet.fluid, boundary_type=boundary_type_out)
+                           open_boundary_layers, density=fluid_density, particle_spacing,
+                           reference_density=reference_density_out,
+                           reference_pressure=reference_pressure_out,
+                           reference_velocity=reference_velocity_out,
+                           initial_condition=outlet.fluid, boundary_type=boundary_type_out)
 
     open_boundary_system = OpenBoundarySystem(inflow, outflow; fluid_system,
-                                    boundary_model=open_boundary_model,
-                                    buffer_size=n_buffer_particles)
+                                              boundary_model=open_boundary_model,
+                                              buffer_size=n_buffer_particles)
 
     wall = union(tank.boundary, inlet.boundary, outlet.boundary)
     min_corner = minimum(wall.coordinates, dims=2) .- 5 * fluid_particle_spacing
@@ -483,7 +321,8 @@ cell_list = FullGridCellList(; min_corner, max_corner)
 neighborhood_search = GridNeighborhoodSearch{2}(; periodic_box, cell_list,
                                                 update_strategy=ParallelUpdate())
 
-semi = Semidiscretization(fluid_system, boundary_system, open_boundary_system, structure_system; neighborhood_search,
+semi = Semidiscretization(fluid_system, boundary_system, open_boundary_system,
+                          structure_system; neighborhood_search,
                           parallelization_backend=PolyesterBackend())
 ode = semidiscretize(semi, tspan)
 
@@ -499,12 +338,8 @@ split_cfl = 1.5
 # VelocityVerlet CFL = 0.5, 6.75k RHS evaluations
 # DPRKN4 CFL = 1.7, 9k RHS evaluations
 
-# function tip_velocity(system::TotalLagrangianSPHSystem, data, t)
-#     return data.velocity[2254]
-# end
-# pp_tip = PostprocessCallback(; tip_velocity, interval=1,
-#                             filename="$(solution_prefix)_tip_velocity", write_file_interval=10_000)
-split_integration = SplitIntegrationCallback(CarpenterKennedy2N54(williamson_condition=false), adaptive=false,
+split_integration = SplitIntegrationCallback(CarpenterKennedy2N54(williamson_condition=false),
+                                             adaptive=false,
                                              stage_coupling=true,
                                              dt=1e-5, # This is overwritten by the stepsize callback
                                              callback=StepsizeCallback(cfl=split_cfl),
