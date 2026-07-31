@@ -1,9 +1,8 @@
 # ==========================================================================================
-# 2D Falling Water Spheres Simulation (With and Without Surface Tension)
+# 2D Falling Water Spheres Simulation with Surface Tension
 #
 # This example simulates two circular water "spheres" falling under gravity.
-# One sphere includes a surface tension model (Akinci et al.), while the other does not.
-# This demonstrates the effect of surface tension on fluid behavior.
+# Both spheres belong to one fluid system and use the same surface tension model.
 # ==========================================================================================
 
 using TrixiParticles
@@ -44,6 +43,7 @@ sphere1 = SphereShape(fluid_particle_spacing, sphere_radius, sphere1_center,
                       fluid_density, sphere_type=VoxelSphere(), velocity=(0.0, -3.0))
 sphere2 = SphereShape(fluid_particle_spacing, sphere_radius, sphere2_center,
                       fluid_density, sphere_type=VoxelSphere(), velocity=(0.0, -3.0))
+falling_spheres = isnothing(sphere2) ? sphere1 : union(sphere1, sphere2)
 
 # ==========================================================================================
 # ==== Fluid
@@ -53,28 +53,20 @@ sphere2 = SphereShape(fluid_particle_spacing, sphere_radius, sphere2_center,
 fluid_smoothing_length = 1.0 * fluid_particle_spacing - eps()
 fluid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
-fluid_density_calculator = ContinuityDensity()
-
 nu = 0.005
 alpha = 8 * nu / (fluid_smoothing_length * sound_speed)
 viscosity = ArtificialViscosityMonaghan(; alpha, beta=0.0)
-density_diffusion = DensityDiffusionAntuono(delta=0.1)
 surface_tension_coefficient = 0.05
 surface_tension = SurfaceTensionAkinci(; surface_tension_coefficient)
+reference_particle_spacing = isnothing(surface_tension) ? 0 : fluid_particle_spacing
 
-sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1;
+sphere_surface_tension = EntropicallyDampedSPHSystem(falling_spheres;
                                                      smoothing_kernel=fluid_smoothing_kernel,
                                                      smoothing_length=fluid_smoothing_length,
                                                      sound_speed, viscosity,
                                                      density_calculator=ContinuityDensity(),
                                                      acceleration, surface_tension,
-                                                     reference_particle_spacing=fluid_particle_spacing)
-
-sphere = WeaklyCompressibleSPHSystem(sphere2; smoothing_kernel=fluid_smoothing_kernel,
-                                     smoothing_length=fluid_smoothing_length,
-                                     density_calculator=fluid_density_calculator,
-                                     state_equation, viscosity, density_diffusion,
-                                     acceleration)
+                                                     reference_particle_spacing)
 
 # ==========================================================================================
 # ==== Boundary
@@ -94,7 +86,7 @@ boundary_system = WallBoundarySystem(tank.boundary, boundary_model;
 
 # ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(sphere_surface_tension, sphere, boundary_system)
+semi = Semidiscretization(sphere_surface_tension, boundary_system)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=1000)

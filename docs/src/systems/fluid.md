@@ -220,9 +220,9 @@ Pages = [joinpath("general", "corrections.jl")]
 
 ### Overview of surface normal calculation in SPH
 
-Surface normals are essential for modeling surface tension as they provide the directionality
-of forces acting at the fluid interface. They are calculated based on the particle properties and
-their spatial distribution.
+Surface normals provide the directionality of forces acting at the fluid interface. They are
+used by the full Akinci model and both Morris models, but not by the cohesion-only Akinci model.
+They are calculated based on the particle properties and their spatial distribution.
 
 #### Color field and gradient-based surface normals
 
@@ -295,6 +295,32 @@ In the following table some values are shown for reference. The values marked wi
 | **Glycerol**    | 0.06314  [Lange](@cite Lange2005)               |
 | **Water**       | 0.07288  [Lange](@cite Lange2005)               |
 | **Mercury**     | 0.486502 [Lange](@cite Lange2005)               |
+
+### Model configuration
+
+All surface tension coefficients must be finite and non-negative. A zero coefficient disables
+the fluid-fluid surface force. Wall adhesion is controlled independently by the boundary's
+`adhesion_coefficient`.
+
+`CohesionForceAkinci` only evaluates the pairwise cohesion and optional wall-adhesion forces.
+It does not require surface normals or `reference_particle_spacing`. The full
+`SurfaceTensionAkinci` model and both Morris models require a surface-normal method. When one
+of these models is selected without an explicit method, `ColorfieldSurfaceNormal()` is used.
+Runnable configurations are available in `examples/fluid/cohesion_force_akinci_2d.jl` and
+`examples/fluid/akinci_wetting_2d.jl`.
+
+!!! warning "Akinci coefficients in two dimensions"
+    The Akinci cohesion and adhesion kernels implemented here use the normalization published
+    for the three-dimensional model. In two-dimensional simulations, their coefficients are
+    empirical numerical parameters rather than resolution-independent physical values in N/m.
+    Recheck the coefficient when changing particle spacing or smoothing length.
+
+    Both published kernels have dimensions of inverse volume: the cohesion numerator scales
+    with ``L^6`` and its denominator with ``L^9``, while the fourth-root term in the adhesion
+    kernel changes its ``L^{-3.25}`` prefactor to ``L^{-3}``. Particle mass scales with
+    ``L^D`` in ``D`` dimensions. At a fixed smoothing-length-to-spacing ratio, the resulting
+    pair contribution therefore scales with ``L^{D-3}``: it is resolution-independent in 3D
+    but retains an inverse-length factor in 2D.
 
 ### [Akinci-based intra-particle force surface tension and wall adhesion model](@id akinci_ipf)
 

@@ -23,7 +23,7 @@ sound_speed = 20.0
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=7, clip_negative_pressure=true)
 
-# For all surface tension simulations, we need a compact support of `2 * particle_spacing`
+# The surface tension configurations below use a compact support of `2 * particle_spacing`.
 # smoothing_length = particle_spacing
 # smoothing_kernel = WendlandC2Kernel{2}()
 # nu = 0.01

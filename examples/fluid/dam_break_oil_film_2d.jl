@@ -33,12 +33,15 @@ nu_sim_water = nu_ratio * nu_sim_oil
 
 oil_viscosity = ViscosityMorris(nu=nu_sim_oil)
 
-# TODO: broken if both systems use surface tension
+# A physically consistent two-phase surface-tension interaction requires an explicit
+# interface model. Until that model is available, this example focuses on density and
+# viscosity contrast and keeps surface tension disabled on both fluids.
+surface_tension = nothing
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl");
               sol=nothing, fluid_particle_spacing, tspan,
               viscosity_fluid=ViscosityMorris(nu=nu_sim_water), smoothing_length, gravity,
               density_diffusion=nothing, sound_speed, prefix="",
-              reference_particle_spacing=fluid_particle_spacing)
+              surface_tension)
 
 # ==========================================================================================
 # ==== Setup oil layer
@@ -65,18 +68,7 @@ oil_system = WeaklyCompressibleSPHSystem(oil;
                                          state_equation=oil_eos,
                                          viscosity=oil_viscosity,
                                          acceleration=(0.0, -gravity),
-                                         surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.01),
-                                         correction=AkinciFreeSurfaceCorrection(oil_density),
-                                         reference_particle_spacing=fluid_particle_spacing)
-
-# oil_system = WeaklyCompressibleSPHSystem(oil;
-#                                          smoothing_kernel, smoothing_length,
-#                                          density_calculator=fluid_density_calculator,
-#                                          state_equation=oil_eos,
-#                                          viscosity=oil_viscosity,
-#                                          acceleration=(0.0, -gravity),
-#                                          surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.03),
-#                                          reference_particle_spacing=fluid_particle_spacing)
+                                         surface_tension)
 
 # ==========================================================================================
 # ==== Simulation

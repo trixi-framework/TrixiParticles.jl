@@ -570,6 +570,37 @@
         @test count_rhs_allocations(sol) == 0
     end
 
+    @trixi_testset "fluid/cohesion_force_akinci_2d.jl" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "cohesion_force_akinci_2d.jl"),
+                                         particle_spacing=0.05, tspan=(0.0, 0.01),
+                                         saving_callback=nothing)
+        @test sol.retcode == ReturnCode.Success
+        @test isnothing(fluid_system.surface_normal_method)
+        @test !haskey(fluid_system.cache, :surface_normal)
+        @test norm(center_of_mass_velocity) < 100eps()
+        @test final_kinetic_energy >= 0
+        @test count_rhs_allocations(sol) == 0
+    end
+
+    @trixi_testset "fluid/akinci_wetting_2d.jl" begin
+        for wetting in (false, true)
+            @testset "wetting=$wetting" begin
+                @trixi_test_nowarn trixi_include(@__MODULE__,
+                                                 joinpath(examples_dir(), "fluid",
+                                                          "akinci_wetting_2d.jl"),
+                                                 particle_spacing=0.02,
+                                                 tspan=(0.0, 0.001), wetting,
+                                                 saving_callback=nothing)
+                @test sol.retcode == ReturnCode.Success
+                @test fluid_system.surface_normal_method isa ColorfieldSurfaceNormal
+                @test adhesion_coefficient == (wetting ? 1.0 : 0.001)
+                @test count_rhs_allocations(sol) == 0
+            end
+        end
+    end
+
     @trixi_testset "fluid/sphere_surface_tension_2d.jl" begin
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",

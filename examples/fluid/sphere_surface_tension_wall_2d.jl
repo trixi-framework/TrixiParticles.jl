@@ -63,6 +63,6 @@ sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1;
                                                      reference_particle_spacing=fluid_particle_spacing)
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "falling_water_spheres_2d.jl");
-              sphere=nothing, sphere1, adhesion_coefficient=0.001, wall_viscosity=4.0 * nu,
+              sphere1, sphere2=nothing, adhesion_coefficient=0.001, wall_viscosity=4.0 * nu,
               alpha, sound_speed, fluid_density, nu, fluid_particle_spacing, tspan,
               tank_size, fluid_smoothing_length, sphere_surface_tension)

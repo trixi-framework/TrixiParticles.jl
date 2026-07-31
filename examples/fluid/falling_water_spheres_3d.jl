@@ -1,10 +1,8 @@
 # ==========================================================================================
-# 3D Falling Water Spheres Simulation (With and Without Surface Tension)
+# 3D Falling Water Spheres Simulation with Surface Tension
 #
 # This example extends `falling_water_spheres_2d.jl` to three dimensions.
-# It simulates two spherical volumes of water falling under gravity.
-# One sphere includes a surface tension model, while the other does not,
-# demonstrating the effect of surface tension in 3D.
+# It simulates two spherical volumes of water in one fluid system falling under gravity.
 # ==========================================================================================
 
 using TrixiParticles

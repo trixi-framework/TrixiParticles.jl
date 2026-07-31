@@ -17,7 +17,7 @@ fluid_size = (0.9, 0.9, 0.9)
 
 sound_speed = 20.0
 
-# For all surface tension simulations, we need a compact support of `2 * particle_spacing`
+# The surface tension configurations below use a compact support of `2 * particle_spacing`.
 smoothing_length = 1.0 * particle_spacing
 
 nu = 0.04
