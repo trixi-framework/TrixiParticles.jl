@@ -20,7 +20,7 @@ fin_thickness = 30e-3
 blade_width = 19e-2
 real_modulus = 40e9
 poisson_ratio = 0.3
-real_modulus_foot_pocket = 1e6
+real_modulus_foot_pocket = 5e5
 
 foot_pocket_width_at_right_end = 2e-2
 foot_pocket_full_width = 10e-2
@@ -121,7 +121,7 @@ foot_pocket_rigid_elastic_split_x = -0.27
 
 # Beam and clamped particles
 length_clamp = round(Int, 0.3 / particle_spacing) * particle_spacing # m
-n_particles_per_dimension = (round(Int, (fin_length + length_clamp) / particle_spacing) + 2,
+n_particles_per_dimension = (round(Int, (fin_length + length_clamp) / particle_spacing) + 1,
                              n_particles_y)
 
 # Note that the `RectangularShape` puts the first particle half a particle spacing away
