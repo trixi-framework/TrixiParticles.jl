@@ -214,32 +214,23 @@ end
 end
 
 # This is just for readability to loop over all systems without allocations
-@inline function foreach_system(f, semi::Union{NamedTuple, Semidiscretization}, args...)
-    return foreach_noalloc(f, semi.systems, args...)
+@inline function foreach_system(f, semi::Union{NamedTuple, Semidiscretization})
+    return foreach_noalloc(f, semi.systems)
 end
 
-@inline foreach_system(f, systems, args...) = foreach_noalloc(f, systems, args...)
+@inline foreach_system(f, systems) = foreach_noalloc(f, systems)
 
-@inline function foreach_system_wrapped(f, semi::Union{NamedTuple, Semidiscretization},
-                                        v_ode, u_ode)
-    # Wrap extra arguments in a tuple to avoid allocations because Julia 1.10 avoids
-    # specialization for too many arguments, which causes dynamic dispatch.
-    # Make sure that `f` is passed separately (not inside the tuple) or Julia will
-    # not specialize on the type of `f` and allocate through dynamic dispatch.
-    return foreach_system(_foreach_system_wrapped, semi, f, (semi, v_ode, u_ode))
-end
+@inline function foreach_system_wrapped(f, semi, v_ode, u_ode)
+    @inline function _foreach_system_wrapped(system)
+        v = wrap_v(v_ode, system, semi)
+        u = wrap_u(u_ode, system, semi)
 
-# Define an explicit function to be passed to `foreach_system` instead of using a closure
-# because nested closures can cause allocations.
-@inline function _foreach_system_wrapped(system, f, data)
-    semi, v_ode, u_ode = data
+        @inline f(system, v, u)
+    end
 
-    v = wrap_v(v_ode, system, semi)
-    u = wrap_u(u_ode, system, semi)
-
-    @inline f(system, v, u)
-
-    return nothing
+    # If we use `foreach_system` here instead, Julia 1.10 will allocate through dynamic
+    # dispatch for some reason.
+    return foreach_noalloc(_foreach_system_wrapped, semi.systems)
 end
 
 """
