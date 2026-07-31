@@ -220,29 +220,22 @@ end
 
 @inline foreach_system(f, systems, args...) = foreach_noalloc(f, systems, args...)
 
-# This is just for readability to loop over all systems with wrapped arrays.
 @inline function foreach_system_wrapped(f, semi::Union{NamedTuple, Semidiscretization},
                                         v_ode, u_ode)
-    return foreach_system_wrapped(f, semi, v_ode, u_ode, semi)
-end
-
-@inline function foreach_system_wrapped(f, _semi::Union{NamedTuple, Semidiscretization},
-                                        v_ode, u_ode, semi_wrap)
     # Wrap extra arguments in a tuple to avoid allocations because Julia 1.10 avoids
     # specialization for too many arguments, which causes dynamic dispatch.
     # Make sure that `f` is passed separately (not inside the tuple) or Julia will
     # not specialize on the type of `f` and allocate through dynamic dispatch.
-    return foreach_system(_foreach_system_wrapped, semi_wrap, f,
-                          (semi_wrap, v_ode, u_ode))
+    return foreach_system(_foreach_system_wrapped, semi, f, (semi, v_ode, u_ode))
 end
 
 # Define an explicit function to be passed to `foreach_system` instead of using a closure
 # because nested closures can cause allocations.
 @inline function _foreach_system_wrapped(system, f, data)
-    semi_wrap, v_ode, u_ode = data
+    semi, v_ode, u_ode = data
 
-    v = wrap_v(v_ode, system, semi_wrap)
-    u = wrap_u(u_ode, system, semi_wrap)
+    v = wrap_v(v_ode, system, semi)
+    u = wrap_u(u_ode, system, semi)
 
     @inline f(system, v, u)
 
@@ -663,7 +656,7 @@ end
 # TODO `semi` is not used yet, but will be used when the source terms API is modified
 # to match the custom quantities API.
 function add_source_terms!(dv_ode, v_ode, u_ode, semi, t; semi_wrap=semi)
-    foreach_system_wrapped(semi, v_ode, u_ode, semi_wrap) do system, v, u
+    foreach_system_wrapped(semi_wrap, v_ode, u_ode) do system, v, u
         dv = wrap_v(dv_ode, system, semi_wrap)
 
         # `integrate_tlsph` is extracted from the `semi_wrap`, so that this function
