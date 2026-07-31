@@ -189,14 +189,17 @@ end
 Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
 
 # Arguments
-- `semi`: A [`Semidiscretization`](@ref) holding the systems involved in the simulation.
+- `semi`: A [`Semidiscretization`](@ref TrixiParticles.Semidiscretization)
+  holding the systems involved in the simulation.
 - `tspan`: The time span over which the simulation will be run.
 
 # Keywords
 - `restart_with`: Can be used to restart the simulation from VTK solution files (see [`SolutionSavingCallback`](@ref)).
   This can be either `nothing` (default, no restart) or a `Tuple` of filenames,
-  one for each system in the [`Semidiscretization`](@ref).
-  The order of the filenames must match the order of the systems in the [`Semidiscretization`](@ref).
+  one for each system in the
+  [`Semidiscretization`](@ref TrixiParticles.Semidiscretization).
+  The order of the filenames must match the order of the systems in the
+  [`Semidiscretization`](@ref TrixiParticles.Semidiscretization).
   Note that `semidiscretize` replaces the initial time (`tspan[1]`) with the timestamp read
   from the VTK files. If the user-provided `tspan[1]` does not match the restart time,
   it is adjusted and an info message is logged. If multiple files are provided, their
@@ -356,7 +359,8 @@ end
 Set the initial coordinates and velocities of all systems in `semi` to the final values
 in the solution `sol`.
 [`semidiscretize`](@ref) has to be called again afterwards, or another
-[`Semidiscretization`](@ref) can be created with the updated systems.
+[`Semidiscretization`](@ref TrixiParticles.Semidiscretization) can be created
+with the updated systems.
 
 # Arguments
 - `semi`:   The semidiscretization
