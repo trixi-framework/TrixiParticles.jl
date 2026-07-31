@@ -2,6 +2,8 @@ using TrixiParticles
 using OrdinaryDiffEqLowStorageRK
 using OrdinaryDiffEqSymplecticRK
 
+include("fin_2d/setup.jl")
+
 function convert_ic(ic, T)
     return InitialCondition{ndims(ic)}(ic.coordinates, ic.velocity, ic.mass, ic.density,
                                       ic.pressure, T(ic.particle_spacing))
@@ -99,40 +101,26 @@ smoothing_length_structure = sqrt(2) * particle_spacing
 smoothing_length_fluid = 1.5 * fluid_particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
-file = joinpath(examples_dir(), "preprocessing", "data", "hyper_bifins_x.dxf")
-geometry = load_geometry(file)
+simulate_foot_pocket = true
 
-point_in_geometry_algorithm = WindingNumberJacobson(; geometry,
-                                                    winding_number_factor=0.4,
-                                                    hierarchical_winding=true)
+# When the foot pocket is simulated, extend the blade into the foot pocket to guarantee
+# a good particle distribution. Without a foot pocket, clamp 1cm of the blade.
+length_clamp = simulate_foot_pocket ? 0.3 : 0.01
+length_clamp = round(Int, length_clamp / particle_spacing) * particle_spacing # m
 
-# Returns `InitialCondition`
-shape_sampled = ComplexShape(geometry; particle_spacing, density=density,
-                             grid_offset=(0.0, particle_spacing / 2), point_in_geometry_algorithm)
-shape_sampled = TrixiParticles.@set shape_sampled.coordinates = Float64.(shape_sampled.coordinates)
-
-# These coordinates are before the final translation to the center position.
-foot_pocket_left_end_x = minimum(shape_sampled.coordinates[1, :])
-foot_pocket_right_end_x = maximum(shape_sampled.coordinates[1, :])
-
-# The foot pocket is modeled as a rigid structure on the left side,
-# and as an elastic structure on the right side.
-foot_pocket_rigid_elastic_split_x = -0.27
-
-# Beam and clamped particles
-length_clamp = round(Int, 0.3 / particle_spacing) * particle_spacing # m
 n_particles_per_dimension = (round(Int, (fin_length + length_clamp) / particle_spacing) + 1,
                              n_particles_y)
 
 # Note that the `RectangularShape` puts the first particle half a particle spacing away
 # from the boundary, which is correct for fluids, but not for structures.
 # We therefore need to pass `place_on_shell=true`.
-beam = RectangularShape(particle_spacing, n_particles_per_dimension,
+blade = RectangularShape(particle_spacing, n_particles_per_dimension,
                         (-length_clamp, -fin_thickness / 2), density=density,
                         place_on_shell=true)
 
-# Cut out the beam from the shape to avoid overlapping particles.
-foot_pocket = setdiff(shape_sampled, beam)
+# The foot pocket is modeled as a rigid structure on the left side,
+# and as an elastic structure on the right side.
+rigid_elastic_split_x = -0.27
 
 # Make sure that the kernel support of fluid particles at a boundary is always fully sampled
 boundary_layers = 3
@@ -172,132 +160,34 @@ n_buffer_particles = 20 * tank.n_particles_per_dimension[2]^(NDIMS - 1)
 # ==== Packing
 packing = false
 if packing
-    foot_sdf = SignedDistanceField(geometry, particle_spacing;
-                                max_signed_distance=4 * particle_spacing,
-                                use_for_boundary_packing=true)
-
-    boundary_packing = sample_boundary(foot_sdf; boundary_density=density,
-                                    boundary_thickness=4 * particle_spacing)
-    boundary_packing = TrixiParticles.@set boundary_packing.coordinates = Float64.(boundary_packing.coordinates)
-    boundary_packing = setdiff(boundary_packing, beam)
-
-    background_pressure = 1.0
-    smoothing_length_packing = 0.8 * particle_spacing
-    foot_packing_system = ParticlePackingSystem(foot_pocket; smoothing_length=smoothing_length_packing,
-                                                signed_distance_field=foot_sdf, background_pressure)
-
-    fluid_packing_system = ParticlePackingSystem(boundary_packing; smoothing_length=smoothing_length_packing,
-                                                signed_distance_field=foot_sdf, is_boundary=true, background_pressure,
-                                                boundary_compress_factor=0.8)
-
-    blade_packing_system = ParticlePackingSystem(beam; smoothing_length=smoothing_length_packing,
-                                                fixed_system=true, signed_distance_field=nothing, background_pressure)
-
-    min_corner = minimum(tank.boundary.coordinates, dims=2) .- fluid_particle_spacing / 2
-    max_corner = maximum(tank.boundary.coordinates, dims=2) .+ fluid_particle_spacing / 2
-    min_corner .-= center
-    max_corner .-= center
-    cell_list = FullGridCellList(; min_corner, max_corner)
-    neighborhood_search = GridNeighborhoodSearch{2}(; cell_list, update_strategy=ParallelUpdate())
-
-    semi_packing = Semidiscretization(foot_packing_system, fluid_packing_system,
-                                    blade_packing_system; neighborhood_search)
-
-    ode_packing = semidiscretize(semi_packing, (0.0, 100.0))
-
-    sol_packing = solve(ode_packing, RDPK3SpFSAL35();
-                abstol=1e-8,
-                save_everystep=false,
-                callback=CallbackSet(InfoCallback(interval=50),
-                                    #  SolutionSavingCallback(interval=50, prefix="packing_foot"),
-                                    UpdateCallback()),
-                dtmax=1e-1)
-
-    packed_foot = InitialCondition(sol_packing, foot_packing_system, semi_packing)
-
-    # Move the fin to the center of the tank
-    packed_foot.coordinates .+= center
-    beam.coordinates .+= center
-
-    # When particles are too close together, keep the ones from `beam`
-    # instead of `packed_foot` to ensure that the blade doesn't have holes.
-    foot_pocket = setdiff(packed_foot, beam)
-    structure = union(beam, foot_pocket)
-    fluid = setdiff(tank.fluid, structure)
-
-    # Pack the fluid against the fin and the tank boundary
-
-    pack_window = TrixiParticles.Polygon(stack([
-                                                center .+ [-0.4, -0.08],
-                                                center .+ [-0.2, -0.08],
-                                                center .+ [-0.06, -0.02],
-                                                center .+ [0.62, -0.02],
-                                                center .+ [0.62, 0.02],
-                                                center .+ [0.05, 0.02],
-                                                center .+ [-0.1, 0.1],
-                                                center .+ [-0.4, 0.1],
-                                                center .+ [-0.4, -0.08]
-                                            ]))
-
-    # Then, we extract the particles that fall inside this window
-    pack_fluid = intersect(fluid, pack_window)
-    # and those outside the window.
-    fixed_fluid = setdiff(fluid, pack_fluid)
-    fixed_union = union(fixed_fluid, structure)
-
-    fluid_packing_system = ParticlePackingSystem(pack_fluid; smoothing_length=smoothing_length_packing,
-                                                signed_distance_field=nothing, background_pressure)
-
-    fixed_packing_system = ParticlePackingSystem(fixed_union; smoothing_length=smoothing_length_packing,
-                                                fixed_system=true, signed_distance_field=nothing, background_pressure)
-
-    min_corner = minimum(tank.boundary.coordinates, dims=2) .- fluid_particle_spacing / 2
-    max_corner = maximum(tank.boundary.coordinates, dims=2) .+ fluid_particle_spacing / 2
-    cell_list = FullGridCellList(; min_corner, max_corner)
-    neighborhood_search = GridNeighborhoodSearch{2}(; cell_list, update_strategy=ParallelUpdate())
-
-    semi_packing = Semidiscretization(fluid_packing_system, fixed_packing_system;
-                                    neighborhood_search)
-
-    ode_packing = semidiscretize(semi_packing, (0.0, 2.0))
-
-    sol_packing = solve(ode_packing, RDPK3SpFSAL35();
-                save_everystep=false,
-                callback=CallbackSet(InfoCallback(interval=50),
-                                    #  SolutionSavingCallback(interval=50, prefix="packing"),
-                                    UpdateCallback()),
-                abstol=1e-8,
-                dtmax=1e-2)
-
-    fluid = InitialCondition(sol_packing, fluid_packing_system, semi_packing)
-    fluid = union(fluid, fixed_fluid)
+    foot_pocket, fluid = sample_and_pack(particle_spacing, center, blade, tank.fluid)
+    fin = union(blade, foot_pocket)
 else
-    # When particles are too close together, keep the ones from `beam`
-    # instead of `packed_foot` to ensure that the blade doesn't have holes.
-    foot_pocket = setdiff(foot_pocket, beam)
+    foot_pocket = sample_foot_pocket(particle_spacing, center, blade)
 
-    # Move the fin to the center of the tank.
+    # Move the fin to the center of the tank. This is done automatically
+    # in `sample_and_pack`.
     foot_pocket.coordinates .+= center
-    beam.coordinates .+= center
+    blade.coordinates .+= center
 
-    fluid = setdiff(tank.fluid, union(beam, foot_pocket))
+    fin = union(blade, foot_pocket)
+    fluid = setdiff(tank.fluid, fin)
 end
 
 # Foot-pocket reference point in the translated tank coordinates used by `structure`.
-foot_pocket_rigid_elastic_split_x += center[1]
+rigid_elastic_split_x += center[1]
 
 function is_clamped_structure_particle(coordinates, particle,
-                                       foot_pocket_rigid_elastic_split_x)
+                                       rigid_elastic_split_x)
     x = coordinates[1, particle]
-    return x <= foot_pocket_rigid_elastic_split_x
+    return x <= rigid_elastic_split_x
 end
 
-blade = beam
 structure = union(blade, foot_pocket)
 
 # Make sure that no overlapping particles have been removed. This should've been
 # handled by the `setdiff` calls above.
-@assert nparticles(structure) == nparticles(foot_pocket) + nparticles(beam)
+@assert nparticles(structure) == nparticles(foot_pocket) + nparticles(blade)
 
 # Convert particle x-positions to the relative blade coordinate used by `real_thickness`.
 # A value of 0 corresponds to the blade attachment, and a value of 1 corresponds to the tip.
@@ -312,12 +202,11 @@ end
 
 # Blend the material interface around the edge of the artificially thick blade.
 # The discontinuity is half a particle spacing beyond the outer blade particles.
-@inline material_discontinuity_distance() = fin_thickness / 2 + particle_spacing / 2
+material_discontinuity_distance = fin_thickness / 2 + particle_spacing / 2
 
 @inline function local_material_blend_widths(foot_pocket_height)
     material_blend_outer_width = fin_thickness * 5 / 6
-    discontinuity_distance = material_discontinuity_distance()
-    available_outer_height = max(foot_pocket_height - discontinuity_distance, 0.0)
+    available_outer_height = max(foot_pocket_height - material_discontinuity_distance, 0.0)
     height_scale = min(available_outer_height / material_blend_outer_width, 1.0)
 
     # Reduce both sides by the same factor when the surrounding pocket is too thin.
@@ -350,7 +239,6 @@ end
     x >= center[1] && return 0.0
 
     blade_center_y = center[2]
-    discontinuity_distance = material_discontinuity_distance()
 
     distance_from_blade_center = abs(y - blade_center_y)
     foot_pocket_height = if y >= blade_center_y
@@ -361,15 +249,16 @@ end
     inner_width, outer_width = local_material_blend_widths(foot_pocket_height)
 
     if iszero(inner_width + outer_width)
-        return distance_from_blade_center <= discontinuity_distance ? 0.0 : 1.0
+        return distance_from_blade_center <= material_discontinuity_distance ? 0.0 : 1.0
     end
 
-    inner_edge = discontinuity_distance - inner_width
-    outer_edge = discontinuity_distance + outer_width
+    inner_edge = material_discontinuity_distance - inner_width
+    outer_edge = material_discontinuity_distance + outer_width
     distance_from_blade_center <= inner_edge && return 0.0
     distance_from_blade_center >= outer_edge && return 1.0
 
-    return clamp((distance_from_blade_center - inner_edge) / (outer_edge - inner_edge), 0, 1)
+    return clamp((distance_from_blade_center - inner_edge) / (outer_edge - inner_edge),
+                 0, 1)
 end
 
 function material_property_endpoints(x)
@@ -394,7 +283,6 @@ function density_for_properties(x, y)
     alpha = blade_blend_alpha(x, y, properties.blade_modulus,
                               properties.foot_pocket_modulus)
 
-    # return properties.blade_density * (1 - alpha) + properties.foot_pocket_density * alpha
     return log_linear_blend(properties.blade_density, properties.foot_pocket_density, alpha)
 end
 
@@ -403,7 +291,6 @@ function modulus_for_properties(x, y)
     alpha = blade_blend_alpha(x, y, properties.blade_modulus,
                               properties.foot_pocket_modulus)
 
-    # return properties.blade_modulus * (1 - alpha) + properties.foot_pocket_modulus * alpha
     return log_linear_blend(properties.blade_modulus, properties.foot_pocket_modulus, alpha)
 end
 
@@ -452,7 +339,6 @@ end
     return x + ramp * (target_position - x)
 end
 
-simulate_foot_pocket = true
 if simulate_foot_pocket
     # Movement function (parameters chosen to match video)
     frequency = 1.06 # Hz
@@ -468,7 +354,7 @@ if simulate_foot_pocket
 
 else
     structure = blade
-    foot_pocket_rigid_elastic_split_x = center[1]
+    rigid_elastic_split_x = center[1]
 
     boundary_motion = PrescribedMotion(fitted_movement, Returns(true))
 end
@@ -483,7 +369,7 @@ modulus = [modulus_for_properties(structure.coordinates[1, particle],
 
 clamped_structure_particles = findall(particle -> is_clamped_structure_particle(structure.coordinates,
                                                                                 particle,
-                                                                                foot_pocket_rigid_elastic_split_x),
+                                                                                rigid_elastic_split_x),
                                       1:nparticles(structure))
 
 sound_speed = 60.0
@@ -636,20 +522,6 @@ end
 pp_cb = PostprocessCallback(; total_volume, interval=100,
                             filename="$(solution_prefix)_total_volume", write_file_interval=50)
 
-function plane_vtk(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
-    return nothing
-end
-function plane_vtk(system::WeaklyCompressibleSPHSystem, dv_ode, du_ode, v_ode, u_ode, semi, t)
-    resolution = fluid_particle_spacing / 6
-    pvd = TrixiParticles.paraview_collection("out/$(solution_prefix)_plane"; append=t > 0)
-    interpolate_plane_2d_vtk(min_corner, max_corner, resolution,
-                             semi, semi.systems[1], v_ode, u_ode, include_wall_velocity=true,
-                             filename="$(solution_prefix)_plane_$(round(Int, t * 1000))", pvd=pvd, t=t)
-    TrixiParticles.vtk_save(pvd)
-    return nothing
-end
-interpolate_cb = PostprocessCallback(; plane_vtk, dt=0.01, filename="plane")
-
 efficiency_interval = 100
 mechanical_work_calculator = MechanicalWorkCalculator(semi.systems[4], semi)
 thrust_calculator = ThrustCalculator(semi.systems[4], semi, direction=SVector(1.0, 0.0))
@@ -725,7 +597,7 @@ blade_motion_cb = PostprocessCallback(; blade_motion, dt=1 / 120,
                                       filename="$(solution_prefix)_blade_motion")
 
 callbacks = CallbackSet(info_callback, saving_callback,
-                        stepsize_callback, split_integration, pp_cb, interpolate_cb,
+                        stepsize_callback, split_integration, pp_cb,
                         calculator_cb, blade_motion_cb,
                         UpdateCallback(), SortingCallback(interval=10_000))
 
