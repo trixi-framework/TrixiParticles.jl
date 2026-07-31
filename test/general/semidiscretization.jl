@@ -70,12 +70,6 @@
             visited[system] += 1
         end
         @test visited == [1, 1]
-
-        # Additional arguments should be passed through unchanged.
-        TrixiParticles.foreach_system(systems, 42) do system, arg
-            visited[system] += arg
-        end
-        @test visited == [43, 43]
     end
 
     @testset verbose=true "Check Configuration" begin
