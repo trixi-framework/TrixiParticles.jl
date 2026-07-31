@@ -3,7 +3,7 @@ function sample_foot_pocket(particle_spacing, center, blade)
 
     # Move the fin to the center of the tank.
     foot_pocket.coordinates .+= center
-    beam.coordinates .+= center
+    blade.coordinates .+= center
 
     return foot_pocket
 end

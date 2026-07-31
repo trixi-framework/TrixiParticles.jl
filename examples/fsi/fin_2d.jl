@@ -127,11 +127,6 @@ if packing
 else
     foot_pocket = sample_foot_pocket(particle_spacing, center, blade)
 
-    # Move the fin to the center of the tank. This is done automatically
-    # in `sample_and_pack`.
-    foot_pocket.coordinates .+= center
-    blade.coordinates .+= center
-
     fin = union(blade, foot_pocket)
     fluid = setdiff(tank.fluid, fin)
 end
@@ -229,13 +224,13 @@ boundary_model_structure = BoundaryModelDummyParticles(hydrodynamic_densites,
 # Compute mass, density and modulus.
 apply_material_properties!(structure, simulate_foot_pocket)
 modulus = artificial_modulus(structure, simulate_foot_pocket)
-clamped_structure_particles = clamped_structure_particles(structure, simulate_foot_pocket)
+clamped_particles = clamped_structure_particles(structure, simulate_foot_pocket)
 
 viscosity_structure = ArtificialViscosityMonaghan(alpha=1.0)
 structure_system = TotalLagrangianSPHSystem(structure; smoothing_kernel,
                                             smoothing_length=smoothing_length_structure,
                                             young_modulus=modulus, poisson_ratio,
-                                            clamped_particles=clamped_structure_particles,
+                                            clamped_particles,
                                             clamped_particles_motion=boundary_motion,
                                             boundary_model=boundary_model_structure,
                                             velocity_averaging=TrixiParticles.VelocityAveraging(time_constant=5e-4),
@@ -369,63 +364,7 @@ calculator_cb = PostprocessCallback(; mechanical_work_calculator, thrust_calcula
 # gradient are interpolated in the initial configuration with volume-weighted kernel
 # values and Shepard normalization. The rotation is the rotational part of the
 # interpolated deformation gradient.
-const BLADE_ATTACHMENT_REFERENCE = FIN_MOTION_REFERENCE
-blade_motion_system = semi.systems[4]
-blade_motion_search_radius = TrixiParticles.compact_support(blade_motion_system,
-                                                            blade_motion_system)
-
-# The reference configuration is fixed, so determine the kernel support only once.
-const BLADE_MOTION_PARTICLES = findall(1:nparticles(blade_motion_system)) do particle
-    initial_position = TrixiParticles.initial_coords(blade_motion_system, particle)
-    distance2 = sum(abs2, initial_position - BLADE_ATTACHMENT_REFERENCE)
-    return distance2 <= blade_motion_search_radius^2
-end
-@assert !isempty(BLADE_MOTION_PARTICLES)
-
-const BLADE_MOTION_WEIGHTS = map(BLADE_MOTION_PARTICLES) do particle
-    initial_position = TrixiParticles.initial_coords(blade_motion_system, particle)
-    distance = sqrt(sum(abs2, initial_position - BLADE_ATTACHMENT_REFERENCE))
-    kernel_weight = TrixiParticles.kernel(blade_motion_system.smoothing_kernel, distance,
-                                          blade_motion_system.smoothing_length)
-    volume = blade_motion_system.mass[particle] /
-             blade_motion_system.material_density[particle]
-    return volume * kernel_weight
-end
-const BLADE_MOTION_WEIGHT_SUM = sum(BLADE_MOTION_WEIGHTS)
-@assert BLADE_MOTION_WEIGHT_SUM > eps(BLADE_MOTION_WEIGHT_SUM)
-
-function blade_attachment_motion(system)
-    displacement = zero(BLADE_ATTACHMENT_REFERENCE)
-    deformation_grad = zero(TrixiParticles.deformation_gradient(system,
-                                                                 first(BLADE_MOTION_PARTICLES)))
-
-    @inbounds for i in eachindex(BLADE_MOTION_PARTICLES)
-        particle = BLADE_MOTION_PARTICLES[i]
-        weight = BLADE_MOTION_WEIGHTS[i]
-
-        displacement += weight * (TrixiParticles.current_coords(system, particle) -
-                                  TrixiParticles.initial_coords(system, particle))
-        deformation_grad += weight *
-                            TrixiParticles.deformation_gradient(system, particle)
-    end
-
-    displacement /= BLADE_MOTION_WEIGHT_SUM
-    deformation_grad /= BLADE_MOTION_WEIGHT_SUM
-
-    # In 2D, this is the angle of the proper orthogonal factor in the polar
-    # decomposition of the deformation gradient.
-    rotation = atan(deformation_grad[2, 1] - deformation_grad[1, 2],
-                    deformation_grad[1, 1] + deformation_grad[2, 2])
-
-    return displacement, rotation
-end
-
-function blade_motion(system::TotalLagrangianSPHSystem, data, t)
-    translation, rotation = blade_attachment_motion(system)
-    return translation, rotation
-end
-
-blade_motion(system, data, t) = nothing
+blade_motion = TrixiParticles.tlsph_motion(semi.systems[4], semi, center)
 
 blade_motion_cb = PostprocessCallback(; blade_motion, dt=1 / 120,
                                       write_file_interval=10,
