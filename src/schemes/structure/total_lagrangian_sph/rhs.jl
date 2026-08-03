@@ -46,12 +46,14 @@ end
 
         # Accumulate the RHS contributions over all neighbors before writing to `dv`
         # to reduce the number of memory writes.
-        dv_particle = @inbounds mapreduce_neighbor(+, system_coords, system_coords,
-                                                   neighborhood_search, backend, particle;
-                                                   init=zero(current_coords_a)) do particle,
-                                                                                   neighbor,
-                                                                                   initial_pos_diff,
-                                                                                   initial_distance
+        # Make sure that the returned name `dv_particle_` is not used inside the closure
+        # to avoid allocations.
+        dv_particle_ = @inbounds mapreduce_neighbor(+, system_coords, system_coords,
+                                                    neighborhood_search, backend, particle;
+                                                    init=zero(current_coords_a)) do particle,
+                                                                                    neighbor,
+                                                                                    initial_pos_diff,
+                                                                                    initial_distance
 
             # Skip neighbors with the same position because the kernel gradient is zero.
             # Note that `return` only exits the closure, i.e., skips the current neighbor.
@@ -98,7 +100,7 @@ end
         end
 
         for i in 1:ndims(system)
-            @inbounds dv[i, particle] += dv_particle[i]
+            @inbounds dv[i, particle] += dv_particle_[i]
         end
 
         # TODO continuity equation for boundary model with `ContinuityDensity`?

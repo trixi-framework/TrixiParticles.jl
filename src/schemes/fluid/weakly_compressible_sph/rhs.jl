@@ -43,8 +43,9 @@ function interact!(dv, v_particle_system, u_particle_system,
         end
         init = (zero(v_a), zero(rho_a))
 
-        # Loop over all neighbors within the kernel cutoff. Make sure that the returned
-        # variable names are not used inside the closure to avoid allocations.
+        # Loop over all neighbors within the kernel cutoff.
+        # Make sure that the returned names `dv_particle_` and `drho_particle_`
+        # are not used inside the closure to avoid allocations.
         (dv_particle_,
          drho_particle_) = @inbounds mapreduce_neighbor(dv_drho_sum, system_coords,
                                                         neighbor_system_coords,
