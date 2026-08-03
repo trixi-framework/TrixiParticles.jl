@@ -165,6 +165,7 @@
                                                           semi_runtime.ranges_u,
                                                           semi_runtime.ranges_v,
                                                           semi_runtime.neighborhood_searches,
+                                                          semi_runtime.interaction_matrix,
                                                           semi_runtime.parallelization_backend,
                                                           semi_runtime.update_callback_used,
                                                           semi_runtime.integrate_tlsph)
