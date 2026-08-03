@@ -12,26 +12,26 @@ The semidiscretization couples the passed systems to one simulation.
 
 # Keywords
 - `neighborhood_search=GridNeighborhoodSearch{NDIMS}()`: The neighborhood search used in
-  the simulation. Use `nothing` to loop over all particles without a neighborhood search.
-  To use another neighborhood search implementation, pass a template of a neighborhood
-  search. See [`copy_neighborhood_search`](@ref) and the examples below for more details.
-  To use a periodic domain, pass a [`PeriodicBox`](@ref) to the neighborhood search.
+    the simulation. Use `nothing` to loop over all particles without a neighborhood search.
+    To use another neighborhood search implementation, pass a template of a neighborhood
+    search. See [`copy_neighborhood_search`](@ref) and the examples below for more details.
+    To use a periodic domain, pass a [`PeriodicBox`](@ref) to the neighborhood search.
 - `parallelization_backend=PolyesterBackend()`: Backend used for parallel loops. Pass
-  `SerialBackend()` to disable parallelization. See [GPU support](@ref gpu_support) for
-  information on using GPU backends.
+    `SerialBackend()` to disable parallelization. See [GPU support](@ref gpu_support) for
+    information on using GPU backends.
 - `interaction_matrix=nothing`: Matrix controlling ordered system-pair interactions after
-  filtering out `nothing` systems. With `n_systems` remaining systems, `nothing` creates
-  `trues(n_systems, n_systems)`, enabling every interaction. Rows refer to the system being
-  updated and columns to the neighbor system. `interaction_matrix[i, j] == true` uses the
-  default interaction for computing forces on system `i` by particles of system `j`, while
-  `interaction_matrix[i, j] == false` disables it. Set an entry to a callable with the
-  signature `interaction(dv, v_system, u_system, v_neighbor, u_neighbor, system, neighbor,
-  semi; kwargs...)` to use a custom interaction function. Disabled pairs are also skipped
-  in auxiliary neighbor loops such as density summation, correction factors, surface
-  normals, pressure extrapolation, and particle shifting. The semidiscretization still
-  stores a full matrix of neighborhood searches for uniform indexing and for APIs such as
-  point interpolation, which use neighborhood searches independently of force
-  interactions.
+    filtering out `nothing` systems. With `n_systems` remaining systems, `nothing` creates
+    `trues(n_systems, n_systems)`, enabling every interaction. Rows refer to the system being
+    updated and columns to the neighbor system. `interaction_matrix[i, j] == true` uses the
+    default interaction for computing forces on system `i` by particles of system `j`, while
+    `interaction_matrix[i, j] == false` disables it. Set an entry to a callable with the
+    signature `interaction(dv, v_system, u_system, v_neighbor, u_neighbor, system, neighbor,
+    semi; kwargs...)` to use a custom interaction function. Disabled pairs are also skipped
+    in auxiliary neighbor loops such as density summation, correction factors, surface
+    normals, pressure extrapolation, and particle shifting. The semidiscretization still
+    stores a full matrix of neighborhood searches for uniform indexing and for APIs such as
+    point interpolation, which use neighborhood searches independently of force
+    interactions.
 
 # Examples
 ```jldoctest; output = false, setup = :(trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing); ref_system = fluid_system)
@@ -254,18 +254,17 @@ Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
 
 # Keywords
 - `reset_threads=true`: Reset Polyester.jl threads before the simulation. After an error
-  within a threaded loop, threading might be disabled; resetting the threads ensures that
-  threading is enabled again for the simulation.
-  See also
-  [trixi-framework/Trixi.jl#1583](https://github.com/trixi-framework/Trixi.jl/issues/1583).
+    within a threaded loop, threading might be disabled; resetting the threads ensures that
+    threading is enabled again for the simulation.
+    See also
+    [trixi-framework/Trixi.jl#1583](https://github.com/trixi-framework/Trixi.jl/issues/1583).
 - `restart_with=nothing`: Restart the simulation from VTK solution files created by
-  [`SolutionSavingCallback`](@ref). Pass a filename for a semidiscretization with one
-  system, or a tuple containing one filename for each system. The tuple order must match
-  the system order in the [`Semidiscretization`](@ref). By default, `nothing` starts a new
-  simulation. When restarting, `semidiscretize` replaces the initial time (`tspan[1]`) with
-  the timestamp read from the VTK files. If the provided `tspan[1]` does not match the
-  restart time, it is adjusted and an info message is logged. Timestamps in multiple files
-  must match.
+    [`SolutionSavingCallback`](@ref). This can be either `nothing` (default, no restart) or
+    a tuple of filenames, one for each system in the [`Semidiscretization`](@ref). The tuple
+    order must match the system order. When restarting, `semidiscretize` replaces the initial
+    time (`tspan[1]`) with the timestamp read from the VTK files. If the provided `tspan[1]`
+    does not match the restart time, it is adjusted and an info message is logged. Timestamps
+    in multiple files must match.
 
 # Returns
 A `DynamicalODEProblem` (see [the OrdinaryDiffEq.jl docs](https://docs.sciml.ai/DiffEqDocs/stable/types/dynamical_types/))
@@ -426,8 +425,8 @@ as density or pressure where applicable.
 
 # Keywords
 - `reset_threads=true`: Reset Polyester.jl threads before updating the systems. After an
-  error within a threaded loop, threading might be disabled; resetting the threads ensures
-  that threading is enabled again.
+    error within a threaded loop, threading might be disabled; resetting the threads ensures
+    that threading is enabled again.
 """
 function restart_with!(semi, sol; reset_threads=true)
     # Optionally reset Polyester.jl threads. See
