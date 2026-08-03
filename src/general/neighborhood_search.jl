@@ -58,9 +58,9 @@ end
 
 @propagate_inbounds function mapreduce_neighbor(f, op, system_coords, neighbor_coords,
                                                 neighborhood_search, backend, particle;
-                                                init)
-    PointNeighbors.mapreduce_neighbor(f, op, system_coords, neighbor_coords,
-                                      neighborhood_search, particle; init)
+                                                init, simd=Val(false))
+    PointNeighbors.mapreduce_neighbor_unsafe(f, op, system_coords, neighbor_coords,
+                                             neighborhood_search, particle; init, simd)
 end
 
 # We cannot dispatch by `AbstractGPUArray` because this is called from within

@@ -50,19 +50,12 @@ end
         # to avoid allocations.
         dv_particle_ = @inbounds mapreduce_neighbor(+, system_coords, system_coords,
                                                     neighborhood_search, backend, particle;
-                                                    init=zero(current_coords_a)) do particle,
-                                                                                    neighbor,
-                                                                                    initial_pos_diff,
-                                                                                    initial_distance
-
-            # Skip neighbors with the same position because the kernel gradient is zero.
-            # Note that `return` only exits the closure, i.e., skips the current neighbor.
-            if skip_zero_distance(system) && initial_distance < almostzero
-                return zero(initial_pos_diff)
-            end
-
-            # Now that we know that `distance` is not zero, we can safely call the unsafe
-            # version of the kernel gradient to avoid redundant zero checks.
+                                                    init=zero(current_coords_a),
+                                                    simd=Val(true)) do particle, neighbor,
+                                                                       initial_pos_diff,
+                                                                       initial_distance
+            # This function is not safe for zero `distance`, but to avoid branching,
+            # we check for zero `distance` at the end of this loop.
             grad_kernel = smoothing_kernel_grad_unsafe(system, initial_pos_diff,
                                                        initial_distance, particle)
 
@@ -79,7 +72,7 @@ end
             # In mixed-precision simulations, convert from `coordinates_eltype(system)`
             # to `eltype(system)` immediately after computing the difference.
             current_pos_diff = convert.(eltype(system), current_pos_diff_)
-            current_distance = norm(current_pos_diff)
+            current_distance = sqrt(dot(current_pos_diff, current_pos_diff))
 
             dv_particle = m_b * (pk1_rho2_a + pk1_rho2_b) * grad_kernel
 
@@ -96,7 +89,8 @@ end
                                                        m_a, m_b, rho_a, rho_b, F_a,
                                                        grad_kernel)
 
-            return dv_particle
+            # Skip neighbors with the same position because the kernel gradient is zero.
+            return ifelse(initial_distance < almostzero, zero(dv_particle), dv_particle)
         end
 
         for i in 1:ndims(system)
