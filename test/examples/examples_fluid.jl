@@ -20,6 +20,7 @@
             "with Threads.@threads :dynamic" => (parallelization_backend=ThreadsDynamicBackend(),),
             "with SerialBackend" => (parallelization_backend=SerialBackend(),),
             "WCSPH with FullGridCellList" => (semi=semi_fullgrid,),
+            "WCSPH with SortingCallback" => (extra_callback=SortingCallback(dt=0.02),),
             "WCSPH with source term damping" => (source_terms=SourceTermDamping(damping_coefficient=1e-4),),
             "WCSPH with SummationDensity" => (fluid_density_calculator=SummationDensity(),
                                               clip_negative_pressure=true),
@@ -204,7 +205,7 @@
             ]
             @test sol.retcode == ReturnCode.Success
             @test count_rhs_allocations(sol) == 0
-            v_ode, u_ode = sol[end].x
+            v_ode, u_ode = sol.u[end].x
             @test eltype(v_ode) == Float32
             @test eltype(u_ode) == Float64
         end
@@ -535,6 +536,15 @@
         @test count_rhs_allocations(sol) == 0
     end
 
+    @trixi_testset "fluid/vortex_street_2d.jl" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "vortex_street_2d.jl"),
+                                         tspan=(0.0, 0.2))
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol) == 0
+    end
+
     @trixi_testset "fluid/lid_driven_cavity_2d.jl (EDAC)" begin
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",
@@ -583,7 +593,8 @@
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",
                                                   "periodic_array_of_cylinders_2d.jl"),
-                                         tspan=(0.0, 20.0))
+                                         tspan=(0.0, 20.0),
+                                         density_diffusion=DensityDiffusionMolteniColagrossi(delta=0.1))
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol) == 0
     end

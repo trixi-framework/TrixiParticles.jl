@@ -96,7 +96,7 @@
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(validation_dir(),
                                                   "hydrostatic_water_column_2d",
-                                                  "validation.jl"), tspan=(0.0, 0.3),
+                                                  "validation.jl"), tspan=(0.0, 0.35),
                                          n_particles_plate_y=3) [
             r"┌ Info: The desired tank length in y-direction.*\n",
             r"└ New tank length in y-direction is set to.*\n",
