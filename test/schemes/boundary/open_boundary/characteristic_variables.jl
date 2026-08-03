@@ -78,10 +78,10 @@
 
         @test any(!isapprox(characteristic, 0.0)
                   for characteristic in boundary_system.cache.characteristics[:,
-                                                                              zone_1_particles])
+                                                            zone_1_particles])
         @test all(isapprox(characteristic, 0.0)
                   for characteristic in boundary_system.cache.characteristics[:,
-                                                                              zone_2_particles])
+                                                            zone_2_particles])
     end
 
     # Face vertices of open boundary

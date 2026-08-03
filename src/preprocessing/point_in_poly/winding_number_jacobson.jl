@@ -71,7 +71,7 @@ struct WindingNumberJacobson{ELTYPE, W}
     winding               :: W
 
     function WindingNumberJacobson(; geometry=nothing, winding_number_factor=sqrt(eps()),
-                                   hierarchical_winding=!isnothing(geometry))
+                                   hierarchical_winding=(!isnothing(geometry)))
         if hierarchical_winding && geometry isa Nothing
             throw(ArgumentError("`geometry` must be of type `Polygon` (2D) or `TriangleMesh` (3D) when using hierarchical winding"))
         end

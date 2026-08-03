@@ -121,7 +121,7 @@
         @test edge_only.min_corner == min.(edge_only.edge_vertices[1]...)
         @test edge_only.max_corner == max.(edge_only.edge_vertices[1]...)
         @test edge_only.vertex_normals[1] == (edge_only.edge_normals[1],
-                                              edge_only.edge_normals[1])
+               edge_only.edge_normals[1])
 
         A = SVector(0.0, 0.0, 0.0)
         B = SVector(1.0, 0.0, 0.0)
