@@ -220,18 +220,28 @@ end
 
 @inline foreach_system(f, systems) = foreach_noalloc(f, systems)
 
-@inline function foreach_system_wrapped(f, semi, v_ode, u_ode)
-    @inline function _foreach_system_wrapped(system)
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
-        @inline f(system, v, u)
-    end
-
-    # If we use `foreach_system` here instead, Julia 1.10 will allocate through dynamic
-    # dispatch for some reason.
-    return foreach_noalloc(_foreach_system_wrapped, semi.systems)
+# Loop over all systems and pass the corresponding wrapped `v` and `u` arrays to `f`.
+@inline function foreach_system_wrapped(f, semi::Union{NamedTuple, Semidiscretization},
+                                        v_ode, u_ode)
+    foreach_system_wrapped(f, semi.systems, semi, v_ode, u_ode)
 end
+
+# All our efforts to use `foreach_noalloc` here failed. They were either allocating
+# in Julia 1.10 or in Julia 1.12.
+# Instead, we duplicate and modify the contents of `foreach_noalloc` here.
+@inline function foreach_system_wrapped(f, systems, semi, v_ode, u_ode)
+    system = first(systems)
+    remaining_systems = Base.tail(systems)
+
+    v = wrap_v(v_ode, system, semi)
+    u = wrap_u(u_ode, system, semi)
+    @inline f(system, v, u)
+
+    # Process remaining collection.
+    return foreach_system_wrapped(f, remaining_systems, semi, v_ode, u_ode)
+end
+
+@inline foreach_system_wrapped(f, systems::Tuple{}, semi, v_ode, u_ode) = nothing
 
 """
     semidiscretize(semi, tspan; reset_threads=true, restart_with=nothing)
