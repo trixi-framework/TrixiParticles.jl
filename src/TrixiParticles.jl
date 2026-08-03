@@ -21,7 +21,7 @@ using Polyester: Polyester, @batch
 using Printf: @printf, @sprintf
 using ReadVTK: ReadVTK
 using RecipesBase: RecipesBase, @series
-using Random: seed!
+using Random: MersenneTwister
 using SciMLBase: SciMLBase, CallbackSet, DiscreteCallback, DynamicalODEProblem,
                  derivative_discontinuity!, get_tmp_cache, set_proposed_dt!,
                  ODESolution, ODEProblem, terminate!, add_tstop!
@@ -102,7 +102,7 @@ export trixi2vtk, vtk2trixi
 export RectangularTank, RectangularShape, SphereShape, ComplexShape
 export ParticlePackingSystem, SignedDistanceField
 export WindingNumberHormann, WindingNumberJacobson
-export VoxelSphere, RoundSphere, reset_wall!, extrude_geometry, load_geometry,
+export VoxelSphere, RoundSphere, reset_wall!, extrude_geometry, load_geometry, delete_faces,
        sample_boundary, planar_geometry_to_face
 export SourceTermDamping
 export ShepardKernelCorrection, KernelCorrection, AkinciFreeSurfaceCorrection,

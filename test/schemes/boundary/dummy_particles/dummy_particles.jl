@@ -458,8 +458,8 @@
                                                  (width_reference, height_reference),
                                                  (width_reference, height_reference),
                                                  density; acceleration=[0.0, -9.81],
-                                                 state_equation, n_layers=0,
-                                                 faces=(true, true, true, false))
+                                                 state_equation,
+                                                 faces=(false, false, false, false))
 
                 # Because it is a pain to deal with the linear indices of the pressure arrays,
                 # we convert the matrices to Cartesian indices based on the coordinates.
