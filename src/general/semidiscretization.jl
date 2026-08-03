@@ -1,37 +1,37 @@
 """
-    Semidiscretization(systems...; neighborhood_search=GridNeighborhoodSearch{NDIMS}())
+    Semidiscretization(systems...;
+                       neighborhood_search=GridNeighborhoodSearch{NDIMS}(),
+                       parallelization_backend=PolyesterBackend(),
+                       interaction_matrix=nothing)
 
 The semidiscretization couples the passed systems to one simulation.
 
 # Arguments
-- `systems`: Systems to be coupled in this semidiscretization
+- `systems`: Systems to be coupled in this semidiscretization. Any `nothing` entries are
+             ignored.
 
 # Keywords
-- `neighborhood_search`:    The neighborhood search to be used in the simulation.
-                            By default, the [`GridNeighborhoodSearch`](@ref) is used.
-                            Use `nothing` to loop over all particles (no neighborhood search).
-                            To use other neighborhood search implementations, pass a template
-                            of a neighborhood search. See [`copy_neighborhood_search`](@ref)
-                            and the examples below for more details.
-                            To use a periodic domain, pass a [`PeriodicBox`](@ref) to the
-                            neighborhood search.
-- `parallelization_backend=PolyesterBackend()`: Backend used for thread-parallel loops.
-                            Pass `SerialBackend()` to disable thread parallelization.
-                            See [the docs](@ref gpu_support) on how to use GPU backends.
-- `interaction_matrix=trues(n_systems, n_systems)`: Matrix controlling ordered system-pair
-                            interactions after filtering out `nothing` systems. Rows refer
-                            to the system being updated and columns to the neighbor system.
-                            `A[i, j] == true` uses the default interaction for computing forces
-                            on system `i` by particles of system `j`. `A[i, j] == false` disables
-                            the interaction. Set a matrix entry to a method with
-                            the same arguments as `interact!(...; kwargs...)` to use a custom
-                            interaction function for this force computation. Disabled
-                            pairs are skipped in the forces computation and in auxiliary neighbor loops such as
-                            density summation, correction factors, surface normals, pressure
-                            extrapolation, and particle shifting. The semidiscretization still
-                            stores a full matrix of neighborhood searches for uniform indexing
-                            and for APIs such as point interpolation, which use neighborhood
-                            searches independently of force interactions.
+- `neighborhood_search=GridNeighborhoodSearch{NDIMS}()`: The neighborhood search used in
+  the simulation. Use `nothing` to loop over all particles without a neighborhood search.
+  To use another neighborhood search implementation, pass a template of a neighborhood
+  search. See [`copy_neighborhood_search`](@ref) and the examples below for more details.
+  To use a periodic domain, pass a [`PeriodicBox`](@ref) to the neighborhood search.
+- `parallelization_backend=PolyesterBackend()`: Backend used for parallel loops. Pass
+  `SerialBackend()` to disable parallelization. See [GPU support](@ref gpu_support) for
+  information on using GPU backends.
+- `interaction_matrix=nothing`: Matrix controlling ordered system-pair interactions after
+  filtering out `nothing` systems. With `n_systems` remaining systems, `nothing` creates
+  `trues(n_systems, n_systems)`, enabling every interaction. Rows refer to the system being
+  updated and columns to the neighbor system. `interaction_matrix[i, j] == true` uses the
+  default interaction for computing forces on system `i` by particles of system `j`, while
+  `interaction_matrix[i, j] == false` disables it. Set an entry to a callable with the
+  signature `interaction(dv, v_system, u_system, v_neighbor, u_neighbor, system, neighbor,
+  semi; kwargs...)` to use a custom interaction function. Disabled pairs are also skipped
+  in auxiliary neighbor loops such as density summation, correction factors, surface
+  normals, pressure extrapolation, and particle shifting. The semidiscretization still
+  stores a full matrix of neighborhood searches for uniform indexing and for APIs such as
+  point interpolation, which use neighborhood searches independently of force
+  interactions.
 
 # Examples
 ```jldoctest; output = false, setup = :(trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing); ref_system = fluid_system)
@@ -98,44 +98,6 @@ struct Semidiscretization{BACKEND, S, RU, RV, NS, IM, UCU, IT}
     end
 end
 
-function create_interaction_matrix(::Nothing, systems)
-    n_systems = length(systems)
-    return trues(n_systems, n_systems)
-end
-
-function create_interaction_matrix(interaction_matrix, systems)
-    n_systems = length(systems)
-    if size(interaction_matrix) != (n_systems, n_systems)
-        throw(ArgumentError("`interaction_matrix` must have size " *
-                            "($n_systems, $n_systems), but has size " *
-                            "$(size(interaction_matrix))"))
-    end
-
-    # Validate values before looking at the declared element type. This lets users pass
-    # abstract containers such as `Matrix{Any}` while still rejecting invalid entries.
-    for entry in interaction_matrix
-        if !is_interaction_entry(entry)
-            throw(ArgumentError("`interaction_matrix` entries must be `true`, `false`, " *
-                                "or methods, but found `$(typeof(entry))`"))
-        end
-    end
-
-    # Rebuild abstractly typed matrices from the concrete entry types
-    # to avoid dynamic dispatch and allocations in pairwise loops.
-    if !all(isconcretetype, Base.uniontypes(eltype(interaction_matrix)))
-        entry_types = unique(map(typeof, interaction_matrix))
-        return Matrix{Union{entry_types...}}(interaction_matrix)
-    end
-
-    return Matrix{eltype(interaction_matrix)}(interaction_matrix)
-end
-
-@inline is_interaction_entry(entry::Bool) = true
-
-function is_interaction_entry(entry)
-    return !isempty(methods(entry))
-end
-
 function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
                             neighborhood_search=GridNeighborhoodSearch{ndims(first(systems))}(),
                             parallelization_backend=PolyesterBackend(),
@@ -187,6 +149,44 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     return Semidiscretization(systems, ranges_u, ranges_v, searches, interaction_matrix,
                               parallelization_backend, update_callback_used,
                               integrate_tlsph)
+end
+
+function create_interaction_matrix(::Nothing, systems)
+    n_systems = length(systems)
+    return trues(n_systems, n_systems)
+end
+
+function create_interaction_matrix(interaction_matrix, systems)
+    n_systems = length(systems)
+    if size(interaction_matrix) != (n_systems, n_systems)
+        throw(ArgumentError("`interaction_matrix` must have size " *
+                            "($n_systems, $n_systems), but has size " *
+                            "$(size(interaction_matrix))"))
+    end
+
+    # Validate values before looking at the declared element type. This lets users pass
+    # abstract containers such as `Matrix{Any}` while still rejecting invalid entries.
+    for entry in interaction_matrix
+        if !is_interaction_entry(entry)
+            throw(ArgumentError("`interaction_matrix` entries must be `true`, `false`, " *
+                                "or methods, but found `$(typeof(entry))`"))
+        end
+    end
+
+    # Rebuild abstractly typed matrices from the concrete entry types
+    # to avoid dynamic dispatch and allocations in pairwise loops.
+    if !all(isconcretetype, Base.uniontypes(eltype(interaction_matrix)))
+        entry_types = unique(map(typeof, interaction_matrix))
+        return Matrix{Union{entry_types...}}(interaction_matrix)
+    end
+
+    return Matrix{eltype(interaction_matrix)}(interaction_matrix)
+end
+
+@inline is_interaction_entry(entry::Bool) = true
+
+function is_interaction_entry(entry)
+    return !isempty(methods(entry))
 end
 
 @inline function system_indices(system, semi)
@@ -253,18 +253,19 @@ Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
 - `tspan`: The time span over which the simulation will be run.
 
 # Keywords
-- `restart_with`: Can be used to restart the simulation from VTK solution files (see [`SolutionSavingCallback`](@ref)).
-  This can be either `nothing` (default, no restart) or a `Tuple` of filenames,
-  one for each system in the [`Semidiscretization`](@ref).
-  The order of the filenames must match the order of the systems in the [`Semidiscretization`](@ref).
-  Note that `semidiscretize` replaces the initial time (`tspan[1]`) with the timestamp read
-  from the VTK files. If the user-provided `tspan[1]` does not match the restart time,
-  it is adjusted and an info message is logged. If multiple files are provided, their
-  timestamps must match.
-- `reset_threads`: A boolean flag to reset Polyester.jl threads before the simulation (default: `true`).
-  After an error within a threaded loop, threading might be disabled. Resetting the threads before the simulation
-  ensures that threading is enabled again for the simulation.
-  See also [trixi-framework/Trixi.jl#1583](https://github.com/trixi-framework/Trixi.jl/issues/1583).
+- `reset_threads=true`: Reset Polyester.jl threads before the simulation. After an error
+  within a threaded loop, threading might be disabled; resetting the threads ensures that
+  threading is enabled again for the simulation.
+  See also
+  [trixi-framework/Trixi.jl#1583](https://github.com/trixi-framework/Trixi.jl/issues/1583).
+- `restart_with=nothing`: Restart the simulation from VTK solution files created by
+  [`SolutionSavingCallback`](@ref). Pass a filename for a semidiscretization with one
+  system, or a tuple containing one filename for each system. The tuple order must match
+  the system order in the [`Semidiscretization`](@ref). By default, `nothing` starts a new
+  simulation. When restarting, `semidiscretize` replaces the initial time (`tspan[1]`) with
+  the timestamp read from the VTK files. If the provided `tspan[1]` does not match the
+  restart time, it is adjusted and an info message is logged. Timestamps in multiple files
+  must match.
 
 # Returns
 A `DynamicalODEProblem` (see [the OrdinaryDiffEq.jl docs](https://docs.sciml.ai/DiffEqDocs/stable/types/dynamical_types/))
@@ -411,16 +412,22 @@ function initialize!(semi::Semidiscretization, restart_with::Nothing)
 end
 
 """
-    restart_with!(semi, sol)
+    restart_with!(semi, sol; reset_threads=true)
 
-Set the initial coordinates and velocities of all systems in `semi` to the final values
-in the solution `sol`.
+Set the restartable state of all systems in `semi` to the final values in the solution
+`sol`. This includes coordinates and velocities as well as integrated state variables such
+as density or pressure where applicable.
 [`semidiscretize`](@ref) has to be called again afterwards, or another
 [`Semidiscretization`](@ref) can be created with the updated systems.
 
 # Arguments
-- `semi`:   The semidiscretization
-- `sol`:    The `ODESolution` returned by `solve` of OrdinaryDiffEq.jl
+- `semi`: The semidiscretization to update.
+- `sol`:  The `ODESolution` returned by `solve` from OrdinaryDiffEq.jl.
+
+# Keywords
+- `reset_threads=true`: Reset Polyester.jl threads before updating the systems. After an
+  error within a threaded loop, threading might be disabled; resetting the threads ensures
+  that threading is enabled again.
 """
 function restart_with!(semi, sol; reset_threads=true)
     # Optionally reset Polyester.jl threads. See
@@ -771,7 +778,7 @@ of particle ``a``, where ``c`` is the damping coefficient and ``v_a`` is the vel
 particle ``a``.
 
 # Keywords
-- `damping_coefficient`:    The coefficient ``d`` above. A higher coefficient means more
+- `damping_coefficient`:    The coefficient ``c`` above. A higher coefficient means more
                             damping. A coefficient of `1e-4` is a good starting point for
                             damping a fluid at rest.
 
