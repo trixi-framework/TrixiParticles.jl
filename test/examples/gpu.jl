@@ -896,4 +896,64 @@ end
             end
         end
     end
+
+    @testset verbose=true "Restart" begin
+        trixi_include_changeprecision(Float32, @__MODULE__,
+                                      joinpath(examples_dir(), "fluid",
+                                               "poiseuille_flow_2d.jl"),
+                                      tspan=(0.0f0, 0.6f0), sound_speed_factor=10,
+                                      particle_spacing=4.0f-5, sol=nothing,
+                                      coordinates_eltype=Float32,
+                                      parallelization_backend=Main.parallelization_backend)
+
+        sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
+                    dt=1.0f0, save_everystep=false,
+                    callback=CallbackSet(callbacks, StepsizeCallback(cfl=1.5f0)))
+
+        # Since this is an open boundary simulation, the number of active particles may
+        # differ. The results must be interpolated to enable comparison with the restart
+        # simulation. The fluid domain starts at `x = 10 * particle_spacing`.
+        n_interpolation_points = 10
+        start_point = [0.0f0 + 10 * particle_spacing, channel_height / 2]
+        end_point = [channel_length - 10 * particle_spacing, channel_height / 2]
+        result_full = interpolate_line(start_point, end_point, n_interpolation_points,
+                                       sol.prob.p.semi, sol.prob.p.semi.systems[1], sol,
+                                       cut_off_bnd=false)
+
+        # Run half simulation and safe checkpoint
+        trixi_include_changeprecision(Float32, @__MODULE__,
+                                      joinpath(examples_dir(), "fluid",
+                                               "poiseuille_flow_2d.jl"),
+                                      tspan=(0.0f0, 0.3f0), sound_speed_factor=10,
+                                      particle_spacing=4.0f-5, sol=nothing,
+                                      coordinates_eltype=Float32,
+                                      parallelization_backend=Main.parallelization_backend)
+
+        sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
+                    dt=1.0f0, save_everystep=false,
+                    callback=CallbackSet(callbacks, StepsizeCallback(cfl=1.5f0)))
+
+        iter = saving_callback.affect!.affect!.latest_saved_iter
+        fluid_restart = joinpath("out", "fluid_1_$iter.vtu")
+        open_boundary_restart = joinpath("out", "open_boundary_1_$iter.vtu")
+        boundary_restart = joinpath("out", "boundary_1_$iter.vtu")
+
+        ode_restart = semidiscretize(semi, (0.3f0, 0.6f0);
+                                     restart_with=(fluid_restart, open_boundary_restart,
+                                                   boundary_restart))
+
+        sol_restart = solve(ode_restart, CarpenterKennedy2N54(williamson_condition=false),
+                            dt=1.0f0, save_everystep=false,
+                            callback=CallbackSet(UpdateCallback(),
+                                                 StepsizeCallback(cfl=1.5f0)))
+
+        result_restart = interpolate_line(start_point, end_point,
+                                          n_interpolation_points, sol_restart.prob.p.semi,
+                                          sol_restart.prob.p.semi.systems[1],
+                                          sol_restart, cut_off_bnd=false)
+
+        @test isapprox(result_full.velocity, result_restart.velocity, rtol=7.0f-5)
+        @test isapprox(result_full.density, result_restart.density, rtol=5.0f-6)
+        @test isapprox(result_full.pressure, result_restart.pressure, rtol=5.0f-4)
+    end
 end
