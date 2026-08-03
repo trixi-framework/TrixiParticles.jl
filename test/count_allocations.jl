@@ -26,6 +26,16 @@ end
                                     neighborhood_search.nhs, particle; search_radius)
 end
 
+# Forward `mapreduce_neighbor` to wrapped neighborhood search
+@inline function PointNeighbors.mapreduce_neighbor(f, op, system_coords, neighbor_coords,
+                                                   neighborhood_search::NoUpdateNeighborhoodSearch,
+                                                   particle; init,
+                                                   search_radius=PointNeighbors.search_radius(neighborhood_search.nhs))
+    PointNeighbors.mapreduce_neighbor(f, op, system_coords, neighbor_coords,
+                                      neighborhood_search.nhs, particle;
+                                      init, search_radius)
+end
+
 # No update
 @inline function PointNeighbors.update!(search::NoUpdateNeighborhoodSearch, x, y;
                                         points_moving=(true, true),

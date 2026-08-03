@@ -36,21 +36,22 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         # Accumulate the RHS contributions over all neighbors before writing to `dv`,
         # to reduce the number of memory writes.
-        @inline function op(a, b)
+        @inline function dv_drho_sum(a, b)
             dv_a, drho_a = a
             dv_b, drho_b = b
             return dv_a + dv_b, drho_a + drho_b
         end
         init = (zero(v_a), zero(rho_a))
 
-        # Loop over all neighbors within the kernel cutoff
-        (dv_particle,
-         drho_particle) = @inbounds mapreduce_neighbor(op, system_coords,
-                                                       neighbor_system_coords,
-                                                       neighborhood_search,
-                                                       backend, particle;
-                                                       init) do particle, neighbor,
-                                                                pos_diff, distance
+        # Loop over all neighbors within the kernel cutoff. Make sure that the returned
+        # variable names are not used inside the closure to avoid allocations.
+        (dv_particle_,
+         drho_particle_) = @inbounds mapreduce_neighbor(dv_drho_sum, system_coords,
+                                                        neighbor_system_coords,
+                                                        neighborhood_search,
+                                                        backend, particle;
+                                                        init) do particle, neighbor,
+                                                                 pos_diff, distance
             # Skip neighbors with the same position because the kernel gradient is zero.
             # Note that `return` only exits the closure, i.e., skips the current neighbor.
             skip_zero_distance(particle_system) && distance < almostzero && return init
@@ -133,10 +134,10 @@ function interact!(dv, v_particle_system, u_particle_system,
             return dv_particle, drho_particle
         end
 
-        for i in eachindex(dv_particle)
-            @inbounds dv[i, particle] += dv_particle[i]
+        for i in eachindex(dv_particle_)
+            @inbounds dv[i, particle] += dv_particle_[i]
         end
-        @inbounds write_drho_particle!(dv, density_calculator, drho_particle, particle)
+        @inbounds write_drho_particle!(dv, density_calculator, drho_particle_, particle)
     end
 
     return dv

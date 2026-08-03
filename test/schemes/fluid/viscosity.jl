@@ -38,7 +38,17 @@
 
         @test isapprox(dv[1], -0.02049217623299368, atol=6e-15)
         @test isapprox(dv[2], 0.03073826434949052, atol=6e-15)
+
+        # Test that `viscosity` accumulates correctly.
+        dv0 = 2 * v_diff
+        dv = viscosity(dv0, system_wcsph, system_wcsph,
+                       v, v, 1, 2, pos_diff, distance,
+                       sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+
+        @test isapprox(dv[1], -0.02049217623299368 + dv0[1], atol=6e-15)
+        @test isapprox(dv[2], 0.03073826434949052 + dv0[2], atol=6e-15)
     end
+    
     @testset verbose=true "`ViscosityMorris`" begin
         nu = 7e-3
         viscosity = ViscosityMorris(; nu)
