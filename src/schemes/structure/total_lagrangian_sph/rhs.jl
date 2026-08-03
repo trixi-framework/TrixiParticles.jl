@@ -94,7 +94,7 @@ end
                                                        m_a, m_b, rho_a, rho_b, F_a,
                                                        grad_kernel)
 
-            return dv_particle[]
+            return dv_particle
         end
 
         for i in 1:ndims(system)
