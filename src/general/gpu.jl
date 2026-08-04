@@ -28,7 +28,7 @@ end
 
 function adapt_neighborhood_search_handler(to, handler::SharedNHSHandler)
     searches = map(handler.neighborhood_searches) do neighborhood_searches
-        Adapt.adapt.(to, neighborhood_searches)
+        Adapt.adapt.(Ref(to), neighborhood_searches)
     end
     return SharedNHSHandler(handler.search_radii, searches)
 end
