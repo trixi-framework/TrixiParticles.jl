@@ -323,9 +323,31 @@ end
                                    acceleration=(0.0f0, -gravity), state_equation,
                                    coordinates_eltype=Float32)
 
+            trixi_include_changeprecision(Float32, @__MODULE__,
+                                          joinpath(examples_dir(), "fluid",
+                                                   "hydrostatic_water_column_2d.jl");
+                                          sol=nothing, ode=nothing, tank)
+
+            # Neighborhood search with `FullGridCellList` for GPU compatibility
+            min_corner = minimum(tank.boundary.coordinates, dims=2)
+            max_corner = maximum(tank.boundary.coordinates, dims=2)
+            cell_list = FullGridCellList(; min_corner, max_corner,
+                                         max_points_per_cell=500)
+            semi_fullgrid = Semidiscretization(fluid_system, boundary_system,
+                                               neighborhood_search=GridNeighborhoodSearch{2}(;
+                                                                                             cell_list),
+                                               neighborhood_search_handler=SharedNHSHandler,
+                                               parallelization_backend=Main.parallelization_backend)
+
+            semi_pairs = Semidiscretization(fluid_system, boundary_system,
+                                            neighborhood_search=GridNeighborhoodSearch{2}(;
+                                                                                          cell_list),
+                                            neighborhood_search_handler=PairsNHSHandler,
+                                            parallelization_backend=Main.parallelization_backend)
+
             hydrostatic_water_column_tests = Dict(
                 "WCSPH default" => (),
-                "WCSPH with PairsNHSHandler" => (neighborhood_search_handler=PairsNHSHandler,),
+                "WCSPH with PairsNHSHandler" => (semi=semi_pairs,),
                 "WCSPH with source term damping" => (source_terms=SourceTermDamping(damping_coefficient=1.0f-4),),
                 "WCSPH with SummationDensity" => (fluid_density_calculator=SummationDensity(),
                                                   clip_negative_pressure=true),
@@ -375,24 +397,6 @@ end
                     println("═"^100)
                     println("$test_description")
 
-                    # Create systems with the given keyword arguments
-                    trixi_include_changeprecision(Float32, @__MODULE__,
-                                                  joinpath(examples_dir(), "fluid",
-                                                           "hydrostatic_water_column_2d.jl");
-                                                  sol=nothing, ode=nothing, tank, kwargs...)
-
-                    # Neighborhood search with `FullGridCellList` for GPU compatibility
-                    min_corner = minimum(tank.boundary.coordinates, dims=2)
-                    max_corner = maximum(tank.boundary.coordinates, dims=2)
-                    cell_list = FullGridCellList(; min_corner, max_corner,
-                                                 max_points_per_cell=500)
-                    semi_fullgrid = Semidiscretization(fluid_system, boundary_system,
-                                                       neighborhood_search=GridNeighborhoodSearch{2}(;
-                                                                                                     cell_list),
-                                                       neighborhood_search_handler=SharedNHSHandler,
-                                                       parallelization_backend=Main.parallelization_backend)
-
-                    # Run the simulation
                     @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
                                                                      joinpath(examples_dir(),
                                                                               "fluid",

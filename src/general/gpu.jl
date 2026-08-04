@@ -23,7 +23,7 @@ Adapt.@adapt_structure BoundaryDEMSystem
 Adapt.@adapt_structure RCRWindkesselModel
 
 function adapt_neighborhood_search_handler(to, handler::PairsNHSHandler)
-    return PairsNHSHandler(Adapt.adapt.(to, handler.neighborhood_searches))
+    return PairsNHSHandler(Adapt.adapt.(Ref(to), handler.neighborhood_searches))
 end
 
 function adapt_neighborhood_search_handler(to, handler::SharedNHSHandler)
