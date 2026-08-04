@@ -77,13 +77,13 @@ end
         mu = div_fast(h * vr, (current_distance^2 + epsilon * h^2))
         c = sound_speed
         pi_ab = div_fast(alpha * c * mu + beta * mu^2, rho_mean) * grad_kernel
-
         det_F = det(F_a)
-        if abs(det_F) < 1.0f-9
-            return dv_particle
-        end
-        # See eq. 26 of Lin et al. (2015)
-        dv_particle += m_b * det_F * inv(F_a)' * pi_ab
+
+        # See eq. 26 of Lin et al. (2015).
+        # Avoid branching to enable SIMD vectorization. For some reason, the parentheses
+        # around `inv(F_a)' * pi_ab` make it 10% faster and it can't vectorize without them.
+        dv_particle += ifelse(abs(det_F) > 1.0f-9, m_b * det_F * (inv(F_a)' * pi_ab),
+                              zero(dv_particle))
     end
 
     return dv_particle

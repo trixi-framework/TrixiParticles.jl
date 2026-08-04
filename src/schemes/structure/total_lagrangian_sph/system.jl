@@ -500,6 +500,9 @@ end
     neighborhood_search = get_neighborhood_search(system, semi)
     backend = semi.parallelization_backend
 
+    # Use SIMD vectorization on the CPU.
+    simd = Val(!(semi.parallelization_backend isa KernelAbstractions.GPU))
+
     # The deformation gradient is computed for all particles, including the clamped ones
     @threaded semi for particle in eachparticle(system)
         # We are looping over the particles of `system`, so it is guaranteed
@@ -511,16 +514,12 @@ end
         # to `deformation_grad` to reduce the number of memory writes.
         result = @inbounds mapreduce_neighbor(+, initial_coords, initial_coords,
                                               neighborhood_search, backend, particle;
-                                              init=zero(L_a)) do particle, neighbor,
-                                                                 initial_pos_diff,
-                                                                 initial_distance
-
-            # Skip neighbors with the same position because the kernel gradient is zero.
-            # Note that `return` only exits the closure, i.e., skips the current neighbor.
-            skip_zero_distance(system) && initial_distance < almostzero && return zero(L_a)
-
-            # Now that we know that `distance` is not zero, we can safely call the unsafe
-            # version of the kernel gradient to avoid redundant zero checks.
+                                              init=zero(L_a),
+                                              simd) do particle, neighbor,
+                                                       initial_pos_diff,
+                                                       initial_distance
+            # This function is not safe for zero `distance`, but to avoid branching,
+            # we check for zero `distance` at the end of this loop.
             grad_kernel = smoothing_kernel_grad_unsafe(system, initial_pos_diff,
                                                        initial_distance, particle)
 
@@ -540,8 +539,12 @@ end
             # The original form is:
             #   -volume * pos_diff * (L_a * grad_kernel)'
             # Equivalent transposed form that is much faster in 3D:
-            F_T = -volume * L_a * grad_kernel * pos_diff'
-            return F_T'
+            F_transposed = -volume * L_a * grad_kernel * pos_diff'
+            F = F_transposed'
+
+            # Skip neighbors with the same position because the kernel gradient is zero.
+            return ifelse(skip_zero_distance(system) && initial_distance < almostzero,
+                          zero(L_a), F)
         end
 
         for j in 1:ndims(system), i in 1:ndims(system)

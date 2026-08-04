@@ -34,6 +34,12 @@ end
     h = initial_smoothing_length(system)
     almostzero = sqrt(eps(h^2))
 
+    # Use SIMD vectorization on the CPU. Viscosity can't be vectorized (yet) due to the
+    # branching inside `current_velocity`.
+    simd_bool = !(semi.parallelization_backend isa KernelAbstractions.GPU) &&
+                isnothing(system.viscosity)
+    simd = Val(simd_bool)
+
     @threaded semi for particle in eachparticle
         # We are looping over the particles of `system`, so it is guaranteed
         # that `particle` is in bounds of `system`.
@@ -51,9 +57,9 @@ end
         dv_particle_ = @inbounds mapreduce_neighbor(+, system_coords, system_coords,
                                                     neighborhood_search, backend, particle;
                                                     init=zero(current_coords_a),
-                                                    simd=Val(true)) do particle, neighbor,
-                                                                       initial_pos_diff,
-                                                                       initial_distance
+                                                    simd) do particle, neighbor,
+                                                             initial_pos_diff,
+                                                             initial_distance
             # This function is not safe for zero `distance`, but to avoid branching,
             # we check for zero `distance` at the end of this loop.
             grad_kernel = smoothing_kernel_grad_unsafe(system, initial_pos_diff,
