@@ -13,6 +13,8 @@
         semi_fullgrid = Semidiscretization(fluid_system, boundary_system,
                                            neighborhood_search=GridNeighborhoodSearch{2}(;
                                                                                          cell_list))
+        semi_pairs = Semidiscretization(fluid_system, boundary_system,
+                                        neighborhood_search_handler=PairsNHSHandler)
 
         hydrostatic_water_column_tests = Dict(
             "WCSPH default" => (),
@@ -20,6 +22,7 @@
             "with Threads.@threads :dynamic" => (parallelization_backend=ThreadsDynamicBackend(),),
             "with SerialBackend" => (parallelization_backend=SerialBackend(),),
             "WCSPH with FullGridCellList" => (semi=semi_fullgrid,),
+            "WCSPH with PairsNHSHandler" => (semi=semi_pairs,),
             "WCSPH with SortingCallback" => (extra_callback=SortingCallback(dt=0.02),),
             "WCSPH with source term damping" => (source_terms=SourceTermDamping(damping_coefficient=1e-4),),
             "WCSPH with SummationDensity" => (fluid_density_calculator=SummationDensity(),
@@ -101,6 +104,10 @@
                                                  kwargs...)
 
                 @test sol.retcode == ReturnCode.Success
+                if test_description == "WCSPH with PairsNHSHandler"
+                    @test semi.neighborhood_search_handler isa
+                          TrixiParticles.PairsNHSHandler
+                end
                 @test count_rhs_allocations(sol) == 0
             end
         end
@@ -307,7 +314,8 @@
             r"┌ Info: The desired tank length in y-direction .*\n",
             r"└ New tank length in y-direction.*\n"
         ]
-        @test semi.neighborhood_searches[1, 1].cell_list isa FullGridCellList
+        @test TrixiParticles.get_neighborhood_search(first(semi.systems), semi).cell_list isa
+              FullGridCellList
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol) == 0
     end

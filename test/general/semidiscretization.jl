@@ -46,21 +46,71 @@
     end
 
     @testset verbose=true "Constructor" begin
+        # No neighborhood search.
         semi = Semidiscretization(system1, system2, neighborhood_search=nothing)
 
         # Verification
         @test semi.ranges_u == (1:6, 7:15)
         @test semi.ranges_v == (1:6, 7:18)
 
-        nhs = [TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
-               eachpoint=1:2)
-               TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
-               eachpoint=1:2);;
-               TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
-               eachpoint=1:3)
-               TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
-               eachpoint=1:3)]
-        @test semi.neighborhood_searches == nhs
+        @test semi.neighborhood_search_handler isa TrixiParticles.PairsNHSHandler
+
+        nhs1 = TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
+                                                           eachpoint=1:2)
+        nhs2 = TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
+                                                           eachpoint=1:3)
+        nhs = [nhs1 nhs2; nhs1 nhs2]
+        @test semi.neighborhood_search_handler.neighborhood_searches == nhs
+
+        # `GridNeighborhoodSearch` with default `PairsNHSHandler`.
+        semi_grid_default = Semidiscretization(system1, system2,
+                                               neighborhood_search=GridNeighborhoodSearch{3}())
+        @test !PointNeighbors.requires_update(GridNeighborhoodSearch{3}())[1]
+        @test semi_grid_default.neighborhood_search_handler isa
+              TrixiParticles.SharedNHSHandler
+        @test TrixiParticles.get_neighborhood_search(system1, system2,
+                                                     semi_grid_default) isa
+              GridNeighborhoodSearch
+
+        # `GridNeighborhoodSearch` with `SharedNHSHandler`.
+        semi_grid = Semidiscretization(system1, system2,
+                                       neighborhood_search=GridNeighborhoodSearch{3}(),
+                                       neighborhood_search_handler=SharedNHSHandler)
+        handler = semi_grid.neighborhood_search_handler
+        @test handler isa TrixiParticles.SharedNHSHandler
+
+        search_radii = handler.search_radii
+        @test search_radii == [[0.2], [0.2]]
+
+        # `neighborhood_searches` is a vector of vectors.
+        @test all(searches -> searches isa Vector,
+                  handler.neighborhood_searches)
+        @test all(searches -> isconcretetype(eltype(searches)),
+                  handler.neighborhood_searches)
+
+        # Query should work for any radius that is less than or equal to the stored radius,
+        # accounting for rounding errors.
+        @test TrixiParticles.get_neighborhood_search(handler, 1, 1, 0.1) ===
+              handler.neighborhood_searches[1][1]
+        @test TrixiParticles.get_neighborhood_search(handler, 1, 1, 0.2) ===
+              handler.neighborhood_searches[1][1]
+        @test TrixiParticles.get_neighborhood_search(handler, 1, 1, 0.2 + eps(0.2)) ===
+              handler.neighborhood_searches[1][1]
+        @test_throws ArgumentError TrixiParticles.get_neighborhood_search(handler, 1, 1,
+                                                                          0.2 + 10eps(0.2))
+
+        # `GridNeighborhoodSearch` with explicit `PairsNHSHandler`.
+        semi_pairs = Semidiscretization(system1, system2,
+                                        neighborhood_search=GridNeighborhoodSearch{3}(),
+                                        neighborhood_search_handler=PairsNHSHandler)
+        @test semi_pairs.neighborhood_search_handler isa TrixiParticles.PairsNHSHandler
+
+        # Need to pass a type, not an NHS handler object.
+        nhs = TrixiParticles.TrivialNeighborhoodSearch{3}()
+        handler = TrixiParticles.PairsNHSHandler(nhs, (system1, system2))
+        @test_throws ArgumentError Semidiscretization(system1, system2,
+                                                      neighborhood_search=nothing,
+                                                      neighborhood_search_handler=handler)
     end
 
     @testset verbose=true "foreach_system" begin
