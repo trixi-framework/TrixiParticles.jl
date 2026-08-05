@@ -301,3 +301,32 @@ function Base.similar(::Broadcast.Broadcasted{ThreadedBroadcastStyle{P}},
     # TODO we only have the type `P` here and just assume that we can do `P()`
     return ThreadedBroadcastArray(similar(Array{T}, dims), parallelization_backend=P())
 end
+
+# Like `copyto!`, but applies the same multithreading strategy as used in TrixiParticles.jl.
+# When combined with `undef` initialization (or `similar`), the first-touch policy
+# assigns memory to the NUMA node local to the thread that the particle is processed on.
+# This initialization approach maximizes memory locality and bandwidth for the subsequent
+# right-hand side evaluation, and therefore improves performance for large problems
+# on large data center CPUs (see http://github.com/trixi-framework/TrixiParticles.jl/pull/1256).
+@inline function copyto_threaded!(dest::Matrix, src, semi)
+    @threaded semi for particle in axes(dest, 2)
+        for i in axes(dest, 1)
+            @inbounds dest[i, particle] = src[i, particle]
+        end
+    end
+
+    return dest
+end
+
+@inline function copyto_threaded!(dest::Vector, src, semi)
+    @threaded semi for particle in eachindex(dest)
+        @inbounds dest[particle] = src[particle]
+    end
+
+    return dest
+end
+
+# On GPUs, using specialized copy kernels is faster than writing our own custom kernel.
+@inline function copyto_threaded!(dest::AbstractGPUArray, src, semi)
+    dest .= src
+end
