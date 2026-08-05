@@ -145,10 +145,10 @@ function TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing
         poisson_ratio_sorted = poisson_ratio
     end
 
-    initial_coordinates = copy(initial_condition_sorted.coordinates)
-    current_coordinates = copy(initial_condition_sorted.coordinates)
-    mass = copy(initial_condition_sorted.mass)
-    material_density = copy(initial_condition_sorted.density)
+    initial_coordinates = similar(initial_condition_sorted.coordinates)
+    current_coordinates = similar(initial_condition_sorted.coordinates)
+    mass = similar(initial_condition_sorted.mass)
+    material_density = similar(initial_condition_sorted.density)
     correction_matrix = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
     pk1_rho2 = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
     deformation_grad = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
@@ -392,6 +392,11 @@ function initialize!(system::TotalLagrangianSPHSystem, semi)
     (; correction_matrix) = system
 
     initial_coords = initial_coordinates(system)
+
+    copyto_threaded!(initial_coords, system.initial_condition.coordinates, semi)
+    copyto_threaded!(system.current_coordinates, system.initial_condition.coordinates, semi)
+    copyto_threaded!(system.mass, system.initial_condition.mass, semi)
+    copyto_threaded!(system.material_density, system.initial_condition.density, semi)
 
     density_fun(particle) = system.material_density[particle]
 
