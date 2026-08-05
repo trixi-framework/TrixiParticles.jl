@@ -500,6 +500,9 @@ end
     neighborhood_search = get_neighborhood_search(system, semi)
     backend = semi.parallelization_backend
 
+    # Use SIMD vectorization on the CPU.
+    simd = Val(!(semi.parallelization_backend isa KernelAbstractions.GPU))
+
     # The deformation gradient is computed for all particles, including the clamped ones
     @threaded semi for particle in eachparticle(system)
         # We are looping over the particles of `system`, so it is guaranteed
@@ -509,21 +512,14 @@ end
 
         # Accumulate the contributions over all neighbors before writing
         # to `deformation_grad` to reduce the number of memory writes.
-        # Note that we need a `Ref` in order to be able to update these variables
-        # inside the closure in the `foreach_neighbor` loop.
-        result = Ref(zero(L_a))
-
-        # Loop over all neighbors within the kernel cutoff
-        @inbounds foreach_neighbor(initial_coords, initial_coords,
-                                   neighborhood_search, backend,
-                                   particle) do particle, neighbor,
-                                                initial_pos_diff, initial_distance
-            # Skip neighbors with the same position because the kernel gradient is zero.
-            # Note that `return` only exits the closure, i.e., skips the current neighbor.
-            skip_zero_distance(system) && initial_distance < almostzero && return
-
-            # Now that we know that `distance` is not zero, we can safely call the unsafe
-            # version of the kernel gradient to avoid redundant zero checks.
+        result = @inbounds mapreduce_neighbor(+, initial_coords, initial_coords,
+                                              neighborhood_search, backend, particle;
+                                              init=zero(L_a),
+                                              simd) do particle, neighbor,
+                                                       initial_pos_diff,
+                                                       initial_distance
+            # This function is not safe for zero `distance`, but to avoid branching,
+            # we check for zero `distance` at the end of this loop.
             grad_kernel = smoothing_kernel_grad_unsafe(system, initial_pos_diff,
                                                        initial_distance, particle)
 
@@ -543,13 +539,17 @@ end
             # The original form is:
             #   -volume * pos_diff * (L_a * grad_kernel)'
             # Equivalent transposed form that is much faster in 3D:
-            F_T = -volume * L_a * grad_kernel * pos_diff'
-            result[] += F_T'
+            F_transposed = -volume * L_a * grad_kernel * pos_diff'
+            F = F_transposed'
+
+            # Skip neighbors with the same position because the kernel gradient is zero.
+            return ifelse(skip_zero_distance(system) && initial_distance < almostzero,
+                          zero(L_a), F)
         end
 
         for j in 1:ndims(system), i in 1:ndims(system)
             # We overwrite every entry of `deformation_grad`, so no `set_zero!` is required.
-            @inbounds deformation_grad[i, j, particle] = result[][i, j]
+            @inbounds deformation_grad[i, j, particle] = result[i, j]
         end
     end
 

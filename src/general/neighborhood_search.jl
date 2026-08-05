@@ -58,7 +58,7 @@ end
 
 # We cannot dispatch by `AbstractGPUArray` because this is called from within
 # a kernel, where the arrays are device arrays (like `CuDeviceArray`),
-# which are not `AbstractGPUArray`s.
+# which are not `AbstractGPUArray`s. Hence, we need to pass the backend to this function.
 @inline function foreach_neighbor(f, system_coords, neighbor_coords, neighborhood_search,
                                   backend::KernelAbstractions.GPU, particle)
     # On GPUs, remove all bounds checks for maximum performance.
@@ -66,6 +66,47 @@ end
     # For example, this is unsafe when benchmarking `interact!` with the wrong NHS.
     PointNeighbors.foreach_neighbor_unsafe(f, system_coords, neighbor_coords,
                                            neighborhood_search, particle)
+end
+
+@propagate_inbounds function mapreduce_neighbor(f, op, system_coords, neighbor_coords,
+                                                neighborhood_search, backend, particle;
+                                                init, simd=Val(false))
+    # When using SIMD, remove all bounds checks, as these would prevent vectorization.
+    # Note that this is not safe if the neighborhood search was not initialized correctly.
+    # For example, this is unsafe when benchmarking `interact!` with the wrong NHS.
+    # Hence, we leave the bounds checks in the non-SIMD case where it has minimal overhead.
+    unsafe = simd
+    _mapreduce_neighbor(f, op, system_coords, neighbor_coords, neighborhood_search,
+                        backend, particle, init, unsafe, simd)
+end
+
+@propagate_inbounds function mapreduce_neighbor(f, op, system_coords, neighbor_coords,
+                                                neighborhood_search,
+                                                backend::KernelAbstractions.GPU, particle;
+                                                init, simd=Val(false))
+    # On GPUs, remove all bounds checks for maximum performance.
+    # Note that this is not safe if the neighborhood search was not initialized correctly.
+    # For example, this is unsafe when benchmarking `interact!` with the wrong NHS.
+    unsafe = Val(true)
+
+    # SIMD vectorization only works on the CPU.
+    simd_ = Val(false)
+    _mapreduce_neighbor(f, op, system_coords, neighbor_coords, neighborhood_search,
+                        backend, particle, init, unsafe, simd_)
+end
+
+@propagate_inbounds function _mapreduce_neighbor(f, op, system_coords, neighbor_coords,
+                                                 neighborhood_search, backend, particle,
+                                                 init, unsafe::Val{true}, simd)
+    PointNeighbors.mapreduce_neighbor_unsafe(f, op, system_coords, neighbor_coords,
+                                             neighborhood_search, particle; init, simd)
+end
+
+@propagate_inbounds function _mapreduce_neighbor(f, op, system_coords, neighbor_coords,
+                                                 neighborhood_search, backend, particle,
+                                                 init, unsafe::Val{false}, simd)
+    PointNeighbors.mapreduce_neighbor(f, op, system_coords, neighbor_coords,
+                                      neighborhood_search, particle; init)
 end
 
 # === Compact support selection ===

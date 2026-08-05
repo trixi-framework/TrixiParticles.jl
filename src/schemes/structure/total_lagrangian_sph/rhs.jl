@@ -30,6 +30,12 @@ end
     h = initial_smoothing_length(system)
     almostzero = sqrt(eps(h^2))
 
+    # Use SIMD vectorization on the CPU. Viscosity can't be vectorized (yet) due to the
+    # branching inside `current_velocity`.
+    simd_bool = !(semi.parallelization_backend isa KernelAbstractions.GPU) &&
+                isnothing(system.viscosity)
+    simd = Val(simd_bool)
+
     @threaded semi for particle in eachparticle
         # We are looping over the particles of `system`, so it is guaranteed
         # that `particle` is in bounds of `system`.
@@ -42,21 +48,16 @@ end
 
         # Accumulate the RHS contributions over all neighbors before writing to `dv`
         # to reduce the number of memory writes.
-        # Note that we need a `Ref` in order to be able to update these variables
-        # inside the closure in the `foreach_neighbor` loop.
-        dv_particle = Ref(zero(current_coords_a))
-
-        # Loop over all neighbors within the kernel cutoff
-        @inbounds foreach_neighbor(system_coords, system_coords,
-                                   neighborhood_search, backend,
-                                   particle) do particle, neighbor,
-                                                initial_pos_diff, initial_distance
-            # Skip neighbors with the same position because the kernel gradient is zero.
-            # Note that `return` only exits the closure, i.e., skips the current neighbor.
-            skip_zero_distance(system) && initial_distance < almostzero && return
-
-            # Now that we know that `distance` is not zero, we can safely call the unsafe
-            # version of the kernel gradient to avoid redundant zero checks.
+        # Make sure that the returned name `dv_particle_` is not used inside the closure
+        # to avoid allocations.
+        dv_particle_ = @inbounds mapreduce_neighbor(+, system_coords, system_coords,
+                                                    neighborhood_search, backend, particle;
+                                                    init=zero(current_coords_a),
+                                                    simd) do particle, neighbor,
+                                                             initial_pos_diff,
+                                                             initial_distance
+            # This function is not safe for zero `distance`, but to avoid branching,
+            # we check for zero `distance` at the end of this loop.
             grad_kernel = smoothing_kernel_grad_unsafe(system, initial_pos_diff,
                                                        initial_distance, particle)
 
@@ -73,22 +74,29 @@ end
             # In mixed-precision simulations, convert from `coordinates_eltype(system)`
             # to `eltype(system)` immediately after computing the difference.
             current_pos_diff = convert.(eltype(system), current_pos_diff_)
-            current_distance = norm(current_pos_diff)
+            current_distance = sqrt(dot(current_pos_diff, current_pos_diff))
 
-            dv_particle[] += m_b * (pk1_rho2_a + pk1_rho2_b) * grad_kernel
+            dv_particle = m_b * (pk1_rho2_a + pk1_rho2_b) * grad_kernel
 
-            @inbounds dv_penalty_force!(dv_particle, penalty_force, particle, neighbor,
-                                        initial_pos_diff, initial_distance,
-                                        current_pos_diff, current_distance,
-                                        system, m_a, m_b, rho_a, rho_b, F_a, F_b)
+            dv_particle = @inbounds dv_penalty_force(dv_particle, penalty_force,
+                                                     particle, neighbor,
+                                                     initial_pos_diff, initial_distance,
+                                                     current_pos_diff, current_distance,
+                                                     system, m_a, m_b, rho_a, rho_b,
+                                                     F_a, F_b)
 
-            @inbounds dv_viscosity_tlsph!(dv_particle, system, v_system, particle, neighbor,
-                                          current_pos_diff, current_distance,
-                                          m_a, m_b, rho_a, rho_b, F_a, grad_kernel)
+            dv_particle = @inbounds dv_viscosity_tlsph(dv_particle, system, v_system,
+                                                       particle, neighbor,
+                                                       current_pos_diff, current_distance,
+                                                       m_a, m_b, rho_a, rho_b, F_a,
+                                                       grad_kernel)
+
+            # Skip neighbors with the same position because the kernel gradient is zero.
+            return ifelse(initial_distance < almostzero, zero(dv_particle), dv_particle)
         end
 
         for i in 1:ndims(system)
-            @inbounds dv[i, particle] += dv_particle[][i]
+            @inbounds dv[i, particle] += dv_particle_[i]
         end
 
         # TODO continuity equation for boundary model with `ContinuityDensity`?
