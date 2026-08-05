@@ -4,7 +4,9 @@
 # the density using the continuity equation.
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
-                   particle_system::WeaklyCompressibleSPHSystem, neighbor_system, semi)
+                   particle_system::WeaklyCompressibleSPHSystem, neighbor_system, semi;
+                   eachparticle=each_integrated_particle(particle_system),
+                   kwargs...)
     (; density_calculator, correction) = particle_system
 
     sound_speed = system_sound_speed(particle_system)
@@ -25,7 +27,7 @@ function interact!(dv, v_particle_system, u_particle_system,
     compact_support_ = compact_support(particle_system, neighbor_system)
     almostzero = sqrt(eps(compact_support_^2))
 
-    @threaded semi for particle in each_integrated_particle(particle_system)
+    @threaded semi for particle in eachparticle
         # We are looping over the particles of `particle_system`, so it is guaranteed
         # that `particle` is in bounds of `particle_system`.
         m_a = @inbounds hydrodynamic_mass(particle_system, particle)
