@@ -2,7 +2,7 @@
     @testset verbose=true "show" begin
         callback = InfoCallback(interval=10)
 
-        show_compact = "InfoCallback(interval=10)"
+        show_compact = "InfoCallback(interval=10, flush=false)"
         @test repr(callback) == show_compact
 
         show_box = """
@@ -10,6 +10,21 @@
         │ InfoCallback                                                                                     │
         │ ════════════                                                                                     │
         │ interval: ……………………………………………………… 10                                                               │
+        │ flush: ……………………………………………………………… no                                                               │
+        └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
+        @test repr("text/plain", callback) == show_box
+
+        callback = InfoCallback(interval=11, flush=true)
+
+        show_compact = "InfoCallback(interval=11, flush=true)"
+        @test repr(callback) == show_compact
+
+        show_box = """
+        ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+        │ InfoCallback                                                                                     │
+        │ ════════════                                                                                     │
+        │ interval: ……………………………………………………… 11                                                               │
+        │ flush: ……………………………………………………………… yes                                                              │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", callback) == show_box
     end
@@ -27,8 +42,8 @@
         integrator = (; p=(; semi),
                       opts=(;
                             callback=(; continuous_callbacks, discrete_callbacks),
-                            adaptive=true, abstol=1e-2, reltol=1e-1,
-                            controller=:controller),
+                            adaptive=true, abstol=1e-2, reltol=1e-1),
+                      controller_cache=(; controller=:controller),
                       alg=Val(:alg),
                       sol=(; prob=(; tspan=(0.1, 0.5))))
 
@@ -101,7 +116,7 @@
                       sol=(; prob=(; tspan=(0.0, 30.0))))
 
         TrixiParticles.isfinished(::NamedTuple) = false
-        TrixiParticles.u_modified!(::NamedTuple, _) = nothing
+        TrixiParticles.derivative_discontinuity!(::NamedTuple, _) = nothing
 
         expected = "#timesteps:    453 │ Δt: 1.4548e-03 │ sim. time: 2.3420e+01 (78.067%)  │ run time: 1.0000e+100 s\n"
 
@@ -127,14 +142,59 @@
         integrator = (; t=23.0,
                       stats=(; naccept=453),
                       iter=472,
-                      dt=1e-3)
+                      dt=1e-3,
+                      p=(; split_integration_data=nothing))
 
         TrixiParticles.isfinished(::NamedTuple) = true
-        TrixiParticles.u_modified!(::NamedTuple, _) = nothing
+        TrixiParticles.derivative_discontinuity!(::NamedTuple, _) = nothing
 
         expected = """
         ────────────────────────────────────────────────────────────────────────────────────────────────────
-        Trixi simulation finished.  Final time: 23.0  Time steps: 453 (accepted), 472 (total)
+        Trixi simulation finished.
+          Final time:                           23.0
+          Time steps:                            453 (accepted)        472 (total)
+        ────────────────────────────────────────────────────────────────────────────────────────────────────
+
+        ────────────────────────────────────────────────────────────────────
+        TrixiParticles.jl          Time                    Allocations"""
+
+        # Redirect `stdout` to a string
+        pipe = Pipe()
+        redirect_stdout(pipe) do
+            callback.affect!(integrator)
+        end
+        close(pipe.in)
+        output = String(read(pipe))
+
+        @test startswith(output, expected)
+    end
+
+    @testset verbose=true "affect! finished with split integration" begin
+        callback = InfoCallback()
+
+        # Set `start_time` to -1e109 to make the output independent of the current time
+        callback.affect!.start_time = -1e109
+
+        # Build a mock `integrator`, which is a `NamedTuple` holding the fields that are
+        # accessed in `initialize_info_callback`.
+        integrator = (; t=23.0,
+                      stats=(; naccept=123),
+                      iter=150,
+                      dt=1e-3,
+                      p=(;
+                         split_integration_data=(;
+                                                 integrator=(; stats=(; naccept=938),
+                                                             iter=1023))))
+
+        TrixiParticles.isfinished(::NamedTuple) = true
+        TrixiParticles.derivative_discontinuity!(::NamedTuple, _) = nothing
+
+        expected = """
+        ────────────────────────────────────────────────────────────────────────────────────────────────────
+        Trixi simulation finished.
+          Final time:                           23.0
+          Time steps:                            123 (accepted)        150 (total)
+          Split integration time steps:          938 (accepted)       1023 (total)
         ────────────────────────────────────────────────────────────────────────────────────────────────────
 
         ────────────────────────────────────────────────────────────────────

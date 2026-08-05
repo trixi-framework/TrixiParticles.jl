@@ -5,7 +5,9 @@ abstract type AbstractShiftingTechnique end
 
 # WARNING: Be careful if defining this function for a specific system type.
 # The version for a specific system type will override this generic version.
-requires_update_callback(system) = requires_update_callback(shifting_technique(system))
+function requires_update_callback(system, semi)
+    return requires_update_callback(shifting_technique(system))
+end
 requires_update_callback(::Nothing) = false
 requires_update_callback(::AbstractShiftingTechnique) = false
 
@@ -521,8 +523,8 @@ function particle_shifting_from_callback!(u_ode,
         apply_particle_shifting!(u_ode, shifting, system, semi, integrator.dt)
     end
 
-    # Tell OrdinaryDiffEq that `integrator.u` has been modified
-    u_modified!(integrator, true)
+    # Particle shifting updates the ODE state and introduces a derivative discontinuity.
+    derivative_discontinuity!(integrator, true)
 
     return u_ode
 end

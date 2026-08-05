@@ -272,6 +272,61 @@
             end
         end
 
+        @trixi_testset "fsi/dam_break_plate_2d.jl velocity averaging" begin
+            function test_velocity_averaging_example(; extra_callback)
+                @trixi_test_nowarn trixi_include(@__MODULE__,
+                                                 joinpath(examples_dir(), "fsi",
+                                                          "dam_break_plate_2d.jl"),
+                                                 # Use rounded dimensions to avoid warnings
+                                                 initial_fluid_size=(0.15, 0.30),
+                                                 # Move plate closer to be able to use a shorter
+                                                 # tspan and make CI faster.
+                                                 plate_position=(0.2, 0.0),
+                                                 tspan=(0.0, 0.2),
+                                                 velocity_averaging=VelocityAveraging(time_constant=1e-4),
+                                                 saving_callback=nothing,
+                                                 extra_callback=extra_callback) [
+                    r"\[ Info: To create the self-interaction neighborhood search.*\n"
+                ]
+                sol_ = @invokelatest (@__MODULE__).sol
+                @test sol_.retcode == ReturnCode.Success
+
+                # Verify that velocity averaging is actually used.
+                system = sol_.prob.p.semi.systems[3]
+                @test system isa TotalLagrangianSPHSystem
+                # Test that `current_velocity` is not the same as `velocity_for_viscosity`.
+                # `current_velocity` should fail because it tries to access `v`, for which
+                # we passed `nothing`.
+                @test_throws "no method" TrixiParticles.current_velocity(nothing, system, 1)
+                @test !iszero(TrixiParticles.velocity_for_viscosity(nothing, system, 1))
+            end
+
+            @testset "no update callback" begin
+                str = "`UpdateCallback` is required"
+                @test_throws str test_velocity_averaging_example(; extra_callback=nothing)
+            end
+
+            @testset "without split integration" begin
+                test_velocity_averaging_example(; extra_callback=UpdateCallback())
+            end
+
+            @testset "split integration before UpdateCallback" begin
+                split_integration = SplitIntegrationCallback(CarpenterKennedy2N54(williamson_condition=false),
+                                                             dt=1e-4)
+                test_velocity_averaging_example(;
+                                                extra_callback=CallbackSet(split_integration,
+                                                                           UpdateCallback()))
+            end
+
+            @testset "UpdateCallback before split integration" begin
+                split_integration = SplitIntegrationCallback(CarpenterKennedy2N54(williamson_condition=false),
+                                                             dt=1e-4)
+                test_velocity_averaging_example(;
+                                                extra_callback=CallbackSet(UpdateCallback(),
+                                                                           split_integration))
+            end
+        end
+
         @trixi_testset "fsi/dam_break_plate_2d.jl with SortingCallback" begin
             @trixi_test_nowarn trixi_include(@__MODULE__,
                                              joinpath(examples_dir(), "fsi",
@@ -572,8 +627,8 @@
                                              joinpath(examples_dir(), "preprocessing",
                                                       "packing_2d.jl"),
                                              particle_spacing=0.4)
-            expected_coordinates = [-0.540548 -0.189943 0.191664 0.542741 -0.629391 -0.196159 0.197725 0.63081 -0.629447 -0.196158 0.19779 0.631121 -0.540483 -0.190015 0.191345 0.540433;
-                                    -0.541127 -0.630201 -0.630119 -0.539294 -0.190697 -0.196942 -0.196916 -0.190324 0.190875 0.197074 0.196955 0.190973 0.541206 0.630323 0.630178 0.541314]
+            expected_coordinates = [-0.540548 -0.189649 0.19137 0.542738 -0.63052 -0.196161 0.197719 0.631925 -0.630577 -0.19616 0.197787 0.632248 -0.540485 -0.189726 0.191038 0.540435;
+                                    -0.541127 -0.63133 -0.631244 -0.539296 -0.190402 -0.196943 -0.196917 -0.190013 0.190581 0.197074 0.19695 0.190685 0.541204 0.631451 0.6313 0.541311]
 
             @test isapprox(packed_ic.coordinates, expected_coordinates, atol=1e-5)
         end

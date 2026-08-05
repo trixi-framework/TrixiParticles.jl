@@ -9,7 +9,6 @@
 # `Adapt.@adapt_structure` automatically generates the `adapt` function for our custom types.
 Adapt.@adapt_structure InitialCondition
 Adapt.@adapt_structure WeaklyCompressibleSPHSystem
-Adapt.@adapt_structure DensityDiffusionAntuono
 Adapt.@adapt_structure EntropicallyDampedSPHSystem
 Adapt.@adapt_structure WallBoundarySystem
 Adapt.@adapt_structure BoundaryModelDummyParticles
