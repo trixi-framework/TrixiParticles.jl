@@ -21,6 +21,30 @@
     TrixiParticles.compact_support(::System1, neighbor) = 0.2
     TrixiParticles.compact_support(::System2, neighbor) = 0.2
 
+    function TrixiParticles.interact!(dv, v_system, u_system, v_neighbor, u_neighbor,
+                                      system::System1, neighbor::System1, semi; kwargs...)
+        dv[1, 1] += 1
+        return dv
+    end
+
+    function TrixiParticles.interact!(dv, v_system, u_system, v_neighbor, u_neighbor,
+                                      system::System1, neighbor::System2, semi; kwargs...)
+        dv[1, 1] += 10
+        return dv
+    end
+
+    function TrixiParticles.interact!(dv, v_system, u_system, v_neighbor, u_neighbor,
+                                      system::System2, neighbor::System1, semi; kwargs...)
+        dv[1, 1] += 100
+        return dv
+    end
+
+    function TrixiParticles.interact!(dv, v_system, u_system, v_neighbor, u_neighbor,
+                                      system::System2, neighbor::System2, semi; kwargs...)
+        dv[1, 1] += 1000
+        return dv
+    end
+
     @testset verbose=true "Constructor" begin
         # No neighborhood search.
         semi = Semidiscretization(system1, system2, neighborhood_search=nothing)
@@ -87,6 +111,15 @@
         @test_throws ArgumentError Semidiscretization(system1, system2,
                                                       neighborhood_search=nothing,
                                                       neighborhood_search_handler=handler)
+    end
+
+    @testset verbose=true "foreach_system" begin
+        systems = (1, 2)
+        visited = [0, 0]
+        TrixiParticles.foreach_system(systems) do system
+            visited[system] += 1
+        end
+        @test visited == [1, 1]
     end
 
     @testset verbose=true "Check Configuration" begin
@@ -193,6 +226,295 @@
         end
     end
 
+    @testset verbose=true "Interaction Matrix" begin
+        # Mock custom interactions used as `interaction_matrix` entries. Their distinct
+        # derivative sentinels verify that split integration routes each ordered pair through
+        # the matrix.
+        function test_interaction(dv, v_system, u_system, v_neighbor, u_neighbor, system,
+                                  neighbor, semi; kwargs...)
+            # Use a contribution distinct from the default mock `interact!` methods.
+            dv[1, 1] += 10_000
+            return dv
+        end
+
+        function test_cross_interaction(dv, v_system, u_system, v_neighbor, u_neighbor,
+                                        system, neighbor, semi; kwargs...)
+            dv[1, 1] += 100_000
+            return dv
+        end
+
+        function zero_ode_state(semi)
+            n_u = sum(TrixiParticles.u_nvariables(system) *
+                      TrixiParticles.n_integrated_particles(system)
+                      for system in semi.systems)
+            n_v = sum(TrixiParticles.v_nvariables(system) *
+                      TrixiParticles.n_integrated_particles(system)
+                      for system in semi.systems)
+
+            v_ode = zeros(n_v)
+            u_ode = zeros(n_u)
+            dv_ode = zero(v_ode)
+
+            return v_ode, u_ode, dv_ode
+        end
+
+        function initialized_ode_state(semi)
+            v_ode, u_ode, dv_ode = zero_ode_state(semi)
+
+            TrixiParticles.foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
+                TrixiParticles.write_v0!(v, system)
+                TrixiParticles.write_u0!(u, system)
+            end
+
+            return v_ode, u_ode, dv_ode
+        end
+
+        function system_dv(dv_ode, semi, system_index)
+            system = semi.systems[system_index]
+            return Array(TrixiParticles.wrap_v(dv_ode, system, semi))
+        end
+
+        function make_tlsph_fluid_systems()
+            kernel = SchoenbergCubicSplineKernel{2}()
+            smoothing_length = 1.0
+            state_equation = StateEquationCole(sound_speed=10.0,
+                                               reference_density=1000.0,
+                                               exponent=7)
+
+            structure_ic = InitialCondition(; coordinates=reshape([0.0, 0.0], 2, 1),
+                                            velocity=reshape([0.0, 0.0], 2, 1),
+                                            density=[1000.0],
+                                            particle_spacing=1.0)
+            boundary_model = BoundaryModelDummyParticles(structure_ic.density,
+                                                         structure_ic.mass,
+                                                         SummationDensity(), kernel,
+                                                         smoothing_length;
+                                                         state_equation,
+                                                         correction=nothing)
+            structure = TotalLagrangianSPHSystem(structure_ic;
+                                                 smoothing_kernel=kernel,
+                                                 smoothing_length,
+                                                 young_modulus=1.0,
+                                                 poisson_ratio=0.3,
+                                                 boundary_model)
+
+            fluid_ic = InitialCondition(; coordinates=reshape([0.5, 0.0], 2, 1),
+                                        velocity=reshape([0.0, 0.0], 2, 1),
+                                        density=[1000.0],
+                                        particle_spacing=1.0)
+            fluid = WeaklyCompressibleSPHSystem(fluid_ic;
+                                                density_calculator=ContinuityDensity(),
+                                                state_equation,
+                                                smoothing_kernel=kernel,
+                                                smoothing_length)
+
+            return structure, fluid
+        end
+
+        function make_shepard_fluid_system(x_coordinate)
+            kernel = SchoenbergCubicSplineKernel{2}()
+            smoothing_length = 1.0
+            state_equation = StateEquationCole(sound_speed=10.0,
+                                               reference_density=1000.0,
+                                               exponent=7)
+            initial_condition = InitialCondition(;
+                                                 coordinates=reshape([x_coordinate, 0.0],
+                                                                     2, 1),
+                                                 velocity=reshape([0.0, 0.0], 2, 1),
+                                                 density=[1000.0],
+                                                 particle_spacing=1.0)
+            system = WeaklyCompressibleSPHSystem(initial_condition;
+                                                 density_calculator=SummationDensity(),
+                                                 correction=ShepardKernelCorrection(),
+                                                 state_equation,
+                                                 smoothing_kernel=kernel,
+                                                 smoothing_length)
+            system.cache.density .= initial_condition.density
+
+            return system
+        end
+
+        function shepard_correction_coefficient(systems, interaction_matrix)
+            semi = Semidiscretization(systems...; neighborhood_search=nothing,
+                                      interaction_matrix)
+            v_ode, u_ode, _ = initialized_ode_state(semi)
+            system = semi.systems[1]
+            u = TrixiParticles.wrap_u(u_ode, system, semi)
+
+            TrixiParticles.compute_correction_values!(system,
+                                                      TrixiParticles.system_correction(system),
+                                                      u, v_ode, u_ode, semi)
+
+            return copy(system.cache.kernel_correction_coefficient), semi
+        end
+
+        @testset "constructor" begin
+            semi = Semidiscretization(system1, system2, neighborhood_search=nothing)
+            @test semi.interaction_matrix == trues(2, 2)
+
+            @test_throws ArgumentError Semidiscretization(system1, system2;
+                                                          neighborhood_search=nothing,
+                                                          interaction_matrix=trues(1, 1))
+
+            @test_throws ArgumentError Semidiscretization(system1, system2;
+                                                          neighborhood_search=nothing,
+                                                          interaction_matrix=Any[true 1;
+                                                                                 false true])
+
+            semi_any_bool = Semidiscretization(system1, system2;
+                                               neighborhood_search=nothing,
+                                               interaction_matrix=Any[true false;
+                                                                      false true])
+            @test semi_any_bool.interaction_matrix isa Matrix{Bool}
+            @test semi_any_bool.interaction_matrix == [true false; false true]
+
+            matrix_parent = trues(3, 3)
+            interaction_matrix_view = @view matrix_parent[1:2, 1:2]
+            semi_matrix_view = Semidiscretization(system1, system2;
+                                                  neighborhood_search=nothing,
+                                                  interaction_matrix=interaction_matrix_view)
+            matrix_parent[1, 2] = false
+            @test semi_matrix_view.interaction_matrix isa Matrix{Bool}
+            @test axes(semi_matrix_view.interaction_matrix) ==
+                  (Base.OneTo(2), Base.OneTo(2))
+            @test semi_matrix_view.interaction_matrix == trues(2, 2)
+
+            abstract_union_matrix = Matrix{Union{Bool, Function}}(trues(2, 2))
+            semi_abstract_union = Semidiscretization(system1, system2;
+                                                     neighborhood_search=nothing,
+                                                     interaction_matrix=abstract_union_matrix)
+            @test semi_abstract_union.interaction_matrix isa Matrix{Bool}
+            @test semi_abstract_union.interaction_matrix == trues(2, 2)
+
+            interaction_matrix = Matrix{Union{Bool, typeof(test_interaction)}}(trues(2, 2))
+            interaction_matrix[1, 2] = test_interaction
+            semi_custom = Semidiscretization(system1, system2;
+                                             neighborhood_search=nothing,
+                                             interaction_matrix)
+            interaction_matrix[1, 2] = false
+
+            @test semi_custom.interaction_matrix[1, 2] === test_interaction
+
+            interaction_matrix_any = Any[true test_interaction;
+                                         false true]
+            semi_any_custom = Semidiscretization(system1, system2;
+                                                 neighborhood_search=nothing,
+                                                 interaction_matrix=interaction_matrix_any)
+            interaction_matrix_any[1, 2] = false
+
+            @test eltype(semi_any_custom.interaction_matrix) ==
+                  Union{Bool, typeof(test_interaction)}
+            @test semi_any_custom.interaction_matrix[1, 2] === test_interaction
+        end
+
+        @testset "disabled interactions are skipped" begin
+            interaction_matrix = Bool[true false
+                                      true true]
+            semi = Semidiscretization(system1, system2; neighborhood_search=nothing,
+                                      interaction_matrix)
+            v_ode, u_ode, dv_ode = zero_ode_state(semi)
+
+            TrixiParticles.system_interaction!(dv_ode, v_ode, u_ode, semi)
+
+            @test !TrixiParticles.has_system_interaction(semi.systems[1],
+                                                         semi.systems[2], semi)
+            @test TrixiParticles.has_system_interaction(semi.systems[2],
+                                                        semi.systems[1], semi)
+            @test system_dv(dv_ode, semi, 1)[1, 1] == 1
+            @test system_dv(dv_ode, semi, 2)[1, 1] == 1100
+        end
+
+        @testset "custom interaction function" begin
+            interaction_matrix = Matrix{Union{Bool, typeof(test_interaction)}}(trues(2, 2))
+            interaction_matrix[1, 2] = test_interaction
+            interaction_matrix[2, 1] = false
+
+            semi = Semidiscretization(system1, system2; neighborhood_search=nothing,
+                                      interaction_matrix)
+            v_ode, u_ode, dv_ode = zero_ode_state(semi)
+
+            TrixiParticles.system_interaction!(dv_ode, v_ode, u_ode, semi)
+
+            @test semi.interaction_matrix[1, 2] === test_interaction
+            @test system_dv(dv_ode, semi, 1)[1, 1] == 10_001
+            @test system_dv(dv_ode, semi, 2)[1, 1] == 1000
+        end
+
+        @testset "disabled interactions skip correction values" begin
+            all_enabled_coefficient,
+            _ = shepard_correction_coefficient((make_shepard_fluid_system(0.0),
+                                                make_shepard_fluid_system(0.5)),
+                                               trues(2, 2))
+
+            filtered_matrix = Bool[true false
+                                   true true]
+            filtered_coefficient,
+            semi_filtered = shepard_correction_coefficient((make_shepard_fluid_system(0.0),
+                                                            make_shepard_fluid_system(0.5)),
+                                                           filtered_matrix)
+
+            reference_coefficient,
+            _ = shepard_correction_coefficient((make_shepard_fluid_system(0.0),),
+                                               trues(1, 1))
+
+            @test !TrixiParticles.has_system_interaction(semi_filtered.systems[1],
+                                                         semi_filtered.systems[2],
+                                                         semi_filtered)
+            @test only(all_enabled_coefficient) > only(filtered_coefficient)
+            @test isapprox(only(filtered_coefficient), only(reference_coefficient))
+        end
+
+        @testset "split interaction uses original interaction matrix" begin
+            structure, fluid = make_tlsph_fluid_systems()
+            interaction_matrix = Matrix{Union{Bool, typeof(test_interaction)}}(trues(2, 2))
+            interaction_matrix[1, 2] = test_interaction
+
+            semi = Semidiscretization(structure, fluid; neighborhood_search=nothing,
+                                      interaction_matrix)
+            semi_split = Semidiscretization(semi.systems[1]; neighborhood_search=nothing)
+            v_ode, u_ode, dv_ode = initialized_ode_state(semi)
+            _, _, dv_ode_split = initialized_ode_state(semi_split)
+
+            semi.integrate_tlsph[] = false
+            TrixiParticles.system_interaction!(dv_ode, v_ode, u_ode, semi)
+            @test system_dv(dv_ode, semi, 1)[1, 1] == 0
+
+            TrixiParticles.other_interaction_split!(dv_ode_split, semi, v_ode, u_ode,
+                                                    semi_split)
+
+            @test system_dv(dv_ode_split, semi_split, 1)[1, 1] == 10_000
+        end
+
+        @testset "split interaction separates TLSPH self and cross interactions" begin
+            structure1 = first(make_tlsph_fluid_systems())
+            structure2 = first(make_tlsph_fluid_systems())
+            interaction_matrix = Matrix{Union{Bool, typeof(test_interaction),
+                                              typeof(test_cross_interaction)}}(falses(2, 2))
+            interaction_matrix[1, 1] = test_interaction
+            interaction_matrix[1, 2] = test_cross_interaction
+
+            semi = Semidiscretization(structure1, structure2; neighborhood_search=nothing,
+                                      interaction_matrix)
+            semi_split = Semidiscretization(semi.systems...; neighborhood_search=nothing)
+            v_ode, u_ode, _ = initialized_ode_state(semi)
+            v_ode_split, u_ode_split, dv_ode_split = initialized_ode_state(semi_split)
+
+            semi.integrate_tlsph[] = false
+            TrixiParticles.self_interaction_split!(dv_ode_split, v_ode_split,
+                                                   u_ode_split, semi_split, semi)
+
+            @test system_dv(dv_ode_split, semi_split, 1)[1, 1] == 10_000
+            @test system_dv(dv_ode_split, semi_split, 2)[1, 1] == 0
+
+            fill!(dv_ode_split, 0)
+            TrixiParticles.other_interaction_split!(dv_ode_split, semi, v_ode, u_ode,
+                                                    semi_split)
+
+            @test system_dv(dv_ode_split, semi_split, 1)[1, 1] == 100_000
+            @test system_dv(dv_ode_split, semi_split, 2)[1, 1] == 0
+        end
+    end
+
     @testset verbose=true "`show`" begin
         semi = Semidiscretization(system1, system2, neighborhood_search=nothing)
 
@@ -211,6 +533,37 @@
         │ coordinates eltype: …………………………… Float32                                                          │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", semi) == show_box
+
+        struct ShowInteraction end
+        (::ShowInteraction)(args...; kwargs...) = nothing
+
+        interaction = ShowInteraction()
+        interaction_matrix = Matrix{Union{Bool, typeof(interaction)}}(trues(2, 2))
+        interaction_matrix[1, 2] = false
+        interaction_matrix[2, 1] = interaction
+        semi_custom = Semidiscretization(system1, system2; neighborhood_search=nothing,
+                                         interaction_matrix)
+
+        show_custom_compact = "Semidiscretization($System1(), $System2(), " *
+                              "neighborhood_search=TrivialNeighborhoodSearch, " *
+                              "interaction_matrix=1 disabled, 1 custom)"
+        @test repr(semi_custom) == show_custom_compact
+
+        show_custom_box = """
+        ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+        │ Semidiscretization                                                                               │
+        │ ══════════════════                                                                               │
+        │ #spatial dimensions: ………………………… 3                                                                │
+        │ #systems: ……………………………………………………… 2                                                                │
+        │ neighborhood search: ………………………… TrivialNeighborhoodSearch                                        │
+        │ total #particles: ………………………………… 5                                                                │
+        │ eltype: …………………………………………………………… Float64                                                          │
+        │ coordinates eltype: …………………………… Float32                                                          │
+        │ interaction matrix: …………………………… 1 disabled, 1 custom                                             │
+        │ disabled interactions: …………………… 1 -> 2                                                           │
+        │ custom pairs: …………………………………………… 2 -> 1 (ShowInteraction)                                         │
+        └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
+        @test repr("text/plain", semi_custom) == show_custom_box
     end
 
     @testset verbose=true "Source Terms" begin

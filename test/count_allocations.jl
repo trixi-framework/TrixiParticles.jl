@@ -14,7 +14,8 @@ function copy_semi_with_no_update_nhs(semi)
     neighborhood_search_handler = no_update_nhs_handler(semi.neighborhood_search_handler)
 
     return Semidiscretization(semi.systems, semi.ranges_u, semi.ranges_v,
-                              neighborhood_search_handler, SerialBackend(), Ref(true),
+                              neighborhood_search_handler, semi.interaction_matrix,
+                              SerialBackend(), Ref(true),
                               Ref(true))
 end
 
