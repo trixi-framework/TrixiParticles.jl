@@ -6,6 +6,13 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ## Version 0.5.4
 
+### API Changes
+
+- Akinci cohesion and adhesion kernels now use dimensionally consistent, integral-matched
+  normalizations in 2D. To preserve previous pairwise kernel contributions at compact-support
+  radius `h_c`, multiply the surface-tension coefficient by `627 / (790 * h_c)` and the
+  adhesion coefficient by `42 / (65 * h_c)`; migrated coefficients are resolution-independent.
+
 ### Important Bugfixes
 
 - Hardened surface tension model configuration by validating coefficients, avoiding unnecessary
