@@ -1,0 +1,5 @@
+kind,variant,target,initial_angle,requested_particles,particle_count,control_acceleration,acceleration,contact_shape_acceleration,expected_direction,sign_pass
+force_sign,ghost_geometric,60.0,90.0,1500,1508,0.006340809670341996,0.007883430057117386,0.0015426203867753901,-1.0,false
+force_sign,ghost_geometric,90.0,60.0,1500,1480,0.025617239827415973,0.021089704525308152,-0.004527535302107821,1.0,false
+force_sign,ghost_geometric,90.0,120.0,1500,1492,-0.003958004005173301,-0.00424373859189013,-0.00028573458671682893,-1.0,true
+force_sign,ghost_geometric,120.0,90.0,1500,1508,0.006322566937236813,0.00875141505196569,0.0024288481147288774,1.0,true

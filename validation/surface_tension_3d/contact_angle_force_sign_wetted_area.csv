@@ -1,0 +1,5 @@
+kind,variant,target,initial_angle,requested_particles,particle_count,control_acceleration,wall_acceleration,acceleration,expected_direction,wall_zero_at_90,sign_pass,measure_eligible
+force_sign,wetted_area,60.0,90.0,1500,1508,0.006340809670341996,-0.014323580254964195,-0.007982770584622198,-1.0,,true,false
+force_sign,wetted_area,90.0,60.0,1500,1480,0.025617239827415973,0.0,0.025617239827415973,1.0,true,true,false
+force_sign,wetted_area,90.0,120.0,1500,1492,-0.003958004005173301,0.0,-0.003958004005173301,-1.0,true,true,false
+force_sign,wetted_area,120.0,90.0,1500,1508,0.006322566937236813,0.014260902451901761,0.020583469389138576,1.0,,true,false

@@ -231,6 +231,36 @@ function update_boundary_interpolation!(system::WallBoundarySystem, v, u, v_ode,
     return system
 end
 
+function reset_interaction_caches!(system::WallBoundarySystem)
+    boundary_cache = wetted_area_boundary_cache(system)
+    if !isnothing(boundary_cache) && boundary_cache.wetted_area_active[]
+        set_zero!(boundary_cache.wetted_area_reaction)
+        set_zero!(boundary_cache.wetted_area_reaction_buffer)
+    end
+    return system
+end
+
+function finalize_interaction!(system::WallBoundarySystem,
+                               dv, v, u, dv_ode, v_ode, u_ode, semi)
+    boundary_cache = wetted_area_boundary_cache(system)
+    if isnothing(boundary_cache) || !boundary_cache.wetted_area_active[]
+        return system
+    end
+
+    reaction = boundary_cache.wetted_area_reaction
+    reaction_buffer = boundary_cache.wetted_area_reaction_buffer
+    @threaded semi for particle in eachparticle(system)
+        for dim in 1:ndims(system)
+            value = zero(eltype(system))
+            for thread in axes(reaction_buffer, 3)
+                @inbounds value += reaction_buffer[dim, particle, thread]
+            end
+            @inbounds reaction[dim, particle] = value
+        end
+    end
+    return system
+end
+
 function write_u0!(u0, ::WallBoundarySystem)
     return u0
 end

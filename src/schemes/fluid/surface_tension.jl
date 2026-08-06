@@ -16,9 +16,9 @@ end
 This model only implements the cohesion force of the Akinci [Akinci2013](@cite) surface tension model.
 It does not require a surface-normal method.
 
-The published Akinci cohesion kernel uses a three-dimensional normalization. In two-dimensional
-simulations, `surface_tension_coefficient` is therefore an empirical numerical parameter and
-may need to be adjusted when changing the resolution.
+The three-dimensional cohesion kernel uses the normalization published by Akinci et al. In two
+dimensions, TrixiParticles.jl uses an integral-matched extension that is independent of particle
+resolution.
 
 See [`surface_tension`](@ref) for more details.
 
@@ -36,6 +36,62 @@ struct CohesionForceAkinci{ELTYPE <: Real} <: AkinciTypeSurfaceTension
     end
 end
 
+const AKINCI_COHESION_SURFACE_ENERGY_FACTOR_3D = 21 / 7040
+
+@doc raw"""
+    SurfaceTensionAkinciCohesionPhysical(; surface_tension_coefficient,
+                                          reference_density)
+
+Three-dimensional, cohesion-only Akinci model with a physical surface tension coefficient.
+The model uses the central pair force of [`CohesionForceAkinci`](@ref), but converts the
+surface tension ``\sigma`` in N/m to the internal Akinci coefficient at the current compact
+support radius ``h_c`` according to
+
+```math
+\gamma = \frac{7040\sigma}{21\rho_0^2h_c^2}.
+```
+
+This conversion follows from the continuum surface energy of a planar interface. It removes
+the support-radius dependence of the original coefficient, requires no surface normals, and
+preserves the pair force's exact linear- and angular-momentum conservation.
+
+For wall interaction, the boundary's `adhesion_coefficient` is a dimensionless multiplier of
+the same cohesion kernel. The Young-Dupre mapping for a desired contact angle ``\theta`` is
+`adhesion_coefficient = (1 + cosd(theta)) / 2`. Thus, zero represents ``180^\circ`` and one
+represents ``0^\circ``. Values outside this range can be used for empirical tuning.
+
+This model is only supported in three dimensions. The original [`CohesionForceAkinci`](@ref)
+remains available when an empirical coefficient or a two-dimensional model is desired.
+
+# Keywords
+- `surface_tension_coefficient`: Finite, non-negative physical surface tension ``\sigma`` in
+  N/m. Zero disables fluid-fluid cohesion.
+- `reference_density`: Finite, positive rest density ``\rho_0`` in kg/m^3.
+"""
+struct SurfaceTensionAkinciCohesionPhysical{ELTYPE <: Real} <:
+       AkinciTypeSurfaceTension
+    surface_tension_coefficient :: ELTYPE
+    reference_density           :: ELTYPE
+
+    function SurfaceTensionAkinciCohesionPhysical(; surface_tension_coefficient,
+                                                  reference_density)
+        coefficient = validate_surface_tension_coefficient(surface_tension_coefficient)
+        if !(reference_density isa Real) || !isfinite(reference_density) ||
+           reference_density <= 0
+            throw(ArgumentError("`reference_density` must be a finite, positive real number"))
+        end
+
+        coefficient_, reference_density_ = promote(coefficient, reference_density)
+        new{typeof(coefficient_)}(coefficient_, reference_density_)
+    end
+end
+
+@inline function akinci_physical_cohesion_coefficient(surface_tension, support_radius)
+    factor = oftype(support_radius, AKINCI_COHESION_SURFACE_ENERGY_FACTOR_3D)
+    return surface_tension.surface_tension_coefficient /
+           (factor * surface_tension.reference_density^2 * support_radius^2)
+end
+
 @doc raw"""
     SurfaceTensionAkinci(surface_tension_coefficient=1.0)
 
@@ -44,9 +100,9 @@ principles outlined by Akinci [Akinci2013](@cite). This model is instrumental in
 behaviors of fluid surfaces, such as droplet formation and the dynamics of merging or
 separation, by utilizing intra-particle forces.
 
-The published Akinci cohesion kernel uses a three-dimensional normalization. In two-dimensional
-simulations, `surface_tension_coefficient` is therefore an empirical numerical parameter and
-may need to be adjusted when changing the resolution.
+The three-dimensional cohesion and adhesion kernels use the normalizations published by Akinci
+et al. In two dimensions, TrixiParticles.jl uses integral-matched extensions that are independent
+of particle resolution.
 
 See [`surface_tension`](@ref) for more details.
 
@@ -71,12 +127,17 @@ It calculates surface tension forces based on the curvature of the fluid interfa
 using particle normals and their divergence, making it suitable for simulating
 phenomena like droplet formation and capillary wave dynamics.
 
+The one-phase color-gradient magnitude is retained as a normalized surface delta. The local
+continuum-surface-force acceleration is evaluated once per particle as
+``-sigma * kappa * delta_s * n_hat / rho``. Smooth interface activity is shared with
+[`SurfaceTensionMomentumMorris`](@ref), avoiding discrete normal and curvature-stencil switches.
+
 See [`surface_tension`](@ref) for more details.
 
 
 # Keywords
-- `surface_tension_coefficient=1.0`: Finite, non-negative coefficient adjusting the
-  magnitude of surface tension forces. Zero disables the force.
+- `surface_tension_coefficient=1.0`: Finite, non-negative physical surface tension in N/m.
+  Zero disables the force.
 """
 struct SurfaceTensionMorris{ELTYPE <: Real} <: AbstractSurfaceTension
     surface_tension_coefficient::ELTYPE
@@ -91,25 +152,58 @@ function create_cache_surface_tension(surface_tension, ELTYPE, NDIMS, nparticles
     return (;)
 end
 
+function create_cache_surface_tension(::SurfaceTensionAkinciCohesionPhysical, ELTYPE,
+                                      NDIMS, nparticles)
+    if NDIMS != 3
+        throw(ArgumentError("`SurfaceTensionAkinciCohesionPhysical` is only supported in three dimensions"))
+    end
+
+    return (;)
+end
+
+function create_cache_surface_tension(::AkinciTypeSurfaceTension, ELTYPE, NDIMS,
+                                      nparticles)
+    if NDIMS != 2 && NDIMS != 3
+        throw(ArgumentError("Akinci surface tension is only supported in two and three dimensions"))
+    end
+
+    return (;)
+end
+
 function create_cache_surface_tension(::SurfaceTensionMorris, ELTYPE, NDIMS, nparticles)
     curvature = Array{ELTYPE, 1}(undef, nparticles)
-    return (; curvature)
+    delta_s = Array{ELTYPE, 1}(undef, nparticles)
+    interface_activity = Array{ELTYPE, 1}(undef, nparticles)
+    support_moment = Array{ELTYPE, 1}(undef, nparticles)
+    return (; curvature, delta_s, interface_activity, support_moment)
 end
 
 @doc raw"""
     SurfaceTensionMomentumMorris(surface_tension_coefficient=1.0)
 
-This model implements the momentum-conserving surface tension approach outlined by Morris
-[Morris2000](@cite). It calculates surface tension forces using the divergence of a stress
-tensor, ensuring exact conservation of linear momentum. This method is particularly
-useful for simulations where momentum conservation is critical, though it may require
-numerical adjustments at higher resolutions.
+This model implements the conservative continuum-surface-stress (CSS) approach outlined by
+Morris [Morris2000](@cite). It computes the divergence of
+``\sigma\delta_s(I - \hat{n}\otimes\hat{n})`` with the same symmetric pair operator used by
+the fluid momentum equation. This avoids an explicit curvature estimate and conserves linear
+momentum exactly for constant smoothing length.
+
+The unnormalized color-gradient magnitude is retained as the surface delta ``\delta_s`` before
+the gradient is converted to a unit normal. The stress projection is evaluated directly during
+the fluid interaction, so no per-particle stress tensor or global reduction is required. A
+symmetric scalar reproducing correction is accumulated during the normal pass and applied to the
+stress divergence. It restores first-order scaling near truncated kernel support without another
+neighbor traversal or loss of pairwise momentum conservation.
+
+This is a one-phase free-surface formulation. Validated wetted-wall energy can be enabled
+explicitly with
+`ColorfieldSurfaceNormal(contact_model=WettedAreaContactAngle(theta))`; omitting the contact model
+preserves the no-wetting default.
 
 See [`surface_tension`](@ref) for more details.
 
 # Keywords
-- `surface_tension_coefficient=1.0`: Finite, non-negative coefficient adjusting the
-  strength of surface tension forces. Zero disables the force.
+- `surface_tension_coefficient=1.0`: Finite, non-negative physical surface tension in N/m.
+  Zero disables the force.
 """
 struct SurfaceTensionMomentumMorris{ELTYPE <: Real} <: AbstractSurfaceTension
     surface_tension_coefficient::ELTYPE
@@ -124,18 +218,24 @@ end
 # stages do not need to duplicate concrete model checks.
 @inline requires_surface_normal(::Nothing) = false
 @inline requires_surface_normal(::CohesionForceAkinci) = false
+@inline requires_surface_normal(::SurfaceTensionAkinciCohesionPhysical) = false
 @inline requires_surface_normal(::Any) = true
 
 function create_cache_surface_tension(::SurfaceTensionMomentumMorris, ELTYPE, NDIMS,
                                       nparticles)
     delta_s = Array{ELTYPE, 1}(undef, nparticles)
-    # Allocate stress tensor for each particle: NDIMS x NDIMS x nparticles
-    stress_tensor = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
-    return (; stress_tensor, delta_s)
+    interface_activity = Array{ELTYPE, 1}(undef, nparticles)
+    divergence_correction = Array{ELTYPE, 1}(undef, nparticles)
+    return (; delta_s, interface_activity, divergence_correction)
 end
 
-@inline function stress_tensor(particle_system::AbstractFluidSystem, particle)
-    return extract_smatrix(particle_system.cache.stress_tensor, particle_system, particle)
+# `surface_normal` stores the unscaled colorfield gradient, which is also used by the Morris
+# models. Equation 3 in Akinci et al. uses the dimensionless normal from their equation 2,
+# whose prefactor `h` is the compact-support radius, not the kernel smoothing length.
+@inline function akinci_surface_normal(particle_system::AbstractFluidSystem, particle)
+    support_radius = compact_support(system_smoothing_kernel(particle_system),
+                                     smoothing_length(particle_system, particle))
+    return support_radius * surface_normal(particle_system, particle)
 end
 
 # Note that `floating_point_number^integer_literal` is lowered to `Base.literal_pow`.
@@ -145,13 +245,29 @@ end
 # By using the `@fastpow` macro, we are consciously trading off some precision in the result
 # for enhanced computational speed. This is especially useful in scenarios where performance
 # is a higher priority than exact precision.
+@fastpow @inline function cohesion_kernel_normalization_akinci(support_radius, ::Val{2})
+    return oftype(support_radius, 25280 / (627 * pi)) / support_radius^8
+end
+
+@fastpow @inline function cohesion_kernel_normalization_akinci(support_radius, ::Val{3})
+    return oftype(support_radius, 32 / pi) / support_radius^9
+end
+
+@inline function adhesion_kernel_normalization_akinci(support_radius, ::Val{2})
+    return oftype(support_radius, 13 / 1200) /
+           (support_radius^2 * sqrt(sqrt(support_radius)))
+end
+
+@inline function adhesion_kernel_normalization_akinci(support_radius, ::Val{3})
+    return oftype(support_radius, 0.007) /
+           (support_radius^3 * sqrt(sqrt(support_radius)))
+end
+
 @fastpow @inline function cohesion_force_akinci(surface_tension, support_radius, m_b,
-                                                pos_diff, distance)
+                                                pos_diff, distance, dimensions)
     (; surface_tension_coefficient) = surface_tension
 
-    # Eq. 2
-    # This is the three-dimensional normalization published by Akinci et al. In 2D, the
-    # coefficient is an empirical numerical parameter; see the model docstring.
+    # Eq. 2, using the published normalization in 3D and an integral-matched one in 2D.
     # We only reach this function when `sqrt(eps()) < distance <= support_radius`
     if distance > 0.5 * support_radius
         # Attractive force
@@ -161,7 +277,7 @@ end
         # Repulsive force
         C = 2 * (support_radius - distance)^3 * distance^3 - support_radius^6 / 64.0
     end
-    C *= 32.0 / (pi * support_radius^9)
+    C *= cohesion_kernel_normalization_akinci(support_radius, dimensions)
 
     # Eq. 1 in acceleration form
     cohesion_force = -surface_tension_coefficient * m_b * C * pos_diff / distance
@@ -170,7 +286,7 @@ end
 end
 
 @inline function adhesion_force_akinci(surface_tension, support_radius, m_b, pos_diff,
-                                       distance, adhesion_coefficient)
+                                       distance, adhesion_coefficient, dimensions)
     distance >= support_radius && return zero(pos_diff)
 
     distance <= 0.5 * support_radius && return zero(pos_diff)
@@ -179,8 +295,7 @@ end
     radicand = 2 * (2 * distance - support_radius) *
                (support_radius - distance) / support_radius
     fourth_root = sqrt(sqrt(max(zero(radicand), radicand)))
-    normalization = convert(typeof(support_radius), 0.007) /
-                    (support_radius^3 * sqrt(sqrt(support_radius)))
+    normalization = adhesion_kernel_normalization_akinci(support_radius, dimensions)
     A = normalization * fourth_root
 
     # Eq. 6 in acceleration form with `m_b` being the boundary mass calculated as
@@ -217,7 +332,30 @@ end
 
     dv_particle[] += surface_tension_correction *
                      cohesion_force_akinci(surface_tension_a, support_radius, m_b,
-                                           pos_diff, distance)
+                                           pos_diff, distance, Val(ndims(particle_system)))
+
+    return dv_particle
+end
+
+@inline function surface_tension_force!(dv_particle,
+                                        surface_tension_a::SurfaceTensionAkinciCohesionPhysical,
+                                        surface_tension_b::SurfaceTensionAkinciCohesionPhysical,
+                                        particle_system::AbstractFluidSystem,
+                                        neighbor_system::AbstractFluidSystem,
+                                        particle, neighbor, pos_diff, distance, rho_a,
+                                        rho_b, grad_kernel,
+                                        surface_tension_correction)
+    distance^2 < eps(initial_smoothing_length(particle_system)^2) && return dv_particle
+
+    support_radius = compact_support(system_smoothing_kernel(particle_system),
+                                     smoothing_length(particle_system, particle))
+    coefficient = akinci_physical_cohesion_coefficient(surface_tension_a,
+                                                       support_radius)
+    cohesion = (; surface_tension_coefficient=coefficient)
+    m_b = hydrodynamic_mass(neighbor_system, neighbor)
+    dv_particle[] += surface_tension_correction *
+                     cohesion_force_akinci(cohesion, support_radius, m_b, pos_diff,
+                                           distance, Val(ndims(particle_system)))
 
     return dv_particle
 end
@@ -233,20 +371,20 @@ end
     (; smoothing_kernel) = particle_system
     (; surface_tension_coefficient) = surface_tension_a
 
-    smoothing_length_ = smoothing_length(particle_system, particle)
     # No surface tension with oneself. See `src/general/smoothing_kernels.jl` for more details.
     distance^2 < eps(initial_smoothing_length(particle_system)^2) && return dv_particle
 
     m_b = hydrodynamic_mass(neighbor_system, neighbor)
-    n_a = surface_normal(particle_system, particle)
-    n_b = surface_normal(neighbor_system, neighbor)
-    support_radius = compact_support(smoothing_kernel, smoothing_length_)
+    n_a = akinci_surface_normal(particle_system, particle)
+    n_b = akinci_surface_normal(neighbor_system, neighbor)
+    support_radius = compact_support(smoothing_kernel,
+                                     smoothing_length(particle_system, particle))
 
     dv_particle[] += surface_tension_correction *
                      cohesion_force_akinci(surface_tension_a, support_radius, m_b,
-                                           pos_diff, distance)
+                                           pos_diff, distance, Val(ndims(particle_system)))
     dv_particle[] -= surface_tension_correction * surface_tension_coefficient *
-                     (n_a - n_b) * smoothing_length_
+                     (n_a - n_b)
 
     return dv_particle
 end
@@ -258,71 +396,50 @@ end
                                         particle, neighbor, pos_diff, distance,
                                         rho_a, rho_b, grad_kernel,
                                         surface_tension_correction)
-    (; surface_tension_coefficient) = surface_tension_a
-
-    # No surface tension with oneself. See `src/general/smoothing_kernels.jl` for more details.
-    distance^2 < eps(initial_smoothing_length(particle_system)^2) && return dv_particle
-
-    n_a = surface_normal(particle_system, particle)
-    curvature_a = curvature(particle_system, particle)
-
-    dv_particle[] -= surface_tension_correction * surface_tension_coefficient / rho_a *
-                     curvature_a * n_a
-
+    # Morris CSF is a particle-local continuum force. It is added once outside the
+    # neighbor loop by `surface_tension_acceleration`.
     return dv_particle
 end
 
-function compute_stress_tensors!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
-    return system
+@inline function surface_tension_acceleration(surface_tension, particle_system, particle,
+                                              rho_a, vector_template)
+    return zero(vector_template)
 end
 
-# Section 6 in Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
-function compute_stress_tensors!(system::AbstractFluidSystem,
-                                 ::SurfaceTensionMomentumMorris,
-                                 v, u, v_ode, u_ode, semi, t)
-    (; cache) = system
-    (; delta_s, stress_tensor) = cache
+@inline function surface_tension_acceleration(surface_tension::SurfaceTensionMorris,
+                                              particle_system, particle, rho_a,
+                                              vector_template)
+    delta_s = @inbounds particle_system.cache.delta_s[particle]
+    iszero(delta_s) && return zero(vector_template)
 
-    # Reset surface stress_tensor
-    set_zero!(stress_tensor)
-
-    max_delta_s = maximum(delta_s)
-    NDIMS = ndims(system)
-
-    @trixi_timeit timer() "compute surface stress tensor" begin
-        @threaded semi for particle in each_integrated_particle(system)
-            normal = surface_normal(system, particle)
-            delta_s_particle = delta_s[particle]
-            if delta_s_particle > eps()
-                for i in 1:NDIMS, j in 1:NDIMS
-                    delta_ij = (i == j) ? 1 : 0
-                    stress_tensor[i, j,
-                                  particle] = delta_s_particle *
-                                              (delta_ij - normal[i] * normal[j]) -
-                                              delta_ij * max_delta_s
-                end
-            end
-        end
-    end
-
-    return system
+    normal = surface_tension_normal(particle_system, particle)
+    curvature_a = curvature(particle_system, particle)
+    return -surface_tension.surface_tension_coefficient / rho_a * curvature_a * delta_s *
+           normal
 end
 
-function compute_surface_delta_function!(system, surface_tension, semi)
-    return system
+@inline function contact_angle_acceleration(surface_tension, particle_system,
+                                            surface_normal_method, particle, rho_a,
+                                            vector_template)
+    return zero(vector_template)
 end
 
-# Eq. 6 in Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
-function compute_surface_delta_function!(system, ::SurfaceTensionMomentumMorris, semi)
-    (; cache) = system
-    (; delta_s) = cache
+@inline function surface_stress_times_gradient(particle_system, particle, grad_kernel)
+    delta_s = @inbounds particle_system.cache.delta_s[particle]
+    iszero(delta_s) && return zero(grad_kernel)
 
-    set_zero!(delta_s)
+    normal = surface_tension_normal(particle_system, particle)
+    return delta_s * (grad_kernel - normal * dot(normal, grad_kernel))
+end
 
-    @threaded semi for particle in each_integrated_particle(system)
-        delta_s[particle] = norm(surface_normal(system, particle))
-    end
-    return system
+@inline function symmetric_surface_divergence_correction(particle_system,
+                                                         neighbor_system,
+                                                         particle, neighbor)
+    correction_a = @inbounds particle_system.cache.divergence_correction[particle]
+    correction_b = @inbounds neighbor_system.cache.divergence_correction[neighbor]
+    denominator = correction_a + correction_b
+    denominator > eps(denominator) || return zero(denominator)
+    return 2 / denominator
 end
 
 @inline function surface_tension_force!(dv_particle,
@@ -338,13 +455,19 @@ end
     # No surface tension with oneself. See `src/general/smoothing_kernels.jl` for more details.
     distance^2 < eps(initial_smoothing_length(particle_system)^2) && return dv_particle
 
-    S_a = stress_tensor(particle_system, particle)
-    S_b = stress_tensor(neighbor_system, neighbor)
-
     m_b = hydrodynamic_mass(neighbor_system, neighbor)
+    stress_gradient_a = surface_stress_times_gradient(particle_system, particle,
+                                                      grad_kernel)
+    stress_gradient_b = surface_stress_times_gradient(neighbor_system, neighbor,
+                                                      grad_kernel)
+    divergence_correction = symmetric_surface_divergence_correction(particle_system,
+                                                                    neighbor_system,
+                                                                    particle, neighbor)
 
-    dv_particle[] += surface_tension_correction * surface_tension_coefficient * m_b *
-                     (S_a + S_b) / (rho_a * rho_b) * grad_kernel
+    # This uses the same symmetric stress-divergence operator as the pressure force. The
+    # Akinci free-surface correction is deliberately not applied to a continuum stress.
+    dv_particle[] += divergence_correction * surface_tension_coefficient * m_b /
+                     (rho_a * rho_b) * (stress_gradient_a + stress_gradient_b)
 
     return dv_particle
 end
@@ -368,9 +491,44 @@ end
     support_radius = compact_support(particle_system.smoothing_kernel,
                                      smoothing_length(particle_system, particle))
     dv_particle[] += adhesion_force_akinci(surface_tension, support_radius, m_b, pos_diff,
-                                           distance, adhesion_coefficient)
+                                           distance, adhesion_coefficient,
+                                           Val(ndims(particle_system)))
 
     return dv_particle
+end
+
+@inline function akinci_physical_wall_cohesion_force!(dv_particle,
+                                                      surface_tension::SurfaceTensionAkinciCohesionPhysical,
+                                                      particle_system::AbstractFluidSystem,
+                                                      neighbor_system,
+                                                      particle, neighbor, pos_diff,
+                                                      distance)
+    wall_ratio = neighbor_system.adhesion_coefficient
+    iszero(wall_ratio) && return dv_particle
+    distance^2 < eps(initial_smoothing_length(particle_system)^2) && return dv_particle
+
+    support_radius = compact_support(system_smoothing_kernel(particle_system),
+                                     smoothing_length(particle_system, particle))
+    distance >= support_radius && return dv_particle
+
+    coefficient = wall_ratio *
+                  akinci_physical_cohesion_coefficient(surface_tension, support_radius)
+    wall_cohesion = (; surface_tension_coefficient=coefficient)
+    m_b = hydrodynamic_mass(neighbor_system, neighbor)
+    dv_particle[] += cohesion_force_akinci(wall_cohesion, support_radius, m_b, pos_diff,
+                                           distance, Val(ndims(particle_system)))
+
+    return dv_particle
+end
+
+@inline function adhesion_force!(dv_particle,
+                                 surface_tension::SurfaceTensionAkinciCohesionPhysical,
+                                 particle_system::AbstractFluidSystem,
+                                 neighbor_system::AbstractBoundarySystem,
+                                 particle, neighbor, pos_diff, distance)
+    return akinci_physical_wall_cohesion_force!(dv_particle, surface_tension,
+                                                particle_system, neighbor_system,
+                                                particle, neighbor, pos_diff, distance)
 end
 
 @inline function adhesion_force!(dv_particle, surface_tension, particle_system,

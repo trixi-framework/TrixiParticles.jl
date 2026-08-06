@@ -113,4 +113,15 @@
         @test isapprox(u[1, 1], -expected_shift)
         @test isapprox(u[2, 1], initial_condition.coordinates[2, 1])
     end
+
+    @trixi_testset "Semidiscretization configuration" begin
+        initial_condition = RectangularShape(0.1, (2, 2), (0.0, 0.0); density=1.0)
+        system = ParticlePackingSystem(initial_condition;
+                                       signed_distance_field=nothing,
+                                       background_pressure=1.0)
+
+        @test isnothing(TrixiParticles.surface_tension_model(system))
+        @test isnothing(TrixiParticles.surface_normal_method(system))
+        @test Semidiscretization(system) isa Semidiscretization
+    end
 end

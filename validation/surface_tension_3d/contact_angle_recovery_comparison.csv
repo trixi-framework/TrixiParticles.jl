@@ -1,0 +1,8 @@
+method,role,measure,middle_passes,endpoint_passes,measure_gate,sign_cases,sign_passes,zero_at_90,eligible,max_middle_error
+R6-D production discrete,attribution,contact_line,0,2,false,0,0,,false,0.3431989214447275
+R6-D analytic wall,attribution,contact_line,3,2,false,0,0,,false,0.2615636471832792
+R6-D analytic interface,attribution,contact_line,4,1,false,0,0,,false,0.29995781887908257
+R6-D analytic both,attribution,contact_line,5,1,false,0,0,,false,0.1605553922807449
+R6-C compatible indicator,candidate,contact_line,5,0,false,0,0,,false,0.08848688865990983
+support-moment diagnostic,attribution,contact_line,3,1,false,0,0,,false,0.24141536871616154
+R6-W wetted-area energy,candidate,wetted_area,4,4,false,4,4,true,false,0.5062361787397287

@@ -1,0 +1,21 @@
+[deps]
+CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+OrdinaryDiffEqLowStorageRK = "b0944070-b475-4768-8dec-fb6eb410534d"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+Serialization = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+TrixiParticles = "66699cd8-9c01-4e9d-a059-b96c86d16b3a"
+
+[sources]
+TrixiParticles = {path = "../.."}
+
+[compat]
+CSV = "0.10"
+DataFrames = "1"
+JSON = "1"
+OrdinaryDiffEqLowStorageRK = "3"
+julia = "1.10"

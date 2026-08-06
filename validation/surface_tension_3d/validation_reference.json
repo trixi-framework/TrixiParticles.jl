@@ -1,0 +1,67 @@
+{
+  "young_laplace": {
+    "observed_order": 1.249718322535093,
+    "results": [
+      {
+        "interface_particles": 224,
+        "ndims": 3,
+        "particle_count": 251,
+        "particle_spacing": 0.001500154038483742,
+        "pressure_jump": 365.34738597693996,
+        "radius": 0.005870353120050318,
+        "relative_error": 0.07235908358597865,
+        "residual": 0.28593133893764117,
+        "sigma_fit": 1.0723590835859786,
+        "sigma_virial": 0.823033964062752,
+        "surface_measure_ratio": 0.8217444519910914,
+        "target_particle_count": 268,
+        "total_force": 3.7919961295383246e-18
+      },
+      {
+        "interface_particles": 650,
+        "ndims": 3,
+        "particle_count": 925,
+        "particle_spacing": 0.0009999184774182866,
+        "pressure_jump": 327.89090236253725,
+        "radius": 0.006043877244111552,
+        "relative_error": 0.00913381832992921,
+        "residual": 0.3509693014284436,
+        "sigma_fit": 0.9908661816700708,
+        "sigma_virial": 0.8877136823485055,
+        "surface_measure_ratio": 0.8821540662569126,
+        "target_particle_count": 905,
+        "total_force": 3.018953685142852e-17
+      },
+      {
+        "interface_particles": 1190,
+        "ndims": 3,
+        "particle_count": 2109,
+        "particle_spacing": 0.0007499604390380596,
+        "pressure_jump": 331.4410201612655,
+        "radius": 0.005966244011452984,
+        "relative_error": 0.01127099915649099,
+        "residual": 0.4585775528547945,
+        "sigma_fit": 0.988729000843509,
+        "sigma_virial": 0.919700075089,
+        "surface_measure_ratio": 0.9107357664791975,
+        "target_particle_count": 2145,
+        "total_force": 4.40752503181308e-18
+      },
+      {
+        "interface_particles": 2018,
+        "ndims": 3,
+        "particle_count": 4169,
+        "particle_spacing": 0.0005999899833508688,
+        "pressure_jump": 325.50563438484306,
+        "radius": 0.005990435944573899,
+        "relative_error": 0.02503967380985328,
+        "residual": 0.5238183258453253,
+        "sigma_fit": 0.9749603261901467,
+        "sigma_virial": 0.9359970271453172,
+        "surface_measure_ratio": 0.9258425271396964,
+        "target_particle_count": 4189,
+        "total_force": 2.211333595625336e-17
+      }
+    ]
+  }
+}

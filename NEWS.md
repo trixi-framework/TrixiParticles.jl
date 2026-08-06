@@ -6,8 +6,50 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ## Version 0.5.3
 
+### API Changes
+
+- Akinci cohesion and adhesion kernels now use dimensionally consistent, integral-matched
+  normalizations in 2D. To preserve previous pairwise kernel contributions at compact-support
+  radius `h_c`, multiply the surface-tension coefficient by `627 / (790 * h_c)` and the
+  adhesion coefficient by `42 / (65 * h_c)`; migrated kernel coefficients are
+  resolution-independent.
+- `SurfaceTensionAkinci` now defaults to fluid-only colorfield normals, matching Equation 2
+  of Akinci et al. (2013). Pass a finite `boundary_contact_threshold` to
+  `ColorfieldSurfaceNormal` explicitly to include boundary neighbors.
+- Corrected `SurfaceTensionMorris` to apply its local CSF acceleration once per particle and
+  retain the required one-phase surface delta. Previous coefficients compensated implicitly
+  for a dimensionally incomplete force repeated once per fluid neighbor and must be recalibrated.
+- For Morris and CSS models, `ideal_density_threshold` now denotes a fraction of the continuous
+  complete-support kernel moment instead of an integer neighbor-count fraction. The default zero
+  still disables interior filtering; validation configurations migrate the previous explicit
+  value `0.9` to `0.95`.
+
 ### Features
 
+- Reworked `SurfaceTensionMomentumMorris` as a balanced one-phase CSS model. The model now
+  retains the physical color-gradient surface delta, applies a conservative scalar reproducing
+  correction without another neighbor pass, and evaluates stress on demand.
+- Added the explicit `WettedAreaContactAngle` model for validated 3D CSS wetting. It applies the
+  complete derivative of Young's corrected wetted-area energy, including equal-and-opposite wall
+  and rigid-body reactions. The no-contact default is unchanged. The rejected, unshipped
+  geometric-normal and contact-line-force candidates were removed.
+- Added C1 interface activation for Morris CSF and CSS. The color-gradient and continuous
+  support-moment indicators taper the physical surface delta without an extra neighbor pass;
+  CSS retains exact pairwise linear-momentum conservation.
+- Added opt-in `CorrectedCSFSurfaceNormal` for the single-fluid free-surface core of the C-CSF
+  method. It provides renormalized eigenvalue-gradient normals, curvature, and a Shepard-corrected
+  surface delta for `SurfaceTensionMorris`. A finite contact angle enables planar boundary-integral
+  geometry on dummy-particle walls with explicit face measures and normal offsets. Hydrodynamic wall
+  coupling continues to use the configured dummy-particle model.
+- Added opt-in one-pass activity-weighted Shepard smoothing for `ColorfieldSurfaceNormal` directions.
+  Interface activation, surface-delta magnitudes, and particle-shifting normals remain unsmoothed.
+- Added opt-in `FreeSurfaceTangentialShifting` for Sun particle shifting with Morris CSF and CSS.
+  It reuses the smooth color-field interface activity, retains full consistent shifting in the
+  interior, and projects shifting onto the local tangent plane at the free surface. Closed-system
+  shifting defaults are unchanged.
+- Added the opt-in 3D `SurfaceTensionAkinciCohesionPhysical` model. It converts a physical
+  surface tension in N/m to the resolution-dependent Akinci cohesion coefficient, supports
+  same-kernel Young-Dupre wall ratios, and contributes a capillary time-step restriction.
 - Added `flush` keyword argument to `InfoCallback` to flush `stdout` after each output,
   useful for monitoring progress in real-time on clusters or batch systems (#1246).
 - Added the computation of boundary normals for `RectangularTank`s and `SphereShape`s.

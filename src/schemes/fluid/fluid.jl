@@ -227,8 +227,15 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::AbstractFluidSystem, sem
     # Eq. 28 in Morris (2000)
     dt = min(dt_viscosity, dt_acceleration, dt_sound_speed)
 
-    if surface_tension isa SurfaceTensionMorris ||
-       surface_tension isa SurfaceTensionMomentumMorris
+    if surface_tension isa SurfaceTensionAkinciCohesionPhysical
+        coefficient = surface_tension.surface_tension_coefficient
+        if !iszero(coefficient)
+            dt_surface_tension = sqrt(surface_tension.reference_density *
+                                      smoothing_length_^3 / (2 * pi * coefficient))
+            dt = min(dt, dt_surface_tension)
+        end
+    elseif surface_tension isa SurfaceTensionMorris ||
+           surface_tension isa SurfaceTensionMomentumMorris
         coefficient = surface_tension.surface_tension_coefficient
         if !iszero(coefficient)
             v = wrap_v(v_ode, system, semi)
@@ -300,6 +307,12 @@ function restart_v(system::AbstractFluidSystem, data)
 end
 
 function check_configuration(fluid_system::AbstractFluidSystem, systems, nhs)
+    check_wetted_area_configuration!(fluid_system,
+                                     surface_normal_method(fluid_system), systems)
+    check_corrected_csf_boundary_configuration!(fluid_system,
+                                                surface_normal_method(fluid_system),
+                                                systems)
+
     if !(fluid_system isa ParticlePackingSystem) &&
        (!isnothing(fluid_system.surface_tension) ||
         !isnothing(fluid_system.surface_normal_method))

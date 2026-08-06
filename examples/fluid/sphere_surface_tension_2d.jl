@@ -15,8 +15,8 @@ particle_spacing = 0.05
 # Use a higher resolution for a better result
 # particle_spacing = 0.025
 
-# Note: Only square shapes will result in a sphere.
-# Furthermore, changes of the coefficients might be necessary for higher resolutions or larger squares.
+# Note: Only square shapes will result in a sphere. A higher resolution improves the interface
+# without requiring a resolution-dependent Akinci coefficient.
 fluid_size = (0.5, 0.5)
 
 sound_speed = 20.0
@@ -38,11 +38,14 @@ fluid = RectangularShape(particle_spacing, round.(Int, fluid_size ./ particle_sp
 
 alpha = 8 * nu / (smoothing_length * sound_speed)
 source_terms = SourceTermDamping(; damping_coefficient=0.5)
+# The coefficient below is migrated from 0.02 at a compact-support radius of 0.1 m.
+# akinci_surface_tension = SurfaceTensionAkinci(
+#     surface_tension_coefficient=0.15873417721518987)
 # fluid_system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel=fluid_smoothing_kernel,
 #                                            smoothing_length, density_calculator=SummationDensity(),
 #                                            state_equation, reference_particle_spacing=particle_spacing,
 #                                            viscosity=ArtificialViscosityMonaghan(; alpha, beta=0.0),
-#                                            surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.02),
+#                                            surface_tension=akinci_surface_tension,
 #                                            correction=AkinciFreeSurfaceCorrection(fluid_density),
 #                                            source_terms)
 

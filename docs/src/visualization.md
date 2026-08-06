@@ -7,6 +7,35 @@ directory relative to the current working directory.
 VTK files can be opened in visualization tools such as [ParaView](https://www.paraview.org/)
 and [VisIt](https://visit.llnl.gov/).
 
+## Makie
+
+Load a Makie backend to inspect any two- or three-dimensional solution frame directly. This
+particle-level diagnostic renders spheres whose diameter follows the system's particle spacing;
+it does not reconstruct a continuous fluid surface.
+
+```julia
+using CairoMakie
+
+figure = Figure()
+axis = LScene(figure[1, 1]; show_axis=false)
+trixi2makie(axis, sol)
+figure
+```
+
+Use `frame` to select another saved ODE frame. The keywords `system_indices`, `system_colors`,
+and `marker_size_scales` select and style systems. Colors and size scales can be scalars,
+vectors indexed by system number, or functions with the signature `(system, system_index)`.
+Additional keywords are forwarded to `Makie.meshscatter!`.
+
+The [`compare_akinci`](https://github.com/trixi-framework/TrixiParticles.jl/tree/main/compare_akinci)
+project demonstrates production-style fluid rendering: it reconstructs an isosurface from the SPH
+particles and uses a dielectric water material with the experimental
+[RayMakie](https://makie.org/website/blogposts/raytracing/) backend.
+
+```@docs
+trixi2makie
+```
+
 ### ParaView
 
 Follow these steps to view the exported VTK files in ParaView:

@@ -56,7 +56,13 @@ fluid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 nu = 0.005
 alpha = 8 * nu / (fluid_smoothing_length * sound_speed)
 viscosity = ArtificialViscosityMonaghan(; alpha, beta=0.0)
-surface_tension_coefficient = 0.05
+
+# Preserve the pairwise cohesion and adhesion strengths configured with the previous
+# 3D-normalized 2D kernels at the default compact-support radius of 0.01 m.
+akinci_reference_support_radius = 0.01
+akinci_cohesion_migration = 627 / (790 * akinci_reference_support_radius)
+akinci_adhesion_migration = 42 / (65 * akinci_reference_support_radius)
+surface_tension_coefficient = 0.05 * akinci_cohesion_migration
 surface_tension = SurfaceTensionAkinci(; surface_tension_coefficient)
 reference_particle_spacing = isnothing(surface_tension) ? 0 : fluid_particle_spacing
 
@@ -82,7 +88,7 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary;
                                              clip_negative_pressure=true)
 
 boundary_system = WallBoundarySystem(tank.boundary, boundary_model;
-                                     adhesion_coefficient=1.0)
+                                     adhesion_coefficient=1.0 * akinci_adhesion_migration)
 
 # ==========================================================================================
 # ==== Simulation

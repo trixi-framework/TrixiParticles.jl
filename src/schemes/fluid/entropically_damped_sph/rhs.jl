@@ -10,6 +10,7 @@ function interact!(dv, v_particle_system, u_particle_system,
 
     surface_tension_a = surface_tension_model(particle_system)
     surface_tension_b = surface_tension_model(neighbor_system)
+    surface_normal_method_a = surface_normal_method(particle_system)
 
     # For `distance == 0`, the analytical gradient is zero, but the unsafe gradient
     # and the density diffusion divide by zero.
@@ -19,6 +20,22 @@ function interact!(dv, v_particle_system, u_particle_system,
     # Note that `sqrt(eps(h^2)) != eps(h)`.
     h = initial_smoothing_length(particle_system)
     almostzero = sqrt(eps(h^2))
+
+    if particle_system === neighbor_system
+        @threaded semi for particle in each_integrated_particle(particle_system)
+            rho_a = @inbounds current_density(v_particle_system, particle_system,
+                                              particle)
+            v_a = @inbounds current_velocity(v_particle_system, particle_system, particle)
+            acceleration = surface_tension_acceleration(surface_tension_a, particle_system,
+                                                        particle, rho_a, v_a)
+            acceleration += contact_angle_acceleration(surface_tension_a, particle_system,
+                                                       surface_normal_method_a, particle,
+                                                       rho_a, v_a)
+            for i in 1:ndims(particle_system)
+                @inbounds dv[i, particle] += acceleration[i]
+            end
+        end
+    end
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     foreach_point_neighbor(particle_system, neighbor_system,
@@ -85,9 +102,22 @@ function interact!(dv, v_particle_system, u_particle_system,
                                          particle, neighbor, pos_diff, distance,
                                          rho_a, rho_b, grad_kernel, 1)
 
+        dv_particle[] += wetted_area_density_acceleration(surface_normal_method_a,
+                                                          particle_system,
+                                                          neighbor_system, particle,
+                                                          neighbor, rho_a, rho_b, m_b,
+                                                          grad_kernel)
+
         @inbounds adhesion_force!(dv_particle, surface_tension_a, particle_system,
                                   neighbor_system,
                                   particle, neighbor, pos_diff, distance)
+
+        dv_particle[] += wetted_area_explicit_acceleration(surface_tension_a,
+                                                           surface_normal_method_a,
+                                                           particle_system,
+                                                           neighbor_system, particle,
+                                                           neighbor, m_a, rho_a,
+                                                           grad_kernel)
 
         for i in 1:ndims(particle_system)
             @inbounds dv[i, particle] += dv_particle[][i]

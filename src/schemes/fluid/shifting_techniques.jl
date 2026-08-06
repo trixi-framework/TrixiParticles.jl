@@ -58,13 +58,46 @@ end
     return v_diff
 end
 
+"""
+    FreeSurfaceTangentialShifting()
+
+Use the color-field interface normal to remove the surface-normal component of the particle
+shifting velocity. Full shifting is retained in the fluid interior, while particles in the
+smooth interface transition are blended towards tangential-only shifting.
+
+This treatment requires a [`ColorfieldSurfaceNormal`](@ref) with
+[`SurfaceTensionMorris`](@ref) or [`SurfaceTensionMomentumMorris`](@ref), or a
+[`CorrectedCSFSurfaceNormal`](@ref) with `SurfaceTensionMorris`. Interface activity identifies
+the free surface. It is an explicit opt-in through the `free_surface_treatment` keyword of
+[`ParticleShiftingTechnique`](@ref).
+"""
+struct FreeSurfaceTangentialShifting end
+
+@inline supports_free_surface_shifting(surface_normal_method, surface_tension) = false
+
+@inline validate_free_surface_shifting(::Nothing, surface_normal_method,
+                                       surface_tension) = nothing
+
+function validate_free_surface_shifting(::FreeSurfaceTangentialShifting,
+                                        surface_normal_method, surface_tension)
+    supports_free_surface_shifting(surface_normal_method, surface_tension) ||
+        throw(ArgumentError("`FreeSurfaceTangentialShifting` requires " *
+                            "`ColorfieldSurfaceNormal` with Morris/CSS surface tension or " *
+                            "`CorrectedCSFSurfaceNormal` with Morris surface tension"))
+    return nothing
+end
+
+@inline validate_free_surface_shifting(shifting, surface_normal_method,
+                                       surface_tension) = nothing
+
 @doc raw"""
     ParticleShiftingTechnique(; integrate_shifting_velocity=true,
-                              update_everystage=false,
-                              modify_continuity_equation=true,
-                              second_continuity_equation_term=ContinuityEquationTermSun2019(),
-                              momentum_equation_term=MomentumEquationTermSun2019(),
-                              v_max_factor=1, sound_speed_factor=0)
+                               update_everystage=false,
+                               modify_continuity_equation=true,
+                               second_continuity_equation_term=ContinuityEquationTermSun2019(),
+                               momentum_equation_term=MomentumEquationTermSun2019(),
+                               v_max_factor=1, sound_speed_factor=0,
+                               free_surface_treatment=nothing)
 
 Particle Shifting Technique by [Sun et al. (2017)](@cite Sun2017)
 and [Sun et al. (2019)](@cite Sun2019).
@@ -133,27 +166,34 @@ We provide the following convenience constructors for common variants of the met
                                 `sound_speed_factor * c`, where `c` is the speed of sound.
                                 Only one of `v_max_factor` and `sound_speed_factor`
                                 can be non-zero.
+- `free_surface_treatment`:     Treatment applied to shifting near a free surface. The default
+                                `nothing` retains the closed-system formulation. Use
+                                [`FreeSurfaceTangentialShifting`](@ref) together with a
+                                [`ColorfieldSurfaceNormal`](@ref) and Morris/CSS surface tension
+                                to remove the interface-normal component of the shifting velocity.
 
 !!! warning
-    The Particle Shifting Technique needs to be disabled close to the free surface
-    and therefore requires a free surface detection method. This is not yet implemented.
-    **This technique cannot be used in a free surface simulation.**
+    The default `free_surface_treatment=nothing` is for closed systems and cannot be used in a
+    free-surface simulation. Free-surface use requires the explicit
+    `FreeSurfaceTangentialShifting()` treatment with Morris/CSS smooth interface activity.
 """
 struct ParticleShiftingTechnique{integrate_shifting_velocity,
                                  update_everystage,
                                  modify_continuity_equation,
                                  compute_v_max,
-                                 ELTYPE, S, M} <: AbstractShiftingTechnique
+                                 ELTYPE, S, M, F} <: AbstractShiftingTechnique
     v_factor                        :: ELTYPE
     second_continuity_equation_term :: S
     momentum_equation_term          :: M
+    free_surface_treatment          :: F
 
     function ParticleShiftingTechnique(; integrate_shifting_velocity=true,
                                        update_everystage=false,
                                        modify_continuity_equation=true,
                                        second_continuity_equation_term=ContinuityEquationTermSun2019(),
                                        momentum_equation_term=MomentumEquationTermSun2019(),
-                                       v_max_factor=1, sound_speed_factor=0)
+                                       v_max_factor=1, sound_speed_factor=0,
+                                       free_surface_treatment=nothing)
         if !integrate_shifting_velocity && update_everystage
             throw(ArgumentError("ParticleShiftingTechnique: " *
                                 "integrate_shifting_velocity=false requires " *
@@ -190,6 +230,12 @@ struct ParticleShiftingTechnique{integrate_shifting_velocity,
                                 "must be positive"))
         end
 
+        if !(free_surface_treatment isa Union{Nothing,
+                                              FreeSurfaceTangentialShifting})
+            throw(ArgumentError("ParticleShiftingTechnique: `free_surface_treatment` " *
+                                "must be `nothing` or `FreeSurfaceTangentialShifting()`"))
+        end
+
         v_factor = max(v_max_factor, sound_speed_factor)
         compute_v_max = v_max_factor > 0
 
@@ -198,10 +244,18 @@ struct ParticleShiftingTechnique{integrate_shifting_velocity,
             modify_continuity_equation,
             compute_v_max, typeof(v_factor),
             typeof(second_continuity_equation_term),
-            typeof(momentum_equation_term)}(v_factor,
+            typeof(momentum_equation_term),
+            typeof(free_surface_treatment)}(v_factor,
                                             second_continuity_equation_term,
-                                            momentum_equation_term)
+                                            momentum_equation_term,
+                                            free_surface_treatment)
     end
+end
+
+function validate_free_surface_shifting(shifting::ParticleShiftingTechnique,
+                                        surface_normal_method, surface_tension)
+    return validate_free_surface_shifting(shifting.free_surface_treatment,
+                                          surface_normal_method, surface_tension)
 end
 
 """
@@ -218,10 +272,11 @@ ParticleShiftingTechnique(integrate_shifting_velocity=false,
                           modify_continuity_equation=false,
                           second_continuity_equation_term=nothing,
                           momentum_equation_term=nothing,
-                          v_max_factor=1, sound_speed_factor=0)
+                          v_max_factor=1, sound_speed_factor=0,
+                          free_surface_treatment=nothing)
 
 # output
-ParticleShiftingTechnique{false, false, false, true, Int64, Nothing, Nothing}(1, nothing, nothing)
+ParticleShiftingTechnique{false, false, false, true, Int64, Nothing, Nothing, Nothing}(1, nothing, nothing, nothing)
 ```
 
 See [ParticleShiftingTechnique](@ref ParticleShiftingTechnique) for all available options.
@@ -234,13 +289,12 @@ See [ParticleShiftingTechnique](@ref ParticleShiftingTechnique) for all availabl
 shifting_technique = ParticleShiftingTechniqueSun2017()
 
 # output
-ParticleShiftingTechnique{false, false, false, true, Int64, Nothing, Nothing}(1, nothing, nothing)
+ParticleShiftingTechnique{false, false, false, true, Int64, Nothing, Nothing, Nothing}(1, nothing, nothing, nothing)
 ```
 
 !!! warning
-    The Particle Shifting Technique needs to be disabled close to the free surface
-    and therefore requires a free surface detection method. This is not yet implemented.
-    **This technique cannot be used in a free surface simulation.**
+    The default `free_surface_treatment=nothing` is for closed systems. See
+    [`FreeSurfaceTangentialShifting`](@ref) for explicit free-surface use.
 """
 function ParticleShiftingTechniqueSun2017(; kwargs...)
     return ParticleShiftingTechnique(; integrate_shifting_velocity=false,
@@ -264,10 +318,11 @@ ParticleShiftingTechnique(integrate_shifting_velocity=true,
                           modify_continuity_equation=true,
                           second_continuity_equation_term=ContinuityEquationTermSun2019(),
                           momentum_equation_term=MomentumEquationTermSun2019(),
-                          v_max_factor=0, sound_speed_factor=0.1f0)
+                          v_max_factor=0, sound_speed_factor=0.1f0,
+                          free_surface_treatment=nothing)
 
 # output
-ParticleShiftingTechnique{true, true, true, false, Float32, ContinuityEquationTermSun2019, MomentumEquationTermSun2019}(0.1f0, ContinuityEquationTermSun2019(), MomentumEquationTermSun2019())
+ParticleShiftingTechnique{true, true, true, false, Float32, ContinuityEquationTermSun2019, MomentumEquationTermSun2019, Nothing}(0.1f0, ContinuityEquationTermSun2019(), MomentumEquationTermSun2019(), nothing)
 ```
 
 See [ParticleShiftingTechnique](@ref ParticleShiftingTechnique) for all available options.
@@ -287,13 +342,12 @@ See [ParticleShiftingTechnique](@ref ParticleShiftingTechnique) for all availabl
 shifting_technique = ConsistentShiftingSun2019()
 
 # output
-ParticleShiftingTechnique{true, true, true, false, Float32, ContinuityEquationTermSun2019, MomentumEquationTermSun2019}(0.1f0, ContinuityEquationTermSun2019(), MomentumEquationTermSun2019())
+ParticleShiftingTechnique{true, true, true, false, Float32, ContinuityEquationTermSun2019, MomentumEquationTermSun2019, Nothing}(0.1f0, ContinuityEquationTermSun2019(), MomentumEquationTermSun2019(), nothing)
 ```
 
 !!! warning
-    The Particle Shifting Technique needs to be disabled close to the free surface
-    and therefore requires a free surface detection method. This is not yet implemented.
-    **This technique cannot be used in a free surface simulation.**
+    The default `free_surface_treatment=nothing` is for closed systems. See
+    [`FreeSurfaceTangentialShifting`](@ref) for explicit free-surface use.
 """
 function ConsistentShiftingSun2019(; kwargs...)
     return ParticleShiftingTechnique(; integrate_shifting_velocity=true,
@@ -504,7 +558,36 @@ end
     end
 
     modify_shifting_at_free_surfaces!(system, u, semi)
+    modify_shifting_with_surface_normal!(system, shifting.free_surface_treatment, semi)
 
+    return system
+end
+
+@inline modify_shifting_with_surface_normal!(system, treatment, semi) = system
+
+@inline function tangential_shifting_velocity(shifting_velocity, normal, activity)
+    normal_norm_squared = dot(normal, normal)
+    normal_norm_squared <= eps(normal_norm_squared) && return shifting_velocity
+    weight = clamp(activity, zero(activity), one(activity))
+    normal_component = dot(shifting_velocity, normal) / normal_norm_squared * normal
+    return shifting_velocity - weight * normal_component
+end
+
+function modify_shifting_with_surface_normal!(system::AbstractFluidSystem,
+                                              ::FreeSurfaceTangentialShifting, semi)
+    delta_v_cache = system.cache.delta_v
+    @threaded semi for particle in each_integrated_particle(system)
+        activity = surface_interface_activity(system, particle)
+        if !iszero(activity)
+            normal = surface_normal(system, particle)
+            shifting_velocity = extract_svector(delta_v_cache, system, particle)
+            corrected_velocity = tangential_shifting_velocity(shifting_velocity, normal,
+                                                              activity)
+            for dimension in eachindex(corrected_velocity)
+                @inbounds delta_v_cache[dimension, particle] = corrected_velocity[dimension]
+            end
+        end
+    end
     return system
 end
 
@@ -715,5 +798,5 @@ function update_shifting!(system, shifting::TransportVelocityAdami, v, u, v_ode,
     return system
 end
 
-# TODO: Implement free surface detection to disable shifting close to free surfaces
+# TVF and PST without an explicit surface treatment retain their closed-system behavior.
 @inline modify_shifting_at_free_surfaces!(system, u, semi) = system

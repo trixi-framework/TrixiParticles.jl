@@ -1,0 +1,32 @@
+[deps]
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+ComputePipeline = "95dc2771-c249-4cd0-9c9f-1f3b4330693c"
+FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
+GPUSelect = "203851ad-5791-4cf9-9fcc-5933b5611f42"
+GeometryBasics = "5c1252a2-5f33-56bf-86c9-59e7332b4326"
+Hikari = "afc56b53-c9a9-482a-a956-d1d800e05558"
+Lava = "3a680b1f-cb25-4bee-9cf7-bc880b76dc8c"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
+Meshing = "e6723b4c-ebff-59f1-b4b7-d97aa5274f73"
+Raycore = "afc56b53-c9a9-482a-a956-d1d800e05559"
+RayMakie = "70852e3a-d594-4041-8350-783a02753e02"
+Serialization = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+
+[sources]
+ComputePipeline = {url = "https://github.com/MakieOrg/Makie.jl.git", rev = "ba325fb994b95c495dd6311d179ee821555f3955", subdir = "ComputePipeline"}
+GPUSelect = {url = "https://github.com/SimonDanisch/GPUSelect.jl", rev = "main"}
+Hikari = {url = "https://github.com/JuliaGraphics/Hikari.jl", rev = "sd/vk-hw-accel"}
+Lava = {url = "https://github.com/SimonDanisch/Lava.jl", rev = "53f8705c22d6718ada239fd141db54aca9db78e9"}
+Makie = {url = "https://github.com/MakieOrg/Makie.jl.git", rev = "ba325fb994b95c495dd6311d179ee821555f3955", subdir = "Makie"}
+Raycore = {url = "https://github.com/JuliaGeometry/Raycore.jl", rev = "master"}
+RayMakie = {url = "https://github.com/MakieOrg/Makie.jl.git", rev = "ba325fb994b95c495dd6311d179ee821555f3955", subdir = "RayMakie"}
+
+[compat]
+CairoMakie = "0.15"
+FileIO = "1"
+GeometryBasics = "0.5"
+Makie = "0.24"
+Meshing = "0.7"
+julia = "1.12"

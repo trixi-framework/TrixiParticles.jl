@@ -122,6 +122,12 @@ function EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel, smooth
 
     surface_normal_method = default_surface_normal_method(surface_tension,
                                                           surface_normal_method)
+    validate_corrected_csf(surface_normal_method, surface_tension)
+    validate_free_surface_shifting(shifting_technique, surface_normal_method,
+                                   surface_tension)
+    validate_interface_aware_tic(pressure_acceleration, density_calculator,
+                                 nothing, surface_normal_method,
+                                 surface_tension, correction)
 
     if surface_normal_method !== nothing && reference_particle_spacing < eps()
         throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using a surface-normal method"))
@@ -237,6 +243,8 @@ end
     return ELTYPE
 end
 
+@inline wetted_area_supported_fluid(::EntropicallyDampedSPHSystem) = true
+
 @inline function v_nvariables(system::EntropicallyDampedSPHSystem)
     return v_nvariables(system, system.density_calculator)
 end
@@ -310,7 +318,6 @@ function update_pressure!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_od
 
     compute_surface_normal!(system, system.surface_normal_method, v, u, v_ode, u_ode, semi,
                             t)
-    compute_surface_delta_function!(system, system.surface_tension, semi)
 end
 
 function kernel_correct_density!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode,
@@ -353,7 +360,6 @@ function update_final!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, 
 
     # Surface normal of neighbor and boundary needs to have been calculated already
     compute_curvature!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
-    compute_stress_tensors!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
     update_average_pressure!(system, system.average_pressure_reduction, v_ode, u_ode, semi)
     update_shifting!(system, shifting_technique(system), v, u, v_ode, u_ode, semi)
 end

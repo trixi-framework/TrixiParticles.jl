@@ -1,0 +1,13 @@
+kind,variant,target,initial_angle,requested_particles,particle_count,control_acceleration,contact_shape_acceleration,acceleration,expected_direction,total_sign_pass,contact_sign_pass,wall_zero_at_90,measure_eligible,static_eligible,sign_pass
+force_sign,compatible_geometry_wall,60.0,90.0,1500,1508,0.006340809670341996,-0.012653859782893098,-0.006313050112551102,-1.0,true,true,,false,true,true
+force_sign,compatible_geometry_wall,90.0,60.0,1500,1480,0.025617239827415973,0.0,0.025617239827415973,1.0,true,false,true,false,true,true
+force_sign,compatible_geometry_wall,90.0,120.0,1500,1492,-0.003958004005173301,0.0,-0.003958004005173301,-1.0,true,false,true,false,true,true
+force_sign,compatible_geometry_wall,120.0,90.0,1500,1508,0.006322566937236813,0.01264640425265222,0.018968971189889033,1.0,true,true,,false,true,true
+force_sign,corrected_wetted_area,60.0,90.0,1500,1508,0.006340809670341996,-0.015145983956990525,-0.00880517428664853,-1.0,true,true,,true,true,true
+force_sign,corrected_wetted_area,90.0,60.0,1500,1480,0.025617239827415973,0.0,0.025617239827415973,1.0,true,false,true,true,true,true
+force_sign,corrected_wetted_area,90.0,120.0,1500,1492,-0.003958004005173301,0.0,-0.003958004005173301,-1.0,true,false,true,true,true,true
+force_sign,corrected_wetted_area,120.0,90.0,1500,1508,0.006322566937236813,0.014293615002345904,0.020616181939582718,1.0,true,true,,true,true,true
+force_sign,young_color_boundary,60.0,90.0,1500,1508,0.006340809670341996,-0.0002557485980451144,0.006085061072296881,-1.0,false,true,,true,false,false
+force_sign,young_color_boundary,90.0,60.0,1500,1480,0.025617239827415973,-0.0009147279890239259,0.024702511838392047,1.0,true,false,,true,false,true
+force_sign,young_color_boundary,90.0,120.0,1500,1492,-0.003958004005173301,0.0002092548554881177,-0.0037487491496851835,-1.0,true,false,,true,false,true
+force_sign,young_color_boundary,120.0,90.0,1500,1508,0.006322566937236813,-0.00016942843555894233,0.006153138501677871,1.0,true,false,,true,false,true

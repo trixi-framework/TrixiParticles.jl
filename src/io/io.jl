@@ -315,11 +315,32 @@ function add_system_data!(system_data,
     system_data["surface_tension"]["surface_tension_coefficient"] = surface_tension.surface_tension_coefficient
 end
 
+function add_system_data!(system_data,
+                          surface_tension::SurfaceTensionAkinciCohesionPhysical)
+    system_data["surface_tension"] = Dict{String, Any}()
+    system_data["surface_tension"]["model"] = type2string(surface_tension)
+    system_data["surface_tension"]["surface_tension_coefficient"] = surface_tension.surface_tension_coefficient
+    system_data["surface_tension"]["reference_density"] = surface_tension.reference_density
+end
+
 function add_system_data!(system_data, surface_normal_method::ColorfieldSurfaceNormal)
     system_data["surface_normal_method"] = Dict{String, Any}()
     system_data["surface_normal_method"]["model"] = type2string(surface_normal_method)
-    system_data["surface_normal_method"]["boundary_contact_threshold"] = surface_normal_method.boundary_contact_threshold
+    boundary_contact_threshold = surface_normal_method.boundary_contact_threshold
+    system_data["surface_normal_method"]["boundary_contact_threshold"] = isfinite(boundary_contact_threshold) ?
+                                                                         boundary_contact_threshold :
+                                                                         string(boundary_contact_threshold)
+    system_data["surface_normal_method"]["interface_threshold"] = surface_normal_method.interface_threshold
     system_data["surface_normal_method"]["ideal_density_threshold"] = surface_normal_method.ideal_density_threshold
+    system_data["surface_normal_method"]["interface_taper_start"] = surface_normal_method.interface_taper_start
+    system_data["surface_normal_method"]["support_taper_width"] = surface_normal_method.support_taper_width
+    contact_model = surface_normal_method.contact_model
+    system_data["surface_normal_method"]["contact_model"] = isnothing(contact_model) ?
+                                                            nothing :
+                                                            type2string(contact_model)
+    system_data["surface_normal_method"]["contact_angle"] = isnothing(contact_model) ?
+                                                            nothing :
+                                                            contact_model.contact_angle
 end
 
 function add_system_data!(system_data, boundary_zone::BoundaryZone, indice)
@@ -358,6 +379,9 @@ end
 function add_system_data!(system_data, shifting_technique::ParticleShiftingTechnique)
     system_data["shifting_technique"] = Dict{String, Any}()
     system_data["shifting_technique"]["model"] = type2string(shifting_technique)
+    if !isnothing(shifting_technique.free_surface_treatment)
+        system_data["shifting_technique"]["free_surface_treatment"] = type2string(shifting_technique.free_surface_treatment)
+    end
 end
 
 function add_system_data!(system_data, viscosity::ViscosityCarreauYasuda)

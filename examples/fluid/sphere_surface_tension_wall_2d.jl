@@ -48,21 +48,32 @@ fluid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 nu = 0.001
 
 alpha = 8 * nu / (fluid_smoothing_length * sound_speed)
-# `adhesion_coefficient = 1.0` and `surface_tension_coefficient = 0.01` for perfect wetting
-# `adhesion_coefficient = 0.001` and `surface_tension_coefficient = 2.0` for no wetting
+
+# Preserve the pairwise cohesion and adhesion strengths configured with the previous
+# 3D-normalized 2D kernels at the default compact-support radius of 0.005 m.
+akinci_reference_support_radius = 0.005
+akinci_cohesion_migration = 627 / (790 * akinci_reference_support_radius)
+akinci_adhesion_migration = 42 / (65 * akinci_reference_support_radius)
+# Use `adhesion_coefficient = 1.0 * akinci_adhesion_migration` and
+# `surface_tension_coefficient = 0.01 * akinci_cohesion_migration` for perfect wetting.
+# Use `adhesion_coefficient = 0.001 * akinci_adhesion_migration` and
+# `surface_tension_coefficient = 2.0 * akinci_cohesion_migration` for no wetting.
+surface_tension_coefficient = 2.0 * akinci_cohesion_migration
+adhesion_coefficient = 0.001 * akinci_adhesion_migration
 
 viscosity = ArtificialViscosityMonaghan(; alpha, beta=0.0)
+surface_tension = SurfaceTensionAkinci(; surface_tension_coefficient)
 sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1;
                                                      smoothing_kernel=fluid_smoothing_kernel,
                                                      smoothing_length=fluid_smoothing_length,
                                                      density_calculator=ContinuityDensity(),
                                                      state_equation, viscosity,
                                                      acceleration=(0.0, -gravity),
-                                                     surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=2.0),
+                                                     surface_tension,
                                                      correction=AkinciFreeSurfaceCorrection(fluid_density),
                                                      reference_particle_spacing=fluid_particle_spacing)
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "falling_water_spheres_2d.jl");
-              sphere1, sphere2=nothing, adhesion_coefficient=0.001, wall_viscosity=4.0 * nu,
+              sphere1, sphere2=nothing, adhesion_coefficient, wall_viscosity=4.0 * nu,
               alpha, sound_speed, fluid_density, nu, fluid_particle_spacing, tspan,
               tank_size, fluid_smoothing_length, sphere_surface_tension)

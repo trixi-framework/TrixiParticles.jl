@@ -7,6 +7,7 @@ using TrixiParticles: PointNeighbors
 using TrixiParticles.Adapt
 using LinearAlgebra
 using Printf
+using Statistics: median
 using CSV: CSV
 using DataFrames: DataFrame
 using JSON: JSON

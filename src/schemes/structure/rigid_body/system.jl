@@ -281,8 +281,9 @@ function calc_normal!(system::AbstractFluidSystem,
                       surface_normal_method, neighbor_surface_normal_method)
     haskey(neighbor_system.boundary_model.cache, :initial_colorfield) || return system
 
-    return calc_boundary_normal!(system, neighbor_system, u_system, v, u_neighbor_system,
-                                 semi, surface_normal_method)
+    return calc_boundary_normal!(system, neighbor_system, u_system, v,
+                                 v_neighbor_system, u_neighbor_system, semi,
+                                 surface_normal_method)
 end
 
 @inline function adhesion_force!(dv_particle,
@@ -302,9 +303,20 @@ end
                                      smoothing_length(particle_system, particle))
 
     dv_particle[] += adhesion_force_akinci(surface_tension, support_radius, m_b,
-                                           pos_diff, distance, adhesion_coefficient)
+                                           pos_diff, distance, adhesion_coefficient,
+                                           Val(ndims(particle_system)))
 
     return dv_particle
+end
+
+@inline function adhesion_force!(dv_particle,
+                                 surface_tension::SurfaceTensionAkinciCohesionPhysical,
+                                 particle_system::AbstractFluidSystem,
+                                 neighbor_system::RigidBodySystem,
+                                 particle, neighbor, pos_diff, distance)
+    return akinci_physical_wall_cohesion_force!(dv_particle, surface_tension,
+                                                particle_system, neighbor_system,
+                                                particle, neighbor, pos_diff, distance)
 end
 
 function write_u0!(u0, system::RigidBodySystem)
@@ -379,6 +391,8 @@ end
 
 function reset_interaction_caches!(system::RigidBodySystem)
     set_zero!(system.force_per_particle)
+    boundary_cache = wetted_area_boundary_cache(system)
+    isnothing(boundary_cache) || set_zero!(boundary_cache.wetted_area_reaction)
     system.cache.contact_count[] = 0
     system.cache.max_contact_penetration[] = zero(eltype(system))
 

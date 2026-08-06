@@ -1,0 +1,5 @@
+method,role,measure,middle_passes,endpoint_passes,measure_gate,angle_middle_passes,angle_endpoint_passes,angle_gate,sign_cases,sign_passes,zero_at_90,eligible_for_dynamics,max_middle_error
+exact-profile protocol control,control,contact_line,5,5,true,5,5,true,0,0,,false,0.16927192097393184
+R7-CG compatible + geometry wall,candidate,contact_line,5,2,false,0,0,false,4,4,true,false,0.08516834908413828
+R7-Y Young color boundary,candidate,contact_line,5,5,true,2,1,false,4,3,,false,0.07817062109478501
+R7-W corrected wetted-area energy,candidate,wetted_area,5,5,true,0,0,true,4,4,true,true,0.05677850354866176

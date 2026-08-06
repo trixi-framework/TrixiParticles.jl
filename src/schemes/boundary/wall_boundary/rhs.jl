@@ -3,7 +3,6 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::Union{AbstractBoundarySystem, OpenBoundarySystem},
                    neighbor_system, semi)
-    # TODO Solids and moving boundaries should be considered in the continuity equation
     return dv
 end
 
@@ -14,8 +13,6 @@ function interact!(dv, v_particle_system, u_particle_system,
                    neighbor_system::Union{AbstractFluidSystem,
                                           OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}},
                    semi)
-    (; boundary_model) = particle_system
-
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 

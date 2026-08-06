@@ -61,14 +61,71 @@ the [`WeaklyCompressibleSPHSystem`](@ref) constructor.
 See [Tensile Instability Control](@ref tic) for more information on this technique.
 
 !!! warning
-    Tensile Instability Control needs to be disabled close to the free surface
-    and therefore requires a free surface detection method. This is not yet implemented.
-    **This technique cannot be used in a free surface simulation.**
+    Direct use of this function must be disabled close to a free surface. For supported
+    Morris/CSS free-surface simulations, pass
+    [`InterfaceAwareTensileInstabilityControl`](@ref) as `pressure_acceleration` instead.
 """
 @inline function tensile_instability_control(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a)
     # Same as `pressure_acceleration_continuity_density`, but using the minus formulation
     # when pressures are negative to avoid tensile instability.
     return -m_b * (abs(p_a) + p_b) / (rho_a * rho_b) * W_a
+end
+
+"""
+    InterfaceAwareTensileInstabilityControl(; strength=1.0)
+
+Apply [`tensile_instability_control`](@ref) in fully supported fluid interiors and blend back
+to the conservative continuity-density pressure acceleration across a represented free surface.
+The control is disabled for fluid-boundary interactions.
+
+This explicit opt-in requires `ContinuityDensity`, unclipped pressure, no kernel-gradient
+correction, and an interface-activity-providing surface-normal method: either a
+[`ColorfieldSurfaceNormal`](@ref) with Morris/CSS surface tension or a
+[`CorrectedCSFSurfaceNormal`](@ref) with [`SurfaceTensionMorris`](@ref).
+The `strength` in `(0, 1]` scales only the tensile correction; `1` recovers the complete
+interior TIC formulation.
+"""
+struct InterfaceAwareTensileInstabilityControl{T <: Real}
+    strength::T
+
+    function InterfaceAwareTensileInstabilityControl(; strength=1.0)
+        strength isa Real && isfinite(strength) && 0 < strength <= 1 ||
+            throw(ArgumentError("`strength` must be finite and in (0, 1]"))
+        new{typeof(strength)}(strength)
+    end
+end
+
+@inline validate_interface_aware_tic(pressure_acceleration, density_calculator,
+                                     state_equation, surface_normal_method,
+                                     surface_tension, correction) = nothing
+
+function validate_interface_aware_tic(::InterfaceAwareTensileInstabilityControl,
+                                      density_calculator, state_equation,
+                                      surface_normal_method, surface_tension, correction)
+    density_calculator isa ContinuityDensity ||
+        throw(ArgumentError("`InterfaceAwareTensileInstabilityControl` requires `ContinuityDensity`"))
+    isnothing(correction) ||
+        throw(ArgumentError("`InterfaceAwareTensileInstabilityControl` does not support kernel-gradient corrections"))
+    supports_interface_aware_tic(surface_normal_method, surface_tension) ||
+        throw(ArgumentError("`InterfaceAwareTensileInstabilityControl` requires " *
+                            "`ColorfieldSurfaceNormal` with Morris or CSS surface tension " *
+                            "or `CorrectedCSFSurfaceNormal` with `SurfaceTensionMorris`"))
+    if !isnothing(state_equation) && clip_negative_pressure(state_equation)
+        throw(ArgumentError("`InterfaceAwareTensileInstabilityControl` requires unclipped negative pressure"))
+    end
+    return nothing
+end
+
+@inline function interface_aware_tensile_acceleration(m_a, m_b, rho_a, rho_b, p_a, p_b,
+                                                      W_a, activity_a, activity_b,
+                                                      strength)
+    standard = pressure_acceleration_continuity_density(m_a, m_b, rho_a, rho_b,
+                                                        p_a, p_b, W_a)
+    controlled = tensile_instability_control(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a)
+    interface_activity = clamp(max(activity_a, activity_b), zero(activity_a),
+                               one(activity_a))
+    interior_weight = strength * (one(interface_activity) - interface_activity)
+    return standard + interior_weight * (controlled - standard)
 end
 
 # This formulation was introduced by Hu and Adams (2006). https://doi.org/10.1016/j.jcp.2005.09.001
@@ -123,6 +180,16 @@ function choose_pressure_acceleration_formulation(pressure_acceleration,
     return pressure_acceleration
 end
 
+function choose_pressure_acceleration_formulation(control::InterfaceAwareTensileInstabilityControl,
+                                                  density_calculator, NDIMS, ELTYPE,
+                                                  correction)
+    density_calculator isa ContinuityDensity ||
+        throw(ArgumentError("`InterfaceAwareTensileInstabilityControl` requires `ContinuityDensity`"))
+    isnothing(correction) ||
+        throw(ArgumentError("`InterfaceAwareTensileInstabilityControl` does not support kernel-gradient corrections"))
+    return control
+end
+
 function choose_pressure_acceleration_formulation(pressure_acceleration::Nothing,
                                                   density_calculator::SummationDensity,
                                                   NDIMS, ELTYPE,
@@ -143,14 +210,50 @@ end
 
 @inline pressure_acceleration_formulation(system) = system.pressure_acceleration_formulation
 
+@inline function evaluate_pressure_acceleration(formulation, particle_system,
+                                                neighbor_system, particle, neighbor,
+                                                m_a, m_b, rho_a, rho_b, p_a, p_b, W_a)
+    return formulation(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a)
+end
+
+@inline function evaluate_pressure_acceleration(::InterfaceAwareTensileInstabilityControl,
+                                                particle_system, neighbor_system,
+                                                particle, neighbor, m_a, m_b,
+                                                rho_a, rho_b, p_a, p_b, W_a)
+    return pressure_acceleration_continuity_density(m_a, m_b, rho_a, rho_b,
+                                                    p_a, p_b, W_a)
+end
+
+@inline function evaluate_pressure_acceleration(control::InterfaceAwareTensileInstabilityControl,
+                                                particle_system,
+                                                neighbor_system::AbstractFluidSystem,
+                                                particle, neighbor, m_a, m_b,
+                                                rho_a, rho_b, p_a, p_b, W_a)
+    activity_a = surface_interface_activity(particle_system, particle)
+    activity_b = surface_interface_activity(neighbor_system, neighbor)
+    return interface_aware_tensile_acceleration(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a,
+                                                activity_a, activity_b, control.strength)
+end
+
+@inline function evaluate_pressure_acceleration(::InterfaceAwareTensileInstabilityControl,
+                                                particle_system,
+                                                neighbor_system::AbstractFluidSystem,
+                                                particle, neighbor, m_a, m_b,
+                                                rho_a, rho_b, p_a::SMatrix, p_b, W_a)
+    return pressure_acceleration_continuity_density(m_a, m_b, rho_a, rho_b,
+                                                    p_a, p_b, W_a)
+end
+
 # Formulation using symmetric gradient formulation for corrections not depending on local neighborhood.
 @inline function pressure_acceleration(particle_system, neighbor_system, particle, neighbor,
                                        m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
                                        distance, W_a, correction)
     # Without correction or with `AkinciFreeSurfaceCorrection`, the kernel gradient is
     # symmetric, so call the symmetric version of the pressure acceleration formulation.
-    return pressure_acceleration_formulation(particle_system)(m_a, m_b, rho_a, rho_b,
-                                                              p_a, p_b, W_a)
+    formulation = pressure_acceleration_formulation(particle_system)
+    return evaluate_pressure_acceleration(formulation, particle_system, neighbor_system,
+                                          particle, neighbor, m_a, m_b, rho_a, rho_b,
+                                          p_a, p_b, W_a)
 end
 
 # Formulation using asymmetric gradient formulation for corrections depending on local neighborhood.

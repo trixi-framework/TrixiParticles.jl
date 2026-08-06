@@ -101,6 +101,9 @@ struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C, AV,
     end
 end
 
+@inline surface_tension_model(::ParticlePackingSystem) = nothing
+@inline surface_normal_method(::ParticlePackingSystem) = nothing
+
 function ParticlePackingSystem(shape::InitialCondition;
                                signed_distance_field::Union{SignedDistanceField, Nothing},
                                smoothing_kernel=SchoenbergQuinticSplineKernel{ndims(shape)}(),

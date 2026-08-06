@@ -150,6 +150,16 @@
                       boundary_layers=1, spacing_ratio=3, sol=nothing, semi=nothing,
                       ode=nothing)
 
+        # The Akinci variant has a compact-support radius of 0.015 m. Migrate its old 2D
+        # pairwise strengths once, then keep the coefficients fixed under resolution changes.
+        akinci_reference_support_radius = 0.015
+        akinci_cohesion_migration = 627 / (790 * akinci_reference_support_radius)
+        akinci_adhesion_migration = 42 / (65 * akinci_reference_support_radius)
+        akinci_surface_tension_coefficient = 0.025 * akinci_cohesion_migration
+        akinci_surface_tension = SurfaceTensionAkinci(;
+                                                      surface_tension_coefficient=akinci_surface_tension_coefficient)
+        akinci_adhesion_coefficient = 0.05 * akinci_adhesion_migration
+
         dam_break_tests = Dict(
             "default" => (),
             "with SummationDensity" => (fluid_density_calculator=SummationDensity(),
@@ -162,7 +172,7 @@
                                                                                               boundary_particle_spacing,
                                                                                               tank.boundary.mass),
                                                    boundary_layers=1, spacing_ratio=3),
-            "with SurfaceTensionAkinci" => (surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.025),
+            "with SurfaceTensionAkinci" => (surface_tension=akinci_surface_tension,
                                             fluid_particle_spacing=0.5 *
                                                                    fluid_particle_spacing,
                                             smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
@@ -170,7 +180,7 @@
                                                              fluid_particle_spacing,
                                             correction=AkinciFreeSurfaceCorrection(fluid_density),
                                             density_diffusion=nothing,
-                                            adhesion_coefficient=0.05,
+                                            adhesion_coefficient=akinci_adhesion_coefficient,
                                             sound_speed=100.0,
                                             reference_particle_spacing=fluid_particle_spacing)
         )
@@ -570,35 +580,104 @@
         @test count_rhs_allocations(sol) == 0
     end
 
-    @trixi_testset "fluid/cohesion_force_akinci_2d.jl" begin
+    @trixi_testset "fluid/akinci_cube_to_sphere_3d.jl" begin
         @trixi_test_nowarn trixi_include(@__MODULE__,
-                                         joinpath(examples_dir(), "fluid",
-                                                  "cohesion_force_akinci_2d.jl"),
-                                         particle_spacing=0.05, tspan=(0.0, 0.01),
-                                         saving_callback=nothing)
+                                          joinpath(examples_dir(), "fluid",
+                                                   "akinci_cube_to_sphere_3d.jl"),
+                                          particle_spacing=0.002, tspan=(0.0, 0.001),
+                                          fluid_clip_negative_pressure=false,
+                                          saving_callback=nothing)
         @test sol.retcode == ReturnCode.Success
-        @test isnothing(fluid_system.surface_normal_method)
-        @test !haskey(fluid_system.cache, :surface_normal)
-        @test norm(center_of_mass_velocity) < 100eps()
-        @test final_kinetic_energy >= 0
+        @test fluid_system.surface_tension isa SurfaceTensionAkinci
+        @test !isnothing(fluid_system.source_terms)
+        @test !TrixiParticles.clip_negative_pressure(fluid_system.state_equation)
+        @test TrixiParticles.clip_negative_pressure(boundary_system.boundary_model)
         @test count_rhs_allocations(sol) == 0
     end
 
-    @trixi_testset "fluid/akinci_wetting_2d.jl" begin
-        for wetting in (false, true)
-            @testset "wetting=$wetting" begin
+    @trixi_testset "fluid/akinci_water_crown_3d.jl" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "akinci_water_crown_3d.jl"),
+                                         particle_spacing=0.01, tspan=(0.0, 0.001),
+                                         saving_callback=nothing)
+        @test sol.retcode == ReturnCode.Success
+        @test isapprox(sum(drop.mass) / fluid_density, drop_volume; rtol=0.1)
+        @test fluid_system.density_calculator isa SummationDensity
+        @test boundary_system.adhesion_coefficient == 1.0
+        @test boundary_system.boundary_model.viscosity === fluid_system.viscosity
+        @test count_rhs_allocations(sol) == 0
+    end
+
+    @trixi_testset "fluid/akinci_droplet_on_plate_3d.jl" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "akinci_droplet_on_plate_3d.jl"),
+                                         particle_spacing=0.025, tspan=(0.0, 0.001),
+                                         saving_callback=nothing)
+        @test sol.retcode == ReturnCode.Success
+        @test boundary_system.adhesion_coefficient == 0.6
+        @test count_rhs_allocations(sol) == 0
+    end
+
+    @trixi_testset "fluid/akinci_stream_over_sphere_3d.jl" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "akinci_stream_over_sphere_3d.jl"),
+                                         particle_spacing=0.015, tspan=(0.0, 0.001),
+                                         saving_callback=nothing)
+        @test sol.retcode == ReturnCode.Success
+        @test open_boundary isa OpenBoundarySystem
+        @test semi.update_callback_used[]
+        @test count_rhs_allocations(sol) == 0
+    end
+
+    @trixi_testset "fluid/akinci_wetting_3d.jl" begin
+        wetting_cases = Dict("no_wetting" => (1.0, 0.0),
+                             "moderate_wetting" => (1.0, 0.1),
+                             "intermediate_wetting" => (1.0, 0.25),
+                             "perfect_wetting" => (0.001, 0.0))
+
+        for (wetting_case, coefficients) in wetting_cases
+            @testset "$wetting_case" begin
                 @trixi_test_nowarn trixi_include(@__MODULE__,
                                                  joinpath(examples_dir(), "fluid",
-                                                          "akinci_wetting_2d.jl"),
-                                                 particle_spacing=0.02,
-                                                 tspan=(0.0, 0.001), wetting,
+                                                          "akinci_wetting_3d.jl"),
+                                                 particle_spacing=0.003,
+                                                 tspan=(0.0, 0.001),
+                                                 wetting_case=wetting_case,
                                                  saving_callback=nothing)
                 @test sol.retcode == ReturnCode.Success
-                @test fluid_system.surface_normal_method isa ColorfieldSurfaceNormal
-                @test adhesion_coefficient == (wetting ? 1.0 : 0.001)
+                @test surface_tension_coefficient == coefficients[1]
+                @test adhesion_coefficient == coefficients[2]
                 @test count_rhs_allocations(sol) == 0
             end
         end
+    end
+
+    @trixi_testset "fluid/akinci_droplet_splitting_3d.jl" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "akinci_droplet_splitting_3d.jl"),
+                                         particle_spacing=0.02, tspan=(0.0, 0.001),
+                                         saving_callback=nothing)
+        @test sol.retcode == ReturnCode.Success
+        @test tank_boundary_system.adhesion_coefficient == 2.0
+        @test blade_boundary_system.adhesion_coefficient == 0.0
+        @test count_rhs_allocations(sol) == 0
+    end
+
+    @trixi_testset "fluid/akinci_rolling_droplet_3d.jl" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "akinci_rolling_droplet_3d.jl"),
+                                         particle_spacing=0.02, tspan=(0.0, 0.001),
+                                         saving_callback=nothing)
+        @test sol.retcode == ReturnCode.Success
+        @test adhesive_figure_system isa RigidBodySystem
+        @test adhesive_figure_system.adhesion_coefficient == 1.0
+        @test nonadhesive_figure_system.adhesion_coefficient == 0.0
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/sphere_surface_tension_2d.jl" begin
@@ -628,8 +707,11 @@
     end
 
     @trixi_testset "fluid/falling_water_spheres_2d.jl" begin
+        akinci_surface_tension_coefficient = 0.05 * 627 / (790 * 0.01)
+        akinci_surface_tension = SurfaceTensionAkinci(;
+                                                      surface_tension_coefficient=akinci_surface_tension_coefficient)
         surface_tension_models = Dict(
-            "SurfaceTensionAkinci" => SurfaceTensionAkinci(surface_tension_coefficient=0.05),
+            "SurfaceTensionAkinci" => akinci_surface_tension,
             "SurfaceTensionMorris" => SurfaceTensionMorris(surface_tension_coefficient=0.05),
             "SurfaceTensionMomentumMorris" => SurfaceTensionMomentumMorris(surface_tension_coefficient=0.05),
             "SurfaceTensionNone" => nothing  # For cases without surface tension

@@ -16,7 +16,8 @@ using ForwardDiff: ForwardDiff
 using GPUArraysCore: AbstractGPUArray
 using JSON: JSON
 using KernelAbstractions: KernelAbstractions, @kernel, @index
-using LinearAlgebra: norm, normalize, cross, dot, I, tr, inv, pinv, det
+using LinearAlgebra: norm, normalize, cross, dot, I, tr, inv, pinv, det, eigvals,
+                     Symmetric
 using Polyester: Polyester, @batch
 using Printf: @printf, @sprintf
 using ReadVTK: ReadVTK
@@ -64,6 +65,7 @@ include("preprocessing/preprocessing.jl")
 include("io/io.jl")
 include("general/restart.jl")
 include("visualization/recipes_plots.jl")
+include("visualization/makie.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition, apply_angular_velocity
@@ -80,6 +82,7 @@ export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller, TransportVelocityAdami, ParticleShiftingTechnique,
        ParticleShiftingTechniqueSun2017, ConsistentShiftingSun2019,
+       FreeSurfaceTangentialShifting,
        ContinuityEquationTermSun2019, MomentumEquationTermSun2019, VelocityAveraging
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        SchoenbergQuinticSplineKernel, GaussianKernel, WendlandC2Kernel, WendlandC4Kernel,
@@ -88,7 +91,7 @@ export StateEquationCole, StateEquationIdealGas, StateEquationAdaptiveCole
 export ArtificialViscosityMonaghan, ViscosityAdami, ViscosityMorris, ViscosityAdamiSGS,
        ViscosityMorrisSGS, ViscosityCarreauYasuda
 export DensityDiffusionMolteniColagrossi, DensityDiffusionFerrari, DensityDiffusionAntuono
-export tensile_instability_control
+export tensile_instability_control, InterfaceAwareTensileInstabilityControl
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
        PressureMirroring, PressureZeroing, BoundaryModelCharacteristicsLastiwka,
        BoundaryModelMirroringTafuni, BoundaryModelDynamicalPressureZhang,
@@ -99,6 +102,7 @@ export PrescribedMotion, OscillatingMotion2D
 export RCRWindkesselModel
 export examples_dir, validation_dir
 export trixi2vtk, vtk2trixi
+export trixi2makie
 export RectangularTank, RectangularShape, SphereShape, ComplexShape
 export ParticlePackingSystem, SignedDistanceField
 export WindingNumberHormann, WindingNumberJacobson
@@ -112,9 +116,10 @@ export available_data, kinetic_energy, total_mass, max_pressure, min_pressure, a
        max_density, min_density, avg_density
 export interpolate_line, interpolate_points, interpolate_plane_3d, interpolate_plane_2d,
        interpolate_plane_2d_vtk
-export SurfaceTensionAkinci, CohesionForceAkinci, SurfaceTensionMorris,
+export SurfaceTensionAkinci, CohesionForceAkinci,
+       SurfaceTensionAkinciCohesionPhysical, SurfaceTensionMorris,
        SurfaceTensionMomentumMorris
-export ColorfieldSurfaceNormal
+export ColorfieldSurfaceNormal, CorrectedCSFSurfaceNormal, WettedAreaContactAngle
 export SymplecticPositionVerlet
 export coordinates_eltype
 

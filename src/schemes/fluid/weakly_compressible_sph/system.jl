@@ -35,7 +35,9 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
                                 By default, the correct formulation is chosen based on the
                                 density calculator and the correction method.
                                 To use [Tensile Instability Control](@ref tic), pass
-                                [`tensile_instability_control`](@ref) here.
+                                [`tensile_instability_control`](@ref), or use
+                                [`InterfaceAwareTensileInstabilityControl`](@ref) with a
+                                supported Morris/CSS free surface.
 - `shifting_technique`:         [Shifting technique](@ref shifting) or [transport velocity
                                 formulation](@ref transport_velocity_formulation) to use
                                 with this system. Default is no shifting.
@@ -133,6 +135,12 @@ function WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
 
     surface_normal_method = default_surface_normal_method(surface_tension,
                                                           surface_normal_method)
+    validate_corrected_csf(surface_normal_method, surface_tension)
+    validate_free_surface_shifting(shifting_technique, surface_normal_method,
+                                   surface_tension)
+    validate_interface_aware_tic(pressure_acceleration, density_calculator,
+                                 state_equation, surface_normal_method,
+                                 surface_tension, correction)
 
     if surface_normal_method !== nothing && reference_particle_spacing < eps()
         throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using a surface-normal method"))
@@ -229,6 +237,8 @@ end
 
 @inline Base.eltype(::WeaklyCompressibleSPHSystem{<:Any, ELTYPE}) where {ELTYPE} = ELTYPE
 
+@inline wetted_area_supported_fluid(::WeaklyCompressibleSPHSystem) = true
+
 @inline function v_nvariables(system::WeaklyCompressibleSPHSystem)
     return v_nvariables(system, system.density_calculator)
 end
@@ -321,7 +331,7 @@ end
 end
 
 function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t)
-    (; density_calculator, correction, surface_normal_method, surface_tension) = system
+    (; density_calculator, correction, surface_normal_method) = system
 
     compute_pressure!(system, v, semi)
 
@@ -334,7 +344,22 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_od
 
     # These are only computed when using surface tension
     compute_surface_normal!(system, surface_normal_method, v, u, v_ode, u_ode, semi, t)
-    compute_surface_delta_function!(system, surface_tension, semi)
+    return system
+end
+
+function compute_correction_values!(system::WeaklyCompressibleSPHSystem,
+                                    ::AkinciFreeSurfaceCorrection, u,
+                                    v_ode, u_ode, semi)
+    compute_akinci_correction_density!(system, system.density_calculator, u, u_ode, semi)
+    return system
+end
+
+function compute_akinci_correction_density!(system, ::ContinuityDensity, u, u_ode, semi)
+    summation_density!(system, semi, u, u_ode, system.cache.kernel_summation_density)
+    return system
+end
+
+function compute_akinci_correction_density!(system, ::SummationDensity, u, u_ode, semi)
     return system
 end
 
@@ -344,7 +369,6 @@ function update_final!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, 
 
     # Surface normal of neighbor and boundary needs to have been calculated already
     compute_curvature!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
-    compute_stress_tensors!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
     update_shifting!(system, shifting_technique(system), v, u, v_ode, u_ode, semi)
 end
 

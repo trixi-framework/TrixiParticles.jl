@@ -1,5 +1,7 @@
 .vscode
 .DS_Store
+.opencode
+graphify-out
 Manifest.toml
 out
 out_*
