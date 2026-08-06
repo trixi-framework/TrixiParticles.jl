@@ -92,5 +92,20 @@
         expected_momentum = sqrt((800.0 + 1000.0) * system_c.smoothing_length^3 /
                                  (4 * pi * morris_momentum.surface_tension_coefficient))
         @test interface_dt(system_c, system_d, 800.0, 1000.0) == expected_momentum
+
+        physical_a = SurfaceTensionAkinciCohesionPhysical(;
+                                                          surface_tension_coefficient=0.072,
+                                                          reference_density=1000.0)
+        physical_b = SurfaceTensionAkinciCohesionPhysical(;
+                                                          surface_tension_coefficient=0.08,
+                                                          reference_density=800.0)
+        system_e = TestFluidSystem(0.008, 100.0, viscosity, acceleration, physical_a)
+        system_f = TestFluidSystem(0.012, 100.0, viscosity, acceleration, physical_b)
+        expected_physical = sqrt((physical_a.reference_density +
+                                  physical_b.reference_density) *
+                                 system_e.smoothing_length^3 /
+                                 (4 * pi * physical_b.surface_tension_coefficient))
+        @test interface_dt(system_e, system_f, 1.0, 1.0) == expected_physical
+        @test interface_dt(system_e, with_morris, 1000.0, 1000.0) == Inf
     end
 end
