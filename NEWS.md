@@ -13,6 +13,12 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   radius `h_c`, multiply the surface-tension coefficient by `627 / (790 * h_c)` and the
   adhesion coefficient by `42 / (65 * h_c)`; migrated coefficients are resolution-independent.
 
+### Features
+
+- Added the opt-in 3D `SurfaceTensionAkinciCohesionPhysical` model. It converts a physical
+  surface tension in N/m to the resolution-dependent Akinci cohesion coefficient, supports
+  same-kernel Young-Dupre wall ratios, and contributes a capillary time-step restriction.
+
 ### Important Bugfixes
 
 - Hardened surface tension model configuration by validating coefficients, avoiding unnecessary

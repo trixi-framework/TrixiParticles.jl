@@ -308,6 +308,16 @@ end
     return dv_particle
 end
 
+@inline function adhesion_force!(dv_particle,
+                                 surface_tension::SurfaceTensionAkinciCohesionPhysical,
+                                 particle_system::AbstractFluidSystem,
+                                 neighbor_system::RigidBodySystem,
+                                 particle, neighbor, pos_diff, distance)
+    return akinci_physical_wall_cohesion_force!(dv_particle, surface_tension,
+                                                particle_system, neighbor_system,
+                                                particle, neighbor, pos_diff, distance)
+end
+
 function write_u0!(u0, system::RigidBodySystem)
     (; initial_condition) = system
 

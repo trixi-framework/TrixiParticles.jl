@@ -315,6 +315,14 @@ function add_system_data!(system_data,
     system_data["surface_tension"]["surface_tension_coefficient"] = surface_tension.surface_tension_coefficient
 end
 
+function add_system_data!(system_data,
+                          surface_tension::SurfaceTensionAkinciCohesionPhysical)
+    system_data["surface_tension"] = Dict{String, Any}()
+    system_data["surface_tension"]["model"] = type2string(surface_tension)
+    system_data["surface_tension"]["surface_tension_coefficient"] = surface_tension.surface_tension_coefficient
+    system_data["surface_tension"]["reference_density"] = surface_tension.reference_density
+end
+
 function add_system_data!(system_data, surface_normal_method::ColorfieldSurfaceNormal)
     system_data["surface_normal_method"] = Dict{String, Any}()
     system_data["surface_normal_method"]["model"] = type2string(surface_normal_method)

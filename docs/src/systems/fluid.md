@@ -292,13 +292,16 @@ In the following table some values are shown for reference. The values marked wi
 ### Model configuration
 
 All surface tension coefficients must be finite and non-negative. A zero coefficient disables
-the fluid-fluid surface force. Wall adhesion is controlled independently by the boundary's
-`adhesion_coefficient`.
+the fluid-fluid surface force. `SurfaceTensionAkinciCohesionPhysical` accepts a physical value
+in N/m, while the coefficients of `CohesionForceAkinci` and the complete
+`SurfaceTensionAkinci` model retain the numerical meaning of the original Akinci formulation.
+Wall adhesion is controlled independently by the boundary's `adhesion_coefficient`.
 
-`CohesionForceAkinci` only evaluates the pairwise cohesion and optional wall-adhesion forces.
-It does not require surface normals or `reference_particle_spacing`. The full
-`SurfaceTensionAkinci` model and both Morris models require a surface-normal method. When one
-of these models is selected without an explicit method, `ColorfieldSurfaceNormal()` is used.
+`CohesionForceAkinci` and `SurfaceTensionAkinciCohesionPhysical` only evaluate pairwise
+cohesion and optional wall forces. They do not require surface normals or
+`reference_particle_spacing`. The complete `SurfaceTensionAkinci` model and both Morris models
+require a surface-normal method. When one of these models is selected without an explicit
+method, `ColorfieldSurfaceNormal()` is used.
 
 !!! note "Akinci kernels in two dimensions"
     Akinci et al. published the cohesion and adhesion kernels for three dimensions. In two
@@ -364,6 +367,49 @@ The 3D constant is the published normalization. The 2D constant is chosen such t
 = \int_{\mathbb{R}^3} C_3(\Vert\bm{r}\Vert)\,\mathrm{d}V
 = \frac{79}{336}.
 ```
+
+#### Physical cohesion-only normalization
+
+[`SurfaceTensionAkinciCohesionPhysical`](@ref) converts a physical surface tension ``\sigma``
+in N/m to the coefficient of the three-dimensional cohesion kernel. For a planar interface,
+
+```math
+\int_0^{h_c} r^4 C_3(r)\,\mathrm{d}r = \frac{21h_c^2}{880\pi},
+\qquad
+\sigma = \frac{\pi}{8}\gamma\rho_0^2
+         \int_0^{h_c} r^4 C_3(r)\,\mathrm{d}r
+       = \frac{21}{7040}\gamma\rho_0^2h_c^2.
+```
+
+The internal coefficient is therefore
+
+```math
+\gamma(h_c) = \frac{7040\sigma}{21\rho_0^2h_c^2}.
+```
+
+This support-radius scaling removes the resolution dependence of the continuum surface energy.
+The model uses only central pair forces, needs no colorfield normals, and exactly conserves
+pairwise linear and angular momentum. It is restricted to three dimensions because the physical
+surface-energy conversion above is three-dimensional. Use [`CohesionForceAkinci`](@ref) for an
+empirical coefficient or a two-dimensional simulation.
+
+For this model, a wall's `adhesion_coefficient` multiplies the same normalized cohesion kernel.
+The Young-Dupre work-of-adhesion relation gives
+
+```math
+\texttt{adhesion_coefficient} = \frac{1 + \cos\theta}{2}.
+```
+
+Thus, ratios `0`, `0.5`, and `1` target contact angles of 180, 90, and 0 degrees, respectively.
+The ratio belongs to the boundary, so different walls can use different wetting properties.
+
+Automatic time-step selection applies the capillary condition
+
+```math
+\Delta t_\sigma = \sqrt{\frac{\rho_0 h^3}{2\pi\sigma}},
+```
+
+where ``h`` is the smoothing length.
 
 #### Surface area minimization force
 

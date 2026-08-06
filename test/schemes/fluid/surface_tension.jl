@@ -13,8 +13,34 @@
             end
         end
 
+        physical = SurfaceTensionAkinciCohesionPhysical(;
+                                                        surface_tension_coefficient=0.072f0,
+                                                        reference_density=1000.0f0)
+        @test physical.surface_tension_coefficient === 0.072f0
+        @test physical.reference_density === 1000.0f0
+        system_data = Dict{String, Any}()
+        TrixiParticles.add_system_data!(system_data, physical)
+        @test system_data["surface_tension"]["model"] ==
+              "SurfaceTensionAkinciCohesionPhysical"
+        @test system_data["surface_tension"]["surface_tension_coefficient"] === 0.072f0
+        @test system_data["surface_tension"]["reference_density"] === 1000.0f0
+        @test SurfaceTensionAkinciCohesionPhysical(; surface_tension_coefficient=0,
+                                                   reference_density=1).surface_tension_coefficient ==
+              0
+        for coefficient in (-1.0, NaN, Inf, -Inf, 1.0im, "invalid")
+            @test_throws ArgumentError SurfaceTensionAkinciCohesionPhysical(;
+                                                                            surface_tension_coefficient=coefficient,
+                                                                            reference_density=1000.0)
+        end
+        for density in (0.0, -1.0, NaN, Inf, -Inf, 1.0im, "invalid")
+            @test_throws ArgumentError SurfaceTensionAkinciCohesionPhysical(;
+                                                                            surface_tension_coefficient=0.072,
+                                                                            reference_density=density)
+        end
+
         @test !TrixiParticles.requires_surface_normal(nothing)
         @test !TrixiParticles.requires_surface_normal(CohesionForceAkinci())
+        @test !TrixiParticles.requires_surface_normal(physical)
         @test TrixiParticles.requires_surface_normal(SurfaceTensionAkinci())
         @test TrixiParticles.requires_surface_normal(SurfaceTensionMorris())
         @test TrixiParticles.requires_surface_normal(SurfaceTensionMomentumMorris())
@@ -84,15 +110,17 @@
         @test haskey(full_akinci.cache, :surface_normal)
     end
 
-    @testset "zero Morris coefficient does not restrict the time step" begin
+    @testset "surface tension time-step restriction" begin
         function calculate_initial_dt(surface_tension)
-            initial_condition = InitialCondition(; coordinates=[0.0 1.0; 0.0 0.0],
+            initial_condition = InitialCondition(; coordinates=[0.0 1.0;
+                                                                0.0 0.0;
+                                                                0.0 0.0],
                                                  density=ones(2), particle_spacing=1.0)
             reference_particle_spacing = isnothing(surface_tension) ? 0 : 1.0
             system = WeaklyCompressibleSPHSystem(initial_condition;
-                                                 smoothing_kernel=WendlandC2Kernel{2}(),
+                                                 smoothing_kernel=WendlandC2Kernel{3}(),
                                                  smoothing_length=1.0,
-                                                 density_calculator=SummationDensity(),
+                                                 density_calculator=ContinuityDensity(),
                                                  state_equation=StateEquationCole(sound_speed=10.0,
                                                                                   reference_density=1.0,
                                                                                   exponent=1),
@@ -101,6 +129,7 @@
             semi = Semidiscretization(system)
             ode = semidiscretize(semi, (0.0, 0.1))
             v_ode, u_ode = ode.u0.x
+            TrixiParticles.update_systems_and_nhs(v_ode, u_ode, semi, 0.0)
             return TrixiParticles.calculate_dt(v_ode, u_ode, 0.25, semi.systems[1], semi)
         end
 
@@ -109,9 +138,23 @@
                                                                      surface_tension_coefficient=0.0))
         dt_with_zero_css = calculate_initial_dt(SurfaceTensionMomentumMorris(;
                                                                              surface_tension_coefficient=0.0))
+        dt_with_zero_physical = calculate_initial_dt(SurfaceTensionAkinciCohesionPhysical(;
+                                                                                          surface_tension_coefficient=0.0,
+                                                                                          reference_density=1.0))
 
         @test dt_with_zero_csf == dt_without_surface_tension
         @test dt_with_zero_css == dt_without_surface_tension
+        @test dt_with_zero_physical == dt_without_surface_tension
+
+        physical = SurfaceTensionAkinciCohesionPhysical(;
+                                                        surface_tension_coefficient=1000.0,
+                                                        reference_density=1.0)
+        @test calculate_initial_dt(physical) ≈ sqrt(1 / (2pi * 1000))
+        for model in (SurfaceTensionMorris(; surface_tension_coefficient=1000.0),
+             SurfaceTensionMomentumMorris(;
+                                          surface_tension_coefficient=1000.0))
+            @test calculate_initial_dt(model) ≈ sqrt(1 / (2pi * 1000))
+        end
     end
 
     @testset verbose=true "`cohesion_force_akinci`" begin
@@ -342,6 +385,111 @@
         @test isapprox(cohesion_3d, 79 / 336; rtol=1e-12)
         @test isapprox(integrate_adhesion(Val(2)), integrate_adhesion(Val(3));
                        rtol=1e-12)
+    end
+
+    @testset "physical Akinci cohesion" begin
+        smoothing_kernel = WendlandC2Kernel{3}()
+        smoothing_length = 0.5
+        support_radius = TrixiParticles.compact_support(smoothing_kernel, smoothing_length)
+        reference_density = 2.0
+        surface_tension = SurfaceTensionAkinciCohesionPhysical(;
+                                                               surface_tension_coefficient=0.3,
+                                                               reference_density)
+        internal_coefficient = 0.3 /
+                               ((21 / 7040) * reference_density^2 * support_radius^2)
+        @test TrixiParticles.akinci_physical_cohesion_coefficient(surface_tension,
+                                                                  support_radius) ≈
+              internal_coefficient
+        @test TrixiParticles.akinci_physical_cohesion_coefficient(surface_tension,
+                                                                  support_radius / 2) ≈
+              4internal_coefficient
+
+        unit_cohesion = CohesionForceAkinci(surface_tension_coefficient=1.0)
+        radial_moment,
+        _ = quadgk(0.0, support_radius / 2, support_radius;
+                   rtol=1e-13) do radius
+            pos_diff = SVector(radius, 0.0, 0.0)
+            force = TrixiParticles.cohesion_force_akinci(unit_cohesion, support_radius,
+                                                         1.0, pos_diff, radius, Val(3))
+            return radius^4 * -force[1]
+        end
+        @test isapprox(radial_moment, 21support_radius^2 / (880pi); rtol=1e-12)
+        recovered_surface_tension = (pi / 8) * internal_coefficient *
+                                    reference_density^2 * radial_moment
+        @test isapprox(recovered_surface_tension,
+                       surface_tension.surface_tension_coefficient; rtol=1e-12)
+
+        @test_throws ArgumentError TrixiParticles.create_cache_surface_tension(surface_tension,
+                                                                               Float64,
+                                                                               2, 1)
+
+        initial_condition = InitialCondition(;
+                                             coordinates=[0.0 0.75; 0.0 0.0; 0.0 0.0],
+                                             velocity=zeros(3, 2),
+                                             mass=ones(2),
+                                             density=fill(reference_density, 2),
+                                             particle_spacing=0.5)
+        system = WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
+                                             smoothing_length,
+                                             density_calculator=ContinuityDensity(),
+                                             state_equation=StateEquationCole(;
+                                                                              sound_speed=10.0,
+                                                                              reference_density,
+                                                                              exponent=1),
+                                             surface_tension)
+        @test isnothing(system.surface_normal_method)
+        @test !haskey(system.cache, :surface_normal)
+        @test !haskey(system.cache, :reference_particle_spacing)
+
+        pos_diff = SVector(-0.75, 0.0, 0.0)
+        distance = norm(pos_diff)
+        correction = 1.25
+        dv_a = Ref(zero(pos_diff))
+        TrixiParticles.surface_tension_force!(dv_a, surface_tension, surface_tension,
+                                              system, system, 1, 2, pos_diff, distance,
+                                              reference_density, reference_density,
+                                              zero(pos_diff), correction)
+        empirical = CohesionForceAkinci(;
+                                        surface_tension_coefficient=internal_coefficient)
+        expected = correction *
+                   TrixiParticles.cohesion_force_akinci(empirical, support_radius, 1.0,
+                                                        pos_diff, distance, Val(3))
+        @test isapprox(dv_a[], expected; rtol=2eps(), atol=2eps())
+
+        dv_b = Ref(zero(pos_diff))
+        TrixiParticles.surface_tension_force!(dv_b, surface_tension, surface_tension,
+                                              system, system, 2, 1, -pos_diff, distance,
+                                              reference_density, reference_density,
+                                              zero(pos_diff), correction)
+        @test isapprox(dv_a[], -dv_b[]; rtol=2eps(), atol=2eps())
+
+        boundary_condition = InitialCondition(;
+                                              coordinates=reshape([0.75, 0.0, 0.0], 3, 1),
+                                              mass=[2.0],
+                                              density=[reference_density],
+                                              particle_spacing=0.5)
+        boundary_model = BoundaryModelDummyParticles([reference_density], [2.0],
+                                                     AdamiPressureExtrapolation(),
+                                                     smoothing_kernel, smoothing_length;
+                                                     state_equation=system.state_equation)
+        boundary_system = WallBoundarySystem(boundary_condition, boundary_model;
+                                             adhesion_coefficient=0.5)
+        dv_wall = Ref(zero(pos_diff))
+        TrixiParticles.adhesion_force!(dv_wall, surface_tension, system, boundary_system,
+                                       1, 1, pos_diff, distance)
+        wall_model = CohesionForceAkinci(;
+                                         surface_tension_coefficient=0.5internal_coefficient)
+        expected_wall = TrixiParticles.cohesion_force_akinci(wall_model, support_radius,
+                                                             2.0, pos_diff, distance,
+                                                             Val(3))
+        @test isapprox(dv_wall[], expected_wall; rtol=2eps(), atol=2eps())
+
+        rigid_system = RigidBodySystem(boundary_condition; boundary_model,
+                                       adhesion_coefficient=0.5)
+        dv_rigid = Ref(zero(pos_diff))
+        TrixiParticles.adhesion_force!(dv_rigid, surface_tension, system, rigid_system,
+                                       1, 1, pos_diff, distance)
+        @test isapprox(dv_rigid[], expected_wall; rtol=2eps(), atol=2eps())
     end
 
     @testset "compute_stress_tensors! (MomentumMorris)" begin

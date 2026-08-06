@@ -36,6 +36,62 @@ struct CohesionForceAkinci{ELTYPE <: Real} <: AkinciTypeSurfaceTension
     end
 end
 
+const AKINCI_COHESION_SURFACE_ENERGY_FACTOR_3D = 21 / 7040
+
+@doc raw"""
+    SurfaceTensionAkinciCohesionPhysical(; surface_tension_coefficient,
+                                          reference_density)
+
+Three-dimensional, cohesion-only Akinci model with a physical surface tension coefficient.
+The model uses the central pair force of [`CohesionForceAkinci`](@ref), but converts the
+surface tension ``\sigma`` in N/m to the internal Akinci coefficient at the current compact
+support radius ``h_c`` according to
+
+```math
+\gamma = \frac{7040\sigma}{21\rho_0^2h_c^2}.
+```
+
+This conversion follows from the continuum surface energy of a planar interface. It removes
+the support-radius dependence of the original coefficient, requires no surface normals, and
+preserves the pair force's exact linear- and angular-momentum conservation.
+
+For wall interaction, the boundary's `adhesion_coefficient` is a dimensionless multiplier of
+the same cohesion kernel. The Young-Dupre mapping for a desired contact angle ``\theta`` is
+`adhesion_coefficient = (1 + cosd(theta)) / 2`. Thus, zero represents ``180^\circ`` and one
+represents ``0^\circ``. Values outside this range can be used for empirical tuning.
+
+This model is only supported in three dimensions. The original [`CohesionForceAkinci`](@ref)
+remains available when an empirical coefficient or a two-dimensional model is desired.
+
+# Keywords
+- `surface_tension_coefficient`: Finite, non-negative physical surface tension ``\sigma`` in
+  N/m. Zero disables fluid-fluid cohesion.
+- `reference_density`: Finite, positive rest density ``\rho_0`` in kg/m^3.
+"""
+struct SurfaceTensionAkinciCohesionPhysical{ELTYPE <: Real} <:
+       AkinciTypeSurfaceTension
+    surface_tension_coefficient :: ELTYPE
+    reference_density           :: ELTYPE
+
+    function SurfaceTensionAkinciCohesionPhysical(; surface_tension_coefficient,
+                                                  reference_density)
+        coefficient = validate_surface_tension_coefficient(surface_tension_coefficient)
+        if !(reference_density isa Real) || !isfinite(reference_density) ||
+           reference_density <= 0
+            throw(ArgumentError("`reference_density` must be a finite, positive real number"))
+        end
+
+        coefficient_, reference_density_ = promote(coefficient, reference_density)
+        new{typeof(coefficient_)}(coefficient_, reference_density_)
+    end
+end
+
+@inline function akinci_physical_cohesion_coefficient(surface_tension, support_radius)
+    factor = oftype(support_radius, AKINCI_COHESION_SURFACE_ENERGY_FACTOR_3D)
+    return surface_tension.surface_tension_coefficient /
+           (factor * surface_tension.reference_density^2 * support_radius^2)
+end
+
 @doc raw"""
     SurfaceTensionAkinci(surface_tension_coefficient=1.0)
 
@@ -91,6 +147,15 @@ function create_cache_surface_tension(surface_tension, ELTYPE, NDIMS, nparticles
     return (;)
 end
 
+function create_cache_surface_tension(::SurfaceTensionAkinciCohesionPhysical, ELTYPE,
+                                      NDIMS, nparticles)
+    if NDIMS != 3
+        throw(ArgumentError("`SurfaceTensionAkinciCohesionPhysical` is only supported in three dimensions"))
+    end
+
+    return (;)
+end
+
 function create_cache_surface_tension(::AkinciTypeSurfaceTension, ELTYPE, NDIMS,
                                       nparticles)
     if NDIMS != 2 && NDIMS != 3
@@ -133,6 +198,7 @@ end
 # to duplicate concrete model checks.
 @inline requires_surface_normal(::Nothing) = false
 @inline requires_surface_normal(::CohesionForceAkinci) = false
+@inline requires_surface_normal(::SurfaceTensionAkinciCohesionPhysical) = false
 @inline requires_surface_normal(::Any) = true
 
 function create_cache_surface_tension(::SurfaceTensionMomentumMorris, ELTYPE, NDIMS,
@@ -242,6 +308,29 @@ end
     dv_particle[] += surface_tension_correction *
                      cohesion_force_akinci(surface_tension_a, support_radius, m_b,
                                            pos_diff, distance, Val(ndims(particle_system)))
+
+    return dv_particle
+end
+
+@inline function surface_tension_force!(dv_particle,
+                                        surface_tension_a::SurfaceTensionAkinciCohesionPhysical,
+                                        surface_tension_b::SurfaceTensionAkinciCohesionPhysical,
+                                        particle_system::AbstractFluidSystem,
+                                        neighbor_system::AbstractFluidSystem,
+                                        particle, neighbor, pos_diff, distance, rho_a,
+                                        rho_b, grad_kernel,
+                                        surface_tension_correction)
+    distance^2 < eps(initial_smoothing_length(particle_system)^2) && return dv_particle
+
+    support_radius = compact_support(system_smoothing_kernel(particle_system),
+                                     smoothing_length(particle_system, particle))
+    coefficient = akinci_physical_cohesion_coefficient(surface_tension_a,
+                                                       support_radius)
+    cohesion = (; surface_tension_coefficient=coefficient)
+    m_b = hydrodynamic_mass(neighbor_system, neighbor)
+    dv_particle[] += surface_tension_correction *
+                     cohesion_force_akinci(cohesion, support_radius, m_b, pos_diff,
+                                           distance, Val(ndims(particle_system)))
 
     return dv_particle
 end
@@ -396,6 +485,40 @@ end
                                            Val(ndims(particle_system)))
 
     return dv_particle
+end
+
+@inline function akinci_physical_wall_cohesion_force!(dv_particle,
+                                                      surface_tension::SurfaceTensionAkinciCohesionPhysical,
+                                                      particle_system::AbstractFluidSystem,
+                                                      neighbor_system,
+                                                      particle, neighbor, pos_diff,
+                                                      distance)
+    wall_ratio = neighbor_system.adhesion_coefficient
+    iszero(wall_ratio) && return dv_particle
+    distance^2 < eps(initial_smoothing_length(particle_system)^2) && return dv_particle
+
+    support_radius = compact_support(system_smoothing_kernel(particle_system),
+                                     smoothing_length(particle_system, particle))
+    distance >= support_radius && return dv_particle
+
+    coefficient = wall_ratio *
+                  akinci_physical_cohesion_coefficient(surface_tension, support_radius)
+    wall_cohesion = (; surface_tension_coefficient=coefficient)
+    m_b = hydrodynamic_mass(neighbor_system, neighbor)
+    dv_particle[] += cohesion_force_akinci(wall_cohesion, support_radius, m_b, pos_diff,
+                                           distance, Val(ndims(particle_system)))
+
+    return dv_particle
+end
+
+@inline function adhesion_force!(dv_particle,
+                                 surface_tension::SurfaceTensionAkinciCohesionPhysical,
+                                 particle_system::AbstractFluidSystem,
+                                 neighbor_system::AbstractBoundarySystem,
+                                 particle, neighbor, pos_diff, distance)
+    return akinci_physical_wall_cohesion_force!(dv_particle, surface_tension,
+                                                particle_system, neighbor_system,
+                                                particle, neighbor, pos_diff, distance)
 end
 
 @inline function adhesion_force!(dv_particle, surface_tension, particle_system,

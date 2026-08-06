@@ -227,8 +227,15 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::AbstractFluidSystem, sem
     # Eq. 28 in Morris (2000)
     dt = min(dt_viscosity, dt_acceleration, dt_sound_speed)
 
-    if surface_tension isa SurfaceTensionMorris ||
-       surface_tension isa SurfaceTensionMomentumMorris
+    if surface_tension isa SurfaceTensionAkinciCohesionPhysical
+        coefficient = surface_tension.surface_tension_coefficient
+        if !iszero(coefficient)
+            dt_surface_tension = sqrt(surface_tension.reference_density *
+                                      smoothing_length_^3 / (2 * pi * coefficient))
+            dt = min(dt, dt_surface_tension)
+        end
+    elseif surface_tension isa SurfaceTensionMorris ||
+           surface_tension isa SurfaceTensionMomentumMorris
         coefficient = surface_tension.surface_tension_coefficient
         if !iszero(coefficient)
             v = wrap_v(v_ode, system, semi)
