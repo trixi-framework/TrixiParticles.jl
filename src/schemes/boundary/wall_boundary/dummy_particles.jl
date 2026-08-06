@@ -245,7 +245,7 @@ end
 struct MarronePressureExtrapolation
     allow_loop_flipping::Bool
 
-    function MarronePressureExtrapolation(; allow_loop_flipping=true)
+    function MarronePressureExtrapolation(; allow_loop_flipping=false)
         return new(allow_loop_flipping)
     end
 end
@@ -413,7 +413,7 @@ end
                                  ::Union{SummationDensity, AdamiPressureExtrapolation,
                                          PressureMirroring, PressureZeroing,
                                          BernoulliPressureExtrapolation,
-                                         PressureBoundaries},
+                                         PressureBoundaries, MarronePressureExtrapolation},
                                  model::BoundaryModelDummyParticles)
     # When using `SummationDensity`, the density is stored in the cache
     return model.cache.density
@@ -441,7 +441,8 @@ end
 function compute_density!(boundary_model,
                           ::Union{ContinuityDensity, AdamiPressureExtrapolation,
                                   BernoulliPressureExtrapolation,
-                                  PressureMirroring, PressureZeroing},
+                                  PressureMirroring, PressureZeroing,
+                                  MarronePressureExtrapolation},
                           system, v, u, v_ode, u_ode, semi)
     # No density update for `ContinuityDensity`, `PressureMirroring` and `PressureZeroing`.
     # For `AdamiPressureExtrapolation` and `BernoulliPressureExtrapolation`, the density is updated in `compute_pressure!`.
@@ -546,7 +547,8 @@ end
 
 function compute_pressure!(boundary_model,
                            ::Union{AdamiPressureExtrapolation,
-                                   BernoulliPressureExtrapolation},
+                                   BernoulliPressureExtrapolation,
+                                   MarronePressureExtrapolation},
                            system, v, u, v_ode, u_ode, semi)
     (; pressure, cache, viscosity, density_calculator) = boundary_model
     (; allow_loop_flipping) = boundary_model.density_calculator
