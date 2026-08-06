@@ -20,6 +20,10 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   Akinci cohesion and adhesion kernels across floating-point scales.
 - Added color-weighted fluid-fluid interface normals and consistently applied surface-normal
   validity thresholds to standalone, Akinci, and Morris calculations.
+- Fixed `AkinciFreeSurfaceCorrection` with `ContinuityDensity` by reconstructing the
+  neighborhood-deficiency density used by the correction without changing the integrated
+  pressure density. Dummy boundary masses are included so wall particles are not misclassified
+  as a free surface.
 
 ## Version 0.5.3
 

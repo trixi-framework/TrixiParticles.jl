@@ -3,12 +3,12 @@
     AkinciFreeSurfaceCorrection(rho0)
 
 Free surface correction according to [Akinci et al. (2013)](@cite Akinci2013).
-At a free surface, the mean density is typically lower than the reference density,
-resulting in reduced surface tension and viscosity forces.
-The free surface correction adjusts the viscosity, pressure, and surface tension forces
-near free surfaces to counter this effect.
-It's important to note that this correlation is unphysical and serves as an approximation.
-The computation time added by this method is about 2--3%.
+At a free surface, particle-neighborhood deficiency reduces the pairwise surface tension and
+viscosity forces. This correction applies the symmetrized factor from Equation 4 to the combined
+cohesion and curvature force in Equation 5 and, as specified in Section 4, to viscosity. It does
+not modify pressure forces.
+The published implementation reports about 2--3% overhead for evaluating the correction from
+an already available density estimate.
 
 Mathematically the idea is quite simple. If we have an SPH particle in the middle of a volume
 at rest, its density will be identical to the rest density ``\rho_0``. If we now consider an SPH
@@ -18,7 +18,13 @@ the surface, which will result in a lower density. If we calculate the correctio
 k = \rho_0/\rho_\text{mean},
 ```
 this value will be about ~1.5 for particles at the free surface and can then be used to increase
-the pressure and viscosity accordingly.
+the surface tension and viscosity forces accordingly.
+
+With [`SummationDensity`](@ref), the correction uses the current density directly. When used with
+[`ContinuityDensity`](@ref) in a [`WeaklyCompressibleSPHSystem`](@ref), TrixiParticles.jl
+reconstructs an auxiliary summation density for this correction while pressure continues to use
+the integrated density. This preserves the particle-neighborhood-deficiency behavior of the
+published model at the cost of one additional density summation per update stage.
 
 # Arguments
 - `rho0`: Rest density.
@@ -40,7 +46,7 @@ end
     rho_mean = (rho_a + rho_b) / 2
     k = correction.rho0 / rho_mean
 
-    # Viscosity, pressure, surface_tension
+    # Equation 5 applies `k` to surface tension; Section 4 also applies it to viscosity.
     return k, 1, k
 end
 
@@ -457,6 +463,10 @@ function correction_matrix_inversion_step!(corr_matrix, system, semi)
 end
 
 create_cache_correction(correction, density, NDIMS, nparticles) = (;)
+
+function create_cache_correction(::AkinciFreeSurfaceCorrection, density, NDIMS, n_particles)
+    return (; kernel_summation_density=similar(density))
+end
 
 function create_cache_correction(::ShepardKernelCorrection, density, NDIMS, n_particles)
     return (; kernel_correction_coefficient=similar(density))

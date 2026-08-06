@@ -397,6 +397,148 @@
                        rtol=1e-12)
     end
 
+    @testset "Akinci free-surface correction" begin
+        correction = AkinciFreeSurfaceCorrection(1000.0)
+        @test TrixiParticles.free_surface_correction(correction, nothing, 1000.0,
+                                                     1000.0) == (1.0, 1, 1.0)
+        expected = 1000.0 / ((500.0 + 1000.0) / 2)
+        viscosity, pressure,
+        surface_tension = TrixiParticles.free_surface_correction(correction, nothing,
+                                                                 500.0, 1000.0)
+        @test viscosity == expected
+        @test pressure == 1
+        @test surface_tension == expected
+        @test TrixiParticles.free_surface_correction(correction, nothing, 1000.0,
+                                                     500.0) == (expected, 1, expected)
+    end
+
+    @testset "Akinci ContinuityDensity reconstruction" begin
+        particle_spacing = 1.0
+        rho0 = 1000.0
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        state_equation = StateEquationCole(sound_speed=10.0, reference_density=rho0,
+                                           exponent=1)
+        correction = AkinciFreeSurfaceCorrection(rho0)
+        fluid = RectangularShape(particle_spacing, (7, 7), (0.0, 0.0); density=rho0)
+
+        function correction_density_values(density_calculator)
+            system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
+                                                 smoothing_length=particle_spacing,
+                                                 density_calculator, state_equation,
+                                                 correction)
+            semi = Semidiscretization(system)
+            ode = semidiscretize(semi, (0.0, 0.01))
+            v_ode, u_ode = ode.u0.x
+            TrixiParticles.update_systems_and_nhs(v_ode, u_ode, semi, 0.0)
+            density = GC.@preserve v_ode begin
+                v = TrixiParticles.wrap_v(v_ode, system, semi)
+                collect(TrixiParticles.current_density(v, system))
+            end
+            correction_density = [TrixiParticles.correction_density(correction, system,
+                                                                    particle,
+                                                                    density[particle])
+                                  for particle in TrixiParticles.eachparticle(system)]
+            return system, density, correction_density
+        end
+
+        continuity_system, continuity_density,
+        continuity_correction_density = correction_density_values(ContinuityDensity())
+        _, summation_density,
+        summation_correction_density = correction_density_values(SummationDensity())
+
+        @test all(==(rho0), continuity_density)
+        @test isapprox(continuity_system.cache.kernel_summation_density,
+                       summation_density; rtol=2eps())
+        @test isapprox(continuity_correction_density,
+                       summation_correction_density; rtol=2eps())
+
+        coordinates = fluid.coordinates
+        particle_at(position) = findfirst(particle -> coordinates[:, particle] == position,
+                                          axes(coordinates, 2))
+        center = particle_at([3.5, 3.5])
+        face = particle_at([3.5, 0.5])
+        corner = particle_at([0.5, 0.5])
+        k = rho0 ./ continuity_correction_density
+
+        @test isapprox(k[center], 1; atol=0.002)
+        @test k[face] > 1.15
+        @test k[corner] > k[face]
+
+        # Dummy boundary masses complete the kernel sum at a wall, so wall particles are
+        # not mistaken for a free surface by the reconstructed density.
+        tank = RectangularTank(particle_spacing, (7.0, 5.0), (7.0, 8.0), rho0;
+                               n_layers=2, faces=(false, false, true, false))
+        wall_system = WeaklyCompressibleSPHSystem(tank.fluid; smoothing_kernel,
+                                                  smoothing_length=particle_spacing,
+                                                  density_calculator=ContinuityDensity(),
+                                                  state_equation, correction)
+        boundary_model = BoundaryModelDummyParticles(tank.boundary;
+                                                     fluid_system=wall_system,
+                                                     boundary_density_calculator=AdamiPressureExtrapolation())
+        boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
+        wall_semi = Semidiscretization(wall_system, boundary_system)
+        wall_ode = semidiscretize(wall_semi, (0.0, 0.01))
+        TrixiParticles.update_systems_and_nhs(wall_ode.u0.x..., wall_semi, 0.0)
+
+        wall_coordinates = tank.fluid.coordinates
+        wall_particle_at(position) = findfirst(particle -> wall_coordinates[:, particle] ==
+                                                           position,
+                                               axes(wall_coordinates, 2))
+        bottom = wall_particle_at([3.5, 0.5])
+        interior = wall_particle_at([3.5, 2.5])
+        top = wall_particle_at([3.5, 4.5])
+        reconstructed_density = wall_system.cache.kernel_summation_density
+        wall_k = rho0 ./ reconstructed_density
+
+        @test isapprox(wall_k[bottom], wall_k[interior]; rtol=2eps())
+        @test isapprox(wall_k[interior], 1; atol=0.002)
+        @test wall_k[top] > 1.15
+    end
+
+    @testset "Akinci correction force assembly" begin
+        rho0 = 1000.0
+        particle_spacing = 0.5
+        coordinates = [0.0 0.75; 0.0 0.0]
+        initial_condition = InitialCondition(; coordinates, velocity=zeros(2, 2),
+                                             mass=fill(rho0 * particle_spacing^2, 2),
+                                             density=fill(rho0, 2), particle_spacing)
+        smoothing_kernel = WendlandC2Kernel{2}()
+        state_equation = StateEquationCole(sound_speed=10.0, reference_density=rho0,
+                                           exponent=1)
+        surface_tension = CohesionForceAkinci(surface_tension_coefficient=0.2)
+
+        function initial_acceleration(correction)
+            system = WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
+                                                 smoothing_length=0.5,
+                                                 density_calculator=ContinuityDensity(),
+                                                 state_equation, surface_tension,
+                                                 correction,
+                                                 reference_particle_spacing=particle_spacing)
+            semi = Semidiscretization(system)
+            ode = semidiscretize(semi, (0.0, 0.01))
+            v_ode, u_ode = ode.u0.x
+            TrixiParticles.update_systems_and_nhs(v_ode, u_ode, semi, 0.0)
+            dv = GC.@preserve v_ode u_ode begin
+                v = TrixiParticles.wrap_v(v_ode, system, semi)
+                u = TrixiParticles.wrap_u(u_ode, system, semi)
+                dv_inner = zeros(eltype(v), size(v))
+                TrixiParticles.interact!(dv_inner, v, u, v, u, system, system, semi)
+                dv_inner
+            end
+            return system, dv[1:2, :]
+        end
+
+        corrected_system,
+        corrected_acceleration = initial_acceleration(AkinciFreeSurfaceCorrection(rho0))
+        _, uncorrected_acceleration = initial_acceleration(nothing)
+        correction_factor = rho0 / corrected_system.cache.kernel_summation_density[1]
+
+        @test correction_factor > 1
+        @test maximum(abs, uncorrected_acceleration) > 0
+        @test isapprox(corrected_acceleration,
+                       correction_factor * uncorrected_acceleration; rtol=2eps())
+    end
+
     @testset "compute_stress_tensors! (MomentumMorris)" begin
         # 1. Define Minimal Initial Condition with 2 Particles in 2D
         coords = [0.0 1.0;

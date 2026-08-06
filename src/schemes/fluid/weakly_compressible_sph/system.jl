@@ -340,6 +340,22 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_od
     return system
 end
 
+function compute_correction_values!(system::WeaklyCompressibleSPHSystem,
+                                    ::AkinciFreeSurfaceCorrection, u,
+                                    v_ode, u_ode, semi)
+    compute_akinci_correction_density!(system, system.density_calculator, u, u_ode, semi)
+    return system
+end
+
+function compute_akinci_correction_density!(system, ::ContinuityDensity, u, u_ode, semi)
+    summation_density!(system, semi, u, u_ode, system.cache.kernel_summation_density)
+    return system
+end
+
+function compute_akinci_correction_density!(system, ::SummationDensity, u, u_ode, semi)
+    return system
+end
+
 function update_final!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t;
                        kwargs...)
     (; surface_tension) = system
