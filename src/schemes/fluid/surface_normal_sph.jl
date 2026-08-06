@@ -17,8 +17,17 @@ end
 
 function ColorfieldSurfaceNormal(; boundary_contact_threshold=0.1, interface_threshold=0.01,
                                  ideal_density_threshold=0.0)
-    return ColorfieldSurfaceNormal(boundary_contact_threshold, interface_threshold,
-                                   ideal_density_threshold)
+    thresholds = promote(boundary_contact_threshold, interface_threshold,
+                         ideal_density_threshold)
+    return ColorfieldSurfaceNormal(thresholds...)
+end
+
+@inline function default_surface_normal_method(surface_tension, surface_normal_method)
+    if isnothing(surface_normal_method) && requires_surface_normal(surface_tension)
+        return ColorfieldSurfaceNormal()
+    end
+
+    return surface_normal_method
 end
 
 function create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS, nparticles)
