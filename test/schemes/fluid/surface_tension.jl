@@ -150,35 +150,40 @@
         # Additional digits have been accepted from the actual calculation.
         test_distance = 0.1
         val = TrixiParticles.cohesion_force_akinci(surface_tension, support_radius, m_b,
-                                                   pos_diff, test_distance) * test_distance
+                                                   pos_diff, test_distance, Val(3)) *
+              test_distance
         @test isapprox(val[1], 0.1443038770421044, atol=6e-15)
         @test isapprox(val[2], 0.1443038770421044, atol=6e-15)
 
         # Maximum repulsion force
         test_distance = 0.01
         max = TrixiParticles.cohesion_force_akinci(surface_tension, support_radius, m_b,
-                                                   pos_diff, test_distance) * test_distance
+                                                   pos_diff, test_distance, Val(3)) *
+              test_distance
         @test isapprox(max[1], 0.15913517632298307, atol=6e-15)
         @test isapprox(max[2], 0.15913517632298307, atol=6e-15)
 
         # Near 0
         test_distance = 0.2725
         zero = TrixiParticles.cohesion_force_akinci(surface_tension, support_radius, m_b,
-                                                    pos_diff, test_distance) * test_distance
+                                                    pos_diff, test_distance, Val(3)) *
+               test_distance
         @test isapprox(zero[1], 0.0004360543645195717, atol=6e-15)
         @test isapprox(zero[2], 0.0004360543645195717, atol=6e-15)
 
         # Maximum attraction force
         test_distance = 0.5
         maxa = TrixiParticles.cohesion_force_akinci(surface_tension, support_radius, m_b,
-                                                    pos_diff, test_distance) * test_distance
+                                                    pos_diff, test_distance, Val(3)) *
+               test_distance
         @test isapprox(maxa[1], -0.15915494309189535, atol=6e-15)
         @test isapprox(maxa[2], -0.15915494309189535, atol=6e-15)
 
         # Should be 0
         test_distance = 1.0
         zero = TrixiParticles.cohesion_force_akinci(surface_tension, support_radius, m_b,
-                                                    pos_diff, test_distance) * test_distance
+                                                    pos_diff, test_distance, Val(3)) *
+               test_distance
         @test isapprox(zero[1], 0.0, atol=6e-15)
         @test isapprox(zero[2], 0.0, atol=6e-15)
 
@@ -207,14 +212,14 @@
         # Additional digits have been accepted from the actual calculation.
         test_distance = 0.1
         zero = TrixiParticles.adhesion_force_akinci(surface_tension, support_radius, m_b,
-                                                    pos_diff, test_distance, 1.0) *
+                                                    pos_diff, test_distance, 1.0, Val(3)) *
                test_distance
         @test isapprox(zero[1], 0.0, atol=6e-15)
         @test isapprox(zero[2], 0.0, atol=6e-15)
 
         test_distance = 0.5
         zero = TrixiParticles.adhesion_force_akinci(surface_tension, support_radius, m_b,
-                                                    pos_diff, test_distance, 1.0) *
+                                                    pos_diff, test_distance, 1.0, Val(3)) *
                test_distance
         @test isapprox(zero[1], 0.0, atol=6e-15)
         @test isapprox(zero[2], 0.0, atol=6e-15)
@@ -222,7 +227,7 @@
         # Near 0
         test_distance = 0.51
         zero = TrixiParticles.adhesion_force_akinci(surface_tension, support_radius, m_b,
-                                                    pos_diff, test_distance, 1.0) *
+                                                    pos_diff, test_distance, 1.0, Val(3)) *
                test_distance
         @test isapprox(zero[1], -0.002619160170741761, atol=6e-15)
         @test isapprox(zero[2], -0.002619160170741761, atol=6e-15)
@@ -230,7 +235,7 @@
         # Maximum adhesion force
         test_distance = 0.75
         max = TrixiParticles.adhesion_force_akinci(surface_tension, support_radius, m_b,
-                                                   pos_diff, test_distance, 1.0) *
+                                                   pos_diff, test_distance, 1.0, Val(3)) *
               test_distance
         @test isapprox(max[1], -0.004949747468305833, atol=6e-15)
         @test isapprox(max[2], -0.004949747468305833, atol=6e-15)
@@ -238,7 +243,7 @@
         # Should be 0
         test_distance = 1.0
         zero = TrixiParticles.adhesion_force_akinci(surface_tension, support_radius, m_b,
-                                                    pos_diff, test_distance, 1.0) *
+                                                    pos_diff, test_distance, 1.0, Val(3)) *
                test_distance
         @test isapprox(zero[1], 0.0, atol=6e-15)
         @test isapprox(zero[2], 0.0, atol=6e-15)
@@ -248,7 +253,7 @@
         near_support = TrixiParticles.adhesion_force_akinci(surface_tension,
                                                             support_radius_f32, 1.0f0,
                                                             Float32[1, 0], distance_f32,
-                                                            1.0f0)
+                                                            1.0f0, Val(3))
         @test eltype(near_support) == Float32
         @test all(isfinite, near_support)
         @test 0 < norm(near_support) < eps(Float32)
@@ -264,6 +269,131 @@
             @test isapprox(force[1], expected; rtol=4eps(Float32))
             @test iszero(force[2])
         end
+    end
+
+    @testset "two-dimensional Akinci kernels" begin
+        surface_tension = SurfaceTensionAkinci(surface_tension_coefficient=1.0)
+        support_radius = 1.0
+        cohesion_normalization = 25280 / (627 * pi)
+
+        for distance in (0.25, 0.75)
+            pos_diff = SVector(distance, 0.0)
+            shape = if distance > 0.5 * support_radius
+                (support_radius - distance)^3 * distance^3
+            else
+                2 * (support_radius - distance)^3 * distance^3 - support_radius^6 / 64
+            end
+            expected = -cohesion_normalization * shape * pos_diff / distance
+            force = TrixiParticles.cohesion_force_akinci(surface_tension, support_radius,
+                                                         1.0, pos_diff, distance, Val(2))
+            @test isapprox(force, expected; rtol=5eps(), atol=5eps())
+        end
+
+        distance = 0.75
+        pos_diff = SVector(distance, 0.0)
+        radicand = -4 * distance^2 / support_radius + 6 * distance -
+                   2 * support_radius
+        expected = -(13 / 1200) * radicand^(1 / 4) * pos_diff / distance
+        force = TrixiParticles.adhesion_force_akinci(surface_tension, support_radius, 1.0,
+                                                     pos_diff, distance, 1.0, Val(2))
+        @test isapprox(force, expected; rtol=5eps(), atol=5eps())
+
+        surface_tension_f32 = SurfaceTensionAkinci(surface_tension_coefficient=1.0f0)
+        distance_f32 = 0.75f0
+        pos_diff_f32 = SVector(distance_f32, 0.0f0)
+        cohesion_f32 = TrixiParticles.cohesion_force_akinci(surface_tension_f32, 1.0f0,
+                                                            1.0f0, pos_diff_f32,
+                                                            distance_f32, Val(2))
+        adhesion_f32 = TrixiParticles.adhesion_force_akinci(surface_tension_f32, 1.0f0,
+                                                            1.0f0, pos_diff_f32,
+                                                            distance_f32, 1.0f0, Val(2))
+        @test eltype(cohesion_f32) == Float32
+        @test eltype(adhesion_f32) == Float32
+        @test all(isfinite, cohesion_f32)
+        @test all(isfinite, adhesion_f32)
+
+        for dimensions in (1, 4)
+            @test_throws ArgumentError TrixiParticles.create_cache_surface_tension(surface_tension,
+                                                                                   Float64,
+                                                                                   dimensions,
+                                                                                   1)
+        end
+    end
+
+    @testset "Akinci kernel resolution scaling" begin
+        surface_tension = SurfaceTensionAkinci(surface_tension_coefficient=0.8)
+        adhesion_coefficient = 0.6
+
+        function forces(scale, dimensions::Val{NDIMS}) where {NDIMS}
+            support_radius = scale
+            distance = 0.75 * support_radius
+            pos_diff = SVector{NDIMS}(ntuple(i -> i == 1 ? distance : zero(distance),
+                                             NDIMS))
+            mass = scale^NDIMS
+            cohesion = TrixiParticles.cohesion_force_akinci(surface_tension,
+                                                            support_radius, mass,
+                                                            pos_diff, distance, dimensions)
+            adhesion = TrixiParticles.adhesion_force_akinci(surface_tension,
+                                                            support_radius, mass,
+                                                            pos_diff, distance,
+                                                            adhesion_coefficient,
+                                                            dimensions)
+            return cohesion, adhesion
+        end
+
+        for dimensions in (Val(2), Val(3))
+            reference_cohesion, reference_adhesion = forces(1.0, dimensions)
+            for scale in (0.25, 0.5, 2.0, 4.0)
+                cohesion, adhesion = forces(scale, dimensions)
+                @test isapprox(cohesion, reference_cohesion; rtol=5eps(), atol=5eps())
+                @test isapprox(adhesion, reference_adhesion; rtol=5eps(), atol=5eps())
+            end
+        end
+    end
+
+    @testset "Akinci kernel integral matching" begin
+        surface_tension = SurfaceTensionAkinci(surface_tension_coefficient=1.0)
+        support_radius = 1.3
+
+        function pos_diff_at_radius(radius, ::Val{NDIMS}) where {NDIMS}
+            return SVector{NDIMS}(ntuple(i -> i == 1 ? radius : zero(radius), NDIMS))
+        end
+
+        function integrate_cohesion(dimensions::Val{NDIMS}) where {NDIMS}
+            radial_integral,
+            _ = quadgk(0.0, support_radius / 2, support_radius;
+                       rtol=1e-13) do radius
+                pos_diff = pos_diff_at_radius(radius, dimensions)
+                force = TrixiParticles.cohesion_force_akinci(surface_tension,
+                                                             support_radius, 1.0,
+                                                             pos_diff, radius, dimensions)
+                return radius^(NDIMS - 1) * -force[1]
+            end
+            surface_measure = NDIMS == 2 ? 2pi : 4pi
+            return surface_measure * radial_integral
+        end
+
+        function integrate_adhesion(dimensions::Val{NDIMS}) where {NDIMS}
+            radial_integral,
+            _ = quadgk(support_radius / 2, support_radius;
+                       rtol=1e-13) do radius
+                pos_diff = pos_diff_at_radius(radius, dimensions)
+                force = TrixiParticles.adhesion_force_akinci(surface_tension,
+                                                             support_radius, 1.0,
+                                                             pos_diff, radius, 1.0,
+                                                             dimensions)
+                return radius^(NDIMS - 1) * -force[1]
+            end
+            surface_measure = NDIMS == 2 ? 2pi : 4pi
+            return surface_measure * radial_integral
+        end
+
+        cohesion_2d = integrate_cohesion(Val(2))
+        cohesion_3d = integrate_cohesion(Val(3))
+        @test isapprox(cohesion_2d, 79 / 336; rtol=1e-12)
+        @test isapprox(cohesion_3d, 79 / 336; rtol=1e-12)
+        @test isapprox(integrate_adhesion(Val(2)), integrate_adhesion(Val(3));
+                       rtol=1e-12)
     end
 
     @testset "compute_stress_tensors! (MomentumMorris)" begin

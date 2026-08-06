@@ -16,9 +16,9 @@ end
 This model only implements the cohesion force of the Akinci [Akinci2013](@cite) surface tension model.
 It does not require a surface-normal method.
 
-The published Akinci cohesion kernel uses a three-dimensional normalization. In two-dimensional
-simulations, `surface_tension_coefficient` is therefore an empirical numerical parameter and
-may need to be adjusted when changing the resolution.
+The three-dimensional cohesion kernel uses the normalization published by Akinci et al. In two
+dimensions, TrixiParticles.jl uses an integral-matched extension that is independent of particle
+resolution.
 
 See [`surface_tension`](@ref) for more details.
 
@@ -44,9 +44,9 @@ principles outlined by Akinci [Akinci2013](@cite). This model is instrumental in
 behaviors of fluid surfaces, such as droplet formation and the dynamics of merging or
 separation, by utilizing intra-particle forces.
 
-The published Akinci cohesion kernel uses a three-dimensional normalization. In two-dimensional
-simulations, `surface_tension_coefficient` is therefore an empirical numerical parameter and
-may need to be adjusted when changing the resolution.
+The three-dimensional cohesion and adhesion kernels use the normalizations published by Akinci
+et al. In two dimensions, TrixiParticles.jl uses integral-matched extensions that are independent
+of particle resolution.
 
 See [`surface_tension`](@ref) for more details.
 
@@ -88,6 +88,15 @@ struct SurfaceTensionMorris{ELTYPE} <: AbstractSurfaceTension
 end
 
 function create_cache_surface_tension(surface_tension, ELTYPE, NDIMS, nparticles)
+    return (;)
+end
+
+function create_cache_surface_tension(::AkinciTypeSurfaceTension, ELTYPE, NDIMS,
+                                      nparticles)
+    if NDIMS != 2 && NDIMS != 3
+        throw(ArgumentError("Akinci surface tension is only supported in two and three dimensions"))
+    end
+
     return (;)
 end
 
@@ -145,13 +154,34 @@ end
 # By using the `@fastpow` macro, we are consciously trading off some precision in the result
 # for enhanced computational speed. This is especially useful in scenarios where performance
 # is a higher priority than exact precision.
+@inline function cohesion_kernel_normalization_akinci(support_radius, ::Val{2})
+    normalization = oftype(support_radius, 25280 / (627 * pi))
+    return (normalization / support_radius) / support_radius
+end
+
+@inline function cohesion_kernel_normalization_akinci(support_radius, ::Val{3})
+    normalization = oftype(support_radius, 32 / pi)
+    return ((normalization / support_radius) / support_radius) / support_radius
+end
+
+@inline function adhesion_kernel_normalization_akinci(support_radius, ::Val{2})
+    normalization = oftype(support_radius, 13 / 1200)
+    return (normalization / support_radius) / support_radius
+end
+
+@inline function adhesion_kernel_normalization_akinci(support_radius, ::Val{3})
+    normalization = oftype(support_radius, 0.007)
+    return ((normalization / support_radius) / support_radius) / support_radius
+end
+
 @fastpow @inline function cohesion_force_akinci(surface_tension, support_radius, m_b,
-                                                pos_diff, distance)
+                                                pos_diff, distance, dimensions)
     (; surface_tension_coefficient) = surface_tension
 
     distance >= support_radius && return zero(pos_diff)
 
-    # Eq. 2 in dimensionless form avoids scale-dependent powers up to `support_radius^9`.
+    # Eq. 2 in dimensionless form, with the published normalization in 3D and an
+    # integral-matched one in 2D.
     # We only reach this function when `sqrt(eps()) < distance <= support_radius`
     normalized_distance = distance / support_radius
     if normalized_distance > one(normalized_distance) / 2
@@ -163,10 +193,7 @@ end
         C = 2 * (1 - normalized_distance)^3 * normalized_distance^3 -
             one(normalized_distance) / 64
     end
-    normalization = oftype(support_radius, 32 / pi)
-    normalization = ((normalization / support_radius) / support_radius) /
-                    support_radius
-    C *= normalization
+    C *= cohesion_kernel_normalization_akinci(support_radius, dimensions)
 
     # Eq. 1 in acceleration form
     cohesion_force = -surface_tension_coefficient * m_b * C * pos_diff / distance
@@ -175,7 +202,7 @@ end
 end
 
 @inline function adhesion_force_akinci(surface_tension, support_radius, m_b, pos_diff,
-                                       distance, adhesion_coefficient)
+                                       distance, adhesion_coefficient, dimensions)
     distance >= support_radius && return zero(pos_diff)
 
     distance <= 0.5 * support_radius && return zero(pos_diff)
@@ -184,8 +211,7 @@ end
     normalized_distance = distance / support_radius
     radicand = 2 * (2 * normalized_distance - 1) * (1 - normalized_distance)
     fourth_root = sqrt(sqrt(max(zero(radicand), radicand)))
-    normalization = convert(typeof(support_radius), 0.007)
-    normalization = ((normalization / support_radius) / support_radius) / support_radius
+    normalization = adhesion_kernel_normalization_akinci(support_radius, dimensions)
     A = normalization * fourth_root
 
     # Eq. 6 in acceleration form with `m_b` being the boundary mass calculated as
@@ -222,7 +248,7 @@ end
 
     dv_particle[] += surface_tension_correction *
                      cohesion_force_akinci(surface_tension_a, support_radius, m_b,
-                                           pos_diff, distance)
+                                           pos_diff, distance, Val(ndims(particle_system)))
 
     return dv_particle
 end
@@ -249,7 +275,7 @@ end
 
     dv_particle[] += surface_tension_correction *
                      cohesion_force_akinci(surface_tension_a, support_radius, m_b,
-                                           pos_diff, distance)
+                                           pos_diff, distance, Val(ndims(particle_system)))
     dv_particle[] -= surface_tension_correction * surface_tension_coefficient *
                      (n_a - n_b) * smoothing_length_
 
@@ -366,7 +392,8 @@ end
     support_radius = compact_support(particle_system.smoothing_kernel,
                                      smoothing_length(particle_system, particle))
     dv_particle[] += adhesion_force_akinci(surface_tension, support_radius, m_b, pos_diff,
-                                           distance, adhesion_coefficient)
+                                           distance, adhesion_coefficient,
+                                           Val(ndims(particle_system)))
 
     return dv_particle
 end
