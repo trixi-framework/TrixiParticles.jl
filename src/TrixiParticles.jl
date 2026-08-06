@@ -64,6 +64,7 @@ include("preprocessing/preprocessing.jl")
 include("io/io.jl")
 include("general/restart.jl")
 include("visualization/recipes_plots.jl")
+include("visualization/makie.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
 export PairsNHSHandler, SharedNHSHandler
@@ -100,6 +101,7 @@ export PrescribedMotion, OscillatingMotion2D
 export RCRWindkesselModel
 export examples_dir, validation_dir
 export trixi2vtk, vtk2trixi
+export trixi2makie
 export RectangularTank, RectangularShape, SphereShape, ComplexShape
 export ParticlePackingSystem, SignedDistanceField
 export WindingNumberHormann, WindingNumberJacobson
