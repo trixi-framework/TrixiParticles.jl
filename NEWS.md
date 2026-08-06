@@ -19,6 +19,11 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   surface-normal allocation for `CohesionForceAkinci`, and stabilizing Akinci adhesion evaluation
   near the compact-support boundary.
 
+- Fixed `AkinciFreeSurfaceCorrection` with `ContinuityDensity` by reconstructing the
+  neighborhood-deficiency density used by the correction without changing the integrated
+  pressure density. Dummy boundary masses are included so wall particles are not misclassified
+  as a free surface.
+
 ## Version 0.5.3
 
 ### Features

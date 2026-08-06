@@ -376,6 +376,35 @@ F_{\text{curvature}} = -\sigma (n_a - n_b),
 
 where ``n_a`` and ``n_b`` are the surface normals of the interacting particles.
 
+#### Combined-force correction
+
+To compensate for particle-neighborhood deficiency at a free surface, the cohesion and
+curvature contributions are multiplied by the symmetric factor
+
+```math
+K_{ab} = \frac{2\rho_0}{\rho_a + \rho_b}.
+```
+
+[`AkinciFreeSurfaceCorrection`](@ref) implements this factor for the combined fluid-fluid
+surface tension force. Section 4 of [Akinci et al. (2013)](@cite Akinci2013) also applies the
+factor to viscosity for the same particle-deficiency reason. It does not modify pressure or wall
+adhesion forces.
+
+The published correction assumes that the density estimate reflects missing neighbors. With
+[`SummationDensity`](@ref), ``\rho_a`` and ``\rho_b`` in ``K_{ab}`` are the current densities.
+For [`ContinuityDensity`](@ref) in a [`WeaklyCompressibleSPHSystem`](@ref), TrixiParticles.jl
+reconstructs the auxiliary densities
+
+```math
+\widetilde{\rho}_a = \sum_b m_b W_{ab}
+```
+
+and uses ``\widetilde{\rho}_a`` and ``\widetilde{\rho}_b`` only in ``K_{ab}``. Pressure and all
+other density-dependent terms continue to use the integrated continuity density. The auxiliary
+sum includes dummy boundary particles, so a wall that completes the particle neighborhood is not
+misclassified as a free surface. This extension makes the correction independent of the selected
+density calculator at the cost of one additional density-summation neighbor loop per update stage.
+
 #### Wall adhesion force
 
 This force models the interaction between fluid and solid boundaries, simulating adhesion effects at walls.
