@@ -248,6 +248,20 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::AbstractFluidSystem, sem
     return dt
 end
 
+@inline function calculate_interface_dt(v_ode, u_ode, cfl_number,
+                                        system::AbstractFluidSystem,
+                                        neighbor_system::AbstractFluidSystem,
+                                        semi)
+    return calculate_interface_dt(v_ode, u_ode, cfl_number, system, neighbor_system, semi,
+                                  surface_tension_model(system),
+                                  surface_tension_model(neighbor_system))
+end
+
+@inline function calculate_interface_dt(v_ode, u_ode, cfl_number, system, neighbor_system,
+                                        semi, surface_tension, neighbor_surface_tension)
+    return Inf
+end
+
 @inline function surface_tension_model(system::AbstractFluidSystem)
     return system.surface_tension
 end

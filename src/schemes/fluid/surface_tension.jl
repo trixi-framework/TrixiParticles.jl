@@ -201,6 +201,54 @@ end
 @inline requires_surface_normal(::SurfaceTensionAkinciCohesionPhysical) = false
 @inline requires_surface_normal(::Any) = true
 
+@inline function calculate_interface_dt(v_ode, u_ode, cfl_number, system, neighbor_system,
+                                        semi, surface_tension::SurfaceTensionMorris,
+                                        neighbor_surface_tension::SurfaceTensionMorris)
+    return calculate_surface_tension_dt(v_ode, system, neighbor_system, semi,
+                                        surface_tension, neighbor_surface_tension)
+end
+
+@inline function calculate_interface_dt(v_ode, u_ode, cfl_number, system, neighbor_system,
+                                        semi,
+                                        surface_tension::SurfaceTensionMomentumMorris,
+                                        neighbor_surface_tension::SurfaceTensionMomentumMorris)
+    return calculate_surface_tension_dt(v_ode, system, neighbor_system, semi,
+                                        surface_tension, neighbor_surface_tension)
+end
+
+function calculate_surface_tension_dt(v_ode, system, neighbor_system, semi,
+                                      surface_tension, neighbor_surface_tension)
+    v_system = wrap_v(v_ode, system, semi)
+    v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
+
+    rho_system = current_density(v_system, system, 1)
+    rho_neighbor_system = current_density(v_neighbor_system, neighbor_system, 1)
+    h_interface = min(initial_smoothing_length(system),
+                      initial_smoothing_length(neighbor_system))
+    surface_tension_coefficient = max(surface_tension.surface_tension_coefficient,
+                                      neighbor_surface_tension.surface_tension_coefficient)
+
+    # Capillary time step of Brackbill et al. (1992), also used by Morris (2000).
+    # The minimum smoothing length and maximum coefficient are conservative choices when
+    # the two systems use different resolutions or coefficients.
+    return sqrt((rho_system + rho_neighbor_system) * h_interface^3 /
+                (4 * pi * surface_tension_coefficient))
+end
+
+@inline function calculate_interface_dt(v_ode, u_ode, cfl_number, system,
+                                        neighbor_system, semi,
+                                        surface_tension::SurfaceTensionAkinciCohesionPhysical,
+                                        neighbor_surface_tension::SurfaceTensionAkinciCohesionPhysical)
+    h_interface = min(initial_smoothing_length(system),
+                      initial_smoothing_length(neighbor_system))
+    surface_tension_coefficient = max(surface_tension.surface_tension_coefficient,
+                                      neighbor_surface_tension.surface_tension_coefficient)
+
+    return sqrt((surface_tension.reference_density +
+                 neighbor_surface_tension.reference_density) * h_interface^3 /
+                (4 * pi * surface_tension_coefficient))
+end
+
 function create_cache_surface_tension(::SurfaceTensionMomentumMorris, ELTYPE, NDIMS,
                                       nparticles)
     delta_s = Array{ELTYPE, 1}(undef, nparticles)
