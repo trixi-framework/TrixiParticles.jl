@@ -285,7 +285,7 @@ end
 end
 
 @doc raw"""
-    ViscosityAdamiSGS(; nu, C_S=0.1, epsilon=0.01)
+    ViscosityAdamiSGS(; nu, C_S=0.1, epsilon=0.001)
 
 Viscosity model that extends the standard [Adami formulation](@ref ViscosityAdami)
 by incorporating a subgrid-scale (SGS) eddy viscosity via a Smagorinsky-type [Smagorinsky (1963)](@cite Smagorinsky1963) closure.
@@ -325,7 +325,7 @@ This model is appropriate for turbulent flows where unresolved scales contribute
 # Keywords
 - `nu`:      Standard kinematic viscosity.
 - `C_S`:     Smagorinsky constant.
-- `epsilon=0.01`: Parameter to prevent singularities
+- `epsilon=0.001`: Parameter to prevent singularities
 """
 struct ViscosityAdamiSGS{ELTYPE}
     nu      :: ELTYPE # Kinematic viscosity [e.g., 1e-6 m²/s]
@@ -447,7 +447,7 @@ This model is appropriate for turbulent flows where unresolved scales contribute
 # Keywords
 - `nu`:      Standard kinematic viscosity.
 - `C_S`:     Smagorinsky constant.
-- `epsilon=0.01`: Parameter to prevent singularities
+- `epsilon=0.001`: Parameter to prevent singularities
 """
 struct ViscosityMorrisSGS{ELTYPE}
     nu      :: ELTYPE # Kinematic viscosity [e.g., 1e-6 m²/s]
