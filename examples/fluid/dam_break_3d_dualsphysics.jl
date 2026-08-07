@@ -33,6 +33,22 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
 tank.fluid.coordinates .+= 0.005
 tank.boundary.coordinates .+= 0.005
 
+min_corner = minimum(tank.boundary.coordinates, dims=2)
+max_corner = maximum(tank.boundary.coordinates, dims=2)
+cell_list = FullGridCellList(; min_corner, max_corner, backend=PointNeighbors.CompactVectorOfVectors{Int32})
+neighborhood_search = GridNeighborhoodSearch{3}(; cell_list)
+nhs = PointNeighbors.copy_neighborhood_search(neighborhood_search, 2 * smoothing_length, 0)
+
+cell_index = zeros(Int, nparticles(tank.boundary))
+for particle in 1:nparticles(tank.boundary)
+    point_coords = TrixiParticles.extract_svector(tank.boundary.coordinates, Val(ndims(tank.boundary)), particle)
+    cell_coords = PointNeighbors.cell_coords(point_coords, nhs)
+    cell_index[particle] = PointNeighbors.cell_index(nhs.cell_list, cell_coords)
+end
+
+perm = sortperm(cell_index)
+tank.boundary.coordinates .= tank.boundary.coordinates[:, perm]
+
 # Run the dam break simulation with this neighborhood search
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "dam_break_3d.jl"),
