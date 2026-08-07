@@ -104,6 +104,10 @@ function (sorting_callback!::SortingCallback)(integrator)
         end
     end
 
+    @trixi_timeit timer() "sorting callback update" begin
+        init_nhs!(semi, u_ode)
+    end
+
     # Update the last sorting time in the callback struct.
     sorting_callback!.last_t = integrator.t
 
@@ -128,15 +132,17 @@ end
 # TODO: Sort also masses and particle spacings for variable smoothing lengths.
 function sort_particles!(system::RequiresSortingSystem, v, u,
                          nhs::GridNeighborhoodSearch, semi)
-    cell_coords = allocate(semi.parallelization_backend, SVector{ndims(system), Int},
-                           nparticles(system))
+    # cell_coords = allocate(semi.parallelization_backend, SVector{ndims(system), Int},
+    #                        nparticles(system))
+    cell_index = allocate(semi.parallelization_backend, Int, nparticles(system))
     @threaded semi for particle in each_active_particle(system)
         point_coords = current_coords(u, system, particle)
-        cell_coords[particle] = PointNeighbors.cell_coords(point_coords, nhs)
+        cell_coords = PointNeighbors.cell_coords(point_coords, nhs)
+        cell_index[particle] = PointNeighbors.cell_index(nhs.cell_list, cell_coords)
     end
 
     # TODO `sortperm` works on CUDA but not (yet) on Metal
-    perm = sortperm(transfer2cpu(cell_coords))
+    perm = sortperm(transfer2cpu(cell_index))
 
     sort_system!(system, v, u, perm, system.buffer)
 
@@ -153,6 +159,7 @@ function sort_system!(system, v, u, perm, buffer::Nothing)
     system_velocity .= system_velocity[:, perm]
     system_pressure .= system_pressure[perm]
     system_density .= system_density[perm]
+    system.mass .= system.mass[perm]
 
     return system
 end

@@ -1,0 +1,78 @@
+# Modify the 01_DamBreak example of DualSPHysics like this:
+# <parameter key="StepAlgorithm" value="2" comment="Step Algorithm 1:Verlet, 2:Symplectic (default=1)" />
+# <parameter key="Kernel" value="2" comment="Interaction Kernel 1:Cubic Spline, 2:Wendland (default=2)" />
+# <parameter key="DensityDT" value="1" comment="Density Diffusion Term 0:None, 1:Molteni, 2:Fourtakas, 3:Fourtakas(full) (default=0)" />
+# <parameter key="TimeMax" value="1.0" comment="Time of simulation" units_comment="seconds" />
+#
+# When comparing with high resolution, change the resolution here:
+# <definition dp="0.002" units_comment="metres (m)">
+# With this resolution, use:
+# <parameter key="DtFixed" value="1e-5" comment="Fixed Dt value. Use 0 to disable (default=disabled)" units_comment="seconds" />
+
+using TrixiParticles, TrixiParticles.PointNeighbors, OrdinaryDiffEqSymplecticRK
+
+fluid_particle_spacing = 0.0085
+
+smoothing_length = 1.7320508 * fluid_particle_spacing
+tank_size = (1.6, 0.67 - fluid_particle_spacing, 0.4)
+tspan = (0.0, 0.1)
+initial_fluid_size = (0.4, 0.67 - fluid_particle_spacing, 0.3)
+acceleration = (0.0, 0.0, -9.81)
+spacing_ratio = 1
+boundary_layers = 1
+fluid_density = 1000.0
+sound_speed = 20 * sqrt(9.81 * tank_size[3])
+state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
+                                   exponent=7)
+
+tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
+                       n_layers=boundary_layers, spacing_ratio=spacing_ratio,
+                       coordinates_eltype=eltype(fluid_particle_spacing),
+                       faces = (true, true, true, true, true, false))
+
+tank.fluid.coordinates .+= 0.005
+tank.boundary.coordinates .+= 0.005
+
+# Run the dam break simulation with this neighborhood search
+trixi_include(@__MODULE__,
+              joinpath(examples_dir(), "fluid", "dam_break_3d.jl"),
+              tank=tank,
+              smoothing_length=1.7320508 * fluid_particle_spacing,
+              boundary_density_calculator=ContinuityDensity(),
+            #   density_diffusion=nothing, # TODO only for benchmarking
+              state_equation=state_equation,
+              fluid_particle_spacing=fluid_particle_spacing,
+              tank_size=tank_size, initial_fluid_size=initial_fluid_size,
+              coordinates_eltype=eltype(fluid_particle_spacing),
+              acceleration=acceleration,
+              alpha=0.1,
+              spacing_ratio=spacing_ratio, boundary_layers=boundary_layers,
+              tspan=tspan,
+              #cfl=0.2,
+            #   viscosity_wall=viscosity_fluid, TODO
+              # This is the same saving frequency as in DualSPHysics for easier comparison
+            #   saving_callback=SolutionSavingCallback(dt=0.01),
+            #   extra_callback=SortingCallback(interval=1),
+              # For benchmarks, use spacing 0.002, fix time steps, and disable VTK saving:
+              #stepsize_callback=nothing, saving_callback=nothing,
+              semi=nothing, ode=nothing, sol=nothing)
+
+# Define a GPU-compatible neighborhood search
+min_corner = minimum(tank.boundary.coordinates, dims=2)
+max_corner = maximum(tank.boundary.coordinates, dims=2)
+cell_list = FullGridCellList(; min_corner, max_corner, backend=PointNeighbors.CompactVectorOfVectors{Int32})
+neighborhood_search = GridNeighborhoodSearch{3}(; cell_list,
+                                                update_strategy=ParallelUpdate())
+
+semi = Semidiscretization(fluid_system, boundary_system; neighborhood_search,
+                          parallelization_backend=PolyesterBackend())
+ode = semidiscretize(semi, tspan)
+
+info_callback = InfoCallback(interval=100)
+saving_callback = SolutionSavingCallback(dt=0.1, prefix="")
+sorting_callback = SortingCallback(interval=1)
+callbacks = CallbackSet(sorting_callback, info_callback, saving_callback)
+
+sol = solve(ode, SymplecticPositionVerlet(),
+            dt=8e-5,
+            save_everystep=false, callback=callbacks);
