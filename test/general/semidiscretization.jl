@@ -1,5 +1,9 @@
 # Use `@trixi_testset` to isolate the mock functions in a separate namespace
 @trixi_testset "Semidiscretization" begin
+    symplectic_rk_extension = Base.get_extension(TrixiParticles,
+                                                 :TrixiParticlesOrdinaryDiffEqSymplecticRKExt)
+    @test !symplectic_rk_extension.OrdinaryDiffEqCore.isfsal(SymplecticPositionVerlet())
+
     # Mock systems
     struct System1 <: TrixiParticles.AbstractStructureSystem{3} end
     struct System2 <: TrixiParticles.AbstractStructureSystem{3} end
