@@ -116,7 +116,7 @@ export interpolate_line, interpolate_points, interpolate_plane_3d, interpolate_p
 export SurfaceTensionAkinci, CohesionForceAkinci, SurfaceTensionMorris,
        SurfaceTensionMomentumMorris
 export ColorfieldSurfaceNormal
-export SymplecticPositionVerlet
+export SymplecticPositionVerlet, SymplecticPositionVerletWithSorting
 export coordinates_eltype
 
 end # module

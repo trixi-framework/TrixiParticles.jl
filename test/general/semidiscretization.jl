@@ -3,6 +3,8 @@
     symplectic_rk_extension = Base.get_extension(TrixiParticles,
                                                  :TrixiParticlesOrdinaryDiffEqSymplecticRKExt)
     @test !symplectic_rk_extension.OrdinaryDiffEqCore.isfsal(SymplecticPositionVerlet())
+    sorting_alg = SymplecticPositionVerletWithSorting()
+    @test !symplectic_rk_extension.OrdinaryDiffEqCore.isfsal(sorting_alg)
 
     # Mock systems
     struct System1 <: TrixiParticles.AbstractStructureSystem{3} end

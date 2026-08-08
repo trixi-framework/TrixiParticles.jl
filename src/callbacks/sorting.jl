@@ -104,10 +104,6 @@ function (sorting_callback!::SortingCallback)(integrator)
         end
     end
 
-    @trixi_timeit timer() "sorting callback update" begin
-        init_nhs!(semi, u_ode)
-    end
-
     # Update the last sorting time in the callback struct.
     sorting_callback!.last_t = integrator.t
 
@@ -132,6 +128,19 @@ end
 # TODO: Sort also masses and particle spacings for variable smoothing lengths.
 function sort_particles!(system::RequiresSortingSystem, v, u,
                          nhs::GridNeighborhoodSearch, semi)
+    perm = particle_sorting_permutation(system, u, nhs, semi)
+
+    sort_system_with_permutation!(system, v, u, perm, system.buffer)
+
+    return system
+end
+
+function sort_system_with_permutation!(system, v, u, perm, buffer::Nothing)
+    sort_system!(system, v, u, perm, buffer)
+    return perm
+end
+
+function particle_sorting_permutation(system, u, nhs::GridNeighborhoodSearch, semi)
     # cell_coords = allocate(semi.parallelization_backend, SVector{ndims(system), Int},
     #                        nparticles(system))
     cell_index = allocate(semi.parallelization_backend, Int, nparticles(system))
@@ -142,11 +151,7 @@ function sort_particles!(system::RequiresSortingSystem, v, u,
     end
 
     # TODO `sortperm` works on CUDA but not (yet) on Metal
-    perm = sortperm(transfer2cpu(cell_index))
-
-    sort_system!(system, v, u, perm, system.buffer)
-
-    return system
+    return sortperm(transfer2cpu(cell_index))
 end
 
 function sort_system!(system, v, u, perm, buffer::Nothing)
@@ -162,6 +167,64 @@ function sort_system!(system, v, u, perm, buffer::Nothing)
     system.mass .= system.mass[perm]
 
     return system
+end
+
+# Wall boundary particles do not store coordinates and velocities in the ODE state.
+# This method is used by time integrators that initially sort fixed particles as well.
+function sort_system!(system::WallBoundarySystem, v, u, perm, buffer::Nothing)
+    sorted_arrays = Base.IdSet{Any}()
+    sort_particle_array_once!(system.coordinates, perm, sorted_arrays)
+    sort_particle_fields!(system.initial_condition, perm, nparticles(system), sorted_arrays)
+    sort_particle_fields!(system.cache, perm, nparticles(system), sorted_arrays)
+    sort_boundary_model!(system.boundary_model, perm, nparticles(system), sorted_arrays)
+
+    # With ContinuityDensity, the density is part of the ODE state.
+    sort_particle_array!(v, perm)
+    sort_particle_array!(u, perm)
+
+    return system
+end
+
+function sort_boundary_model!(model::BoundaryModelDummyParticles, perm, n_particles,
+                              sorted_arrays)
+    sort_particle_array_once!(model.pressure, perm, sorted_arrays)
+    sort_particle_array_once!(model.hydrodynamic_mass, perm, sorted_arrays)
+    sort_particle_fields!(model.cache, perm, n_particles, sorted_arrays)
+    return model
+end
+
+function sort_boundary_model!(model::BoundaryModelMonaghanKajtar, perm, n_particles,
+                              sorted_arrays)
+    sort_particle_array_once!(model.hydrodynamic_mass, perm, sorted_arrays)
+    return model
+end
+
+sort_boundary_model!(model, perm, n_particles, sorted_arrays) = model
+
+function sort_particle_fields!(object, perm, n_particles, sorted_arrays)
+    for field in propertynames(object)
+        value = getproperty(object, field)
+        if value isa AbstractArray && !isbits(value) && ndims(value) > 0 &&
+           size(value, ndims(value)) == n_particles
+            sort_particle_array_once!(value, perm, sorted_arrays)
+        end
+    end
+
+    return object
+end
+
+function sort_particle_array!(array, perm)
+    isempty(array) && return array
+
+    indices = ntuple(_ -> Colon(), ndims(array) - 1)
+    array .= array[indices..., perm]
+    return array
+end
+
+function sort_particle_array_once!(array, perm, sorted_arrays)
+    array in sorted_arrays && return array
+    push!(sorted_arrays, array)
+    return sort_particle_array!(array, perm)
 end
 
 function initial_sort(::DiscreteCallback{<:Any, <:SortingCallback, typeof(initial_sort!)})

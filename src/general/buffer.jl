@@ -90,6 +90,11 @@ end
 end
 
 function sort_system!(system, v, u, perm, buffer::SystemBuffer)
+    sort_system_with_permutation!(system, v, u, perm, buffer)
+    return buffer
+end
+
+function sort_system_with_permutation!(system, v, u, perm, buffer::SystemBuffer)
     (; active_particle) = buffer
 
     # Note that the following contain also inactive particles
@@ -113,10 +118,11 @@ function sort_system!(system, v, u, perm, buffer::SystemBuffer)
     system_velocity .= system_velocity[:, combined_perm]
     system_pressure .= system_pressure[combined_perm]
     system_density .= system_density[combined_perm]
+    system.mass .= system.mass[combined_perm]
 
     # Update buffer
     buffer.active_particle_count[] = count(active_particle)
     buffer.eachparticle[1:buffer.active_particle_count[]] .= 1:buffer.active_particle_count[]
 
-    return buffer
+    return combined_perm
 end
