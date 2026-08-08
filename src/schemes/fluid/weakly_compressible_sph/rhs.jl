@@ -8,7 +8,7 @@
     return pressure_constant * (density_ratio^7 - one(rho))
 end
 
-function interact!(dv, v_particle_system, u_particle_system,
+function interact_old!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::WeaklyCompressibleSPHSystem, neighbor_system, semi;
                    eachparticle=each_integrated_particle(particle_system),
@@ -166,17 +166,117 @@ function interact!(dv, v_particle_system, u_particle_system,
     return dv
 end
 
+# Specialized kernel for 3D fluid-fluid self-interaction implementing the same algorithm
+# as DualSPHysics. This is wrapped in a nice interface, which costs a bit of performance
+# for several reasons:
+# 1. The kernel gradient has to inverse the smoothing length, while DualSPHysics uses
+#    a precomputed constant (which only works for constant smoothing length).
+# 2. The density diffusion is also computing something that could be precomputed,
+#    provided that the smoothing length is constant.
+# 3. `distance^2` is re-computed from `distance`.
+# 4. Viscosity and density diffusion are computing a smoothing length average.
+#
+# Find the raw optimized version below.
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
-                   particle_system::WeaklyCompressibleSPHSystem{NDIMS},
-                   neighbor_system::WeaklyCompressibleSPHSystem, semi) where NDIMS
+                   particle_system::WeaklyCompressibleSPHSystem,
+                   neighbor_system, semi)
+    (; density_calculator) = particle_system
+
+    sound_speed = system_sound_speed(particle_system)
+
+    # Precompute state equation constants.
+    state_equation = particle_system.state_equation
+    reference_density = state_equation.reference_density
+    pressure_constant = reference_density * state_equation.sound_speed^2 /
+                        state_equation.exponent
+    inverse_reference_density = inv(reference_density)
+
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
-    # system_coords = vcat(system_coords, zero(drho)')
-    # neighbor_system_coords = vcat(neighbor_system_coords, zero(drho)')
+    neighborhood_search = get_neighborhood_search(particle_system, neighbor_system, semi)
+    backend = semi.parallelization_backend
+
+    compact_support_ = compact_support(particle_system, neighbor_system)
+    almostzero = sqrt(eps(compact_support_^2))
+
+    @threaded semi for particle in each_integrated_particle(particle_system)
+        m_a = @inbounds hydrodynamic_mass(particle_system, particle)
+        # DualSPHysics does not have variable mass.
+        m_b = @inbounds hydrodynamic_mass(neighbor_system, 1)
+
+        (v_a, rho_a) = @inbounds velocity_and_density(v_particle_system, particle_system,
+                                                      Val(true), particle)
+
+        # DualSPHysics applies the state equation on-the-fly instead of storing the pressure.
+        p_a = dualsphysics_pressure(rho_a, pressure_constant, inverse_reference_density)
+
+        # Accumulate the RHS contributions over all neighbors before writing to `dv`,
+        # to reduce the number of memory writes.
+        @inline function dv_drho_sum(a, b)
+            dv_a, drho_a = a
+            dv_b, drho_b = b
+            return dv_a + dv_b, drho_a + drho_b
+        end
+        init = (zero(v_a), zero(rho_a))
+
+        (dv_particle_,
+         drho_particle_) = @inbounds mapreduce_neighbor(dv_drho_sum, system_coords,
+                                                        neighbor_system_coords,
+                                                        neighborhood_search,
+                                                        backend, particle;
+                                                        init) do particle, neighbor,
+                                                                 pos_diff, distance
+            distance < almostzero && return init
+
+            (v_b, rho_b) = @inbounds velocity_and_density(v_neighbor_system,
+                                                          neighbor_system,
+                                                          Val(true), neighbor)
+            p_b = dualsphysics_pressure(rho_b, pressure_constant,
+                                        inverse_reference_density)
+
+            grad_kernel = smoothing_kernel_grad_unsafe(particle_system, pos_diff,
+                                                    distance, particle)
+
+            dv_particle = pressure_acceleration(particle_system, neighbor_system,
+                                                particle, neighbor,
+                                                m_a, m_b, p_a, p_b, rho_a, rho_b,
+                                                pos_diff, distance, grad_kernel, nothing)
+
+            dv_particle = @inbounds dv_viscosity(dv_particle, particle_system,
+                                                neighbor_system,
+                                                v_particle_system, v_neighbor_system,
+                                                particle, neighbor, pos_diff, distance,
+                                                sound_speed, m_a, m_b, rho_a, rho_b,
+                                                v_a, v_b, grad_kernel)
+
+            drho_particle = @inbounds continuity_equation(zero(rho_a), density_calculator,
+                                                          particle_system, neighbor_system,
+                                                          particle, neighbor, pos_diff,
+                                                          distance,
+                                                          m_b, rho_a, rho_b, v_a, v_b,
+                                                          grad_kernel)
+
+            return dv_particle, drho_particle
+        end
+
+        for i in eachindex(dv_particle_)
+            @inbounds dv[i, particle] += dv_particle_[i]
+        end
+        @inbounds dv[end, particle] += drho_particle_
+    end
+end
+
+# Fully optimized kernel for 3D fluid-fluid self-interaction implementing the same algorithm
+# as DualSPHysics.
+function interact!(dv, v_particle_system, u_particle_system,
+                   v_neighbor_system, u_neighbor_system,
+                   particle_system::WeaklyCompressibleSPHSystem{3},
+                   neighbor_system::WeaklyCompressibleSPHSystem, semi)
+    system_coords = current_coordinates(u_particle_system, particle_system)
+    neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
     neighborhood_search = get_neighborhood_search(particle_system, neighbor_system, semi)
-    cell_list = neighborhood_search.cell_list
     search_radius2 = PointNeighbors.search_radius(neighborhood_search)^2
     state_equation = particle_system.state_equation
     reference_density = state_equation.reference_density
@@ -193,51 +293,49 @@ function interact!(dv, v_particle_system, u_particle_system,
 
     backend = semi.parallelization_backend
     ndrange = length(each_integrated_particle(particle_system))
-    mykernel(backend)(dv, system_coords, neighbor_system_coords, neighborhood_search,
-                      cell_list, search_radius2, pressure_constant,
-                      inverse_reference_density, smoothing_length,
-                      inverse_smoothing_length, kernel_normalization, eta2,
-                      density_diffusion_factor, v_particle_system, v_neighbor_system,
-                      particle_system, neighbor_system; ndrange=ndrange,
-                      workgroupsize=128)
+    interaction_kernel(backend)(dv, system_coords, neighbor_system_coords,
+                                neighborhood_search, search_radius2, pressure_constant,
+                                inverse_reference_density, smoothing_length,
+                                inverse_smoothing_length, kernel_normalization, eta2,
+                                density_diffusion_factor, v_particle_system, v_neighbor_system,
+                                particle_system, neighbor_system; ndrange=ndrange,
+                                workgroupsize=128)
 
     KernelAbstractions.synchronize(backend)
 
     return dv
 end
 
-@kernel function mykernel(dv,
-                          system_coords, neighbor_system_coords,
-                          nhs, cell_list, search_radius2,
-                          pressure_constant, inverse_reference_density,
-                          smoothing_length, inverse_smoothing_length,
-                          kernel_normalization, eta2, density_diffusion_factor,
-                          v_particle_system, v_neighbor_system,
-                          particle_system::WeaklyCompressibleSPHSystem{NDIMS},
-                          neighbor_system::WeaklyCompressibleSPHSystem) where NDIMS
+@kernel function interaction_kernel(dv,
+                                    system_coords, neighbor_system_coords,
+                                    nhs, search_radius2,
+                                    pressure_constant, inverse_reference_density,
+                                    smoothing_length, inverse_smoothing_length,
+                                    kernel_normalization, eta2, density_diffusion_factor,
+                                    v_particle_system, v_neighbor_system,
+                                    particle_system::WeaklyCompressibleSPHSystem,
+                                    neighbor_system::WeaklyCompressibleSPHSystem)
     # `SymplecticPositionVerletWithSorting` deactivates out-of-bounds particles before
     # sorting, so active particles occupy the prefix used as the kernel launch range.
     particle = @index(Global)
 
+    cell_list = nhs.cell_list
     sound_speed = particle_system.state_equation.sound_speed
-    # VT_coords = Vec{4, eltype(system_coords)}
-    # point_coords_ = vloada(VT_coords, pointer(system_coords, 4*(particle-1)+1))
-    # a, b, c, d = Tuple(point_coords_)
-    # point_coords = SVector(a, b, c)
-    point_coords = @inbounds extract_svector(system_coords, Val(NDIMS), particle)
+
+    point_coords = @inbounds extract_svector(system_coords, Val(ndims(particle_system)),
+                                             particle)
     VT = SIMD.Vec{4, eltype(v_particle_system)}
     vrho_a = SIMD.vloada(VT, pointer(v_particle_system, 4*(particle-1)+1))
-    a, b, c, d = Tuple(vrho_a)
+    a, b, c, rho_a = Tuple(vrho_a)
     v_a = SVector(a, b, c)
-    rho_a = d
-    p_a = dualsphysics_pressure(rho_a, pressure_constant,
-                                inverse_reference_density)
-    # v_a = @inbounds extract_svector(v_particle_system, Val(NDIMS), particle)
-    # rho_a = @inbounds v_particle_system[end, particle]
+
+    # DualSPHysics does not have variable mass.
+    m_b = @inbounds neighbor_system.mass[1]
+
+    p_a = dualsphysics_pressure(rho_a, pressure_constant, inverse_reference_density)
 
     dv_particle = zero(v_a)
     drho_particle = zero(rho_a)
-    m_b = @inbounds neighbor_system.mass[1]
 
     cell = PointNeighbors.cell_coords(point_coords, nhs)
     VT_poscell = SIMD.Vec{4, eltype(nhs.relative_coords)}
@@ -247,11 +345,10 @@ end
     cell_code_a = reinterpret(UInt32, encoded_cell_a)
     cell_a_x = Int32(cell_code_a >> 19)
 
-    # Benchmark-only 3D traversal: x is the contiguous dimension of the full grid, so
-    # visit the three x cells as one particle range for each y/z pair.
     for cell_z in (cell[3] - 1):(cell[3] + 1),
         cell_y in (cell[2] - 1):(cell[2] + 1)
         block_start = (cell[1] - 1, cell_y, cell_z)
+
         cell_index = @inbounds PointNeighbors.cell_index(cell_list, block_start)
         start = @inbounds cell_list.cells.first_bin_index[cell_index]
         stop = @inbounds cell_list.cells.first_bin_index[cell_index + 3] - 1
@@ -260,16 +357,6 @@ end
         offset_z = (cell[3] - cell_z) * nhs.cell_size[3]
 
         for neighbor in start:stop
-    # for neighbor_cell_ in PointNeighbors.neighboring_cells(cell, nhs)
-    #     neighbor_cell = Tuple(neighbor_cell_)
-    #     neighbors = @inbounds PointNeighbors.points_in_cell(neighbor_cell, nhs)
-
-    #     for neighbor_ in eachindex(neighbors)
-    #         neighbor = @inbounds neighbors[neighbor_]
-
-            # neighbor_coords_ = vloada(VT_coords, pointer(neighbor_system_coords, 4*(neighbor-1)+1))
-            # a, b, c, d = Tuple(neighbor_coords_)
-            # neighbor_coords = SVector(a, b, c)
             poscell_b = SIMD.vloada(VT_poscell,
                                     pointer(nhs.relative_coords, 4 * (neighbor - 1) + 1))
             pos_b_x, pos_b_y, pos_b_z, encoded_cell_b = Tuple(poscell_b)
@@ -282,47 +369,37 @@ end
                                pos_a_z - pos_b_z + offset_z)
             distance2 = dot(pos_diff, pos_diff)
 
-            if eps(search_radius2) <= distance2 <= search_radius2
-                distance = @fastmath sqrt(distance2)
+            @fastmath if eps(search_radius2) <= distance2 <= search_radius2
+                distance = sqrt(distance2)
 
-                vrho_b = SIMD.vloada(VT, pointer(v_neighbor_system, 4*(neighbor-1)+1))
-                a, b, c, d = Tuple(vrho_b)
+                vrho_b = SIMD.vloada(VT, pointer(v_neighbor_system, 4 * (neighbor - 1) + 1))
+                a, b, c, rho_b = Tuple(vrho_b)
                 v_b = SVector(a, b, c)
-                rho_b = d
+
                 p_b = dualsphysics_pressure(rho_b, pressure_constant,
                                             inverse_reference_density)
-
-                # v_b = @inbounds extract_svector(v_neighbor_system, Val(NDIMS), neighbor)
-                # rho_b = @inbounds v_neighbor_system[end, neighbor]
 
                 grad_kernel = kernel_grad_ds(pos_diff, distance,
                                              inverse_smoothing_length,
                                              kernel_normalization)
 
-                # dv_particle += -m_b * (p_a + p_b) / (rho_a * rho_b) * grad_kernel
-                @fastmath dv_particle += -m_b * Base.FastMath.div_fast(p_a + p_b,
-                                                             rho_a * rho_b) * grad_kernel
+                dv_particle += -m_b * (p_a + p_b) / ( rho_a * rho_b) * grad_kernel
 
-                @fastmath vdiff = v_a - v_b
-                rho_ratio = Base.FastMath.div_fast(rho_a, rho_b)
-                # drho_particle += rho_a / rho_b * m_b * dot(vdiff, grad_kernel)
-                @fastmath drho_particle += rho_ratio * m_b * dot(vdiff, grad_kernel)
+                vdiff = v_a - v_b
+                rho_ratio = rho_a / rho_b
+                drho_particle += rho_ratio * m_b * dot(vdiff, grad_kernel)
 
                 alpha = particle_system.viscosity.alpha
                 dot3 = dot(pos_diff, grad_kernel)
-                @fastmath diffusion = Base.FastMath.div_fast(density_diffusion_factor *
-                                                   (rho_ratio - one(rho_ratio)),
-                                                   distance2 + eta2)
-                @fastmath drho_particle += diffusion * dot3 * m_b
+                diffusion = (density_diffusion_factor * (rho_ratio - 1)) / (distance2 + eta2)
+                drho_particle += diffusion * dot3 * m_b
 
                 vr = dot(vdiff, pos_diff)
                 if vr < 0
-                    mu = Base.FastMath.div_fast(smoothing_length * vr,
-                                                distance2 + eta2)
+                    mu = (smoothing_length * vr) / (distance2 + eta2)
                     rho_mean = (rho_a + rho_b) / 2
-                    # @fastmath pi_ab = (alpha * sound_speed * mu) / rho_mean * grad_kernel
-                    pi_ab = Base.FastMath.div_fast(alpha * sound_speed * mu, rho_mean) * grad_kernel
-                    @fastmath dv_particle += m_b * pi_ab
+                    pi_ab = (alpha * sound_speed * mu) / rho_mean * grad_kernel
+                    dv_particle += m_b * pi_ab
                 end
             end
         end
@@ -330,8 +407,6 @@ end
 
     for i in eachindex(dv_particle)
         @inbounds dv[i, particle] += dv_particle[i]
-        # Debug example
-        # debug_array[i, particle] += dv_pressure[i]
     end
     @inbounds dv[end, particle] += drho_particle
 end
