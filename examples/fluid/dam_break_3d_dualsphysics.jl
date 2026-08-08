@@ -14,6 +14,15 @@ using TrixiParticles, TrixiParticles.PointNeighbors, OrdinaryDiffEqSymplecticRK
 
 fluid_particle_spacing = 0.0085
 
+use_dualsphysics_nhs = true
+if use_dualsphysics_nhs
+    cell_list_backend = PointNeighbors.CompactVectorOfVectors{Int32}
+    time_integration_scheme = SymplecticPositionVerletWithSorting()
+else
+    cell_list_backend = PointNeighbors.DynamicVectorOfVectors{Int32}
+    time_integration_scheme = SymplecticPositionVerlet()
+end
+
 smoothing_length = 1.7320508 * fluid_particle_spacing
 tank_size = (1.6 - fluid_particle_spacing, 0.67 - fluid_particle_spacing, 0.4)
 tspan = (0.0, 0.1)
@@ -29,6 +38,7 @@ state_equation = StateEquationCole(; sound_speed, reference_density=fluid_densit
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density;
                        n_layers=boundary_layers, spacing_ratio=spacing_ratio,
                        coordinates_eltype=Float64,
+                       # TODO acceleration and state equation don't work with buffer
                     #    acceleration, state_equation,
                        faces = (true, true, true, true, true, false))
 
@@ -41,7 +51,6 @@ trixi_include(@__MODULE__,
               tank=tank,
               smoothing_length=1.7320508 * fluid_particle_spacing,
               boundary_density_calculator=ContinuityDensity(),
-            #   density_diffusion=nothing, # TODO only for benchmarking
               state_equation=state_equation,
               fluid_particle_spacing=fluid_particle_spacing,
               tank_size=tank_size, initial_fluid_size=initial_fluid_size,
@@ -50,13 +59,6 @@ trixi_include(@__MODULE__,
               alpha=0.1,
               spacing_ratio=spacing_ratio, boundary_layers=boundary_layers,
               tspan=tspan,
-              #cfl=0.2,
-            #   viscosity_wall=viscosity_fluid, TODO
-              # This is the same saving frequency as in DualSPHysics for easier comparison
-            #   saving_callback=SolutionSavingCallback(dt=0.01),
-            #   extra_callback=SortingCallback(interval=1),
-              # For benchmarks, use spacing 0.002, fix time steps, and disable VTK saving:
-              #stepsize_callback=nothing, saving_callback=nothing,
               semi=nothing, ode=nothing, sol=nothing)
 
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid; smoothing_kernel, smoothing_length,
@@ -75,7 +77,7 @@ boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
 # Define a GPU-compatible neighborhood search
 min_corner = minimum(tank.boundary.coordinates, dims=2)
 max_corner = maximum(tank.boundary.coordinates, dims=2)
-cell_list = FullGridCellList(; min_corner, max_corner, backend=PointNeighbors.CompactVectorOfVectors{Int32})
+cell_list = FullGridCellList(; min_corner, max_corner, backend=cell_list_backend)
 neighborhood_search = GridNeighborhoodSearch{3}(; cell_list,
                                                 update_strategy=ParallelUpdate())
 
@@ -85,8 +87,9 @@ ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.1, prefix="")
-callbacks = CallbackSet(info_callback, saving_callback)
+sorting_callback = SortingCallback(interval=1000)
+callbacks = CallbackSet(info_callback, saving_callback, sorting_callback)
 
 fluid_dt = 8e-5
-sol = solve(ode, SymplecticPositionVerletWithSorting(),
+sol = solve(ode, time_integration_scheme,
             dt=fluid_dt, save_everystep=false, callback=callbacks);
