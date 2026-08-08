@@ -18,3 +18,14 @@ See [time integration](@ref time_integration) for more details.
 function SymplecticPositionVerlet(_...)
     error("the package OrdinaryDiffEqSymplecticRK needs to be loaded to use this scheme.")
 end
+
+"""
+    SymplecticPositionVerletWithSorting()
+
+Variant of [`SymplecticPositionVerlet`](@ref) that sorts all particle systems once during
+initialization and sorts moving particle systems before every force evaluation. All ODE
+state and derivative arrays are permuted consistently.
+"""
+function SymplecticPositionVerletWithSorting(_...)
+    error("the package OrdinaryDiffEqSymplecticRK needs to be loaded to use this scheme.")
+end

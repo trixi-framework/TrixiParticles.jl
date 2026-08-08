@@ -25,6 +25,7 @@ using Random: seed!
 using SciMLBase: SciMLBase, CallbackSet, DiscreteCallback, DynamicalODEProblem,
                  derivative_discontinuity!, get_tmp_cache, set_proposed_dt!,
                  ODESolution, ODEProblem, terminate!, add_tstop!
+using SIMD: SIMD
 @reexport using StaticArrays: SVector
 using StaticArrays: @SMatrix, SMatrix, setindex
 using Statistics: Statistics
@@ -116,7 +117,7 @@ export interpolate_line, interpolate_points, interpolate_plane_3d, interpolate_p
 export SurfaceTensionAkinci, CohesionForceAkinci, SurfaceTensionMorris,
        SurfaceTensionMomentumMorris
 export ColorfieldSurfaceNormal
-export SymplecticPositionVerlet
+export SymplecticPositionVerlet, SymplecticPositionVerletWithSorting
 export coordinates_eltype
 
 end # module

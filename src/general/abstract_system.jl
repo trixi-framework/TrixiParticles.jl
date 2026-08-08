@@ -68,18 +68,42 @@ end
 end
 
 # Return `A[:, :, i]` as an `SMatrix`.
-@propagate_inbounds function extract_smatrix(A, system, particle)
-    return extract_smatrix(A, Val(ndims(system)), particle)
+@propagate_inbounds function extract_smatrix(A, system, i)
+    return extract_smatrix(A, Val(ndims(system)), i)
 end
 
-@inline function extract_smatrix(A, ::Val{NDIMS}, particle) where {NDIMS}
-    @boundscheck checkbounds(A, NDIMS, NDIMS, particle)
+@inline function extract_smatrix(A::AbstractArray{T, 3}, ::Val{N}, i) where {T, N}
+    @boundscheck checkbounds(A, N, N, i)
+    # This function assumes that the first two dimensions of `A` have exactly the size `N`.
+    @boundscheck if stride(A, 3) != N^2
+        # WARNING: Don't split this string with `*`, or this function won't compile on GPUs,
+        # even when the error is never thrown.
+        error("extract_smatrix only works for 3D arrays where the first two dimensions each have size N")
+    end
 
-    # Extract the matrix elements for this particle as a tuple to pass to SMatrix
-    return SMatrix{NDIMS, NDIMS}(ntuple(@inline(i->@inbounds A[mod(i - 1, NDIMS) + 1,
-                                                               div(i - 1, NDIMS) + 1,
-                                                               particle]),
-                                        Val(NDIMS^2)))
+    # Extract the matrix elements as a tuple in column-major order,
+    # and construct an `SMatrix` from it.
+    return SMatrix{N, N}(ntuple(@inline(j->@inbounds A[(i - 1) * N^2 + j]), Val(N^2)))
+end
+
+@inline function extract_smatrix(A::AbstractArray{T, 3}, ::Val{2}, i) where {T}
+    @boundscheck checkbounds(A, 2, 2, i)
+    # This function assumes that the first two dimensions of `A` have exactly the size `2`.
+    @boundscheck if stride(A, 3) != 4
+        # WARNING: Don't split this string with `*`, or this function won't compile on GPUs,
+        # even when the error is never thrown.
+        error("extract_smatrix only works for 3D arrays where the first two dimensions each have size N")
+    end
+
+    # This is the same as
+    # `SMatrix{N, N}(ntuple(@inline(j->@inbounds A[(i - 1) * N^2 + j]), Val(N^2)))`,
+    # but it's slightly faster on CPUs in some cases. As opposed to the GPU-optimized
+    # version in `extract_smatrix_aligned`, we use `vload` and not `vloada` here, which
+    # does not require alignment and works if N^2 is not a power of 2.
+    # This is faster in the TLSPH RHS in 2D, but slower in 3D for some reason.
+    # See the benchmarks in https://github.com/trixi-framework/TrixiParticles.jl/pull/1147.
+    vec = SIMD.vload(SIMD.Vec{4, T}, pointer(A, 4 * (i - 1) + 1))
+    return SMatrix{2, 2}(Tuple(vec))
 end
 
 # Specifically get the current coordinates of a particle for all system types.
