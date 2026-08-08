@@ -245,6 +245,23 @@ end
 
 system_correction(system::WeaklyCompressibleSPHSystem) = system.correction
 
+@inline function surface_normal_density(system::WeaklyCompressibleSPHSystem, particle,
+                                        density)
+    return surface_normal_density(system, system.surface_tension, system.correction,
+                                  system.density_calculator, particle, density)
+end
+
+@inline function surface_normal_density(system, surface_tension, correction,
+                                        density_calculator, particle, density)
+    return density
+end
+
+@inline function surface_normal_density(system, ::SurfaceTensionAkinci,
+                                        ::AkinciFreeSurfaceCorrection,
+                                        ::ContinuityDensity, particle, density)
+    return @inbounds system.cache.kernel_summation_density[particle]
+end
+
 @propagate_inbounds function current_velocity(v, system::WeaklyCompressibleSPHSystem)
     return current_velocity(v, system.density_calculator, system)
 end

@@ -13,6 +13,11 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   radius `h_c`, multiply the surface-tension coefficient by `627 / (790 * h_c)` and the
   adhesion coefficient by `42 / (65 * h_c)`; migrated coefficients are resolution-independent.
 
+### Features
+
+- Added `AkinciFreeSurfaceCorrection` support to `EntropicallyDampedSPHSystem` for both
+  continuity and summation density.
+
 ### Important Bugfixes
 
 - Hardened surface tension model configuration by validating coefficients, avoiding unnecessary
@@ -20,9 +25,9 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   near the compact-support boundary.
 
 - Fixed `AkinciFreeSurfaceCorrection` with `ContinuityDensity` by reconstructing the
-  neighborhood-deficiency density used by the correction without changing the integrated
-  pressure density. Dummy boundary masses are included so wall particles are not misclassified
-  as a free surface.
+  neighborhood-deficiency density used by the correction and the `SurfaceTensionAkinci`
+  color-field normals without changing the integrated pressure density. Dummy boundary masses
+  are included so wall particles are not misclassified as a free surface.
 
 ## Version 0.5.3
 

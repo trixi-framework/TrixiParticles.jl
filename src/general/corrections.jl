@@ -21,10 +21,12 @@ this value will be about ~1.5 for particles at the free surface and can then be 
 the surface tension and viscosity forces accordingly.
 
 With [`SummationDensity`](@ref), the correction uses the current density directly. When used with
-[`ContinuityDensity`](@ref) in a [`WeaklyCompressibleSPHSystem`](@ref), TrixiParticles.jl
-reconstructs an auxiliary summation density for this correction while pressure continues to use
-the integrated density. This preserves the particle-neighborhood-deficiency behavior of the
-published model at the cost of one additional density summation per update stage.
+[`ContinuityDensity`](@ref) in a [`WeaklyCompressibleSPHSystem`](@ref) or
+[`EntropicallyDampedSPHSystem`](@ref), TrixiParticles.jl reconstructs an auxiliary summation
+density for this correction and for the color-field normals of [`SurfaceTensionAkinci`](@ref),
+while pressure continues to use the integrated density. This preserves the
+particle-neighborhood-deficiency behavior of the published model at the cost of one additional
+density summation per update stage.
 
 # Arguments
 - `rho0`: Rest density.
