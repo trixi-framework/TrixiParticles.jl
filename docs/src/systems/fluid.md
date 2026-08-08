@@ -367,17 +367,33 @@ The method described by [Morris](@cite Morris2000) estimates curvature by combin
 The computed curvature is then used to determine forces acting perpendicular to the interface.
 While this method provides accurate surface tension forces, it does not explicitly conserve momentum.
 
-In the Morris model, surface tension is computed based on local interface curvature ``\kappa`` and the unit surface normal ``\hat{\bm{n}}``.
-By estimating ``\hat{\bm{n}}`` and ``\kappa`` at each particle near the interface, the
-surface tension force for particle ``a`` can be written as
+In the Morris model, surface tension is computed from local interface curvature ``\kappa``, the
+unit surface normal ``\hat{\bm{n}}``, and the surface delta ``\delta_s``. The acceleration is a
+particle-local source evaluated once per right-hand side evaluation:
 
 ```math
-\bm{F}_{a}^{\sigma}
-= - m_a \sigma \frac{\kappa_a}{\rho_a}\hat{\bm{n}}_a.
+\frac{\mathrm d\bm v_a}{\mathrm dt}\bigg|_\sigma
+= -\frac{\sigma}{\rho_a}\kappa_a\delta_{s,a}\hat{\bm n}_a.
 ```
 
-This formulation focuses directly on geometric properties of the interface, making it relatively straightforward to implement when a reliable interface detection
-(e.g., a color function) is available. However, accurately estimating ``\kappa`` and ``n`` may require fine resolutions.
+The factors have dimensions ``[\sigma]=kg/s^2``, ``[\kappa]=1/m``,
+``[\delta_s]=1/m``, and ``[\rho]=kg/m^3``, giving acceleration in ``m/s^2``. This formulation
+does not explicitly conserve momentum, and accurately estimating curvature still requires
+adequate resolution.
+
+[`CorrectedCSFSurfaceNormal`](@ref) selects the corrected continuous-surface-force (C-CSF)
+interface geometry of [Vergnaud et al.](@cite Vergnaud2022) for [`SurfaceTensionMorris`](@ref). It
+computes the outward normal from the renormalized gradient of the minimum eigenvalue of the
+first-order kernel moment. Curvature uses a renormalized divergence and the published thin-jet
+angular filter; the surface delta uses the published Shepard correction.
+
+```julia
+surface_tension = SurfaceTensionMorris(surface_tension_coefficient=0.072)
+surface_normal_method = CorrectedCSFSurfaceNormal()
+```
+
+This explicit opt-in supports one fluid system and free-surface geometry. Boundary-integral and
+contact-angle terms are not included.
 
 ---
 

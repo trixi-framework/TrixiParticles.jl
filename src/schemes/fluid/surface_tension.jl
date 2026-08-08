@@ -51,6 +51,10 @@ It calculates surface tension forces based on the curvature of the fluid interfa
 using particle normals and their divergence, making it suitable for simulating
 phenomena like droplet formation and capillary wave dynamics.
 
+The one-phase color-gradient magnitude is retained as a surface delta. The local
+continuum-surface-force acceleration is evaluated once per particle as
+``-sigma * kappa * delta_s * n_hat / rho``.
+
 See [`surface_tension`](@ref) for more details.
 
 
@@ -72,7 +76,9 @@ end
 
 function create_cache_surface_tension(::SurfaceTensionMorris, ELTYPE, NDIMS, nparticles)
     curvature = Array{ELTYPE, 1}(undef, nparticles)
-    return (; curvature)
+    delta_s = Array{ELTYPE, 1}(undef, nparticles)
+    interface_activity = Array{ELTYPE, 1}(undef, nparticles)
+    return (; curvature, delta_s, interface_activity)
 end
 
 @doc raw"""
@@ -229,18 +235,26 @@ end
                                         particle, neighbor, pos_diff, distance,
                                         rho_a, rho_b, grad_kernel,
                                         surface_tension_correction)
-    (; surface_tension_coefficient) = surface_tension_a
-
-    # No surface tension with oneself. See `src/general/smoothing_kernels.jl` for more details.
-    distance^2 < eps(initial_smoothing_length(particle_system)^2) && return dv_particle
-
-    n_a = surface_normal(particle_system, particle)
-    curvature_a = curvature(particle_system, particle)
-
-    dv_particle[] -= surface_tension_correction * surface_tension_coefficient / rho_a *
-                     curvature_a * n_a
-
+    # Morris CSF is a particle-local continuum force. It is added once outside the
+    # neighbor loop by `surface_tension_acceleration`.
     return dv_particle
+end
+
+@inline function surface_tension_acceleration(surface_tension, particle_system, particle,
+                                              rho_a, vector_template)
+    return zero(vector_template)
+end
+
+@inline function surface_tension_acceleration(surface_tension::SurfaceTensionMorris,
+                                              particle_system, particle, rho_a,
+                                              vector_template)
+    delta_s = @inbounds particle_system.cache.delta_s[particle]
+    iszero(delta_s) && return zero(vector_template)
+
+    normal = surface_normal(particle_system, particle)
+    curvature_a = curvature(particle_system, particle)
+    return -surface_tension.surface_tension_coefficient / rho_a * curvature_a * delta_s *
+           normal
 end
 
 function compute_stress_tensors!(system, surface_tension, v, u, v_ode, u_ode, semi, t)

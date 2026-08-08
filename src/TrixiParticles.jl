@@ -16,7 +16,8 @@ using ForwardDiff: ForwardDiff
 using GPUArraysCore: AbstractGPUArray
 using JSON: JSON
 using KernelAbstractions: KernelAbstractions, @kernel, @index
-using LinearAlgebra: norm, normalize, cross, dot, I, tr, inv, pinv, det
+using LinearAlgebra: norm, normalize, cross, dot, I, tr, inv, pinv, det, eigvals,
+                     Symmetric
 using Polyester: Polyester, @batch
 using Printf: @printf, @sprintf
 using ReadVTK: ReadVTK
@@ -114,7 +115,7 @@ export interpolate_line, interpolate_points, interpolate_plane_3d, interpolate_p
        interpolate_plane_2d_vtk
 export SurfaceTensionAkinci, CohesionForceAkinci, SurfaceTensionMorris,
        SurfaceTensionMomentumMorris
-export ColorfieldSurfaceNormal
+export ColorfieldSurfaceNormal, CorrectedCSFSurfaceNormal
 export SymplecticPositionVerlet
 export coordinates_eltype
 

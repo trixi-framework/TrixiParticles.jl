@@ -6,8 +6,16 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ## Version 0.5.3
 
+### API Changes
+
+- Corrected `SurfaceTensionMorris` to apply its local CSF acceleration once per particle and
+  retain the required one-phase surface delta. Previous coefficients compensated implicitly
+  for a dimensionally incomplete force repeated once per fluid neighbor and must be recalibrated.
+
 ### Features
 
+- Added `CorrectedCSFSurfaceNormal`, an explicit free-surface implementation of the C-CSF
+  interface geometry from Vergnaud et al. (2022) for `SurfaceTensionMorris`.
 - Added the computation of boundary normals for `RectangularTank`s and `SphereShape`s.
 - Added `flush` keyword argument to `InfoCallback` to flush `stdout` after each output,
   useful for monitoring progress in real-time on clusters or batch systems (#1246).

@@ -40,6 +40,11 @@ function interact!(dv, v_particle_system, u_particle_system,
         # inside the closure in the `foreach_neighbor` loop.
         dv_particle = Ref(zero(v_a))
         drho_particle = Ref(zero(rho_a))
+        if particle_system === neighbor_system
+            dv_particle[] += surface_tension_acceleration(surface_tension_a,
+                                                          particle_system, particle,
+                                                          rho_a, v_a)
+        end
 
         # Loop over all neighbors within the kernel cutoff
         @inbounds foreach_neighbor(system_coords, neighbor_system_coords,

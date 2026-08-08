@@ -20,6 +20,19 @@ function interact!(dv, v_particle_system, u_particle_system,
     h = initial_smoothing_length(particle_system)
     almostzero = sqrt(eps(h^2))
 
+    if particle_system === neighbor_system
+        @threaded semi for particle in each_integrated_particle(particle_system)
+            rho_a = @inbounds current_density(v_particle_system, particle_system,
+                                              particle)
+            v_a = @inbounds current_velocity(v_particle_system, particle_system, particle)
+            acceleration = surface_tension_acceleration(surface_tension_a, particle_system,
+                                                        particle, rho_a, v_a)
+            for i in 1:ndims(particle_system)
+                @inbounds dv[i, particle] += acceleration[i]
+            end
+        end
+    end
+
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     foreach_point_neighbor(particle_system, neighbor_system,
                            system_coords, neighbor_coords, semi;

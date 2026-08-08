@@ -322,6 +322,11 @@ function add_system_data!(system_data, surface_normal_method::ColorfieldSurfaceN
     system_data["surface_normal_method"]["ideal_density_threshold"] = surface_normal_method.ideal_density_threshold
 end
 
+function add_system_data!(system_data, surface_normal_method::CorrectedCSFSurfaceNormal)
+    system_data["surface_normal_method"] = Dict{String, Any}()
+    system_data["surface_normal_method"]["model"] = type2string(surface_normal_method)
+end
+
 function add_system_data!(system_data, boundary_zone::BoundaryZone, indice)
     zone_name = "boundary_zone_" * string(indice)
     system_data[zone_name] = Dict{String, Any}()

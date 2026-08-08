@@ -90,6 +90,103 @@
         @test isapprox(zero[2], 0.0, atol=6e-15)
     end
 
+    @testset "Morris CSF local force" begin
+        function build_morris_system(solver, particle_count)
+            coordinates = zeros(2, particle_count)
+            coordinates[1, :] .= range(0.0; step=0.25, length=particle_count)
+            initial_condition = InitialCondition(; coordinates,
+                                                 velocity=zeros(2, particle_count),
+                                                 mass=ones(particle_count),
+                                                 density=ones(particle_count),
+                                                 particle_spacing=0.25)
+            smoothing_kernel = WendlandC2Kernel{2}()
+            surface_tension = SurfaceTensionMorris(; surface_tension_coefficient=0.7)
+            normal_method = ColorfieldSurfaceNormal(; interface_threshold=0.1)
+            if solver == :wcsph
+                return WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
+                                                   smoothing_length=0.5,
+                                                   density_calculator=ContinuityDensity(),
+                                                   state_equation=StateEquationCole(;
+                                                                                    sound_speed=10.0,
+                                                                                    reference_density=1.0,
+                                                                                    exponent=1),
+                                                   surface_tension,
+                                                   surface_normal_method=normal_method,
+                                                   reference_particle_spacing=0.25)
+            end
+            return EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel,
+                                               smoothing_length=0.5, sound_speed=10.0,
+                                               density_calculator=ContinuityDensity(),
+                                               surface_tension,
+                                               surface_normal_method=normal_method,
+                                               reference_particle_spacing=0.25)
+        end
+
+        function morris_rhs_effect(system)
+            semi = Semidiscretization(system)
+            ode = semidiscretize(semi, (0.0, 0.01))
+            v_ode, u_ode = ode.u0.x
+            TrixiParticles.update_systems_and_nhs(v_ode, u_ode, semi, 0.0)
+            system.cache.surface_normal[1, :] .= 1.0
+            system.cache.surface_normal[2, :] .= 0.0
+            system.cache.curvature .= 3.0
+            system.cache.delta_s .= 2.0
+            system.cache.interface_activity .= 1.0
+
+            return GC.@preserve v_ode u_ode begin
+                v = TrixiParticles.wrap_v(v_ode, system, semi)
+                u = TrixiParticles.wrap_u(u_ode, system, semi)
+                rho_a = TrixiParticles.current_density(v, system, 1)
+                expected = TrixiParticles.surface_tension_acceleration(system.surface_tension,
+                                                                       system, 1, rho_a,
+                                                                       SVector(0.0, 0.0))
+                with_surface_tension = zeros(eltype(v), size(v))
+                TrixiParticles.interact!(with_surface_tension, v, u, v, u,
+                                         system, system, semi)
+                system.cache.delta_s .= 0
+                without_surface_tension = zeros(eltype(v), size(v))
+                TrixiParticles.interact!(without_surface_tension, v, u, v, u,
+                                         system, system, semi)
+                return (with_surface_tension - without_surface_tension)[1:2, :],
+                       expected
+            end
+        end
+
+        effects = []
+        for solver in (:wcsph, :edac), particle_count in (2, 4)
+            effect,
+            expected = morris_rhs_effect(build_morris_system(solver, particle_count))
+            @test all(particle -> effect[:, particle] ≈ expected, axes(effect, 2))
+            push!(effects, effect[:, 1])
+        end
+        @test all(effect -> effect ≈ first(effects), effects)
+
+        system = build_morris_system(:wcsph, 2)
+        system.cache.surface_normal .= [2.0 1.0; 0.0 1.0]
+        TrixiParticles.remove_invalid_normals!(system, system.surface_tension,
+                                               system.surface_normal_method)
+        @test system.cache.delta_s ≈ [4.0, 2sqrt(2)]
+        @test system.cache.interface_activity == [1.0, 1.0]
+        @test system.cache.surface_normal[:, 1] ≈ [1.0, 0.0]
+        @test system.cache.surface_normal[:, 2] ≈ [1 / sqrt(2), 1 / sqrt(2)]
+
+        system.cache.surface_normal[1, :] .= 1.0
+        system.cache.surface_normal[2, :] .= 0.0
+        system.cache.curvature .= 3.0
+        system.cache.delta_s .= 2.0
+        acceleration = TrixiParticles.surface_tension_acceleration(system.surface_tension,
+                                                                   system, 1, 1.0,
+                                                                   SVector(0.0, 0.0))
+        @test acceleration ≈ SVector(-4.2, 0.0)
+        system.cache.curvature[1] /= 2
+        system.cache.delta_s[1] /= 2
+        scaled_acceleration = TrixiParticles.surface_tension_acceleration(system.surface_tension,
+                                                                          system, 1, 1.0,
+                                                                          SVector(0.0,
+                                                                                  0.0))
+        @test scaled_acceleration ≈ acceleration / 4
+    end
+
     @testset "compute_stress_tensors! (MomentumMorris)" begin
         # 1. Define Minimal Initial Condition with 2 Particles in 2D
         coords = [0.0 1.0;
