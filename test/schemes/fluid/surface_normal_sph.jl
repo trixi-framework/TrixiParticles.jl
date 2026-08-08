@@ -113,9 +113,6 @@ function compute_and_test_surface_values(system, semi, ode; NDIMS=2)
     TrixiParticles.compute_surface_normal!(system, system.surface_normal_method, v, u,
                                            v0_ode, u0_ode, semi, 0.0)
 
-    TrixiParticles.remove_invalid_normals!(system, system.surface_tension,
-                                           system.surface_normal_method)
-
     # After computation, check that surface normals have been computed and are not NaN or Inf
     @test all(isfinite, system.cache.surface_normal)
     @test all(isfinite, system.cache.neighbor_count)
@@ -251,7 +248,8 @@ end
                                    NDIMS, smoothing_length, smoothing_kernel,
                                    surface_normal_method=ColorfieldSurfaceNormal(interface_threshold=0.1,
                                                                                  ideal_density_threshold=0.9),
-                                   wall=true, walldistance=2.0, boundary_system_type=:wall)
+                                   wall=true, walldistance=particle_spacing,
+                                   boundary_system_type=:wall)
 
     rigid_system, rigid_boundary, rigid_semi,
     rigid_ode = create_fluid_system(coordinates, velocity, mass, density, particle_spacing,
@@ -259,11 +257,19 @@ end
                                     NDIMS, smoothing_length, smoothing_kernel,
                                     surface_normal_method=ColorfieldSurfaceNormal(interface_threshold=0.1,
                                                                                   ideal_density_threshold=0.9),
-                                    wall=true, walldistance=2.0,
+                                    wall=true, walldistance=particle_spacing,
                                     boundary_system_type=:rigid)
+
+    free_system, _, free_semi,
+    free_ode = create_fluid_system(coordinates, velocity, mass, density, particle_spacing,
+                                   SurfaceTensionMorris(surface_tension_coefficient=0.072);
+                                   NDIMS, smoothing_length, smoothing_kernel,
+                                   surface_normal_method=ColorfieldSurfaceNormal(interface_threshold=0.1,
+                                                                                 ideal_density_threshold=0.9))
 
     compute_and_test_surface_values(wall_system, wall_semi, wall_ode; NDIMS)
     compute_and_test_surface_values(rigid_system, rigid_semi, rigid_ode; NDIMS)
+    compute_and_test_surface_values(free_system, free_semi, free_ode; NDIMS)
 
     @test isapprox(rigid_boundary.boundary_model.cache.initial_colorfield,
                    wall_boundary.boundary_model.cache.initial_colorfield,
@@ -274,6 +280,14 @@ end
     @test isapprox(rigid_system.cache.neighbor_count,
                    wall_system.cache.neighbor_count,
                    rtol=sqrt(eps()), atol=sqrt(eps()))
+    @test all(isfinite, wall_system.cache.support_moment)
+    @test maximum(abs, wall_system.cache.support_moment) > 0
+    @test isapprox(rigid_system.cache.support_moment,
+                   wall_system.cache.support_moment,
+                   rtol=sqrt(eps()), atol=sqrt(eps()))
+    @test maximum(abs,
+                  wall_system.cache.support_moment - free_system.cache.support_moment) >
+          sqrt(eps())
 end
 
 @testset verbose=true "CSS/CSF: Sphere Surface Normals" begin

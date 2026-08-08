@@ -53,7 +53,8 @@ phenomena like droplet formation and capillary wave dynamics.
 
 The one-phase color-gradient magnitude is retained as a surface delta. The local
 continuum-surface-force acceleration is evaluated once per particle as
-``-sigma * kappa * delta_s * n_hat / rho``.
+``-sigma * kappa * delta_s * n_hat / rho``. A smooth interface activity avoids discrete normal
+and curvature-stencil switches when using [`ColorfieldSurfaceNormal`](@ref).
 
 See [`surface_tension`](@ref) for more details.
 
@@ -78,7 +79,8 @@ function create_cache_surface_tension(::SurfaceTensionMorris, ELTYPE, NDIMS, npa
     curvature = Array{ELTYPE, 1}(undef, nparticles)
     delta_s = Array{ELTYPE, 1}(undef, nparticles)
     interface_activity = Array{ELTYPE, 1}(undef, nparticles)
-    return (; curvature, delta_s, interface_activity)
+    support_moment = Array{ELTYPE, 1}(undef, nparticles)
+    return (; curvature, delta_s, interface_activity, support_moment)
 end
 
 @doc raw"""

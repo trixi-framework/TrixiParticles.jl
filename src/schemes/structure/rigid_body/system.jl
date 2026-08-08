@@ -281,8 +281,9 @@ function calc_normal!(system::AbstractFluidSystem,
                       surface_normal_method, neighbor_surface_normal_method)
     haskey(neighbor_system.boundary_model.cache, :initial_colorfield) || return system
 
-    return calc_boundary_normal!(system, neighbor_system, u_system, v, u_neighbor_system,
-                                 semi, surface_normal_method)
+    return calc_boundary_normal!(system, neighbor_system, u_system, v,
+                                 v_neighbor_system, u_neighbor_system, semi,
+                                 surface_normal_method)
 end
 
 @inline function adhesion_force!(dv_particle,

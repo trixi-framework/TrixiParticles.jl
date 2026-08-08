@@ -381,6 +381,46 @@ The factors have dimensions ``[\sigma]=kg/s^2``, ``[\kappa]=1/m``,
 does not explicitly conserve momentum, and accurately estimating curvature still requires
 adequate resolution.
 
+#### Smooth colorfield interface activity
+
+With `ColorfieldSurfaceNormal`, Morris CSF uses a C1 interface activity ``\lambda_a``. Let
+``h_c`` be the compact-support radius, ``\gamma_a=h_c\Vert\bm g_a\Vert``, ``\epsilon_n`` be
+`interface_threshold`, and ``\alpha`` be `interface_taper_start` (default `0.8`). With
+
+```math
+S(x)=\begin{cases}
+0,&x\le0,\\
+3x^2-2x^3,&0<x<1,\\
+1,&x\ge1,
+\end{cases}
+\qquad
+\lambda_{g,a}=S\!\left(
+\frac{\gamma_a-\alpha\epsilon_n}{(1-\alpha)\epsilon_n}\right),
+```
+
+the gradient contribution is zero below ``\alpha\epsilon_n`` and recovers the untapered model at
+and above ``\epsilon_n``. During the normal pass, the continuous support moment
+
+```math
+q_a=-\frac{1}{d}\sum_b\frac{m_b}{\rho_b}
+    \bm r_{ab}\mathbin{\cdot}\nabla_aW_{ab}
+```
+
+is accumulated without another neighbor traversal. For `ideal_density_threshold = tau > 0`, the
+support activity is ``\lambda_{q,a}=1-S((q_a-\tau)/\Delta q)``, where ``\Delta q`` is
+`support_taper_width` (default `0.025`). The final activity and one-phase surface delta are
+
+```math
+\lambda_a=\lambda_{g,a}\lambda_{q,a},\qquad
+\delta_{s,a}=2\Vert\bm g_a\Vert\lambda_a.
+```
+
+Setting `ideal_density_threshold=0` disables support filtering. For Morris CSF with
+`ColorfieldSurfaceNormal`, this keyword represents a continuous fraction of complete kernel
+support instead of an integer neighbor-count fraction. Dummy boundary particles complete
+``q_a`` near walls without carrying capillary stress. These controls do not alter the separate
+C-CSF geometry described below.
+
 [`CorrectedCSFSurfaceNormal`](@ref) selects the corrected continuous-surface-force (C-CSF)
 interface geometry of [Vergnaud et al.](@cite Vergnaud2022) for [`SurfaceTensionMorris`](@ref). It
 computes the outward normal from the renormalized gradient of the minimum eigenvalue of the

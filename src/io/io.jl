@@ -319,7 +319,10 @@ function add_system_data!(system_data, surface_normal_method::ColorfieldSurfaceN
     system_data["surface_normal_method"] = Dict{String, Any}()
     system_data["surface_normal_method"]["model"] = type2string(surface_normal_method)
     system_data["surface_normal_method"]["boundary_contact_threshold"] = surface_normal_method.boundary_contact_threshold
+    system_data["surface_normal_method"]["interface_threshold"] = surface_normal_method.interface_threshold
     system_data["surface_normal_method"]["ideal_density_threshold"] = surface_normal_method.ideal_density_threshold
+    system_data["surface_normal_method"]["interface_taper_start"] = surface_normal_method.interface_taper_start
+    system_data["surface_normal_method"]["support_taper_width"] = surface_normal_method.support_taper_width
 end
 
 function add_system_data!(system_data, surface_normal_method::CorrectedCSFSurfaceNormal)

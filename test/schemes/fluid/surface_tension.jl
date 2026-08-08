@@ -1,5 +1,81 @@
 
 @testset verbose=true "Surface Tension" begin
+    @testset "smooth interface activity" begin
+        method = ColorfieldSurfaceNormal(; boundary_contact_threshold=1,
+                                         interface_threshold=0.1f0,
+                                         ideal_density_threshold=0.9,
+                                         interface_taper_start=0.8,
+                                         support_taper_width=0.05)
+        @test method isa ColorfieldSurfaceNormal{Float64}
+        @test method.interface_taper_start === 0.8
+        @test method.support_taper_width === 0.05
+        @test ColorfieldSurfaceNormal(1, 1, 0) isa ColorfieldSurfaceNormal{Float64}
+        @test ColorfieldSurfaceNormal(; boundary_contact_threshold=0.1f0,
+                                      interface_threshold=0.01f0,
+                                      ideal_density_threshold=0.0f0,
+                                      interface_taper_start=0.8f0,
+                                      support_taper_width=0.025f0) isa
+              ColorfieldSurfaceNormal{Float32}
+
+        for ELTYPE in (Float32, Float64)
+            @test TrixiParticles.cubic_smoothstep(ELTYPE(-1)) === ELTYPE(0)
+            @test TrixiParticles.cubic_smoothstep(ELTYPE(0)) === ELTYPE(0)
+            @test TrixiParticles.cubic_smoothstep(ELTYPE(0.5)) === ELTYPE(0.5)
+            @test TrixiParticles.cubic_smoothstep(ELTYPE(1)) === ELTYPE(1)
+            @test TrixiParticles.cubic_smoothstep(ELTYPE(2)) === ELTYPE(1)
+
+            method_ = ColorfieldSurfaceNormal(; boundary_contact_threshold=ELTYPE(0.1),
+                                              interface_threshold=ELTYPE(0.1),
+                                              ideal_density_threshold=ELTYPE(0.9),
+                                              interface_taper_start=ELTYPE(0.8),
+                                              support_taper_width=ELTYPE(0.05))
+            @test TrixiParticles.gradient_interface_activity(ELTYPE(0.08), one(ELTYPE),
+                                                             method_) === ELTYPE(0)
+            @test TrixiParticles.gradient_interface_activity(ELTYPE(0.09), one(ELTYPE),
+                                                             method_) ≈ ELTYPE(0.5)
+            @test TrixiParticles.gradient_interface_activity(ELTYPE(0.1), one(ELTYPE),
+                                                             method_) === ELTYPE(1)
+            @test TrixiParticles.support_interface_activity(ELTYPE(0.9), method_) ===
+                  ELTYPE(1)
+            @test TrixiParticles.support_interface_activity(ELTYPE(0.925), method_) ≈
+                  ELTYPE(0.5)
+            @test TrixiParticles.support_interface_activity(ELTYPE(0.95), method_) ===
+                  ELTYPE(0)
+
+            step = sqrt(eps(ELTYPE))
+            derivative_at_zero = TrixiParticles.cubic_smoothstep(step) / step
+            derivative_at_one = (one(ELTYPE) -
+                                 TrixiParticles.cubic_smoothstep(one(ELTYPE) - step)) / step
+            @test abs(derivative_at_zero) < 4step
+            @test abs(derivative_at_one) < 4step
+        end
+
+        disabled = ColorfieldSurfaceNormal(; ideal_density_threshold=0.0)
+        @test TrixiParticles.support_interface_activity(10.0, disabled) == 1.0
+        @test TrixiParticles.normalized_surface_curvature(1.0, 0.0) == 0.0
+        @test TrixiParticles.normalized_surface_curvature(1.0, eps()) == 0.0
+        @test TrixiParticles.normalized_surface_curvature(2.0, 0.5) == 4.0
+
+        for threshold in (-1, NaN, Inf)
+            @test_throws ArgumentError ColorfieldSurfaceNormal(interface_threshold=threshold)
+            @test_throws ArgumentError ColorfieldSurfaceNormal(ideal_density_threshold=threshold)
+        end
+        for taper_start in (-0.1, 1.0, NaN, Inf)
+            @test_throws ArgumentError ColorfieldSurfaceNormal(;
+                                                               interface_taper_start=taper_start)
+        end
+        for taper_width in (0.0, -0.1, NaN, Inf)
+            @test_throws ArgumentError ColorfieldSurfaceNormal(;
+                                                               support_taper_width=taper_width)
+        end
+
+        system_data = Dict{String, Any}()
+        TrixiParticles.add_system_data!(system_data, method)
+        @test system_data["surface_normal_method"]["interface_threshold"] ≈ 0.1
+        @test system_data["surface_normal_method"]["interface_taper_start"] === 0.8
+        @test system_data["surface_normal_method"]["support_taper_width"] === 0.05
+    end
+
     @testset verbose=true "`cohesion_force_akinci`" begin
         surface_tension = SurfaceTensionAkinci(surface_tension_coefficient=1.0)
         support_radius = 1.0
@@ -163,12 +239,19 @@
 
         system = build_morris_system(:wcsph, 2)
         system.cache.surface_normal .= [2.0 1.0; 0.0 1.0]
+        system.cache.support_moment .= 0
         TrixiParticles.remove_invalid_normals!(system, system.surface_tension,
                                                system.surface_normal_method)
         @test system.cache.delta_s ≈ [4.0, 2sqrt(2)]
         @test system.cache.interface_activity == [1.0, 1.0]
         @test system.cache.surface_normal[:, 1] ≈ [1.0, 0.0]
         @test system.cache.surface_normal[:, 2] ≈ [1 / sqrt(2), 1 / sqrt(2)]
+        system.cache.surface_normal[:, 1] .= [NaN, 0.0]
+        TrixiParticles.remove_invalid_normals!(system, system.surface_tension,
+                                               system.surface_normal_method)
+        @test iszero(system.cache.surface_normal[:, 1])
+        @test iszero(system.cache.delta_s[1])
+        @test iszero(system.cache.interface_activity[1])
 
         system.cache.surface_normal[1, :] .= 1.0
         system.cache.surface_normal[2, :] .= 0.0
@@ -185,6 +268,47 @@
                                                                           SVector(0.0,
                                                                                   0.0))
         @test scaled_acceleration ≈ acceleration / 4
+
+        semi = Semidiscretization(system)
+        ode = semidiscretize(semi, (0.0, 0.01))
+        v_ode, u_ode = ode.u0.x
+        TrixiParticles.update_systems_and_nhs(v_ode, u_ode, semi, 0.0)
+        system.cache.surface_normal .= [1.0 0.0; 0.0 1.0]
+
+        function curvature_with_neighbor_activity(activity)
+            system.cache.interface_activity .= [1.0, activity]
+            fill!(system.cache.curvature, 0)
+            fill!(system.cache.correction_factor, 0)
+            GC.@preserve v_ode u_ode begin
+                v = TrixiParticles.wrap_v(v_ode, system, semi)
+                u = TrixiParticles.wrap_u(u_ode, system, semi)
+                TrixiParticles.calc_curvature!(system, system, u, v, v, u, semi,
+                                               system.surface_normal_method,
+                                               system.surface_normal_method)
+            end
+            denominator = system.cache.correction_factor[1]
+            return TrixiParticles.normalized_surface_curvature(system.cache.curvature[1],
+                                                               denominator)
+        end
+
+        curvature_zero = curvature_with_neighbor_activity(0.0)
+        curvature_small = curvature_with_neighbor_activity(1.0e-6)
+        curvature_full = curvature_with_neighbor_activity(1.0)
+        @test iszero(curvature_zero)
+        @test abs(curvature_small) < 1.0e-4 * abs(curvature_full)
+        @test isfinite(curvature_full)
+
+        curvature_numerator = copy(system.cache.curvature)
+        correction_factor = copy(system.cache.correction_factor)
+        GC.@preserve v_ode u_ode begin
+            v = TrixiParticles.wrap_v(v_ode, system, semi)
+            u = TrixiParticles.wrap_u(u_ode, system, semi)
+            TrixiParticles.calc_curvature!(system, system, u, v, v, u, semi,
+                                           system.surface_normal_method,
+                                           system.surface_normal_method)
+        end
+        @test system.cache.curvature ≈ 2curvature_numerator
+        @test system.cache.correction_factor ≈ 2correction_factor
     end
 
     @testset "compute_stress_tensors! (MomentumMorris)" begin
