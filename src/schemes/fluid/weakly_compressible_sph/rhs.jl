@@ -161,13 +161,23 @@ function interact!(dv, v_particle_system, u_particle_system,
     pressure_constant = reference_density * state_equation.sound_speed^2 /
                         state_equation.exponent
     inverse_reference_density = inv(reference_density)
+    smoothing_length = particle_system.cache.smoothing_length
+    inverse_smoothing_length = inv(smoothing_length)
+    kernel_normalization = -2.7852f0 /
+                           (smoothing_length^2 * smoothing_length^2)
+    eta2 = particle_system.viscosity.epsilon * smoothing_length^2
+    density_diffusion_factor = 2 * particle_system.density_diffusion.delta *
+                               smoothing_length * state_equation.sound_speed
 
     backend = semi.parallelization_backend
     ndrange = n_integrated_particles(particle_system)
     mykernel(backend)(dv, system_coords, neighbor_system_coords, neighborhood_search,
                       cell_list, search_radius2, pressure_constant,
-                      inverse_reference_density, v_particle_system, v_neighbor_system,
-                      particle_system, neighbor_system; ndrange=ndrange)
+                      inverse_reference_density, smoothing_length,
+                      inverse_smoothing_length, kernel_normalization, eta2,
+                      density_diffusion_factor, v_particle_system, v_neighbor_system,
+                      particle_system, neighbor_system; ndrange=ndrange,
+                      workgroupsize=128)
 
     KernelAbstractions.synchronize(backend)
 
@@ -178,6 +188,8 @@ end
                           system_coords, neighbor_system_coords,
                           nhs, cell_list, search_radius2,
                           pressure_constant, inverse_reference_density,
+                          smoothing_length, inverse_smoothing_length,
+                          kernel_normalization, eta2, density_diffusion_factor,
                           v_particle_system, v_neighbor_system,
                           particle_system::WeaklyCompressibleSPHSystem{NDIMS},
                           neighbor_system::WeaklyCompressibleSPHSystem) where NDIMS
@@ -224,7 +236,6 @@ end
         offset_z = (cell[3] - cell_z) * nhs.cell_size[3]
 
         for neighbor in start:stop
-
     # for neighbor_cell_ in PointNeighbors.neighboring_cells(cell, nhs)
     #     neighbor_cell = Tuple(neighbor_cell_)
     #     neighbors = @inbounds PointNeighbors.points_in_cell(neighbor_cell, nhs)
@@ -248,7 +259,7 @@ end
             distance2 = dot(pos_diff, pos_diff)
 
             if eps(search_radius2) <= distance2 <= search_radius2
-                distance = sqrt(distance2)
+                distance = @fastmath sqrt(distance2)
 
                 vrho_b = SIMD.vloada(VT, pointer(v_neighbor_system, 4*(neighbor-1)+1))
                 a, b, c, d = Tuple(vrho_b)
@@ -260,35 +271,34 @@ end
                 # v_b = @inbounds extract_svector(v_neighbor_system, Val(NDIMS), neighbor)
                 # rho_b = @inbounds v_neighbor_system[end, neighbor]
 
-                grad_kernel = kernel_grad_ds(particle_system, pos_diff, distance)
+                grad_kernel = kernel_grad_ds(pos_diff, distance,
+                                             inverse_smoothing_length,
+                                             kernel_normalization)
 
                 # dv_particle += -m_b * (p_a + p_b) / (rho_a * rho_b) * grad_kernel
-                dv_particle += -m_b * Base.FastMath.div_fast(p_a + p_b,
+                @fastmath dv_particle += -m_b * Base.FastMath.div_fast(p_a + p_b,
                                                              rho_a * rho_b) * grad_kernel
 
-                vdiff = v_a - v_b
+                @fastmath vdiff = v_a - v_b
+                rho_ratio = Base.FastMath.div_fast(rho_a, rho_b)
                 # drho_particle += rho_a / rho_b * m_b * dot(vdiff, grad_kernel)
-                drho_particle += Base.FastMath.div_fast(rho_a, rho_b) * m_b *
-                                 dot(vdiff, grad_kernel)
+                @fastmath drho_particle += rho_ratio * m_b * dot(vdiff, grad_kernel)
 
-                h = particle_system.cache.smoothing_length
                 alpha = particle_system.viscosity.alpha
-                epsilon = particle_system.viscosity.epsilon
-
-                delta = particle_system.density_diffusion.delta
-                volume_b = Base.FastMath.div_fast(m_b, rho_b)
-                psi = Base.FastMath.div_fast(2 * (rho_a - rho_b), distance2) * pos_diff
-                density_diffusion_term = volume_b * dot(psi, grad_kernel)
-                drho_particle += delta * h * sound_speed * density_diffusion_term
+                dot3 = dot(pos_diff, grad_kernel)
+                @fastmath diffusion = Base.FastMath.div_fast(density_diffusion_factor *
+                                                   (rho_ratio - one(rho_ratio)),
+                                                   distance2 + eta2)
+                @fastmath drho_particle += diffusion * dot3 * m_b
 
                 vr = dot(vdiff, pos_diff)
                 if vr < 0
-                    # mu = h * vr / (distance2 + epsilon)
-                    mu = Base.FastMath.div_fast(h * vr, distance2 + epsilon)
+                    mu = Base.FastMath.div_fast(smoothing_length * vr,
+                                                distance2 + eta2)
                     rho_mean = (rho_a + rho_b) / 2
                     # @fastmath pi_ab = (alpha * sound_speed * mu) / rho_mean * grad_kernel
                     pi_ab = Base.FastMath.div_fast(alpha * sound_speed * mu, rho_mean) * grad_kernel
-                    dv_particle += m_b * pi_ab
+                    @fastmath dv_particle += m_b * pi_ab
                 end
             end
         end
@@ -302,14 +312,11 @@ end
     @inbounds dv[end, particle] += drho_particle
 end
 
-@inline function kernel_grad_ds(system, pos_diff, r)
-    h = system.cache.smoothing_length
-    normalization_factor = -2.7852f0 / (h^2 * h^2)
-
-    # q = r / h
-    q = Base.FastMath.div_fast(r, h)
+@inline function kernel_grad_ds(pos_diff, r, inverse_smoothing_length,
+                                kernel_normalization)
+    q = r * inverse_smoothing_length
     wqq1 = (1 - q / 2)
-    return normalization_factor * wqq1 * wqq1 * wqq1 * pos_diff
+    return kernel_normalization * wqq1 * wqq1 * wqq1 * pos_diff
 end
 
 @propagate_inbounds function neighbor_pressure(v_neighbor_system, neighbor_system,

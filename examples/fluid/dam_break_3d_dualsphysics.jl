@@ -3,6 +3,7 @@
 # <parameter key="Kernel" value="2" comment="Interaction Kernel 1:Cubic Spline, 2:Wendland (default=2)" />
 # <parameter key="DensityDT" value="1" comment="Density Diffusion Term 0:None, 1:Molteni, 2:Fourtakas, 3:Fourtakas(full) (default=0)" />
 # <parameter key="TimeMax" value="1.0" comment="Time of simulation" units_comment="seconds" />
+# and remove the <setmkvoid /> through <shapeout file="Building"/> block
 #
 # When comparing with high resolution, change the resolution here:
 # <definition dp="0.002" units_comment="metres (m)">
@@ -14,14 +15,14 @@ using TrixiParticles, TrixiParticles.PointNeighbors, OrdinaryDiffEqSymplecticRK
 fluid_particle_spacing = 0.0085
 
 smoothing_length = 1.7320508 * fluid_particle_spacing
-tank_size = (1.6, 0.67 - fluid_particle_spacing, 0.4)
+tank_size = (1.6 - fluid_particle_spacing, 0.67 - fluid_particle_spacing, 0.4)
 tspan = (0.0, 0.1)
 initial_fluid_size = (0.4, 0.67 - fluid_particle_spacing, 0.3)
 acceleration = (0.0, 0.0, -9.81)
 spacing_ratio = 1
 boundary_layers = 1
 fluid_density = 1000.0
-sound_speed = 20 * sqrt(9.81 * tank_size[3])
+sound_speed = 20 * sqrt(9.81 * (initial_fluid_size[3] - fluid_particle_spacing))
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=7)
 
@@ -72,6 +73,14 @@ trixi_include(@__MODULE__,
               # For benchmarks, use spacing 0.002, fix time steps, and disable VTK saving:
               #stepsize_callback=nothing, saving_callback=nothing,
               semi=nothing, ode=nothing, sol=nothing)
+
+# Re-create boundary model to use no-slip BC.
+boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
+                                             boundary_density_calculator,
+                                             smoothing_kernel, smoothing_length;
+                                             state_equation, viscosity,
+                                             clip_negative_pressure=true)
+boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
 
 # Define a GPU-compatible neighborhood search
 min_corner = minimum(tank.boundary.coordinates, dims=2)
