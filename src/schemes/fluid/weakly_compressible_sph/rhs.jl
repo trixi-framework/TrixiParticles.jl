@@ -132,7 +132,8 @@ function interact!(dv, v_particle_system, u_particle_system,
 end
 
 @inline function correction_density(::AkinciFreeSurfaceCorrection,
-                                    system::WeaklyCompressibleSPHSystem,
+                                    system::Union{WeaklyCompressibleSPHSystem,
+                                                  EntropicallyDampedSPHSystem},
                                     particle, density)
     if system.density_calculator isa ContinuityDensity &&
        haskey(system.cache, :kernel_summation_density)

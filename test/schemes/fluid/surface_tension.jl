@@ -419,13 +419,15 @@
         state_equation = StateEquationCole(sound_speed=10.0, reference_density=rho0,
                                            exponent=1)
         correction = AkinciFreeSurfaceCorrection(rho0)
+        surface_tension = SurfaceTensionAkinci(surface_tension_coefficient=0.2)
         fluid = RectangularShape(particle_spacing, (7, 7), (0.0, 0.0); density=rho0)
 
         function correction_density_values(density_calculator)
             system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
                                                  smoothing_length=particle_spacing,
                                                  density_calculator, state_equation,
-                                                 correction)
+                                                 correction, surface_tension,
+                                                 reference_particle_spacing=particle_spacing)
             semi = Semidiscretization(system)
             ode = semidiscretize(semi, (0.0, 0.01))
             v_ode, u_ode = ode.u0.x
@@ -443,7 +445,7 @@
 
         continuity_system, continuity_density,
         continuity_correction_density = correction_density_values(ContinuityDensity())
-        _, summation_density,
+        summation_system, summation_density,
         summation_correction_density = correction_density_values(SummationDensity())
 
         @test all(==(rho0), continuity_density)
@@ -451,6 +453,42 @@
                        summation_density; rtol=2eps())
         @test isapprox(continuity_correction_density,
                        summation_correction_density; rtol=2eps())
+        @test isapprox(continuity_system.cache.surface_normal,
+                       summation_system.cache.surface_normal; rtol=2eps())
+
+        function edac_correction_density_values(density_calculator)
+            system = EntropicallyDampedSPHSystem(fluid; smoothing_kernel,
+                                                 smoothing_length=particle_spacing,
+                                                 sound_speed=10.0, density_calculator,
+                                                 correction, surface_tension,
+                                                 reference_particle_spacing=particle_spacing)
+            semi = Semidiscretization(system)
+            ode = semidiscretize(semi, (0.0, 0.01))
+            v_ode, u_ode = ode.u0.x
+            TrixiParticles.update_systems_and_nhs(v_ode, u_ode, semi, 0.0)
+            density = GC.@preserve v_ode begin
+                v = TrixiParticles.wrap_v(v_ode, system, semi)
+                collect(TrixiParticles.current_density(v, system))
+            end
+            correction_density = [TrixiParticles.correction_density(correction, system,
+                                                                    particle,
+                                                                    density[particle])
+                                  for particle in TrixiParticles.eachparticle(system)]
+            return system, density, correction_density
+        end
+
+        edac_continuity_system, edac_continuity_density,
+        edac_continuity_correction_density = edac_correction_density_values(ContinuityDensity())
+        edac_summation_system, edac_summation_density,
+        edac_summation_correction_density = edac_correction_density_values(SummationDensity())
+
+        @test all(==(rho0), edac_continuity_density)
+        @test isapprox(edac_continuity_system.cache.kernel_summation_density,
+                       edac_summation_density; rtol=2eps())
+        @test isapprox(edac_continuity_correction_density,
+                       edac_summation_correction_density; rtol=2eps())
+        @test isapprox(edac_continuity_system.cache.surface_normal,
+                       edac_summation_system.cache.surface_normal; rtol=2eps())
 
         coordinates = fluid.coordinates
         particle_at(position) = findfirst(particle -> coordinates[:, particle] == position,
@@ -472,9 +510,11 @@
                                                   smoothing_length=particle_spacing,
                                                   density_calculator=ContinuityDensity(),
                                                   state_equation, correction)
-        boundary_model = BoundaryModelDummyParticles(tank.boundary;
-                                                     fluid_system=wall_system,
-                                                     boundary_density_calculator=AdamiPressureExtrapolation())
+        boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
+                                                     tank.boundary.mass,
+                                                     AdamiPressureExtrapolation(),
+                                                     smoothing_kernel, particle_spacing;
+                                                     state_equation, correction)
         boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
         wall_semi = Semidiscretization(wall_system, boundary_system)
         wall_ode = semidiscretize(wall_semi, (0.0, 0.01))
@@ -537,6 +577,53 @@
         @test maximum(abs, uncorrected_acceleration) > 0
         @test isapprox(corrected_acceleration,
                        correction_factor * uncorrected_acceleration; rtol=2eps())
+    end
+
+    @testset "EDAC Akinci correction force assembly" begin
+        rho0 = 1000.0
+        particle_spacing = 0.5
+        coordinates = [0.0 0.75; 0.0 0.0]
+        initial_condition = InitialCondition(; coordinates, velocity=zeros(2, 2),
+                                             mass=fill(rho0 * particle_spacing^2, 2),
+                                             density=fill(rho0, 2), particle_spacing)
+        smoothing_kernel = WendlandC2Kernel{2}()
+        surface_tension = CohesionForceAkinci(surface_tension_coefficient=0.2)
+
+        function initial_acceleration(density_calculator, correction)
+            system = EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel,
+                                                 smoothing_length=particle_spacing,
+                                                 sound_speed=10.0, density_calculator,
+                                                 correction, surface_tension)
+            semi = Semidiscretization(system)
+            ode = semidiscretize(semi, (0.0, 0.01))
+            v_ode, u_ode = ode.u0.x
+            TrixiParticles.update_systems_and_nhs(v_ode, u_ode, semi, 0.0)
+
+            acceleration,
+            correction_density = GC.@preserve v_ode u_ode begin
+                v = TrixiParticles.wrap_v(v_ode, system, semi)
+                u = TrixiParticles.wrap_u(u_ode, system, semi)
+                dv = zeros(eltype(v), size(v))
+                TrixiParticles.interact!(dv, v, u, v, u, system, system, semi)
+                density = TrixiParticles.current_density(v, system, 1)
+                dv[1:2, :],
+                TrixiParticles.correction_density(correction, system, 1, density)
+            end
+            return acceleration, correction_density
+        end
+
+        for density_calculator in (ContinuityDensity(), SummationDensity())
+            corrected_acceleration,
+            correction_density = initial_acceleration(density_calculator,
+                                                      AkinciFreeSurfaceCorrection(rho0))
+            uncorrected_acceleration, _ = initial_acceleration(density_calculator, nothing)
+            correction_factor = rho0 / correction_density
+
+            @test correction_factor > 1
+            @test maximum(abs, uncorrected_acceleration) > 0
+            @test isapprox(corrected_acceleration,
+                           correction_factor * uncorrected_acceleration; rtol=2eps())
+        end
     end
 
     @testset "compute_stress_tensors! (MomentumMorris)" begin

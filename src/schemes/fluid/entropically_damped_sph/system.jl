@@ -38,7 +38,10 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
                                 from the local pressure (default: `true` when using shifting, `false` otherwise).
 - `buffer_size`:                Number of buffer particles.
                                 This is needed when simulating with [`OpenBoundarySystem`](@ref).
-- `correction`:                 Correction method used for this system. (default: no correction, see [Corrections](@ref corrections))
+- `correction`:                 Correction method used for this system. (default: no correction,
+                                see [Corrections](@ref corrections)).
+                                [`AkinciFreeSurfaceCorrection`](@ref) scales viscosity and
+                                Akinci surface-tension forces but not pressure.
 - `source_terms`:               Additional source terms for this system. Has to be either `nothing`
                                 (by default), or a function of `(coords, velocity, density, pressure, t)`
                                 (which are the quantities of a single particle), returning a `Tuple`
@@ -254,6 +257,12 @@ end
 
 system_correction(system::EntropicallyDampedSPHSystem) = system.correction
 
+@inline function surface_normal_density(system::EntropicallyDampedSPHSystem, particle,
+                                        density)
+    return surface_normal_density(system, system.surface_tension, system.correction,
+                                  system.density_calculator, particle, density)
+end
+
 @inline function current_velocity(v, system::EntropicallyDampedSPHSystem)
     return view(v, 1:ndims(system), :)
 end
@@ -300,9 +309,23 @@ function update_quantities!(system::EntropicallyDampedSPHSystem, v, u,
 end
 
 function update_pressure!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, semi, t)
+    compute_akinci_correction_density!(system, system.correction,
+                                       system.density_calculator, u, u_ode, semi)
+
     compute_surface_normal!(system, system.surface_normal_method, v, u, v_ode, u_ode, semi,
                             t)
     compute_surface_delta_function!(system, system.surface_tension, semi)
+end
+
+function compute_akinci_correction_density!(system, correction, density_calculator,
+                                            u, u_ode, semi)
+    return system
+end
+
+function compute_akinci_correction_density!(system, ::AkinciFreeSurfaceCorrection,
+                                            density_calculator, u, u_ode, semi)
+    compute_akinci_correction_density!(system, density_calculator, u, u_ode, semi)
+    return system
 end
 
 function update_final!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, semi, t;

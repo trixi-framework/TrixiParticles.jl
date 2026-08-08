@@ -616,18 +616,22 @@ adhesion forces.
 
 The published correction assumes that the density estimate reflects missing neighbors. With
 [`SummationDensity`](@ref), ``\rho_a`` and ``\rho_b`` in ``K_{ab}`` are the current densities.
-For [`ContinuityDensity`](@ref) in a [`WeaklyCompressibleSPHSystem`](@ref), TrixiParticles.jl
+For [`ContinuityDensity`](@ref) in a [`WeaklyCompressibleSPHSystem`](@ref) or
+[`EntropicallyDampedSPHSystem`](@ref), TrixiParticles.jl
 reconstructs the auxiliary densities
 
 ```math
 \widetilde{\rho}_a = \sum_b m_b W_{ab}
 ```
 
-and uses ``\widetilde{\rho}_a`` and ``\widetilde{\rho}_b`` only in ``K_{ab}``. Pressure and all
-other density-dependent terms continue to use the integrated continuity density. The auxiliary
-sum includes dummy boundary particles, so a wall that completes the particle neighborhood is not
-misclassified as a free surface. This extension makes the correction independent of the selected
-density calculator at the cost of one additional density-summation neighbor loop per update stage.
+and uses ``\widetilde{\rho}_a`` and ``\widetilde{\rho}_b`` in ``K_{ab}``. For
+[`SurfaceTensionAkinci`](@ref), the same reconstructed densities are used in the particle-volume
+weights ``m_b / \rho_b`` of the color-field normals, matching the density-summation formulation
+of the published model. Pressure and all other density-dependent terms continue to use the
+integrated continuity density. The auxiliary sum includes dummy boundary particles, so a wall
+that completes the particle neighborhood is not misclassified as a free surface. This extension
+makes the correction independent of the selected density calculator at the cost of one additional
+density-summation neighbor loop per update stage.
 
 #### Wall adhesion force
 
