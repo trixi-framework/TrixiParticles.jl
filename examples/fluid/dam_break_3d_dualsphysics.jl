@@ -37,10 +37,13 @@ state_equation = StateEquationCole(; sound_speed, reference_density=fluid_densit
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density;
                        n_layers=boundary_layers, spacing_ratio=spacing_ratio,
-                       coordinates_eltype=Float64,
-                       # TODO acceleration and state equation don't work with buffer
-                    #    acceleration, state_equation,
+                       coordinates_eltype=Float64, acceleration, state_equation,
                        faces = (true, true, true, true, true, false))
+
+# TrixiParticles initializes a hydrostatic density field combined with the corresponding
+# particle masses, whereas DualSPHysics uses constant particle masses.
+tank.fluid.mass .= fluid_density * fluid_particle_spacing^3
+tank.boundary.mass .= fluid_density * fluid_particle_spacing^3
 
 tank.fluid.coordinates .+= 0.005
 tank.boundary.coordinates .+= 0.005

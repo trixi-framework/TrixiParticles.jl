@@ -22,12 +22,12 @@ function allocate_buffer(initial_condition, buffer::SystemBuffer)
     coordinates = fill(eltype(initial_condition)(1e16), ndims(initial_condition),
                        buffer_size)
 
-    if all(rho -> isapprox(rho, first(initial_condition.density), atol=eps(), rtol=eps()),
-           initial_condition.density)
+    # if all(rho -> isapprox(rho, first(initial_condition.density), atol=eps(), rtol=eps()),
+    #        initial_condition.density)
         density = first(initial_condition.density)
-    else
-        throw(ArgumentError("`initial_condition.density` needs to be constant when using `SystemBuffer`"))
-    end
+    # else
+    #     throw(ArgumentError("`initial_condition.density` needs to be constant when using `SystemBuffer`"))
+    # end
 
     particle_spacing = initial_condition.particle_spacing
 
