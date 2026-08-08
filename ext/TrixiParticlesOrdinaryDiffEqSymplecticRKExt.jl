@@ -254,7 +254,33 @@ function initialize_sorting_integrator!(integrator, cache)
                            (du, tmpdu, lastdu, firstdu, history_v...),
                            (u, tmpu, lastu, firstu, history_u...); initial=true)
 
+    # Fixed wall particles are sorted above, but their neighborhood searches normally
+    # skip updates because the particles do not move. Refresh these searches once so
+    # that cell ranges and stored cell-relative coordinates use the new particle order.
+    # The compact DualSPHysics traversal relies on this alignment.
+    refresh_fixed_wall_neighborhood_searches!(uprev, integrator.p.semi)
+
     return integrator
+end
+
+function refresh_fixed_wall_neighborhood_searches!(u_ode, semi)
+    TrixiParticles.foreach_system(semi) do system
+        u_system = TrixiParticles.wrap_u(u_ode, system, semi)
+
+        TrixiParticles.foreach_system(semi) do neighbor
+            neighbor isa TrixiParticles.WallBoundarySystem || return
+
+            u_neighbor = TrixiParticles.wrap_u(u_ode, neighbor, semi)
+            neighborhood_search = TrixiParticles.get_neighborhood_search(system, neighbor,
+                                                                          semi)
+            TrixiParticles.update!(neighborhood_search,
+                                   TrixiParticles.current_coordinates(u_system, system),
+                                   TrixiParticles.current_coordinates(u_neighbor, neighbor),
+                                   semi, points_moving=(false, true))
+        end
+    end
+
+    return semi
 end
 
 interpolation_history(::Nothing) = ((), ())

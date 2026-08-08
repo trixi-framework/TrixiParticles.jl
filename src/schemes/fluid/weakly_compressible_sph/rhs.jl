@@ -8,6 +8,24 @@
     return pressure_constant * (density_ratio^7 - one(rho))
 end
 
+@inline function dualsphysics_neighbor_pressure(rho, pressure_constant,
+                                                inverse_reference_density,
+                                                neighbor_system)
+    return dualsphysics_pressure(rho, pressure_constant, inverse_reference_density)
+end
+
+@inline function dualsphysics_neighbor_pressure(rho, pressure_constant,
+                                                inverse_reference_density,
+                                                neighbor_system::WallBoundarySystem{<:BoundaryModelDummyParticles})
+    pressure = dualsphysics_pressure(rho, pressure_constant, inverse_reference_density)
+
+    if clip_negative_pressure(neighbor_system.boundary_model)
+        return max(zero(pressure), pressure)
+    end
+
+    return pressure
+end
+
 function interact_old!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::WeaklyCompressibleSPHSystem, neighbor_system, semi;
@@ -198,13 +216,18 @@ function interact!(dv, v_particle_system, u_particle_system,
     compact_support_ = compact_support(particle_system, neighbor_system)
     almostzero = sqrt(eps(compact_support_^2))
 
+    use_aligned_load_system = Val(use_aligned_vrho_load(v_particle_system,
+                                                        particle_system))
+    use_aligned_load_neighbor = Val(use_aligned_vrho_load(v_neighbor_system,
+                                                          neighbor_system))
+
     @threaded semi for particle in each_integrated_particle(particle_system)
         m_a = @inbounds hydrodynamic_mass(particle_system, particle)
         # DualSPHysics does not have variable mass.
         m_b = @inbounds hydrodynamic_mass(neighbor_system, 1)
 
         (v_a, rho_a) = @inbounds velocity_and_density(v_particle_system, particle_system,
-                                                      Val(true), particle)
+                                                      use_aligned_load_system, particle)
 
         # DualSPHysics applies the state equation on-the-fly instead of storing the pressure.
         p_a = dualsphysics_pressure(rho_a, pressure_constant, inverse_reference_density)
@@ -229,9 +252,11 @@ function interact!(dv, v_particle_system, u_particle_system,
 
             (v_b, rho_b) = @inbounds velocity_and_density(v_neighbor_system,
                                                           neighbor_system,
-                                                          Val(true), neighbor)
-            p_b = dualsphysics_pressure(rho_b, pressure_constant,
-                                        inverse_reference_density)
+                                                          use_aligned_load_neighbor,
+                                                          neighbor)
+            p_b = dualsphysics_neighbor_pressure(rho_b, pressure_constant,
+                                                 inverse_reference_density,
+                                                 neighbor_system)
 
             grad_kernel = smoothing_kernel_grad_unsafe(particle_system, pos_diff,
                                                     distance, particle)
@@ -283,8 +308,11 @@ function interact!(dv, v_particle_system, u_particle_system,
     inverse_reference_density = inv(reference_density)
     smoothing_length = particle_system.cache.smoothing_length
     inverse_smoothing_length = inv(smoothing_length)
-    kernel_normalization = -2.7852f0 /
-                           (smoothing_length^2 * smoothing_length^2)
+    # For the 3D Wendland C2 kernel,
+    #   grad(W) = -105 / (16pi * h^5) * (1 - q/2)^3 * r_ab.
+    # The value 2.7852 / h^4 is the corresponding 2D normalization.
+    kernel_normalization = oftype(smoothing_length, -105 / (16 * pi)) *
+                           inverse_smoothing_length^5
     eta2 = particle_system.viscosity.epsilon * smoothing_length^2
     density_diffusion_factor = 2 * particle_system.density_diffusion.delta *
                                smoothing_length * state_equation.sound_speed
