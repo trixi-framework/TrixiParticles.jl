@@ -271,6 +271,15 @@ function sort_particle_systems!(primary_v, primary_u, semi, extra_v, extra_u;
             v = TrixiParticles.wrap_v(primary_v, system, semi)
             u = TrixiParticles.wrap_u(primary_u, system, semi)
             nhs = TrixiParticles.get_neighborhood_search(system, semi)
+
+            # `kick!` normally deactivates particles that have left a bounded grid.
+            # This integrator relies on active particles forming a cell-sorted prefix,
+            # so deactivate them before computing the sorting permutation instead.
+            # The later check in `kick!` sees the same coordinates and is a no-op.
+            TrixiParticles.deactivate_out_of_bounds_particles!(system,
+                                                               TrixiParticles.buffer(system),
+                                                               nhs, v, u, semi)
+
             TrixiParticles.@trixi_timeit TrixiParticles.timer() "permutation" begin
                 perm = TrixiParticles.particle_sorting_permutation(system, u, nhs, semi)
             end

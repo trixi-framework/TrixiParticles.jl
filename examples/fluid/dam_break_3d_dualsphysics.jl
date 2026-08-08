@@ -26,9 +26,10 @@ sound_speed = 20 * sqrt(9.81 * (initial_fluid_size[3] - fluid_particle_spacing))
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=7)
 
-tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
+tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density;
                        n_layers=boundary_layers, spacing_ratio=spacing_ratio,
-                       coordinates_eltype=eltype(fluid_particle_spacing),
+                       coordinates_eltype=Float64,
+                    #    acceleration, state_equation,
                        faces = (true, true, true, true, true, false))
 
 tank.fluid.coordinates .+= 0.005
@@ -44,7 +45,7 @@ trixi_include(@__MODULE__,
               state_equation=state_equation,
               fluid_particle_spacing=fluid_particle_spacing,
               tank_size=tank_size, initial_fluid_size=initial_fluid_size,
-              coordinates_eltype=eltype(fluid_particle_spacing),
+              coordinates_eltype=Float64,
               acceleration=acceleration,
               alpha=0.1,
               spacing_ratio=spacing_ratio, boundary_layers=boundary_layers,
@@ -57,6 +58,11 @@ trixi_include(@__MODULE__,
               # For benchmarks, use spacing 0.002, fix time steps, and disable VTK saving:
               #stepsize_callback=nothing, saving_callback=nothing,
               semi=nothing, ode=nothing, sol=nothing)
+
+fluid_system = WeaklyCompressibleSPHSystem(tank.fluid; smoothing_kernel, smoothing_length,
+                                           density_calculator=fluid_density_calculator,
+                                           state_equation, viscosity, density_diffusion,
+                                           acceleration, buffer_size=0)
 
 # Re-create boundary model to use no-slip BC.
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,

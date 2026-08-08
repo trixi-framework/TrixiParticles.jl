@@ -170,7 +170,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                                smoothing_length * state_equation.sound_speed
 
     backend = semi.parallelization_backend
-    ndrange = n_integrated_particles(particle_system)
+    ndrange = length(each_integrated_particle(particle_system))
     mykernel(backend)(dv, system_coords, neighbor_system_coords, neighborhood_search,
                       cell_list, search_radius2, pressure_constant,
                       inverse_reference_density, smoothing_length,
@@ -193,6 +193,8 @@ end
                           v_particle_system, v_neighbor_system,
                           particle_system::WeaklyCompressibleSPHSystem{NDIMS},
                           neighbor_system::WeaklyCompressibleSPHSystem) where NDIMS
+    # `SymplecticPositionVerletWithSorting` deactivates out-of-bounds particles before
+    # sorting, so active particles occupy the prefix used as the kernel launch range.
     particle = @index(Global)
 
     sound_speed = particle_system.state_equation.sound_speed
