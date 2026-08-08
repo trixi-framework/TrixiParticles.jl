@@ -302,7 +302,8 @@ end
                                      smoothing_length(particle_system, particle))
 
     dv_particle[] += adhesion_force_akinci(surface_tension, support_radius, m_b,
-                                           pos_diff, distance, adhesion_coefficient)
+                                           pos_diff, distance, adhesion_coefficient,
+                                           Val(ndims(particle_system)))
 
     return dv_particle
 end

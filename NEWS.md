@@ -4,6 +4,37 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.5.4
+
+### API Changes
+
+- Akinci cohesion and adhesion kernels now use dimensionally consistent, integral-matched
+  normalizations in 2D. To preserve previous pairwise kernel contributions at compact-support
+  radius `h_c`, multiply the surface-tension coefficient by `627 / (790 * h_c)` and the
+  adhesion coefficient by `42 / (65 * h_c)`; migrated coefficients are resolution-independent.
+
+### Features
+
+- Added Akinci surface tension and `AkinciFreeSurfaceCorrection` support to
+  `ImplicitIncompressibleSPHSystem`.
+- Added `AkinciFreeSurfaceCorrection` support to `EntropicallyDampedSPHSystem` for both
+  continuity and summation density.
+- Added an optional reference-smoothing-length and neighbor-volume normalization for the
+  `SurfaceTensionAkinci` normal-difference force to improve empirical resolution robustness.
+- Added a parameterized 3D cube-to-sphere shootout covering Akinci models across WCSPH,
+  EDAC, and IISPH, including time-series and resolution-sensitivity analysis.
+
+### Important Bugfixes
+
+- Hardened surface tension model configuration by validating coefficients, avoiding unnecessary
+  surface-normal allocation for `CohesionForceAkinci`, and stabilizing Akinci adhesion evaluation
+  near the compact-support boundary.
+
+- Fixed `AkinciFreeSurfaceCorrection` with `ContinuityDensity` by reconstructing the
+  neighborhood-deficiency density used by the correction and the `SurfaceTensionAkinci`
+  color-field normals without changing the integrated pressure density. Dummy boundary masses
+  are included so wall particles are not misclassified as a free surface.
+
 ## Version 0.5.3
 
 ### Features
