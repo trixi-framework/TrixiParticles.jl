@@ -23,6 +23,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   continuity and summation density.
 - Akinci fluid-fluid forces now use a symmetric pair formulation for differing particle masses
   and smoothing lengths while preserving the equal-resolution result.
+- Added a parameterized 3D cube-to-sphere shootout covering Akinci models across WCSPH,
+  EDAC, and IISPH, including time-series and resolution-sensitivity analysis.
 
 ### Important Bugfixes
 

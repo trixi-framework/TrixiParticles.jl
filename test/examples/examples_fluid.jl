@@ -615,6 +615,20 @@
         @test count_rhs_allocations(sol) == 0
     end
 
+    @trixi_testset "fluid/akinci_cube_to_sphere_3d.jl" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "akinci_cube_to_sphere_3d.jl");
+                                         particles_per_dimension=3,
+                                         tspan=(0.0, 2.5e-5),
+                                         callbacks=CallbackSet())
+        @test sol.retcode == ReturnCode.Success
+        @test all(isfinite, values(cube_to_sphere_metrics))
+        @test cube_to_sphere_metrics.kinetic_energy > 0
+        @test cube_to_sphere_metrics.momentum_norm < 1.0e-12
+        @test count_rhs_allocations(sol) == 0
+    end
+
     @trixi_testset "fluid/falling_water_spheres_2d.jl" begin
         surface_tension_models = Dict(
             "SurfaceTensionAkinci" => SurfaceTensionAkinci(surface_tension_coefficient=0.05),
