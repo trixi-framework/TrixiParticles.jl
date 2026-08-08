@@ -600,6 +600,56 @@
                        correction_factor * uncorrected_acceleration; rtol=2eps())
     end
 
+    @testset "IISPH Akinci correction force assembly" begin
+        rho0 = 1000.0
+        particle_spacing = 0.5
+        coordinates = [0.0 0.75; 0.0 0.0]
+        initial_condition = InitialCondition(; coordinates, velocity=zeros(2, 2),
+                                             mass=fill(rho0 * particle_spacing^2, 2),
+                                             density=fill(rho0, 2), particle_spacing)
+        smoothing_kernel = WendlandC2Kernel{2}()
+        surface_tension = CohesionForceAkinci(surface_tension_coefficient=0.2)
+        time_step = 0.001
+
+        function initial_accelerations(correction)
+            system = ImplicitIncompressibleSPHSystem(initial_condition; smoothing_kernel,
+                                                     smoothing_length=particle_spacing,
+                                                     reference_density=rho0, correction,
+                                                     surface_tension, time_step)
+            semi = Semidiscretization(system)
+            ode = semidiscretize(semi, (0.0, 0.01))
+            v_ode, u_ode = ode.u0.x
+            TrixiParticles.update_systems_and_nhs(v_ode, u_ode, semi, 0.0)
+            fill!(system.pressure, 0)
+
+            acceleration,
+            predicted_acceleration = GC.@preserve v_ode u_ode begin
+                v = TrixiParticles.wrap_v(v_ode, system, semi)
+                u = TrixiParticles.wrap_u(u_ode, system, semi)
+                dv = zeros(eltype(v), size(v))
+                TrixiParticles.interact!(dv, v, u, v, u, system, system, semi)
+                TrixiParticles.calculate_predicted_velocity_and_d_ii_values!(system, v, u,
+                                                                             v_ode, u_ode,
+                                                                             semi)
+                dv, copy(system.advection_velocity) / time_step
+            end
+            return system, acceleration, predicted_acceleration
+        end
+
+        corrected_system, corrected_acceleration,
+        corrected_predicted_acceleration = initial_accelerations(AkinciFreeSurfaceCorrection(rho0))
+        _, uncorrected_acceleration,
+        uncorrected_predicted_acceleration = initial_accelerations(nothing)
+        correction_factor = rho0 / corrected_system.density[1]
+
+        @test correction_factor > 1
+        @test maximum(abs, uncorrected_acceleration) > 0
+        @test isapprox(corrected_acceleration,
+                       correction_factor * uncorrected_acceleration; rtol=2eps())
+        @test isapprox(corrected_predicted_acceleration,
+                       correction_factor * uncorrected_predicted_acceleration; rtol=2eps())
+    end
+
     @testset "EDAC Akinci correction force assembly" begin
         rho0 = 1000.0
         particle_spacing = 0.5
