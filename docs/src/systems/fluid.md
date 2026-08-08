@@ -589,18 +589,30 @@ The 3D constant is the published normalization. The 2D constant is chosen such t
 = \frac{79}{336}.
 ```
 
-#### Surface area minimization force
+#### Surface area minimization contribution
 
-The surface area minimization term models curvature reduction by using the difference between the
-raw color gradients. In the implementation it is evaluated in acceleration form as
+The surface area minimization contribution models curvature reduction. Let ``\bm{n}_i`` denote
+the raw color gradient and ``\bm{N}_i=h_i\bm{n}_i`` its dimensionless Akinci normal. For equal
+particle masses, the published pair force is
 
 ```math
-a_{a,\text{area}} = -\sigma h_a (n_a - n_b),
+\bm{F}_{a\leftarrow b}^{\text{curvature}}
+= -\sigma m_a(\bm{N}_a-\bm{N}_b).
 ```
 
-where ``n_a`` and ``n_b`` are the unnormalized color gradients of the interacting particles and
-``h_a`` is the smoothing length of particle ``a``. The factor ``h_a`` makes the color-normal term
-dimensionless, consistent with the Akinci formulation.
+For adaptive resolution, TrixiParticles uses the symmetric pair force
+
+```math
+\bm{F}_{a\leftarrow b}^{\text{curvature}}
+= -\sigma\frac{2m_am_b}{m_a+m_b}(\bm{N}_a-\bm{N}_b).
+```
+
+For a shared correction factor and surface-tension coefficient, the corresponding accelerations
+preserve linear momentum and reduce to the published expression when ``m_a=m_b`` and
+``h_a=h_b``. The cohesion and curvature contributions use the smaller compact-support radius of
+the pair, ensuring that both directed neighborhood searches contain every active pair. This is a
+same-material rule. A multiphase formulation must represent the pair coefficient and pair
+reference density explicitly.
 
 #### Combined-force correction
 

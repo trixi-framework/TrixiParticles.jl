@@ -372,6 +372,58 @@
         end
     end
 
+    @testset "adaptive Akinci pair force conserves momentum" begin
+        surface_tension = SurfaceTensionAkinci(surface_tension_coefficient=0.8)
+        correction = AkinciFreeSurfaceCorrection(1.0)
+        smoothing_kernel = WendlandC2Kernel{2}()
+        state_equation = StateEquationCole(; sound_speed=10.0, reference_density=1.0,
+                                           exponent=1)
+
+        function system_at(coordinate, mass, smoothing_length)
+            initial_condition = InitialCondition(;
+                                                 coordinates=reshape([coordinate, 0.0], 2,
+                                                                     1),
+                                                 velocity=zeros(2, 1), mass=[mass],
+                                                 density=ones(1), particle_spacing=0.25)
+            return WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
+                                               smoothing_length,
+                                               density_calculator=SummationDensity(),
+                                               state_equation, surface_tension, correction,
+                                               reference_particle_spacing=0.25)
+        end
+
+        mass_a, mass_b = 1.0, 4.0
+        smoothing_length_a, smoothing_length_b = 0.5, 1.0
+        system_a = system_at(0.0, mass_a, smoothing_length_a)
+        system_b = system_at(0.6, mass_b, smoothing_length_b)
+        system_a.cache.surface_normal[:, 1] .= (1 / smoothing_length_a, 0.0)
+        system_b.cache.surface_normal[:, 1] .= (0.0, 0.0)
+
+        pos_diff = SVector(-0.6, 0.0)
+        acceleration_a = Ref(zero(pos_diff))
+        acceleration_b = Ref(zero(pos_diff))
+        TrixiParticles.surface_tension_force!(acceleration_a, surface_tension,
+                                              surface_tension, system_a, system_b,
+                                              1, 1, pos_diff, norm(pos_diff), 1.0, 1.0,
+                                              zero(pos_diff), 1)
+        TrixiParticles.surface_tension_force!(acceleration_b, surface_tension,
+                                              surface_tension, system_b, system_a,
+                                              1, 1, -pos_diff, norm(pos_diff), 1.0, 1.0,
+                                              zero(pos_diff), 1)
+
+        @test mass_a * acceleration_a[] ≈ -mass_b * acceleration_b[]
+        @test TrixiParticles.pair_support_radius_akinci(system_a, system_b, 1, 1) ≈ 1.0
+
+        outside_shared_support = SVector(-1.2, 0.0)
+        acceleration = Ref(zero(outside_shared_support))
+        TrixiParticles.surface_tension_force!(acceleration, surface_tension,
+                                              surface_tension, system_a, system_b,
+                                              1, 1, outside_shared_support,
+                                              norm(outside_shared_support), 1.0, 1.0,
+                                              zero(outside_shared_support), 1)
+        @test iszero(acceleration[])
+    end
+
     @testset "Akinci kernel integral matching" begin
         surface_tension = SurfaceTensionAkinci(surface_tension_coefficient=1.0)
         support_radius = 1.3
