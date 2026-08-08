@@ -107,6 +107,8 @@ function add_system_data!(system_data, system::ImplicitIncompressibleSPHSystem)
     system_data["acceleration"] = system.acceleration
     system_data["pressure_acceleration_formulation"] = nameof(system.pressure_acceleration_formulation)
     add_system_data!(system_data, shifting_technique(system))
+    add_system_data!(system_data, system.surface_tension)
+    add_system_data!(system_data, system.surface_normal_method)
     add_system_data!(system_data, system.viscosity)
 end
 

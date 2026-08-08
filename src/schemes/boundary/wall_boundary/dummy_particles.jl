@@ -451,8 +451,6 @@ function compute_density!(boundary_model, ::PressureBoundaries, system, v, u, v_
     (; density) = cache # Density is in the cache for `SummationDensity`
 
     summation_density!(system, semi, u, u_ode, density; particles=eachparticle(system))
-
-    predict_advection!(system, v, u, v_ode, u_ode, semi)
 end
 
 function compute_pressure!(boundary_model, ::Union{SummationDensity, ContinuityDensity},

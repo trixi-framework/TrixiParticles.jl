@@ -17,6 +17,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Features
 
+- Added Akinci surface tension and `AkinciFreeSurfaceCorrection` support to
+  `ImplicitIncompressibleSPHSystem`.
 - Added `AkinciFreeSurfaceCorrection` support to `EntropicallyDampedSPHSystem` for both
   continuity and summation density.
 - Akinci fluid-fluid forces now use a symmetric pair formulation for differing particle masses
