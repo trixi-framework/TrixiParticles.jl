@@ -186,16 +186,27 @@ end
 
     dv_particle = zero(v_a)
     drho_particle = zero(rho_a)
+    m_b = @inbounds neighbor_system.mass[1]
 
     cell = PointNeighbors.cell_coords(point_coords, nhs)
+    VT_poscell = SIMD.Vec{4, eltype(nhs.relative_coords)}
+    poscell_a = SIMD.vloada(VT_poscell,
+                            pointer(nhs.relative_coords, 4 * (particle - 1) + 1))
+    pos_a_x, pos_a_y, pos_a_z, encoded_cell_a = Tuple(poscell_a)
+    cell_code_a = reinterpret(UInt32, encoded_cell_a)
+    cell_a_x = Int32(cell_code_a >> 19)
 
-    # cell_blocks = ((cell[1] - 1, cell[2] - 1), (cell[1] - 1, cell[2]), (cell[1] - 1, cell[2] + 1))
-    cell_blocks = CartesianIndices(ntuple(i -> (cell[i + 1] - 1):(cell[i + 1] + 1), Val(NDIMS - 1)))
-    for cell_block in cell_blocks
-        cell_block_start = (cell[1] - 1, Tuple(cell_block)...)
-        cell_index = @inbounds PointNeighbors.cell_index(cell_list, cell_block_start)
+    # Benchmark-only 3D traversal: x is the contiguous dimension of the full grid, so
+    # visit the three x cells as one particle range for each y/z pair.
+    for cell_z in (cell[3] - 1):(cell[3] + 1),
+        cell_y in (cell[2] - 1):(cell[2] + 1)
+        block_start = (cell[1] - 1, cell_y, cell_z)
+        cell_index = @inbounds PointNeighbors.cell_index(cell_list, block_start)
         start = @inbounds cell_list.cells.first_bin_index[cell_index]
         stop = @inbounds cell_list.cells.first_bin_index[cell_index + 3] - 1
+
+        offset_y = (cell[2] - cell_y) * nhs.cell_size[2]
+        offset_z = (cell[3] - cell_z) * nhs.cell_size[3]
 
         for neighbor in start:stop
 
@@ -209,23 +220,26 @@ end
             # neighbor_coords_ = vloada(VT_coords, pointer(neighbor_system_coords, 4*(neighbor-1)+1))
             # a, b, c, d = Tuple(neighbor_coords_)
             # neighbor_coords = SVector(a, b, c)
-            neighbor_coords = @inbounds extract_svector(neighbor_system_coords,
-                                                        Val(NDIMS), neighbor)
+            poscell_b = SIMD.vloada(VT_poscell,
+                                    pointer(nhs.relative_coords, 4 * (neighbor - 1) + 1))
+            pos_b_x, pos_b_y, pos_b_z, encoded_cell_b = Tuple(poscell_b)
+            cell_code_b = reinterpret(UInt32, encoded_cell_b)
+            cell_b_x = Int32(cell_code_b >> 19)
 
-            # pos_diff = convert.(eltype(particle_system), point_coords - neighbor_coords)
-            pos_diff = point_coords - neighbor_coords
+            pos_diff = SVector(pos_a_x - pos_b_x +
+                               (cell_a_x - cell_b_x) * nhs.cell_size[1],
+                               pos_a_y - pos_b_y + offset_y,
+                               pos_a_z - pos_b_z + offset_z)
             distance2 = dot(pos_diff, pos_diff)
 
             if eps(search_radius2) <= distance2 <= search_radius2
                 distance = sqrt(distance2)
 
-                m_b = @inbounds neighbor_system.mass[neighbor]
-                p_b = @inbounds neighbor_system.pressure[neighbor]
-
                 vrho_b = SIMD.vloada(VT, pointer(v_neighbor_system, 4*(neighbor-1)+1))
                 a, b, c, d = Tuple(vrho_b)
                 v_b = SVector(a, b, c)
                 rho_b = d
+                p_b = @inbounds neighbor_system.pressure[neighbor]
 
                 # v_b = @inbounds extract_svector(v_neighbor_system, Val(NDIMS), neighbor)
                 # rho_b = @inbounds v_neighbor_system[end, neighbor]
@@ -233,15 +247,23 @@ end
                 grad_kernel = kernel_grad_ds(particle_system, pos_diff, distance)
 
                 # dv_particle += -m_b * (p_a + p_b) / (rho_a * rho_b) * grad_kernel
-                dv_particle += -m_b * Base.FastMath.div_fast(p_a + p_b, rho_a * rho_b) * grad_kernel
+                dv_particle += -m_b * Base.FastMath.div_fast(p_a + p_b,
+                                                             rho_a * rho_b) * grad_kernel
 
                 vdiff = v_a - v_b
                 # drho_particle += rho_a / rho_b * m_b * dot(vdiff, grad_kernel)
-                drho_particle += Base.FastMath.div_fast(rho_a, rho_b) * m_b * dot(vdiff, grad_kernel)
+                drho_particle += Base.FastMath.div_fast(rho_a, rho_b) * m_b *
+                                 dot(vdiff, grad_kernel)
 
                 h = particle_system.cache.smoothing_length
                 alpha = particle_system.viscosity.alpha
                 epsilon = particle_system.viscosity.epsilon
+
+                delta = particle_system.density_diffusion.delta
+                volume_b = Base.FastMath.div_fast(m_b, rho_b)
+                psi = Base.FastMath.div_fast(2 * (rho_a - rho_b), distance2) * pos_diff
+                density_diffusion_term = volume_b * dot(psi, grad_kernel)
+                drho_particle += delta * h * sound_speed * density_diffusion_term
 
                 vr = dot(vdiff, pos_diff)
                 if vr < 0
