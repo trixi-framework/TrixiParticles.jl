@@ -215,9 +215,9 @@ Pages = [joinpath("general", "corrections.jl")]
 
 ### Overview of surface normal calculation in SPH
 
-Surface normals are essential for modeling surface tension as they provide the directionality
-of forces acting at the fluid interface. They are calculated based on the particle properties and
-their spatial distribution.
+Surface normals provide the directionality of forces acting at the fluid interface. They are
+used by the full Akinci model and both Morris models, but not by the cohesion-only Akinci model.
+They are calculated based on the particle properties and their spatial distribution.
 
 #### Color field and gradient-based surface normals
 
@@ -289,6 +289,41 @@ In the following table some values are shown for reference. The values marked wi
 | **Water**       | 0.07288  [Lange](@cite Lange2005)               |
 | **Mercury**     | 0.486502 [Lange](@cite Lange2005)               |
 
+### Model configuration
+
+All surface tension coefficients must be finite and non-negative. A zero coefficient disables
+the fluid-fluid surface force. Wall adhesion is controlled independently by the boundary's
+`adhesion_coefficient`.
+
+`CohesionForceAkinci` only evaluates the pairwise cohesion and optional wall-adhesion forces.
+It does not require surface normals or `reference_particle_spacing`. The full
+`SurfaceTensionAkinci` model and both Morris models require a surface-normal method. When one
+of these models is selected without an explicit method, `ColorfieldSurfaceNormal()` is used.
+
+!!! note "Akinci kernels in two dimensions"
+    Akinci et al. published the cohesion and adhesion kernels for three dimensions. In two
+    dimensions, TrixiParticles.jl uses an integral-matching extension: each radial 2D kernel
+    has the same full-space integral as its published 3D counterpart. This convention is not
+    part of the original model, but gives both kernels dimensions of ``L^{-d}`` in ``d``
+    dimensions. Their products with particle mass are therefore independent of resolution at
+    a fixed smoothing-length-to-spacing ratio. Akinci surface tension is supported in two and
+    three dimensions only. Integral matching removes the resolution dependence of the pair
+    kernels, but does not turn their numerical coefficients into physical values in N/m.
+
+    To preserve the pairwise cohesion and adhesion contributions from a previous 2D
+    configuration that used the 3D normalizations, scale the coefficients at its
+    compact-support radius ``h_c`` as
+
+    ```math
+    \sigma_{\mathrm{new}} = \frac{627}{790h_c}\sigma_{\mathrm{old}}, \qquad
+    \beta_{\mathrm{new}} = \frac{42}{65h_c}\beta_{\mathrm{old}}.
+    ```
+
+    The migrated coefficients can then be held fixed when changing the resolution. Since
+    `SurfaceTensionAkinci` uses ``\sigma`` for both cohesion and the unchanged curvature term,
+    this migration also changes their relative weight; full-model configurations may require
+    additional calibration.
+
 ### [Akinci-based intra-particle force surface tension and wall adhesion model](@id akinci_ipf)
 
 The [Akinci](@cite Akinci2013) model divides surface tension into distinct force components:
@@ -306,18 +341,28 @@ It is defined by the distance between particles and the support radius ``h_c``, 
 Mathematically:
 
 ```math
-F_{\text{cohesion}} = -\sigma m_b C(r) \frac{r}{\Vert r \Vert},
+F_{\text{cohesion}} = -\sigma m_b C_d(r) \frac{r}{\Vert r \Vert},
 ```
 
-where ``C(r)``, the cohesion kernel, is defined as:
+where the dimension-dependent cohesion kernel is
 
 ```math
-C(r)=\frac{32}{\pi h_c^9}
+C_d(r)=\frac{K_d}{h_c^{d+6}}
 \begin{cases}
 (h_c-r)^3 r^3, & \text{if } 2r > h_c, \\
-2(h_c-r)^3 r^3 - \frac{h^6}{64}, & \text{if } r > 0 \text{ and } 2r \leq h_c, \\
+2(h_c-r)^3 r^3 - \frac{h_c^6}{64}, & \text{if } r > 0 \text{ and } 2r \leq h_c, \\
 0, & \text{otherwise.}
 \end{cases}
+\qquad
+K_2=\frac{25280}{627\pi}, \quad K_3=\frac{32}{\pi}.
+```
+
+The 3D constant is the published normalization. The 2D constant is chosen such that
+
+```math
+\int_{\mathbb{R}^2} C_2(\Vert\bm{r}\Vert)\,\mathrm{d}A
+= \int_{\mathbb{R}^3} C_3(\Vert\bm{r}\Vert)\,\mathrm{d}V
+= \frac{79}{336}.
 ```
 
 #### Surface area minimization force
@@ -331,24 +376,75 @@ F_{\text{curvature}} = -\sigma (n_a - n_b),
 
 where ``n_a`` and ``n_b`` are the surface normals of the interacting particles.
 
+#### Combined-force correction
+
+To compensate for particle-neighborhood deficiency at a free surface, the cohesion and
+curvature contributions are multiplied by the symmetric factor
+
+```math
+K_{ab} = \frac{2\rho_0}{\rho_a + \rho_b}.
+```
+
+[`AkinciFreeSurfaceCorrection`](@ref) implements this factor for the combined fluid-fluid
+surface tension force. Section 4 of [Akinci et al. (2013)](@cite Akinci2013) also applies the
+factor to viscosity for the same particle-deficiency reason. It does not modify pressure or wall
+adhesion forces.
+
+The published correction assumes that the density estimate reflects missing neighbors. With
+[`SummationDensity`](@ref), ``\rho_a`` and ``\rho_b`` in ``K_{ab}`` are the current densities.
+For [`ContinuityDensity`](@ref) in a [`WeaklyCompressibleSPHSystem`](@ref) or
+[`EntropicallyDampedSPHSystem`](@ref), TrixiParticles.jl
+reconstructs the auxiliary densities
+
+```math
+\widetilde{\rho}_a = \sum_b m_b W_{ab}
+```
+
+and uses ``\widetilde{\rho}_a`` and ``\widetilde{\rho}_b`` in ``K_{ab}``. For
+[`SurfaceTensionAkinci`](@ref), the same reconstructed densities are used in the particle-volume
+weights ``m_b / \rho_b`` of the color-field normals, matching the density-summation formulation
+of the published model. Pressure and all other density-dependent terms continue to use the
+integrated continuity density. The auxiliary sum includes dummy boundary particles, so a wall
+that completes the particle neighborhood is not misclassified as a free surface. This extension
+makes the correction independent of the selected density calculator at the cost of one additional
+density-summation neighbor loop per update stage.
+
 #### Wall adhesion force
 
 This force models the interaction between fluid and solid boundaries, simulating adhesion effects at walls.
 It uses a custom kernel with a peak at 0.75 times the support radius:
 
 ```math
-F_{\text{adhesion}} = -\beta m_b A(r) \frac{r}{\Vert r \Vert},
+F_{\text{adhesion}} = -\beta m_b A_d(r) \frac{r}{\Vert r \Vert},
 ```
 
-where ``A(r)`` is the adhesion kernel:
+where the dimension-dependent adhesion kernel is
 
 ```math
-A(r) = \frac{0.007}{h_c^{3.25}}
+A_d(r) = \frac{b_d}{h_c^{d+1/4}}
 \begin{cases}
 \sqrt[4]{-\frac{4r^2}{h_c} + 6r - 2h_c}, & \text{if } 2r > h_c \text{ and } r \leq h_c, \\
 0, & \text{otherwise.}
 \end{cases}
+\qquad
+b_2=\frac{13}{1200}, \quad b_3=0.007.
 ```
+
+Again, ``b_3`` is the published value and ``b_2`` matches the full-space integrals. In terms
+of the dimensionless radial moments
+
+```math
+J_d = \int_{1/2}^{1} q^{d-1}\left[2(1-q)(2q-1)\right]^{1/4}\,\mathrm{d}q,
+```
+
+the beta-function identities
+
+```math
+J_2 = \frac{3}{8}B\!\left(\frac{5}{4},\frac{5}{4}\right), \qquad
+J_3 = \frac{65}{224}B\!\left(\frac{5}{4},\frac{5}{4}\right)
+```
+
+give ``J_3/J_2=65/84`` and thus ``b_2=2b_3J_3/J_2=13/1200``.
 
 ---
 
