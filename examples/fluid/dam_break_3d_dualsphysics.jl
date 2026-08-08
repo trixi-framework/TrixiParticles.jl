@@ -1,4 +1,4 @@
-# Modify the 01_DamBreak example of DualSPHysics like this:
+# Modify the examples/main/01_DamBreak example of DualSPHysics like this:
 # <parameter key="StepAlgorithm" value="2" comment="Step Algorithm 1:Verlet, 2:Symplectic (default=1)" />
 # <parameter key="Kernel" value="2" comment="Interaction Kernel 1:Cubic Spline, 2:Wendland (default=2)" />
 # <parameter key="DensityDT" value="1" comment="Density Diffusion Term 0:None, 1:Molteni, 2:Fourtakas, 3:Fourtakas(full) (default=0)" />
