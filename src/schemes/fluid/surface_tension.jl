@@ -37,7 +37,8 @@ struct CohesionForceAkinci{ELTYPE <: Real} <: AkinciTypeSurfaceTension
 end
 
 @doc raw"""
-    SurfaceTensionAkinci(surface_tension_coefficient=1.0)
+    SurfaceTensionAkinci(surface_tension_coefficient=1.0,
+                         reference_smoothing_length=nothing)
 
 Implements a model for surface tension and adhesion effects drawing upon the
 principles outlined by Akinci [Akinci2013](@cite). This model is instrumental in capturing the nuanced
@@ -53,14 +54,41 @@ See [`surface_tension`](@ref) for more details.
 # Keywords
 - `surface_tension_coefficient=1.0`: Finite, non-negative coefficient adjusting the
   magnitude of surface tension forces. Zero disables the fluid-fluid force.
+- `reference_smoothing_length=nothing`: Optional finite, positive calibration length for the
+  normal-difference force. When set, neighbor-volume normalization is enabled and the normal
+  contribution is scaled with this fixed length instead of the current smoothing length. The
+  default preserves the original Akinci discretization.
 """
-struct SurfaceTensionAkinci{ELTYPE <: Real} <: AkinciTypeSurfaceTension
-    surface_tension_coefficient::ELTYPE
+struct SurfaceTensionAkinci{ELTYPE <: Real, REFERENCE_LENGTH} <: AkinciTypeSurfaceTension
+    surface_tension_coefficient :: ELTYPE
+    reference_smoothing_length  :: REFERENCE_LENGTH
 
-    function SurfaceTensionAkinci(; surface_tension_coefficient=1.0)
+    function SurfaceTensionAkinci(; surface_tension_coefficient=1.0,
+                                  reference_smoothing_length=nothing)
         coefficient = validate_surface_tension_coefficient(surface_tension_coefficient)
-        new{typeof(coefficient)}(coefficient)
+        if isnothing(reference_smoothing_length)
+            return new{typeof(coefficient), Nothing}(coefficient, nothing)
+        end
+        if !(reference_smoothing_length isa Real) ||
+           !isfinite(reference_smoothing_length) || reference_smoothing_length <= 0
+            throw(ArgumentError("`reference_smoothing_length` must be `nothing` or a finite, positive real number"))
+        end
+
+        coefficient_,
+        reference_smoothing_length_ = promote(coefficient,
+                                              reference_smoothing_length)
+        new{typeof(coefficient_), typeof(reference_smoothing_length_)}(coefficient_,
+                                                                       reference_smoothing_length_)
     end
+end
+
+@inline function pair_reference_smoothing_length(surface_tension_a::SurfaceTensionAkinci,
+                                                 surface_tension_b::SurfaceTensionAkinci)
+    reference_a = surface_tension_a.reference_smoothing_length
+    reference_b = surface_tension_b.reference_smoothing_length
+    isnothing(reference_a) && return reference_b
+    isnothing(reference_b) && return reference_a
+    return min(reference_a, reference_b)
 end
 
 @doc raw"""
@@ -269,8 +297,18 @@ end
     dv_particle[] += surface_tension_correction *
                      cohesion_force_akinci(surface_tension_a, support_radius, m_b,
                                            pos_diff, distance, Val(ndims(particle_system)))
+    normal_force_length = smoothing_length_
+    reference_smoothing_length = pair_reference_smoothing_length(surface_tension_a,
+                                                                 surface_tension_b)
+    if !isnothing(reference_smoothing_length)
+        neighbor_smoothing_length = smoothing_length(neighbor_system, neighbor)
+        pair_smoothing_length = min(smoothing_length_, neighbor_smoothing_length)
+        pair_density = (rho_a + rho_b) / 2
+        normal_force_length = reference_smoothing_length * m_b /
+                              (pair_density * pair_smoothing_length^ndims(particle_system))
+    end
     dv_particle[] -= surface_tension_correction * surface_tension_coefficient *
-                     (n_a - n_b) * smoothing_length_
+                     (n_a - n_b) * normal_force_length
 
     return dv_particle
 end

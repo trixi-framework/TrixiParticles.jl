@@ -300,6 +300,10 @@ It does not require surface normals or `reference_particle_spacing`. The full
 `SurfaceTensionAkinci` model and both Morris models require a surface-normal method. When one
 of these models is selected without an explicit method, `ColorfieldSurfaceNormal()` is used.
 
+`SurfaceTensionAkinci(reference_smoothing_length=h_ref)` enables an empirical normalization of
+the normal-difference force for resolution studies. The reference length must remain fixed when
+changing particle spacing. Omitting it preserves the original Akinci discretization.
+
 !!! note "Akinci kernels in two dimensions"
     Akinci et al. published the cohesion and adhesion kernels for three dimensions. In two
     dimensions, TrixiParticles.jl uses an integral-matching extension: each radial 2D kernel
@@ -365,16 +369,32 @@ The 3D constant is the published normalization. The 2D constant is chosen such t
 = \frac{79}{336}.
 ```
 
-#### Surface area minimization force
+#### Surface area minimization contribution
 
-The surface area minimization force models the curvature reduction effects, aligning particle motion to reduce the interface's total area.
-It acts based on the difference in surface normals:
+The surface area minimization contribution models curvature reduction and acts on the
+difference in surface normals. TrixiParticles.jl uses the local smoothing length:
 
 ```math
-F_{\text{curvature}} = -\sigma (n_a - n_b),
+\left.\frac{\mathrm{d}\bm{v}_a}{\mathrm{d} t}\right|_{ab}^{\text{curvature}}
+= -\sigma h_a (\bm{n}_a - \bm{n}_b),
 ```
 
-where ``n_a`` and ``n_b`` are the surface normals of the interacting particles.
+where ``\bm{n}_a`` and ``\bm{n}_b`` are the surface normals of the interacting particles.
+
+When `reference_smoothing_length=h_ref` is specified, the normal contribution instead becomes
+
+```math
+\left.\frac{\mathrm{d}\bm{v}_a}{\mathrm{d} t}\right|_{ab}^{\text{curvature}}
+= -\sigma \frac{m_b}{\bar{\rho}_{ab} h_{ab}^d} h_{\mathrm{ref}}
+  (\bm{n}_a - \bm{n}_b).
+```
+
+Here ``\bar{\rho}_{ab}=(\rho_a+\rho_b)/2`` and ``h_{ab}=\min(h_a,h_b)``. This
+symmetric pair normalization preserves linear momentum for unequal particle masses. The
+dimensionless volume factor removes the direct dependence on neighbor count, while the fixed
+``h_{\mathrm{ref}}`` prevents this contribution from weakening when ``h`` is refined. This is a
+baseline-preserving empirical normalization, not a conversion of the Akinci coefficient to a
+physical value in N/m.
 
 #### Combined-force correction
 

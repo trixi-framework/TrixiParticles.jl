@@ -17,6 +17,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 - Added `AkinciFreeSurfaceCorrection` support to `EntropicallyDampedSPHSystem` for both
   continuity and summation density.
+- Added an optional reference-smoothing-length and neighbor-volume normalization for the
+  `SurfaceTensionAkinci` normal-difference force to improve empirical resolution robustness.
 
 ### Important Bugfixes
 

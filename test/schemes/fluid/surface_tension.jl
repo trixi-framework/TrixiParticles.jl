@@ -13,6 +13,20 @@
             end
         end
 
+        normalized_akinci = SurfaceTensionAkinci(surface_tension_coefficient=0.5f0,
+                                                 reference_smoothing_length=0.25f0)
+        @test normalized_akinci.reference_smoothing_length === 0.25f0
+        @test isnothing(SurfaceTensionAkinci().reference_smoothing_length)
+        system_data = Dict{String, Any}()
+        TrixiParticles.add_system_data!(system_data, normalized_akinci)
+        @test system_data["surface_tension"]["model"] == "SurfaceTensionAkinci"
+        @test system_data["surface_tension"]["surface_tension_coefficient"] === 0.5f0
+        @test system_data["surface_tension"]["reference_smoothing_length"] === 0.25f0
+        for reference_smoothing_length in (0.0, -1.0, NaN, Inf, -Inf, 1.0im, "invalid")
+            @test_throws ArgumentError SurfaceTensionAkinci(;
+                                                            reference_smoothing_length)
+        end
+
         @test !TrixiParticles.requires_surface_normal(nothing)
         @test !TrixiParticles.requires_surface_normal(CohesionForceAkinci())
         @test TrixiParticles.requires_surface_normal(SurfaceTensionAkinci())
@@ -297,6 +311,66 @@
                 @test isapprox(adhesion, reference_adhesion; rtol=5eps(), atol=5eps())
             end
         end
+    end
+
+    @testset "volume-normalized Akinci normal force" begin
+        reference_density = 2.0
+        particle_spacing = 0.25
+        smoothing_length = 0.5
+        coordinates = [0.0 0.375; 0.0 0.0]
+        density = [reference_density, 2reference_density]
+        mass = density * particle_spacing^2
+        initial_condition = InitialCondition(; coordinates, velocity=zeros(2, 2), mass,
+                                             density,
+                                             particle_spacing)
+        smoothing_kernel = WendlandC2Kernel{2}()
+        state_equation = StateEquationCole(; sound_speed=10.0, reference_density,
+                                           exponent=1)
+
+        function pair_acceleration(surface_tension, particle, neighbor, pos_diff)
+            system = WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
+                                                 smoothing_length,
+                                                 density_calculator=SummationDensity(),
+                                                 state_equation, surface_tension,
+                                                 reference_particle_spacing=particle_spacing)
+            system.cache.surface_normal[:, 1] .= (1.0, 0.0)
+            system.cache.surface_normal[:, 2] .= (0.0, 0.0)
+            distance = norm(pos_diff)
+            acceleration = Ref(zero(pos_diff))
+            TrixiParticles.surface_tension_force!(acceleration, surface_tension,
+                                                  surface_tension, system, system,
+                                                  particle, neighbor, pos_diff, distance,
+                                                  density[particle], density[neighbor],
+                                                  zero(pos_diff), 1)
+            return acceleration[], system
+        end
+
+        coefficient = 0.8
+        legacy = SurfaceTensionAkinci(surface_tension_coefficient=coefficient)
+        normalized = SurfaceTensionAkinci(surface_tension_coefficient=coefficient,
+                                          reference_smoothing_length=1.0)
+        pos_diff = SVector(-0.375, 0.0)
+        legacy_acceleration, legacy_system = pair_acceleration(legacy, 1, 2, pos_diff)
+        normalized_acceleration,
+        normalized_system = pair_acceleration(normalized, 1, 2,
+                                              pos_diff)
+        support_radius = TrixiParticles.compact_support(smoothing_kernel, smoothing_length)
+        cohesion = TrixiParticles.cohesion_force_akinci(legacy, support_radius, mass[2],
+                                                        pos_diff, norm(pos_diff), Val(2))
+        legacy_normal_acceleration = legacy_acceleration - cohesion
+        normalized_normal_acceleration = normalized_acceleration - cohesion
+        pair_density = (density[1] + density[2]) / 2
+        volume_factor = mass[2] / (pair_density * smoothing_length^2)
+        expected_ratio = volume_factor * normalized.reference_smoothing_length /
+                         smoothing_length
+
+        @test legacy_normal_acceleration ≈ SVector(-coefficient * smoothing_length, 0.0)
+        @test normalized_normal_acceleration ≈
+              expected_ratio * legacy_normal_acceleration
+        reverse_acceleration, _ = pair_acceleration(normalized, 2, 1, -pos_diff)
+        @test mass[1] * normalized_acceleration ≈ -mass[2] * reverse_acceleration
+        @test legacy_system.surface_tension === legacy
+        @test normalized_system.surface_tension === normalized
     end
 
     @testset "Akinci kernel integral matching" begin

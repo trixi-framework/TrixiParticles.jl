@@ -307,12 +307,18 @@ function add_system_data!(system_data,
 end
 
 function add_system_data!(system_data,
-                          surface_tension::Union{CohesionForceAkinci, SurfaceTensionAkinci,
-                                                 SurfaceTensionMorris,
+                          surface_tension::Union{CohesionForceAkinci, SurfaceTensionMorris,
                                                  SurfaceTensionMomentumMorris})
     system_data["surface_tension"] = Dict{String, Any}()
     system_data["surface_tension"]["model"] = type2string(surface_tension)
     system_data["surface_tension"]["surface_tension_coefficient"] = surface_tension.surface_tension_coefficient
+end
+
+function add_system_data!(system_data, surface_tension::SurfaceTensionAkinci)
+    system_data["surface_tension"] = Dict{String, Any}()
+    system_data["surface_tension"]["model"] = type2string(surface_tension)
+    system_data["surface_tension"]["surface_tension_coefficient"] = surface_tension.surface_tension_coefficient
+    system_data["surface_tension"]["reference_smoothing_length"] = surface_tension.reference_smoothing_length
 end
 
 function add_system_data!(system_data, surface_normal_method::ColorfieldSurfaceNormal)
