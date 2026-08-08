@@ -262,23 +262,31 @@ interpolation_history(uprev2) = ((uprev2.x[1],), (uprev2.x[2],))
 
 function sort_particle_systems!(primary_v, primary_u, semi, extra_v, extra_u;
                                 initial=false)
-    TrixiParticles.foreach_system(semi) do system
-        should_sort = system isa TrixiParticles.RequiresSortingSystem ||
-                      (initial && system isa TrixiParticles.WallBoundarySystem)
-        should_sort || return
+    TrixiParticles.@trixi_timeit TrixiParticles.timer() "sort" begin
+        TrixiParticles.foreach_system(semi) do system
+            should_sort = system isa TrixiParticles.RequiresSortingSystem ||
+                        (initial && system isa TrixiParticles.WallBoundarySystem)
+            should_sort || return
 
-        v = TrixiParticles.wrap_v(primary_v, system, semi)
-        u = TrixiParticles.wrap_u(primary_u, system, semi)
-        nhs = TrixiParticles.get_neighborhood_search(system, semi)
-        perm = TrixiParticles.particle_sorting_permutation(system, u, nhs, semi)
+            v = TrixiParticles.wrap_v(primary_v, system, semi)
+            u = TrixiParticles.wrap_u(primary_u, system, semi)
+            nhs = TrixiParticles.get_neighborhood_search(system, semi)
+            TrixiParticles.@trixi_timeit TrixiParticles.timer() "permutation" begin
+                perm = TrixiParticles.particle_sorting_permutation(system, u, nhs, semi)
+            end
 
-        perm = TrixiParticles.sort_system_with_permutation!(system, v, u, perm,
-                                                            TrixiParticles.buffer(system))
+            TrixiParticles.@trixi_timeit TrixiParticles.timer() "sort systems" begin
+                perm = TrixiParticles.sort_system_with_permutation!(system, v, u, perm,
+                                                                    TrixiParticles.buffer(system))
+            end
 
-        sort_extra_arrays!(extra_v, primary_v, system, semi, perm,
-                           TrixiParticles.wrap_v)
-        sort_extra_arrays!(extra_u, primary_u, system, semi, perm,
-                           TrixiParticles.wrap_u)
+            TrixiParticles.@trixi_timeit TrixiParticles.timer() "sort arrays" begin
+                sort_extra_arrays!(extra_v, primary_v, system, semi, perm,
+                                TrixiParticles.wrap_v)
+                sort_extra_arrays!(extra_u, primary_u, system, semi, perm,
+                                TrixiParticles.wrap_u)
+            end
+        end
     end
 
     return nothing

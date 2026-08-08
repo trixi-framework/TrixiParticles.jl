@@ -151,7 +151,7 @@ function particle_sorting_permutation(system, u, nhs::GridNeighborhoodSearch, se
     end
 
     # TODO `sortperm` works on CUDA but not (yet) on Metal
-    return sortperm(transfer2cpu(cell_index))
+    return sortperm(cell_index)
 end
 
 function sort_system!(system, v, u, perm, buffer::Nothing)
