@@ -10,7 +10,9 @@ end
 
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
-                   particle_system::WeaklyCompressibleSPHSystem, neighbor_system, semi)
+                   particle_system::WeaklyCompressibleSPHSystem, neighbor_system, semi;
+                   eachparticle=each_integrated_particle(particle_system),
+                   kwargs...)
     (; density_calculator, correction) = particle_system
 
     sound_speed = system_sound_speed(particle_system)
@@ -39,7 +41,7 @@ function interact!(dv, v_particle_system, u_particle_system,
     use_aligned_load_neighbor = Val(use_aligned_vrho_load(v_neighbor_system,
                                                           neighbor_system))
 
-    @threaded semi for particle in each_integrated_particle(particle_system)
+    @threaded semi for particle in eachparticle
         # We are looping over the particles of `particle_system`, so it is guaranteed
         # that `particle` is in bounds of `particle_system`.
         m_a = @inbounds hydrodynamic_mass(particle_system, particle)
@@ -56,18 +58,26 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         # Accumulate the RHS contributions over all neighbors before writing to `dv`,
         # to reduce the number of memory writes.
-        # Note that we need a `Ref` in order to be able to update these variables
-        # inside the closure in the `foreach_neighbor` loop.
-        dv_particle = Ref(zero(v_a))
-        drho_particle = Ref(zero(rho_a))
+        @inline function dv_drho_sum(a, b)
+            dv_a, drho_a = a
+            dv_b, drho_b = b
+            return dv_a + dv_b, drho_a + drho_b
+        end
+        init = (zero(v_a), zero(rho_a))
 
-        # Loop over all neighbors within the kernel cutoff
-        @inbounds foreach_neighbor(system_coords, neighbor_system_coords,
-                                   neighborhood_search, backend,
-                                   particle) do particle, neighbor, pos_diff, distance
+        # Loop over all neighbors within the kernel cutoff.
+        # Make sure that the returned names `dv_particle_` and `drho_particle_`
+        # are not used inside the closure to avoid allocations.
+        (dv_particle_,
+         drho_particle_) = @inbounds mapreduce_neighbor(dv_drho_sum, system_coords,
+                                                        neighbor_system_coords,
+                                                        neighborhood_search,
+                                                        backend, particle;
+                                                        init) do particle, neighbor,
+                                                                 pos_diff, distance
             # Skip neighbors with the same position because the kernel gradient is zero.
             # Note that `return` only exits the closure, i.e., skips the current neighbor.
-            skip_zero_distance(particle_system) && distance < almostzero && return
+            skip_zero_distance(particle_system) && distance < almostzero && return init
 
             # Now that we know that `distance` is not zero, we can safely call the unsafe
             # version of the kernel gradient to avoid redundant zero checks.
@@ -100,45 +110,57 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                 particle, neighbor,
                                                 m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
                                                 distance, grad_kernel, correction)
-            dv_particle[] += dv_pressure * pressure_correction
+            dv_particle = dv_pressure * pressure_correction
 
             # Propagate `@inbounds` to the viscosity function, which accesses particle data
-            @inbounds dv_viscosity!(dv_particle, particle_system, neighbor_system,
-                                    v_particle_system, v_neighbor_system,
-                                    particle, neighbor, pos_diff, distance,
-                                    sound_speed, m_a, m_b, rho_a, rho_b,
-                                    v_a, v_b, grad_kernel, viscosity_correction)
+            dv_particle = @inbounds dv_viscosity(dv_particle, particle_system,
+                                                 neighbor_system,
+                                                 v_particle_system, v_neighbor_system,
+                                                 particle, neighbor, pos_diff, distance,
+                                                 sound_speed, m_a, m_b, rho_a, rho_b,
+                                                 v_a, v_b, grad_kernel,
+                                                 viscosity_correction)
 
             # Extra terms in the momentum equation when using a shifting technique
-            @inbounds dv_shifting!(dv_particle, shifting_technique(particle_system),
-                                   particle_system, neighbor_system,
-                                   v_particle_system, v_neighbor_system,
-                                   particle, neighbor, m_a, m_b, rho_a, rho_b, v_a, v_b,
-                                   pos_diff, distance, grad_kernel, correction)
+            dv_particle = @inbounds dv_shifting(dv_particle,
+                                                shifting_technique(particle_system),
+                                                particle_system, neighbor_system,
+                                                v_particle_system, v_neighbor_system,
+                                                particle, neighbor, m_a, m_b, rho_a, rho_b,
+                                                v_a, v_b, pos_diff, distance,
+                                                grad_kernel, correction)
 
-            @inbounds surface_tension_force!(dv_particle,
-                                             surface_tension_a, surface_tension_b,
-                                             particle_system, neighbor_system,
-                                             particle, neighbor, pos_diff, distance,
-                                             rho_a, rho_b, grad_kernel,
-                                             surface_tension_correction)
+            dv_particle = @inbounds surface_tension_force(dv_particle,
+                                                          surface_tension_a,
+                                                          surface_tension_b,
+                                                          particle_system, neighbor_system,
+                                                          particle, neighbor, pos_diff,
+                                                          distance,
+                                                          rho_a, rho_b, grad_kernel,
+                                                          surface_tension_correction)
 
-            @inbounds adhesion_force!(dv_particle, surface_tension_a, particle_system,
-                                      neighbor_system,
-                                      particle, neighbor, pos_diff, distance)
+            dv_particle = @inbounds adhesion_force(dv_particle, surface_tension_a,
+                                                   particle_system, neighbor_system,
+                                                   particle, neighbor, pos_diff, distance)
+
+            drho_particle = zero(rho_a)
 
             # TODO If variable smoothing_length is used, this should use the neighbor smoothing length
             # Propagate `@inbounds` to the continuity equation, which accesses particle data
-            @inbounds continuity_equation!(drho_particle, density_calculator,
-                                           particle_system, neighbor_system,
-                                           particle, neighbor, pos_diff, distance,
-                                           m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+            drho_particle = @inbounds continuity_equation(drho_particle, density_calculator,
+                                                          particle_system, neighbor_system,
+                                                          particle, neighbor, pos_diff,
+                                                          distance,
+                                                          m_b, rho_a, rho_b, v_a, v_b,
+                                                          grad_kernel)
+
+            return dv_particle, drho_particle
         end
 
-        for i in eachindex(dv_particle[])
-            @inbounds dv[i, particle] += dv_particle[][i]
+        for i in eachindex(dv_particle_)
+            @inbounds dv[i, particle] += dv_particle_[i]
         end
-        @inbounds write_drho_particle!(dv, density_calculator, drho_particle, particle)
+        @inbounds write_drho_particle!(dv, density_calculator, drho_particle_, particle)
     end
 
     return dv

@@ -1,21 +1,17 @@
-@testset verbose=true "extract_smatrix" begin
-    A = Float64.(collect(reshape(1:12, 2, 2, 3)))
-    @test TrixiParticles.extract_smatrix(A, Val(2), 1) == A[:, :, 1]
-    @test TrixiParticles.extract_smatrix(A, Val(2), 2) == A[:, :, 2]
-    @test TrixiParticles.extract_smatrix(A, Val(2), 3) == A[:, :, 3]
-    @test_throws "extract_smatrix only works" TrixiParticles.extract_smatrix(A, Val(1), 1)
-    @test_throws "BoundsError" TrixiParticles.extract_smatrix(A, Val(3), 1)
-end
+@testset verbose=true "foreach_noalloc" begin
+    collection1 = (1, 2)
+    visited = [0, 0]
+    TrixiParticles.foreach_noalloc(collection1) do collection
+        visited[collection] += 1
+    end
+    @test visited == [1, 1]
 
-@testset verbose=true "extract_svector" begin
-    A = Float64.(collect(reshape(1:9, 3, 3)))
-    @test TrixiParticles.extract_svector(A, Val(3), 1) == A[:, 1]
-    @test TrixiParticles.extract_svector(A, Val(3), 2) == A[:, 2]
-    @test TrixiParticles.extract_svector(A, Val(3), 3) == A[:, 3]
-    @test TrixiParticles.extract_svector(A, Val(2), 1) == A[1:2, 1]
-    @test TrixiParticles.extract_svector(A, Val(2), 2) == A[1:2, 2]
-    @test TrixiParticles.extract_svector(A, Val(2), 3) == A[1:2, 3]
-    @test_throws "BoundsError" TrixiParticles.extract_svector(A, Val(4), 1)
+    collection2 = (3, 4)
+    visited = []
+    TrixiParticles.foreach_noalloc_zip(collection1, collection2) do (i, j)
+        push!(visited, (i, j))
+    end
+    @test visited == [(1, 3), (2, 4)]
 end
 
 @testset verbose=true "ThreadedBroadcastArray" begin
