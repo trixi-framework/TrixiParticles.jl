@@ -7,6 +7,13 @@ Unlike the [weakly compressible SPH method](@ref wcsph), incompressible methods 
 pressure by enforcing the incompressibility constraint rather than using an equation of
 state.
 
+`ImplicitIncompressibleSPHSystem` supports the Akinci-family surface tension models. Their
+non-pressure accelerations are included in the predicted velocity used by the pressure solve
+and in the final momentum equation. Surface tension models based on Morris curvature or stress
+tensors are not supported by IISPH. [`AkinciFreeSurfaceCorrection`](@ref) can be used to scale
+the Akinci surface-tension and viscosity contributions in both non-pressure force evaluations;
+the implicit pressure force is unchanged.
+
 ```@autodocs
 Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "fluid", "implicit_incompressible_sph", "system.jl")]
