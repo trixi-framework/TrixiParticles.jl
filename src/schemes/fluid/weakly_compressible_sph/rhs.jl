@@ -16,10 +16,6 @@ function interact_old!(dv, v_particle_system, u_particle_system,
     (; density_calculator, correction) = particle_system
 
     sound_speed = system_sound_speed(particle_system)
-    state_equation = particle_system.state_equation
-    reference_density = state_equation.reference_density
-    pressure_constant = reference_density * sound_speed^2 / state_equation.exponent
-    inverse_reference_density = inv(reference_density)
 
     surface_tension_a = surface_tension_model(particle_system)
     surface_tension_b = surface_tension_model(neighbor_system)
@@ -45,6 +41,7 @@ function interact_old!(dv, v_particle_system, u_particle_system,
         # We are looping over the particles of `particle_system`, so it is guaranteed
         # that `particle` is in bounds of `particle_system`.
         m_a = @inbounds hydrodynamic_mass(particle_system, particle)
+        p_a = @inbounds current_pressure(v_particle_system, particle_system, particle)
 
         # In 3D, this function can combine velocity and density load into one wide load,
         # which gives a significant speedup on GPUs.
@@ -53,8 +50,6 @@ function interact_old!(dv, v_particle_system, u_particle_system,
         (v_a,
          rho_a) = @inbounds velocity_and_density(v_particle_system, particle_system,
                                                  use_aligned_load_system, particle)
-        p_a = dualsphysics_pressure(rho_a, pressure_constant,
-                                    inverse_reference_density)
 
         # Accumulate the RHS contributions over all neighbors before writing to `dv`,
         # to reduce the number of memory writes.
@@ -92,10 +87,13 @@ function interact_old!(dv, v_particle_system, u_particle_system,
              rho_b) = @inbounds velocity_and_density(v_neighbor_system, neighbor_system,
                                                      use_aligned_load_neighbor, neighbor)
 
-            # DualSPHysics applies the state equation to every accepted fluid or boundary
-            # neighbor directly in the interaction kernel.
-            p_b = dualsphysics_pressure(rho_b, pressure_constant,
-                                        inverse_reference_density)
+            # The following call is equivalent to
+            #     `p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)`
+            # Only when the neighbor system is a `WallBoundarySystem`
+            # or a `TotalLagrangianSPHSystem` with the boundary model `PressureMirroring`,
+            # this will return `p_b = p_a`, which is the pressure of the fluid particle.
+            p_b = @inbounds neighbor_pressure(v_neighbor_system, neighbor_system,
+                                              neighbor, p_a)
 
             # Determine correction factors.
             # This can usually be ignored, as these are all 1 when no correction is used.
