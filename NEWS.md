@@ -21,6 +21,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   continuity and summation density.
 - Added an optional reference-smoothing-length and neighbor-volume normalization for the
   `SurfaceTensionAkinci` normal-difference force to improve empirical resolution robustness.
+- Added a parameterized 3D cube-to-sphere shootout covering Akinci models across WCSPH,
+  EDAC, and IISPH, including time-series and resolution-sensitivity analysis.
 
 ### Important Bugfixes
 
