@@ -57,6 +57,32 @@ of the boundary particle ``b``.
     BoundaryModelDummyParticles
 ```
 
+### Boundary surface quadrature
+
+Dummy-particle layers can optionally carry one `surface_measure` value per particle. These values
+represent a discrete quadrature of the physical boundary surface,
+
+```math
+\int_{\Gamma} f(\bm{x})\,\mathrm{d}A
+\approx \sum_b A_b f(\bm{x}_b^\Gamma),
+```
+
+where ``A_b`` has units of length in 2D and area in 3D. Positive weights identify particles that
+sample the physical face; zero weights identify deeper particles that support the hydrodynamic
+dummy-boundary model but do not represent another copy of the surface. The consuming geometry
+defines the face point ``\bm{x}_b^\Gamma``; it can differ from the dummy-particle coordinate.
+
+```julia
+surface_measure = zeros(nparticles(boundary))
+surface_measure[exposed_particles] .= particle_spacing^2 # Planar 3D face
+boundary_model = BoundaryModelDummyParticles(boundary; fluid_system, surface_measure)
+```
+
+Weights must be finite, nonnegative, and ordered like the boundary `InitialCondition`. The
+constructor copies them into `boundary_model.cache.surface_measure` using the boundary model's
+scalar type. Omitting the keyword allocates no quadrature cache. Supplying quadrature data alone
+does not change density, pressure, viscosity, or force calculations; models that consume it apply
+their own geometry and normal requirements.
 
 ### Hydrodynamic density of dummy particles
 

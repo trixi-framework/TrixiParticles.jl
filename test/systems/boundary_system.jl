@@ -42,6 +42,7 @@
         state_equation = StateEquationCole(; sound_speed=15.0, reference_density=1000.0,
                                            exponent=1)
         viscosity = ViscosityAdami(nu=1e-6)
+        surface_measure = [0.1, 0.0]
 
         fluid_system = WeaklyCompressibleSPHSystem(fluid_ic;
                                                    density_calculator=ContinuityDensity(),
@@ -52,7 +53,8 @@
 
         boundary_model = BoundaryModelDummyParticles(boundary_ic;
                                                      fluid_system=fluid_system,
-                                                     viscosity=viscosity)
+                                                     viscosity=viscosity,
+                                                     surface_measure)
         system = WallBoundarySystem(boundary_ic, boundary_model,
                                     adhesion_coefficient=0.3,
                                     color_value=2)
@@ -67,6 +69,7 @@
         @test system.boundary_model.state_equation == state_equation
         @test system.boundary_model.correction isa KernelCorrection
         @test system.boundary_model.cache.reference_particle_spacing == 0.1
+        @test system.boundary_model.cache.surface_measure == surface_measure
         @test system.adhesion_coefficient == 0.3
         @test system.cache.color == 2
 
