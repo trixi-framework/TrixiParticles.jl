@@ -332,6 +332,198 @@ function interact!(dv, v_particle_system, u_particle_system,
     return dv
 end
 
+# One-off GPU experiment combining the optimized fluid-fluid and fluid-boundary passes
+# in one kernel. This is intentionally specialized to the two-system DualSPHysics setup.
+function interact_combined_raw!(dv, v_fluid, u_fluid, v_boundary, u_boundary,
+                                fluid_system::WeaklyCompressibleSPHSystem{3},
+                                boundary_system::WallBoundarySystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
+                                semi)
+    fluid_coords = current_coordinates(u_fluid, fluid_system)
+    boundary_coords = current_coordinates(u_boundary, boundary_system)
+    fluid_nhs = get_neighborhood_search(fluid_system, fluid_system, semi)
+    boundary_nhs = get_neighborhood_search(fluid_system, boundary_system, semi)
+
+    state_equation = fluid_system.state_equation
+    reference_density = state_equation.reference_density
+    pressure_constant = reference_density * state_equation.sound_speed^2 /
+                        state_equation.exponent
+    inverse_reference_density = inv(reference_density)
+    smoothing_length = fluid_system.cache.smoothing_length
+    inverse_smoothing_length = inv(smoothing_length)
+    kernel_normalization = oftype(smoothing_length, -105 / (16 * pi)) *
+                           inverse_smoothing_length^5
+    eta2 = fluid_system.viscosity.epsilon * smoothing_length^2
+    density_diffusion_factor = 2 * fluid_system.density_diffusion.delta *
+                               smoothing_length * state_equation.sound_speed
+    boundary_viscosity = boundary_system.boundary_model.viscosity
+    boundary_eta2 = boundary_viscosity.epsilon * smoothing_length^2
+
+    backend = semi.parallelization_backend
+    ndrange = length(each_integrated_particle(fluid_system))
+    interaction_kernel_combined(backend)(dv, fluid_coords, boundary_coords,
+                                         fluid_nhs, boundary_nhs,
+                                         PointNeighbors.search_radius(fluid_nhs)^2,
+                                         PointNeighbors.search_radius(boundary_nhs)^2,
+                                         pressure_constant, inverse_reference_density,
+                                         smoothing_length, inverse_smoothing_length,
+                                         kernel_normalization, eta2, boundary_eta2,
+                                         density_diffusion_factor, v_fluid, v_boundary,
+                                         fluid_system, boundary_system;
+                                         ndrange, workgroupsize=128)
+    KernelAbstractions.synchronize(backend)
+
+    return dv
+end
+
+@kernel function interaction_kernel_combined(dv, fluid_coords, boundary_coords,
+                                             fluid_nhs, boundary_nhs,
+                                             fluid_search_radius2,
+                                             boundary_search_radius2,
+                                             pressure_constant,
+                                             inverse_reference_density,
+                                             smoothing_length,
+                                             inverse_smoothing_length,
+                                             kernel_normalization, eta2, boundary_eta2,
+                                             density_diffusion_factor,
+                                             v_fluid, v_boundary,
+                                             fluid_system::WeaklyCompressibleSPHSystem,
+                                             boundary_system::WallBoundarySystem)
+    particle = @index(Global)
+    sound_speed = fluid_system.state_equation.sound_speed
+
+    VT = SIMD.Vec{4, eltype(v_fluid)}
+    vrho_a = SIMD.vloada(VT, pointer(v_fluid, 4 * (particle - 1) + 1))
+    a, b, c, rho_a = Tuple(vrho_a)
+    v_a = SVector(a, b, c)
+    p_a = dualsphysics_pressure(rho_a, pressure_constant, inverse_reference_density)
+    dv_particle = zero(v_a)
+    drho_particle = zero(rho_a)
+
+    # Fluid-fluid self-interaction, kept identical to the raw optimized kernel.
+    VT_poscell = SIMD.Vec{4, eltype(fluid_nhs.relative_coords)}
+    poscell_a = SIMD.vloada(VT_poscell,
+                            pointer(fluid_nhs.relative_coords, 4 * (particle - 1) + 1))
+    pos_a_x, pos_a_y, pos_a_z, encoded_cell_a = Tuple(poscell_a)
+    cell_code_a = reinterpret(UInt32, encoded_cell_a)
+    cell = (Int32(cell_code_a >> 19),
+            Int32((cell_code_a >> 9) & 0x03ff),
+            Int32(cell_code_a & 0x01ff))
+    m_b = @inbounds fluid_system.mass[1]
+
+    for cell_z in (cell[3] - 1):(cell[3] + 1),
+        cell_y in (cell[2] - 1):(cell[2] + 1)
+        block_start = (cell[1] - 1, cell_y, cell_z)
+        cell_index = @inbounds PointNeighbors.cell_index(fluid_nhs.cell_list, block_start)
+        start = @inbounds fluid_nhs.cell_list.cells.first_bin_index[cell_index]
+        stop = @inbounds fluid_nhs.cell_list.cells.first_bin_index[cell_index + 3] - 1
+        offset_y = (cell[2] - cell_y) * fluid_nhs.cell_size[2]
+        offset_z = (cell[3] - cell_z) * fluid_nhs.cell_size[3]
+
+        for neighbor in start:stop
+            poscell_b = SIMD.vloada(VT_poscell,
+                                    pointer(fluid_nhs.relative_coords,
+                                            4 * (neighbor - 1) + 1))
+            pos_b_x, pos_b_y, pos_b_z, encoded_cell_b = Tuple(poscell_b)
+            cell_b_x = Int32(reinterpret(UInt32, encoded_cell_b) >> 19)
+            pos_diff = SVector(pos_a_x - pos_b_x +
+                               (cell[1] - cell_b_x) * fluid_nhs.cell_size[1],
+                               pos_a_y - pos_b_y + offset_y,
+                               pos_a_z - pos_b_z + offset_z)
+            distance2 = dot(pos_diff, pos_diff)
+
+            @fastmath if eps(fluid_search_radius2) <= distance2 <= fluid_search_radius2
+                distance = sqrt(distance2)
+                vrho_b = SIMD.vloada(VT, pointer(v_fluid, 4 * (neighbor - 1) + 1))
+                a, b, c, rho_b = Tuple(vrho_b)
+                v_b = SVector(a, b, c)
+                p_b = dualsphysics_pressure(rho_b, pressure_constant,
+                                            inverse_reference_density)
+                grad_kernel = kernel_grad_ds(pos_diff, distance,
+                                             inverse_smoothing_length,
+                                             kernel_normalization)
+                dv_particle += -m_b * (p_a + p_b) / (rho_a * rho_b) * grad_kernel
+                vdiff = v_a - v_b
+                rho_ratio = rho_a / rho_b
+                drho_particle += rho_ratio * m_b * dot(vdiff, grad_kernel)
+                dot3 = dot(pos_diff, grad_kernel)
+                diffusion = (density_diffusion_factor * (rho_ratio - 1)) /
+                            (distance2 + eta2)
+                drho_particle += diffusion * dot3 * m_b
+                vr = dot(vdiff, pos_diff)
+                if vr < 0
+                    mu = (smoothing_length * vr) / (distance2 + eta2)
+                    rho_mean = (rho_a + rho_b) / 2
+                    pi_ab = (fluid_system.viscosity.alpha * sound_speed * mu) /
+                            rho_mean * grad_kernel
+                    dv_particle += m_b * pi_ab
+                end
+            end
+        end
+    end
+
+    # We don't need this because the grid is the same for the boundary NHS.
+    # point_coords = @inbounds extract_svector(fluid_coords, Val(3), particle)
+    # cell = PointNeighbors.cell_coords(point_coords, boundary_nhs)
+    # query_coords = PointNeighbors.relative_cell_coords(point_coords, boundary_nhs)
+    VT_boundary_poscell = SIMD.Vec{4, eltype(boundary_nhs.relative_coords)}
+    wall_velocity = boundary_system.boundary_model.cache.wall_velocity
+    boundary_viscosity = boundary_system.boundary_model.viscosity
+
+    for cell_z in (cell[3] - 1):(cell[3] + 1),
+        cell_y in (cell[2] - 1):(cell[2] + 1)
+        block_start = (cell[1] - 1, cell_y, cell_z)
+        cell_index = @inbounds PointNeighbors.cell_index(boundary_nhs.cell_list, block_start)
+        start = @inbounds boundary_nhs.cell_list.cells.first_bin_index[cell_index]
+        stop = @inbounds boundary_nhs.cell_list.cells.first_bin_index[cell_index + 3] - 1
+        offset_y = (cell[2] - cell_y) * boundary_nhs.cell_size[2]
+        offset_z = (cell[3] - cell_z) * boundary_nhs.cell_size[3]
+
+        for neighbor in start:stop
+            poscell_b = SIMD.vloada(VT_boundary_poscell,
+                                    pointer(boundary_nhs.relative_coords,
+                                            4 * (neighbor - 1) + 1))
+            pos_b_x, pos_b_y, pos_b_z, encoded_cell_b = Tuple(poscell_b)
+            cell_b_x = Int32(reinterpret(UInt32, encoded_cell_b) >> 19)
+            pos_diff = SVector(pos_a_x - pos_b_x +
+                               (cell[1] - cell_b_x) * boundary_nhs.cell_size[1],
+                               pos_a_y - pos_b_y + offset_y,
+                               pos_a_z - pos_b_z + offset_z)
+            distance2 = dot(pos_diff, pos_diff)
+
+            @fastmath if eps(boundary_search_radius2) <= distance2 <= boundary_search_radius2
+                distance = sqrt(distance2)
+                rho_b = @inbounds v_boundary[neighbor]
+                p_b = dualsphysics_neighbor_pressure(rho_b, pressure_constant,
+                                                     inverse_reference_density,
+                                                     boundary_system)
+                grad_kernel = kernel_grad_ds(pos_diff, distance,
+                                             inverse_smoothing_length,
+                                             kernel_normalization)
+                boundary_mass = @inbounds boundary_system.boundary_model.hydrodynamic_mass[neighbor]
+                dv_particle += -boundary_mass * (p_a + p_b) / (rho_a * rho_b) *
+                               grad_kernel
+                drho_particle += rho_a / rho_b * boundary_mass * dot(v_a, grad_kernel)
+
+                v_wall = @inbounds extract_svector(wall_velocity, Val(3), neighbor)
+                vdiff = v_a - v_wall
+                vr = dot(vdiff, pos_diff)
+                if vr < 0
+                    mu = (smoothing_length * vr) / (distance2 + boundary_eta2)
+                    rho_mean = (rho_a + rho_b) / 2
+                    pi_ab = (boundary_viscosity.alpha * sound_speed * mu +
+                             boundary_viscosity.beta * mu^2) / rho_mean * grad_kernel
+                    dv_particle += boundary_mass * pi_ab
+                end
+            end
+        end
+    end
+
+    for i in eachindex(dv_particle)
+        @inbounds dv[i, particle] += dv_particle[i]
+    end
+    @inbounds dv[end, particle] += drho_particle
+end
+
 @kernel function interaction_kernel(dv,
                                     system_coords, neighbor_system_coords,
                                     nhs, search_radius2,
@@ -348,8 +540,6 @@ end
     cell_list = nhs.cell_list
     sound_speed = particle_system.state_equation.sound_speed
 
-    point_coords = @inbounds extract_svector(system_coords, Val(ndims(particle_system)),
-                                             particle)
     VT = SIMD.Vec{4, eltype(v_particle_system)}
     vrho_a = SIMD.vloada(VT, pointer(v_particle_system, 4*(particle-1)+1))
     a, b, c, rho_a = Tuple(vrho_a)
@@ -363,13 +553,14 @@ end
     dv_particle = zero(v_a)
     drho_particle = zero(rho_a)
 
-    cell = PointNeighbors.cell_coords(point_coords, nhs)
     VT_poscell = SIMD.Vec{4, eltype(nhs.relative_coords)}
     poscell_a = SIMD.vloada(VT_poscell,
                             pointer(nhs.relative_coords, 4 * (particle - 1) + 1))
     pos_a_x, pos_a_y, pos_a_z, encoded_cell_a = Tuple(poscell_a)
     cell_code_a = reinterpret(UInt32, encoded_cell_a)
-    cell_a_x = Int32(cell_code_a >> 19)
+    cell = (Int32(cell_code_a >> 19),
+            Int32((cell_code_a >> 9) & 0x03ff),
+            Int32(cell_code_a & 0x01ff))
 
     for cell_z in (cell[3] - 1):(cell[3] + 1),
         cell_y in (cell[2] - 1):(cell[2] + 1)
@@ -390,7 +581,7 @@ end
             cell_b_x = Int32(cell_code_b >> 19)
 
             pos_diff = SVector(pos_a_x - pos_b_x +
-                               (cell_a_x - cell_b_x) * nhs.cell_size[1],
+                               (cell[1] - cell_b_x) * nhs.cell_size[1],
                                pos_a_y - pos_b_y + offset_y,
                                pos_a_z - pos_b_z + offset_z)
             distance2 = dot(pos_diff, pos_diff)

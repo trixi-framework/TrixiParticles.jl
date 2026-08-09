@@ -831,6 +831,11 @@ function system_interaction!(dv_ode, v_ode, u_ode, semi)
 
     # Call `interact!` for each ordered pair of systems.
     foreach_system(semi) do system
+        # if interact_combined_experiment!(dv_ode, v_ode, u_ode, system, semi,
+        #                                  semi.systems)
+        #     return dv_ode
+        # end
+
         foreach_system(semi) do neighbor
             has_system_interaction(system, neighbor, semi) || return dv_ode
 
@@ -856,6 +861,34 @@ function system_interaction!(dv_ode, v_ode, u_ode, semi)
     end
 
     return dv_ode
+end
+
+# One-off experiment: fall back to the regular pairwise kernels unless a specialized
+# combined kernel is available for the complete tuple of systems.
+@inline function interact_combined_experiment!(dv_ode, v_ode, u_ode, system, semi,
+                                               systems)
+    return false
+end
+
+function interact_combined_experiment!(dv_ode, v_ode, u_ode,
+                                       system::WeaklyCompressibleSPHSystem{3}, semi,
+                                       systems::Tuple{<:WeaklyCompressibleSPHSystem{3},
+                                                      <:WallBoundarySystem{<:BoundaryModelDummyParticles{ContinuityDensity}}})
+    system === first(systems) || return false
+    fluid_system, boundary_system = systems
+
+    dv = wrap_v(dv_ode, fluid_system, semi)
+    v_fluid = wrap_v(v_ode, fluid_system, semi)
+    u_fluid = wrap_u(u_ode, fluid_system, semi)
+    v_boundary = wrap_v(v_ode, boundary_system, semi)
+    u_boundary = wrap_u(u_ode, boundary_system, semi)
+
+    @trixi_timeit timer() "fluid1-*" begin
+        interact_combined_raw!(dv, v_fluid, u_fluid, v_boundary, u_boundary,
+                               fluid_system, boundary_system, semi)
+    end
+
+    return true
 end
 
 # Function barrier to make benchmarking interactions easier.
