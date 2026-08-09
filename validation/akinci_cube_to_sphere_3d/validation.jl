@@ -261,7 +261,7 @@ if run_resolution_study
                        pressure_formulation=winner.pressure_formulation,
                        correction=winner.correction,
                        final_time=winner.final_time, cube_side_length,
-                       particles_per_dimension=resolution,
+                       :particles_per_dimension => resolution,
                        particle_spacing=resolution_particle_spacing,
                        smoothing_length_factor,
                        smoothing_length=winner.smoothing_length,
@@ -289,7 +289,9 @@ if run_resolution_study
                                          density_calculator=case.density_calculator,
                                          pressure_acceleration=case.pressure_acceleration,
                                          correction=case.correction,
-                                         particles_per_dimension=resolution,
+                                         # Prevent an outer `trixi_include` from rewriting this
+                                         # nested resolution override.
+                                         :particles_per_dimension => resolution,
                                          cube_side_length, fluid_density,
                                          smoothing_length_factor, sound_speed,
                                          time_step=resolution_time_step,
@@ -309,7 +311,7 @@ if run_resolution_study
                    pressure_formulation=winner.pressure_formulation,
                    correction=winner.correction,
                    final_time=tspan[2], cube_side_length,
-                   particles_per_dimension=resolution,
+                   :particles_per_dimension => resolution,
                    particle_spacing=resolution_particle_spacing,
                    smoothing_length_factor,
                    smoothing_length=resolution_smoothing_length,
