@@ -80,7 +80,7 @@ struct ColorfieldSurfaceNormal{ELTYPE, CONTACT_MODEL}
 end
 
 @doc raw"""
-    CorrectedCSFSurfaceNormal()
+    CorrectedCSFSurfaceNormal(; contact_angle=nothing)
 
 Interface geometry for the corrected continuous-surface-force (C-CSF) method of Vergnaud
 et al. (2022). The outward unit normal is computed from the renormalized gradient of the
@@ -88,10 +88,34 @@ smallest eigenvalue of the first-order kernel moment. Curvature uses the corresp
 renormalized divergence with the published thin-jet angular filter, and the surface delta
 uses the published Shepard correction.
 
-This explicit opt-in implements the single-fluid free-surface core (equations 15--25) with
-[`SurfaceTensionMorris`](@ref). Boundary-integral and contact-angle terms are not included.
+With `contact_angle=nothing`, this explicit opt-in implements the single-fluid free-surface core
+(equations 15--25) with [`SurfaceTensionMorris`](@ref). A finite `contact_angle` in degrees enables
+the planar boundary-integral geometry and contact-normal correction from equations 41--50. The
+angle is measured between the wall normal pointing into the fluid and the outward interface
+normal. Contact boundaries require a stationary `WallBoundarySystem`, a three-dimensional
+Wendland C2 kernel, explicit surface measures, and normal offset vectors. These terms correct
+interface geometry only; hydrodynamic wall interactions remain those of the configured boundary
+model.
 """
-struct CorrectedCSFSurfaceNormal end
+struct CorrectedCSFSurfaceNormal{CONTACT_ANGLE}
+    contact_angle::CONTACT_ANGLE
+
+    function CorrectedCSFSurfaceNormal(contact_angle::Nothing)
+        return new{Nothing}(contact_angle)
+    end
+
+    function CorrectedCSFSurfaceNormal(contact_angle::Real)
+        if !isfinite(contact_angle) || !(0 <= contact_angle <= 180)
+            throw(ArgumentError("`contact_angle` must be a finite real number in [0, 180] degrees"))
+        end
+        angle = float(contact_angle)
+        return new{typeof(angle)}(angle)
+    end
+end
+
+function CorrectedCSFSurfaceNormal(; contact_angle=nothing)
+    return CorrectedCSFSurfaceNormal(contact_angle)
+end
 
 @inline function supports_free_surface_shifting(::ColorfieldSurfaceNormal,
                                                 ::Union{SurfaceTensionMorris,
@@ -685,6 +709,15 @@ end
     return acceleration
 end
 
+function create_cache_surface_normal(::CorrectedCSFSurfaceNormal{<:Real}, ELTYPE, NDIMS,
+                                     nparticles)
+    cache = create_cache_surface_normal(CorrectedCSFSurfaceNormal(), ELTYPE, NDIMS,
+                                        nparticles)
+    ccsf_boundary_normal = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
+    ccsf_boundary_distance = Array{ELTYPE, 1}(undef, nparticles)
+    return (; cache..., ccsf_boundary_normal, ccsf_boundary_distance)
+end
+
 @inline function surface_normal(particle_system::AbstractFluidSystem, particle)
     (; cache) = particle_system
     return extract_svector(cache.surface_normal, particle_system, particle)
@@ -1020,6 +1053,36 @@ end
     return minimum(eigvals(Symmetric(symmetric_matrix)))
 end
 
+function ccsf_halfspace_outside_fraction(::WendlandC2Kernel{3}, normalized_distance)
+    distance = clamp(normalized_distance, zero(normalized_distance),
+                     convert(typeof(normalized_distance), 2))
+    distance >= 2 && return zero(distance)
+
+    # Integrate the normalized three-dimensional kernel over a spherical cap.
+    coefficients = (one(distance), zero(distance), -5one(distance) / 2,
+                    5one(distance) / 2, -15one(distance) / 16,
+                    one(distance) / 8)
+    upper = convert(typeof(distance), 2)
+    integral = zero(distance)
+    for power in 0:5
+        coefficient = coefficients[power + 1]
+        integral += coefficient *
+                    ((upper^(power + 3) - distance^(power + 3)) / (power + 3) -
+                     distance * (upper^(power + 2) - distance^(power + 2)) /
+                     (power + 2))
+    end
+    return 21integral / 8
+end
+
+@inline ccsf_eigenvalue_moment(moment, gamma,
+                               ::CorrectedCSFSurfaceNormal{Nothing}) = moment
+
+@inline function ccsf_eigenvalue_moment(moment, gamma,
+                                        ::CorrectedCSFSurfaceNormal{<:Real})
+    gamma > eps(gamma) || return moment
+    return moment / gamma
+end
+
 @inline function ccsf_corrected_divergence(normal_difference, renormalization,
                                            kernel_direction)
     return dot(renormalization * normal_difference, kernel_direction)
@@ -1029,8 +1092,214 @@ end
     return lambda_i >= oftype(lambda_i, 0.7) ? lambda_j - lambda_i : lambda_j
 end
 
+@inline ccsf_boundary_gamma(system, particle,
+                            ::CorrectedCSFSurfaceNormal{Nothing}) = one(eltype(system))
+
+@inline function ccsf_boundary_gamma(system, particle,
+                                     ::CorrectedCSFSurfaceNormal{<:Real})
+    distance = @inbounds system.cache.ccsf_boundary_distance[particle]
+    isfinite(distance) || return one(eltype(system))
+    normalized_distance = distance / smoothing_length(system, particle)
+    outside_fraction = ccsf_halfspace_outside_fraction(system_smoothing_kernel(system),
+                                                       normalized_distance)
+    return one(outside_fraction) - outside_fraction
+end
+
+@inline ccsf_has_boundary_geometry(::CorrectedCSFSurfaceNormal{Nothing}) = false
+@inline ccsf_has_boundary_geometry(::CorrectedCSFSurfaceNormal{<:Real}) = true
+
+@inline function ccsf_boundary_cache(system)
+    hasproperty(system, :boundary_model) || return nothing
+    cache = system.boundary_model.cache
+    haskey(cache, :surface_measure) || return nothing
+    return cache
+end
+
+@inline function check_corrected_csf_boundary_configuration!(system,
+                                                             surface_normal_method,
+                                                             systems)
+    return system
+end
+
+function check_corrected_csf_boundary_configuration!(system::AbstractFluidSystem,
+                                                     ::CorrectedCSFSurfaceNormal{<:Real},
+                                                     systems)
+    system_smoothing_kernel(system) isa WendlandC2Kernel{3} ||
+        throw(ArgumentError("C-CSF planar boundary geometry currently requires `WendlandC2Kernel{3}`"))
+
+    support = compact_support(system_smoothing_kernel(system),
+                              initial_smoothing_length(system))
+    fluid_count = 0
+    boundary_count = 0
+    foreach_system(systems) do candidate
+        if candidate isa AbstractFluidSystem
+            fluid_count += 1
+            return
+        end
+
+        valid_boundary = candidate isa WallBoundarySystem &&
+                         candidate.boundary_model isa BoundaryModelDummyParticles
+        valid_boundary ||
+            throw(ArgumentError("C-CSF boundary geometry supports only dummy-particle wall boundaries"))
+        isnothing(candidate.prescribed_motion) ||
+            throw(ArgumentError("C-CSF boundary geometry currently requires stationary walls"))
+
+        boundary_cache = candidate.boundary_model.cache
+        haskey(boundary_cache, :surface_measure) ||
+            throw(ArgumentError("C-CSF boundary geometry requires per-particle `surface_measure` values"))
+        normals = candidate.initial_condition.normals
+        isnothing(normals) &&
+            throw(ArgumentError("C-CSF boundary geometry requires boundary normal offset vectors"))
+        surface_measure = boundary_cache.surface_measure
+        any(>(zero(eltype(surface_measure))), surface_measure) ||
+            throw(ArgumentError("C-CSF boundary geometry requires a positive surface measure"))
+
+        for particle in eachparticle(candidate)
+            surface_measure[particle] > zero(eltype(surface_measure)) || continue
+            offset = extract_svector(normals, candidate, particle)
+            all(isfinite, offset) ||
+                throw(ArgumentError("C-CSF boundary normal offsets must be finite"))
+            offset_norm = norm(offset)
+            0 < offset_norm < support ||
+                throw(ArgumentError("C-CSF boundary normal offsets must place the physical face inside the kernel support"))
+        end
+        boundary_count += 1
+    end
+
+    fluid_count == 1 ||
+        throw(ArgumentError("C-CSF boundary geometry requires exactly one fluid system"))
+    boundary_count > 0 ||
+        throw(ArgumentError("C-CSF boundary geometry requires at least one boundary"))
+    return system
+end
+
+@inline function ccsf_face_geometry(system, neighbor_system, particle, neighbor,
+                                    pos_diff)
+    boundary_cache = ccsf_boundary_cache(neighbor_system)
+    isnothing(boundary_cache) && return nothing
+    surface_measure = @inbounds boundary_cache.surface_measure[neighbor]
+    surface_measure > zero(surface_measure) || return nothing
+    normals = neighbor_system.initial_condition.normals
+    isnothing(normals) && return nothing
+    offset = extract_svector(normals, neighbor_system, neighbor)
+    offset_norm = norm(offset)
+    offset_norm > eps(offset_norm) || return nothing
+    # The offset points from the physical face into the dummy-particle layer.
+    wall_normal = offset / offset_norm
+    face_diff = -pos_diff - offset # Physical face position minus fluid position.
+    kernel_distance = norm(face_diff)
+    kernel_distance < compact_support(system, neighbor_system) || return nothing
+    boundary_distance = abs(dot(face_diff, wall_normal))
+    return (; surface_measure, wall_normal, face_diff, kernel_distance,
+            boundary_distance)
+end
+
+@inline function accumulate_ccsf_boundary_moments!(system, neighbor_system, v, u,
+                                                   v_neighbor, u_neighbor, semi, method)
+    return system
+end
+
+function accumulate_ccsf_boundary_moments!(system::AbstractFluidSystem,
+                                           neighbor_system::AbstractBoundarySystem,
+                                           v, u, v_neighbor, u_neighbor, semi,
+                                           ::CorrectedCSFSurfaceNormal{<:Real})
+    cache = system.cache
+    system_coordinates = current_coordinates(u, system)
+    neighbor_coordinates = current_coordinates(u_neighbor, neighbor_system)
+    foreach_point_neighbor(system, neighbor_system, system_coordinates,
+                           neighbor_coordinates, semi;
+                           points=each_integrated_particle(system)) do particle, neighbor,
+                                                                       pos_diff, distance
+        geometry = ccsf_face_geometry(system, neighbor_system, particle, neighbor,
+                                      pos_diff)
+        isnothing(geometry) && return
+        (; surface_measure, wall_normal, face_diff, kernel_distance,
+         boundary_distance) = geometry
+        weight = surface_measure * smoothing_kernel(system, kernel_distance, particle)
+        moment = weight * face_diff * permutedims(wall_normal)
+        for column in 1:ndims(system), row in 1:ndims(system)
+            @inbounds cache.ccsf_correction_matrix[row, column,
+                                                   particle] += moment[row, column]
+        end
+        for dimension in 1:ndims(system)
+            @inbounds cache.ccsf_color_gradient[dimension,
+                                                particle] += weight * wall_normal[dimension]
+        end
+        if boundary_distance < @inbounds(cache.ccsf_boundary_distance[particle])
+            @inbounds cache.ccsf_boundary_distance[particle] = boundary_distance
+            for dimension in 1:ndims(system)
+                @inbounds cache.ccsf_boundary_normal[dimension,
+                                                     particle] = -wall_normal[dimension]
+            end
+        end
+    end
+    return system
+end
+
+@inline function accumulate_ccsf_boundary_lambda_gradient!(system, neighbor_system, u,
+                                                           u_neighbor, semi, method)
+    return system
+end
+
+function accumulate_ccsf_boundary_lambda_gradient!(system::AbstractFluidSystem,
+                                                   neighbor_system::AbstractBoundarySystem,
+                                                   u, u_neighbor, semi,
+                                                   ::CorrectedCSFSurfaceNormal{<:Real})
+    cache = system.cache
+    coordinates = current_coordinates(u, system)
+    neighbor_coordinates = current_coordinates(u_neighbor, neighbor_system)
+    foreach_point_neighbor(system, neighbor_system, coordinates, neighbor_coordinates, semi;
+                           points=each_integrated_particle(system)) do particle, neighbor,
+                                                                       pos_diff, distance
+        geometry = ccsf_face_geometry(system, neighbor_system, particle, neighbor,
+                                      pos_diff)
+        isnothing(geometry) && return
+        (; surface_measure, wall_normal, kernel_distance) = geometry
+        weight = surface_measure * smoothing_kernel(system, kernel_distance, particle)
+        lambda_i = @inbounds cache.ccsf_minimum_eigenvalue[particle]
+        renormalization = extract_smatrix(cache.ccsf_correction_matrix, system, particle)
+        coefficient = ccsf_lambda_difference(lambda_i, one(lambda_i))
+        contribution = coefficient * weight * renormalization * wall_normal
+        for dimension in 1:ndims(system)
+            @inbounds cache.ccsf_lambda_gradient[dimension,
+                                                 particle] += contribution[dimension]
+        end
+    end
+    return system
+end
+
+function apply_ccsf_contact_normal!(system, method::CorrectedCSFSurfaceNormal{<:Real})
+    cache = system.cache
+    support = compact_support(system_smoothing_kernel(system),
+                              initial_smoothing_length(system))
+    target_angle = deg2rad(convert(eltype(system), method.contact_angle))
+    for particle in each_integrated_particle(system)
+        distance = @inbounds cache.ccsf_boundary_distance[particle]
+        distance < support || continue
+        normal = surface_normal(system, particle)
+        dot(normal, normal) > eps(eltype(normal)) || continue
+        boundary_normal = extract_svector(cache.ccsf_boundary_normal, system, particle)
+        tangent = normal - dot(normal, boundary_normal) * boundary_normal
+        tangent_norm = norm(tangent)
+        tangent_norm > eps(tangent_norm) || continue
+        tangent /= tangent_norm
+        current_angle = acos(clamp(dot(normal, boundary_normal), -one(eltype(system)),
+                                   one(eltype(system))))
+        corrected_angle = target_angle +
+                          (current_angle - target_angle) * (distance / support)^2
+        corrected = cos(corrected_angle) * boundary_normal +
+                    sin(corrected_angle) * tangent
+        for dimension in 1:ndims(system)
+            @inbounds cache.surface_normal[dimension, particle] = corrected[dimension]
+        end
+    end
+    return system
+end
+
+@inline apply_ccsf_contact_normal!(system, method) = system
+
 function compute_surface_normal!(system::AbstractFluidSystem,
-                                 ::CorrectedCSFSurfaceNormal,
+                                 method::CorrectedCSFSurfaceNormal,
                                  v, u, v_ode, u_ode, semi, t)
     system.surface_tension isa SurfaceTensionMorris ||
         throw(ArgumentError("`CorrectedCSFSurfaceNormal` requires `SurfaceTensionMorris`"))
@@ -1050,6 +1319,11 @@ function compute_surface_normal!(system::AbstractFluidSystem,
     set_zero!(color_gradient)
     set_zero!(shepard_sum)
     set_zero!(cache.support_moment)
+    if ccsf_has_boundary_geometry(method)
+        set_zero!(cache.ccsf_boundary_normal)
+        fill!(cache.ccsf_boundary_distance,
+              typemax(eltype(cache.ccsf_boundary_distance)))
+    end
 
     @trixi_timeit timer() "compute C-CSF moments" begin
         foreach_point_neighbor(system, system, coordinates, coordinates, semi;
@@ -1076,12 +1350,32 @@ function compute_surface_normal!(system::AbstractFluidSystem,
         end
     end
 
+    if ccsf_has_boundary_geometry(method)
+        foreach_system(semi) do neighbor_system
+            v_neighbor = wrap_v(v_ode, neighbor_system, semi)
+            u_neighbor = wrap_u(u_ode, neighbor_system, semi)
+            accumulate_ccsf_boundary_moments!(system, neighbor_system, v, u,
+                                              v_neighbor, u_neighbor, semi, method)
+        end
+    end
+
     @threaded semi for particle in each_integrated_particle(system)
         inverse_renormalization = extract_smatrix(matrix_cache, system, particle)
-        @inbounds lambda[particle] = ccsf_minimum_eigenvalue(inverse_renormalization)
+        gamma = ccsf_boundary_gamma(system, particle, method)
+        eigenvalue_moment = ccsf_eigenvalue_moment(inverse_renormalization, gamma,
+                                                   method)
+        @inbounds lambda[particle] = ccsf_minimum_eigenvalue(eigenvalue_moment)
         renormalization = abs(det(inverse_renormalization)) < 1.0f-9 ?
                           one(inverse_renormalization) : inv(inverse_renormalization)
         ccsf_store_matrix!(matrix_cache, system, particle, renormalization)
+    end
+
+    if ccsf_has_boundary_geometry(method)
+        foreach_system(semi) do neighbor_system
+            u_neighbor = wrap_u(u_ode, neighbor_system, semi)
+            accumulate_ccsf_boundary_lambda_gradient!(system, neighbor_system, u,
+                                                      u_neighbor, semi, method)
+        end
     end
 
     @trixi_timeit timer() "compute C-CSF normal" begin
@@ -1122,11 +1416,13 @@ function compute_surface_normal!(system::AbstractFluidSystem,
 
         raw_gradient = extract_svector(color_gradient, system, particle)
         shepard = @inbounds shepard_sum[particle]
+        gamma = ccsf_boundary_gamma(system, particle, method)
         correction = shepard > eps(shepard) ?
-                     max(one(shepard), inv(2shepard)) : one(shepard)
-        @inbounds cache.delta_s[particle] = 2correction * norm(raw_gradient)
+                     max(one(shepard), gamma / (2shepard)) : one(shepard)
+        @inbounds cache.delta_s[particle] = 2correction / gamma * norm(raw_gradient)
         @inbounds cache.support_moment[particle] = lambda_i
     end
+    apply_ccsf_contact_normal!(system, method)
 
     return system
 end
@@ -1202,6 +1498,43 @@ function calc_curvature!(system::AbstractFluidSystem,
                                                ccsf_corrected_divergence(n_b - n_a,
                                                                          renormalization,
                                                                          grad_kernel)
+    end
+    return system
+end
+
+function calc_curvature!(system::AbstractFluidSystem,
+                         neighbor_system::AbstractBoundarySystem,
+                         u_system, v, v_neighbor_system, u_neighbor_system, semi,
+                         method::CorrectedCSFSurfaceNormal{<:Real},
+                         neighbor_surface_normal_method)
+    cache = system.cache
+    coordinates = current_coordinates(u_system, system)
+    neighbor_coordinates = current_coordinates(u_neighbor_system, neighbor_system)
+    target_angle = deg2rad(convert(eltype(system), method.contact_angle))
+    cosine_threshold = -inv(convert(eltype(system), ndims(system)))
+    foreach_point_neighbor(system, neighbor_system, coordinates, neighbor_coordinates, semi;
+                           points=each_integrated_particle(system)) do particle, neighbor,
+                                                                       pos_diff, distance
+        geometry = ccsf_face_geometry(system, neighbor_system, particle, neighbor,
+                                      pos_diff)
+        isnothing(geometry) && return
+        (; surface_measure, wall_normal, kernel_distance) = geometry
+        normal = surface_normal(system, particle)
+        dot(normal, normal) > eps(eltype(normal)) || return
+        boundary_normal = -wall_normal
+        tangent = normal - dot(normal, boundary_normal) * boundary_normal
+        tangent_norm = norm(tangent)
+        tangent_norm > eps(tangent_norm) || return
+        contact_normal = cos(target_angle) * boundary_normal +
+                         sin(target_angle) * tangent / tangent_norm
+        dot(normal, contact_normal) >= cosine_threshold || return
+        renormalization = extract_smatrix(cache.ccsf_correction_matrix, system, particle)
+        weight = surface_measure * smoothing_kernel(system, kernel_distance, particle)
+        @inbounds cache.curvature[particle] += weight *
+                                               ccsf_corrected_divergence(contact_normal -
+                                                                         normal,
+                                                                         renormalization,
+                                                                         wall_normal)
     end
     return system
 end

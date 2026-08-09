@@ -35,7 +35,9 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   Color-gradient and continuous support-moment indicators taper the physical surface delta without
   another neighbor pass.
 - Added `CorrectedCSFSurfaceNormal`, an explicit free-surface implementation of the C-CSF
-  interface geometry from Vergnaud et al. (2022) for `SurfaceTensionMorris`.
+  interface geometry from Vergnaud et al. (2022) for `SurfaceTensionMorris`. A finite contact
+  angle enables planar boundary-integral geometry on stationary dummy-particle walls with explicit
+  face measures and normal offsets; hydrodynamic wall coupling remains unchanged.
 - Added the computation of boundary normals for `RectangularTank`s and `SphereShape`s.
 - Added `flush` keyword argument to `InfoCallback` to flush `stdout` after each output,
   useful for monitoring progress in real-time on clusters or batch systems (#1246).

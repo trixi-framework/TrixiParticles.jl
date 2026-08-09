@@ -37,7 +37,9 @@ Boundary model for [`WallBoundarySystem`](@ref).
                                 which currently is only needed when using surface tension.
 - `surface_measure=nothing`:    Optional nonnegative quadrature weight for each boundary particle.
                                 Positive values represent samples on the physical boundary surface;
-                                zero marks particles in deeper dummy-particle layers.
+                                zero marks particles in deeper dummy-particle layers. These
+                                weights are used by C-CSF boundary geometry and wetted-area
+                                contact.
 # Examples
 ```jldoctest; output = false, setup = :(densities = [1.0, 2.0, 3.0]; masses = [0.1, 0.2, 0.3]; smoothing_kernel = SchoenbergCubicSplineKernel{2}(); smoothing_length = 0.1)
 # Free-slip condition

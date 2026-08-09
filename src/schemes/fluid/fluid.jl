@@ -298,6 +298,9 @@ end
 
 function check_configuration(fluid_system::AbstractFluidSystem, systems, nhs)
     if !(fluid_system isa ParticlePackingSystem)
+        check_corrected_csf_boundary_configuration!(fluid_system,
+                                                    surface_normal_method(fluid_system),
+                                                    systems)
         check_wetted_area_configuration!(fluid_system,
                                          surface_normal_method(fluid_system), systems)
     end
