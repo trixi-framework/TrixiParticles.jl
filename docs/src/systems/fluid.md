@@ -653,6 +653,15 @@ For constant smoothing length, every coefficient multiplying a particle pair is 
 Dummy boundary particles complete ``q_a`` near walls but do not carry capillary stress. The
 Akinci free-surface correction is deliberately not applied to this continuum stress.
 
+#### Validation
+
+The drivers in `validation/surface_tension_2d` and `validation/surface_tension_3d` measure the
+CSS operator against the Young-Laplace pressure jump. The two-dimensional driver also compares
+the instantaneous mode-2 restoring stiffness with the Rayleigh frequency. Committed reference
+results cover four resolutions in each dimension, while reduced CI checks require the fitted
+surface-tension error to remain below 6% in 2D and 2% in 3D, the Rayleigh frequency error below
+5%, and the net capillary force at roundoff.
+
 #### Wetted-area contact angle
 
 Young's wall energy can be enabled explicitly through the normal method:

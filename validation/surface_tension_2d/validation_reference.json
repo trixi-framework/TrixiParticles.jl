@@ -1,0 +1,108 @@
+{
+  "rayleigh_mode_2": [
+    {
+      "acceleration_rms": 11.112352356839647,
+      "frequency_error": 0.04295591829944412,
+      "omega_exact": 70.9106119592665,
+      "omega_measured": 73.95664241315234,
+      "omega_squared": 5469.584957026884,
+      "particle_count": 225,
+      "particle_spacing": 0.0012533141373155003,
+      "quadrupole": 4.423879360752858e-6,
+      "quadrupole_acceleration": -0.02419678400327554,
+      "radius": 0.010606601717798213,
+      "target_particle_count": 200
+    },
+    {
+      "acceleration_rms": 13.079756725567265,
+      "frequency_error": 0.039969525954901775,
+      "omega_exact": 72.73671379456064,
+      "omega_measured": 75.64396576444659,
+      "omega_squared": 5722.009556572767,
+      "particle_count": 435,
+      "particle_spacing": 0.000886226925452758,
+      "quadrupole": 4.280286618348131e-6,
+      "quadrupole_acceleration": -0.02449184093505854,
+      "radius": 0.010428326807307103,
+      "target_particle_count": 400
+    },
+    {
+      "acceleration_rms": 15.793094388723517,
+      "frequency_error": 0.03920359982024535,
+      "omega_exact": 74.01656412943377,
+      "omega_measured": 76.91827988963362,
+      "omega_squared": 5916.421781180015,
+      "particle_count": 850,
+      "particle_spacing": 0.0006266570686577501,
+      "quadrupole": 4.170752035793783e-6,
+      "quadrupole_acceleration": -0.024675928188471228,
+      "radius": 0.01030776406404415,
+      "target_particle_count": 800
+    }
+  ],
+  "young_laplace": {
+    "observed_order": 2.6518777233650725,
+    "results": [
+      {
+        "interface_particles": 50,
+        "ndims": 2,
+        "particle_count": 78,
+        "particle_spacing": 0.0013398491713813574,
+        "pressure_jump": 163.4814129061293,
+        "radius": 0.006676183683170241,
+        "relative_error": 0.09143194134551735,
+        "residual": 0.25344068619889837,
+        "sigma_fit": 1.0914319413455174,
+        "sigma_virial": 1.0375749376800554,
+        "surface_measure_ratio": 0.9455427925609031,
+        "target_particle_count": 63,
+        "total_force": 7.369941604692741e-16
+      },
+      {
+        "interface_particles": 64,
+        "ndims": 2,
+        "particle_count": 118,
+        "particle_spacing": 0.0010634723105433096,
+        "pressure_jump": 160.87642605537968,
+        "radius": 0.006517668294720129,
+        "relative_error": 0.048539181469035464,
+        "residual": 0.2546663366979736,
+        "sigma_fit": 1.0485391814690355,
+        "sigma_virial": 1.0378238663782853,
+        "surface_measure_ratio": 0.9394309082741257,
+        "target_particle_count": 100,
+        "total_force": 8.262311455338682e-16
+      },
+      {
+        "interface_particles": 83,
+        "ndims": 2,
+        "particle_count": 181,
+        "particle_spacing": 0.000846053143171924,
+        "pressure_jump": 158.969718630854,
+        "radius": 0.006421877165526754,
+        "relative_error": 0.020884006085694296,
+        "residual": 0.26105841147481307,
+        "sigma_fit": 1.0208840060856943,
+        "sigma_virial": 1.063881792888934,
+        "surface_measure_ratio": 0.9499822737818112,
+        "target_particle_count": 158,
+        "total_force": 5.605063087764203e-16
+      },
+      {
+        "interface_particles": 118,
+        "ndims": 2,
+        "particle_count": 279,
+        "particle_spacing": 0.0006712577702644259,
+        "pressure_jump": 155.5822133260394,
+        "radius": 0.006325815066454288,
+        "relative_error": 0.01581569086983492,
+        "residual": 0.3233592525554224,
+        "sigma_fit": 0.9841843091301651,
+        "sigma_virial": 1.0933310278911812,
+        "surface_measure_ratio": 0.9810456891415679,
+        "target_particle_count": 251,
+        "total_force": 2.7341025078088734e-16
+      }
+    ]
+  }
+}

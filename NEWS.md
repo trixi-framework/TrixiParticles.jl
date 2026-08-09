@@ -30,6 +30,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   `SurfaceTensionAkinci` normal-difference force to improve empirical resolution robustness.
 - Added a parameterized 3D cube-to-sphere shootout covering Akinci models across WCSPH,
   EDAC, and IISPH, including time-series and resolution-sensitivity analysis.
+- Added CSS Young-Laplace convergence and Rayleigh mode-2 stiffness validation in two and
+  three dimensions, with committed reference results and reduced CI checks.
 - Reworked `SurfaceTensionMomentumMorris` as a balanced continuum-surface-stress operator with a
   symmetric support correction. It conserves pairwise linear momentum without a cached stress
   tensor or global reduction.
