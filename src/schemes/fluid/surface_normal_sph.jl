@@ -1,7 +1,7 @@
 @doc raw"""
     ColorfieldSurfaceNormal(; boundary_contact_threshold=0.1, interface_threshold=0.01,
-                              ideal_density_threshold=0.0, interface_taper_start=0.8,
-                              support_taper_width=0.025)
+                               ideal_density_threshold=0.0, interface_taper_start=0.8,
+                               support_taper_width=0.025, normal_smoothing=false)
 
 Color field based computation of the interface normals.
 
@@ -16,6 +16,9 @@ Color field based computation of the interface normals.
                                     `interface_threshold`.
 - `support_taper_width=0.025`:      Width of the Morris CSF/CSS support-moment transition above
                                     `ideal_density_threshold`.
+- `normal_smoothing=false`:         Apply one activity-weighted Shepard smoothing pass to unit
+                                    normals before Morris curvature, force, or CSS stress
+                                    evaluation. Raw geometry remains unchanged.
 """
 struct ColorfieldSurfaceNormal{ELTYPE}
     boundary_contact_threshold::ELTYPE
@@ -23,6 +26,7 @@ struct ColorfieldSurfaceNormal{ELTYPE}
     ideal_density_threshold::ELTYPE
     interface_taper_start::ELTYPE
     support_taper_width::ELTYPE
+    normal_smoothing::Bool
 end
 
 @doc raw"""
@@ -55,7 +59,7 @@ end
 
 function ColorfieldSurfaceNormal(; boundary_contact_threshold=0.1, interface_threshold=0.01,
                                  ideal_density_threshold=0.0, interface_taper_start=0.8,
-                                 support_taper_width=0.025)
+                                 support_taper_width=0.025, normal_smoothing=false)
     if !(boundary_contact_threshold isa Real) || isnan(boundary_contact_threshold) ||
        boundary_contact_threshold < 0
         throw(ArgumentError("`boundary_contact_threshold` must be non-negative and not NaN"))
@@ -76,6 +80,8 @@ function ColorfieldSurfaceNormal(; boundary_contact_threshold=0.1, interface_thr
        support_taper_width <= 0
         throw(ArgumentError("`support_taper_width` must be finite and positive"))
     end
+    normal_smoothing isa Bool ||
+        throw(ArgumentError("`normal_smoothing` must be `true` or `false`"))
 
     thresholds = promote(boundary_contact_threshold, interface_threshold,
                          ideal_density_threshold)
@@ -87,7 +93,8 @@ function ColorfieldSurfaceNormal(; boundary_contact_threshold=0.1, interface_thr
 
     taper_start = convert(ELTYPE, interface_taper_start)
     taper_width = convert(ELTYPE, support_taper_width)
-    return ColorfieldSurfaceNormal(thresholds..., taper_start, taper_width)
+    return ColorfieldSurfaceNormal(thresholds..., taper_start, taper_width,
+                                   normal_smoothing)
 end
 
 @inline function cubic_smoothstep(value)
@@ -149,12 +156,18 @@ function create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS, npart
     return (;)
 end
 
-function create_cache_surface_normal(::ColorfieldSurfaceNormal, ELTYPE, NDIMS, nparticles)
+function create_cache_surface_normal(method::ColorfieldSurfaceNormal, ELTYPE, NDIMS,
+                                     nparticles)
     surface_normal = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
     neighbor_count = Array{ELTYPE, 1}(undef, nparticles)
     colorfield = Array{ELTYPE, 1}(undef, nparticles)
     correction_factor = Array{ELTYPE, 1}(undef, nparticles)
-    return (; surface_normal, neighbor_count, colorfield, correction_factor)
+    cache = (; surface_normal, neighbor_count, colorfield, correction_factor)
+    method.normal_smoothing || return cache
+
+    smoothed_surface_normal = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
+    normal_smoothing_weight = Array{ELTYPE, 1}(undef, nparticles)
+    return (; cache..., smoothed_surface_normal, normal_smoothing_weight)
 end
 
 function create_cache_surface_normal(::CorrectedCSFSurfaceNormal, ELTYPE, NDIMS, nparticles)
@@ -174,6 +187,22 @@ end
 @inline function surface_normal(particle_system::AbstractFluidSystem, particle)
     (; cache) = particle_system
     return extract_svector(cache.surface_normal, particle_system, particle)
+end
+
+@inline function surface_tension_normal(particle_system::AbstractFluidSystem, particle)
+    return surface_tension_normal(surface_normal_method(particle_system), particle_system,
+                                  particle)
+end
+
+@inline function surface_tension_normal(surface_normal_method, particle_system, particle)
+    return surface_normal(particle_system, particle)
+end
+
+@inline function surface_tension_normal(method::ColorfieldSurfaceNormal, particle_system,
+                                        particle)
+    method.normal_smoothing || return surface_normal(particle_system, particle)
+    return extract_svector(particle_system.cache.smoothed_surface_normal,
+                           particle_system, particle)
 end
 
 function calc_normal!(system, neighbor_system, u_system, v, v_neighbor_system,
@@ -389,6 +418,59 @@ end
     return system
 end
 
+@inline function smooth_surface_normals!(system, surface_normal_method, v, u, semi)
+    return system
+end
+
+function smooth_surface_normals!(system::AbstractFluidSystem,
+                                 surface_normal_method::ColorfieldSurfaceNormal,
+                                 v, u, semi)
+    surface_normal_method.normal_smoothing || return system
+    cache = system.cache
+    normal_sum = cache.smoothed_surface_normal
+    weight_sum = cache.normal_smoothing_weight
+    coordinates = current_coordinates(u, system)
+    set_zero!(normal_sum)
+    set_zero!(weight_sum)
+
+    @trixi_timeit timer() "smooth surface normals" begin
+        foreach_point_neighbor(system, system, coordinates, coordinates, semi;
+                               points=each_integrated_particle(system)) do particle,
+                                                                           neighbor,
+                                                                           pos_diff,
+                                                                           distance
+            target_activity = surface_interface_activity(system, particle)
+            target_activity > zero(target_activity) || return
+            activity = surface_interface_activity(system, neighbor)
+            activity > zero(activity) || return
+            volume = hydrodynamic_mass(system, neighbor) /
+                     current_density(v, system, neighbor)
+            weight = activity * volume * smoothing_kernel(system, distance, particle)
+            normal = surface_normal(system, neighbor)
+            for dimension in 1:ndims(system)
+                @inbounds normal_sum[dimension, particle] += weight * normal[dimension]
+            end
+            @inbounds weight_sum[particle] += weight
+        end
+    end
+
+    for particle in each_integrated_particle(system)
+        surface_interface_activity(system, particle) > zero(eltype(system)) || continue
+        weight = @inbounds weight_sum[particle]
+        normal = extract_svector(normal_sum, system, particle)
+        normal_norm = norm(normal)
+        raw_normal = surface_normal(system, particle)
+        use_smoothed_normal = weight > eps(weight) && normal_norm > eps(normal_norm)
+        for dimension in 1:ndims(system)
+            @inbounds normal_sum[dimension,
+                                 particle] = use_smoothed_normal ?
+                                             normal[dimension] / normal_norm :
+                                             raw_normal[dimension]
+        end
+    end
+    return system
+end
+
 function compute_surface_normal!(system, surface_normal_method, v, u, v_ode, u_ode, semi, t)
     return system
 end
@@ -413,6 +495,7 @@ function compute_surface_normal!(system::AbstractFluidSystem,
                      surface_normal_method(neighbor_system))
     end
     remove_invalid_normals!(system, surface_tension, surface_normal_method_)
+    smooth_surface_normals!(system, surface_normal_method_, v, u, semi)
 
     return system
 end
@@ -562,8 +645,8 @@ function calc_curvature!(system::AbstractFluidSystem, neighbor_system::AbstractF
                            semi) do particle, neighbor, pos_diff, distance
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
         rho_b = current_density(v_neighbor_system, neighbor_system, neighbor)
-        n_a = surface_normal(system, particle)
-        n_b = surface_normal(neighbor_system, neighbor)
+        n_a = surface_tension_normal(system, particle)
+        n_b = surface_tension_normal(neighbor_system, neighbor)
         v_b = m_b / rho_b
         activity_a = surface_interface_activity(system, particle)
         activity_b = surface_interface_activity(neighbor_system, neighbor)

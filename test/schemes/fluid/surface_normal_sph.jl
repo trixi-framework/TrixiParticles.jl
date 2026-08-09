@@ -228,6 +228,105 @@ end
     @test isapprox(weighted_curvature, 2 / radius; rtol=0.15)
 end
 
+@testset "Shepard-smoothed CSS normals" begin
+    particle_spacing = 0.1
+    reference_density = 1000.0
+    fluid = SphereShape(particle_spacing, 0.5, (0.0, 0.0, 0.0), reference_density;
+                        sphere_type=RoundSphere())
+    smoothing_kernel = WendlandC2Kernel{3}()
+    smoothing_length = 1.4particle_spacing
+    state_equation = StateEquationCole(; sound_speed=10.0, reference_density,
+                                       exponent=7)
+    surface_tension = SurfaceTensionMomentumMorris(; surface_tension_coefficient=1.0)
+    normal_method = ColorfieldSurfaceNormal(; ideal_density_threshold=0.95,
+                                            normal_smoothing=true)
+    system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel, smoothing_length,
+                                         density_calculator=ContinuityDensity(),
+                                         state_equation, surface_tension,
+                                         surface_normal_method=normal_method,
+                                         reference_particle_spacing=particle_spacing)
+    semi = Semidiscretization(system)
+    ode = semidiscretize(semi, (0.0, 0.01))
+    v_ode, u_ode = ode.u0.x
+    TrixiParticles.update_systems_and_nhs(v_ode, u_ode, semi, 0.0)
+
+    active = findall(>(0), system.cache.interface_activity)
+    @test !isempty(active)
+    @test haskey(system.cache, :smoothed_surface_normal)
+    @test haskey(system.cache, :normal_smoothing_weight)
+    @test all(isfinite, system.cache.smoothed_surface_normal)
+    @test all(isfinite, system.cache.normal_smoothing_weight)
+    @test all(active) do particle
+        isapprox(norm(TrixiParticles.surface_tension_normal(system, particle)), 1;
+                 atol=1.0e-12)
+    end
+
+    raw_system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel, smoothing_length,
+                                             density_calculator=ContinuityDensity(),
+                                             state_equation, surface_tension,
+                                             surface_normal_method=ColorfieldSurfaceNormal(;
+                                                                                           ideal_density_threshold=0.95),
+                                             reference_particle_spacing=particle_spacing)
+    raw_semi = Semidiscretization(raw_system)
+    raw_ode = semidiscretize(raw_semi, (0.0, 0.01))
+    TrixiParticles.update_systems_and_nhs(raw_ode.u0.x..., raw_semi, 0.0)
+
+    # Smoothing changes only the capillary direction, not raw geometry or activity.
+    @test !haskey(raw_system.cache, :smoothed_surface_normal)
+    @test !haskey(raw_system.cache, :normal_smoothing_weight)
+    @test system.cache.surface_normal ≈ raw_system.cache.surface_normal
+    @test system.cache.interface_activity ≈ raw_system.cache.interface_activity
+    @test system.cache.delta_s ≈ raw_system.cache.delta_s
+    differences = [norm(TrixiParticles.surface_tension_normal(system, particle) -
+                        TrixiParticles.surface_normal(system, particle))
+                   for particle in active]
+    candidate = active[argmax(differences)]
+    @test maximum(differences) > 1.0e-4
+
+    inactive = setdiff(eachparticle(system), active)
+    @test all(particle -> iszero(TrixiParticles.surface_tension_normal(system, particle)),
+              inactive)
+
+    grad_kernel = SVector(0.3, -0.4, 0.2)
+    normal = TrixiParticles.surface_tension_normal(system, candidate)
+    delta_s = system.cache.delta_s[candidate]
+    expected_stress_gradient = delta_s *
+                               (grad_kernel - normal * dot(normal, grad_kernel))
+    @test TrixiParticles.surface_stress_times_gradient(system, candidate, grad_kernel) ≈
+          expected_stress_gradient
+
+    vtk = Dict{String, Any}()
+    GC.@preserve v_ode u_ode begin
+        v = TrixiParticles.wrap_v(v_ode, system, semi)
+        u = TrixiParticles.wrap_u(u_ode, system, semi)
+        TrixiParticles.write2vtk!(vtk, v, u, 0.0, system)
+    end
+    expected_stress = delta_s *
+                      (Matrix{Float64}(I, 3, 3) - normal * transpose(normal))
+    @test vtk["surf_normal"][candidate] ≈ TrixiParticles.surface_normal(system, candidate)
+    @test vtk["surface_tension_normal"][candidate] ≈ normal
+    @test vtk["surface_stress_tensor"][:, :, candidate] ≈ expected_stress
+
+    system.cache.surface_normal .= reshape([1.0, 0.0, 0.0], 3, 1)
+    system.cache.interface_activity .= 1
+    GC.@preserve v_ode u_ode begin
+        v = TrixiParticles.wrap_v(v_ode, system, semi)
+        u = TrixiParticles.wrap_u(u_ode, system, semi)
+        TrixiParticles.smooth_surface_normals!(system, normal_method, v, u, semi)
+    end
+    @test all(particle -> TrixiParticles.surface_tension_normal(system, particle) ==
+                          SVector(1.0, 0.0, 0.0), eachparticle(system))
+
+    system.cache.surface_normal .= 0
+    GC.@preserve v_ode u_ode begin
+        v = TrixiParticles.wrap_v(v_ode, system, semi)
+        u = TrixiParticles.wrap_u(u_ode, system, semi)
+        TrixiParticles.smooth_surface_normals!(system, normal_method, v, u, semi)
+    end
+    @test all(iszero, system.cache.smoothed_surface_normal)
+    @test all(isfinite, system.cache.smoothed_surface_normal)
+end
+
 @testset "CSS flat-pool geometry" begin
     particle_spacing = 0.1
     reference_density = 1000.0

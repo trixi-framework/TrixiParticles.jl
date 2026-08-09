@@ -255,7 +255,7 @@ end
     delta_s = @inbounds particle_system.cache.delta_s[particle]
     iszero(delta_s) && return zero(vector_template)
 
-    normal = surface_normal(particle_system, particle)
+    normal = surface_tension_normal(particle_system, particle)
     curvature_a = curvature(particle_system, particle)
     return -surface_tension.surface_tension_coefficient / rho_a * curvature_a * delta_s *
            normal
@@ -265,7 +265,7 @@ end
     delta_s = @inbounds particle_system.cache.delta_s[particle]
     iszero(delta_s) && return zero(grad_kernel)
 
-    normal = surface_normal(particle_system, particle)
+    normal = surface_tension_normal(particle_system, particle)
     return delta_s * (grad_kernel - normal * dot(normal, grad_kernel))
 end
 

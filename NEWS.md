@@ -21,6 +21,9 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Reworked `SurfaceTensionMomentumMorris` as a balanced continuum-surface-stress operator with a
   symmetric support correction. It conserves pairwise linear momentum without a cached stress
   tensor or global reduction.
+- Added opt-in activity-weighted Shepard normal smoothing for Morris CSF/CSS and expanded VTK
+  output with raw and capillary normals, surface delta, activity, support, force, and reconstructed
+  stress diagnostics.
 - Added C1 interface activation for Morris CSF and CSS with `ColorfieldSurfaceNormal`.
   Color-gradient and continuous support-moment indicators taper the physical surface delta without
   another neighbor pass.

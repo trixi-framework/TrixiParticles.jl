@@ -339,36 +339,48 @@ function write2vtk!(vtk, v, u, t, system::AbstractFluidSystem)
     if system.surface_tension isa SurfaceTensionMorris ||
        system.surface_tension isa SurfaceTensionMomentumMorris
         surface_tension = zeros((ndims(system), n_integrated_particles(system)))
-        system_coords = current_coordinates(u, system)
-
         surface_tension_a = surface_tension_model(system)
-        surface_tension_b = surface_tension_model(system)
-        nhs = create_neighborhood_search(nothing, system, system)
+        if surface_tension_a isa SurfaceTensionMorris
+            for particle in each_integrated_particle(system)
+                rho_a = current_density(v, system, particle)
+                velocity = current_velocity(v, system, particle)
+                acceleration = surface_tension_acceleration(surface_tension_a, system,
+                                                            particle, rho_a, velocity)
+                surface_tension[1:ndims(system), particle] .= acceleration
+            end
+        else
+            system_coords = current_coordinates(u, system)
+            nhs = create_neighborhood_search(nothing, system, system)
+            foreach_point_neighbor(system_coords, system_coords,
+                                   nhs) do particle, neighbor, pos_diff, distance
+                rho_a = current_density(v, system, particle)
+                rho_b = current_density(v, system, neighbor)
+                grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
-        foreach_point_neighbor(system_coords, system_coords,
-                               nhs) do particle, neighbor, pos_diff, distance
-            rho_a = current_density(v, system, particle)
-            rho_b = current_density(v, system, neighbor)
-            grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
+                dv_surface_tension = Ref(zero(pos_diff))
+                surface_tension_force!(dv_surface_tension,
+                                       surface_tension_a, surface_tension_a,
+                                       system, system, particle, neighbor,
+                                       pos_diff, distance, rho_a, rho_b, grad_kernel, 1)
 
-            dv_surface_tension = Ref(zero(pos_diff))
-            surface_tension_force!(dv_surface_tension,
-                                   surface_tension_a, surface_tension_b,
-                                   system, system, particle, neighbor,
-                                   pos_diff, distance, rho_a, rho_b, grad_kernel, 1)
-
-            surface_tension[1:ndims(system), particle] .+= dv_surface_tension[]
+                surface_tension[1:ndims(system), particle] .+= dv_surface_tension[]
+            end
         end
         vtk["surface_tension"] = surface_tension
+        vtk["surface_delta"] = system.cache.delta_s
+        vtk["interface_activity"] = system.cache.interface_activity
+        vtk["surface_tension_normal"] = [surface_tension_normal(system, particle)
+                                         for particle in eachparticle(system)]
 
         if system.surface_tension isa SurfaceTensionMorris
             vtk["curvature"] = system.cache.curvature
+            vtk["surface_support_moment"] = system.cache.support_moment
         end
         if system.surface_tension isa SurfaceTensionMomentumMorris
             stress_tensor = zeros(eltype(system), ndims(system), ndims(system),
                                   n_integrated_particles(system))
             for particle in each_integrated_particle(system)
-                normal = surface_normal(system, particle)
+                normal = surface_tension_normal(system, particle)
                 delta_s = system.cache.delta_s[particle]
                 for i in 1:ndims(system), j in 1:ndims(system)
                     stress_tensor[i, j,

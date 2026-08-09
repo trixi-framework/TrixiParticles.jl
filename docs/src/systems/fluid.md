@@ -421,6 +421,26 @@ support instead of an integer neighbor-count fraction. Dummy boundary particles 
 ``q_a`` near walls without carrying capillary stress. These controls do not alter the separate
 C-CSF geometry described below.
 
+#### Optional normal smoothing
+
+`ColorfieldSurfaceNormal(normal_smoothing=true)` applies one activity-weighted Shepard pass to
+the unit-normal directions. For active neighbors,
+
+```math
+\widetilde{\bm n}_a =
+\frac{\sum_b \lambda_b(m_b/\rho_b)W_{ab}\hat{\bm n}_b}
+     {\sum_b \lambda_b(m_b/\rho_b)W_{ab}},
+\qquad
+\hat{\bm n}^{\sigma}_a =
+\frac{\widetilde{\bm n}_a}{\Vert\widetilde{\bm n}_a\Vert}.
+```
+
+The raw normal is used as a finite fallback when the weighted direction is undefined. Smoothing
+changes only the normal used by Morris curvature and force evaluation and by CSS stress
+evaluation. The raw colorfield normal, interface activity, and surface delta remain unchanged,
+so geometry diagnostics and particle regularization are not silently modified. The option is
+disabled by default and therefore adds no cache or traversal unless requested.
+
 [`CorrectedCSFSurfaceNormal`](@ref) selects the corrected continuous-surface-force (C-CSF)
 interface geometry of [Vergnaud et al.](@cite Vergnaud2022) for [`SurfaceTensionMorris`](@ref). It
 computes the outward normal from the renormalized gradient of the minimum eigenvalue of the
@@ -499,6 +519,12 @@ For constant smoothing length, every coefficient multiplying a particle pair is 
 ``\nabla_bW_{ba}=-\nabla_aW_{ab}``. The model therefore conserves linear momentum to roundoff.
 Dummy boundary particles complete ``q_a`` near walls but do not carry capillary stress. The
 Akinci free-surface correction is deliberately not applied to this continuum stress.
+
+VTK output exposes both `surf_normal`, the raw geometry normal, and `surface_tension_normal`, the
+normal actually used by the capillary operator. It also includes `surface_delta`,
+`interface_activity`, and `surface_tension`. Morris CSF adds `curvature` and
+`surface_support_moment`; CSS adds `surface_divergence_correction` and the physical
+`surface_stress_tensor`, reconstructed only while writing output.
 
 ### API
 

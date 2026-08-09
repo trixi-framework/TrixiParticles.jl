@@ -9,6 +9,7 @@
         @test method isa ColorfieldSurfaceNormal{Float64}
         @test method.interface_taper_start === 0.8
         @test method.support_taper_width === 0.05
+        @test !method.normal_smoothing
         @test ColorfieldSurfaceNormal(1, 1, 0) isa ColorfieldSurfaceNormal{Float64}
         @test ColorfieldSurfaceNormal(; boundary_contact_threshold=0.1f0,
                                       interface_threshold=0.01f0,
@@ -68,12 +69,17 @@
             @test_throws ArgumentError ColorfieldSurfaceNormal(;
                                                                support_taper_width=taper_width)
         end
+        for normal_smoothing in (0, 1, nothing)
+            @test_throws ArgumentError ColorfieldSurfaceNormal(; normal_smoothing)
+        end
+        @test ColorfieldSurfaceNormal(; normal_smoothing=true).normal_smoothing
 
         system_data = Dict{String, Any}()
         TrixiParticles.add_system_data!(system_data, method)
         @test system_data["surface_normal_method"]["interface_threshold"] ≈ 0.1
         @test system_data["surface_normal_method"]["interface_taper_start"] === 0.8
         @test system_data["surface_normal_method"]["support_taper_width"] === 0.05
+        @test system_data["surface_normal_method"]["normal_smoothing"] === false
     end
 
     @testset verbose=true "`cohesion_force_akinci`" begin
@@ -167,7 +173,7 @@
     end
 
     @testset "Morris CSF local force" begin
-        function build_morris_system(solver, particle_count)
+        function build_morris_system(solver, particle_count; normal_smoothing=false)
             coordinates = zeros(2, particle_count)
             coordinates[1, :] .= range(0.0; step=0.25, length=particle_count)
             initial_condition = InitialCondition(; coordinates,
@@ -177,7 +183,8 @@
                                                  particle_spacing=0.25)
             smoothing_kernel = WendlandC2Kernel{2}()
             surface_tension = SurfaceTensionMorris(; surface_tension_coefficient=0.7)
-            normal_method = ColorfieldSurfaceNormal(; interface_threshold=0.1)
+            normal_method = ColorfieldSurfaceNormal(; interface_threshold=0.1,
+                                                    normal_smoothing)
             if solver == :wcsph
                 return WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
                                                    smoothing_length=0.5,
@@ -261,6 +268,19 @@
                                                                    system, 1, 1.0,
                                                                    SVector(0.0, 0.0))
         @test acceleration ≈ SVector(-4.2, 0.0)
+
+        smoothed_system = build_morris_system(:wcsph, 2; normal_smoothing=true)
+        smoothed_system.cache.surface_normal .= [1.0 1.0; 0.0 0.0]
+        smoothed_system.cache.smoothed_surface_normal .= [0.0 0.0; 1.0 1.0]
+        smoothed_system.cache.curvature .= 3.0
+        smoothed_system.cache.delta_s .= 2.0
+        smoothed_acceleration = TrixiParticles.surface_tension_acceleration(smoothed_system.surface_tension,
+                                                                            smoothed_system,
+                                                                            1, 1.0,
+                                                                            SVector(0.0,
+                                                                                    0.0))
+        @test smoothed_acceleration ≈ SVector(0.0, -4.2)
+        @test TrixiParticles.surface_normal(smoothed_system, 1) == SVector(1.0, 0.0)
         system.cache.curvature[1] /= 2
         system.cache.delta_s[1] /= 2
         scaled_acceleration = TrixiParticles.surface_tension_acceleration(system.surface_tension,
@@ -273,6 +293,28 @@
         ode = semidiscretize(semi, (0.0, 0.01))
         v_ode, u_ode = ode.u0.x
         TrixiParticles.update_systems_and_nhs(v_ode, u_ode, semi, 0.0)
+        system.cache.surface_normal[1, :] .= 1.0
+        system.cache.surface_normal[2, :] .= 0.0
+        system.cache.curvature .= 3.0
+        system.cache.delta_s .= 2.0
+        system.cache.interface_activity .= 1.0
+        vtk = Dict{String, Any}()
+        expected_vtk_acceleration = GC.@preserve v_ode u_ode begin
+            v = TrixiParticles.wrap_v(v_ode, system, semi)
+            u = TrixiParticles.wrap_u(u_ode, system, semi)
+            rho_a = TrixiParticles.current_density(v, system, 1)
+            velocity = TrixiParticles.current_velocity(v, system, 1)
+            expected = TrixiParticles.surface_tension_acceleration(system.surface_tension,
+                                                                   system, 1, rho_a,
+                                                                   velocity)
+            TrixiParticles.write2vtk!(vtk, v, u, 0.0, system)
+            expected
+        end
+        @test vtk["surface_tension"][:, 1] ≈ expected_vtk_acceleration
+        @test vtk["surface_delta"] == system.cache.delta_s
+        @test vtk["interface_activity"] == system.cache.interface_activity
+        @test vtk["surface_support_moment"] == system.cache.support_moment
+        @test vtk["surface_tension_normal"][1] == SVector(1.0, 0.0)
         system.cache.surface_normal .= [1.0 0.0; 0.0 1.0]
 
         function curvature_with_neighbor_activity(activity)
@@ -386,6 +428,10 @@
             u = TrixiParticles.wrap_u(u_ode, system, semi)
             TrixiParticles.write2vtk!(vtk, v, u, 0.0, system)
         end
+        @test vtk["surface_delta"] == system.cache.delta_s
+        @test vtk["interface_activity"] == system.cache.interface_activity
+        @test vtk["surface_tension_normal"] == [TrixiParticles.surface_normal(system, 1),
+            TrixiParticles.surface_normal(system, 2)]
         @test vtk["surface_divergence_correction"] == [0.5, 1.0]
         @test size(vtk["surface_stress_tensor"]) == (2, 2, 2)
         @test vtk["surface_stress_tensor"][:, :, 1] ≈ [0.0 0.0; 0.0 4.0]
