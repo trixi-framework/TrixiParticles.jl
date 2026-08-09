@@ -432,8 +432,24 @@ surface_tension = SurfaceTensionMorris(surface_tension_coefficient=0.072)
 surface_normal_method = CorrectedCSFSurfaceNormal()
 ```
 
-This explicit opt-in supports one fluid system and free-surface geometry. Boundary-integral and
-contact-angle terms are not included.
+This explicit opt-in supports one fluid system. Setting a finite contact angle enables the planar
+boundary-integral moment, eigenvalue-gradient, color-gradient, and curvature terms together with
+the distance-weighted contact-normal correction of Vergnaud et al.:
+
+```julia
+surface_normal_method = CorrectedCSFSurfaceNormal(contact_angle=90.0)
+```
+
+The angle is measured between the wall normal pointing into the fluid and the outward interface
+normal. Every participating boundary must be a stationary `WallBoundarySystem` using dummy
+particles with explicit positive surface quadrature weights on its physical face
+(`surface_measure` in `BoundaryModelDummyParticles`). Its `InitialCondition` normal vectors point
+from each physical face into the dummy-particle layer, with magnitude equal to the face-to-particle
+offset. The analytical half-space overlap and boundary terms currently require a 3D
+`WendlandC2Kernel`. Moving walls, general curved BIM faces, rigid boundaries, and ghost-particle
+C-CSF geometry are not implemented. These boundary integrals correct C-CSF interface geometry
+only; continuity, pressure, and viscosity at the wall still use the selected dummy-particle
+boundary model rather than the hydrodynamic BIM equations of Vergnaud et al.
 
 ---
 

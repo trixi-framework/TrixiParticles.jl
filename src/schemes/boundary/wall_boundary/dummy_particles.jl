@@ -4,7 +4,8 @@
                                 smoothing_length; viscosity=nothing,
                                 state_equation=nothing, correction=nothing,
                                 clip_negative_pressure=false,
-                                reference_particle_spacing=0.0)
+                                 reference_particle_spacing=0.0,
+                                 surface_measure=nothing)
 
 Boundary model for [`WallBoundarySystem`](@ref).
 
@@ -33,7 +34,10 @@ Boundary model for [`WallBoundarySystem`](@ref).
                                 in areas of low pressure, against which the particle
                                 shifting technique is fighting.
 - `reference_particle_spacing`: The reference particle spacing used for weighting values at the boundary,
-                                which currently is only needed when using surface tension.
+                                 which currently is only needed when using surface tension.
+- `surface_measure=nothing`: Optional nonnegative per-particle surface quadrature weights.
+                             These are required by C-CSF boundary geometry, where zero marks
+                             particles below the physical boundary face.
 # Examples
 ```jldoctest; output = false, setup = :(densities = [1.0, 2.0, 3.0]; masses = [0.1, 0.2, 0.3]; smoothing_kernel = SchoenbergCubicSplineKernel{2}(); smoothing_length = 0.1)
 # Free-slip condition
@@ -88,7 +92,8 @@ end
                                 state_equation=system_state_equation(fluid_system),
                                 correction=system_correction(fluid_system),
                                 clip_negative_pressure=false,
-                                reference_particle_spacing=default_reference_particle_spacing(fluid_system))
+                                reference_particle_spacing=default_reference_particle_spacing(fluid_system),
+                                surface_measure=nothing)
 
 High-level convenience constructor for dummy-particle wall models that infers the kernel,
 smoothing length, correction, and equation-of-state-related settings from the adjacent
@@ -105,13 +110,14 @@ function BoundaryModelDummyParticles(initial_condition;
                                      state_equation=system_state_equation(fluid_system),
                                      correction=system_correction(fluid_system),
                                      clip_negative_pressure=false,
-                                     reference_particle_spacing=default_reference_particle_spacing(fluid_system))
+                                     reference_particle_spacing=default_reference_particle_spacing(fluid_system),
+                                     surface_measure=nothing)
     return BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                        boundary_density_calculator, smoothing_kernel,
                                        smoothing_length;
                                        viscosity, state_equation, correction,
                                        clip_negative_pressure,
-                                       reference_particle_spacing)
+                                       reference_particle_spacing, surface_measure)
 end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
@@ -121,7 +127,8 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                      smoothing_length; viscosity=nothing,
                                      state_equation=nothing, correction=nothing,
                                      clip_negative_pressure=false,
-                                     reference_particle_spacing=0.0)
+                                     reference_particle_spacing=0.0,
+                                     surface_measure=nothing)
     pressure = initial_boundary_pressure(initial_density, density_calculator,
                                          state_equation)
     NDIMS = ndims(smoothing_kernel)
@@ -131,7 +138,8 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
 
     cache = (; create_cache_model(viscosity, n_particles, NDIMS)...,
              create_cache_model(initial_density, density_calculator, NDIMS)...,
-             create_cache_model(correction, initial_density, NDIMS, n_particles)...)
+             create_cache_model(correction, initial_density, NDIMS, n_particles)...,
+             create_cache_surface_measure(surface_measure, ELTYPE, n_particles)...)
 
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
     if reference_particle_spacing > 0
@@ -147,6 +155,19 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                        density_calculator, smoothing_kernel,
                                        smoothing_length, viscosity, correction, cache,
                                        clip_negative_pressure)
+end
+
+@inline create_cache_surface_measure(::Nothing, ELTYPE, n_particles) = (;)
+
+function create_cache_surface_measure(surface_measure, ELTYPE, n_particles)
+    surface_measure isa AbstractVector ||
+        throw(ArgumentError("`surface_measure` must be a vector with one value per boundary particle"))
+    length(surface_measure) == n_particles ||
+        throw(ArgumentError("`surface_measure` must contain $n_particles values, got $(length(surface_measure))"))
+    all(value -> value isa Real && isfinite(value) && value >= 0, surface_measure) ||
+        throw(ArgumentError("`surface_measure` values must be finite, real, and nonnegative"))
+
+    return (; surface_measure=collect(ELTYPE, surface_measure))
 end
 
 @inline function default_reference_particle_spacing(fluid_system)

@@ -328,6 +328,7 @@ end
 function add_system_data!(system_data, surface_normal_method::CorrectedCSFSurfaceNormal)
     system_data["surface_normal_method"] = Dict{String, Any}()
     system_data["surface_normal_method"]["model"] = type2string(surface_normal_method)
+    system_data["surface_normal_method"]["contact_angle"] = surface_normal_method.contact_angle
 end
 
 function add_system_data!(system_data, boundary_zone::BoundaryZone, indice)
