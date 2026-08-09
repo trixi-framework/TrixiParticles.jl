@@ -43,6 +43,17 @@ This explicit opt-in implements the single-fluid free-surface core (equations 15
 """
 struct CorrectedCSFSurfaceNormal end
 
+@inline function supports_free_surface_shifting(::ColorfieldSurfaceNormal,
+                                                ::Union{SurfaceTensionMorris,
+                                                        SurfaceTensionMomentumMorris})
+    return true
+end
+
+@inline function supports_free_surface_shifting(::CorrectedCSFSurfaceNormal,
+                                                ::SurfaceTensionMorris)
+    return true
+end
+
 @inline validate_corrected_csf(surface_normal_method, surface_tension) = nothing
 
 function validate_corrected_csf(::CorrectedCSFSurfaceNormal, surface_tension)

@@ -367,6 +367,10 @@ end
 function add_system_data!(system_data, shifting_technique::ParticleShiftingTechnique)
     system_data["shifting_technique"] = Dict{String, Any}()
     system_data["shifting_technique"]["model"] = type2string(shifting_technique)
+    treatment = shifting_technique.free_surface_treatment
+    system_data["shifting_technique"]["free_surface_treatment"] = isnothing(treatment) ?
+                                                                  nothing :
+                                                                  type2string(treatment)
 end
 
 function add_system_data!(system_data, viscosity::ViscosityCarreauYasuda)

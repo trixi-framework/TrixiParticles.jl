@@ -134,6 +134,8 @@ function WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
         surface_normal_method = ColorfieldSurfaceNormal()
     end
     validate_corrected_csf(surface_normal_method, surface_tension)
+    validate_free_surface_shifting(shifting_technique, surface_normal_method,
+                                   surface_tension)
 
     if surface_normal_method !== nothing && reference_particle_spacing < eps()
         throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using a surface-normal method or a surface tension model"))

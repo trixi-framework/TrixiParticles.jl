@@ -173,6 +173,32 @@ of PST is commonly referred to as ``\delta^+``-SPH.
 To apply particle shifting, use the keyword argument `shifting_technique` in the constructor
 of a system that supports it.
 
+The default particle-shifting configuration remains restricted to closed systems. Morris CSF
+and CSS simulations can explicitly opt into tangential free-surface shifting by reusing their
+smooth interface activity and raw normal:
+
+```julia
+surface_tension = SurfaceTensionMomentumMorris(surface_tension_coefficient=0.072)
+surface_normal_method = ColorfieldSurfaceNormal()
+shifting_technique = ConsistentShiftingSun2019(;
+    free_surface_treatment=FreeSurfaceTangentialShifting())
+```
+
+For interface activity ``\lambda_a`` and raw normal ``\bm n_a``, the corrected shifting velocity
+is
+
+```math
+\delta\bm v_a^{\mathrm{fs}} = \delta\bm v_a
+- \lambda_a\frac{\delta\bm v_a\mathbin{\cdot}\bm n_a}
+                    {\bm n_a\mathbin{\cdot}\bm n_a}\bm n_a.
+```
+
+Full shifting is retained in the interior. Across the smooth interface transition, the normal
+component is progressively removed until shifting is tangential at the represented surface. The
+raw geometry normal is used even when capillary normal smoothing is enabled. This treatment also
+supports free-surface C-CSF geometry with `SurfaceTensionMorris` and both callback-based Sun (2017)
+and consistent Sun (2019) shifting, but it is not available for TVF. It is an explicit
+regularization option, not a general guarantee against free-surface tensile instability.
 
 ## [Transport Velocity Formulation (TVF)](@id transport_velocity_formulation)
 
