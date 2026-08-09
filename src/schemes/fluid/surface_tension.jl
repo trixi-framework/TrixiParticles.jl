@@ -99,6 +99,10 @@ symmetric scalar reproducing correction is accumulated during the normal pass an
 stress divergence. It restores first-order scaling near truncated kernel support without another
 neighbor traversal or loss of pairwise momentum conservation.
 
+Validated wetted-wall energy can be enabled explicitly with
+`ColorfieldSurfaceNormal(contact_model=WettedAreaContactAngle(theta))`; omitting the contact model
+preserves the no-wetting default.
+
 See [`surface_tension`](@ref) for more details.
 
 # Keywords

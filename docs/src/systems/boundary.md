@@ -82,7 +82,8 @@ Weights must be finite, nonnegative, and ordered like the boundary `InitialCondi
 constructor copies them into `boundary_model.cache.surface_measure` using the boundary model's
 scalar type. Omitting the keyword allocates no quadrature cache. Supplying quadrature data alone
 does not change density, pressure, viscosity, or force calculations; models that consume it apply
-their own geometry and normal requirements.
+their own geometry and normal requirements. See [`WettedAreaContactAngle`](@ref) for the supported
+contact-angle use.
 
 ### Hydrodynamic density of dummy particles
 

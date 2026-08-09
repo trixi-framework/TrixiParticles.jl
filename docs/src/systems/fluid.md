@@ -520,6 +520,42 @@ For constant smoothing length, every coefficient multiplying a particle pair is 
 Dummy boundary particles complete ``q_a`` near walls but do not carry capillary stress. The
 Akinci free-surface correction is deliberately not applied to this continuum stress.
 
+#### Wetted-area contact angle
+
+Young's wall energy can be enabled explicitly through the normal method:
+
+```julia
+surface_normal_method = ColorfieldSurfaceNormal(
+    contact_model=WettedAreaContactAngle(60.0))
+surface_tension = SurfaceTensionMomentumMorris(surface_tension_coefficient=0.072)
+```
+
+The model discretizes ``E_w=-\sigma\cos(\theta)A_w`` from the fluid colorfield sampled on the
+physical boundary surface. Its complete derivative contains an explicit fluid-wall kernel term
+and a symmetric density-conjugate term consistent with `ContinuityDensity`. Fixed walls cache the
+equal-and-opposite reaction; rigid-body reactions also enter `force_per_particle`, preserving
+force and torque transfer.
+
+Each dummy boundary model must receive a nonnegative `surface_measure` vector. Positive entries
+are physical surface quadrature areas and zero entries mark deeper dummy-particle layers. The same
+particles require `InitialCondition.normals`; each normal's magnitude is the offset from the dummy
+particle to the represented physical wall. This makes the quadrature independent of global
+orientation and supports prescribed-motion and rigid surfaces.
+
+The supported initial configuration is intentionally strict: 3D WCSPH or EDAC,
+`ContinuityDensity`, `SurfaceTensionMomentumMorris`, `WendlandC2Kernel{3}`, `h/dx=1.4`, one fluid,
+and one or more dummy-particle wall or rigid-body systems. Each boundary must contain one
+connected, disk-like wetted patch. Targets must lie strictly inside `(0, 180)` degrees; `90`
+degrees produces exactly zero wall energy, force, and reaction. Unsupported dimensions, kernels,
+ratios, density formulations, colors, or disconnected patches raise an `ArgumentError`.
+Constructing `ColorfieldSurfaceNormal()` without a contact model remains the no-wetting default.
+
+The density force is fused into the existing fluid interaction and the explicit derivative into
+the fluid-boundary interaction. Per-fluid caches hold one density-conjugate scalar per particle
+and aggregate energy/area diagnostics. Boundary caches hold the immutable quadrature, transient
+area weights, and reaction-reduction storage. The formulation currently targets one-phase free
+surfaces and requires constant smoothing length for exact pairwise momentum conservation.
+
 VTK output exposes both `surf_normal`, the raw geometry normal, and `surface_tension_normal`, the
 normal actually used by the capillary operator. It also includes `surface_delta`,
 `interface_activity`, and `surface_tension`. Morris CSF adds `curvature` and

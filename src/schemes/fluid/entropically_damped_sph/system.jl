@@ -245,6 +245,8 @@ end
     return ELTYPE
 end
 
+@inline wetted_area_supported_fluid(::EntropicallyDampedSPHSystem) = true
+
 @inline function v_nvariables(system::EntropicallyDampedSPHSystem)
     return v_nvariables(system, system.density_calculator)
 end

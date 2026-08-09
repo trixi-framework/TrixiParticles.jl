@@ -380,6 +380,8 @@ end
 
 function reset_interaction_caches!(system::RigidBodySystem)
     set_zero!(system.force_per_particle)
+    boundary_cache = wetted_area_boundary_cache(system)
+    isnothing(boundary_cache) || set_zero!(boundary_cache.wetted_area_reaction)
     system.cache.contact_count[] = 0
     system.cache.max_contact_penetration[] = zero(eltype(system))
 

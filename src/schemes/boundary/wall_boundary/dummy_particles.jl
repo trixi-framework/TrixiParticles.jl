@@ -139,7 +139,7 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
     cache = (; create_cache_model(viscosity, n_particles, NDIMS)...,
              create_cache_model(initial_density, density_calculator, NDIMS)...,
              create_cache_model(correction, initial_density, NDIMS, n_particles)...,
-             create_cache_surface_measure(surface_measure, ELTYPE, n_particles)...)
+             create_cache_surface_measure(surface_measure, ELTYPE, NDIMS, n_particles)...)
 
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
     if reference_particle_spacing > 0
@@ -157,9 +157,9 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                        clip_negative_pressure)
 end
 
-@inline create_cache_surface_measure(::Nothing, ELTYPE, n_particles) = (;)
+@inline create_cache_surface_measure(::Nothing, ELTYPE, NDIMS, n_particles) = (;)
 
-function create_cache_surface_measure(surface_measure, ELTYPE, n_particles)
+function create_cache_surface_measure(surface_measure, ELTYPE, NDIMS, n_particles)
     surface_measure isa AbstractVector ||
         throw(ArgumentError("`surface_measure` must be a vector with one value per boundary particle"))
     length(surface_measure) == n_particles ||
@@ -171,7 +171,16 @@ function create_cache_surface_measure(surface_measure, ELTYPE, n_particles)
     all(isfinite, converted_measure) ||
         throw(ArgumentError("`surface_measure` values must remain finite when converted to $ELTYPE"))
 
-    return (; surface_measure=converted_measure)
+    wetted_area_weight = zeros(ELTYPE, n_particles)
+    wetted_area_flooded_reference = zeros(ELTYPE, n_particles)
+    wetted_area_reaction = zeros(ELTYPE, NDIMS, n_particles)
+    wetted_area_reaction_buffer = zeros(ELTYPE, NDIMS, n_particles,
+                                        Threads.nthreads())
+    wetted_area_active = Ref(false)
+
+    return (; surface_measure=converted_measure, wetted_area_weight,
+            wetted_area_flooded_reference, wetted_area_reaction,
+            wetted_area_reaction_buffer, wetted_area_active)
 end
 
 @inline function default_reference_particle_spacing(fluid_system)

@@ -11,6 +11,7 @@ function interact!(dv, v_particle_system, u_particle_system,
 
     surface_tension_a = surface_tension_model(particle_system)
     surface_tension_b = surface_tension_model(neighbor_system)
+    surface_normal_method_a = surface_normal_method(particle_system)
 
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -108,9 +109,22 @@ function interact!(dv, v_particle_system, u_particle_system,
                                              rho_a, rho_b, grad_kernel,
                                              surface_tension_correction)
 
+            dv_particle[] += wetted_area_density_acceleration(surface_normal_method_a,
+                                                              particle_system,
+                                                              neighbor_system, particle,
+                                                              neighbor, rho_a, rho_b, m_b,
+                                                              grad_kernel)
+
             @inbounds adhesion_force!(dv_particle, surface_tension_a, particle_system,
                                       neighbor_system,
                                       particle, neighbor, pos_diff, distance)
+
+            dv_particle[] += wetted_area_explicit_acceleration(surface_tension_a,
+                                                               surface_normal_method_a,
+                                                               particle_system,
+                                                               neighbor_system, particle,
+                                                               neighbor, m_a, rho_a,
+                                                               grad_kernel)
 
             # TODO If variable smoothing_length is used, this should use the neighbor smoothing length
             # Propagate `@inbounds` to the continuity equation, which accesses particle data

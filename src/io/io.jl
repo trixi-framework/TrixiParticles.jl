@@ -337,6 +337,13 @@ function add_system_data!(system_data, surface_normal_method::ColorfieldSurfaceN
     system_data["surface_normal_method"]["interface_taper_start"] = surface_normal_method.interface_taper_start
     system_data["surface_normal_method"]["support_taper_width"] = surface_normal_method.support_taper_width
     system_data["surface_normal_method"]["normal_smoothing"] = surface_normal_method.normal_smoothing
+    contact_model = surface_normal_method.contact_model
+    system_data["surface_normal_method"]["contact_model"] = isnothing(contact_model) ?
+                                                            nothing :
+                                                            type2string(contact_model)
+    system_data["surface_normal_method"]["contact_angle"] = isnothing(contact_model) ?
+                                                            nothing :
+                                                            contact_model.contact_angle
 end
 
 function add_system_data!(system_data, surface_normal_method::CorrectedCSFSurfaceNormal)

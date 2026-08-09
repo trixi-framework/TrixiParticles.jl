@@ -29,6 +29,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Added `InterfaceAwareTensileInstabilityControl`, an opt-in pressure formulation that applies
   tensile-instability control in fluid interiors and smoothly disables it at free surfaces.
 - Added optional per-particle `surface_measure` quadrature data to dummy-particle boundaries.
+- Added `WettedAreaContactAngle`, an opt-in Young wall-energy model for supported 3D Morris CSS
+  simulations with force- and torque-conserving fixed-wall and rigid-body reactions.
 - Added C1 interface activation for Morris CSF and CSS with `ColorfieldSurfaceNormal`.
   Color-gradient and continuous support-moment indicators taper the physical surface delta without
   another neighbor pass.

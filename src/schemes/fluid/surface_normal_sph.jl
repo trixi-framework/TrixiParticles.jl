@@ -1,7 +1,54 @@
+abstract type AbstractContactAngleModel end
+
+function validate_contact_angle(contact_angle)
+    if !(contact_angle isa Real) || !isfinite(contact_angle) ||
+       !(0 <= contact_angle <= 180)
+        throw(ArgumentError("`contact_angle` must be a finite real number in [0, 180] degrees"))
+    end
+
+    return contact_angle
+end
+
+@doc raw"""
+    WettedAreaContactAngle(contact_angle)
+
+Apply Young's wall energy through a corrected wetted-area quadrature. The model is an explicit
+opt-in for [`ColorfieldSurfaceNormal`](@ref); constructing `ColorfieldSurfaceNormal()` without a
+contact model remains unchanged.
+
+The supported configuration is currently restricted to three-dimensional WCSPH or EDAC fluids
+using `ContinuityDensity`, `SurfaceTensionMomentumMorris`, and `WendlandC2Kernel{3}` with
+`h/dx=1.4`. Contact boundaries must be dummy-particle wall or rigid-body systems built with
+per-particle `surface_measure` values and `InitialCondition.normals`. Each boundary system
+represents one connected disk-like wetted patch. Angles must lie strictly inside `(0, 180)`
+degrees; at 90 degrees the wall energy and force are exactly zero.
+"""
+struct WettedAreaContactAngle{ELTYPE <: Real} <: AbstractContactAngleModel
+    contact_angle::ELTYPE
+
+    function WettedAreaContactAngle(contact_angle)
+        angle = validate_contact_angle(contact_angle)
+        0 < angle < 180 ||
+            throw(ArgumentError("`WettedAreaContactAngle` requires `contact_angle` in (0, 180) degrees"))
+        new{typeof(angle)}(angle)
+    end
+end
+
+@inline convert_contact_model(::Nothing, ELTYPE) = nothing
+
+@inline function convert_contact_model(contact_model::WettedAreaContactAngle, ELTYPE)
+    return WettedAreaContactAngle(convert(ELTYPE, contact_model.contact_angle))
+end
+
+function convert_contact_model(contact_model, ELTYPE)
+    throw(ArgumentError("`contact_model` must be `nothing` or `WettedAreaContactAngle`"))
+end
+
 @doc raw"""
     ColorfieldSurfaceNormal(; boundary_contact_threshold=0.1, interface_threshold=0.01,
                                ideal_density_threshold=0.0, interface_taper_start=0.8,
-                               support_taper_width=0.025, normal_smoothing=false)
+                               support_taper_width=0.025, contact_model=nothing,
+                               normal_smoothing=false)
 
 Color field based computation of the interface normals.
 
@@ -15,17 +62,20 @@ Color field based computation of the interface normals.
 - `interface_taper_start=0.8`:      Start Morris CSF/CSS interface activation at this fraction of
                                     `interface_threshold`.
 - `support_taper_width=0.025`:      Width of the Morris CSF/CSS support-moment transition above
-                                    `ideal_density_threshold`.
+                                     `ideal_density_threshold`.
+- `contact_model=nothing`:         Optional contact-angle model. The supported explicit choice is
+                                    [`WettedAreaContactAngle`](@ref).
 - `normal_smoothing=false`:         Apply one activity-weighted Shepard smoothing pass to unit
-                                    normals before Morris curvature, force, or CSS stress
-                                    evaluation. Raw geometry remains unchanged.
+                                     normals before Morris curvature, force, or CSS stress
+                                     evaluation. Raw geometry remains unchanged.
 """
-struct ColorfieldSurfaceNormal{ELTYPE}
+struct ColorfieldSurfaceNormal{ELTYPE, CONTACT_MODEL}
     boundary_contact_threshold::ELTYPE
     interface_threshold::ELTYPE
     ideal_density_threshold::ELTYPE
     interface_taper_start::ELTYPE
     support_taper_width::ELTYPE
+    contact_model::CONTACT_MODEL
     normal_smoothing::Bool
 end
 
@@ -84,7 +134,8 @@ end
 
 function ColorfieldSurfaceNormal(; boundary_contact_threshold=0.1, interface_threshold=0.01,
                                  ideal_density_threshold=0.0, interface_taper_start=0.8,
-                                 support_taper_width=0.025, normal_smoothing=false)
+                                 support_taper_width=0.025, contact_model=nothing,
+                                 normal_smoothing=false)
     if !(boundary_contact_threshold isa Real) || isnan(boundary_contact_threshold) ||
        boundary_contact_threshold < 0
         throw(ArgumentError("`boundary_contact_threshold` must be non-negative and not NaN"))
@@ -118,7 +169,8 @@ function ColorfieldSurfaceNormal(; boundary_contact_threshold=0.1, interface_thr
 
     taper_start = convert(ELTYPE, interface_taper_start)
     taper_width = convert(ELTYPE, support_taper_width)
-    return ColorfieldSurfaceNormal(thresholds..., taper_start, taper_width,
+    contact_model_ = convert_contact_model(contact_model, ELTYPE)
+    return ColorfieldSurfaceNormal(thresholds..., taper_start, taper_width, contact_model_,
                                    normal_smoothing)
 end
 
@@ -207,6 +259,430 @@ function create_cache_surface_normal(::CorrectedCSFSurfaceNormal, ELTYPE, NDIMS,
     return (; surface_normal, neighbor_count, correction_factor,
             ccsf_correction_matrix, ccsf_minimum_eigenvalue,
             ccsf_lambda_gradient, ccsf_color_gradient, ccsf_shepard_sum)
+end
+
+function create_cache_surface_normal(method::ColorfieldSurfaceNormal{<:Any,
+                                                                     <:WettedAreaContactAngle},
+                                     ELTYPE, NDIMS, nparticles)
+    cache = create_cache_surface_normal(ColorfieldSurfaceNormal(;
+                                                                normal_smoothing=method.normal_smoothing),
+                                        ELTYPE, NDIMS, nparticles)
+    wetted_area_density_conjugate = zeros(ELTYPE, nparticles)
+    wetted_area_energy = Ref(zero(ELTYPE))
+    wetted_area_raw_area = Ref(zero(ELTYPE))
+    wetted_area = Ref(zero(ELTYPE))
+    wetted_area_normalized_edge_shift = Ref(convert(ELTYPE, NaN))
+    wetted_area_evaluations = Ref(0)
+    return (; cache..., wetted_area_density_conjugate, wetted_area_energy,
+            wetted_area_raw_area, wetted_area, wetted_area_normalized_edge_shift,
+            wetted_area_evaluations)
+end
+
+@inline wetted_area_smoothstep_derivative(value) = 6value * (1 - value)
+
+@inline function wetted_area_contact_cosine(contact_model::WettedAreaContactAngle)
+    contact_model.contact_angle == 90 && return zero(contact_model.contact_angle)
+    return cosd(contact_model.contact_angle)
+end
+
+@inline function wetted_area_coefficient(surface_tension,
+                                         contact_model::WettedAreaContactAngle)
+    contact_cosine = wetted_area_contact_cosine(contact_model)
+    iszero(contact_cosine) && return zero(surface_tension.surface_tension_coefficient)
+    return surface_tension.surface_tension_coefficient * contact_cosine
+end
+
+function wetted_area_halfspace_reference(::WendlandC2Kernel{3}, normalized_distance)
+    distance = clamp(normalized_distance, zero(normalized_distance),
+                     convert(typeof(normalized_distance), 2))
+    distance >= 2 && return zero(distance)
+
+    # Integral of the normalized three-dimensional kernel over a spherical cap.
+    coefficients = (one(distance), zero(distance), -5one(distance) / 2,
+                    5one(distance) / 2, -15one(distance) / 16,
+                    one(distance) / 8)
+    upper = convert(typeof(distance), 2)
+    integral = zero(distance)
+    for power in 0:5
+        coefficient = coefficients[power + 1]
+        integral += coefficient *
+                    ((upper^(power + 3) - distance^(power + 3)) / (power + 3) -
+                     distance * (upper^(power + 2) - distance^(power + 2)) /
+                     (power + 2))
+    end
+    return 21integral / 8
+end
+
+function canonical_wetted_area_edge_shift(smoothing_kernel, cells_per_h, contact_angle;
+                                          quadrature_cells_per_h=64)
+    contact_sine = sind(contact_angle)
+    abs(contact_sine) > sqrt(eps(typeof(contact_sine))) || return zero(contact_sine)
+    contact_cotangent = cosd(contact_angle) / contact_sine
+    lattice_spacing = inv(convert(typeof(cells_per_h), quadrature_cells_per_h))
+    support = compact_support(smoothing_kernel, one(cells_per_h))
+    search_radius = ceil(Int, support / lattice_spacing)
+    boundary_distance = inv(2cells_per_h)
+    thresholds = typeof(cells_per_h)[]
+    weights = typeof(cells_per_h)[]
+
+    for z_offset in (-search_radius):search_radius,
+        x_offset in (-search_radius):search_radius
+        planar_distance2 = lattice_spacing^2 * (x_offset^2 + z_offset^2)
+        planar_distance2 < support^2 || continue
+        reduced_kernel = zero(cells_per_h)
+        for tangent_offset in (-search_radius):search_radius
+            distance = lattice_spacing *
+                       sqrt(x_offset^2 + tangent_offset^2 + z_offset^2)
+            distance < support || continue
+            reduced_kernel += lattice_spacing * kernel(smoothing_kernel, distance,
+                                     one(cells_per_h))
+        end
+        source_z = -boundary_distance - z_offset * lattice_spacing
+        source_z > 0 || continue
+        push!(thresholds, x_offset * lattice_spacing + contact_cotangent * source_z)
+        push!(weights, lattice_spacing^2 * reduced_kernel)
+    end
+
+    order = sortperm(thresholds)
+    thresholds = thresholds[order]
+    weights = weights[order]
+    reference = sum(weights)
+    reference > eps(reference) || return zero(reference)
+    breaks = sort!(unique!([thresholds; zero(cells_per_h)]))
+    cumulative = zero(reference)
+    event = 1
+    shift = zero(reference)
+    for interval in 1:(length(breaks) - 1)
+        left = breaks[interval]
+        right = breaks[interval + 1]
+        while event <= length(thresholds) && thresholds[event] <= left
+            cumulative += weights[event]
+            event += 1
+        end
+        fraction = clamp(cumulative / reference, 0, 1)
+        step = (left + right) / 2 > 0 ? one(reference) : zero(reference)
+        shift += (right - left) * (cubic_smoothstep(fraction) - step)
+    end
+    return shift
+end
+
+@inline function wetted_area_boundary_cache(system)
+    hasproperty(system, :boundary_model) || return nothing
+    model = system.boundary_model
+    hasproperty(model, :cache) || return nothing
+    haskey(model.cache, :surface_measure) || return nothing
+    return model.cache
+end
+
+@inline wetted_area_supported_fluid(system) = false
+
+@inline function check_wetted_area_configuration!(system, surface_normal_method, systems)
+    return system
+end
+
+function check_wetted_area_configuration!(system::AbstractFluidSystem,
+                                          surface_normal_method::ColorfieldSurfaceNormal{<:Any,
+                                                                                         <:WettedAreaContactAngle},
+                                          systems)
+    ndims(system) == 3 ||
+        throw(ArgumentError("`WettedAreaContactAngle` currently supports only 3D fluids"))
+    wetted_area_supported_fluid(system) ||
+        throw(ArgumentError("`WettedAreaContactAngle` currently supports only WCSPH and EDAC fluids"))
+    density_calculator(system) isa ContinuityDensity ||
+        throw(ArgumentError("`WettedAreaContactAngle` requires `ContinuityDensity`"))
+    system.smoothing_kernel isa WendlandC2Kernel{3} ||
+        throw(ArgumentError("`WettedAreaContactAngle` requires `WendlandC2Kernel{3}`"))
+    system.surface_tension isa SurfaceTensionMomentumMorris ||
+        throw(ArgumentError("`WettedAreaContactAngle` requires `SurfaceTensionMomentumMorris`"))
+    isfinite(surface_normal_method.boundary_contact_threshold) ||
+        throw(ArgumentError("`WettedAreaContactAngle` requires a finite `boundary_contact_threshold`"))
+    system.cache.color == 1 ||
+        throw(ArgumentError("`WettedAreaContactAngle` requires the fluid `color_value` to be 1"))
+
+    particle_spacing = system.cache.reference_particle_spacing
+    cells_per_h = initial_smoothing_length(system) / particle_spacing
+    isapprox(cells_per_h, convert(typeof(cells_per_h), 1.4);
+             rtol=100eps(typeof(cells_per_h)), atol=zero(cells_per_h)) ||
+        throw(ArgumentError("`WettedAreaContactAngle` requires `smoothing_length / reference_particle_spacing == 1.4`"))
+
+    fluid_count = 0
+    boundary_count = 0
+    foreach_system(systems) do candidate
+        if candidate isa AbstractFluidSystem
+            fluid_count += 1
+            return
+        end
+
+        valid_boundary = (candidate isa WallBoundarySystem ||
+                          candidate isa RigidBodySystem) &&
+                         hasproperty(candidate, :boundary_model) &&
+                         candidate.boundary_model isa BoundaryModelDummyParticles
+        valid_boundary ||
+            throw(ArgumentError("`WettedAreaContactAngle` supports only dummy-particle wall and rigid-body neighbors"))
+        candidate.cache.color == 0 ||
+            throw(ArgumentError("`WettedAreaContactAngle` requires contact-boundary `color_value` to be 0"))
+        boundary_count += 1
+        initialize_wetted_area_boundary!(system, candidate)
+    end
+    fluid_count == 1 ||
+        throw(ArgumentError("`WettedAreaContactAngle` requires exactly one fluid system"))
+    boundary_count > 0 ||
+        throw(ArgumentError("`WettedAreaContactAngle` requires at least one contact boundary"))
+
+    cache = system.cache
+    if isnan(cache.wetted_area_normalized_edge_shift[])
+        cache.wetted_area_normalized_edge_shift[] = canonical_wetted_area_edge_shift(system.smoothing_kernel,
+                                                                                     cells_per_h,
+                                                                                     surface_normal_method.contact_model.contact_angle)
+    end
+    return system
+end
+
+function initialize_wetted_area_boundary!(fluid_system, boundary_system)
+    cache = wetted_area_boundary_cache(boundary_system)
+    isnothing(cache) &&
+        throw(ArgumentError("contact boundaries require explicit per-particle `surface_measure` values"))
+    haskey(cache, :initial_colorfield) ||
+        throw(ArgumentError("contact boundaries require a positive `reference_particle_spacing`"))
+
+    normals = boundary_system.initial_condition.normals
+    isnothing(normals) &&
+        throw(ArgumentError("contact boundaries require `InitialCondition.normals`"))
+    surface_measure = cache.surface_measure
+    contact_model = fluid_system.surface_normal_method.contact_model
+    cache.wetted_area_active[] = !iszero(wetted_area_coefficient(fluid_system.surface_tension,
+                                                                 contact_model))
+    active_particles = findall(>(zero(eltype(surface_measure))), surface_measure)
+    isempty(active_particles) &&
+        throw(ArgumentError("each contact boundary requires at least one positive `surface_measure`"))
+    validate_wetted_area_patch_connectivity(boundary_system.initial_condition,
+                                            surface_measure, active_particles)
+
+    particle_spacing = fluid_system.cache.reference_particle_spacing
+    first_particle = first(eachparticle(fluid_system))
+    particle_volume = fluid_system.initial_condition.mass[first_particle] /
+                      fluid_system.initial_condition.density[first_particle]
+    volume_scale = particle_volume / particle_spacing^3
+    for particle in eachparticle(fluid_system)
+        volume = fluid_system.initial_condition.mass[particle] /
+                 fluid_system.initial_condition.density[particle]
+        isapprox(volume / particle_spacing^3, volume_scale;
+                 rtol=100eps(typeof(volume_scale)), atol=zero(volume_scale)) ||
+            throw(ArgumentError("`WettedAreaContactAngle` requires uniform reference fluid particle volumes"))
+    end
+
+    smoothing_length = initial_smoothing_length(fluid_system)
+    support = compact_support(fluid_system.smoothing_kernel, one(smoothing_length))
+    set_zero!(cache.wetted_area_flooded_reference)
+    for particle in active_particles
+        normal = extract_svector(normals, boundary_system, particle)
+        all(isfinite, normal) ||
+            throw(ArgumentError("contact-boundary normals must be finite"))
+        normalized_offset = norm(normal) / smoothing_length
+        0 < normalized_offset < support ||
+            throw(ArgumentError("the magnitude of each active contact-boundary normal must place the physical surface inside the kernel support"))
+        reference = volume_scale *
+                    wetted_area_halfspace_reference(fluid_system.smoothing_kernel,
+                                                    normalized_offset)
+        reference > eps(reference) ||
+            throw(ArgumentError("contact-boundary flooded colorfield references must be positive"))
+        cache.wetted_area_flooded_reference[particle] = reference
+    end
+    return boundary_system
+end
+
+function validate_wetted_area_patch_connectivity(initial_condition, surface_measure,
+                                                 active_particles)
+    length(active_particles) == 1 && return initial_condition
+    spacing = initial_condition.particle_spacing
+    area_spacing = sqrt(maximum(surface_measure))
+    length_scale = max(spacing > 0 ? spacing : zero(spacing), area_spacing)
+    length_scale > 0 ||
+        throw(ArgumentError("positive contact surface measures must define a finite patch scale"))
+    connection_radius2 = (1.75length_scale)^2
+    coordinates = initial_condition.coordinates
+    visited = falses(length(surface_measure))
+    queue = [first(active_particles)]
+    visited[first(queue)] = true
+    next_particle = 1
+    while next_particle <= length(queue)
+        particle = queue[next_particle]
+        next_particle += 1
+        for neighbor in active_particles
+            visited[neighbor] && continue
+            distance2 = zero(eltype(coordinates))
+            for dim in axes(coordinates, 1)
+                distance2 += (coordinates[dim, particle] -
+                              coordinates[dim, neighbor])^2
+            end
+            distance2 <= connection_radius2 || continue
+            visited[neighbor] = true
+            push!(queue, neighbor)
+        end
+    end
+    all(visited[active_particles]) ||
+        throw(ArgumentError("each contact boundary must contain one connected wetted-area patch"))
+    return initial_condition
+end
+
+@inline function prepare_wetted_area_boundary!(system, neighbor_system,
+                                               surface_normal_method)
+    return system
+end
+
+function prepare_wetted_area_boundary!(system::AbstractFluidSystem, neighbor_system,
+                                       surface_normal_method::ColorfieldSurfaceNormal{<:Any,
+                                                                                      <:WettedAreaContactAngle})
+    boundary_cache = wetted_area_boundary_cache(neighbor_system)
+    isnothing(boundary_cache) && return system
+    (; surface_measure, wetted_area_flooded_reference, wetted_area_weight,
+     colorfield) = boundary_cache
+    set_zero!(wetted_area_weight)
+
+    raw_area = zero(eltype(system))
+    for particle in eachparticle(neighbor_system)
+        measure = surface_measure[particle]
+        iszero(measure) && continue
+        reference = wetted_area_flooded_reference[particle]
+        fraction = clamp(colorfield[particle] / reference, zero(reference), one(reference))
+        raw_area += measure * cubic_smoothstep(fraction)
+    end
+
+    pi_ = convert(eltype(system), pi)
+    raw_radius = sqrt(raw_area / pi_)
+    edge_shift = system.cache.wetted_area_normalized_edge_shift[] *
+                 initial_smoothing_length(system)
+    corrected_radius = max(raw_radius - edge_shift, zero(raw_radius))
+    corrected_area = pi_ * corrected_radius^2
+    area_derivative = raw_radius > eps(raw_radius) ? corrected_radius / raw_radius :
+                      zero(raw_radius)
+    system.cache.wetted_area_raw_area[] += raw_area
+    system.cache.wetted_area[] += corrected_area
+
+    coefficient = wetted_area_coefficient(surface_tension_model(system),
+                                          surface_normal_method.contact_model)
+    iszero(coefficient) && return system
+    for particle in eachparticle(neighbor_system)
+        measure = surface_measure[particle]
+        iszero(measure) && continue
+        reference = wetted_area_flooded_reference[particle]
+        fraction = colorfield[particle] / reference
+        0 < fraction < 1 || continue
+        wetted_area_weight[particle] = area_derivative * measure / reference *
+                                       wetted_area_smoothstep_derivative(fraction)
+    end
+    return system
+end
+
+@inline function accumulate_wetted_area_density_conjugate!(system, neighbor_system,
+                                                           surface_normal_method,
+                                                           particle, neighbor, distance)
+    return system
+end
+
+@inline function accumulate_wetted_area_density_conjugate!(system::AbstractFluidSystem,
+                                                           neighbor_system,
+                                                           ::ColorfieldSurfaceNormal{<:Any,
+                                                                                     <:WettedAreaContactAngle},
+                                                           particle, neighbor, distance)
+    boundary_cache = wetted_area_boundary_cache(neighbor_system)
+    isnothing(boundary_cache) && return system
+    weight = @inbounds boundary_cache.wetted_area_weight[neighbor]
+    iszero(weight) && return system
+    kernel_value = smoothing_kernel(system, distance, particle)
+    @inbounds system.cache.wetted_area_density_conjugate[particle] += weight * kernel_value
+    return system
+end
+
+@inline function reset_wetted_area_contact!(system, surface_normal_method)
+    return system
+end
+
+@inline function reset_wetted_area_contact!(system,
+                                            ::ColorfieldSurfaceNormal{<:Any,
+                                                                      <:WettedAreaContactAngle})
+    set_zero!(system.cache.wetted_area_density_conjugate)
+    system.cache.wetted_area_energy[] = zero(eltype(system))
+    system.cache.wetted_area_raw_area[] = zero(eltype(system))
+    system.cache.wetted_area[] = zero(eltype(system))
+    return system
+end
+
+@inline function finalize_wetted_area_contact!(system, surface_normal_method, v)
+    return system
+end
+
+function finalize_wetted_area_contact!(system::AbstractFluidSystem,
+                                       surface_normal_method::ColorfieldSurfaceNormal{<:Any,
+                                                                                      <:WettedAreaContactAngle},
+                                       v)
+    coefficient = wetted_area_coefficient(surface_tension_model(system),
+                                          surface_normal_method.contact_model)
+    area = system.cache.wetted_area[]
+    system.cache.wetted_area_energy[] = iszero(coefficient) ? zero(coefficient) :
+                                        -coefficient * area
+    if iszero(coefficient)
+        set_zero!(system.cache.wetted_area_density_conjugate)
+    else
+        for particle in each_integrated_particle(system)
+            density = current_density(v, system, particle)
+            @inbounds system.cache.wetted_area_density_conjugate[particle] *= coefficient /
+                                                                              density^2
+        end
+    end
+    system.cache.wetted_area_evaluations[] += 1
+    return system
+end
+
+@inline function wetted_area_density_acceleration(surface_normal_method, particle_system,
+                                                  neighbor_system, particle, neighbor,
+                                                  rho_a, rho_b, m_b, grad_kernel)
+    return zero(grad_kernel)
+end
+
+@inline function wetted_area_density_acceleration(surface_normal_method::ColorfieldSurfaceNormal{<:Any,
+                                                                                                 <:WettedAreaContactAngle},
+                                                  particle_system::AbstractFluidSystem,
+                                                  neighbor_system::AbstractFluidSystem,
+                                                  particle, neighbor, rho_a, rho_b, m_b,
+                                                  grad_kernel)
+    particle_system === neighbor_system || return zero(grad_kernel)
+    conjugate_a = @inbounds particle_system.cache.wetted_area_density_conjugate[particle]
+    conjugate_b = @inbounds neighbor_system.cache.wetted_area_density_conjugate[neighbor]
+    pair_coefficient = conjugate_a * rho_a / rho_b + conjugate_b * rho_b / rho_a
+    iszero(pair_coefficient) && return zero(grad_kernel)
+    return -m_b * pair_coefficient * grad_kernel
+end
+
+@inline function wetted_area_explicit_acceleration(surface_tension, surface_normal_method,
+                                                   particle_system, neighbor_system,
+                                                   particle, neighbor, m_a, rho_a,
+                                                   grad_kernel)
+    return zero(grad_kernel)
+end
+
+@inline function wetted_area_explicit_acceleration(surface_tension,
+                                                   surface_normal_method::ColorfieldSurfaceNormal{<:Any,
+                                                                                                  <:WettedAreaContactAngle},
+                                                   particle_system::AbstractFluidSystem,
+                                                   neighbor_system, particle, neighbor,
+                                                   m_a, rho_a, grad_kernel)
+    boundary_cache = wetted_area_boundary_cache(neighbor_system)
+    isnothing(boundary_cache) && return zero(grad_kernel)
+    weight = @inbounds boundary_cache.wetted_area_weight[neighbor]
+    iszero(weight) && return zero(grad_kernel)
+    coefficient = wetted_area_coefficient(surface_tension,
+                                          surface_normal_method.contact_model)
+    iszero(coefficient) && return zero(grad_kernel)
+    acceleration = coefficient / rho_a * weight * grad_kernel
+    if neighbor_system isa WallBoundarySystem
+        thread = Threads.threadid()
+        reaction_buffer = boundary_cache.wetted_area_reaction_buffer
+        for dim in eachindex(acceleration)
+            @inbounds reaction_buffer[dim, neighbor, thread] -= m_a * acceleration[dim]
+        end
+    end
+    return acceleration
 end
 
 @inline function surface_normal(particle_system::AbstractFluidSystem, particle)
@@ -341,6 +817,7 @@ function calc_boundary_normal!(system::AbstractFluidSystem, neighbor_system, u_s
     end
 
     maximum_colorfield = maximum(colorfield)
+    prepare_wetted_area_boundary!(system, neighbor_system, surface_normal_method)
 
     foreach_point_neighbor(system, neighbor_system,
                            system_coords, neighbor_system_coords,
@@ -348,6 +825,9 @@ function calc_boundary_normal!(system::AbstractFluidSystem, neighbor_system, u_s
         accumulate_boundary_surface_support_moment!(system, surface_tension_model(system),
                                                     neighbor_system, v_neighbor_system,
                                                     particle, neighbor, pos_diff, distance)
+        accumulate_wetted_area_density_conjugate!(system, neighbor_system,
+                                                  surface_normal_method, particle,
+                                                  neighbor, distance)
 
         # We assume that we are in contact with the boundary if the color of the boundary particle
         # is larger than the threshold
@@ -509,6 +989,7 @@ function compute_surface_normal!(system::AbstractFluidSystem,
     set_zero!(cache.surface_normal)
     set_zero!(cache.neighbor_count)
     reset_surface_interface_data!(system, surface_tension)
+    reset_wetted_area_contact!(system, surface_normal_method_)
 
     # TODO: if color values are set only different systems need to be called
     @trixi_timeit timer() "compute surface normal" foreach_system(semi) do neighbor_system
@@ -519,6 +1000,7 @@ function compute_surface_normal!(system::AbstractFluidSystem,
                      u_neighbor_system, semi, surface_normal_method_,
                      surface_normal_method(neighbor_system))
     end
+    finalize_wetted_area_contact!(system, surface_normal_method_, v)
     remove_invalid_normals!(system, surface_tension, surface_normal_method_)
     smooth_surface_normals!(system, surface_normal_method_, v, u, semi)
 

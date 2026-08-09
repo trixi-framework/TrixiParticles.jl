@@ -237,6 +237,8 @@ end
 
 @inline Base.eltype(::WeaklyCompressibleSPHSystem{<:Any, ELTYPE}) where {ELTYPE} = ELTYPE
 
+@inline wetted_area_supported_fluid(::WeaklyCompressibleSPHSystem) = true
+
 @inline function v_nvariables(system::WeaklyCompressibleSPHSystem)
     return v_nvariables(system, system.density_calculator)
 end

@@ -297,6 +297,11 @@ function restart_v(system::AbstractFluidSystem, data)
 end
 
 function check_configuration(fluid_system::AbstractFluidSystem, systems, nhs)
+    if !(fluid_system isa ParticlePackingSystem)
+        check_wetted_area_configuration!(fluid_system,
+                                         surface_normal_method(fluid_system), systems)
+    end
+
     if !(fluid_system isa ParticlePackingSystem) &&
        (!isnothing(fluid_system.surface_tension) ||
         !isnothing(fluid_system.surface_normal_method))
