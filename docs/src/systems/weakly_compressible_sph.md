@@ -298,6 +298,20 @@ The formulation is described in Section 2.1 of this paper.
 It can be used in combination with the [Particle Shifting Technique (PST)](@ref shifting)
 to effectively prevent non-physical separation of the fluid from the object.
 
+Direct use of `tensile_instability_control` is restricted to closed systems because its
+non-conservative correction must be disabled near a free surface. Morris CSF/CSS simulations
+can explicitly reuse their smooth interface activity for this purpose:
+
+```julia
+surface_tension = SurfaceTensionMomentumMorris(surface_tension_coefficient=0.072)
+surface_normal_method = ColorfieldSurfaceNormal()
+pressure_acceleration = InterfaceAwareTensileInstabilityControl(strength=0.25)
+```
+
+This option requires `ContinuityDensity`, a state equation with unclipped negative pressure, and
+no asymmetric kernel-gradient correction. It also supports `CorrectedCSFSurfaceNormal` with
+`SurfaceTensionMorris`. The correction is disabled for fluid-boundary interactions.
+
 As can be seen in the following figure, TIC alone can cause instabilities
 and does not improve the simulation.
 PST alone can mostly prevent separation at lower resolutions.
@@ -325,6 +339,25 @@ The TIC formulation changes this term to
 Note that this formulation is asymmetric and sacrifices conservation of linear and angular
 momentum.
 
+For the interface-aware formulation, let ``\lambda_a`` and ``\lambda_b`` denote the smooth
+interface activities and define
+
+```math
+\lambda_{ab} = \operatorname{clamp}(\max(\lambda_a, \lambda_b), 0, 1).
+```
+
+With a user-selected strength ``s \in (0, 1]``, the pair force is
+
+```math
+\bm{f}_{ab}^{\mathrm{IA-TIC}} = \bm{f}_{ab}
++ s(1-\lambda_{ab})\left(\bm{f}_{ab}^{\mathrm{TIC}}-\bm{f}_{ab}\right).
+```
+
+Thus, `strength=1` recovers full TIC in the supported interior, while either particle reaching
+the represented interface restores the conservative pressure force. Intermediate activity
+smoothly blends between the two formulations.
+
 ```@docs
 tensile_instability_control
+InterfaceAwareTensileInstabilityControl
 ```

@@ -30,6 +30,8 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
 - `pressure_acceleration`:      Pressure acceleration formulation (default: inter-particle averaged pressure).
                                 When set to `nothing`, the pressure acceleration formulation for the
                                 corresponding [density calculator](@ref density_calculator) is chosen.
+                                [`InterfaceAwareTensileInstabilityControl`](@ref) can be used
+                                with a supported Morris CSF/CSS free surface.
 - `density_calculator`:         [Density calculator](@ref density_calculator) (default: [`SummationDensity`](@ref))
 - `shifting_technique`:         [Shifting technique](@ref shifting) or [transport velocity
                                 formulation](@ref transport_velocity_formulation) to use
@@ -125,6 +127,9 @@ function EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel, smooth
     validate_corrected_csf(surface_normal_method, surface_tension)
     validate_free_surface_shifting(shifting_technique, surface_normal_method,
                                    surface_tension)
+    validate_interface_aware_tic(pressure_acceleration, density_calculator,
+                                 nothing, surface_normal_method,
+                                 surface_tension, correction)
 
     if surface_normal_method !== nothing && reference_particle_spacing < eps()
         throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using a surface-normal method or a surface tension model"))

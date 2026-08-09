@@ -526,6 +526,10 @@ normal actually used by the capillary operator. It also includes `surface_delta`
 `surface_support_moment`; CSS adds `surface_divergence_correction` and the physical
 `surface_stress_tensor`, reconstructed only while writing output.
 
+Supported Morris CSF/CSS free-surface simulations can opt into
+[`InterfaceAwareTensileInstabilityControl`](@ref), which applies tensile-instability control in
+the fluid interior and blends back to conservative pressure across the interface transition.
+
 ### API
 
 ```@autodocs

@@ -35,7 +35,9 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
                                 By default, the correct formulation is chosen based on the
                                 density calculator and the correction method.
                                 To use [Tensile Instability Control](@ref tic), pass
-                                [`tensile_instability_control`](@ref) here.
+                                [`tensile_instability_control`](@ref), or use
+                                [`InterfaceAwareTensileInstabilityControl`](@ref) with a
+                                supported Morris CSF/CSS free surface.
 - `shifting_technique`:         [Shifting technique](@ref shifting) or [transport velocity
                                 formulation](@ref transport_velocity_formulation) to use
                                 with this system. Default is no shifting.
@@ -136,6 +138,9 @@ function WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
     validate_corrected_csf(surface_normal_method, surface_tension)
     validate_free_surface_shifting(shifting_technique, surface_normal_method,
                                    surface_tension)
+    validate_interface_aware_tic(pressure_acceleration, density_calculator,
+                                 state_equation, surface_normal_method,
+                                 surface_tension, correction)
 
     if surface_normal_method !== nothing && reference_particle_spacing < eps()
         throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using a surface-normal method or a surface tension model"))

@@ -75,6 +75,17 @@ end
 
 add_system_data!(system_data, data::Nothing) = system_data
 
+@inline pressure_acceleration_name(formulation) = nameof(formulation)
+@inline pressure_acceleration_name(control::InterfaceAwareTensileInstabilityControl) = nameof(typeof(control))
+
+@inline add_pressure_acceleration_data!(system_data, formulation) = system_data
+
+function add_pressure_acceleration_data!(system_data,
+                                         control::InterfaceAwareTensileInstabilityControl)
+    system_data["interface_aware_tic_strength"] = control.strength
+    return system_data
+end
+
 function add_system_data!(system_data, system::AbstractFluidSystem)
     system_data["system_type"] = type2string(system)
     system_data["particle_spacing"] = particle_spacing(system, 1)
@@ -83,7 +94,9 @@ function add_system_data!(system_data, system::AbstractFluidSystem)
     system_data["smoothing_length"] = system.cache.smoothing_length
     system_data["acceleration"] = system.acceleration
     system_data["sound_speed"] = system_sound_speed(system)
-    system_data["pressure_acceleration_formulation"] = nameof(system.pressure_acceleration_formulation)
+    formulation = system.pressure_acceleration_formulation
+    system_data["pressure_acceleration_formulation"] = pressure_acceleration_name(formulation)
+    add_pressure_acceleration_data!(system_data, formulation)
     add_system_data!(system_data, shifting_technique(system))
     add_system_data!(system_data, system.surface_tension)
     add_system_data!(system_data, system.surface_normal_method)
@@ -105,7 +118,7 @@ function add_system_data!(system_data, system::ImplicitIncompressibleSPHSystem)
     system_data["smoothing_kernel"] = type2string(system.smoothing_kernel)
     system_data["smoothing_length"] = system.cache.smoothing_length
     system_data["acceleration"] = system.acceleration
-    system_data["pressure_acceleration_formulation"] = nameof(system.pressure_acceleration_formulation)
+    system_data["pressure_acceleration_formulation"] = pressure_acceleration_name(system.pressure_acceleration_formulation)
     add_system_data!(system_data, shifting_technique(system))
     add_system_data!(system_data, system.viscosity)
 end

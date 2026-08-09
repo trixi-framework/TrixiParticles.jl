@@ -26,6 +26,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   stress diagnostics.
 - Added `FreeSurfaceTangentialShifting`, an opt-in treatment that smoothly removes the
   interface-normal component of Sun particle shifting while retaining full interior shifting.
+- Added `InterfaceAwareTensileInstabilityControl`, an opt-in pressure formulation that applies
+  tensile-instability control in fluid interiors and smoothly disables it at free surfaces.
 - Added C1 interface activation for Morris CSF and CSS with `ColorfieldSurfaceNormal`.
   Color-gradient and continuous support-moment indicators taper the physical surface delta without
   another neighbor pass.

@@ -90,7 +90,7 @@ export StateEquationCole, StateEquationIdealGas, StateEquationAdaptiveCole
 export ArtificialViscosityMonaghan, ViscosityAdami, ViscosityMorris, ViscosityAdamiSGS,
        ViscosityMorrisSGS, ViscosityCarreauYasuda
 export DensityDiffusionMolteniColagrossi, DensityDiffusionFerrari, DensityDiffusionAntuono
-export tensile_instability_control
+export tensile_instability_control, InterfaceAwareTensileInstabilityControl
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
        PressureMirroring, PressureZeroing, BoundaryModelCharacteristicsLastiwka,
        BoundaryModelMirroringTafuni, BoundaryModelDynamicalPressureZhang,

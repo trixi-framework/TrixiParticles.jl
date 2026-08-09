@@ -54,6 +54,20 @@ end
     return true
 end
 
+# Interface-aware TIC needs the smooth activity provided by these free-surface models.
+@inline supports_interface_aware_tic(surface_normal_method, surface_tension) = false
+
+@inline function supports_interface_aware_tic(::ColorfieldSurfaceNormal,
+                                              ::Union{SurfaceTensionMorris,
+                                                      SurfaceTensionMomentumMorris})
+    return true
+end
+
+@inline function supports_interface_aware_tic(::CorrectedCSFSurfaceNormal,
+                                              ::SurfaceTensionMorris)
+    return true
+end
+
 @inline validate_corrected_csf(surface_normal_method, surface_tension) = nothing
 
 function validate_corrected_csf(::CorrectedCSFSurfaceNormal, surface_tension)
