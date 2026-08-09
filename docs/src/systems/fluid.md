@@ -383,7 +383,7 @@ adequate resolution.
 
 #### Smooth colorfield interface activity
 
-With `ColorfieldSurfaceNormal`, Morris CSF uses a C1 interface activity ``\lambda_a``. Let
+With `ColorfieldSurfaceNormal`, Morris CSF and CSS use a C1 interface activity ``\lambda_a``. Let
 ``h_c`` be the compact-support radius, ``\gamma_a=h_c\Vert\bm g_a\Vert``, ``\epsilon_n`` be
 `interface_threshold`, and ``\alpha`` be `interface_taper_start` (default `0.8`). With
 
@@ -415,7 +415,7 @@ support activity is ``\lambda_{q,a}=1-S((q_a-\tau)/\Delta q)``, where ``\Delta q
 \delta_{s,a}=2\Vert\bm g_a\Vert\lambda_a.
 ```
 
-Setting `ideal_density_threshold=0` disables support filtering. For Morris CSF with
+Setting `ideal_density_threshold=0` disables support filtering. For Morris CSF/CSS with
 `ColorfieldSurfaceNormal`, this keyword represents a continuous fraction of complete kernel
 support instead of an integer neighbor-count fraction. Dummy boundary particles complete
 ``q_a`` near walls without carrying capillary stress. These controls do not alter the separate
@@ -439,10 +439,10 @@ contact-angle terms are not included.
 
 ### [Morris-based momentum-conserving surface tension model](@id moriss_css)
 
-In addition to the simpler curvature-based formulation, [Morris](@cite Morris2000) introduced a momentum-conserving approach.
-This method treats surface tension forces as arising from the divergence of a stress tensor, ensuring exact conservation
-of linear momentum and offering more robust behavior for high-resolution or long-duration simulations
-where accumulated numerical error can be significant.
+[`SurfaceTensionMomentumMorris`](@ref) implements a balanced continuum-surface-stress (CSS)
+formulation for one-phase free surfaces. It treats surface tension as the divergence of a
+localized tangential stress, avoiding the explicit curvature pass required by
+[`SurfaceTensionMorris`](@ref).
 
 #### Stress tensor formulation
 
@@ -464,23 +464,41 @@ with:
 - ``\hat{\bm{n}}``: Unit normal vector,
 - ``I``: Identity matrix.
 
-This divergence can be computed numerically in the SPH framework as
+For a free surface represented only by fluid particles, the raw color gradient ``\bm{g}_a`` is
+sampled over one half of the kernel-smoothed interface. TrixiParticles.jl therefore uses
 
 ```math
-\bm{F}_{a}^{\sigma}
-= m_a \sum_b \frac{m_b}{\rho_a \rho_b} (\bm{S}_a + \bm{S}_b) \nabla_a W_{ab}.
+\delta_{s,a} = 2\Vert\bm{g}_a\Vert\lambda_a,
+\qquad
+\hat{\bm{n}}_a = \frac{\bm{g}_a}{\Vert\bm{g}_a\Vert},
 ```
 
-TrixiParticles.jl stores ``\sigma`` outside the tensor and uses the stabilized tensor
+where ``\lambda_a`` is the smooth interface activity described above. During the same neighbor
+pass, the scalar consistency measure
+
 ```math
-\bm{S}_a^{\text{impl}}
-= \delta_{s,a} (I - \hat{\bm{n}}_a \otimes \hat{\bm{n}}_a) - \delta_{s,\max} I,
+q_a = -\frac{1}{d}\sum_b \frac{m_b}{\rho_b}
+      \bm{r}_{ab}\mathbin{\cdot}\nabla_a W_{ab}
 ```
 
-#### Advantages and limitations
+is accumulated. Its continuum interior value is one. The symmetric pair correction
+``c_{ab}=2/(q_a+q_b)`` restores the linear kernel-gradient scaling near truncated support while
+retaining an antisymmetric pair force. The acceleration is evaluated directly, without storing
+``\bm S``:
 
-While momentum conservation makes this model attractive, it requires additional computational effort and stabilization
-techniques to address instabilities in high-density regions.
+```math
+\frac{\mathrm{d}\bm{v}_a}{\mathrm{d}t}\bigg|_\sigma
+= \sigma\sum_b\frac{m_b c_{ab}}{\rho_a\rho_b}
+\left[
+\delta_{s,a}(I-\hat{\bm{n}}_a\otimes\hat{\bm{n}}_a)
++\delta_{s,b}(I-\hat{\bm{n}}_b\otimes\hat{\bm{n}}_b)
+\right]\nabla_a W_{ab}.
+```
+
+For constant smoothing length, every coefficient multiplying a particle pair is symmetric and
+``\nabla_bW_{ba}=-\nabla_aW_{ab}``. The model therefore conserves linear momentum to roundoff.
+Dummy boundary particles complete ``q_a`` near walls but do not carry capillary stress. The
+Akinci free-surface correction is deliberately not applied to this continuum stress.
 
 ### API
 

@@ -11,15 +11,19 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Corrected `SurfaceTensionMorris` to apply its local CSF acceleration once per particle and
   retain the required one-phase surface delta. Previous coefficients compensated implicitly
   for a dimensionally incomplete force repeated once per fluid neighbor and must be recalibrated.
-- For `SurfaceTensionMorris` with `ColorfieldSurfaceNormal`, `ideal_density_threshold` now denotes
-  a fraction of the continuous complete-support kernel moment instead of an integer neighbor-count
-  fraction. The default zero still disables interior filtering.
+- For `SurfaceTensionMorris` and `SurfaceTensionMomentumMorris` with
+  `ColorfieldSurfaceNormal`, `ideal_density_threshold` now denotes a fraction of the continuous
+  complete-support kernel moment instead of an integer neighbor-count fraction. The default zero
+  still disables interior filtering.
 
 ### Features
 
-- Added C1 interface activation for Morris CSF with `ColorfieldSurfaceNormal`. Color-gradient and
-  continuous support-moment indicators taper the physical surface delta without another neighbor
-  pass.
+- Reworked `SurfaceTensionMomentumMorris` as a balanced continuum-surface-stress operator with a
+  symmetric support correction. It conserves pairwise linear momentum without a cached stress
+  tensor or global reduction.
+- Added C1 interface activation for Morris CSF and CSS with `ColorfieldSurfaceNormal`.
+  Color-gradient and continuous support-moment indicators taper the physical surface delta without
+  another neighbor pass.
 - Added `CorrectedCSFSurfaceNormal`, an explicit free-surface implementation of the C-CSF
   interface geometry from Vergnaud et al. (2022) for `SurfaceTensionMorris`.
 - Added the computation of boundary normals for `RectangularTank`s and `SphereShape`s.

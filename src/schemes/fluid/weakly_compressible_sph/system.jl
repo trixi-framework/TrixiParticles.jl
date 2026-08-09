@@ -322,7 +322,7 @@ end
 end
 
 function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t)
-    (; density_calculator, correction, surface_normal_method, surface_tension) = system
+    (; density_calculator, correction, surface_normal_method) = system
 
     compute_pressure!(system, v, semi)
 
@@ -335,7 +335,6 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_od
 
     # These are only computed when using surface tension
     compute_surface_normal!(system, surface_normal_method, v, u, v_ode, u_ode, semi, t)
-    compute_surface_delta_function!(system, surface_tension, semi)
     return system
 end
 
@@ -345,7 +344,6 @@ function update_final!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, 
 
     # Surface normal of neighbor and boundary needs to have been calculated already
     compute_curvature!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
-    compute_stress_tensors!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
     update_shifting!(system, shifting_technique(system), v, u, v_ode, u_ode, semi)
 end
 

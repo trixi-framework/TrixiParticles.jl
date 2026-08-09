@@ -86,17 +86,23 @@ end
 @doc raw"""
     SurfaceTensionMomentumMorris(surface_tension_coefficient=1.0)
 
-This model implements the momentum-conserving surface tension approach outlined by Morris
-[Morris2000](@cite). It calculates surface tension forces using the divergence of a stress
-tensor, ensuring exact conservation of linear momentum. This method is particularly
-useful for simulations where momentum conservation is critical, though it may require
-numerical adjustments at higher resolutions.
+This model implements the conservative continuum-surface-stress (CSS) approach outlined by
+Morris [Morris2000](@cite). It computes the divergence of
+``\sigma\delta_s(I - \hat{n}\otimes\hat{n})`` with the same symmetric pair operator used by
+the fluid momentum equation. This avoids an explicit curvature estimate and conserves linear
+momentum exactly for constant smoothing length.
+
+The unnormalized color-gradient magnitude is retained as the surface delta ``\delta_s`` before
+the gradient is converted to a unit normal. The stress projection is evaluated directly during
+the fluid interaction, so no per-particle stress tensor or global reduction is required. A
+symmetric scalar reproducing correction is accumulated during the normal pass and applied to the
+stress divergence. It restores first-order scaling near truncated kernel support without another
+neighbor traversal or loss of pairwise momentum conservation.
 
 See [`surface_tension`](@ref) for more details.
 
 # Keywords
-- `surface_tension_coefficient=1.0`: A parameter to adjust the strength of surface tension
-   forces, allowing fine-tuning to replicate physical behavior.
+- `surface_tension_coefficient=1.0`: Physical surface tension coefficient in N/m.
 """
 struct SurfaceTensionMomentumMorris{ELTYPE} <: AbstractSurfaceTension
     surface_tension_coefficient::ELTYPE
@@ -109,13 +115,9 @@ end
 function create_cache_surface_tension(::SurfaceTensionMomentumMorris, ELTYPE, NDIMS,
                                       nparticles)
     delta_s = Array{ELTYPE, 1}(undef, nparticles)
-    # Allocate stress tensor for each particle: NDIMS x NDIMS x nparticles
-    stress_tensor = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
-    return (; stress_tensor, delta_s)
-end
-
-@inline function stress_tensor(particle_system::AbstractFluidSystem, particle)
-    return extract_smatrix(particle_system.cache.stress_tensor, particle_system, particle)
+    interface_activity = Array{ELTYPE, 1}(undef, nparticles)
+    divergence_correction = Array{ELTYPE, 1}(undef, nparticles)
+    return (; delta_s, interface_activity, divergence_correction)
 end
 
 # Note that `floating_point_number^integer_literal` is lowered to `Base.literal_pow`.
@@ -259,57 +261,22 @@ end
            normal
 end
 
-function compute_stress_tensors!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
-    return system
+@inline function surface_stress_times_gradient(particle_system, particle, grad_kernel)
+    delta_s = @inbounds particle_system.cache.delta_s[particle]
+    iszero(delta_s) && return zero(grad_kernel)
+
+    normal = surface_normal(particle_system, particle)
+    return delta_s * (grad_kernel - normal * dot(normal, grad_kernel))
 end
 
-# Section 6 in Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
-function compute_stress_tensors!(system::AbstractFluidSystem,
-                                 ::SurfaceTensionMomentumMorris,
-                                 v, u, v_ode, u_ode, semi, t)
-    (; cache) = system
-    (; delta_s, stress_tensor) = cache
-
-    # Reset surface stress_tensor
-    set_zero!(stress_tensor)
-
-    max_delta_s = maximum(delta_s)
-    NDIMS = ndims(system)
-
-    @trixi_timeit timer() "compute surface stress tensor" begin
-        @threaded semi for particle in each_integrated_particle(system)
-            normal = surface_normal(system, particle)
-            delta_s_particle = delta_s[particle]
-            if delta_s_particle > eps()
-                for i in 1:NDIMS, j in 1:NDIMS
-                    delta_ij = (i == j) ? 1 : 0
-                    stress_tensor[i, j,
-                                  particle] = delta_s_particle *
-                                              (delta_ij - normal[i] * normal[j]) -
-                                              delta_ij * max_delta_s
-                end
-            end
-        end
-    end
-
-    return system
-end
-
-function compute_surface_delta_function!(system, surface_tension, semi)
-    return system
-end
-
-# Eq. 6 in Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
-function compute_surface_delta_function!(system, ::SurfaceTensionMomentumMorris, semi)
-    (; cache) = system
-    (; delta_s) = cache
-
-    set_zero!(delta_s)
-
-    @threaded semi for particle in each_integrated_particle(system)
-        delta_s[particle] = norm(surface_normal(system, particle))
-    end
-    return system
+@inline function symmetric_surface_divergence_correction(particle_system,
+                                                         neighbor_system,
+                                                         particle, neighbor)
+    correction_a = @inbounds particle_system.cache.divergence_correction[particle]
+    correction_b = @inbounds neighbor_system.cache.divergence_correction[neighbor]
+    denominator = correction_a + correction_b
+    denominator > eps(denominator) || return zero(denominator)
+    return 2 / denominator
 end
 
 @inline function surface_tension_force!(dv_particle,
@@ -325,13 +292,19 @@ end
     # No surface tension with oneself. See `src/general/smoothing_kernels.jl` for more details.
     distance^2 < eps(initial_smoothing_length(particle_system)^2) && return dv_particle
 
-    S_a = stress_tensor(particle_system, particle)
-    S_b = stress_tensor(neighbor_system, neighbor)
-
     m_b = hydrodynamic_mass(neighbor_system, neighbor)
+    stress_gradient_a = surface_stress_times_gradient(particle_system, particle,
+                                                      grad_kernel)
+    stress_gradient_b = surface_stress_times_gradient(neighbor_system, neighbor,
+                                                      grad_kernel)
+    divergence_correction = symmetric_surface_divergence_correction(particle_system,
+                                                                    neighbor_system,
+                                                                    particle, neighbor)
 
-    dv_particle[] += surface_tension_correction * surface_tension_coefficient * m_b *
-                     (S_a + S_b) / (rho_a * rho_b) * grad_kernel
+    # This uses the same symmetric stress-divergence operator as the pressure force. The
+    # Akinci free-surface correction is deliberately not applied to a continuum stress.
+    dv_particle[] += divergence_correction * surface_tension_coefficient * m_b /
+                     (rho_a * rho_b) * (stress_gradient_a + stress_gradient_b)
 
     return dv_particle
 end

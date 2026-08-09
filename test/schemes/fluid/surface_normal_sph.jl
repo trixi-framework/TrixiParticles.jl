@@ -228,6 +228,66 @@ end
     @test isapprox(weighted_curvature, 2 / radius; rtol=0.15)
 end
 
+@testset "CSS flat-pool geometry" begin
+    particle_spacing = 0.1
+    reference_density = 1000.0
+    smoothing_kernel = WendlandC2Kernel{2}()
+    smoothing_length = 1.4particle_spacing
+    state_equation = StateEquationCole(; sound_speed=10.0, reference_density,
+                                       exponent=1)
+    fluid = RectangularShape(particle_spacing, (9, 6), (0.0, 0.0);
+                             density=reference_density)
+    normal_method = ColorfieldSurfaceNormal(; boundary_contact_threshold=0.1,
+                                            interface_threshold=0.01,
+                                            ideal_density_threshold=0.9)
+    surface_tension = SurfaceTensionMomentumMorris(; surface_tension_coefficient=0.072)
+    fluid_system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
+                                               smoothing_length,
+                                               density_calculator=ContinuityDensity(),
+                                               state_equation, surface_tension,
+                                               surface_normal_method=normal_method,
+                                               reference_particle_spacing=particle_spacing)
+
+    # The top wall row continues the fluid lattice one spacing below the bottom fluid row.
+    wall = RectangularShape(particle_spacing, (9, 3), (0.0, -0.3);
+                            density=reference_density)
+    boundary_model = BoundaryModelDummyParticles(wall; fluid_system,
+                                                 boundary_density_calculator=AdamiPressureExtrapolation())
+    boundary_system = WallBoundarySystem(wall, boundary_model)
+    semi = Semidiscretization(fluid_system, boundary_system)
+    ode = semidiscretize(semi, (0.0, 0.01))
+    v_ode, u_ode = ode.u0.x
+    TrixiParticles.update_systems_and_nhs(v_ode, u_ode, semi, 0.0)
+
+    coordinates = fluid.coordinates
+    particle_at(position) = findfirst(particle -> coordinates[:, particle] == position,
+                                      axes(coordinates, 2))
+    bottom_center = particle_at([0.45, 0.05])
+    interior_center = particle_at([0.45, 0.25])
+    top_center = particle_at([0.45, 0.55])
+    centerline_particles = [bottom_center, interior_center, top_center]
+
+    acceleration = GC.@preserve v_ode u_ode begin
+        v = TrixiParticles.wrap_v(v_ode, fluid_system, semi)
+        u = TrixiParticles.wrap_u(u_ode, fluid_system, semi)
+        v_boundary = TrixiParticles.wrap_v(v_ode, boundary_system, semi)
+        u_boundary = TrixiParticles.wrap_u(u_ode, boundary_system, semi)
+        dv = zeros(eltype(v), size(v))
+        TrixiParticles.interact!(dv, v, u, v, u, fluid_system, fluid_system, semi)
+        TrixiParticles.interact!(dv, v, u, v_boundary, u_boundary, fluid_system,
+                                 boundary_system, semi)
+        Array(dv[1:2, :])
+    end
+
+    # Wall particles complete the support moment without carrying capillary stress.
+    @test fluid_system.cache.divergence_correction[bottom_center] >= 0.9
+    @test fluid_system.cache.interface_activity[bottom_center] == 0
+    @test fluid_system.cache.delta_s[bottom_center] == 0
+    @test fluid_system.cache.delta_s[top_center] > 0
+    @test iszero(fluid_system.cache.delta_s[interior_center])
+    @test maximum(abs, acceleration[:, centerline_particles]) < 1.0e-12
+end
+
 @testset verbose=true "Rigid Dummy Boundary Matches Wall Boundary" begin
     NDIMS = 2
     particle_spacing = 0.2

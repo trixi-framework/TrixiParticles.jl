@@ -311,96 +311,174 @@
         @test system.cache.correction_factor ≈ 2correction_factor
     end
 
-    @testset "compute_stress_tensors! (MomentumMorris)" begin
-        # 1. Define Minimal Initial Condition with 2 Particles in 2D
-        coords = [0.0 1.0;
-                  0.0 0.0]
-        velocity = zeros(2, 2)
-        mass = ones(2)
-        density = ones(2)
+    @testset "balanced continuum surface stress" begin
+        initial_condition = InitialCondition(; coordinates=[0.0 0.75; 0.0 0.0],
+                                             velocity=zeros(2, 2), mass=[2.0, 3.0],
+                                             density=ones(2), particle_spacing=0.5)
+        surface_tension = SurfaceTensionMomentumMorris(;
+                                                       surface_tension_coefficient=0.7)
+        normal_method = ColorfieldSurfaceNormal(; interface_threshold=0.1)
+        system = WeaklyCompressibleSPHSystem(initial_condition;
+                                             smoothing_kernel=WendlandC2Kernel{2}(),
+                                             smoothing_length=0.5,
+                                             density_calculator=SummationDensity(),
+                                             state_equation=StateEquationCole(;
+                                                                              sound_speed=10.0,
+                                                                              reference_density=1.0,
+                                                                              exponent=1),
+                                             surface_tension,
+                                             surface_normal_method=normal_method,
+                                             reference_particle_spacing=0.5)
 
-        ic = InitialCondition(; coordinates=coords, velocity, mass, density,
-                              particle_spacing=1.0)
-
-        # 2. Define Density Calculator, State Equation, and Kernel
-        density_calc = SummationDensity()
-        eq_state = StateEquationCole(sound_speed=10.0,
-                                     reference_density=1.0,
-                                     exponent=1)
-        kernel = WendlandC2Kernel{2}()
-        smoothing_length = 0.5
-
-        # 3. Create the WeaklyCompressibleSPHSystem with Surface Tension
-        system = WeaklyCompressibleSPHSystem(ic; smoothing_kernel=kernel,
-                                             smoothing_length,
-                                             density_calculator=density_calc,
-                                             state_equation=eq_state,
-                                             surface_tension=SurfaceTensionMomentumMorris(surface_tension_coefficient=1.0),
-                                             surface_normal_method=ColorfieldSurfaceNormal(interface_threshold=0.1,
-                                                                                           ideal_density_threshold=0.9),
-                                             reference_particle_spacing=1.0,)
-
-        # 4. Verify Cache Contains Necessary Fields
         @test haskey(system.cache, :delta_s)
+        @test haskey(system.cache, :interface_activity)
+        @test haskey(system.cache, :divergence_correction)
         @test haskey(system.cache, :surface_normal)
-        @test haskey(system.cache, :stress_tensor)
+        @test !haskey(system.cache, :stress_tensor)
 
-        # 5. Manually Populate `delta_s` and `surface_normal`
-        system.cache.delta_s .= [1.0, 2.0]
-        system.cache.surface_normal .= hcat([1.0, 0.0], [1 / sqrt(2), 1 / sqrt(2)])
-        system.cache.stress_tensor .= zeros(2, 2, 2)  # Reset to zero before computation
+        # Capture the one-phase surface delta before normalizing the color gradient.
+        system.cache.surface_normal .= [2.0 1.0; 0.0 1.0]
+        system.cache.divergence_correction .= 0
+        TrixiParticles.remove_invalid_normals!(system, surface_tension, normal_method)
+        @test system.cache.delta_s ≈ [4.0, 2sqrt(2)]
+        @test system.cache.interface_activity == [1.0, 1.0]
+        @test system.cache.surface_normal[:, 1] ≈ [1.0, 0.0]
+        @test system.cache.surface_normal[:, 2] ≈ [1 / sqrt(2), 1 / sqrt(2)]
 
-        # 6. Call `compute_stress_tensors!` with `SurfaceTensionMomentumMorris`
-        TrixiParticles.compute_stress_tensors!(system,
-                                               SurfaceTensionMomentumMorris(),
-                                               nothing, nothing,  # v, u (not needed for stress computation)
-                                               nothing, nothing,  # v_ode, u_ode (not needed)
-                                               SerialBackend(),   # semi (only passed to `@threaded`)
-                                               0.0)
+        grad_kernel = SVector(0.3, -0.4)
+        stress_gradient_1 = 4.0 .* (grad_kernel - SVector(1.0, 0.0) * 0.3)
+        normal_2 = SVector(1 / sqrt(2), 1 / sqrt(2))
+        stress_gradient_2 = 2sqrt(2) .* (grad_kernel -
+                             normal_2 * dot(normal_2, grad_kernel))
+        @test TrixiParticles.surface_stress_times_gradient(system, 1, grad_kernel) ≈
+              stress_gradient_1
+        @test TrixiParticles.surface_stress_times_gradient(system, 2, grad_kernel) ≈
+              stress_gradient_2
 
-        # 7. Define Reference Stress Tensors by Hand
-        #
-        # Reference calculations based on the formula:
-        # σ_ij(a) = δs_a (δ_ij - n_i n_j) - δ_ij max(δs)
-        #
-        # For Particle 1:
-        # δs = 1.0
-        # n = (1.0, 0.0)
-        # max(δs) = 2.0
-        # σ_11 = 1*(1 - 1^2) - 1*2 = -2
-        # σ_12 = 1*(0 - 1*0) - 0*2 = 0
-        # σ_21 = 1*(0 - 1*0) - 0*2 = 0
-        # σ_22 = 1*(1 - 0^2) - 1*2 = 1 - 2 = -1
-        #
-        # Resulting Stress Tensor for Particle 1:
-        # [-2.0  0.0
-        #   0.0 -1.0]
-        #
-        # For Particle 2:
-        # δs = 2.0
-        # n = (1/√2, 1/√2)
-        # max(δs) = 2.0
-        # σ_11 = 2*(1 - (1/√2)^2) - 1*2 = 2*(1 - 0.5) - 2 = 1 - 2 = -1
-        # σ_12 = 2*(0 - (1/√2)^2) - 0*2 = 2*(0 - 0.5) = -1
-        # σ_21 = 2*(0 - (1/√2)^2) - 0*2 = -1
-        # σ_22 = 2*(1 - (1/√2)^2) - 1*2 = 2*(1 - 0.5) - 2 = 1 - 2 = -1
-        #
-        # Resulting Stress Tensor for Particle 2:
-        # [-1.0 -1.0
-        #  -1.0 -1.0]
+        rho_a = 2.0
+        rho_b = 3.0
+        system.cache.divergence_correction .= [0.5, 1.0]
+        divergence_correction = 2 / (0.5 + 1.0)
+        pos_diff = SVector(-0.75, 0.0)
+        distance = norm(pos_diff)
+        dv_a = Ref(zero(pos_diff))
+        TrixiParticles.surface_tension_force!(dv_a, surface_tension, surface_tension,
+                                              system, system, 1, 2, pos_diff, distance,
+                                              rho_a, rho_b, grad_kernel, 4.0)
+        expected = 3divergence_correction * surface_tension.surface_tension_coefficient /
+                   (rho_a * rho_b) * (stress_gradient_1 + stress_gradient_2)
+        @test dv_a[] ≈ expected
 
-        ref_particle_1 = [-2.0 0.0;
-                          0.0 -1.0]
-        ref_particle_2 = [-1.0 -1.0;
-                          -1.0 -1.0]
+        # The symmetric stress divergence conserves pairwise momentum and deliberately
+        # ignores the Akinci-specific correction factor passed above.
+        dv_b = Ref(zero(pos_diff))
+        TrixiParticles.surface_tension_force!(dv_b, surface_tension, surface_tension,
+                                              system, system, 2, 1, -pos_diff, distance,
+                                              rho_b, rho_a, -grad_kernel, 4.0)
+        @test 2dv_a[] ≈ -3dv_b[]
 
-        # 8. Retrieve Computed Stress Tensor
-        computed = system.cache.stress_tensor
+        semi = Semidiscretization(system)
+        ode = semidiscretize(semi, (0.0, 0.01))
+        v_ode, u_ode = ode.u0.x
+        vtk = Dict{String, Any}()
+        GC.@preserve v_ode u_ode begin
+            v = TrixiParticles.wrap_v(v_ode, system, semi)
+            u = TrixiParticles.wrap_u(u_ode, system, semi)
+            TrixiParticles.write2vtk!(vtk, v, u, 0.0, system)
+        end
+        @test vtk["surface_divergence_correction"] == [0.5, 1.0]
+        @test size(vtk["surface_stress_tensor"]) == (2, 2, 2)
+        @test vtk["surface_stress_tensor"][:, :, 1] ≈ [0.0 0.0; 0.0 4.0]
+        @test all(isfinite, vtk["surface_stress_tensor"])
 
-        # 9. Perform Assertions
-        @test all(isfinite, computed)
+        system.cache.divergence_correction .= 0
+        unsupported_force = Ref(zero(pos_diff))
+        TrixiParticles.surface_tension_force!(unsupported_force, surface_tension,
+                                              surface_tension, system, system, 1, 2,
+                                              pos_diff, distance, rho_a, rho_b,
+                                              grad_kernel, 1.0)
+        @test iszero(unsupported_force[])
 
-        @test isapprox(computed[:, :, 1], ref_particle_1; atol=1e-14)
-        @test isapprox(computed[:, :, 2], ref_particle_2; atol=1e-14)
+        filtered_method = ColorfieldSurfaceNormal(; interface_threshold=0.1,
+                                                  ideal_density_threshold=0.9,
+                                                  support_taper_width=0.05)
+        system.cache.surface_normal .= 0
+        system.cache.surface_normal[1, 1] = 0.2
+        system.cache.divergence_correction .= [0.925, 1.0]
+        TrixiParticles.remove_invalid_normals!(system, surface_tension, filtered_method)
+        @test system.cache.interface_activity[1] ≈ 0.5
+        @test system.cache.delta_s[1] ≈ 0.2
+        @test system.cache.surface_normal[:, 1] == [1.0, 0.0]
+    end
+
+    @testset "CSS static Laplace balance" begin
+        reference_density = 1000.0
+        target_particles = 375
+        drop_volume = 1.0e-6
+        particle_spacing = cbrt(drop_volume / target_particles)
+        radius = cbrt(3drop_volume / (4pi))
+        initial_condition = SphereShape(particle_spacing, radius + particle_spacing / 2,
+                                        (0.0, 0.0, 0.0), reference_density;
+                                        sphere_type=VoxelSphere())
+        smoothing_kernel = WendlandC2Kernel{3}()
+        smoothing_length = 1.4particle_spacing
+
+        function initial_acceleration(system)
+            semi = Semidiscretization(system)
+            ode = semidiscretize(semi, (0.0, 0.01))
+            v_ode, u_ode = ode.u0.x
+            TrixiParticles.update_systems_and_nhs(v_ode, u_ode, semi, 0.0)
+            return GC.@preserve v_ode u_ode begin
+                v = TrixiParticles.wrap_v(v_ode, system, semi)
+                u = TrixiParticles.wrap_u(u_ode, system, semi)
+                dv = zeros(eltype(v), size(v))
+                TrixiParticles.interact!(dv, v, u, v, u, system, system, semi)
+                Array(dv[1:3, :])
+            end
+        end
+
+        coefficient = 1.0
+        css = SurfaceTensionMomentumMorris(; surface_tension_coefficient=coefficient)
+        css_system = WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
+                                                 smoothing_length,
+                                                 density_calculator=ContinuityDensity(),
+                                                 state_equation=StateEquationCole(;
+                                                                                  sound_speed=100.0,
+                                                                                  reference_density,
+                                                                                  exponent=1),
+                                                 surface_tension=css,
+                                                 surface_normal_method=ColorfieldSurfaceNormal(;
+                                                                                               boundary_contact_threshold=Inf,
+                                                                                               interface_threshold=0.01,
+                                                                                               ideal_density_threshold=0.95),
+                                                 reference_particle_spacing=particle_spacing)
+        css_acceleration = initial_acceleration(css_system)
+
+        pressure_basis = 1.0
+        sound_speed = 100.0
+        pressure_reference_density = reference_density - pressure_basis / sound_speed^2
+        pressure_system = WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
+                                                      smoothing_length,
+                                                      density_calculator=ContinuityDensity(),
+                                                      state_equation=StateEquationCole(;
+                                                                                       sound_speed,
+                                                                                       reference_density=pressure_reference_density,
+                                                                                       exponent=1))
+        pressure_acceleration = initial_acceleration(pressure_system) / pressure_basis
+
+        interface = findall(>(0), css_system.cache.delta_s)
+        capillary = vec(css_acceleration[:, interface])
+        unit_pressure = vec(pressure_acceleration[:, interface])
+        pressure_jump = -dot(capillary, unit_pressure) / dot(unit_pressure, unit_pressure)
+        volume = sum(css_system.mass) / reference_density
+        equivalent_radius = cbrt(3volume / (4pi))
+        inferred_surface_tension = pressure_jump * equivalent_radius / 2
+        total_force = vec(sum(css_acceleration .* reshape(css_system.mass, 1, :);
+                              dims=2))
+
+        @test inferred_surface_tension ≈ coefficient rtol = 0.05
+        @test norm(total_force) < 1.0e-12
+        @test all(isfinite, css_system.cache.divergence_correction)
+        @test minimum(css_system.cache.divergence_correction) > 0
     end
 end

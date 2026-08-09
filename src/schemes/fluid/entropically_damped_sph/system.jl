@@ -311,7 +311,6 @@ function update_pressure!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_od
 
     compute_surface_normal!(system, system.surface_normal_method, v, u, v_ode, u_ode, semi,
                             t)
-    compute_surface_delta_function!(system, system.surface_tension, semi)
 end
 
 function kernel_correct_density!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode,
@@ -354,7 +353,6 @@ function update_final!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, 
 
     # Surface normal of neighbor and boundary needs to have been calculated already
     compute_curvature!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
-    compute_stress_tensors!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
     update_average_pressure!(system, system.average_pressure_reduction, v_ode, u_ode, semi)
     update_shifting!(system, shifting_technique(system), v, u, v_ode, u_ode, semi)
 end

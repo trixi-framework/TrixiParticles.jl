@@ -8,13 +8,13 @@ Color field based computation of the interface normals.
 # Keywords
 - `boundary_contact_threshold=0.1`: If this threshold is reached the fluid is assumed to be in contact with the boundary.
 - `interface_threshold=0.01`:       Threshold for normals to be removed as being invalid.
-- `ideal_density_threshold=0.0`:    For Morris CSF, assume particles are inside when their
+- `ideal_density_threshold=0.0`:    For Morris CSF/CSS, assume particles are inside when their
                                     continuous kernel-support moment is above this fraction of
                                     complete support. Zero disables this filter. Other models
                                     retain their existing neighbor-count interpretation.
-- `interface_taper_start=0.8`:      Start Morris CSF interface activation at this fraction of
+- `interface_taper_start=0.8`:      Start Morris CSF/CSS interface activation at this fraction of
                                     `interface_threshold`.
-- `support_taper_width=0.025`:      Width of the Morris CSF support-moment transition above
+- `support_taper_width=0.025`:      Width of the Morris CSF/CSS support-moment transition above
                                     `ideal_density_threshold`.
 """
 struct ColorfieldSurfaceNormal{ELTYPE}
@@ -121,11 +121,21 @@ end
     return one(support_moment) - cubic_smoothstep(transition_coordinate)
 end
 
+@inline function surface_support_moment(system, ::SurfaceTensionMorris, particle)
+    return @inbounds system.cache.support_moment[particle]
+end
+
+@inline function surface_support_moment(system, ::SurfaceTensionMomentumMorris, particle)
+    return @inbounds system.cache.divergence_correction[particle]
+end
+
 @inline function surface_interface_activity(system, particle)
     return surface_interface_activity(surface_tension_model(system), system, particle)
 end
 
-@inline function surface_interface_activity(::SurfaceTensionMorris, system, particle)
+@inline function surface_interface_activity(::Union{SurfaceTensionMorris,
+                                                    SurfaceTensionMomentumMorris},
+                                            system, particle)
     return @inbounds system.cache.interface_activity[particle]
 end
 
@@ -217,6 +227,15 @@ end
     return system
 end
 
+@inline function accumulate_surface_support_moment!(system,
+                                                    ::SurfaceTensionMomentumMorris,
+                                                    particle, volume, pos_diff,
+                                                    grad_kernel)
+    value = -volume * dot(pos_diff, grad_kernel) / ndims(system)
+    @inbounds system.cache.divergence_correction[particle] += value
+    return system
+end
+
 @inline function accumulate_boundary_surface_support_moment!(system, surface_tension,
                                                              neighbor_system,
                                                              v_neighbor_system, particle,
@@ -225,15 +244,16 @@ end
 end
 
 @inline function accumulate_boundary_surface_support_moment!(system,
-                                                             ::SurfaceTensionMorris,
+                                                             surface_tension::Union{SurfaceTensionMorris,
+                                                                                    SurfaceTensionMomentumMorris},
                                                              neighbor_system,
                                                              v_neighbor_system, particle,
                                                              neighbor, pos_diff, distance)
     m_b = hydrodynamic_mass(neighbor_system, neighbor)
     density_neighbor = current_density(v_neighbor_system, neighbor_system, neighbor)
     grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
-    value = -m_b / density_neighbor * dot(pos_diff, grad_kernel) / ndims(system)
-    @inbounds system.cache.support_moment[particle] += value
+    accumulate_surface_support_moment!(system, surface_tension, particle,
+                                       m_b / density_neighbor, pos_diff, grad_kernel)
     return system
 end
 
@@ -313,50 +333,9 @@ function remove_invalid_normals!(system::AbstractFluidSystem, surface_tension,
     return system
 end
 
-# See Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
 function remove_invalid_normals!(system::AbstractFluidSystem,
-                                 surface_tension::SurfaceTensionMomentumMorris,
-                                 surface_normal_method::ColorfieldSurfaceNormal)
-    (; cache, smoothing_kernel) = system
-    (; ideal_density_threshold, interface_threshold) = surface_normal_method
-    (; neighbor_count) = cache
-
-    smoothing_length_ = initial_smoothing_length(system)
-
-    # We remove invalid normals i.e. they have a small norm (eq. 20)
-    normal_condition2 = (interface_threshold /
-                         compact_support(smoothing_kernel, smoothing_length_))^2
-
-    for particle in each_integrated_particle(system)
-
-        # Heuristic condition if there is no gas phase to find the free surface.
-        # We remove normals for particles which have a lot of support e.g. they are in the interior.
-        if ideal_density_threshold > 0 &&
-           ideal_density_threshold *
-           ideal_neighbor_count(Val(ndims(system)), cache.reference_particle_spacing,
-                                compact_support(smoothing_kernel, smoothing_length_)) <
-           neighbor_count[particle]
-            cache.surface_normal[1:ndims(system), particle] .= 0
-            continue
-        end
-
-        particle_surface_normal = surface_normal(system, particle)
-        norm2 = dot(particle_surface_normal, particle_surface_normal)
-
-        # See eq. 21
-        if norm2 > normal_condition2
-            cache.surface_normal[1:ndims(system),
-                                 particle] = particle_surface_normal / sqrt(norm2)
-        else
-            cache.surface_normal[1:ndims(system), particle] .= 0
-        end
-    end
-
-    return system
-end
-
-function remove_invalid_normals!(system::AbstractFluidSystem,
-                                 ::SurfaceTensionMorris,
+                                 surface_tension::Union{SurfaceTensionMorris,
+                                                        SurfaceTensionMomentumMorris},
                                  surface_normal_method::ColorfieldSurfaceNormal)
     (; cache, smoothing_kernel) = system
     support_radius = compact_support(smoothing_kernel, initial_smoothing_length(system))
@@ -375,7 +354,7 @@ function remove_invalid_normals!(system::AbstractFluidSystem,
         normal_norm = sqrt(norm2)
         gradient_activity = gradient_interface_activity(normal_norm, support_radius,
                                                         surface_normal_method)
-        support_moment = cache.support_moment[particle]
+        support_moment = surface_support_moment(system, surface_tension, particle)
         support_activity = support_interface_activity(support_moment,
                                                       surface_normal_method)
         activity = gradient_activity * support_activity
@@ -398,6 +377,13 @@ end
 
 @inline function reset_surface_interface_data!(system, ::SurfaceTensionMorris)
     set_zero!(system.cache.support_moment)
+    set_zero!(system.cache.interface_activity)
+    set_zero!(system.cache.delta_s)
+    return system
+end
+
+@inline function reset_surface_interface_data!(system, ::SurfaceTensionMomentumMorris)
+    set_zero!(system.cache.divergence_correction)
     set_zero!(system.cache.interface_activity)
     set_zero!(system.cache.delta_s)
     return system

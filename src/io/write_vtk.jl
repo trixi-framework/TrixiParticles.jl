@@ -365,7 +365,19 @@ function write2vtk!(vtk, v, u, t, system::AbstractFluidSystem)
             vtk["curvature"] = system.cache.curvature
         end
         if system.surface_tension isa SurfaceTensionMomentumMorris
-            vtk["surface_stress_tensor"] = system.cache.stress_tensor
+            stress_tensor = zeros(eltype(system), ndims(system), ndims(system),
+                                  n_integrated_particles(system))
+            for particle in each_integrated_particle(system)
+                normal = surface_normal(system, particle)
+                delta_s = system.cache.delta_s[particle]
+                for i in 1:ndims(system), j in 1:ndims(system)
+                    stress_tensor[i, j,
+                                  particle] = delta_s *
+                                              ((i == j) - normal[i] * normal[j])
+                end
+            end
+            vtk["surface_divergence_correction"] = system.cache.divergence_correction
+            vtk["surface_stress_tensor"] = stress_tensor
         end
     end
 
