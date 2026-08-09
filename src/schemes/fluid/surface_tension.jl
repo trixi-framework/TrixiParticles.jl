@@ -1,46 +1,94 @@
 abstract type AbstractSurfaceTension end
 abstract type AkinciTypeSurfaceTension <: AbstractSurfaceTension end
 
+function validate_surface_tension_coefficient(surface_tension_coefficient)
+    if !(surface_tension_coefficient isa Real) ||
+       !isfinite(surface_tension_coefficient) || surface_tension_coefficient < 0
+        throw(ArgumentError("`surface_tension_coefficient` must be a finite, non-negative real number"))
+    end
+
+    return surface_tension_coefficient
+end
+
 @doc raw"""
     CohesionForceAkinci(surface_tension_coefficient=1.0)
 
 This model only implements the cohesion force of the Akinci [Akinci2013](@cite) surface tension model.
+It does not require a surface-normal method.
+
+The three-dimensional cohesion kernel uses the normalization published by Akinci et al. In two
+dimensions, TrixiParticles.jl uses an integral-matched extension that is independent of particle
+resolution.
 
 See [`surface_tension`](@ref) for more details.
 
 # Keywords
-- `surface_tension_coefficient=1.0`: Modifies the intensity of the surface tension-induced force,
-   enabling the tuning of the fluid's surface tension properties within the simulation.
+- `surface_tension_coefficient=1.0`: Finite, non-negative coefficient modifying the
+  fluid-fluid cohesion force. Zero disables this force; wall adhesion is controlled by the
+  boundary's `adhesion_coefficient`.
 """
-struct CohesionForceAkinci{ELTYPE} <: AkinciTypeSurfaceTension
+struct CohesionForceAkinci{ELTYPE <: Real} <: AkinciTypeSurfaceTension
     surface_tension_coefficient::ELTYPE
 
     function CohesionForceAkinci(; surface_tension_coefficient=1.0)
-        new{typeof(surface_tension_coefficient)}(surface_tension_coefficient)
+        coefficient = validate_surface_tension_coefficient(surface_tension_coefficient)
+        new{typeof(coefficient)}(coefficient)
     end
 end
 
 @doc raw"""
-    SurfaceTensionAkinci(surface_tension_coefficient=1.0)
+    SurfaceTensionAkinci(surface_tension_coefficient=1.0,
+                         reference_smoothing_length=nothing)
 
 Implements a model for surface tension and adhesion effects drawing upon the
 principles outlined by Akinci [Akinci2013](@cite). This model is instrumental in capturing the nuanced
 behaviors of fluid surfaces, such as droplet formation and the dynamics of merging or
 separation, by utilizing intra-particle forces.
 
+The three-dimensional cohesion and adhesion kernels use the normalizations published by Akinci
+et al. In two dimensions, TrixiParticles.jl uses integral-matched extensions that are independent
+of particle resolution.
+
 See [`surface_tension`](@ref) for more details.
 
 # Keywords
-- `surface_tension_coefficient=1.0`: A parameter to adjust the magnitude of
-   surface tension forces, facilitating the fine-tuning of how surface tension phenomena
-   are represented in the simulation.
+- `surface_tension_coefficient=1.0`: Finite, non-negative coefficient adjusting the
+  magnitude of surface tension forces. Zero disables the fluid-fluid force.
+- `reference_smoothing_length=nothing`: Optional finite, positive calibration length for the
+  normal-difference force. When set, neighbor-volume normalization is enabled and the normal
+  contribution is scaled with this fixed length instead of the current smoothing length. The
+  default preserves the original Akinci discretization.
 """
-struct SurfaceTensionAkinci{ELTYPE} <: AkinciTypeSurfaceTension
-    surface_tension_coefficient::ELTYPE
+struct SurfaceTensionAkinci{ELTYPE <: Real, REFERENCE_LENGTH} <: AkinciTypeSurfaceTension
+    surface_tension_coefficient :: ELTYPE
+    reference_smoothing_length  :: REFERENCE_LENGTH
 
-    function SurfaceTensionAkinci(; surface_tension_coefficient=1.0)
-        new{typeof(surface_tension_coefficient)}(surface_tension_coefficient)
+    function SurfaceTensionAkinci(; surface_tension_coefficient=1.0,
+                                  reference_smoothing_length=nothing)
+        coefficient = validate_surface_tension_coefficient(surface_tension_coefficient)
+        if isnothing(reference_smoothing_length)
+            return new{typeof(coefficient), Nothing}(coefficient, nothing)
+        end
+        if !(reference_smoothing_length isa Real) ||
+           !isfinite(reference_smoothing_length) || reference_smoothing_length <= 0
+            throw(ArgumentError("`reference_smoothing_length` must be `nothing` or a finite, positive real number"))
+        end
+
+        coefficient_,
+        reference_smoothing_length_ = promote(coefficient,
+                                              reference_smoothing_length)
+        new{typeof(coefficient_), typeof(reference_smoothing_length_)}(coefficient_,
+                                                                       reference_smoothing_length_)
     end
+end
+
+@inline function pair_reference_smoothing_length(surface_tension_a::SurfaceTensionAkinci,
+                                                 surface_tension_b::SurfaceTensionAkinci)
+    reference_a = surface_tension_a.reference_smoothing_length
+    reference_b = surface_tension_b.reference_smoothing_length
+    isnothing(reference_a) && return reference_b
+    isnothing(reference_b) && return reference_a
+    return min(reference_a, reference_b)
 end
 
 @doc raw"""
@@ -60,18 +108,28 @@ See [`surface_tension`](@ref) for more details.
 
 
 # Keywords
-- `surface_tension_coefficient=1.0`: Adjusts the magnitude of the surface tension
-   forces, enabling tuning of fluid surface behaviors in simulations.
+- `surface_tension_coefficient=1.0`: Finite, non-negative coefficient adjusting the
+  magnitude of surface tension forces. Zero disables the force.
 """
-struct SurfaceTensionMorris{ELTYPE} <: AbstractSurfaceTension
+struct SurfaceTensionMorris{ELTYPE <: Real} <: AbstractSurfaceTension
     surface_tension_coefficient::ELTYPE
 
     function SurfaceTensionMorris(; surface_tension_coefficient=1.0)
-        new{typeof(surface_tension_coefficient)}(surface_tension_coefficient)
+        coefficient = validate_surface_tension_coefficient(surface_tension_coefficient)
+        new{typeof(coefficient)}(coefficient)
     end
 end
 
 function create_cache_surface_tension(surface_tension, ELTYPE, NDIMS, nparticles)
+    return (;)
+end
+
+function create_cache_surface_tension(::AkinciTypeSurfaceTension, ELTYPE, NDIMS,
+                                      nparticles)
+    if NDIMS != 2 && NDIMS != 3
+        throw(ArgumentError("Akinci surface tension is only supported in two and three dimensions"))
+    end
+
     return (;)
 end
 
@@ -106,15 +164,23 @@ preserves the no-wetting default.
 See [`surface_tension`](@ref) for more details.
 
 # Keywords
-- `surface_tension_coefficient=1.0`: Physical surface tension coefficient in N/m.
+- `surface_tension_coefficient=1.0`: Finite, non-negative physical surface tension
+  coefficient in N/m. Zero disables the force.
 """
-struct SurfaceTensionMomentumMorris{ELTYPE} <: AbstractSurfaceTension
+struct SurfaceTensionMomentumMorris{ELTYPE <: Real} <: AbstractSurfaceTension
     surface_tension_coefficient::ELTYPE
 
     function SurfaceTensionMomentumMorris(; surface_tension_coefficient=1.0)
-        new{typeof(surface_tension_coefficient)}(surface_tension_coefficient)
+        coefficient = validate_surface_tension_coefficient(surface_tension_coefficient)
+        new{typeof(coefficient)}(coefficient)
     end
 end
+
+# Surface-model capabilities are expressed through dispatch so that constructors do not need
+# to duplicate concrete model checks.
+@inline requires_surface_normal(::Nothing) = false
+@inline requires_surface_normal(::CohesionForceAkinci) = false
+@inline requires_surface_normal(::Any) = true
 
 function create_cache_surface_tension(::SurfaceTensionMomentumMorris, ELTYPE, NDIMS,
                                       nparticles)
@@ -131,11 +197,29 @@ end
 # By using the `@fastpow` macro, we are consciously trading off some precision in the result
 # for enhanced computational speed. This is especially useful in scenarios where performance
 # is a higher priority than exact precision.
+@fastpow @inline function cohesion_kernel_normalization_akinci(support_radius, ::Val{2})
+    return oftype(support_radius, 25280 / (627 * pi)) / support_radius^8
+end
+
+@fastpow @inline function cohesion_kernel_normalization_akinci(support_radius, ::Val{3})
+    return oftype(support_radius, 32 / pi) / support_radius^9
+end
+
+@inline function adhesion_kernel_normalization_akinci(support_radius, ::Val{2})
+    return oftype(support_radius, 13 / 1200) /
+           (support_radius^2 * sqrt(sqrt(support_radius)))
+end
+
+@inline function adhesion_kernel_normalization_akinci(support_radius, ::Val{3})
+    return oftype(support_radius, 0.007) /
+           (support_radius^3 * sqrt(sqrt(support_radius)))
+end
+
 @fastpow @inline function cohesion_force_akinci(surface_tension, support_radius, m_b,
-                                                pos_diff, distance)
+                                                pos_diff, distance, dimensions)
     (; surface_tension_coefficient) = surface_tension
 
-    # Eq. 2
+    # Eq. 2, using the published normalization in 3D and an integral-matched one in 2D.
     # We only reach this function when `sqrt(eps()) < distance <= support_radius`
     if distance > 0.5 * support_radius
         # Attractive force
@@ -145,7 +229,7 @@ end
         # Repulsive force
         C = 2 * (support_radius - distance)^3 * distance^3 - support_radius^6 / 64.0
     end
-    C *= 32.0 / (pi * support_radius^9)
+    C *= cohesion_kernel_normalization_akinci(support_radius, dimensions)
 
     # Eq. 1 in acceleration form
     cohesion_force = -surface_tension_coefficient * m_b * C * pos_diff / distance
@@ -154,19 +238,17 @@ end
 end
 
 @inline function adhesion_force_akinci(surface_tension, support_radius, m_b, pos_diff,
-                                       distance, adhesion_coefficient)
-
-    # The neighborhood search has an `<=` check, but for `distance == support_radius`
-    # the term inside the parentheses might be very slightly negative, causing an error with `^0.25`.
-    # TODO Change this in the neighborhood search?
-    # See https://github.com/trixi-framework/PointNeighbors.jl/issues/19
+                                       distance, adhesion_coefficient, dimensions)
     distance >= support_radius && return zero(pos_diff)
 
     distance <= 0.5 * support_radius && return zero(pos_diff)
 
-    # Eq. 7
-    A = 0.007 / support_radius^3.25 *
-        (-4 * distance^2 / support_radius + 6 * distance - 2 * support_radius)^0.25
+    # Eq. 7. The factored radicand avoids cancellation close to the support boundary.
+    radicand = 2 * (2 * distance - support_radius) *
+               (support_radius - distance) / support_radius
+    fourth_root = sqrt(sqrt(max(zero(radicand), radicand)))
+    normalization = adhesion_kernel_normalization_akinci(support_radius, dimensions)
+    A = normalization * fourth_root
 
     # Eq. 6 in acceleration form with `m_b` being the boundary mass calculated as
     # `m_b = rho_0 * volume` (Akinci boundary condition treatment)
@@ -202,7 +284,7 @@ end
 
     dv_particle[] += surface_tension_correction *
                      cohesion_force_akinci(surface_tension_a, support_radius, m_b,
-                                           pos_diff, distance)
+                                           pos_diff, distance, Val(ndims(particle_system)))
 
     return dv_particle
 end
@@ -229,9 +311,19 @@ end
 
     dv_particle[] += surface_tension_correction *
                      cohesion_force_akinci(surface_tension_a, support_radius, m_b,
-                                           pos_diff, distance)
+                                           pos_diff, distance, Val(ndims(particle_system)))
+    normal_force_length = smoothing_length_
+    reference_smoothing_length = pair_reference_smoothing_length(surface_tension_a,
+                                                                 surface_tension_b)
+    if !isnothing(reference_smoothing_length)
+        neighbor_smoothing_length = smoothing_length(neighbor_system, neighbor)
+        pair_smoothing_length = min(smoothing_length_, neighbor_smoothing_length)
+        pair_density = (rho_a + rho_b) / 2
+        normal_force_length = reference_smoothing_length * m_b /
+                              (pair_density * pair_smoothing_length^ndims(particle_system))
+    end
     dv_particle[] -= surface_tension_correction * surface_tension_coefficient *
-                     (n_a - n_b) * smoothing_length_
+                     (n_a - n_b) * normal_force_length
 
     return dv_particle
 end
@@ -332,7 +424,8 @@ end
     support_radius = compact_support(particle_system.smoothing_kernel,
                                      smoothing_length(particle_system, particle))
     dv_particle[] += adhesion_force_akinci(surface_tension, support_radius, m_b, pos_diff,
-                                           distance, adhesion_coefficient)
+                                           distance, adhesion_coefficient,
+                                           Val(ndims(particle_system)))
 
     return dv_particle
 end

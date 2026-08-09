@@ -303,7 +303,8 @@ end
                                      smoothing_length(particle_system, particle))
 
     dv_particle[] += adhesion_force_akinci(surface_tension, support_radius, m_b,
-                                           pos_diff, distance, adhesion_coefficient)
+                                           pos_diff, distance, adhesion_coefficient,
+                                           Val(ndims(particle_system)))
 
     return dv_particle
 end
@@ -463,6 +464,8 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::RigidBodySystem, semi)
     # Contact stability depends on the most restrictive *actual* rigid contact partner of
     # this body.
     foreach_system(semi) do neighbor
+        has_system_interaction(system, neighbor, semi) || return
+
         neighbor === system && return
 
         if neighbor isa Union{RigidBodySystem, WallBoundarySystem}

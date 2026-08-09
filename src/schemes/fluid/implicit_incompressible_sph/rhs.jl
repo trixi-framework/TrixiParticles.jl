@@ -7,6 +7,9 @@ function interact!(dv, v_particle_system, u_particle_system,
                    particle_system::ImplicitIncompressibleSPHSystem,
                    neighbor_system, semi)
     sound_speed = system_sound_speed(particle_system) #TODO
+    correction = system_correction(particle_system)
+    surface_tension_a = surface_tension_model(particle_system)
+    surface_tension_b = surface_tension_model(neighbor_system)
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
@@ -41,6 +44,14 @@ function interact!(dv, v_particle_system, u_particle_system,
         rho_a = @inbounds current_density(v_particle_system, particle_system, particle)
         rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
 
+        correction_rho_a = correction_density(correction, particle_system, particle, rho_a)
+        correction_rho_b = correction_density(correction, neighbor_system, neighbor, rho_b)
+        (viscosity_correction, _,
+         surface_tension_correction) = free_surface_correction(correction,
+                                                               particle_system,
+                                                               correction_rho_a,
+                                                               correction_rho_b)
+
         v_a = @inbounds current_velocity(v_particle_system, particle_system, particle)
         v_b = @inbounds current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
@@ -67,10 +78,22 @@ function interact!(dv, v_particle_system, u_particle_system,
                                 v_particle_system, v_neighbor_system,
                                 particle, neighbor, pos_diff, distance,
                                 sound_speed, m_a, m_b, rho_a, rho_b,
-                                v_a, v_b, grad_kernel)
+                                v_a, v_b, grad_kernel, viscosity_correction)
+
+        dv_surface_tension = Ref(zero(pos_diff))
+        @inbounds surface_tension_force!(dv_surface_tension, surface_tension_a,
+                                         surface_tension_b, particle_system,
+                                         neighbor_system, particle, neighbor, pos_diff,
+                                         distance, rho_a, rho_b, grad_kernel,
+                                         surface_tension_correction)
+
+        @inbounds adhesion_force!(dv_surface_tension, surface_tension_a, particle_system,
+                                  neighbor_system, particle, neighbor, pos_diff, distance)
 
         for i in 1:ndims(particle_system)
-            @inbounds dv[i, particle] += dv_pressure[i] + dv_viscosity_[][i]
+            @inbounds dv[i,
+                         particle] += dv_pressure[i] + dv_viscosity_[][i] +
+                                      dv_surface_tension[][i]
         end
     end
     return dv

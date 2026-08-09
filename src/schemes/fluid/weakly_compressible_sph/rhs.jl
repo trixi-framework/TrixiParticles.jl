@@ -4,7 +4,9 @@
 # the density using the continuity equation.
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
-                   particle_system::WeaklyCompressibleSPHSystem, neighbor_system, semi)
+                   particle_system::WeaklyCompressibleSPHSystem, neighbor_system, semi;
+                   eachparticle=each_integrated_particle(particle_system),
+                   kwargs...)
     (; density_calculator, correction) = particle_system
 
     sound_speed = system_sound_speed(particle_system)
@@ -26,7 +28,7 @@ function interact!(dv, v_particle_system, u_particle_system,
     compact_support_ = compact_support(particle_system, neighbor_system)
     almostzero = sqrt(eps(compact_support_^2))
 
-    @threaded semi for particle in each_integrated_particle(particle_system)
+    @threaded semi for particle in eachparticle
         # We are looping over the particles of `particle_system`, so it is guaranteed
         # that `particle` is in bounds of `particle_system`.
         m_a = @inbounds hydrodynamic_mass(particle_system, particle)
@@ -75,10 +77,15 @@ function interact!(dv, v_particle_system, u_particle_system,
 
             # Determine correction factors.
             # This can usually be ignored, as these are all 1 when no correction is used.
+            correction_rho_a = correction_density(correction, particle_system, particle,
+                                                  rho_a)
+            correction_rho_b = correction_density(correction, neighbor_system, neighbor,
+                                                  rho_b)
             (viscosity_correction, pressure_correction,
              surface_tension_correction) = free_surface_correction(correction,
                                                                    particle_system,
-                                                                   rho_a, rho_b)
+                                                                   correction_rho_a,
+                                                                   correction_rho_b)
 
             # For `ContinuityDensity` without correction, this is equivalent to
             # dv_pressure = -m_b * (p_a + p_b) / (rho_a * rho_b) * grad_kernel
@@ -142,6 +149,20 @@ function interact!(dv, v_particle_system, u_particle_system,
 
     return dv
 end
+
+@inline function correction_density(::AkinciFreeSurfaceCorrection,
+                                    system::Union{WeaklyCompressibleSPHSystem,
+                                                  EntropicallyDampedSPHSystem},
+                                    particle, density)
+    if system.density_calculator isa ContinuityDensity &&
+       haskey(system.cache, :kernel_summation_density)
+        return @inbounds system.cache.kernel_summation_density[particle]
+    end
+
+    return density
+end
+
+@inline correction_density(correction, system, particle, density) = density
 
 @propagate_inbounds function neighbor_pressure(v_neighbor_system, neighbor_system,
                                                neighbor, p_a)

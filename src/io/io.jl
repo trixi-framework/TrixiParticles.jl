@@ -120,6 +120,8 @@ function add_system_data!(system_data, system::ImplicitIncompressibleSPHSystem)
     system_data["acceleration"] = system.acceleration
     system_data["pressure_acceleration_formulation"] = pressure_acceleration_name(system.pressure_acceleration_formulation)
     add_system_data!(system_data, shifting_technique(system))
+    add_system_data!(system_data, system.surface_tension)
+    add_system_data!(system_data, system.surface_normal_method)
     add_system_data!(system_data, system.viscosity)
 end
 
@@ -320,12 +322,18 @@ function add_system_data!(system_data,
 end
 
 function add_system_data!(system_data,
-                          surface_tension::Union{CohesionForceAkinci, SurfaceTensionAkinci,
-                                                 SurfaceTensionMorris,
+                          surface_tension::Union{CohesionForceAkinci, SurfaceTensionMorris,
                                                  SurfaceTensionMomentumMorris})
     system_data["surface_tension"] = Dict{String, Any}()
     system_data["surface_tension"]["model"] = type2string(surface_tension)
     system_data["surface_tension"]["surface_tension_coefficient"] = surface_tension.surface_tension_coefficient
+end
+
+function add_system_data!(system_data, surface_tension::SurfaceTensionAkinci)
+    system_data["surface_tension"] = Dict{String, Any}()
+    system_data["surface_tension"]["model"] = type2string(surface_tension)
+    system_data["surface_tension"]["surface_tension_coefficient"] = surface_tension.surface_tension_coefficient
+    system_data["surface_tension"]["reference_smoothing_length"] = surface_tension.reference_smoothing_length
 end
 
 function add_system_data!(system_data, surface_normal_method::ColorfieldSurfaceNormal)

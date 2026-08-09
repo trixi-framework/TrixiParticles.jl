@@ -56,6 +56,14 @@ function interact!(dv, v_particle_system, u_particle_system,
         rho_a = @inbounds current_density(v_particle_system, particle_system, particle)
         rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
 
+        correction_rho_a = correction_density(correction, particle_system, particle, rho_a)
+        correction_rho_b = correction_density(correction, neighbor_system, neighbor, rho_b)
+        (viscosity_correction, pressure_correction,
+         surface_tension_correction) = free_surface_correction(correction,
+                                                               particle_system,
+                                                               correction_rho_a,
+                                                               correction_rho_b)
+
         v_a = @inbounds current_velocity(v_particle_system, particle_system, particle)
         v_b = @inbounds current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
@@ -79,12 +87,12 @@ function interact!(dv, v_particle_system, u_particle_system,
                                             rho_b, pos_diff, distance, grad_kernel,
                                             correction)
 
-        dv_particle = Ref(dv_pressure)
+        dv_particle = Ref(pressure_correction * dv_pressure)
         @inbounds dv_viscosity!(dv_particle, particle_system, neighbor_system,
                                 v_particle_system, v_neighbor_system,
                                 particle, neighbor, pos_diff, distance,
                                 sound_speed, m_a, m_b, rho_a, rho_b,
-                                v_a, v_b, grad_kernel)
+                                v_a, v_b, grad_kernel, viscosity_correction)
 
         # Extra terms in the momentum equation when using a shifting technique
         @inbounds dv_shifting!(dv_particle, shifting_technique(particle_system),
@@ -97,7 +105,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                                          surface_tension_b,
                                          particle_system, neighbor_system,
                                          particle, neighbor, pos_diff, distance,
-                                         rho_a, rho_b, grad_kernel, 1)
+                                         rho_a, rho_b, grad_kernel,
+                                         surface_tension_correction)
 
         dv_particle[] += wetted_area_density_acceleration(surface_normal_method_a,
                                                           particle_system,

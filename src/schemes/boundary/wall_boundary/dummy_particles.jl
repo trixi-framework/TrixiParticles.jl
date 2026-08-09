@@ -34,7 +34,7 @@ Boundary model for [`WallBoundarySystem`](@ref).
                                 in areas of low pressure, against which the particle
                                 shifting technique is fighting.
 - `reference_particle_spacing`: The reference particle spacing used for weighting values at the boundary,
-                                which currently is only needed when using surface tension.
+                                which is needed when using a surface-normal method.
 - `surface_measure=nothing`:    Optional nonnegative quadrature weight for each boundary particle.
                                 Positive values represent samples on the physical boundary surface;
                                 zero marks particles in deeper dummy-particle layers. These
@@ -527,7 +527,7 @@ function compute_density!(boundary_model, ::SummationDensity, system, v, u, v_od
     (; cache) = boundary_model
     (; density) = cache # Density is in the cache for SummationDensity
 
-    summation_density!(system, semi, u, u_ode, density, particles=eachparticle(system))
+    summation_density!(system, semi, u, u_ode, density; particles=eachparticle(system))
 end
 
 function compute_density!(boundary_model, ::PressureBoundaries, system, v, u, v_ode, u_ode,
@@ -535,9 +535,7 @@ function compute_density!(boundary_model, ::PressureBoundaries, system, v, u, v_
     (; cache) = boundary_model
     (; density) = cache # Density is in the cache for `SummationDensity`
 
-    summation_density!(system, semi, u, u_ode, density, particles=eachparticle(system))
-
-    predict_advection!(system, v, u, v_ode, u_ode, semi)
+    summation_density!(system, semi, u, u_ode, density; particles=eachparticle(system))
 end
 
 function compute_pressure!(boundary_model, ::Union{SummationDensity, ContinuityDensity},
@@ -585,33 +583,39 @@ function compute_pressure!(boundary_model,
 
     system_coords = current_coordinates(u, system)
 
-    # Use all other systems for the pressure extrapolation
-    @trixi_timeit timer() "compute boundary pressure" foreach_system(semi) do neighbor_system
-        v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
-        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
+    # Use enabled neighbor systems for the pressure extrapolation. This lets phase-specific
+    # walls isolate their auxiliary pressure state with the same ordered interaction matrix
+    # used for pairwise RHS dispatch.
+    @trixi_timeit timer() "compute boundary pressure" begin
+        foreach_system(semi) do neighbor_system
+            has_system_interaction(system, neighbor_system, semi) || return
 
-        neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
+            v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
+            u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
 
-        # This is an optimization for simulations with large and complex boundaries.
-        # Especially in 3D simulations with large and/or complex structures outside
-        # of areas with permanent flow.
-        # Note: The version iterating neighbors first is not thread-parallelizable
-        #       and thus not GPU-compatible.
-        # The factor is based on the achievable speed-up of the thread parallelizable version.
-        # Use the parallel version if the number of boundary particles is not much larger
-        # than the number of fluid particles.
-        n_boundary_particles = nparticles(system)
-        n_fluid_particles = nparticles(neighbor_system)
-        speedup = ceil(Int, Threads.nthreads() / 2)
-        is_gpu = system_coords isa AbstractGPUArray
-        condition_boundary = n_boundary_particles < speedup * n_fluid_particles
-        parallelize = is_gpu || condition_boundary || !allow_loop_flipping
+            neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-        # Loop over boundary particles and then the neighboring fluid particles
-        # to extrapolate fluid pressure to the boundaries.
-        boundary_pressure_extrapolation!(Val(parallelize), boundary_model, system,
-                                         neighbor_system, system_coords, neighbor_coords, v,
-                                         v_neighbor_system, semi)
+            # This is an optimization for simulations with large and complex boundaries.
+            # Especially in 3D simulations with large and/or complex structures outside
+            # of areas with permanent flow.
+            # Note: The version iterating neighbors first is not thread-parallelizable
+            #       and thus not GPU-compatible.
+            # The factor is based on the achievable speed-up of the thread parallelizable version.
+            # Use the parallel version if the number of boundary particles is not much larger
+            # than the number of fluid particles.
+            n_boundary_particles = nparticles(system)
+            n_fluid_particles = nparticles(neighbor_system)
+            speedup = ceil(Int, Threads.nthreads() / 2)
+            is_gpu = system_coords isa AbstractGPUArray
+            condition_boundary = n_boundary_particles < speedup * n_fluid_particles
+            parallelize = is_gpu || condition_boundary || !allow_loop_flipping
+
+            # Loop over boundary particles and then the neighboring fluid particles
+            # to extrapolate fluid pressure to the boundaries.
+            boundary_pressure_extrapolation!(Val(parallelize), boundary_model, system,
+                                             neighbor_system, system_coords,
+                                             neighbor_coords, v, v_neighbor_system, semi)
+        end
     end
 
     @trixi_timeit timer() "inverse state equation" @threaded semi for particle in

@@ -253,6 +253,14 @@ end
            zero(eltype(normal))
 end
 
+@inline function default_surface_normal_method(surface_tension, surface_normal_method)
+    if isnothing(surface_normal_method) && requires_surface_normal(surface_tension)
+        return ColorfieldSurfaceNormal()
+    end
+
+    return surface_normal_method
+end
+
 function create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS, nparticles)
     return (;)
 end
@@ -739,6 +747,8 @@ end
                            particle_system, particle)
 end
 
+@inline surface_normal_density(system, particle, density) = density
+
 function calc_normal!(system, neighbor_system, u_system, v, v_neighbor_system,
                       u_neighbor_system, semi, surface_normal_method,
                       neighbor_surface_normal_method)
@@ -764,6 +774,8 @@ function calc_normal!(system::AbstractFluidSystem, neighbor_system::AbstractFlui
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
         density_neighbor = current_density(v_neighbor_system,
                                            neighbor_system, neighbor)
+        density_neighbor = surface_normal_density(neighbor_system, neighbor,
+                                                  density_neighbor)
         grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
         for i in 1:ndims(system)
             cache.surface_normal[i, particle] += m_b / density_neighbor * grad_kernel[i]
@@ -1025,13 +1037,19 @@ function compute_surface_normal!(system::AbstractFluidSystem,
     reset_wetted_area_contact!(system, surface_normal_method_)
 
     # TODO: if color values are set only different systems need to be called
-    @trixi_timeit timer() "compute surface normal" foreach_system(semi) do neighbor_system
-        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
-        v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
+    @trixi_timeit timer() "compute surface normal" begin
+        foreach_system_wrapped(semi, v_ode,
+                               u_ode) do neighbor_system, v_neighbor_system,
+                                         u_neighbor_system
+            if !has_system_interaction(system, neighbor_system, semi)
+                # No interaction between these systems.
+                return
+            end
 
-        calc_normal!(system, neighbor_system, u, v, v_neighbor_system,
-                     u_neighbor_system, semi, surface_normal_method_,
-                     surface_normal_method(neighbor_system))
+            calc_normal!(system, neighbor_system, u, v, v_neighbor_system,
+                         u_neighbor_system, semi, surface_normal_method_,
+                         surface_normal_method(neighbor_system))
+        end
     end
     finalize_wetted_area_contact!(system, surface_normal_method_, v)
     remove_invalid_normals!(system, surface_tension, surface_normal_method_)
@@ -1568,13 +1586,19 @@ function compute_curvature!(system::AbstractFluidSystem,
     set_zero!(cache.curvature)
     set_zero!(cache.correction_factor)
 
-    @trixi_timeit timer() "compute surface curvature" foreach_system(semi) do neighbor_system
-        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
-        v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
+    @trixi_timeit timer() "compute surface curvature" begin
+        foreach_system_wrapped(semi, v_ode,
+                               u_ode) do neighbor_system, v_neighbor_system,
+                                         u_neighbor_system
+            if !has_system_interaction(system, neighbor_system, semi)
+                # No interaction between these systems.
+                return
+            end
 
-        calc_curvature!(system, neighbor_system, u, v, v_neighbor_system,
-                        u_neighbor_system, semi, normal_method,
-                        surface_normal_method(neighbor_system))
+            calc_curvature!(system, neighbor_system, u, v, v_neighbor_system,
+                            u_neighbor_system, semi, normal_method,
+                            surface_normal_method(neighbor_system))
+        end
     end
 
     for particle in each_integrated_particle(system)

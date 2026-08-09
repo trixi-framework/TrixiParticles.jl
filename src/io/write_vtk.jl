@@ -350,7 +350,8 @@ function write2vtk!(vtk, v, u, t, system::AbstractFluidSystem)
             end
         else
             system_coords = current_coordinates(u, system)
-            nhs = create_neighborhood_search(nothing, system, system)
+            nhs = create_neighborhood_search(TrivialNeighborhoodSearch{ndims(system)}(),
+                                             system, system)
             foreach_point_neighbor(system_coords, system_coords,
                                    nhs) do particle, neighbor, pos_diff, distance
                 rho_a = current_density(v, system, particle)

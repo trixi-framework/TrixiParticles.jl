@@ -48,6 +48,11 @@ and the harmonic mean
 It is found in the numerical experiments of [Ramachandran (2019)](@cite Ramachandran2019) that ``\alpha = 0.5``
 is a good choice for a wide range of Reynolds numbers (0.0125 to 10000).
 
+[`AkinciFreeSurfaceCorrection`](@ref) can be used with either density calculator. It scales
+viscosity and Akinci surface-tension forces without modifying EDAC pressure acceleration or
+pressure evolution. With [`ContinuityDensity`](@ref), an auxiliary summation density is used to
+measure free-surface neighborhood deficiency.
+
 !!! note
     The EDAC formulation keeps the density constant and therefore eliminates the need for
     the continuity equation or the use of a summation density to find the pressure.

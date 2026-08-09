@@ -2,6 +2,10 @@
     ImplicitIncompressibleSPHSystem(initial_condition; smoothing_kernel,
                                     smoothing_length, reference_density,
                                     viscosity=nothing,
+                                    correction=nothing,
+                                    surface_tension=nothing,
+                                    surface_normal_method=nothing,
+                                    reference_particle_spacing=0.0, color_value=1,
                                     acceleration=ntuple(_ -> 0.0, ndims(smoothing_kernel)),
                                     omega=0.5, max_error=0.1, min_iterations=2,
                                     max_iterations=20, time_step)
@@ -24,6 +28,18 @@ See [Implicit Incompressible SPH](@ref iisph) for more details on the method.
 - `reference_density`:          Reference density used for the fluid particles.
 - `viscosity`:                  Currently, only [`ViscosityMorris`](@ref)
                                 and [`ViscosityAdami`](@ref) are supported.
+- `correction`:                 Optional [`AkinciFreeSurfaceCorrection`](@ref), applied to
+                                viscosity and Akinci surface-tension forces but not pressure.
+- `surface_tension`:            Akinci surface tension model used for this SPH system.
+                                (default: no surface tension)
+- `surface_normal_method`:      The surface normal method to be used for this SPH system.
+                                (default: no surface normal method or
+                                `ColorfieldSurfaceNormal()` if the surface tension model
+                                requires normals)
+- `reference_particle_spacing`: The reference particle spacing used for weighting values at
+                                the boundary, which is needed when using a surface-normal
+                                method.
+- `color_value`:                Integer label used for calculation of surface normals.
 - `acceleration`:               Acceleration vector for the system. (default: zero vector)
 - `omega = 0.5`:                Relaxation parameter for the relaxed Jacobi scheme
 - `max_error = 0.1`:            Maximum error (in %) for the termination condition in the relaxed Jacobi scheme
@@ -32,7 +48,8 @@ See [Implicit Incompressible SPH](@ref iisph) for more details on the method.
 - `time_step`:                  Time step size used for the simulation
 """
 struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ARRAY2D,
-                                       IC, K, V, PF, C} <: AbstractFluidSystem{NDIMS}
+                                       IC, K, V, COR, PF, SRFT, SRFN,
+                                       C} <: AbstractFluidSystem{NDIMS}
     initial_condition                 :: IC
     mass                              :: ARRAY1D # Array{ELTYPE, 1}
     pressure                          :: ARRAY1D
@@ -41,9 +58,10 @@ struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ARRAY2D,
     reference_density                 :: ELTYPE
     acceleration                      :: SVector{NDIMS, ELTYPE}
     viscosity                         :: V
+    correction                        :: COR
     pressure_acceleration_formulation :: PF
-    surface_normal_method             :: Nothing # TODO
-    surface_tension                   :: Nothing # TODO
+    surface_tension                   :: SRFT
+    surface_normal_method             :: SRFN
     particle_refinement               :: Nothing # TODO
     density                           :: ARRAY1D
     predicted_density                 :: ARRAY1D
@@ -67,13 +85,16 @@ end
 function ImplicitIncompressibleSPHSystem(initial_condition; smoothing_kernel,
                                          smoothing_length, reference_density,
                                          viscosity=nothing,
+                                         correction=nothing,
+                                         surface_tension=nothing,
+                                         surface_normal_method=nothing,
+                                         reference_particle_spacing=0, color_value=1,
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),
                                          omega=0.5, max_error=0.1, min_iterations=2,
                                          max_iterations=20, time_step,
                                          artificial_sound_speed=1000.0)
     particle_refinement = nothing # TODO
-    surface_tension = nothing # TODO
 
     NDIMS = ndims(initial_condition)
     ELTYPE = eltype(initial_condition)
@@ -94,6 +115,21 @@ function ImplicitIncompressibleSPHSystem(initial_condition; smoothing_kernel,
 
     if reference_density <= 0
         throw(ArgumentError("`reference_density` must be a positive number"))
+    end
+
+    if !isnothing(surface_tension) && !(surface_tension isa AkinciTypeSurfaceTension)
+        throw(ArgumentError("`ImplicitIncompressibleSPHSystem` only supports Akinci surface tension models"))
+    end
+
+    if !isnothing(correction) && !(correction isa AkinciFreeSurfaceCorrection)
+        throw(ArgumentError("`ImplicitIncompressibleSPHSystem` only supports `AkinciFreeSurfaceCorrection`"))
+    end
+
+    surface_normal_method = default_surface_normal_method(surface_tension,
+                                                          surface_normal_method)
+
+    if surface_normal_method !== nothing && reference_particle_spacing < eps()
+        throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using a surface-normal method"))
     end
 
     if !(0 < max_error <= 100)
@@ -124,13 +160,23 @@ function ImplicitIncompressibleSPHSystem(initial_condition; smoothing_kernel,
     density_error = zeros(ELTYPE, n_particles)
 
     cache = (;
+             create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS,
+                                         n_particles)...,
+             create_cache_surface_tension(surface_tension, ELTYPE, NDIMS,
+                                          n_particles)...,
              create_cache_refinement(initial_condition, particle_refinement,
-                                     smoothing_length)...,)
+                                     smoothing_length)...,
+             color=Int(color_value))
+
+    if reference_particle_spacing > 0
+        cache = (; cache..., reference_particle_spacing)
+    end
 
     return ImplicitIncompressibleSPHSystem(initial_condition, mass, pressure,
                                            smoothing_kernel, smoothing_length,
                                            reference_density, acceleration_, viscosity,
-                                           pressure_acceleration, nothing, surface_tension,
+                                           correction, pressure_acceleration,
+                                           surface_tension, surface_normal_method,
                                            particle_refinement, density, predicted_density,
                                            advection_velocity, d_ii, a_ii, sum_d_ij_pj,
                                            sum_term, density_error, omega, max_error,
@@ -152,6 +198,9 @@ function Base.show(io::IO, system::ImplicitIncompressibleSPHSystem)
     print(io, system.reference_density)
     print(io, ", ", system.smoothing_kernel)
     print(io, ", ", system.viscosity)
+    print(io, ", ", system.correction)
+    print(io, ", ", system.surface_tension)
+    print(io, ", ", system.surface_normal_method)
     print(io, ", ", system.acceleration)
     print(io, ", ", system.omega)
     print(io, ", ", system.max_error)
@@ -172,6 +221,9 @@ function Base.show(io::IO, ::MIME"text/plain", system::ImplicitIncompressibleSPH
         summary_line(io, "density calculator", "SummationDensity")
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
         summary_line(io, "viscosity", system.viscosity)
+        summary_line(io, "correction method", system.correction |> typeof |> nameof)
+        summary_line(io, "surface tension", system.surface_tension)
+        summary_line(io, "surface normal method", system.surface_normal_method)
         summary_line(io, "acceleration", system.acceleration)
         summary_line(io, "omega", system.omega)
         summary_line(io, "max_error", system.max_error)
@@ -183,12 +235,14 @@ end
 
 @inline source_terms(system::ImplicitIncompressibleSPHSystem) = nothing
 
+@inline system_correction(system::ImplicitIncompressibleSPHSystem) = system.correction
+
 @inline function Base.eltype(::ImplicitIncompressibleSPHSystem{<:Any, ELTYPE}) where {ELTYPE}
     return ELTYPE
 end
 
 @inline function surface_tension_model(system::ImplicitIncompressibleSPHSystem)
-    return nothing
+    return system.surface_tension
 end
 
 @propagate_inbounds function current_pressure(v, system::ImplicitIncompressibleSPHSystem)
@@ -213,9 +267,6 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
 
     # Compute density by kernel summation
     summation_density!(system, semi, u, u_ode, density)
-
-    @trixi_timeit timer() "predict advection" predict_advection!(system, v, u, v_ode, u_ode,
-                                                                 semi)
 end
 
 function update_implicit_sph!(semi, v_ode, u_ode, t)
@@ -224,18 +275,35 @@ function update_implicit_sph!(semi, v_ode, u_ode, t)
         return semi
     end
 
+    # All summation densities must be current before surface normals and non-pressure
+    # accelerations are assembled for the pressure prediction.
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
+        prepare_iisph_prediction!(system, v, u, v_ode, u_ode, semi, t)
+    end
+
+    @trixi_timeit timer() "predict advection" begin
+        foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
+            calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_ode, semi)
+        end
+        foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
+            calculate_diagonal_elements_and_predicted_density!(system, v, u, v_ode, u_ode,
+                                                               semi)
+        end
+    end
+
     @trixi_timeit timer() "pressure solver" pressure_solve!(semi, v_ode, u_ode)
 
     return semi
 end
 
-function predict_advection!(system::Union{ImplicitIncompressibleSPHSystem,
-                                          WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}},
-                            v, u, v_ode, u_ode, semi)
-    calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_ode, semi)
+function prepare_iisph_prediction!(system, v, u, v_ode, u_ode, semi, t)
+    return system
+end
 
-    calculate_diagonal_elements_and_predicted_density!(system, v, u, v_ode, u_ode, semi)
-
+function prepare_iisph_prediction!(system::ImplicitIncompressibleSPHSystem,
+                                   v, u, v_ode, u_ode, semi, t)
+    compute_surface_normal!(system, system.surface_normal_method, v, u, v_ode, u_ode, semi,
+                            t)
     return system
 end
 
@@ -245,7 +313,7 @@ end
 
 function calculate_predicted_velocity_and_d_ii_values!(system::ImplicitIncompressibleSPHSystem,
                                                        v, u, v_ode, u_ode, semi)
-    (; advection_velocity, time_step) = system
+    (; advection_velocity, time_step, correction) = system
     d_ii_array = system.d_ii
 
     v_particle_system = wrap_v(v_ode, system, semi)
@@ -253,6 +321,7 @@ function calculate_predicted_velocity_and_d_ii_values!(system::ImplicitIncompres
     set_zero!(d_ii_array)
 
     sound_speed = system_sound_speed(system) # TODO
+    surface_tension_a = surface_tension_model(system)
 
     @threaded semi for particle in each_integrated_particle(system)
         # Initialize the advection velocity with the current velocity plus the system acceleration
@@ -265,9 +334,16 @@ function calculate_predicted_velocity_and_d_ii_values!(system::ImplicitIncompres
     end
 
     # Compute predicted velocity
-    foreach_system(semi) do neighbor_system
-        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
-        v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
+    foreach_system_wrapped(semi, v_ode,
+                           u_ode) do neighbor_system, v_neighbor_system,
+                                     u_neighbor_system
+        if !has_system_interaction(system, neighbor_system, semi)
+            # No interaction between these systems.
+            return
+        end
+
+        surface_tension_b = surface_tension_model(neighbor_system)
+
         system_coords = current_coordinates(u, system)
         neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
@@ -283,21 +359,40 @@ function calculate_predicted_velocity_and_d_ii_values!(system::ImplicitIncompres
             rho_a = @inbounds current_density(v_particle_system, system, particle)
             rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
 
+            correction_rho_a = correction_density(correction, system, particle, rho_a)
+            correction_rho_b = correction_density(correction, neighbor_system, neighbor,
+                                                  rho_b)
+            (viscosity_correction, _,
+             surface_tension_correction) = free_surface_correction(correction, system,
+                                                                   correction_rho_a,
+                                                                   correction_rho_b)
+
             v_a = @inbounds current_velocity(v_particle_system, system, particle)
             v_b = @inbounds current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
             grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
-            dv_viscosity_ = Ref(zero(pos_diff))
-            @inbounds dv_viscosity!(dv_viscosity_, system, neighbor_system,
+            dv_nonpressure = Ref(zero(pos_diff))
+            @inbounds dv_viscosity!(dv_nonpressure, system, neighbor_system,
                                     v_particle_system, v_neighbor_system,
                                     particle, neighbor, pos_diff, distance,
                                     sound_speed, m_a, m_b, rho_a, rho_b,
-                                    v_a, v_b, grad_kernel)
+                                    v_a, v_b, grad_kernel, viscosity_correction)
+
+            @inbounds surface_tension_force!(dv_nonpressure, surface_tension_a,
+                                             surface_tension_b, system, neighbor_system,
+                                             particle, neighbor, pos_diff, distance,
+                                             rho_a, rho_b, grad_kernel,
+                                             surface_tension_correction)
+
+            @inbounds adhesion_force!(dv_nonpressure, surface_tension_a, system,
+                                      neighbor_system, particle, neighbor, pos_diff,
+                                      distance)
+
             # Add all other non-pressure forces
             for i in 1:ndims(system)
                 @inbounds advection_velocity[i,
-                                             particle] += time_step * dv_viscosity_[][i]
+                                             particle] += time_step * dv_nonpressure[][i]
             end
             # Calculate d_ii with eq. 9 in Ihmsen et al. (2013)
             for i in 1:ndims(system)
@@ -325,6 +420,8 @@ function calculate_diagonal_elements_and_predicted_density!(system::ImplicitInco
     predicted_density .= density
 
     foreach_system(semi) do neighbor_system
+        has_system_interaction(system, neighbor_system, semi) || return
+
         calculate_diagonal_elements_and_predicted_density(a_ii, predicted_density, system,
                                                           neighbor_system, v, u, v_ode,
                                                           u_ode, semi, time_step)
@@ -477,6 +574,8 @@ function calculate_sum_d_ij_pj!(system::ImplicitIncompressibleSPHSystem, u, u_od
     set_zero!(sum_d_ij_pj)
 
     foreach_system(semi) do neighbor_system
+        has_system_interaction(system, neighbor_system, semi) || return
+
         calculate_sum_d_ij_pj!(sum_d_ij_pj, system, neighbor_system, u, u_ode, semi)
     end
 end
@@ -527,6 +626,8 @@ function calculate_sum_term_values!(system::ImplicitIncompressibleSPHSystem, u, 
     set_zero!(sum_term)
 
     foreach_system(semi) do neighbor_system
+        has_system_interaction(system, neighbor_system, semi) || return
+
         calculate_sum_term!(sum_term, system, neighbor_system, u, u_ode, semi, time_step)
     end
 end
