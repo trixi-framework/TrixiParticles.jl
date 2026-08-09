@@ -831,10 +831,10 @@ function system_interaction!(dv_ode, v_ode, u_ode, semi)
 
     # Call `interact!` for each ordered pair of systems.
     foreach_system(semi) do system
-        # if interact_combined_experiment!(dv_ode, v_ode, u_ode, system, semi,
-        #                                  semi.systems)
-        #     return dv_ode
-        # end
+        if interact_combined_experiment!(dv_ode, v_ode, u_ode, system, semi,
+                                         semi.systems)
+            return dv_ode
+        end
 
         foreach_system(semi) do neighbor
             has_system_interaction(system, neighbor, semi) || return dv_ode
