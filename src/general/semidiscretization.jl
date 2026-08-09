@@ -381,6 +381,11 @@ function semidiscretize(semi, tspan; reset_threads=true, restart_with=nothing)
     # Initialize all particle systems
     initialize!(semi_new, restart_with)
 
+    # Initialize the averaged velocity for TLSPH systems.
+    foreach_system(semi_new) do system
+        initialize_averaged_velocity!(system, v0_ode, semi_new, tspan[1])
+    end
+
     # Reset callback flag that will be set by the `UpdateCallback`
     semi_new.update_callback_used[] = false
 
