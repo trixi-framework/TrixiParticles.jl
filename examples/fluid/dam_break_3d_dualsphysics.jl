@@ -18,9 +18,11 @@ use_dualsphysics_nhs = true
 if use_dualsphysics_nhs
     cell_list_backend = PointNeighbors.CompactVectorOfVectors{Int32}
     time_integration_scheme = SymplecticPositionVerletWithSorting()
+    sorting_callback = nothing
 else
     cell_list_backend = PointNeighbors.DynamicVectorOfVectors{Int32}
     time_integration_scheme = SymplecticPositionVerlet()
+    sorting_callback = SortingCallback(interval=100)
 end
 
 smoothing_length = 1.7320508 * fluid_particle_spacing
@@ -90,7 +92,6 @@ ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.1, prefix="")
-sorting_callback = SortingCallback(interval=1000)
 callbacks = CallbackSet(info_callback, saving_callback, sorting_callback)
 
 fluid_dt = 8e-5
