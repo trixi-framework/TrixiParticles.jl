@@ -135,4 +135,115 @@
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol) == 0
     end
+
+    @trixi_testset "Akinci cube-to-sphere 3D" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(validation_dir(),
+                                                  "akinci_cube_to_sphere_3d",
+                                                  "validation.jl");
+                                         particles_per_dimension=3,
+                                         tspan=(0.0, 2.5e-5),
+                                         analysis_interval=2.5e-5,
+                                         iisph_min_iterations=1,
+                                         iisph_max_iterations=2,
+                                         resolution_levels=(2, 3),
+                                         write_results=false,
+                                         print_results=false)
+
+        @test size(shootout_results, 1) == 28
+        @test Set(shootout_results.model) ==
+              Set(["CohesionForceAkinci", "SurfaceTensionAkinci"])
+        @test Set(shootout_results.sph_method) == Set(["wcsph", "edac", "iisph"])
+        @test Set(shootout_results.pressure_formulation) ==
+              Set(["density_matched", "inter_particle_averaged", "implicit"])
+        @test Set(shootout_results.correction) ==
+              Set(["none", "AkinciFreeSurfaceCorrection"])
+        @test all(==("Success"), shootout_results.retcode)
+        @test all(==(27), shootout_results.particle_count)
+        @test all(==(1.0), shootout_results.smoothing_length_factor)
+        @test all(isapprox(cfl, 0.2; rtol=2eps()) for cfl in shootout_results.acoustic_cfl)
+        @test all(isfinite, shootout_results.initial_support_radius_cv)
+        @test all(isfinite, shootout_results.final_support_radius_cv)
+        @test all(isfinite, shootout_results.initial_particle_spacing_cv)
+        @test all(isfinite, shootout_results.final_particle_spacing_cv)
+        @test all(isfinite, shootout_results.late_time_mean_asphericity)
+        @test all(isfinite, shootout_results.late_time_mean_particle_spacing_cv)
+        @test all(isfinite, shootout_results.final_radial_cv)
+        @test all(isfinite, shootout_results.mean_radius_ratio)
+        @test all(>(0), shootout_results.kinetic_energy)
+        @test all(<(1.0e-12), shootout_results.center_of_mass_drift)
+        @test all(<(1.0e-12), shootout_results.momentum_norm)
+        @test size(shootout_shapes, 1) == 28 * 27
+        @test all(isfinite, shootout_shapes.x)
+        @test all(isfinite, shootout_shapes.y)
+        @test all(isfinite, shootout_shapes.z)
+        @test size(shootout_time_series, 1) == 2 * 28
+        @test Set(shootout_time_series.time) == Set([0.0, 2.5e-5])
+        @test all(isfinite, shootout_time_series.asphericity)
+        @test all(isfinite, shootout_time_series.particle_spacing_cv)
+        @test size(resolution_results, 1) == 2 * 5
+        @test Set(resolution_results.particles_per_dimension) == Set([2, 3])
+        @test Set(resolution_results.particle_count) == Set([8, 27])
+        @test all(==(1.0), resolution_results.smoothing_length_factor)
+        @test length(Set(zip(resolution_results.sph_method,
+                             resolution_results.density_calculator))) == 5
+        @test all(==("Success"), resolution_results.retcode)
+        @test all(isapprox(cfl, 0.2; rtol=2eps())
+                  for cfl in resolution_results.acoustic_cfl)
+        @test all(isfinite, resolution_results.final_support_radius_cv)
+        @test all(isfinite, resolution_results.final_particle_spacing_cv)
+        @test all(isfinite, resolution_results.late_time_mean_asphericity)
+        @test all(isfinite, resolution_results.late_time_mean_particle_spacing_cv)
+
+        cohesion_results = shootout_results[shootout_results.model .== "CohesionForceAkinci",
+                                            :]
+        @test any(!isapprox(cohesion, akinci; rtol=1.0e-6)
+                  for (cohesion, akinci) in
+                      zip(cohesion_results.kinetic_energy,
+                          shootout_results[shootout_results.model .== "SurfaceTensionAkinci",
+                                           :kinetic_energy]))
+        @test count_rhs_allocations(sol) == 0
+    end
+
+    @trixi_testset "CSS surface tension" begin
+        include(joinpath(validation_dir(), "surface_tension_common.jl"))
+
+        laplace_2d = SurfaceTensionValidation.young_laplace_operator_fit(2, 100)
+        laplace_3d = SurfaceTensionValidation.young_laplace_operator_fit(3, 905)
+        rayleigh_coarse = SurfaceTensionValidation.rayleigh_mode2_stiffness(200;
+                                                                            stretch=1.04)
+        rayleigh_medium = SurfaceTensionValidation.rayleigh_mode2_stiffness(400;
+                                                                            stretch=1.04)
+
+        @test laplace_2d.relative_error < 0.06
+        @test laplace_3d.relative_error < 0.02
+        @test laplace_2d.total_force < 1.0e-12
+        @test laplace_3d.total_force < 1.0e-12
+        @test rayleigh_medium.frequency_error < 0.05
+        @test rayleigh_medium.frequency_error < rayleigh_coarse.frequency_error
+
+        reference_2d = JSON.parsefile(joinpath(validation_dir(), "surface_tension_2d",
+                                               "validation_reference.json"))
+        reference_3d = JSON.parsefile(joinpath(validation_dir(), "surface_tension_3d",
+                                               "validation_reference.json"))
+        laplace_reference_2d = only(row
+                                    for row in reference_2d["young_laplace"]["results"]
+                                    if row["target_particle_count"] == 100)
+        laplace_reference_3d = only(row
+                                    for row in reference_3d["young_laplace"]["results"]
+                                    if row["target_particle_count"] == 905)
+        rayleigh_reference_coarse = only(row
+                                         for row in reference_2d["rayleigh_mode_2"]
+                                         if row["target_particle_count"] == 200)
+        rayleigh_reference_medium = only(row
+                                         for row in reference_2d["rayleigh_mode_2"]
+                                         if row["target_particle_count"] == 400)
+
+        @test laplace_2d.relative_error ≈ laplace_reference_2d["relative_error"] rtol = 1.0e-10
+        @test laplace_3d.relative_error ≈ laplace_reference_3d["relative_error"] rtol = 1.0e-10
+        @test rayleigh_coarse.frequency_error ≈
+              rayleigh_reference_coarse["frequency_error"] rtol = 1.0e-10
+        @test rayleigh_medium.frequency_error ≈
+              rayleigh_reference_medium["frequency_error"] rtol = 1.0e-10
+    end
 end

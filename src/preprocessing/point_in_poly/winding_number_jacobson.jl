@@ -51,14 +51,16 @@ end
 
 """
     WindingNumberJacobson(; geometry=nothing, winding_number_factor=sqrt(eps()),
-                          hierarchical_winding=false)
+                          hierarchical_winding=!isnothing(geometry))
 Algorithm for inside-outside segmentation of a complex geometry proposed by [Jacobson2013](@cite).
 
 # Keywords
 - `geometry`: Complex geometry returned by [`load_geometry`](@ref) and is only required when using
               `hierarchical_winding=true`.
 - `hierarchical_winding`: If set to `true`, an optimized hierarchical approach will be used,
-                          which gives a significant speedup. For further information see [Hierarchical Winding](@ref hierarchical_winding).
+                          which gives a significant speedup. It defaults to `true` when `geometry`
+                          is passed and `false` otherwise. For further information see
+                          [Hierarchical Winding](@ref hierarchical_winding).
 - `winding_number_factor`: For leaky geometries, a factor of `0.4` will give a better inside-outside segmentation.
 
 !!! warning "Experimental Implementation"
@@ -69,7 +71,7 @@ struct WindingNumberJacobson{ELTYPE, W}
     winding               :: W
 
     function WindingNumberJacobson(; geometry=nothing, winding_number_factor=sqrt(eps()),
-                                   hierarchical_winding=true)
+                                   hierarchical_winding=(!isnothing(geometry)))
         if hierarchical_winding && geometry isa Nothing
             throw(ArgumentError("`geometry` must be of type `Polygon` (2D) or `TriangleMesh` (3D) when using hierarchical winding"))
         end
@@ -104,6 +106,7 @@ end
 function (point_in_poly::WindingNumberJacobson)(geometry, points;
                                                 store_winding_number=false)
     (; winding_number_factor, winding) = point_in_poly
+    points = wrap_points(points, Val(ndims(geometry)))
 
     # We cannot use a `BitVector` here, as writing to a `BitVector` is not thread-safe
     inpoly = fill(false, length(points))

@@ -4,6 +4,66 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.5.4
+
+### API Changes
+
+- Akinci cohesion and adhesion kernels now use dimensionally consistent, integral-matched
+  normalizations in 2D. To preserve previous pairwise kernel contributions at compact-support
+  radius `h_c`, multiply the surface-tension coefficient by `627 / (790 * h_c)` and the
+  adhesion coefficient by `42 / (65 * h_c)`; migrated coefficients are resolution-independent.
+- Corrected `SurfaceTensionMorris` to apply its local CSF acceleration once per particle and
+  retain the required one-phase surface delta. Previous coefficients compensated implicitly
+  for a dimensionally incomplete force repeated once per fluid neighbor and must be recalibrated.
+- For `SurfaceTensionMorris` and `SurfaceTensionMomentumMorris` with
+  `ColorfieldSurfaceNormal`, `ideal_density_threshold` now denotes a fraction of the continuous
+  complete-support kernel moment instead of an integer neighbor-count fraction. The default zero
+  still disables interior filtering.
+
+### Features
+
+- Added Akinci surface tension and `AkinciFreeSurfaceCorrection` support to
+  `ImplicitIncompressibleSPHSystem`.
+- Added `AkinciFreeSurfaceCorrection` support to `EntropicallyDampedSPHSystem` for both
+  continuity and summation density.
+- Added an optional reference-smoothing-length and neighbor-volume normalization for the
+  `SurfaceTensionAkinci` normal-difference force to improve empirical resolution robustness.
+- Added a parameterized 3D cube-to-sphere shootout covering Akinci models across WCSPH,
+  EDAC, and IISPH, including time-series and resolution-sensitivity analysis.
+- Added CSS Young-Laplace convergence and Rayleigh mode-2 stiffness validation in two and
+  three dimensions, with committed reference results and reduced CI checks.
+- Reworked `SurfaceTensionMomentumMorris` as a balanced continuum-surface-stress operator with a
+  symmetric support correction. It conserves pairwise linear momentum without a cached stress
+  tensor or global reduction.
+- Added opt-in activity-weighted Shepard normal smoothing for Morris CSF/CSS and expanded VTK
+  output with raw and capillary normals, surface delta, activity, support, force, and reconstructed
+  stress diagnostics.
+- Added `FreeSurfaceTangentialShifting`, an opt-in treatment that smoothly removes the
+  interface-normal component of Sun particle shifting while retaining full interior shifting.
+- Added `InterfaceAwareTensileInstabilityControl`, an opt-in pressure formulation that applies
+  tensile-instability control in fluid interiors and smoothly disables it at free surfaces.
+- Added optional per-particle `surface_measure` quadrature data to dummy-particle boundaries.
+- Added `WettedAreaContactAngle`, an opt-in Young wall-energy model for supported 3D Morris CSS
+  simulations with force- and torque-conserving fixed-wall and rigid-body reactions.
+- Added C1 interface activation for Morris CSF and CSS with `ColorfieldSurfaceNormal`.
+  Color-gradient and continuous support-moment indicators taper the physical surface delta without
+  another neighbor pass.
+- Added `CorrectedCSFSurfaceNormal`, an explicit free-surface implementation of the C-CSF
+  interface geometry from Vergnaud et al. (2022) for `SurfaceTensionMorris`. A finite contact
+  angle enables planar boundary-integral geometry on stationary dummy-particle walls with explicit
+  face measures and normal offsets; hydrodynamic wall coupling remains unchanged.
+
+### Important Bugfixes
+
+- Hardened surface tension model configuration by validating coefficients, avoiding unnecessary
+  surface-normal allocation for `CohesionForceAkinci`, and stabilizing Akinci adhesion evaluation
+  near the compact-support boundary.
+
+- Fixed `AkinciFreeSurfaceCorrection` with `ContinuityDensity` by reconstructing the
+  neighborhood-deficiency density used by the correction and the `SurfaceTensionAkinci`
+  color-field normals without changing the integrated pressure density. Dummy boundary masses
+  are included so wall particles are not misclassified as a free surface.
+
 ## Version 0.5.3
 
 ### Features

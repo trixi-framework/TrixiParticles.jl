@@ -13,6 +13,7 @@ function interact!(dv, v_particle_system, u_particle_system,
 
     surface_tension_a = surface_tension_model(particle_system)
     surface_tension_b = surface_tension_model(neighbor_system)
+    surface_normal_method_a = surface_normal_method(particle_system)
 
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -42,6 +43,11 @@ function interact!(dv, v_particle_system, u_particle_system,
         # inside the closure in the `foreach_neighbor` loop.
         dv_particle = Ref(zero(v_a))
         drho_particle = Ref(zero(rho_a))
+        if particle_system === neighbor_system
+            dv_particle[] += surface_tension_acceleration(surface_tension_a,
+                                                          particle_system, particle,
+                                                          rho_a, v_a)
+        end
 
         # Loop over all neighbors within the kernel cutoff
         @inbounds foreach_neighbor(system_coords, neighbor_system_coords,
@@ -71,10 +77,15 @@ function interact!(dv, v_particle_system, u_particle_system,
 
             # Determine correction factors.
             # This can usually be ignored, as these are all 1 when no correction is used.
+            correction_rho_a = correction_density(correction, particle_system, particle,
+                                                  rho_a)
+            correction_rho_b = correction_density(correction, neighbor_system, neighbor,
+                                                  rho_b)
             (viscosity_correction, pressure_correction,
              surface_tension_correction) = free_surface_correction(correction,
                                                                    particle_system,
-                                                                   rho_a, rho_b)
+                                                                   correction_rho_a,
+                                                                   correction_rho_b)
 
             # For `ContinuityDensity` without correction, this is equivalent to
             # dv_pressure = -m_b * (p_a + p_b) / (rho_a * rho_b) * grad_kernel
@@ -105,9 +116,22 @@ function interact!(dv, v_particle_system, u_particle_system,
                                              rho_a, rho_b, grad_kernel,
                                              surface_tension_correction)
 
+            dv_particle[] += wetted_area_density_acceleration(surface_normal_method_a,
+                                                              particle_system,
+                                                              neighbor_system, particle,
+                                                              neighbor, rho_a, rho_b, m_b,
+                                                              grad_kernel)
+
             @inbounds adhesion_force!(dv_particle, surface_tension_a, particle_system,
                                       neighbor_system,
                                       particle, neighbor, pos_diff, distance)
+
+            dv_particle[] += wetted_area_explicit_acceleration(surface_tension_a,
+                                                               surface_normal_method_a,
+                                                               particle_system,
+                                                               neighbor_system, particle,
+                                                               neighbor, m_a, rho_a,
+                                                               grad_kernel)
 
             # TODO If variable smoothing_length is used, this should use the neighbor smoothing length
             # Propagate `@inbounds` to the continuity equation, which accesses particle data
@@ -125,6 +149,20 @@ function interact!(dv, v_particle_system, u_particle_system,
 
     return dv
 end
+
+@inline function correction_density(::AkinciFreeSurfaceCorrection,
+                                    system::Union{WeaklyCompressibleSPHSystem,
+                                                  EntropicallyDampedSPHSystem},
+                                    particle, density)
+    if system.density_calculator isa ContinuityDensity &&
+       haskey(system.cache, :kernel_summation_density)
+        return @inbounds system.cache.kernel_summation_density[particle]
+    end
+
+    return density
+end
+
+@inline correction_density(correction, system, particle, density) = density
 
 @propagate_inbounds function neighbor_pressure(v_neighbor_system, neighbor_system,
                                                neighbor, p_a)

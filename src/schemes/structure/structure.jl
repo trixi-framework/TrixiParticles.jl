@@ -88,6 +88,10 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
         adhesion_force!(dv_particle, surface_tension, neighbor_system, particle_system,
                         neighbor, particle, pos_diff, distance)
 
+        accumulate_wetted_area_structure_reaction!(dv_particle, particle_system,
+                                                   neighbor_system, particle, neighbor,
+                                                   rho_b, m_b, grad_kernel)
+
         accumulate_structure_fluid_pair!(dv, dv_particle[], particle_system, particle, m_b)
 
         drho_particle = Ref(zero(rho_a))
@@ -99,6 +103,40 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
     end
 
     return dv
+end
+
+@inline function accumulate_wetted_area_structure_reaction!(dv_particle, particle_system,
+                                                            fluid_system, particle,
+                                                            fluid_particle, fluid_density,
+                                                            fluid_mass, grad_kernel)
+    return dv_particle
+end
+
+@inline function accumulate_wetted_area_structure_reaction!(dv_particle,
+                                                            particle_system::RigidBodySystem,
+                                                            fluid_system::AbstractFluidSystem,
+                                                            particle, fluid_particle,
+                                                            fluid_density, fluid_mass,
+                                                            grad_kernel)
+    surface_normal_method_ = surface_normal_method(fluid_system)
+    surface_normal_method_ isa ColorfieldSurfaceNormal{<:Any,
+                                                       <:WettedAreaContactAngle} ||
+        return dv_particle
+    boundary_cache = wetted_area_boundary_cache(particle_system)
+    isnothing(boundary_cache) && return dv_particle
+    weight = @inbounds boundary_cache.wetted_area_weight[particle]
+    iszero(weight) && return dv_particle
+    coefficient = wetted_area_coefficient(surface_tension_model(fluid_system),
+                                          surface_normal_method_.contact_model)
+    iszero(coefficient) && return dv_particle
+
+    reaction_acceleration = coefficient / fluid_density * weight * grad_kernel
+    dv_particle[] += reaction_acceleration
+    reaction = fluid_mass * reaction_acceleration
+    for dim in eachindex(reaction)
+        @inbounds boundary_cache.wetted_area_reaction[dim, particle] += reaction[dim]
+    end
+    return dv_particle
 end
 
 @inline function continuity_equation!(drho_particle,

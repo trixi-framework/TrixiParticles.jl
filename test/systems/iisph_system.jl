@@ -62,12 +62,62 @@
             @test system.omega == omega
             @test TrixiParticles.initial_smoothing_length(system) == smoothing_length
             @test system.viscosity === nothing
+            @test system.correction === nothing
             @test system.acceleration == [0.0 for _ in 1:NDIMS]
             @test system.max_error == max_error
             @test system.min_iterations == min_iterations
             @test system.max_iterations == max_iterations
             @test system.time_step == time_step
             @test length(system.density) == size(coordinates, 2)
+            @test TrixiParticles.system_state_equation(system) === nothing
+            @test system.surface_tension === nothing
+            @test system.surface_normal_method === nothing
+
+            surface_tension = SurfaceTensionAkinci(surface_tension_coefficient=0.5)
+            system_surface_tension = ImplicitIncompressibleSPHSystem(initial_condition;
+                                                                     smoothing_kernel,
+                                                                     smoothing_length,
+                                                                     reference_density,
+                                                                     surface_tension,
+                                                                     reference_particle_spacing=0.1,
+                                                                     time_step)
+            @test system_surface_tension.surface_tension === surface_tension
+            @test system_surface_tension.surface_normal_method isa
+                  ColorfieldSurfaceNormal
+            @test haskey(system_surface_tension.cache, :surface_normal)
+            @test system_surface_tension.cache.reference_particle_spacing == 0.1
+            @test system_surface_tension.cache.color == 1
+
+            correction = AkinciFreeSurfaceCorrection(reference_density)
+            system_correction = ImplicitIncompressibleSPHSystem(initial_condition;
+                                                                smoothing_kernel,
+                                                                smoothing_length,
+                                                                reference_density,
+                                                                correction,
+                                                                time_step)
+            @test system_correction.correction === correction
+            @test TrixiParticles.system_correction(system_correction) === correction
+
+            @test_throws ArgumentError("`ImplicitIncompressibleSPHSystem` only supports `AkinciFreeSurfaceCorrection`") ImplicitIncompressibleSPHSystem(initial_condition;
+                                                                                                                                                        smoothing_kernel,
+                                                                                                                                                        smoothing_length,
+                                                                                                                                                        reference_density,
+                                                                                                                                                        correction=ShepardKernelCorrection(),
+                                                                                                                                                        time_step)
+
+            @test_throws ArgumentError("`reference_particle_spacing` must be set to a positive value when using a surface-normal method") ImplicitIncompressibleSPHSystem(initial_condition;
+                                                                                                                                                                          smoothing_kernel,
+                                                                                                                                                                          smoothing_length,
+                                                                                                                                                                          reference_density,
+                                                                                                                                                                          surface_tension,
+                                                                                                                                                                          time_step)
+
+            @test_throws ArgumentError("`ImplicitIncompressibleSPHSystem` only supports Akinci surface tension models") ImplicitIncompressibleSPHSystem(initial_condition;
+                                                                                                                                                        smoothing_kernel,
+                                                                                                                                                        smoothing_length,
+                                                                                                                                                        reference_density,
+                                                                                                                                                        surface_tension=SurfaceTensionMorris(),
+                                                                                                                                                        time_step)
 
             # A too-short acceleration vector triggers dimension validation
             error_str1 = "`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"
@@ -225,7 +275,7 @@
                                                  time_step=0.001)
 
         # repr without MIME should show compact one-line summary.
-        show_compact = "ImplicitIncompressibleSPHSystem{2}(1000.0, Val{:smoothing_kernel}(), nothing, [0.0, 0.0], 0.5, 0.1, 2, 20) with 2 particles"
+        show_compact = "ImplicitIncompressibleSPHSystem{2}(1000.0, Val{:smoothing_kernel}(), nothing, nothing, nothing, nothing, [0.0, 0.0], 0.5, 0.1, 2, 20) with 2 particles"
         @test repr(system) == show_compact
         # repr("text/plain", ...) should emit the detailed boxed summary.
         show_box = """
@@ -237,6 +287,9 @@
         │ density calculator: …………………………… SummationDensity                                                 │
         │ smoothing kernel: ………………………………… Val                                                              │
         │ viscosity: …………………………………………………… nothing                                                          │
+        │ correction method: ……………………………… Nothing                                                          │
+        │ surface tension: …………………………………… nothing                                                          │
+        │ surface normal method: …………………… nothing                                                          │
         │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
         │ omega: ……………………………………………………………… 0.5                                                              │
         │ max_error: …………………………………………………… 0.1                                                              │
@@ -439,12 +492,12 @@
             system_pressure.predicted_density .= [990.0, 1010.0]
             system_pressure.sum_term .= [5.0, -2.0]
             system_pressure.a_ii .= [0.5, 1.0e-10]
-            fill!(system_pressure.density_error, 0.0)
+            system_pressure.density_error .= [0.0, 99.0]
 
             semi = DummySemidiscretization()
             # First particle uses standard Jacobi update; second hits the safeguarded zero-a_ii path.
             # For particle 1: (1-omega)*0 + omega/a_ii * (source - sum_term) with omega=0.4,
-            # source=(1000-990)=10, a_ii=0.5, sum_term=5 gives pressure 4 and density_error -3
+            # source=(1000-990)=10, a_ii=0.5, sum_term=5 gives pressure 4 and abs(density_error) 3
             relative_error = TrixiParticles.pressure_update(system_pressure,
                                                             system_pressure.pressure,
                                                             system_pressure.reference_density,
@@ -454,9 +507,50 @@
                                                             system_pressure.density_error,
                                                             semi)
 
-            @test isapprox(relative_error, -0.003)
+            @test isapprox(relative_error, 0.003)
             @test isapprox(system_pressure.pressure, [4.0, 0.0])
-            @test isapprox(system_pressure.density_error, [-3.0, 0.0])
+            @test isapprox(system_pressure.density_error, [3.0, 0.0])
+        end
+
+        @testset "Cross-system pressure sums use neighbor coordinates" begin
+            smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+            smoothing_length = 0.5
+            time_step = 0.5
+
+            coordinates_a = reshape([0.0, 0.0], 2, 1)
+            ic_a = InitialCondition(; coordinates=coordinates_a,
+                                    velocity=zeros(2, 1),
+                                    mass=[1.0],
+                                    density=[1000.0],
+                                    pressure=[1.0])
+            system = ImplicitIncompressibleSPHSystem(ic_a;
+                                                     smoothing_kernel,
+                                                     smoothing_length,
+                                                     reference_density=1000.0,
+                                                     time_step)
+
+            coordinates_b = [0.1 0.2
+                             0.0 0.0]
+            ic_b = InitialCondition(; coordinates=coordinates_b,
+                                    velocity=zeros(2, 2),
+                                    mass=[1.0, 1.0],
+                                    density=[1000.0, 1000.0],
+                                    pressure=[1.0, 2.0])
+            neighbor_system = ImplicitIncompressibleSPHSystem(ic_b;
+                                                              smoothing_kernel,
+                                                              smoothing_length,
+                                                              reference_density=1000.0,
+                                                              time_step)
+
+            semi = Semidiscretization(system, neighbor_system)
+            TrixiParticles.initialize_neighborhood_searches!(semi)
+            u_ode = vcat(vec(coordinates_a), vec(coordinates_b))
+            u = TrixiParticles.wrap_u(u_ode, system, semi)
+
+            @test_nowarn TrixiParticles.calculate_sum_d_ij_pj!(system.sum_d_ij_pj,
+                                                               system, neighbor_system,
+                                                               u, u_ode, semi)
+            @test !iszero(system.sum_d_ij_pj[1, 1])
         end
 
         @testset "Source term and iteration limits" begin
@@ -488,5 +582,124 @@
             @test TrixiParticles.minimum_iisph_iterations(system_iters) == 3
             @test TrixiParticles.maximum_iisph_iterations(system_iters) == 7
         end
+    end
+
+    @testset "Reject incompatible fluid systems" begin
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        smoothing_length = 0.5
+        coordinates = [0.0 0.1
+                       0.0 0.2]
+        velocity = zeros(2, 2)
+        mass = [1.0, 1.0]
+        density = [1000.0, 1000.0]
+        pressure = [0.0, 0.0]
+        ic = InitialCondition(; coordinates, velocity, mass, density, pressure)
+
+        iisph_system = ImplicitIncompressibleSPHSystem(ic;
+                                                       smoothing_kernel,
+                                                       smoothing_length,
+                                                       reference_density=1000.0,
+                                                       time_step=0.5)
+        edac_system = EntropicallyDampedSPHSystem(ic; smoothing_kernel,
+                                                  smoothing_length,
+                                                  sound_speed=10.0)
+
+        error_str = "`ImplicitIncompressibleSPHSystem` cannot be used together with " *
+                    "`EntropicallyDampedSPHSystem`"
+        @test_throws ArgumentError(error_str) Semidiscretization(iisph_system,
+                                                                 edac_system)
+    end
+
+    @testset "Akinci surface tension prediction and RHS" begin
+        particle_spacing = 0.5
+        reference_density = 1000.0
+        coordinates = [0.0 0.75
+                       0.0 0.0
+                       0.0 0.0]
+        initial_condition = InitialCondition(;
+                                             coordinates,
+                                             velocity=zeros(3, 2),
+                                             mass=fill(reference_density *
+                                                       particle_spacing^3,
+                                                       2),
+                                             density=fill(reference_density, 2),
+                                             particle_spacing)
+        smoothing_kernel = WendlandC2Kernel{3}()
+        time_step = 1.0e-5
+        models = (CohesionForceAkinci(surface_tension_coefficient=0.5),
+                  SurfaceTensionAkinci(surface_tension_coefficient=0.5))
+
+        for surface_tension in models
+            system = ImplicitIncompressibleSPHSystem(initial_condition;
+                                                     smoothing_kernel,
+                                                     smoothing_length=particle_spacing,
+                                                     reference_density,
+                                                     surface_tension,
+                                                     reference_particle_spacing=particle_spacing,
+                                                     min_iterations=1,
+                                                     max_iterations=1,
+                                                     time_step)
+            semi = Semidiscretization(system)
+            ode = semidiscretize(semi, (0.0, time_step))
+            v_ode, u_ode = ode.u0.x
+
+            TrixiParticles.update_systems_and_nhs(v_ode, u_ode, semi, 0.0)
+
+            @test maximum(abs, system.advection_velocity) > 0
+            @test all(isfinite, system.advection_velocity)
+            @test isapprox(sum(system.mass' .* system.advection_velocity; dims=2),
+                           zeros(3, 1); atol=1.0e-12)
+
+            expected_acceleration = system.advection_velocity / time_step
+            system.pressure .= 0
+            v = TrixiParticles.wrap_v(v_ode, system, semi)
+            u = TrixiParticles.wrap_u(u_ode, system, semi)
+            dv = zeros(size(v))
+            TrixiParticles.interact!(dv, v, u, v, u, system, system, semi)
+
+            @test isapprox(dv, expected_acceleration; rtol=5eps(), atol=5eps())
+        end
+
+        tank = RectangularTank(particle_spacing, (1.0, 0.5), (1.0, 1.0),
+                               reference_density; n_layers=2)
+        wall_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        wall_surface_tension = SurfaceTensionAkinci(surface_tension_coefficient=0.0)
+        wall_fluid = ImplicitIncompressibleSPHSystem(tank.fluid;
+                                                     smoothing_kernel=wall_smoothing_kernel,
+                                                     smoothing_length=particle_spacing,
+                                                     reference_density,
+                                                     surface_tension=wall_surface_tension,
+                                                     reference_particle_spacing=particle_spacing,
+                                                     min_iterations=1,
+                                                     max_iterations=1,
+                                                     time_step)
+        boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
+                                                     tank.boundary.mass,
+                                                     PressureZeroing(),
+                                                     wall_smoothing_kernel,
+                                                     particle_spacing;
+                                                     reference_particle_spacing=particle_spacing)
+        boundary_system = WallBoundarySystem(tank.boundary, boundary_model;
+                                             adhesion_coefficient=0.25)
+        wall_semi = Semidiscretization(wall_fluid, boundary_system)
+        wall_ode = semidiscretize(wall_semi, (0.0, time_step))
+        wall_v_ode, wall_u_ode = wall_ode.u0.x
+
+        TrixiParticles.update_systems_and_nhs(wall_v_ode, wall_u_ode, wall_semi, 0.0)
+
+        @test all(isfinite, wall_fluid.advection_velocity)
+        @test maximum(abs, wall_fluid.advection_velocity) > 0
+
+        wall_fluid.pressure .= 0
+        v_fluid = TrixiParticles.wrap_v(wall_v_ode, wall_fluid, wall_semi)
+        u_fluid = TrixiParticles.wrap_u(wall_u_ode, wall_fluid, wall_semi)
+        v_boundary = TrixiParticles.wrap_v(wall_v_ode, boundary_system, wall_semi)
+        u_boundary = TrixiParticles.wrap_u(wall_u_ode, boundary_system, wall_semi)
+        dv_wall = zeros(size(v_fluid))
+        TrixiParticles.interact!(dv_wall, v_fluid, u_fluid, v_boundary, u_boundary,
+                                 wall_fluid, boundary_system, wall_semi)
+
+        @test isapprox(dv_wall, wall_fluid.advection_velocity / time_step;
+                       rtol=5eps(), atol=5eps())
     end
 end

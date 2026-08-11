@@ -75,6 +75,17 @@ end
 
 add_system_data!(system_data, data::Nothing) = system_data
 
+@inline pressure_acceleration_name(formulation) = nameof(formulation)
+@inline pressure_acceleration_name(control::InterfaceAwareTensileInstabilityControl) = nameof(typeof(control))
+
+@inline add_pressure_acceleration_data!(system_data, formulation) = system_data
+
+function add_pressure_acceleration_data!(system_data,
+                                         control::InterfaceAwareTensileInstabilityControl)
+    system_data["interface_aware_tic_strength"] = control.strength
+    return system_data
+end
+
 function add_system_data!(system_data, system::AbstractFluidSystem)
     system_data["system_type"] = type2string(system)
     system_data["particle_spacing"] = particle_spacing(system, 1)
@@ -83,7 +94,9 @@ function add_system_data!(system_data, system::AbstractFluidSystem)
     system_data["smoothing_length"] = system.cache.smoothing_length
     system_data["acceleration"] = system.acceleration
     system_data["sound_speed"] = system_sound_speed(system)
-    system_data["pressure_acceleration_formulation"] = nameof(system.pressure_acceleration_formulation)
+    formulation = system.pressure_acceleration_formulation
+    system_data["pressure_acceleration_formulation"] = pressure_acceleration_name(formulation)
+    add_pressure_acceleration_data!(system_data, formulation)
     add_system_data!(system_data, shifting_technique(system))
     add_system_data!(system_data, system.surface_tension)
     add_system_data!(system_data, system.surface_normal_method)
@@ -105,8 +118,10 @@ function add_system_data!(system_data, system::ImplicitIncompressibleSPHSystem)
     system_data["smoothing_kernel"] = type2string(system.smoothing_kernel)
     system_data["smoothing_length"] = system.cache.smoothing_length
     system_data["acceleration"] = system.acceleration
-    system_data["pressure_acceleration_formulation"] = nameof(system.pressure_acceleration_formulation)
+    system_data["pressure_acceleration_formulation"] = pressure_acceleration_name(system.pressure_acceleration_formulation)
     add_system_data!(system_data, shifting_technique(system))
+    add_system_data!(system_data, system.surface_tension)
+    add_system_data!(system_data, system.surface_normal_method)
     add_system_data!(system_data, system.viscosity)
 end
 
@@ -307,19 +322,42 @@ function add_system_data!(system_data,
 end
 
 function add_system_data!(system_data,
-                          surface_tension::Union{CohesionForceAkinci, SurfaceTensionAkinci,
-                                                 SurfaceTensionMorris,
+                          surface_tension::Union{CohesionForceAkinci, SurfaceTensionMorris,
                                                  SurfaceTensionMomentumMorris})
     system_data["surface_tension"] = Dict{String, Any}()
     system_data["surface_tension"]["model"] = type2string(surface_tension)
     system_data["surface_tension"]["surface_tension_coefficient"] = surface_tension.surface_tension_coefficient
 end
 
+function add_system_data!(system_data, surface_tension::SurfaceTensionAkinci)
+    system_data["surface_tension"] = Dict{String, Any}()
+    system_data["surface_tension"]["model"] = type2string(surface_tension)
+    system_data["surface_tension"]["surface_tension_coefficient"] = surface_tension.surface_tension_coefficient
+    system_data["surface_tension"]["reference_smoothing_length"] = surface_tension.reference_smoothing_length
+end
+
 function add_system_data!(system_data, surface_normal_method::ColorfieldSurfaceNormal)
     system_data["surface_normal_method"] = Dict{String, Any}()
     system_data["surface_normal_method"]["model"] = type2string(surface_normal_method)
     system_data["surface_normal_method"]["boundary_contact_threshold"] = surface_normal_method.boundary_contact_threshold
+    system_data["surface_normal_method"]["interface_threshold"] = surface_normal_method.interface_threshold
     system_data["surface_normal_method"]["ideal_density_threshold"] = surface_normal_method.ideal_density_threshold
+    system_data["surface_normal_method"]["interface_taper_start"] = surface_normal_method.interface_taper_start
+    system_data["surface_normal_method"]["support_taper_width"] = surface_normal_method.support_taper_width
+    system_data["surface_normal_method"]["normal_smoothing"] = surface_normal_method.normal_smoothing
+    contact_model = surface_normal_method.contact_model
+    system_data["surface_normal_method"]["contact_model"] = isnothing(contact_model) ?
+                                                            nothing :
+                                                            type2string(contact_model)
+    system_data["surface_normal_method"]["contact_angle"] = isnothing(contact_model) ?
+                                                            nothing :
+                                                            contact_model.contact_angle
+end
+
+function add_system_data!(system_data, surface_normal_method::CorrectedCSFSurfaceNormal)
+    system_data["surface_normal_method"] = Dict{String, Any}()
+    system_data["surface_normal_method"]["model"] = type2string(surface_normal_method)
+    system_data["surface_normal_method"]["contact_angle"] = surface_normal_method.contact_angle
 end
 
 function add_system_data!(system_data, boundary_zone::BoundaryZone, indice)
@@ -358,6 +396,10 @@ end
 function add_system_data!(system_data, shifting_technique::ParticleShiftingTechnique)
     system_data["shifting_technique"] = Dict{String, Any}()
     system_data["shifting_technique"]["model"] = type2string(shifting_technique)
+    treatment = shifting_technique.free_surface_treatment
+    system_data["shifting_technique"]["free_surface_treatment"] = isnothing(treatment) ?
+                                                                  nothing :
+                                                                  type2string(treatment)
 end
 
 function add_system_data!(system_data, viscosity::ViscosityCarreauYasuda)

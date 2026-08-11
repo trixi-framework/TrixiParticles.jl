@@ -10,6 +10,51 @@
         @test repr(boundary_model) == expected_repr
     end
 
+    @testset "Surface quadrature" begin
+        densities = Float32[1000, 1000, 1000]
+        masses = Float32[1, 1, 1]
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        smoothing_length = 0.1f0
+        surface_measure = [0.1, 0.0, 0.2]
+        expected_measure = Float32[0.1, 0.0, 0.2]
+
+        boundary_model = BoundaryModelDummyParticles(densities, masses,
+                                                     SummationDensity(),
+                                                     smoothing_kernel,
+                                                     smoothing_length;
+                                                     surface_measure)
+        @test haskey(boundary_model.cache, :surface_measure)
+        @test boundary_model.cache.surface_measure == expected_measure
+        @test eltype(boundary_model.cache.surface_measure) == Float32
+
+        # Setup data is copied so later changes to the input do not alter the model.
+        surface_measure[1] = 1.0
+        @test boundary_model.cache.surface_measure == expected_measure
+
+        adapted_model = TrixiParticles.Adapt.adapt(Array, boundary_model)
+        @test adapted_model.cache.surface_measure == expected_measure
+
+        default_model = BoundaryModelDummyParticles(densities, masses,
+                                                    SummationDensity(),
+                                                    smoothing_kernel,
+                                                    smoothing_length)
+        @test !haskey(default_model.cache, :surface_measure)
+
+        make_model(measure) = BoundaryModelDummyParticles(densities, masses,
+                                                          SummationDensity(),
+                                                          smoothing_kernel,
+                                                          smoothing_length;
+                                                          surface_measure=measure)
+        @test make_model(zeros(3)).cache.surface_measure == zeros(Float32, 3)
+        @test_throws ArgumentError make_model(1.0)
+        @test_throws ArgumentError make_model(zeros(2))
+        @test_throws ArgumentError make_model([-1.0, 0.0, 0.0])
+        @test_throws ArgumentError make_model([NaN, 0.0, 0.0])
+        @test_throws ArgumentError make_model([Inf, 0.0, 0.0])
+        @test_throws ArgumentError make_model([1.0e100, 0.0, 0.0])
+        @test_throws ArgumentError make_model(Any["invalid", 0.0, 0.0])
+    end
+
     @testset "Pressure clipping" begin
         state_equation = StateEquationCole(sound_speed=10.0,
                                            reference_density=1000.0,
@@ -655,8 +700,8 @@
                                                  (width_reference, height_reference),
                                                  (width_reference, height_reference),
                                                  density; acceleration=[0.0, -9.81],
-                                                 state_equation, n_layers=0,
-                                                 faces=(true, true, true, false))
+                                                 state_equation,
+                                                 faces=(false, false, false, false))
 
                 # Because it is a pain to deal with the linear indices of the pressure arrays,
                 # we convert the matrices to Cartesian indices based on the coordinates.

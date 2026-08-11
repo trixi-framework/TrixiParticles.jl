@@ -113,9 +113,6 @@ function compute_and_test_surface_values(system, semi, ode; NDIMS=2)
     TrixiParticles.compute_surface_normal!(system, system.surface_normal_method, v, u,
                                            v0_ode, u0_ode, semi, 0.0)
 
-    TrixiParticles.remove_invalid_normals!(system, system.surface_tension,
-                                           system.surface_normal_method)
-
     # After computation, check that surface normals have been computed and are not NaN or Inf
     @test all(isfinite, system.cache.surface_normal)
     @test all(isfinite, system.cache.neighbor_count)
@@ -143,6 +140,430 @@ function compute_curvature!(system, semi, ode)
                                       v, u, v0_ode, u0_ode, semi, 0.0)
 end
 
+@testset "Corrected C-CSF interface geometry" begin
+    particle_spacing = 0.05
+    radius = 0.5
+    reference_density = 1000.0
+    smoothing_kernel = WendlandC2Kernel{2}()
+    smoothing_length = 1.4particle_spacing
+    fluid = SphereShape(particle_spacing, radius, (0.0, 0.0), reference_density;
+                        sphere_type=RoundSphere())
+    state_equation = StateEquationCole(; sound_speed=10.0, reference_density,
+                                       exponent=7)
+    surface_tension = SurfaceTensionMorris(; surface_tension_coefficient=1.0)
+    system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel, smoothing_length,
+                                         density_calculator=ContinuityDensity(),
+                                         state_equation, surface_tension,
+                                         surface_normal_method=CorrectedCSFSurfaceNormal(),
+                                         reference_particle_spacing=particle_spacing)
+    semi = Semidiscretization(system)
+    ode = semidiscretize(semi, (0.0, 0.01))
+    TrixiParticles.update_systems_and_nhs(ode.u0.x..., semi, 0.0)
+
+    cache = system.cache
+    active = findall(>(0), cache.interface_activity)
+    @test !isempty(active)
+    @test all(isfinite, cache.ccsf_minimum_eigenvalue)
+    @test 0.4 < minimum(cache.ccsf_minimum_eigenvalue) < 0.6
+    @test maximum(cache.ccsf_minimum_eigenvalue) > 0.99
+    @test all(isfinite, cache.surface_normal)
+    @test all(isfinite, cache.curvature)
+    @test all(>=(0), cache.delta_s)
+    @test !haskey(cache, :ccsf_boundary_normal)
+    @test !haskey(cache, :ccsf_boundary_distance)
+    @test all(active) do particle
+        dot(TrixiParticles.surface_normal(system, particle),
+            fluid.coordinates[:, particle]) > 0
+    end
+
+    weighted_curvature = sum(cache.curvature[active] .* cache.delta_s[active]) /
+                         sum(cache.delta_s[active])
+    @test isapprox(weighted_curvature, inv(radius); rtol=0.15)
+
+    system_data = Dict{String, Any}()
+    TrixiParticles.add_system_data!(system_data, system.surface_normal_method)
+    @test system_data["surface_normal_method"]["model"] ==
+          "CorrectedCSFSurfaceNormal"
+    @test isnothing(system_data["surface_normal_method"]["contact_angle"])
+
+    for contact_angle in (-1, 181, NaN, Inf)
+        @test_throws ArgumentError CorrectedCSFSurfaceNormal(; contact_angle)
+    end
+
+    @test_throws ArgumentError WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
+                                                           smoothing_length,
+                                                           density_calculator=ContinuityDensity(),
+                                                           state_equation,
+                                                           surface_tension=SurfaceTensionMomentumMorris(),
+                                                           surface_normal_method=CorrectedCSFSurfaceNormal(),
+                                                           reference_particle_spacing=particle_spacing)
+end
+
+@testset "Corrected C-CSF planar boundary geometry" begin
+    particle_spacing = 0.1
+    reference_density = 1000.0
+    smoothing_kernel = WendlandC2Kernel{3}()
+    smoothing_length = 1.4particle_spacing
+    fluid = RectangularShape(particle_spacing, (7, 7, 7), (0.0, 0.0, 0.0);
+                             density=reference_density)
+    method = CorrectedCSFSurfaceNormal(; contact_angle=90.0)
+    system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel, smoothing_length,
+                                         density_calculator=ContinuityDensity(),
+                                         state_equation=StateEquationCole(;
+                                                                          sound_speed=10.0,
+                                                                          reference_density,
+                                                                          exponent=7),
+                                         surface_tension=SurfaceTensionMorris(;
+                                                                              surface_tension_coefficient=1.0),
+                                         surface_normal_method=method,
+                                         reference_particle_spacing=particle_spacing)
+    @test_throws ArgumentError Semidiscretization(system)
+    @test TrixiParticles.ccsf_halfspace_outside_fraction(smoothing_kernel, 0.0) ≈ 0.5
+    @test TrixiParticles.ccsf_halfspace_outside_fraction(smoothing_kernel, 2.0) == 0.0
+
+    boundary_raw = RectangularShape(particle_spacing, (7, 7, 3),
+                                    (0.0, 0.0, -3particle_spacing);
+                                    density=reference_density)
+    exposed = isapprox.(boundary_raw.coordinates[3, :],
+                        maximum(boundary_raw.coordinates[3, :]); atol=eps())
+    normals = zeros(size(boundary_raw.coordinates))
+    normals[3, exposed] .= -particle_spacing / 2
+    surface_measure = zeros(nparticles(boundary_raw))
+    surface_measure[exposed] .= particle_spacing^2
+    boundary = InitialCondition(; coordinates=boundary_raw.coordinates,
+                                velocity=boundary_raw.velocity,
+                                mass=boundary_raw.mass, density=boundary_raw.density,
+                                pressure=boundary_raw.pressure, particle_spacing,
+                                normals)
+    boundary_model = BoundaryModelDummyParticles(boundary; fluid_system=system,
+                                                 surface_measure)
+    boundary_system = WallBoundarySystem(boundary, boundary_model)
+
+    missing_measure_model = BoundaryModelDummyParticles(boundary; fluid_system=system)
+    @test_throws ArgumentError Semidiscretization(system,
+                                                  WallBoundarySystem(boundary,
+                                                                     missing_measure_model))
+
+    zero_measure_model = BoundaryModelDummyParticles(boundary; fluid_system=system,
+                                                     surface_measure=zero(surface_measure))
+    @test_throws ArgumentError Semidiscretization(system,
+                                                  WallBoundarySystem(boundary,
+                                                                     zero_measure_model))
+
+    missing_normals = InitialCondition(; coordinates=boundary.coordinates,
+                                       velocity=boundary.velocity, mass=boundary.mass,
+                                       density=boundary.density, pressure=boundary.pressure,
+                                       particle_spacing)
+    missing_normals_model = BoundaryModelDummyParticles(missing_normals;
+                                                        fluid_system=system,
+                                                        surface_measure)
+    @test_throws ArgumentError Semidiscretization(system,
+                                                  WallBoundarySystem(missing_normals,
+                                                                     missing_normals_model))
+
+    prescribed_motion = PrescribedMotion((position, time) -> position, time -> true)
+    moving_boundary = WallBoundarySystem(boundary, boundary_model; prescribed_motion)
+    @test_throws ArgumentError Semidiscretization(system, moving_boundary)
+
+    semi = Semidiscretization(system, boundary_system)
+    ode = semidiscretize(semi, (0.0, 0.01))
+    TrixiParticles.update_systems_and_nhs(ode.u0.x..., semi, 0.0)
+
+    center = argmin(eachparticle(system)) do particle
+        sum(abs2, fluid.coordinates[:, particle] - [0.35, 0.35, 0.05])
+    end
+    cache = system.cache
+    @test method.contact_angle === 90.0
+    @test boundary_model.cache.surface_measure == surface_measure
+    @test cache.ccsf_boundary_distance[center] ≈ particle_spacing / 2
+    @test 0.9 < cache.ccsf_minimum_eigenvalue[center] < 1.1
+    @test cache.interface_activity[center] == 0
+    @test iszero(TrixiParticles.surface_normal(system, center))
+    @test cache.curvature[center] == 0
+    @test all(isfinite, cache.ccsf_minimum_eigenvalue)
+    @test all(isfinite, cache.curvature)
+
+    contact_line = filter(eachparticle(system)) do particle
+        cache.interface_activity[particle] > 0 &&
+            isapprox(cache.ccsf_boundary_distance[particle], particle_spacing / 2;
+                     atol=eps())
+    end
+    @test !isempty(contact_line)
+    @test maximum(contact_line) do particle
+        abs(TrixiParticles.surface_normal(system, particle)[3])
+    end < 0.05
+
+    system_data = Dict{String, Any}()
+    TrixiParticles.add_system_data!(system_data, method)
+    @test system_data["surface_normal_method"]["contact_angle"] === 90.0
+
+    @test_throws ArgumentError BoundaryModelDummyParticles(boundary; fluid_system=system,
+                                                           surface_measure=1.0)
+    @test_throws ArgumentError BoundaryModelDummyParticles(boundary; fluid_system=system,
+                                                           surface_measure=zeros(2))
+    invalid_measure = copy(surface_measure)
+    invalid_measure[first(eachindex(invalid_measure))] = -1
+    @test_throws ArgumentError BoundaryModelDummyParticles(boundary; fluid_system=system,
+                                                           surface_measure=invalid_measure)
+end
+
+@testset "Corrected C-CSF hemispherical contact" begin
+    particle_spacing = 0.05
+    radius = 0.5
+    reference_density = 1000.0
+    full_sphere = SphereShape(particle_spacing, radius, (0.0, 0.0, 0.0),
+                              reference_density; sphere_type=RoundSphere())
+    keep = findall(>(0), full_sphere.coordinates[3, :])
+    fluid = InitialCondition(; coordinates=full_sphere.coordinates[:, keep],
+                             velocity=full_sphere.velocity[:, keep],
+                             mass=full_sphere.mass[keep], density=full_sphere.density[keep],
+                             pressure=full_sphere.pressure[keep], particle_spacing)
+    smoothing_kernel = WendlandC2Kernel{3}()
+    smoothing_length = 1.4particle_spacing
+    system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel, smoothing_length,
+                                         density_calculator=ContinuityDensity(),
+                                         state_equation=StateEquationCole(;
+                                                                          sound_speed=10.0,
+                                                                          reference_density,
+                                                                          exponent=7),
+                                         surface_tension=SurfaceTensionMorris(;
+                                                                              surface_tension_coefficient=1.0),
+                                         surface_normal_method=CorrectedCSFSurfaceNormal(;
+                                                                                         contact_angle=90.0),
+                                         reference_particle_spacing=particle_spacing)
+
+    boundary_raw = RectangularShape(particle_spacing, (22, 22, 3),
+                                    (-0.55, -0.55, -3particle_spacing);
+                                    density=reference_density)
+    exposed = isapprox.(boundary_raw.coordinates[3, :],
+                        maximum(boundary_raw.coordinates[3, :]); atol=eps())
+    normals = zeros(size(boundary_raw.coordinates))
+    normals[3, exposed] .= -particle_spacing / 2
+    surface_measure = zeros(nparticles(boundary_raw))
+    surface_measure[exposed] .= particle_spacing^2
+    boundary = InitialCondition(; coordinates=boundary_raw.coordinates,
+                                velocity=boundary_raw.velocity,
+                                mass=boundary_raw.mass, density=boundary_raw.density,
+                                pressure=boundary_raw.pressure, particle_spacing,
+                                normals)
+    boundary_model = BoundaryModelDummyParticles(boundary; fluid_system=system,
+                                                 surface_measure)
+    boundary_system = WallBoundarySystem(boundary, boundary_model)
+    semi = Semidiscretization(system, boundary_system)
+    ode = semidiscretize(semi, (0.0, 0.01))
+    TrixiParticles.update_systems_and_nhs(ode.u0.x..., semi, 0.0)
+
+    cache = system.cache
+    active = findall(>(0), cache.interface_activity)
+    support = 2smoothing_length
+    contact = filter(active) do particle
+        cache.ccsf_boundary_distance[particle] < support
+    end
+    @test !isempty(contact)
+    @test minimum(cache.curvature[contact]) > 0
+    weighted_curvature = sum(cache.curvature[active] .* cache.delta_s[active]) /
+                         sum(cache.delta_s[active])
+    contact_curvature = sum(cache.curvature[contact] .* cache.delta_s[contact]) /
+                        sum(cache.delta_s[contact])
+    @test isapprox(weighted_curvature, 2 / radius; rtol=0.1)
+    @test isapprox(contact_curvature, 2 / radius; rtol=0.15)
+end
+
+@testset "Corrected C-CSF 3D curvature" begin
+    particle_spacing = 0.05
+    radius = 0.5
+    reference_density = 1000.0
+    smoothing_kernel = WendlandC2Kernel{3}()
+    smoothing_length = 1.4particle_spacing
+    fluid = SphereShape(particle_spacing, radius, (0.0, 0.0, 0.0), reference_density;
+                        sphere_type=RoundSphere())
+    system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel, smoothing_length,
+                                         density_calculator=ContinuityDensity(),
+                                         state_equation=StateEquationCole(;
+                                                                          sound_speed=10.0,
+                                                                          reference_density,
+                                                                          exponent=7),
+                                         surface_tension=SurfaceTensionMorris(;
+                                                                              surface_tension_coefficient=1.0),
+                                         surface_normal_method=CorrectedCSFSurfaceNormal(),
+                                         reference_particle_spacing=particle_spacing)
+    semi = Semidiscretization(system)
+    ode = semidiscretize(semi, (0.0, 0.01))
+    TrixiParticles.update_systems_and_nhs(ode.u0.x..., semi, 0.0)
+
+    cache = system.cache
+    active = findall(>(0), cache.interface_activity)
+    @test !isempty(active)
+    @test all(active) do particle
+        dot(TrixiParticles.surface_normal(system, particle),
+            fluid.coordinates[:, particle]) > 0
+    end
+    @test minimum(cache.curvature[active]) > 0
+
+    weighted_curvature = sum(cache.curvature[active] .* cache.delta_s[active]) /
+                         sum(cache.delta_s[active])
+    @test isapprox(weighted_curvature, 2 / radius; rtol=0.15)
+end
+
+@testset "Shepard-smoothed CSS normals" begin
+    particle_spacing = 0.1
+    reference_density = 1000.0
+    fluid = SphereShape(particle_spacing, 0.5, (0.0, 0.0, 0.0), reference_density;
+                        sphere_type=RoundSphere())
+    smoothing_kernel = WendlandC2Kernel{3}()
+    smoothing_length = 1.4particle_spacing
+    state_equation = StateEquationCole(; sound_speed=10.0, reference_density,
+                                       exponent=7)
+    surface_tension = SurfaceTensionMomentumMorris(; surface_tension_coefficient=1.0)
+    normal_method = ColorfieldSurfaceNormal(; ideal_density_threshold=0.95,
+                                            normal_smoothing=true)
+    system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel, smoothing_length,
+                                         density_calculator=ContinuityDensity(),
+                                         state_equation, surface_tension,
+                                         surface_normal_method=normal_method,
+                                         reference_particle_spacing=particle_spacing)
+    semi = Semidiscretization(system)
+    ode = semidiscretize(semi, (0.0, 0.01))
+    v_ode, u_ode = ode.u0.x
+    TrixiParticles.update_systems_and_nhs(v_ode, u_ode, semi, 0.0)
+
+    active = findall(>(0), system.cache.interface_activity)
+    @test !isempty(active)
+    @test haskey(system.cache, :smoothed_surface_normal)
+    @test haskey(system.cache, :normal_smoothing_weight)
+    @test all(isfinite, system.cache.smoothed_surface_normal)
+    @test all(isfinite, system.cache.normal_smoothing_weight)
+    @test all(active) do particle
+        isapprox(norm(TrixiParticles.surface_tension_normal(system, particle)), 1;
+                 atol=1.0e-12)
+    end
+
+    raw_system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel, smoothing_length,
+                                             density_calculator=ContinuityDensity(),
+                                             state_equation, surface_tension,
+                                             surface_normal_method=ColorfieldSurfaceNormal(;
+                                                                                           ideal_density_threshold=0.95),
+                                             reference_particle_spacing=particle_spacing)
+    raw_semi = Semidiscretization(raw_system)
+    raw_ode = semidiscretize(raw_semi, (0.0, 0.01))
+    TrixiParticles.update_systems_and_nhs(raw_ode.u0.x..., raw_semi, 0.0)
+
+    # Smoothing changes only the capillary direction, not raw geometry or activity.
+    @test !haskey(raw_system.cache, :smoothed_surface_normal)
+    @test !haskey(raw_system.cache, :normal_smoothing_weight)
+    @test system.cache.surface_normal ≈ raw_system.cache.surface_normal
+    @test system.cache.interface_activity ≈ raw_system.cache.interface_activity
+    @test system.cache.delta_s ≈ raw_system.cache.delta_s
+    differences = [norm(TrixiParticles.surface_tension_normal(system, particle) -
+                        TrixiParticles.surface_normal(system, particle))
+                   for particle in active]
+    candidate = active[argmax(differences)]
+    @test maximum(differences) > 1.0e-4
+
+    inactive = setdiff(eachparticle(system), active)
+    @test all(particle -> iszero(TrixiParticles.surface_tension_normal(system, particle)),
+              inactive)
+
+    grad_kernel = SVector(0.3, -0.4, 0.2)
+    normal = TrixiParticles.surface_tension_normal(system, candidate)
+    delta_s = system.cache.delta_s[candidate]
+    expected_stress_gradient = delta_s *
+                               (grad_kernel - normal * dot(normal, grad_kernel))
+    @test TrixiParticles.surface_stress_times_gradient(system, candidate, grad_kernel) ≈
+          expected_stress_gradient
+
+    vtk = Dict{String, Any}()
+    GC.@preserve v_ode u_ode begin
+        v = TrixiParticles.wrap_v(v_ode, system, semi)
+        u = TrixiParticles.wrap_u(u_ode, system, semi)
+        TrixiParticles.write2vtk!(vtk, v, u, 0.0, system)
+    end
+    expected_stress = delta_s *
+                      (Matrix{Float64}(I, 3, 3) - normal * transpose(normal))
+    @test vtk["surf_normal"][candidate] ≈ TrixiParticles.surface_normal(system, candidate)
+    @test vtk["surface_tension_normal"][candidate] ≈ normal
+    @test vtk["surface_stress_tensor"][:, :, candidate] ≈ expected_stress
+
+    system.cache.surface_normal .= reshape([1.0, 0.0, 0.0], 3, 1)
+    system.cache.interface_activity .= 1
+    GC.@preserve v_ode u_ode begin
+        v = TrixiParticles.wrap_v(v_ode, system, semi)
+        u = TrixiParticles.wrap_u(u_ode, system, semi)
+        TrixiParticles.smooth_surface_normals!(system, normal_method, v, u, semi)
+    end
+    @test all(particle -> TrixiParticles.surface_tension_normal(system, particle) ==
+                          SVector(1.0, 0.0, 0.0), eachparticle(system))
+
+    system.cache.surface_normal .= 0
+    GC.@preserve v_ode u_ode begin
+        v = TrixiParticles.wrap_v(v_ode, system, semi)
+        u = TrixiParticles.wrap_u(u_ode, system, semi)
+        TrixiParticles.smooth_surface_normals!(system, normal_method, v, u, semi)
+    end
+    @test all(iszero, system.cache.smoothed_surface_normal)
+    @test all(isfinite, system.cache.smoothed_surface_normal)
+end
+
+@testset "CSS flat-pool geometry" begin
+    particle_spacing = 0.1
+    reference_density = 1000.0
+    smoothing_kernel = WendlandC2Kernel{2}()
+    smoothing_length = 1.4particle_spacing
+    state_equation = StateEquationCole(; sound_speed=10.0, reference_density,
+                                       exponent=1)
+    fluid = RectangularShape(particle_spacing, (9, 6), (0.0, 0.0);
+                             density=reference_density)
+    normal_method = ColorfieldSurfaceNormal(; boundary_contact_threshold=0.1,
+                                            interface_threshold=0.01,
+                                            ideal_density_threshold=0.9)
+    surface_tension = SurfaceTensionMomentumMorris(; surface_tension_coefficient=0.072)
+    fluid_system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
+                                               smoothing_length,
+                                               density_calculator=ContinuityDensity(),
+                                               state_equation, surface_tension,
+                                               surface_normal_method=normal_method,
+                                               reference_particle_spacing=particle_spacing)
+
+    # The top wall row continues the fluid lattice one spacing below the bottom fluid row.
+    wall = RectangularShape(particle_spacing, (9, 3), (0.0, -0.3);
+                            density=reference_density)
+    boundary_model = BoundaryModelDummyParticles(wall; fluid_system,
+                                                 boundary_density_calculator=AdamiPressureExtrapolation())
+    boundary_system = WallBoundarySystem(wall, boundary_model)
+    semi = Semidiscretization(fluid_system, boundary_system)
+    ode = semidiscretize(semi, (0.0, 0.01))
+    v_ode, u_ode = ode.u0.x
+    TrixiParticles.update_systems_and_nhs(v_ode, u_ode, semi, 0.0)
+
+    coordinates = fluid.coordinates
+    particle_at(position) = findfirst(particle -> coordinates[:, particle] == position,
+                                      axes(coordinates, 2))
+    bottom_center = particle_at([0.45, 0.05])
+    interior_center = particle_at([0.45, 0.25])
+    top_center = particle_at([0.45, 0.55])
+    centerline_particles = [bottom_center, interior_center, top_center]
+
+    acceleration = GC.@preserve v_ode u_ode begin
+        v = TrixiParticles.wrap_v(v_ode, fluid_system, semi)
+        u = TrixiParticles.wrap_u(u_ode, fluid_system, semi)
+        v_boundary = TrixiParticles.wrap_v(v_ode, boundary_system, semi)
+        u_boundary = TrixiParticles.wrap_u(u_ode, boundary_system, semi)
+        dv = zeros(eltype(v), size(v))
+        TrixiParticles.interact!(dv, v, u, v, u, fluid_system, fluid_system, semi)
+        TrixiParticles.interact!(dv, v, u, v_boundary, u_boundary, fluid_system,
+                                 boundary_system, semi)
+        Array(dv[1:2, :])
+    end
+
+    # Wall particles complete the support moment without carrying capillary stress.
+    @test fluid_system.cache.divergence_correction[bottom_center] >= 0.9
+    @test fluid_system.cache.interface_activity[bottom_center] == 0
+    @test fluid_system.cache.delta_s[bottom_center] == 0
+    @test fluid_system.cache.delta_s[top_center] > 0
+    @test iszero(fluid_system.cache.delta_s[interior_center])
+    @test maximum(abs, acceleration[:, centerline_particles]) < 1.0e-12
+end
+
 @testset verbose=true "Rigid Dummy Boundary Matches Wall Boundary" begin
     NDIMS = 2
     particle_spacing = 0.2
@@ -163,7 +584,8 @@ end
                                    NDIMS, smoothing_length, smoothing_kernel,
                                    surface_normal_method=ColorfieldSurfaceNormal(interface_threshold=0.1,
                                                                                  ideal_density_threshold=0.9),
-                                   wall=true, walldistance=2.0, boundary_system_type=:wall)
+                                   wall=true, walldistance=particle_spacing,
+                                   boundary_system_type=:wall)
 
     rigid_system, rigid_boundary, rigid_semi,
     rigid_ode = create_fluid_system(coordinates, velocity, mass, density, particle_spacing,
@@ -171,11 +593,19 @@ end
                                     NDIMS, smoothing_length, smoothing_kernel,
                                     surface_normal_method=ColorfieldSurfaceNormal(interface_threshold=0.1,
                                                                                   ideal_density_threshold=0.9),
-                                    wall=true, walldistance=2.0,
+                                    wall=true, walldistance=particle_spacing,
                                     boundary_system_type=:rigid)
+
+    free_system, _, free_semi,
+    free_ode = create_fluid_system(coordinates, velocity, mass, density, particle_spacing,
+                                   SurfaceTensionMorris(surface_tension_coefficient=0.072);
+                                   NDIMS, smoothing_length, smoothing_kernel,
+                                   surface_normal_method=ColorfieldSurfaceNormal(interface_threshold=0.1,
+                                                                                 ideal_density_threshold=0.9))
 
     compute_and_test_surface_values(wall_system, wall_semi, wall_ode; NDIMS)
     compute_and_test_surface_values(rigid_system, rigid_semi, rigid_ode; NDIMS)
+    compute_and_test_surface_values(free_system, free_semi, free_ode; NDIMS)
 
     @test isapprox(rigid_boundary.boundary_model.cache.initial_colorfield,
                    wall_boundary.boundary_model.cache.initial_colorfield,
@@ -186,6 +616,14 @@ end
     @test isapprox(rigid_system.cache.neighbor_count,
                    wall_system.cache.neighbor_count,
                    rtol=sqrt(eps()), atol=sqrt(eps()))
+    @test all(isfinite, wall_system.cache.support_moment)
+    @test maximum(abs, wall_system.cache.support_moment) > 0
+    @test isapprox(rigid_system.cache.support_moment,
+                   wall_system.cache.support_moment,
+                   rtol=sqrt(eps()), atol=sqrt(eps()))
+    @test maximum(abs,
+                  wall_system.cache.support_moment - free_system.cache.support_moment) >
+          sqrt(eps())
 end
 
 @testset verbose=true "CSS/CSF: Sphere Surface Normals" begin

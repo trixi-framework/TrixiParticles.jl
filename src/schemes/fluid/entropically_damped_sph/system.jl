@@ -30,6 +30,8 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
 - `pressure_acceleration`:      Pressure acceleration formulation (default: inter-particle averaged pressure).
                                 When set to `nothing`, the pressure acceleration formulation for the
                                 corresponding [density calculator](@ref density_calculator) is chosen.
+                                [`InterfaceAwareTensileInstabilityControl`](@ref) can be used
+                                with a supported Morris CSF/CSS free surface.
 - `density_calculator`:         [Density calculator](@ref density_calculator) (default: [`SummationDensity`](@ref))
 - `shifting_technique`:         [Shifting technique](@ref shifting) or [transport velocity
                                 formulation](@ref transport_velocity_formulation) to use
@@ -38,7 +40,10 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
                                 from the local pressure (default: `true` when using shifting, `false` otherwise).
 - `buffer_size`:                Number of buffer particles.
                                 This is needed when simulating with [`OpenBoundarySystem`](@ref).
-- `correction`:                 Correction method used for this system. (default: no correction, see [Corrections](@ref corrections))
+- `correction`:                 Correction method used for this system. (default: no correction,
+                                see [Corrections](@ref corrections)).
+                                [`AkinciFreeSurfaceCorrection`](@ref) scales viscosity and
+                                Akinci surface-tension forces but not pressure.
 - `source_terms`:               Additional source terms for this system. Has to be either `nothing`
                                 (by default), or a function of `(coords, velocity, density, pressure, t)`
                                 (which are the quantities of a single particle), returning a `Tuple`
@@ -51,9 +56,10 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
                                 gravity-like source terms.
 - `surface_tension`:            Surface tension model used for this SPH system. (default: no surface tension)
 - `surface_normal_method`:      The surface normal method to be used for this SPH system.
-                                (default: no surface normal method or `ColorfieldSurfaceNormal()` if a surface_tension model is used)
+                                (default: no surface normal method or `ColorfieldSurfaceNormal()`
+                                if the surface tension model requires normals)
 - `reference_particle_spacing`: The reference particle spacing used for weighting values at the boundary,
-                                which currently is only needed when using surface tension.
+                                which is needed when using a surface-normal method.
 - `color_value`:                Integer label used for calculation of surface normals.
                                 Currently this is only used together with [`BoundaryModelDummyParticles`](@ref) and
                                 [`ColorfieldSurfaceNormal`](@ref): fluid-boundary normal evaluation
@@ -119,12 +125,17 @@ function EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel, smooth
         throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
     end
 
-    if surface_tension !== nothing && surface_normal_method === nothing
-        surface_normal_method = ColorfieldSurfaceNormal()
-    end
+    surface_normal_method = default_surface_normal_method(surface_tension,
+                                                          surface_normal_method)
+    validate_corrected_csf(surface_normal_method, surface_tension)
+    validate_free_surface_shifting(shifting_technique, surface_normal_method,
+                                   surface_tension)
+    validate_interface_aware_tic(pressure_acceleration, density_calculator,
+                                 nothing, surface_normal_method,
+                                 surface_tension, correction)
 
     if surface_normal_method !== nothing && reference_particle_spacing < eps()
-        throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using `ColorfieldSurfaceNormal` or a surface tension model"))
+        throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using a surface-normal method"))
     end
 
     if correction isa ShepardKernelCorrection &&
@@ -237,6 +248,8 @@ end
     return ELTYPE
 end
 
+@inline wetted_area_supported_fluid(::EntropicallyDampedSPHSystem) = true
+
 @inline function v_nvariables(system::EntropicallyDampedSPHSystem)
     return v_nvariables(system, system.density_calculator)
 end
@@ -252,6 +265,12 @@ end
 @inline buffer(system::EntropicallyDampedSPHSystem) = system.buffer
 
 system_correction(system::EntropicallyDampedSPHSystem) = system.correction
+
+@inline function surface_normal_density(system::EntropicallyDampedSPHSystem, particle,
+                                        density)
+    return surface_normal_density(system, system.surface_tension, system.correction,
+                                  system.density_calculator, particle, density)
+end
 
 @inline function current_velocity(v, system::EntropicallyDampedSPHSystem)
     return view(v, 1:ndims(system), :)
@@ -299,9 +318,64 @@ function update_quantities!(system::EntropicallyDampedSPHSystem, v, u,
 end
 
 function update_pressure!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, semi, t)
+    (; correction, density_calculator) = system
+
+    # These are only computed when using corrections
+    compute_correction_values!(system, correction, u, v_ode, u_ode, semi)
+    compute_gradient_correction_matrix!(correction, system, u, v_ode, u_ode, semi)
+    # `kernel_correct_density!` only performed for `SummationDensity`
+    kernel_correct_density!(system, v, u, v_ode, u_ode, semi, correction,
+                            density_calculator)
+    compute_akinci_correction_density!(system, system.correction,
+                                       system.density_calculator, u, u_ode, semi)
+
     compute_surface_normal!(system, system.surface_normal_method, v, u, v_ode, u_ode, semi,
                             t)
-    compute_surface_delta_function!(system, system.surface_tension, semi)
+end
+
+function kernel_correct_density!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode,
+                                 semi, correction, density_calculator)
+    return system
+end
+
+function kernel_correct_density!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode,
+                                 semi, corr::ShepardKernelCorrection, ::SummationDensity)
+    system.cache.density ./= system.cache.kernel_correction_coefficient
+end
+
+function compute_gradient_correction_matrix!(correction,
+                                             system::EntropicallyDampedSPHSystem, u,
+                                             v_ode, u_ode, semi)
+    return system
+end
+
+function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
+                                                         BlendedGradientCorrection,
+                                                         MixedKernelGradientCorrection},
+                                             system::EntropicallyDampedSPHSystem, u,
+                                             v_ode, u_ode, semi)
+    (; cache, correction, smoothing_kernel) = system
+    (; correction_matrix) = cache
+
+    system_coords = current_coordinates(u, system)
+
+    compute_gradient_correction_matrix!(correction_matrix, system, system_coords,
+                                        v_ode, u_ode, semi, correction, smoothing_kernel)
+end
+
+@inline function correction_matrix(system::EntropicallyDampedSPHSystem, particle)
+    extract_smatrix(system.cache.correction_matrix, system, particle)
+end
+
+function compute_akinci_correction_density!(system, correction, density_calculator,
+                                            u, u_ode, semi)
+    return system
+end
+
+function compute_akinci_correction_density!(system, ::AkinciFreeSurfaceCorrection,
+                                            density_calculator, u, u_ode, semi)
+    compute_akinci_correction_density!(system, density_calculator, u, u_ode, semi)
+    return system
 end
 
 function update_final!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, semi, t;
@@ -310,7 +384,6 @@ function update_final!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, 
 
     # Surface normal of neighbor and boundary needs to have been calculated already
     compute_curvature!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
-    compute_stress_tensors!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
     update_average_pressure!(system, system.average_pressure_reduction, v_ode, u_ode, semi)
     update_shifting!(system, shifting_technique(system), v, u, v_ode, u_ode, semi)
 end
@@ -387,6 +460,6 @@ function restart_with!(system::EntropicallyDampedSPHSystem, v, u)
     for particle in each_integrated_particle(system)
         system.initial_condition.coordinates[:, particle] .= u[:, particle]
         system.initial_condition.velocity[:, particle] .= v[1:ndims(system), particle]
-        system.initial_condition.pressure[particle] = v[end, particle]
+        system.initial_condition.pressure[particle] = v[ndims(system) + 1, particle]
     end
 end
