@@ -240,7 +240,7 @@ end
 `density_calculator` for `BoundaryModelDummyParticles`.
 
 !!! note
-    This boundary model was orignally proposed in [𝛿-SPH Model for Simulating Violent Impact Flows](https://www.researchgate.net/publication/241077909_-SPH_model_for_simulating_violent_impact_flows).
+    This boundary model was originally proposed in [𝛿-SPH Model for Simulating Violent Impact Flows](https://www.researchgate.net/publication/241077909_-SPH_model_for_simulating_violent_impact_flows).
 """
 struct MarronePressureExtrapolation
     allow_loop_flipping::Bool
