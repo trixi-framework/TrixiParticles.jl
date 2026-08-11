@@ -302,6 +302,10 @@ function Base.union(initial_condition::InitialCondition, initial_conditions...)
         hcat(initial_condition.normals, ic.normals[:, valid_particles])
     end
 
+    normals = if !isnothing(initial_condition.normals) && !isnothing(ic.normals)
+        hcat(initial_condition.normals, ic.normals[:, valid_particles])
+    end
+
     result = InitialCondition{ndims(ic)}(coordinates, velocity, mass, density, pressure,
                                          particle_spacing, normals)
 
