@@ -344,7 +344,7 @@ function create_cache_model(initial_density::AbstractVector,
                             density_calculator::MarronePressureExtrapolation, n_particles,
                             n_dims)
     ELTYPE = eltype(initial_density)
-    interpolation_coords = fill(zero(SVector{n_dims, ELTYPE}), n_particles)
+    interpolation_coords = zeros(ELTYPE, n_dims, n_particles)
     _pressure = zeros(ELTYPE, n_particles)
 
     return (; interpolation_coords, _pressure)
@@ -591,8 +591,20 @@ function compute_pressure!(boundary_model,
 
     @trixi_timeit timer() "inverse state equation" @threaded semi for particle in
                                                                       eachparticle(system)
-        compute_adami_density!(boundary_model, system, v, particle)
+        compute_boundary_density!(boundary_model, density_calculator, system, v, particle)
     end
+end
+
+function compute_boundary_density!(boundary_model,
+                                   ::Union{AdamiPressureExtrapolation,
+                                           BernoulliPressureExtrapolation}, system, v,
+                                   particle)
+    compute_adami_density!(boundary_model, system, v, particle)
+end
+
+function compute_boundary_density!(boundary_model, ::MarronePressureExtrapolation, system,
+                                   v, particle)
+    compute_marrone_density!(boundary_model, system, v, particle)
 end
 
 # Use this function to avoid passing closures to Polyester.jl with `@batch` (`@threaded`).
@@ -653,7 +665,7 @@ end
                            points=eachparticle(system)) do particle, neighbor,
                                                            pos_diff, distance
         @inbounds boundary_pressure_inner!(boundary_model, density_calculator, system,
-                                           neighbor_system, v, v_neighbor_system,
+                                           neighbor_system, v, v_neighbor_system, semi,
                                            particle, neighbor, pos_diff, distance,
                                            viscosity, cache, pressure, pressure_offset)
     end
@@ -682,7 +694,7 @@ end
         # Since neighbor and particle are switched
         pos_diff = -pos_diff
         @inbounds boundary_pressure_inner!(boundary_model, density_calculator, system,
-                                           neighbor_system, v, v_neighbor_system,
+                                           neighbor_system, v, v_neighbor_system, semi,
                                            particle, neighbor, pos_diff, distance,
                                            viscosity, cache, pressure, pressure_offset)
     end
@@ -692,7 +704,7 @@ end
                                                       boundary_density_calculator, system,
                                                       neighbor_system::Union{AbstractFluidSystem,
                                                                              OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}},
-                                                      v, v_neighbor_system, particle,
+                                                      v, v_neighbor_system, semi, particle,
                                                       neighbor, pos_diff, distance,
                                                       viscosity, cache, pressure,
                                                       pressure_offset)
