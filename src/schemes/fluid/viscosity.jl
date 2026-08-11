@@ -6,46 +6,42 @@ end
 # Unpack the neighboring systems viscosity to dispatch on the viscosity type.
 # This function is only necessary to allow `nothing` as viscosity.
 # Otherwise, we could just apply the viscosity as a function directly.
-@propagate_inbounds function dv_viscosity!(dv_particle,
-                                           particle_system::AbstractSystem, neighbor_system,
-                                           v_particle_system, v_neighbor_system,
-                                           particle, neighbor, pos_diff, distance,
-                                           sound_speed, m_a, m_b, rho_a, rho_b,
-                                           v_a, v_b, grad_kernel,
-                                           viscosity_correction=1)
+@propagate_inbounds function dv_viscosity(dv_particle,
+                                          particle_system::AbstractSystem, neighbor_system,
+                                          v_particle_system, v_neighbor_system,
+                                          particle, neighbor, pos_diff, distance,
+                                          sound_speed, m_a, m_b, rho_a, rho_b,
+                                          v_a, v_b, grad_kernel, viscosity_correction=1)
     viscosity = viscosity_model(particle_system, neighbor_system)
 
-    return dv_viscosity!(dv_particle, viscosity,
-                         particle_system, neighbor_system,
-                         v_particle_system, v_neighbor_system,
-                         particle, neighbor, pos_diff, distance,
-                         sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b, grad_kernel,
-                         viscosity_correction)
+    return dv_viscosity(dv_particle, viscosity,
+                        particle_system, neighbor_system,
+                        v_particle_system, v_neighbor_system,
+                        particle, neighbor, pos_diff, distance,
+                        sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b, grad_kernel,
+                        viscosity_correction)
 end
 
-@propagate_inbounds function dv_viscosity!(dv_particle,
-                                           viscosity, particle_system, neighbor_system,
-                                           v_particle_system, v_neighbor_system,
-                                           particle, neighbor, pos_diff, distance,
-                                           sound_speed, m_a, m_b, rho_a, rho_b,
-                                           v_a, v_b, grad_kernel,
-                                           viscosity_correction=1)
-    viscosity(dv_particle, particle_system, neighbor_system,
-              v_particle_system, v_neighbor_system,
-              particle, neighbor, pos_diff, distance,
-              sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b, grad_kernel,
-              viscosity_correction)
-
-    return dv_particle
+@propagate_inbounds function dv_viscosity(dv_particle,
+                                          viscosity, particle_system, neighbor_system,
+                                          v_particle_system, v_neighbor_system,
+                                          particle, neighbor, pos_diff, distance,
+                                          sound_speed, m_a, m_b, rho_a, rho_b,
+                                          v_a, v_b, grad_kernel, viscosity_correction=1)
+    return viscosity(dv_particle, particle_system, neighbor_system,
+                     v_particle_system, v_neighbor_system,
+                     particle, neighbor, pos_diff, distance,
+                     sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b, grad_kernel,
+                     viscosity_correction)
 end
 
-@inline function dv_viscosity!(dv_particle,
-                               viscosity::Nothing,
-                               particle_system, neighbor_system,
-                               v_particle_system, v_neighbor_system,
-                               particle, neighbor, pos_diff, distance,
-                               sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b,
-                               grad_kernel, viscosity_correction=1)
+@inline function dv_viscosity(dv_particle,
+                              viscosity::Nothing,
+                              particle_system, neighbor_system,
+                              v_particle_system, v_neighbor_system,
+                              particle, neighbor, pos_diff, distance,
+                              sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b,
+                              grad_kernel, viscosity_correction=1)
     return dv_particle
 end
 
@@ -125,7 +121,7 @@ end
         # TODO why is m_b inside the `div_fast` faster on H100 than `m_b * div_fast(...)`?
         dv_viscosity = div_fast(m_b * alpha * c * mu + m_b * beta * mu^2, rho_mean) *
                        grad_kernel
-        dv_particle[] += viscosity_correction * dv_viscosity
+        dv_particle += viscosity_correction * dv_viscosity
     end
 
     return dv_particle
@@ -192,7 +188,7 @@ end
     # See the docs page "Development" for more details on `div_fast`.
     dv_viscosity = div_fast(m_b * (mu_a + mu_b) * dot(pos_diff, grad_kernel),
                             rho_a * rho_b * (distance^2 + epsilon * h^2)) * v_diff
-    dv_particle[] += viscosity_correction * dv_viscosity
+    dv_particle += viscosity_correction * dv_viscosity
 
     return dv_particle
 end
@@ -217,10 +213,10 @@ struct ViscosityAdami{ELTYPE}
     end
 end
 
-@inline function adami_viscosity_force!(dv_particle, h, pos_diff, distance,
-                                        grad_kernel, m_a, m_b, rho_a, rho_b,
-                                        v_diff, nu_a, nu_b, epsilon,
-                                        viscosity_correction=1)
+@inline function adami_viscosity_force(dv_particle, h, pos_diff, distance,
+                                       grad_kernel, m_a, m_b, rho_a, rho_b,
+                                       v_diff, nu_a, nu_b, epsilon,
+                                       viscosity_correction=1)
     eta_a = nu_a * rho_a
     eta_b = nu_b * rho_b
 
@@ -245,7 +241,7 @@ end
     # See issue: https://github.com/trixi-framework/TrixiParticles.jl/issues/394
     visc = (volume_a^2 + volume_b^2) * dot(grad_kernel, pos_diff) * tmp
 
-    dv_particle[] += viscosity_correction * visc * v_diff
+    dv_particle += viscosity_correction * visc * v_diff
 
     return dv_particle
 end
@@ -274,9 +270,9 @@ end
     v_b = viscous_velocity(v_neighbor_system, neighbor_system, neighbor, v_b)
     v_diff = v_a - v_b
 
-    return adami_viscosity_force!(dv_particle, smoothing_length_average, pos_diff,
-                                  distance, grad_kernel, m_a, m_b, rho_a, rho_b,
-                                  v_diff, nu_a, nu_b, epsilon, viscosity_correction)
+    return adami_viscosity_force(dv_particle, smoothing_length_average, pos_diff,
+                                 distance, grad_kernel, m_a, m_b, rho_a, rho_b,
+                                 v_diff, nu_a, nu_b, epsilon, viscosity_correction)
 end
 
 @inline function kinematic_viscosity(system, viscosity::ViscosityAdami, smoothing_length,
@@ -396,9 +392,9 @@ end
     nu_a = nu_a + nu_SGS
     nu_b = nu_b + nu_SGS
 
-    return adami_viscosity_force!(dv_particle, smoothing_length_average, pos_diff,
-                                  distance, grad_kernel, m_a, m_b, rho_a, rho_b,
-                                  v_diff, nu_a, nu_b, epsilon, viscosity_correction)
+    return adami_viscosity_force(dv_particle, smoothing_length_average, pos_diff,
+                                 distance, grad_kernel, m_a, m_b, rho_a, rho_b,
+                                 v_diff, nu_a, nu_b, epsilon, viscosity_correction)
 end
 
 @inline function kinematic_viscosity(system, viscosity::ViscosityAdamiSGS,
@@ -507,7 +503,7 @@ end
     # See the docs page "Development" for more details on `div_fast`.
     dv_viscosity = div_fast(m_b * (mu_a + mu_b) * dot(pos_diff, grad_kernel),
                             rho_a * rho_b * (distance^2 + epsilon * h^2)) * v_diff
-    dv_particle[] += viscosity_correction * dv_viscosity
+    dv_particle += viscosity_correction * dv_viscosity
 
     return dv_particle
 end
@@ -577,9 +573,9 @@ end
     nu_a = nu_eff
     nu_b = nu_eff
 
-    return adami_viscosity_force!(dv_particle, smoothing_length_average, pos_diff,
-                                  distance, grad_kernel, m_a, m_b, rho_a, rho_b,
-                                  v_diff, nu_a, nu_b, epsilon, viscosity_correction)
+    return adami_viscosity_force(dv_particle, smoothing_length_average, pos_diff,
+                                 distance, grad_kernel, m_a, m_b, rho_a, rho_b,
+                                 v_diff, nu_a, nu_b, epsilon, viscosity_correction)
 end
 
 @inline function kinematic_viscosity(system, viscosity::ViscosityCarreauYasuda,
