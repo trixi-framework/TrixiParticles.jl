@@ -1,5 +1,11 @@
 # Use `@trixi_testset` to isolate the mock functions in a separate namespace
 @trixi_testset "Semidiscretization" begin
+    symplectic_rk_extension = Base.get_extension(TrixiParticles,
+                                                 :TrixiParticlesOrdinaryDiffEqSymplecticRKExt)
+    @test !symplectic_rk_extension.OrdinaryDiffEqCore.isfsal(SymplecticPositionVerlet())
+    sorting_alg = SymplecticPositionVerletWithSorting()
+    @test !symplectic_rk_extension.OrdinaryDiffEqCore.isfsal(sorting_alg)
+
     # Mock systems
     struct System1 <: TrixiParticles.AbstractStructureSystem{3} end
     struct System2 <: TrixiParticles.AbstractStructureSystem{3} end
@@ -8,6 +14,7 @@
     system2 = System2()
 
     Base.eltype(::System1) = Float64
+    Base.eltype(::System2) = Float64
     TrixiParticles.coordinates_eltype(::System1) = Float32
     TrixiParticles.u_nvariables(::System1) = 3
     TrixiParticles.u_nvariables(::System2) = 3
@@ -49,9 +56,12 @@
         # No neighborhood search.
         semi = Semidiscretization(system1, system2, neighborhood_search=nothing)
 
-        # Verification
-        @test semi.ranges_u == (1:6, 7:15)
-        @test semi.ranges_v == (1:6, 7:18)
+        # These are the ranges that we would expect without alignment padding:
+        # semi.ranges_u == (1:6, 7:18)
+        # semi.ranges_v == (1:6, 7:12)
+        # Due to alignment to 64 bytes, the ranges are adjusted to be:
+        @test semi.ranges_u == (1:6, 9:20)
+        @test semi.ranges_v == (1:6, 9:14)
 
         @test semi.neighborhood_search_handler isa TrixiParticles.PairsNHSHandler
 
@@ -586,8 +596,8 @@
 
         semi = Semidiscretization(system1, system2, neighborhood_search=nothing)
 
-        dv_ode = zeros(3 * 2 + 4 * 3)
-        du_ode = zeros(3 * 2 + 3 * 3)
+        dv_ode = zeros(semi.ranges_v[end].stop)
+        du_ode = zeros(semi.ranges_u[end].stop)
         u_ode = zero(du_ode)
 
         v1 = [1.0 2.0

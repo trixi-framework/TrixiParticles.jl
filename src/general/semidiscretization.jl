@@ -127,12 +127,27 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
 
     sizes_u = [u_nvariables(system) * n_integrated_particles(system)
                for system in systems]
-    ranges_u = Tuple((sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])
-                     for i in eachindex(sizes_u))
     sizes_v = [v_nvariables(system) * n_integrated_particles(system)
                for system in systems]
-    ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
-                     for i in eachindex(sizes_v))
+
+    start_u = 1
+    start_v = 1
+    ranges_u_vec = Vector{UnitRange{Int}}(undef, length(systems))
+    ranges_v_vec = Vector{UnitRange{Int}}(undef, length(systems))
+    for i in eachindex(systems)
+        ranges_u_vec[i] = start_u:(start_u + sizes_u[i] - 1)
+        ranges_v_vec[i] = start_v:(start_v + sizes_v[i] - 1)
+
+        # Align ranges to 64 bytes by adding padding if necessary.
+        # This ensures that aligned loads can be used on the wrapped integration arrays,
+        # which can significantly improve performance on GPUs.
+        block_size = div(64, sizeof(eltype(systems[i])))
+        start_u += div(sizes_u[i], block_size, RoundUp) * block_size
+        start_v += div(sizes_v[i], block_size, RoundUp) * block_size
+    end
+
+    ranges_u = Tuple(ranges_u_vec)
+    ranges_v = Tuple(ranges_v_vec)
 
     neighborhood_search_handler = create_neighborhood_search_handler(neighborhood_search_handler,
                                                                      neighborhood_search,
@@ -323,13 +338,13 @@ function semidiscretize(semi, tspan; reset_threads=true, restart_with=nothing)
         Polyester.reset_threads!()
     end
 
-    sizes_u = (u_nvariables(system) * n_integrated_particles(system) for system in systems)
-    sizes_v = (v_nvariables(system) * n_integrated_particles(system) for system in systems)
+    size_u_ode = semi.ranges_u[end].stop
+    size_v_ode = semi.ranges_v[end].stop
 
     # Use either the specified backend, e.g., `CUDABackend` or `MetalBackend` or
     # use CPU vectors for all CPU backends.
-    u0_ode_ = allocate(semi.parallelization_backend, cELTYPE, sum(sizes_u))
-    v0_ode_ = allocate(semi.parallelization_backend, ELTYPE, sum(sizes_v))
+    u0_ode_ = allocate(semi.parallelization_backend, cELTYPE, size_u_ode)
+    v0_ode_ = allocate(semi.parallelization_backend, ELTYPE, size_v_ode)
 
     if semi.parallelization_backend isa KernelAbstractions.GPU
         u0_ode = u0_ode_
@@ -343,6 +358,11 @@ function semidiscretize(semi, tspan; reset_threads=true, restart_with=nothing)
         v0_ode = ThreadedBroadcastArray(v0_ode_;
                                         parallelization_backend=semi.parallelization_backend)
     end
+
+    # Initialize the arrays with zeros to initialize the padding values for alignment.
+    # The values that are actually used will be overwritten in `write_u0!` and `write_v0!`.
+    u0_ode .= 0
+    v0_ode .= 0
 
     # Set initial condition
     set_initial_conditions!(v0_ode, u0_ode, semi, restart_with)
@@ -811,6 +831,11 @@ function system_interaction!(dv_ode, v_ode, u_ode, semi)
 
     # Call `interact!` for each ordered pair of systems.
     foreach_system(semi) do system
+        if interact_combined_experiment!(dv_ode, v_ode, u_ode, system, semi,
+                                         semi.systems)
+            return dv_ode
+        end
+
         foreach_system(semi) do neighbor
             has_system_interaction(system, neighbor, semi) || return dv_ode
 
@@ -836,6 +861,34 @@ function system_interaction!(dv_ode, v_ode, u_ode, semi)
     end
 
     return dv_ode
+end
+
+# One-off experiment: fall back to the regular pairwise kernels unless a specialized
+# combined kernel is available for the complete tuple of systems.
+@inline function interact_combined_experiment!(dv_ode, v_ode, u_ode, system, semi,
+                                               systems)
+    return false
+end
+
+function interact_combined_experiment!(dv_ode, v_ode, u_ode,
+                                       system::WeaklyCompressibleSPHSystem{3}, semi,
+                                       systems::Tuple{<:WeaklyCompressibleSPHSystem{3},
+                                                      <:WallBoundarySystem{<:BoundaryModelDummyParticles{ContinuityDensity}}})
+    system === first(systems) || return false
+    fluid_system, boundary_system = systems
+
+    dv = wrap_v(dv_ode, fluid_system, semi)
+    v_fluid = wrap_v(v_ode, fluid_system, semi)
+    u_fluid = wrap_u(u_ode, fluid_system, semi)
+    v_boundary = wrap_v(v_ode, boundary_system, semi)
+    u_boundary = wrap_u(u_ode, boundary_system, semi)
+
+    @trixi_timeit timer() "fluid1-*" begin
+        interact_combined_raw!(dv, v_fluid, u_fluid, v_boundary, u_boundary,
+                               fluid_system, boundary_system, semi)
+    end
+
+    return true
 end
 
 # Function barrier to make benchmarking interactions easier.

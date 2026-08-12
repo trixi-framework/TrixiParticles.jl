@@ -22,12 +22,12 @@ function allocate_buffer(initial_condition, buffer::SystemBuffer)
     coordinates = fill(eltype(initial_condition)(1e16), ndims(initial_condition),
                        buffer_size)
 
-    if all(rho -> isapprox(rho, first(initial_condition.density), atol=eps(), rtol=eps()),
-           initial_condition.density)
+    # if all(rho -> isapprox(rho, first(initial_condition.density), atol=eps(), rtol=eps()),
+    #        initial_condition.density)
         density = first(initial_condition.density)
-    else
-        throw(ArgumentError("`initial_condition.density` needs to be constant when using `SystemBuffer`"))
-    end
+    # else
+    #     throw(ArgumentError("`initial_condition.density` needs to be constant when using `SystemBuffer`"))
+    # end
 
     particle_spacing = initial_condition.particle_spacing
 
@@ -90,6 +90,11 @@ end
 end
 
 function sort_system!(system, v, u, perm, buffer::SystemBuffer)
+    sort_system_with_permutation!(system, v, u, perm, buffer)
+    return buffer
+end
+
+function sort_system_with_permutation!(system, v, u, perm, buffer::SystemBuffer)
     (; active_particle) = buffer
 
     # Note that the following contain also inactive particles
@@ -102,7 +107,7 @@ function sort_system!(system, v, u, perm, buffer::SystemBuffer)
     active_particle_sorted = active_particle[perm]
 
     # Second permutation: move inactive particles to the end (true first, false last)
-    perm2 = sortperm(transfer2cpu(active_particle_sorted), rev=true)
+    perm2 = sortperm(active_particle_sorted, rev=true)
 
     # Combined permutation
     combined_perm = perm[perm2]
@@ -113,10 +118,11 @@ function sort_system!(system, v, u, perm, buffer::SystemBuffer)
     system_velocity .= system_velocity[:, combined_perm]
     system_pressure .= system_pressure[combined_perm]
     system_density .= system_density[combined_perm]
+    system.mass .= system.mass[combined_perm]
 
     # Update buffer
     buffer.active_particle_count[] = count(active_particle)
     buffer.eachparticle[1:buffer.active_particle_count[]] .= 1:buffer.active_particle_count[]
 
-    return buffer
+    return combined_perm
 end

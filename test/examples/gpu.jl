@@ -77,6 +77,144 @@ end
     end
 end
 
+@testset verbose=true "velocity_and_density $TRIXIPARTICLES_TEST_" begin
+    if supports_double_precision
+        types = [Float64, Float32]
+    else
+        types = [Float32]
+    end
+
+    @testset verbose=true "use_aligned_vrho_load $T" for T in types
+        # Aligned array
+        x = zeros(T, 4, 4)
+
+        # Test different "systems" and density calculators
+        @test !TrixiParticles.use_aligned_vrho_load(x, nothing)
+        @test !TrixiParticles.use_aligned_vrho_load(x,
+                                                    (;
+                                                     density_calculator=ContinuityDensity()))
+        @test !TrixiParticles.use_aligned_vrho_load(x, nothing, SummationDensity())
+
+        # No aligned load on the CPU
+        @test !TrixiParticles.use_aligned_vrho_load(x, nothing, ContinuityDensity())
+
+        y = Adapt.adapt(parallelization_backend, x)
+
+        # Test different "systems" and density calculators
+        @test !TrixiParticles.use_aligned_vrho_load(y, nothing)
+        @test !TrixiParticles.use_aligned_vrho_load(y,
+                                                    (;
+                                                     density_calculator=ContinuityDensity()))
+        @test !TrixiParticles.use_aligned_vrho_load(y, nothing, SummationDensity())
+
+        # Use aligned load on the GPU with 4-aligned arrays
+        @test TrixiParticles.use_aligned_vrho_load(y, nothing, ContinuityDensity())
+        @test TrixiParticles.use_aligned_vrho_load(TrixiParticles.wrap_array(y, 5:16,
+                                                                             (4, 3)),
+                                                   nothing, ContinuityDensity())
+
+        # Unaligned array on the GPU should throw an error
+        str = "illegal alignment"
+        y2 = TrixiParticles.wrap_array(y, 2:13, (4, 3))
+        @test_throws str TrixiParticles.use_aligned_vrho_load(y2, nothing,
+                                                              ContinuityDensity())
+        y3 = TrixiParticles.wrap_array(y, 3:14, (4, 3))
+        @test_throws str TrixiParticles.use_aligned_vrho_load(y3, nothing,
+                                                              ContinuityDensity())
+        y4 = TrixiParticles.wrap_array(y, 4:15, (4, 3))
+        @test_throws str TrixiParticles.use_aligned_vrho_load(y4, nothing,
+                                                              ContinuityDensity())
+    end
+
+    @testset "velocity_and_density $T" for T in types
+        # Aligned array
+        x = rand(T, 4, 4)
+        y = Adapt.adapt(parallelization_backend, x)
+
+        # Dummy system that will only be used for `ndims` and `current_density`.
+        struct MockSystem end
+        Base.ndims(::MockSystem) = 3
+        system = MockSystem()
+        @inline TrixiParticles.current_density(v, ::MockSystem, i) = v[4, i]
+
+        @test TrixiParticles.use_aligned_vrho_load(y, system, ContinuityDensity())
+
+        # Test that the aligned version is consistent with the non-aligned version.
+        # We have 4 particles (with 4 values per particles).
+        # In order to test this on the GPU, we need to use a kernel with `@threaded`.
+        result = Adapt.adapt(parallelization_backend, zeros(Bool, 4))
+        TrixiParticles.@threaded parallelization_backend for i in 1:4
+            result[i] = TrixiParticles.velocity_and_density(y, system, Val(false), i) ==
+                        TrixiParticles.velocity_and_density(y, system, Val(true), i)
+        end
+        @test all(result)
+    end
+end
+
+@testset verbose=true "extract_svector_aligned $TRIXIPARTICLES_TEST_" begin
+    if supports_double_precision
+        types = [Float64, Float32]
+    else
+        types = [Float32]
+    end
+
+    @testset verbose=true "$T" for T in types
+        @testset verbose=true "$(N)D" for N in [2, 4, 8]
+            A = Adapt.adapt(parallelization_backend, rand(T, N, 4))
+            val = Val(N)
+
+            @test TrixiParticles.can_use_aligned_load(A, N)
+            slice = TrixiParticles.wrap_array(A, 2:(3 * N + 1), (N, 3))
+            @test !TrixiParticles.can_use_aligned_load(slice, N)
+
+            # Test that the aligned version is consistent with the non-aligned version.
+            # In order to test this on the GPU, we need to use a kernel with `@threaded`.
+            result = Adapt.adapt(parallelization_backend, zeros(Bool, 4))
+            TrixiParticles.@threaded parallelization_backend for i in 1:4
+                result[i] = TrixiParticles.extract_svector_aligned(A, val, i) ==
+                            TrixiParticles.extract_svector(A, val, i)
+            end
+            @test all(result)
+        end
+
+        @testset verbose=true "$(N)D" for N in [3, 5, 6, 7]
+            A = Adapt.adapt(parallelization_backend, rand(T, N, 4))
+            val = Val(N)
+
+            # Aligned loads are only support for powers of two.
+            @test !TrixiParticles.can_use_aligned_load(A, N)
+        end
+    end
+end
+
+@testset verbose=true "extract_smatrix_aligned $TRIXIPARTICLES_TEST_" begin
+    if supports_double_precision
+        types = [Float64, Float32]
+    else
+        types = [Float32]
+    end
+
+    @testset verbose=true "$T" for T in types
+        @testset verbose=true "2D" begin
+            A = Adapt.adapt(parallelization_backend, rand(T, 2, 2, 4))
+            val = Val(2)
+
+            @test TrixiParticles.can_use_aligned_load(A, 2^2)
+            slice = TrixiParticles.wrap_array(A, 2:(3 * 4 + 1), (2, 2, 3))
+            @test !TrixiParticles.can_use_aligned_load(slice, 2^2)
+
+            # Test that the aligned version is consistent with the non-aligned version.
+            # In order to test this on the GPU, we need to use a kernel with `@threaded`.
+            result = Adapt.adapt(parallelization_backend, zeros(Bool, 4))
+            TrixiParticles.@threaded parallelization_backend for i in 1:4
+                result[i] = TrixiParticles.extract_smatrix_aligned(A, val, i) ==
+                            TrixiParticles.extract_smatrix(A, val, i)
+            end
+            @test all(result)
+        end
+    end
+end
+
 @testset verbose=true "Examples $TRIXIPARTICLES_TEST_" begin
     @testset verbose=true "Fluid" begin
         @trixi_testset "fluid/dam_break_2d_gpu.jl Float64" begin
