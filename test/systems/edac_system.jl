@@ -252,8 +252,7 @@
         mass = [1.25, 1.5]
         density = [990.0, 1000.0]
         pressure = [5.0, 7.8]
-        smoothing_kernel = Val(:smoothing_kernel)
-        TrixiParticles.ndims(::Val{:smoothing_kernel}) = 2
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
         smoothing_length = 0.362
         sound_speed = 10.0
 
