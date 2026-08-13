@@ -4,6 +4,13 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.5.4
+
+### Features
+
+- Added an optional Makie recipe for rendering two- and three-dimensional particle systems
+  with `plot`, `plot!`, `trixi2makie`, and `trixi2makie!`.
+
 ## Version 0.5.3
 
 ### Features
@@ -17,9 +24,6 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   useful for monitoring progress in real-time on clusters or batch systems (#1246).
 - Added the number of split integration time steps to the `InfoCallback` output
   when a `SplitIntegrationCallback` is used (#1194).
-- Added the optional `trixi2makie` visualization extension for rendering two- and
-  three-dimensional particle systems with Makie.
-
 ### Important Bugfixes
 
 - Fixed signed-distance constraints in `ParticlePackingSystem` when using a separate

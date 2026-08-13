@@ -16,16 +16,16 @@ it does not reconstruct a continuous fluid surface.
 ```julia
 using CairoMakie
 
-figure = Figure()
-axis = LScene(figure[1, 1]; show_axis=false)
-trixi2makie(axis, sol)
-figure
+figure, axis, plot_object = plot(sol)
 ```
 
-Use `frame` to select another saved ODE frame. The keywords `system_indices`, `system_colors`,
-and `marker_size_scales` select and style systems. Colors and size scales can be scalars,
-vectors indexed by system number, or functions with the signature `(system, system_index)`.
-Additional keywords are forwarded to `Makie.meshscatter!`.
+This uses the TrixiParticles Makie recipe. `trixi2makie(sol)` is an equivalent explicit entry
+point, and `plot!(axis, sol)` or `trixi2makie!(axis, sol)` add the visualization to an existing
+axis. Use `frame` to select another saved ODE frame. The keywords `system_indices`,
+`system_colors`, and `marker_size_scales` select and style systems. Colors and size scales can
+be scalars, vectors indexed by system number, or functions with the signature
+`(system, system_index)`. Additional Makie plot attributes are forwarded to the particle
+markers.
 
 ```@docs
 trixi2makie
