@@ -118,6 +118,10 @@ function Makie.plot!(plot::Trixi2Makie)
     system_indices = plot.system_indices[]
     system_indices isa Makie.Automatic && (system_indices = eachindex(semi.systems))
 
+    if ndims(first(semi.systems)) == 3
+        return plot_3d!(plot, u_ode, semi, system_indices)
+    end
+
     for system_index in system_indices
         system = semi.systems[system_index]
         particles = TP.eachparticle(system)
@@ -130,19 +134,43 @@ function Makie.plot!(plot::Trixi2Makie)
         marker_size_scale = style_value(plot.marker_size_scales[], system, system_index)
         marker = plot.marker[]
 
-        if ndims(system) == 2
-            marker isa Makie.Automatic && (marker = Makie.Circle(Makie.Point2f(0), 0.5f0))
-            points = makie_points(coordinates, Val(2))
-            Makie.meshscatter!(plot, plot.attributes, points; marker,
-                               markersize=marker_size_scale * spacing, color)
-        else
-            marker isa Makie.Automatic &&
-                (marker = Makie.Sphere(Makie.Point3f(0), 0.5f0))
-            points = makie_points(coordinates, Val(3))
-            Makie.meshscatter!(plot, plot.attributes, points; marker,
-                               markersize=marker_size_scale * spacing, color)
-        end
+        marker isa Makie.Automatic && (marker = Makie.Circle(Makie.Point2f(0), 0.5f0))
+        points = makie_points(coordinates, Val(2))
+        Makie.meshscatter!(plot, plot.attributes, points; marker,
+                           markersize=marker_size_scale * spacing, color)
     end
+
+    return plot
+end
+
+function plot_3d!(plot, u_ode, semi, system_indices)
+    # CairoMakie depth-sorts particles within one MeshScatter, but not across separate plots.
+    points = Makie.Point3f[]
+    colors = Makie.RGBAf[]
+    marker_sizes = Float64[]
+
+    for system_index in system_indices
+        system = semi.systems[system_index]
+        particles = TP.eachparticle(system)
+        isempty(particles) && continue
+
+        u = TP.wrap_u(u_ode, system, semi)
+        coordinates = Array(TP.active_coordinates(u, system))
+        system_points = makie_points(coordinates, Val(3))
+        spacing = TP.particle_spacing(system, first(particles))
+        color = Makie.to_color(style_value(plot.system_colors[], system, system_index))
+        marker_size_scale = style_value(plot.marker_size_scales[], system, system_index)
+
+        append!(points, system_points)
+        append!(colors, Iterators.repeated(color, length(system_points)))
+        append!(marker_sizes,
+                Iterators.repeated(marker_size_scale * spacing, length(system_points)))
+    end
+
+    marker = plot.marker[]
+    marker isa Makie.Automatic && (marker = Makie.Sphere(Makie.Point3f(0), 0.5f0))
+    Makie.meshscatter!(plot, plot.attributes, points; marker,
+                       markersize=marker_sizes, color=colors)
 
     return plot
 end
