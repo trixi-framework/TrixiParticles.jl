@@ -27,7 +27,7 @@ See [`surface_tension`](@ref) for more details.
   fluid-fluid cohesion force. Zero disables this force; wall adhesion is controlled by the
   boundary's `adhesion_coefficient`.
 """
-struct CohesionForceAkinci{ELTYPE <: Real} <: AkinciTypeSurfaceTension
+struct CohesionForceAkinci{ELTYPE} <: AkinciTypeSurfaceTension
     surface_tension_coefficient::ELTYPE
 
     function CohesionForceAkinci(; surface_tension_coefficient=1.0)
@@ -54,7 +54,7 @@ See [`surface_tension`](@ref) for more details.
 - `surface_tension_coefficient=1.0`: Finite, non-negative coefficient adjusting the
   magnitude of surface tension forces. Zero disables the fluid-fluid force.
 """
-struct SurfaceTensionAkinci{ELTYPE <: Real} <: AkinciTypeSurfaceTension
+struct SurfaceTensionAkinci{ELTYPE} <: AkinciTypeSurfaceTension
     surface_tension_coefficient::ELTYPE
 
     function SurfaceTensionAkinci(; surface_tension_coefficient=1.0)
@@ -78,7 +78,7 @@ See [`surface_tension`](@ref) for more details.
 - `surface_tension_coefficient=1.0`: Finite, non-negative coefficient adjusting the
   magnitude of surface tension forces. Zero disables the force.
 """
-struct SurfaceTensionMorris{ELTYPE <: Real} <: AbstractSurfaceTension
+struct SurfaceTensionMorris{ELTYPE} <: AbstractSurfaceTension
     surface_tension_coefficient::ELTYPE
 
     function SurfaceTensionMorris(; surface_tension_coefficient=1.0)
@@ -111,7 +111,7 @@ See [`surface_tension`](@ref) for more details.
 - `surface_tension_coefficient=1.0`: Finite, non-negative coefficient adjusting the
   strength of surface tension forces. Zero disables the force.
 """
-struct SurfaceTensionMomentumMorris{ELTYPE <: Real} <: AbstractSurfaceTension
+struct SurfaceTensionMomentumMorris{ELTYPE} <: AbstractSurfaceTension
     surface_tension_coefficient::ELTYPE
 
     function SurfaceTensionMomentumMorris(; surface_tension_coefficient=1.0)
