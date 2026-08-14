@@ -458,6 +458,10 @@ end
 
 create_cache_correction(correction, density, NDIMS, nparticles) = (;)
 
+function create_cache_correction(::AkinciFreeSurfaceCorrection, density, NDIMS, n_particles)
+    return (; kernel_summation_density=similar(density))
+end
+
 function create_cache_correction(::ShepardKernelCorrection, density, NDIMS, n_particles)
     return (; kernel_correction_coefficient=similar(density))
 end

@@ -131,6 +131,8 @@ function WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
         throw(ArgumentError("`ShepardKernelCorrection` cannot be used with `ContinuityDensity`"))
     end
 
+    check_akinci_correction(surface_tension, correction)
+
     surface_normal_method = default_surface_normal_method(surface_tension,
                                                           surface_normal_method)
 
@@ -245,6 +247,23 @@ end
 
 system_correction(system::WeaklyCompressibleSPHSystem) = system.correction
 
+@inline function surface_normal_density(system::WeaklyCompressibleSPHSystem, particle,
+                                        density)
+    return surface_normal_density(system, system.surface_tension, system.correction,
+                                  system.density_calculator, particle, density)
+end
+
+@inline function surface_normal_density(system, surface_tension, correction,
+                                        density_calculator, particle, density)
+    return density
+end
+
+@inline function surface_normal_density(system, ::SurfaceTensionAkinci,
+                                        ::AkinciFreeSurfaceCorrection,
+                                        ::ContinuityDensity, particle, density)
+    return @inbounds system.cache.kernel_summation_density[particle]
+end
+
 @propagate_inbounds function current_velocity(v, system::WeaklyCompressibleSPHSystem)
     return current_velocity(v, system.density_calculator, system)
 end
@@ -335,6 +354,22 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_od
     # These are only computed when using surface tension
     compute_surface_normal!(system, surface_normal_method, v, u, v_ode, u_ode, semi, t)
     compute_surface_delta_function!(system, surface_tension, semi)
+    return system
+end
+
+function compute_correction_values!(system::WeaklyCompressibleSPHSystem,
+                                    ::AkinciFreeSurfaceCorrection, u,
+                                    v_ode, u_ode, semi)
+    compute_akinci_correction_density!(system, system.density_calculator, u, u_ode, semi)
+    return system
+end
+
+function compute_akinci_correction_density!(system, ::ContinuityDensity, u, u_ode, semi)
+    summation_density!(system, semi, u, u_ode, system.cache.kernel_summation_density)
+    return system
+end
+
+function compute_akinci_correction_density!(system, ::SummationDensity, u, u_ode, semi)
     return system
 end
 

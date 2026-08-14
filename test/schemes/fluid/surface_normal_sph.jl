@@ -76,6 +76,10 @@ function create_fluid_system(coordinates, velocity, mass, density, particle_spac
     system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel, smoothing_length,
                                          density_calculator=SummationDensity(),
                                          state_equation,
+                                         correction=surface_tension isa
+                                                    SurfaceTensionAkinci ?
+                                                    AkinciFreeSurfaceCorrection(first(density)) :
+                                                    nothing,
                                          surface_normal_method,
                                          reference_particle_spacing=particle_spacing,
                                          surface_tension)

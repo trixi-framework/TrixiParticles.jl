@@ -120,9 +120,10 @@ function EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel, smooth
         throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
     end
 
+    check_akinci_correction(surface_tension, correction)
+
     surface_normal_method = default_surface_normal_method(surface_tension,
                                                           surface_normal_method)
-
     if surface_normal_method !== nothing && reference_particle_spacing < eps()
         throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using a surface-normal method"))
     end
@@ -253,6 +254,12 @@ end
 
 system_correction(system::EntropicallyDampedSPHSystem) = system.correction
 
+@inline function surface_normal_density(system::EntropicallyDampedSPHSystem, particle,
+                                        density)
+    return surface_normal_density(system, system.surface_tension, system.correction,
+                                  system.density_calculator, particle, density)
+end
+
 @inline function current_velocity(v, system::EntropicallyDampedSPHSystem)
     return view(v, 1:ndims(system), :)
 end
@@ -299,9 +306,23 @@ function update_quantities!(system::EntropicallyDampedSPHSystem, v, u,
 end
 
 function update_pressure!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, semi, t)
+    compute_akinci_correction_density!(system, system.correction,
+                                       system.density_calculator, u, u_ode, semi)
+
     compute_surface_normal!(system, system.surface_normal_method, v, u, v_ode, u_ode, semi,
                             t)
     compute_surface_delta_function!(system, system.surface_tension, semi)
+end
+
+function compute_akinci_correction_density!(system, correction, density_calculator,
+                                            u, u_ode, semi)
+    return system
+end
+
+function compute_akinci_correction_density!(system, ::AkinciFreeSurfaceCorrection,
+                                            density_calculator, u, u_ode, semi)
+    compute_akinci_correction_density!(system, density_calculator, u, u_ode, semi)
+    return system
 end
 
 function update_final!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, semi, t;
