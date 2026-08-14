@@ -917,24 +917,29 @@ check_configuration(system::AbstractSystem, systems, nhs) = nothing
 
 function check_system_color(systems)
     requires_color_check = any(systems) do system
-        system isa AbstractFluidSystem || return false
-        system isa ParticlePackingSystem && return false
-
-        return system.surface_normal_method isa ColorfieldSurfaceNormal
+        return surface_normal_method(system) isa ColorfieldSurfaceNormal
     end
 
     if requires_color_check
+        fluid_ids = findall(contributes_to_colorfield, systems)
+        boundary_ids = findall(system -> system isa
+                                         WallBoundarySystem{<:BoundaryModelDummyParticles} ||
+                                         system isa
+                                         RigidBodySystem{<:BoundaryModelDummyParticles},
+                               systems)
+        normal_fluid_ids = filter(i -> surface_normal_method(systems[i]) isa
+                                       ColorfieldSurfaceNormal, fluid_ids)
 
-        # Systems that contribute to the colorfield/contact logic.
-        system_ids = findall(system -> (system isa AbstractFluidSystem &&
-                                        !(system isa ParticlePackingSystem)) ||
-                                       system isa WallBoundarySystem ||
-                                       system isa
-                                       RigidBodySystem{<:BoundaryModelDummyParticles},
-                             systems)
-
-        if length(system_ids) > 1 && sum(i -> systems[i].cache.color, system_ids) == 0
+        participant_ids = (fluid_ids..., boundary_ids...)
+        if all(i -> iszero(systems[i].cache.color), participant_ids)
             throw(ArgumentError("When `ColorfieldSurfaceNormal` is used, at least one participating system must have a color different from 0."))
+        end
+
+        if !isempty(boundary_ids) &&
+           any(i -> iszero(systems[i].cache.color), normal_fluid_ids) &&
+           all(i -> iszero(systems[i].cache.color), boundary_ids)
+            throw(ArgumentError("A fluid with `ColorfieldSurfaceNormal` and color 0 requires " *
+                                "a nonzero dummy-boundary color for contact detection."))
         end
     end
 end

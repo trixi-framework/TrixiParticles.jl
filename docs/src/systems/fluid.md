@@ -241,6 +241,11 @@ where:
 - ``\rho_b`` is the density of particle ``b``,
 - ``\nabla_a W_{ab}`` is the gradient of the smoothing kernel ``W_{ab}`` with respect to particle ``a``.
 
+TrixiParticles evaluates this sum over every interacting physical fluid system. A neighboring
+fluid therefore contributes its `color_value` even when it does not compute its own normals.
+Particle-packing preprocessing systems are excluded. At a free surface, particles in the
+unrepresented exterior phase are absent from the sum.
+
 ```@eval
 using CairoMakie
 
@@ -278,6 +283,118 @@ The color field is approximately constant within either phase. Its gradient is l
 transition region and vanishes away from the interface. The sign of the gradient determines the
 normal orientation; exchanging the two color values reverses that orientation.
 
+##### Multiple color values
+
+With more than two color values, every transition between unequal values contributes to the
+color-field gradient. The direction of each gradient points toward the larger color value, while
+its magnitude depends on the size of the color jump.
+
+This is useful when several represented fluid phases or materials need to remain distinguishable in a
+single scalar field. The value of ``c`` identifies the local region, while ``\nabla c`` locates and
+orients each interface. This information can support interface reconstruction, phase-specific
+boundary conditions, and post-processing. Assigning the same color value to two adjacent regions
+deliberately makes their common boundary invisible to the color-field gradient.
+
+```@eval
+using CairoMakie
+
+let
+    coordinate = range(-3.0, 3.0, length=601)
+    interface_width = 0.18
+    smooth_step(position) = @. 0.5 *
+                               (1.0 + tanh((coordinate - position) / interface_width))
+    smooth_step_gradient(position) = @. 0.5 / interface_width /
+                                        cosh((coordinate - position) / interface_width)^2
+
+    color_a, color_b, color_c = 0.0, 2.0, 1.0
+    colorfield = color_a .+
+                 (color_b - color_a) .* smooth_step(-1.0) .+
+                 (color_c - color_b) .* smooth_step(1.0)
+    colorfield_gradient = (color_b - color_a) .* smooth_step_gradient(-1.0) .+
+                          (color_c - color_b) .* smooth_step_gradient(1.0)
+
+    fig = Figure(size=(1000, 430), fontsize=18)
+    color_axis = Axis(fig[1, 1],
+                      xlabel="signed distance s/h", ylabel="color field c",
+                      title="Three color values")
+    gradient_axis = Axis(fig[1, 2],
+                         xlabel="signed distance s/h", ylabel="dc/d(s/h)",
+                         title="Interface gradients")
+
+    lines!(color_axis, coordinate, colorfield, color=:steelblue, linewidth=3)
+    lines!(gradient_axis, coordinate, colorfield_gradient, color=:darkorange,
+           linewidth=3)
+    text!(color_axis, -2.0, 0.3, text="A: c = 0", align=(:center, :center))
+    text!(color_axis, 0.0, 1.5, text="B: c = 2", align=(:center, :center))
+    text!(color_axis, 2.0, 0.7, text="C: c = 1", align=(:center, :center))
+    vlines!(color_axis, [-1.0, 1.0], color=:black, linestyle=:dash, linewidth=2)
+    vlines!(gradient_axis, [-1.0, 1.0], color=:black, linestyle=:dash, linewidth=2)
+    hlines!(gradient_axis, [0.0], color=(:black, 0.35), linewidth=1)
+    xlims!(color_axis, extrema(coordinate))
+    xlims!(gradient_axis, extrema(coordinate))
+
+    CairoMakie.save("multiple_color_values.png", fig)
+
+    vertical_coordinate = range(-1.0, 1.0, length=101)
+    colorfield_2d = repeat(reshape(colorfield, :, 1), 1, length(vertical_coordinate))
+    particle_coordinates = [(x, y) for x in -2.75:0.25:2.75
+                             for y in -0.8:0.25:0.8]
+    particle_x = first.(particle_coordinates)
+    particle_y = last.(particle_coordinates)
+
+    normal_y = collect(range(-0.7, 0.7, length=5))
+    normal_origins_x = vcat(fill(-1.0, length(normal_y)),
+                            fill(1.0, length(normal_y)))
+    normal_origins_y = vcat(normal_y, normal_y)
+    normal_directions_x = vcat(fill(1.0, length(normal_y)),
+                               fill(-1.0, length(normal_y)))
+    normal_directions_y = zeros(length(normal_directions_x))
+
+    normal_fig = Figure(size=(1000, 430), fontsize=18)
+    normal_axis = Axis(normal_fig[1, 1], aspect=DataAspect(),
+                       xlabel="x/h", ylabel="y/h",
+                       title="Unit normals at multiple color interfaces")
+    heatmap = heatmap!(normal_axis, coordinate, vertical_coordinate, colorfield_2d,
+                       colormap=:viridis, colorrange=(0.0, 2.0))
+    scatter!(normal_axis, particle_x, particle_y, color=(:black, 0.3), markersize=5)
+    text!(normal_axis, -2.0, 0.88, text="A: c = 0", color=:white,
+          align=(:center, :top))
+    text!(normal_axis, 0.0, 0.88, text="B: c = 2", color=:black,
+          align=(:center, :top))
+    text!(normal_axis, 2.0, 0.88, text="C: c = 1", color=:white,
+          align=(:center, :top))
+    vlines!(normal_axis, [-1.0, 1.0], color=:white, linewidth=3)
+    arrows2d!(normal_axis, normal_origins_x, normal_origins_y,
+              normal_directions_x, normal_directions_y,
+              normalize=true, lengthscale=0.45, color=:black,
+              shaftwidth=3, tipwidth=14, tiplength=10)
+    xlims!(normal_axis, extrema(coordinate))
+    ylims!(normal_axis, extrema(vertical_coordinate))
+    Colorbar(normal_fig[1, 2], heatmap, label="color field c")
+
+    CairoMakie.save("multiple_color_surface_normals.png", normal_fig)
+end
+```
+
+![A color field and its gradient for three different color values](multiple_color_values.png)
+
+Here the regions from left to right have ``c_A=0``, ``c_B=2``, and ``c_C=1``. At the
+``A-B`` interface, the positive gradient points from ``A`` to ``B``. At the ``B-C`` interface,
+the negative gradient points from ``C`` to ``B``. The first peak is twice as large because
+``|c_B-c_A|=2`` instead of ``|c_C-c_B|=1``. Thus, numerical color differences affect an
+unnormalized color-field normal. Normalization removes this difference from the direction but not
+from formulations that retain the raw gradient magnitude, including the Akinci area term and the
+momentum-conserving Morris surface delta. Color contrasts must therefore be selected consistently
+when those models are used.
+
+![Resulting surface normals for three color values](multiple_color_surface_normals.png)
+
+The unit-normal directions are defined only in the transition regions. At the ``A-B`` interface
+they point to the right, from ``A`` toward the larger value in ``B``. At the ``B-C`` interface they
+point to the left, again toward ``B``. Inside each constant-color region the gradient vanishes, so
+the unit normal is undefined and is represented numerically by a zero vector. If the opposite
+orientation is required, the normal sign must be reversed according to the chosen phase convention.
+
 #### Normalization of surface normals
 
 The color-field gradient ``n_a`` is generally not a unit vector. Formulations that require only
@@ -288,8 +405,10 @@ the interface orientation use the unit normal
 ```
 
 Normalization separates the interface orientation from the magnitude of the discrete color-field
-gradient. In TrixiParticles, the Morris formulations use unit normals for curvature or surface-stress
-calculations, while the Akinci surface-area force uses the unnormalized gradient.
+gradient. In TrixiParticles, standalone analysis/VTK output and the Akinci surface-area force use
+the filtered, unnormalized gradient. The Morris formulations use unit normals for curvature or
+surface-stress calculations; the momentum-conserving formulation separately retains the raw
+gradient magnitude as its surface delta function.
 
 ```@eval
 using CairoMakie
@@ -346,12 +465,18 @@ without changing the interface geometry.
 #### Handling noise and errors in normal calculation
 
 Away from an interface, the exact color-field gradient vanishes, but particle disorder and
-incomplete kernel support can produce small or poorly resolved normal estimates. To mitigate this:
+incomplete kernel support can produce small or poorly resolved normal estimates. The
+[`ColorfieldSurfaceNormal`](@ref) thresholds mitigate this as follows:
 
 1. Normals with insufficient particle support are discarded.
-2. Morris-type calculations reject small gradients and can suppress normals in well-resolved
-   interior regions.
-3. Curvature calculations use a corrected formulation to reduce errors near interface fringes.
+2. `interface_threshold` rejects gradients for which the dimensionless magnitude
+   ``R\lVert n\rVert`` does not exceed the configured cutoff, where ``R`` is the kernel support
+   radius. This applies to standalone, Akinci, and Morris normals.
+3. `ideal_density_threshold` optionally suppresses particles whose neighbor count is close to
+   ideal full support. This heuristic is intended only for a free surface with an unrepresented
+   exterior phase. It must remain zero for fully represented multiphase interfaces, where valid
+   interface particles can have full support.
+4. Curvature calculations use a corrected formulation to reduce errors near interface fringes.
 
 ```@autodocs
 Modules = [TrixiParticles]
@@ -430,14 +555,16 @@ C(r)=\frac{32}{\pi h_c^9}
 
 #### Surface area minimization force
 
-The surface area minimization force models the curvature reduction effects, aligning particle motion to reduce the interface's total area.
-It acts based on the difference in surface normals:
+The surface area minimization term models curvature reduction by using the difference between the
+raw color gradients. In the implementation it is evaluated in acceleration form as
 
 ```math
-F_{\text{curvature}} = -\sigma (n_a - n_b),
+a_{a,\text{area}} = -\sigma h_a (n_a - n_b),
 ```
 
-where ``n_a`` and ``n_b`` are the surface normals of the interacting particles.
+where ``n_a`` and ``n_b`` are the unnormalized color gradients of the interacting particles and
+``h_a`` is the smoothing length of particle ``a``. The factor ``h_a`` makes the color-normal term
+dimensionless, consistent with the Akinci formulation.
 
 #### Wall adhesion force
 

@@ -31,8 +31,8 @@ torque and applied consistently to all rigid particles.
                           models when fluids interact with this rigid body. This is
                           only evaluated for fluid-structure interaction with
                           surface-tension-enabled fluid systems.
-- `color_value`: Integer label stored as `system.cache.color`.
-                 Currently this is used with `BoundaryModelDummyParticles` during
+- `color_value`: Integer scalar stored as `system.cache.color`.
+                 Its magnitude is used with `BoundaryModelDummyParticles` during
                  colorfield initialization so fluids using
                  [`ColorfieldSurfaceNormal`](@ref) can detect contact with rigid
                  bodies, it participates in the multi-system color sanity check for

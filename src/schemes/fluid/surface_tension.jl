@@ -317,16 +317,9 @@ function compute_surface_delta_function!(system, surface_tension, semi)
     return system
 end
 
-# Eq. 6 in Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
+# The raw color-gradient magnitude is stored before normalization in
+# `remove_invalid_normals!` (Eq. 6 in Morris 2000).
 function compute_surface_delta_function!(system, ::SurfaceTensionMomentumMorris, semi)
-    (; cache) = system
-    (; delta_s) = cache
-
-    set_zero!(delta_s)
-
-    @threaded semi for particle in each_integrated_particle(system)
-        delta_s[particle] = norm(surface_normal(system, particle))
-    end
     return system
 end
 

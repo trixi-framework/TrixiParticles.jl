@@ -28,18 +28,17 @@
                                       ideal_density_threshold=0.0f0) isa
               ColorfieldSurfaceNormal{Float32}
 
-        invalid_thresholds = ((NaN, 0.01, 0.0),
-                              (-Inf, 0.01, 0.0),
-                              (0.1, Inf, 0.0),
-                              (0.1, 0.01, 1.0im),
-                              ("invalid", 0.01, 0.0))
-        for (boundary_threshold, interface_threshold, density_threshold) in
-            invalid_thresholds
-
-            @test_throws ArgumentError ColorfieldSurfaceNormal(;
-                                                               boundary_contact_threshold=boundary_threshold,
-                                                               interface_threshold,
-                                                               ideal_density_threshold=density_threshold)
+        for normal_method in
+            (() -> ColorfieldSurfaceNormal(boundary_contact_threshold=-0.1),
+             () -> ColorfieldSurfaceNormal(boundary_contact_threshold=1.1),
+             () -> ColorfieldSurfaceNormal(boundary_contact_threshold=NaN),
+             () -> ColorfieldSurfaceNormal(boundary_contact_threshold="invalid"),
+             () -> ColorfieldSurfaceNormal(interface_threshold=-0.1),
+             () -> ColorfieldSurfaceNormal(interface_threshold=Inf),
+             () -> ColorfieldSurfaceNormal(ideal_density_threshold=-0.1),
+             () -> ColorfieldSurfaceNormal(ideal_density_threshold=1.1),
+             () -> ColorfieldSurfaceNormal(interface_threshold=1.0im))
+            @test_throws ArgumentError normal_method()
         end
     end
 
@@ -58,7 +57,7 @@
                                             state_equation=StateEquationCole(sound_speed=10.0,
                                                                              reference_density=1.0,
                                                                              exponent=1),
-                                            surface_tension, color_value=0)
+                                            surface_tension, color_value=1)
         edac = EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel,
                                            smoothing_length, sound_speed=10.0,
                                            density_calculator=SummationDensity(),
@@ -107,7 +106,8 @@
                                                   color_value=0)
         @test full_akinci.surface_normal_method isa ColorfieldSurfaceNormal
         @test haskey(full_akinci.cache, :surface_normal)
-        @test_throws ArgumentError TrixiParticles.check_system_color((full_akinci, wcsph))
+        @test isnothing(TrixiParticles.check_system_color((full_akinci, wcsph)))
+        @test_throws ArgumentError TrixiParticles.check_system_color((full_akinci, edac))
     end
 
     @testset "zero Morris coefficient does not restrict the time step" begin
@@ -291,14 +291,24 @@
                                              density_calculator=density_calc,
                                              state_equation=eq_state,
                                              surface_tension=SurfaceTensionMomentumMorris(surface_tension_coefficient=1.0),
-                                             surface_normal_method=ColorfieldSurfaceNormal(interface_threshold=0.1,
-                                                                                           ideal_density_threshold=0.9),
-                                             reference_particle_spacing=1.0,)
+                                             surface_normal_method=ColorfieldSurfaceNormal(interface_threshold=0.0),
+                                             reference_particle_spacing=1.0)
 
         # 4. Verify Cache Contains Necessary Fields
         @test haskey(system.cache, :delta_s)
         @test haskey(system.cache, :surface_normal)
         @test haskey(system.cache, :stress_tensor)
+
+        # Filtering retains the raw gradient magnitude as the surface delta before
+        # normalizing the direction used in the stress tensor.
+        system.cache.surface_normal .= [3.0 0.0;
+                                        4.0 2.0]
+        system.cache.neighbor_count .= 10
+        TrixiParticles.remove_invalid_normals!(system, system.surface_tension,
+                                               system.surface_normal_method)
+        @test system.cache.surface_normal[:, 1] ≈ [0.6, 0.8]
+        @test system.cache.surface_normal[:, 2] ≈ [0.0, 1.0]
+        @test system.cache.delta_s ≈ [5.0, 2.0]
 
         # 5. Manually Populate `delta_s` and `surface_normal`
         system.cache.delta_s .= [1.0, 2.0]

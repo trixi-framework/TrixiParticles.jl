@@ -55,12 +55,11 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
                                 also used by models that require interface geometry. The default is
                                 `nothing`; `ColorfieldSurfaceNormal()` is selected automatically
                                 when the surface tension model requires normals.
-- `reference_particle_spacing`: The reference particle spacing used for weighting values at the boundary,
-                                which is needed when using a surface-normal method.
-- `color_value`:                Integer label used for calculation of surface normals.
-                                Currently this is only used together with [`BoundaryModelDummyParticles`](@ref) and
-                                [`ColorfieldSurfaceNormal`](@ref): fluid-boundary normal evaluation
-                                reads the resulting boundary colorfield to detect wall contact.
+- `reference_particle_spacing`: Reference spacing used by support-based normal validity
+                                checks. It is required when using a surface-normal method.
+- `color_value`:                Integer scalar used by [`ColorfieldSurfaceNormal`](@ref).
+                                Interacting fluid values define fluid-fluid color gradients;
+                                dummy-boundary contact detection also uses the fluid value.
 
 """
 struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, COR, PF, TV,
