@@ -129,16 +129,19 @@ struct TriangleMesh{NDIMS, ELTYPE}
         min_corner = SVector([minimum(v[i] for v in vertices) for i in 1:NDIMS]...)
         max_corner = SVector([maximum(v[i] for v in vertices) for i in 1:NDIMS]...)
 
-        for normals in (edge_normals, vertex_normals)
-            for i in eachindex(normals)
-                normals_norm = norm(normals[i])
-                !iszero(normals_norm) && (normals[i] = normals[i] / normals_norm)
+        for i in eachindex(edge_normals)
+            # Skip zero normals, which would be normalized to `NaN` vectors.
+            # The edge normals are only used for the `SignedDistanceField`, which is
+            # essential for the packing.
+            # Zero normals are caused by exactly or nearly duplicated faces.
+            if !iszero(norm(edge_normals[i]))
+                edge_normals[i] = normalize(edge_normals[i])
             end
         end
 
         return new{NDIMS, ELTYPE}(vertices, face_vertices, face_vertices_ids,
                                   face_edges_ids, edge_vertices_ids,
-                                  vertex_normals, edge_normals,
+                                  normalize.(vertex_normals), edge_normals,
                                   face_normals, min_corner, max_corner)
     end
 end
@@ -168,19 +171,15 @@ end
 
 @inline face_normal(triangle, geometry::TriangleMesh) = geometry.face_normals[triangle]
 
-@inline function delete_faces(mesh::TriangleMesh, indices)
-    face_vertices = copy(mesh.face_vertices)
-    face_normals = copy(mesh.face_normals)
+@inline function Base.deleteat!(mesh::TriangleMesh, indices)
+    (; face_vertices, face_vertices_ids, face_edges_ids, face_normals) = mesh
 
     deleteat!(face_vertices, indices)
+    deleteat!(face_vertices_ids, indices)
+    deleteat!(face_edges_ids, indices)
     deleteat!(face_normals, indices)
 
-    if isempty(face_vertices)
-        throw(ArgumentError("cannot delete all triangle mesh faces"))
-    end
-
-    vertices = collect(Iterators.flatten(face_vertices))
-    return TriangleMesh(face_vertices, face_normals, vertices)
+    return mesh
 end
 
 @inline nfaces(mesh::TriangleMesh) = length(mesh.face_normals)

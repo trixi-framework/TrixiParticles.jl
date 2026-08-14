@@ -8,30 +8,21 @@ struct Polygon{NDIMS, ELTYPE}
     min_corner        :: SVector{NDIMS, ELTYPE}
     max_corner        :: SVector{NDIMS, ELTYPE}
 
-    function Polygon(vertices; close_curve=true)
+    function Polygon(vertices)
         NDIMS = size(vertices, 1)
 
-        return Polygon{NDIMS}(vertices; close_curve)
+        return Polygon{NDIMS}(vertices)
     end
 
     # Function barrier to make `NDIMS` static and therefore `SVector`s type-stable
-    function Polygon{NDIMS}(vertices_; close_curve=true) where {NDIMS}
+    function Polygon{NDIMS}(vertices_) where {NDIMS}
+        n_vertices = size(vertices_, 2)
         ELTYPE = eltype(vertices_)
 
-        vertices = collect(reinterpret(reshape, SVector{NDIMS, ELTYPE}, vertices_))
+        min_corner = SVector{NDIMS}(minimum(vertices_, dims=2))
+        max_corner = SVector{NDIMS}(maximum(vertices_, dims=2))
 
-        if length(vertices) < 3
-            throw(ArgumentError("polygon requires at least three vertices"))
-        end
-
-        if close_curve && !isapprox(first(vertices), last(vertices))
-            push!(vertices, first(vertices))
-        end
-
-        n_vertices = length(vertices)
-
-        min_corner = SVector([minimum(v[i] for v in vertices) for i in 1:NDIMS]...)
-        max_corner = SVector([maximum(v[i] for v in vertices) for i in 1:NDIMS]...)
+        vertices = reinterpret(reshape, SVector{NDIMS, ELTYPE}, vertices_)
 
         # Sum over all the edges and determine if the vertices are in clockwise order
         # to make sure that all normals pointing outwards.
@@ -72,10 +63,6 @@ struct Polygon{NDIMS, ELTYPE}
             push!(edge_normals, edge_normal)
         end
 
-        if length(edge_vertices) < 3
-            throw(ArgumentError("polygon requires at least three non-degenerate edges"))
-        end
-
         vertex_normals = Vector{NTuple{2, SVector{NDIMS, ELTYPE}}}()
 
         # Calculate vertex pseudo-normals.
@@ -108,63 +95,6 @@ struct Polygon{NDIMS, ELTYPE}
         return new{NDIMS, ELTYPE}(vertices, edge_vertices, vertex_normals, edge_normals,
                                   edge_vertices_ids, min_corner, max_corner)
     end
-
-    function Polygon{NDIMS, ELTYPE}(vertices, edge_vertices, vertex_normals,
-                                    edge_normals, edge_vertices_ids,
-                                    min_corner, max_corner) where {NDIMS, ELTYPE}
-        return new{NDIMS, ELTYPE}(vertices, edge_vertices, vertex_normals, edge_normals,
-                                  edge_vertices_ids, min_corner, max_corner)
-    end
-end
-
-function vertex_normals_from_edges(edge_vertices, edge_normals)
-    VERTEX = typeof(first(first(edge_vertices)))
-    normal_sums = Dict{VERTEX, VERTEX}()
-
-    for (edge, edge_normal) in zip(edge_vertices, edge_normals)
-        for vertex in edge
-            normal_sums[vertex] = get(normal_sums, vertex, zero(edge_normal)) + edge_normal
-        end
-    end
-
-    return map(edge_vertices, edge_normals) do edge, edge_normal
-        normals = map(edge) do vertex
-            normal_sum = normal_sums[vertex]
-            normal_norm = norm(normal_sum)
-
-            return iszero(normal_norm) ? edge_normal : normal_sum / normal_norm
-        end
-
-        return Tuple(normals)
-    end
-end
-
-function rebuild_polygon_from_edges(edge_vertices, edge_normals)
-    NDIMS = length(first(edge_normals))
-    ELTYPE = eltype(first(edge_normals))
-    vertices = SVector{NDIMS, ELTYPE}[]
-    vertex_ids = Dict{SVector{NDIMS, ELTYPE}, Int}()
-
-    edge_vertices_ids = map(edge_vertices) do edge
-        v1, v2 = edge
-        id1 = get!(vertex_ids, v1) do
-            push!(vertices, v1)
-            return length(vertices)
-        end
-        id2 = get!(vertex_ids, v2) do
-            push!(vertices, v2)
-            return length(vertices)
-        end
-
-        return (id1, id2)
-    end
-
-    min_corner = SVector([minimum(v[i] for v in vertices) for i in 1:NDIMS]...)
-    max_corner = SVector([maximum(v[i] for v in vertices) for i in 1:NDIMS]...)
-    vertex_normals = vertex_normals_from_edges(edge_vertices, edge_normals)
-
-    return Polygon{NDIMS, ELTYPE}(vertices, edge_vertices, vertex_normals, edge_normals,
-                                  edge_vertices_ids, min_corner, max_corner)
 end
 
 function Base.show(io::IO, geometry::Polygon)
@@ -189,23 +119,14 @@ end
 
 @inline Base.eltype(::Polygon{NDIMS, ELTYPE}) where {NDIMS, ELTYPE} = ELTYPE
 
-"""
-    delete_faces(geometry, indices)
-
-Return a geometry with the faces at `indices` removed and derived geometry data rebuilt.
-"""
-@inline function delete_faces(polygon::Polygon, indices)
-    edge_vertices = copy(polygon.edge_vertices)
-    edge_normals = copy(polygon.edge_normals)
+@inline function Base.deleteat!(polygon::Polygon, indices)
+    (; edge_vertices, edge_normals, edge_vertices_ids) = polygon
 
     deleteat!(edge_vertices, indices)
+    deleteat!(edge_vertices_ids, indices)
     deleteat!(edge_normals, indices)
 
-    if isempty(edge_vertices)
-        throw(ArgumentError("cannot delete all polygon edges"))
-    end
-
-    return rebuild_polygon_from_edges(edge_vertices, edge_normals)
+    return polygon
 end
 
 @inline nfaces(mesh::Polygon) = length(mesh.edge_normals)

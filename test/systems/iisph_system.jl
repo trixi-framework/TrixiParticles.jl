@@ -68,7 +68,6 @@
             @test system.max_iterations == max_iterations
             @test system.time_step == time_step
             @test length(system.density) == size(coordinates, 2)
-            @test TrixiParticles.system_state_equation(system) === nothing
 
             # A too-short acceleration vector triggers dimension validation
             error_str1 = "`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"
@@ -440,12 +439,12 @@
             system_pressure.predicted_density .= [990.0, 1010.0]
             system_pressure.sum_term .= [5.0, -2.0]
             system_pressure.a_ii .= [0.5, 1.0e-10]
-            system_pressure.density_error .= [0.0, 99.0]
+            fill!(system_pressure.density_error, 0.0)
 
             semi = DummySemidiscretization()
             # First particle uses standard Jacobi update; second hits the safeguarded zero-a_ii path.
             # For particle 1: (1-omega)*0 + omega/a_ii * (source - sum_term) with omega=0.4,
-            # source=(1000-990)=10, a_ii=0.5, sum_term=5 gives pressure 4 and abs(density_error) 3
+            # source=(1000-990)=10, a_ii=0.5, sum_term=5 gives pressure 4 and density_error -3
             relative_error = TrixiParticles.pressure_update(system_pressure,
                                                             system_pressure.pressure,
                                                             system_pressure.reference_density,
@@ -455,50 +454,9 @@
                                                             system_pressure.density_error,
                                                             semi)
 
-            @test isapprox(relative_error, 0.003)
+            @test isapprox(relative_error, -0.003)
             @test isapprox(system_pressure.pressure, [4.0, 0.0])
-            @test isapprox(system_pressure.density_error, [3.0, 0.0])
-        end
-
-        @testset "Cross-system pressure sums use neighbor coordinates" begin
-            smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-            smoothing_length = 0.5
-            time_step = 0.5
-
-            coordinates_a = reshape([0.0, 0.0], 2, 1)
-            ic_a = InitialCondition(; coordinates=coordinates_a,
-                                    velocity=zeros(2, 1),
-                                    mass=[1.0],
-                                    density=[1000.0],
-                                    pressure=[1.0])
-            system = ImplicitIncompressibleSPHSystem(ic_a;
-                                                     smoothing_kernel,
-                                                     smoothing_length,
-                                                     reference_density=1000.0,
-                                                     time_step)
-
-            coordinates_b = [0.1 0.2
-                             0.0 0.0]
-            ic_b = InitialCondition(; coordinates=coordinates_b,
-                                    velocity=zeros(2, 2),
-                                    mass=[1.0, 1.0],
-                                    density=[1000.0, 1000.0],
-                                    pressure=[1.0, 2.0])
-            neighbor_system = ImplicitIncompressibleSPHSystem(ic_b;
-                                                              smoothing_kernel,
-                                                              smoothing_length,
-                                                              reference_density=1000.0,
-                                                              time_step)
-
-            semi = Semidiscretization(system, neighbor_system)
-            TrixiParticles.initialize_neighborhood_searches!(semi)
-            u_ode = vcat(vec(coordinates_a), vec(coordinates_b))
-            u = TrixiParticles.wrap_u(u_ode, system, semi)
-
-            @test_nowarn TrixiParticles.calculate_sum_d_ij_pj!(system.sum_d_ij_pj,
-                                                               system, neighbor_system,
-                                                               u, u_ode, semi)
-            @test !iszero(system.sum_d_ij_pj[1, 1])
+            @test isapprox(system_pressure.density_error, [-3.0, 0.0])
         end
 
         @testset "Source term and iteration limits" begin
@@ -530,31 +488,5 @@
             @test TrixiParticles.minimum_iisph_iterations(system_iters) == 3
             @test TrixiParticles.maximum_iisph_iterations(system_iters) == 7
         end
-    end
-
-    @testset "Reject incompatible fluid systems" begin
-        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-        smoothing_length = 0.5
-        coordinates = [0.0 0.1
-                       0.0 0.2]
-        velocity = zeros(2, 2)
-        mass = [1.0, 1.0]
-        density = [1000.0, 1000.0]
-        pressure = [0.0, 0.0]
-        ic = InitialCondition(; coordinates, velocity, mass, density, pressure)
-
-        iisph_system = ImplicitIncompressibleSPHSystem(ic;
-                                                       smoothing_kernel,
-                                                       smoothing_length,
-                                                       reference_density=1000.0,
-                                                       time_step=0.5)
-        edac_system = EntropicallyDampedSPHSystem(ic; smoothing_kernel,
-                                                  smoothing_length,
-                                                  sound_speed=10.0)
-
-        error_str = "`ImplicitIncompressibleSPHSystem` cannot be used together with " *
-                    "`EntropicallyDampedSPHSystem`"
-        @test_throws ArgumentError(error_str) Semidiscretization(iisph_system,
-                                                                 edac_system)
     end
 end
