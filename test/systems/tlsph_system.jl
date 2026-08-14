@@ -30,10 +30,10 @@
             @test system isa TotalLagrangianSPHSystem
             @test ndims(system) == NDIMS
             @test system.initial_condition == initial_condition
-            @test system.initial_coordinates == coordinates
-            @test system.current_coordinates == coordinates
-            @test system.mass == mass
-            @test system.material_density == material_densities
+            @test size(system.initial_coordinates) == size(coordinates)
+            @test size(system.current_coordinates) == size(coordinates)
+            @test size(system.mass) == size(mass)
+            @test size(system.material_density) == size(material_densities)
             @test system.n_integrated_particles == 2
             @test system.young_modulus == E
             @test system.poisson_ratio == nu
@@ -372,6 +372,10 @@
         system = TotalLagrangianSPHSystem(initial_condition; smoothing_kernel,
                                           smoothing_length, young_modulus=E,
                                           poisson_ratio=nu)
+
+        # Runtime arrays are initialized in `semidiscretize`. This test initializes the
+        # other required state manually, so we also initialize the material density.
+        system.material_density .= material_densities
 
         # Initialize deformation_grad and pk1_rho2 with arbitrary values
         for particle in TrixiParticles.eachparticle(system)

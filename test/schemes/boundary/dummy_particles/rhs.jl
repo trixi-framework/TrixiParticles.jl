@@ -82,6 +82,13 @@
                                                         poisson_ratio=0.0,
                                                         boundary_model=boundary_model_continuity)
 
+            # Runtime arrays are initialized in `semidiscretize`, which this low-level
+            # interaction test intentionally skips.
+            structure_system.initial_coordinates .= initial_condition.coordinates
+            structure_system.current_coordinates .= initial_condition.coordinates
+            structure_system.mass .= initial_condition.mass
+            structure_system.material_density .= initial_condition.density
+
             # Positions of the structure particles are not used here
             u_structure = zeros(0, TrixiParticles.nparticles(structure_system))
             v_structure = vcat(initial_condition.velocity,

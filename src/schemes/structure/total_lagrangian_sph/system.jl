@@ -209,9 +209,14 @@ function initialize_self_interaction_nhs(system::TotalLagrangianSPHSystem,
     self_interaction_nhs = copy_neighborhood_search(template, search_radius,
                                                     nparticles(system))
 
+    # The runtime arrays of a TLSPH system are intentionally left uninitialized until
+    # `semidiscretize`, where they can be initialized in parallel for NUMA awareness.
+    # Build the static self-interaction NHS directly from the initial condition instead.
+    initial_coordinates = system.initial_condition.coordinates
+
     # Note that for large numbers of particles, initialization can take a while
     PointNeighbors.initialize!(self_interaction_nhs,
-                               system.initial_coordinates, system.initial_coordinates,
+                               initial_coordinates, initial_coordinates,
                                parallelization_backend=PolyesterBackend())
 
     # Self-interaction only requires neighbors in the initial configuration,
