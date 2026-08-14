@@ -515,12 +515,58 @@
                                           axes(coordinates, 2))
         center = particle_at([3.5, 3.5])
         face = particle_at([3.5, 0.5])
+        face_inner = particle_at([3.5, 1.5])
         corner = particle_at([0.5, 0.5])
+        corner_neighbor = particle_at([1.5, 0.5])
         k = rho0 ./ continuity_correction_density
 
         @test isapprox(k[center], 1; atol=0.002)
         @test k[face] > 1.15
         @test k[corner] > k[face]
+
+        function pair_surface_acceleration(system, density, correction_density,
+                                           particle, neighbor)
+            pos_diff = SVector{2}(coordinates[:, particle] - coordinates[:, neighbor])
+            distance = norm(pos_diff)
+            surface_tension_correction = TrixiParticles.free_surface_correction(correction,
+                                                                                system,
+                                                                                correction_density[particle],
+                                                                                correction_density[neighbor])[3]
+            acceleration = Ref(zero(pos_diff))
+            TrixiParticles.surface_tension_force!(acceleration, surface_tension,
+                                                  surface_tension, system, system,
+                                                  particle, neighbor, pos_diff, distance,
+                                                  density[particle], density[neighbor],
+                                                  zero(pos_diff),
+                                                  surface_tension_correction)
+            return acceleration[]
+        end
+
+        # The reconstructed density must make the complete cohesion-plus-normal force agree
+        # with SummationDensity, not just its individual correction and normal inputs.
+        for (particle, neighbor) in ((face, face_inner), (corner, corner_neighbor))
+            continuity_acceleration = pair_surface_acceleration(continuity_system,
+                                                                continuity_density,
+                                                                continuity_correction_density,
+                                                                particle, neighbor)
+            summation_acceleration = pair_surface_acceleration(summation_system,
+                                                               summation_density,
+                                                               summation_correction_density,
+                                                               particle, neighbor)
+            edac_continuity_acceleration = pair_surface_acceleration(edac_continuity_system,
+                                                                     edac_continuity_density,
+                                                                     edac_continuity_correction_density,
+                                                                     particle, neighbor)
+            edac_summation_acceleration = pair_surface_acceleration(edac_summation_system,
+                                                                    edac_summation_density,
+                                                                    edac_summation_correction_density,
+                                                                    particle, neighbor)
+
+            @test !iszero(continuity_acceleration)
+            @test isapprox(continuity_acceleration, summation_acceleration; rtol=2eps())
+            @test isapprox(edac_continuity_acceleration, edac_summation_acceleration;
+                           rtol=2eps())
+        end
 
         # Dummy boundary masses complete the kernel sum at a wall, so wall particles are
         # not mistaken for a free surface by the reconstructed density.
