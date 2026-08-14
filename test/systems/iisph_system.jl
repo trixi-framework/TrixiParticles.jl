@@ -41,6 +41,7 @@
             min_iterations = min_iterations_[i]
             max_iterations = max_iterations_[i]
             time_step = time_steps_[i]
+            color_value = i
             TrixiParticles.ndims(::Val{:smoothing_kernel}) = i + 1
             smoothing_kernel2 = Val(:smoothing_kernel2)
             # The wrong dimension. 2 -> 3, 3 -> 2.
@@ -51,7 +52,7 @@
             system = ImplicitIncompressibleSPHSystem(initial_condition; smoothing_kernel,
                                                      smoothing_length, reference_density,
                                                      omega, max_error, min_iterations,
-                                                     max_iterations, time_step)
+                                                     max_iterations, time_step, color_value)
 
             # Constructor copies input fields, applies defaults, and respects the requested dimensionality
             @test system isa ImplicitIncompressibleSPHSystem{NDIMS}
@@ -67,6 +68,7 @@
             @test system.min_iterations == min_iterations
             @test system.max_iterations == max_iterations
             @test system.time_step == time_step
+            @test system.cache.color == color_value
             @test length(system.density) == size(coordinates, 2)
 
             # A too-short acceleration vector triggers dimension validation

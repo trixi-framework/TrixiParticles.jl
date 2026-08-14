@@ -229,10 +229,13 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::AbstractFluidSystem, sem
 
     if surface_tension isa SurfaceTensionMorris ||
        surface_tension isa SurfaceTensionMomentumMorris
-        v = wrap_v(v_ode, system, semi)
-        dt_surface_tension = sqrt(current_density(v, system, 1) * smoothing_length_^3 /
-                                  (2 * pi * surface_tension.surface_tension_coefficient))
-        dt = min(dt, dt_surface_tension)
+        coefficient = surface_tension.surface_tension_coefficient
+        if !iszero(coefficient)
+            v = wrap_v(v_ode, system, semi)
+            dt_surface_tension = sqrt(current_density(v, system, 1) * smoothing_length_^3 /
+                                      (2 * pi * coefficient))
+            dt = min(dt, dt_surface_tension)
+        end
     end
 
     return dt
@@ -253,6 +256,9 @@ end
 @inline function surface_normal_method(system)
     return nothing
 end
+
+@inline contributes_to_colorfield(system) = false
+@inline contributes_to_colorfield(::AbstractFluidSystem) = true
 
 function restart_u(system::AbstractFluidSystem, data)
     inactive_coords = convert(coordinates_eltype(system), 1e16)
@@ -297,7 +303,7 @@ function restart_v(system::AbstractFluidSystem, data)
 end
 
 function check_configuration(fluid_system::AbstractFluidSystem, systems, nhs)
-    if !(fluid_system isa ParticlePackingSystem) && !isnothing(fluid_system.surface_tension)
+    if !isnothing(fluid_system.surface_tension)
         foreach_system(systems) do neighbor
             if neighbor isa AbstractFluidSystem &&
                isnothing(fluid_system.surface_tension) &&
