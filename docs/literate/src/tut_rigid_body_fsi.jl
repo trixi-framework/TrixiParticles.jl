@@ -165,8 +165,12 @@ nothing # hide
 # See [the docs on dummy particles](@ref boundary_models) for a definition for these terms.
 
 boundary_density_calculator = AdamiPressureExtrapolation()
-tank_boundary_model = BoundaryModelDummyParticles(tank.boundary; fluid_system=fluid_system,
-                                                  boundary_density_calculator)
+tank_boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
+                                                  tank.boundary.mass,
+                                                  boundary_density_calculator,
+                                                  fluid_smoothing_kernel,
+                                                  fluid_smoothing_length;
+                                                  state_equation)
 
 boundary_system = WallBoundarySystem(tank.boundary, tank_boundary_model)
 nothing # hide

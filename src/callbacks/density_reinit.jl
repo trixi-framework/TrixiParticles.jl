@@ -32,8 +32,7 @@ end
 
 Callback to reinitialize the density field when using [`ContinuityDensity`](@ref) [Panizzo2007](@cite).
 
-Pass `system` and the [`Semidiscretization`](@ref TrixiParticles.Semidiscretization)
-containing it. The callback stores
+Pass `system` and the [`Semidiscretization`](@ref) containing it. The callback stores
 the system index and uses the corresponding system from the integrator semidiscretization
 at runtime, which remains valid if [`semidiscretize`](@ref) replaces systems internally.
 

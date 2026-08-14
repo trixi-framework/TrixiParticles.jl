@@ -252,8 +252,7 @@ end
 Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
 
 # Arguments
-- `semi`: A [`Semidiscretization`](@ref TrixiParticles.Semidiscretization)
-  holding the systems involved in the simulation.
+- `semi`: A [`Semidiscretization`](@ref) holding the systems involved in the simulation.
 - `tspan`: The time span over which the simulation will be run.
 
 # Keywords
@@ -421,8 +420,7 @@ Set the restartable state of all systems in `semi` to the final values in the so
 `sol`. This includes coordinates and velocities as well as integrated state variables such
 as density or pressure where applicable.
 [`semidiscretize`](@ref) has to be called again afterwards, or another
-[`Semidiscretization`](@ref TrixiParticles.Semidiscretization) can be created
-with the updated systems.
+[`Semidiscretization`](@ref) can be created with the updated systems.
 
 # Arguments
 - `semi`: The semidiscretization to update.

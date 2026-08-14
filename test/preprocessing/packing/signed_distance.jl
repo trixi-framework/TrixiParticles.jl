@@ -44,16 +44,6 @@
         @test repr("text/plain", signed_distance_field) == show_box
     end
 
-    @testset verbose=true "Open Geometry Validation" begin
-        open_square = [0.0 1.0 1.0 0.0;
-                       0.0 0.0 1.0 1.0]
-        geometry = TrixiParticles.Polygon(open_square; close_curve=false)
-
-        @test SignedDistanceField(geometry, 0.1) isa SignedDistanceField
-        @test_throws ArgumentError SignedDistanceField(geometry, 0.1;
-                                                       use_for_boundary_packing=true)
-    end
-
     @testset verbose=true "Real World Data" begin
         data_dir = pkgdir(TrixiParticles, "examples", "preprocessing", "data")
         validation_dir = pkgdir(TrixiParticles, "test", "preprocessing", "data")
@@ -144,16 +134,5 @@
                 @test isapprox(signed_distance_field.distances, distances; rtol=1e-4)
             end
         end
-    end
-
-    @testset verbose=true "Point Matrix Input" begin
-        data_dir = pkgdir(TrixiParticles, "examples", "preprocessing", "data")
-        geometry = load_geometry(joinpath(data_dir, "hexagon.asc"))
-
-        point = first(geometry.vertices)
-        signed_distance_field = SignedDistanceField(geometry, 0.1; points=hcat(point))
-
-        @test signed_distance_field.positions == [point]
-        @test signed_distance_field.distances == [0.0]
     end
 end

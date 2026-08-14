@@ -2,16 +2,14 @@
     @testset "`show`" begin
 
         # Mock fluid system
-        struct FluidSystemMock2{B} <: TrixiParticles.AbstractFluidSystem{2}
+        struct FluidSystemMock2 <: TrixiParticles.AbstractFluidSystem{2}
             pressure_acceleration_formulation::Nothing
             density_diffusion::Nothing
-            buffer::B
         end
         TrixiParticles.initial_smoothing_length(system::FluidSystemMock2) = 1.0
         TrixiParticles.nparticles(system::FluidSystemMock2) = 1
         TrixiParticles.system_smoothing_kernel(system::FluidSystemMock2) = nothing
         TrixiParticles.density_calculator(system::FluidSystemMock2) = TrixiParticles.ContinuityDensity()
-        TrixiParticles.buffer(system::FluidSystemMock2) = system.buffer
 
         inflow = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, 1.0]),
                               particle_spacing=0.05,
@@ -19,8 +17,7 @@
                               open_boundary_layers=4, boundary_type=InFlow())
         system = OpenBoundarySystem(inflow; buffer_size=0,
                                     boundary_model=BoundaryModelCharacteristicsLastiwka(),
-                                    fluid_system=FluidSystemMock2(nothing, nothing,
-                                                                  nothing))
+                                    fluid_system=FluidSystemMock2(nothing, nothing))
 
         show_compact = "OpenBoundarySystem{2}() with 80 particles"
         @test repr(system) == show_compact
@@ -43,8 +40,7 @@
                                boundary_type=OutFlow())
         system = OpenBoundarySystem(outflow; buffer_size=0,
                                     boundary_model=BoundaryModelMirroringTafuni(),
-                                    fluid_system=FluidSystemMock2(nothing, nothing,
-                                                                  nothing))
+                                    fluid_system=FluidSystemMock2(nothing, nothing))
 
         show_compact = "OpenBoundarySystem{2}() with 80 particles"
         @test repr(system) == show_compact
@@ -63,8 +59,7 @@
 
         system = OpenBoundarySystem(outflow, inflow; buffer_size=0,
                                     boundary_model=BoundaryModelMirroringTafuni(),
-                                    fluid_system=FluidSystemMock2(nothing, nothing,
-                                                                  nothing))
+                                    fluid_system=FluidSystemMock2(nothing, nothing))
 
         show_compact = "OpenBoundarySystem{2}() with 160 particles"
         @test repr(system) == show_compact
@@ -83,8 +78,7 @@
 
         system = OpenBoundarySystem(outflow, inflow; buffer_size=0,
                                     boundary_model=BoundaryModelDynamicalPressureZhang(),
-                                    fluid_system=FluidSystemMock2(nothing, nothing,
-                                                                  nothing))
+                                    fluid_system=FluidSystemMock2(nothing, nothing))
 
         show_compact = "OpenBoundarySystem{2}() with 160 particles"
         @test repr(system) == show_compact
@@ -102,20 +96,6 @@
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
 
         @test repr("text/plain", system) == show_box
-
-        fluid_system_with_buffer = FluidSystemMock2(nothing, nothing,
-                                                    TrixiParticles.SystemBuffer(1, 3))
-        system = OpenBoundarySystem(outflow; fluid_system=fluid_system_with_buffer)
-        @test system.boundary_model isa BoundaryModelMirroringTafuni
-        @test system.buffer.buffer_size == 3
-
-        error_str = "`buffer_size` could not be inferred for `OpenBoundarySystem` " *
-                    "because `fluid_system` has no buffer. Pass `buffer_size=...` " *
-                    "explicitly or construct `fluid_system` with `buffer_size=...`."
-        @test_throws ArgumentError(error_str) OpenBoundarySystem(outflow;
-                                                                 fluid_system=FluidSystemMock2(nothing,
-                                                                                               nothing,
-                                                                                               nothing))
     end
 
     @testset "boundary zone width" begin

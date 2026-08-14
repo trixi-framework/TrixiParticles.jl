@@ -28,8 +28,7 @@ The accumulated value can be retrieved via [`calculated_mechanical_work`](@ref).
 
 # Arguments
 - `system`: The [`TotalLagrangianSPHSystem`](@ref) whose particles should be monitored.
-- `semi`: The [`Semidiscretization`](@ref TrixiParticles.Semidiscretization)
-  that contains `system`.
+- `semi`: The [`Semidiscretization`](@ref) that contains `system`.
 
 # Keywords
 - `interval=1`: Interval (in number of time steps) at which to compute the instantaneous power.

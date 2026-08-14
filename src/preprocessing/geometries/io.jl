@@ -1,5 +1,5 @@
 """
-    load_geometry(filename; element_type=Float64, close_curve=true)
+    load_geometry(filename; element_type=Float64)
 
 Load file and return corresponding type for [`ComplexShape`](@ref).
 Supported file formats are `.stl`, `.asc` and `dxf`.
@@ -18,20 +18,16 @@ For comprehensive information about the supported file formats, refer to the doc
 
 # Keywords
 - `element_type`: Element type (default is `Float64`)
-- `close_curve`: Close 2D `.asc` and `.dxf` curves by appending the first point
-                 when it is not already repeated. This assumes the vertices already
-                 trace a complete, ordered boundary. Set this to `false` for intentional
-                 open curves. Region sampling and classification reject open geometries.
 """
-function load_geometry(filename; element_type=Float64, close_curve=true)
+function load_geometry(filename; element_type=Float64)
     ELTYPE = element_type
 
     file_extension = splitext(filename)[end]
 
     if file_extension == ".asc"
-        geometry = load_ascii(filename; ELTYPE, skipstart=1, close_curve)
+        geometry = load_ascii(filename; ELTYPE, skipstart=1)
     elseif file_extension == ".dxf"
-        geometry = load_dxf(filename; ELTYPE, close_curve)
+        geometry = load_dxf(filename; ELTYPE)
     elseif file_extension == ".stl"
         geometry = load(FileIO.query(filename); ELTYPE)
     else
@@ -41,21 +37,21 @@ function load_geometry(filename; element_type=Float64, close_curve=true)
     return geometry
 end
 
-function load_ascii(filename; ELTYPE=Float64, skipstart=1, close_curve=true)
+function load_ascii(filename; ELTYPE=Float64, skipstart=1)
 
     # Read the data from the ASCII file in as a matrix of coordinates.
     # Ignore the first `skipstart` lines of the file (e.g. headers).
     points = DelimitedFiles.readdlm(filename, ' ', ELTYPE, '\n'; skipstart)[:, 1:2]
 
-    return Polygon(copy(points'); close_curve)
+    return Polygon(copy(points'))
 end
 
-function load_dxf(filename; ELTYPE=Float64, close_curve=true)
+function load_dxf(filename; ELTYPE=Float64)
     points = Tuple{ELTYPE, ELTYPE}[]
 
     load_dxf!(points, filename)
 
-    return Polygon(stack(points); close_curve)
+    return Polygon(stack(points))
 end
 
 function load_dxf!(points::Vector{Tuple{T, T}}, filename) where {T}
