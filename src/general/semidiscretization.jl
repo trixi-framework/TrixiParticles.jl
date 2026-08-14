@@ -195,13 +195,27 @@ end
 @inline function system_indices(system, semi)
     # Note that this takes only about 5 ns, while mapping systems to indices with a `Dict`
     # is ~30x slower because `hash(::System)` is very slow.
-    index = findfirst(s -> s === system, semi.systems)
+    index = findfirst(is_equivalent_system, semi.systems)
 
     if isnothing(index)
-        throw(ArgumentError("system is not in the semidiscretization"))
+        throw(ArgumentError("system is not in the semidiscretization. Make sure to use
+                             the correct `semi` (e.g. `semi = ode.p.semi`) or override
+                             `is_equivalent_system` when using wrapped systems."))
     end
 
     return index
+end
+
+# This function can be dispatched for new systems wrapping other systems.
+# Example:
+#   struct WrappingSystem <: AbstractSystem
+#       wrapped_system :: AbstractSystem
+#   end
+# If we want to use the wrapped system in the interactions, we need to dispatch
+# this function to `system_a.wrapped_system == system_b` because the wrapped system
+# is not in the semidiscretization.
+@inline function is_equivalent_system(system_a, system_b)
+    return system_a === system_b
 end
 
 @inline is_enabled_interaction(entry::Bool) = entry
