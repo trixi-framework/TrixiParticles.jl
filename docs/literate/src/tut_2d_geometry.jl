@@ -1,13 +1,13 @@
 # # [Setting up a 2D simulation from geometry files](@id tut_2d_geometry)
 
-# In this tutorial, we build two genuine 2D setups from geometry files:
-# 1. a curved pipe, where one geometry file defines the outer wall envelope and a second
-#    one defines the empty channel cut out of it,
-# 2. a dam-break basin with a coastline profile, where one geometry file defines the
-#    filled coastline wall together with the seawall on the right.
+# In this tutorial, we build two 2D setups from geometry files:
+# 1. a curved pipe, where one geometry file defines the outer wall and another
+#    defines the channel cut out of it,
+# 2. a dam-break basin with a coastline profile, where one geometry file defines
+#    the coastline wall and the seawall on the right.
 #
-# For a real 2D setup, we use 2D geometry formats such as `.asc` or `.dxf`.
-# STL files are surface meshes and therefore naturally lead to thin 3D setups instead.
+# We use 2D geometry formats such as `.asc` or `.dxf` for 2D setups.
+# STL files describe surfaces and are therefore better suited to 3D setups.
 
 # First, we import TrixiParticles.jl together with
 # `OrdinaryDiffEqLowStorageRK` of
@@ -34,7 +34,7 @@ nothing # hide
 # 1. load the polygon with [`load_geometry`](@ref),
 # 2. fill the polygon with [`ComplexShape`](@ref).
 #
-# This creates a true 2D solid region instead of a hollow shell around the polygon edges.
+# This creates a filled 2D solid region rather than particles only along the polygon edges.
 function solid_from_geometry_file(file; particle_spacing, density)
     geometry = load_geometry(file)
     solid = ComplexShape(geometry; particle_spacing, density,
@@ -45,10 +45,10 @@ end
 
 # ## A curved pipe from two filled geometries
 
-# The pipe wall is a solid L-shaped region with a channel cut out of it:
+# The pipe wall is an L-shaped solid region with a channel cut out of it:
 # 1. one geometry file describes the outer pipe envelope,
 # 2. one geometry file describes the empty channel,
-# 3. the `setdiff` operation subtracts the channel from the solid envelope.
+# 3. `setdiff` subtracts the channel from the solid envelope.
 pipe_outer_file = pkgdir(TrixiParticles, "examples", "preprocessing", "data",
                          "curved_pipe_outer_2d.asc")
 pipe_channel_file = pkgdir(TrixiParticles, "examples", "preprocessing", "data",
@@ -64,15 +64,15 @@ pipe_setup = (; wall=setdiff(pipe_outer.solid, pipe_channel),
 
 # ## A dam-break basin with a coastline profile
 
-# In the second setup, a single 2D geometry file defines a filled coastline wall:
-# the beach profile on top, a finite wall thickness below it, and the seawall on the right.
+# In the second setup, one 2D geometry file defines the coastline wall:
+# the beach profile, a finite wall thickness below it, and the seawall on the right.
 coast_file = pkgdir(TrixiParticles, "examples", "preprocessing", "data",
                     "coastline_profile_2d.asc")
 coast = solid_from_geometry_file(coast_file; particle_spacing, density=fluid_density)
 
-# The geometry file gives the coastline bed and the right wall as a solid region.
-# We add the left wall explicitly as a rectangular particle block and place a
-# 1.5x taller rectangular dam-break water column next to it.
+# The geometry file defines the coastline bed and right wall as a solid region.
+# We add the left wall as a rectangular particle block and place a rectangular
+# dam-break water column beside it.
 left_wall = RectangularShape(particle_spacing, (5, 50), (0.0, -0.12),
                              density=fluid_density)
 reservoir = RectangularShape(particle_spacing, (28, 42), (0.15, 0.03),
@@ -99,13 +99,13 @@ savefig("tut_2d_geometry_plot.png"); # hide
 
 # ## Building the simulation systems
 
-# To keep the example focused, we continue with the coastline setup.
-# From this point on, the simulation setup is the same as in other 2D simulation files.
+# We continue with the coastline setup. The remaining steps are the same as for
+# other 2D simulations.
 setup = coast_setup
 tspan = (0.0, 0.03)
 nothing # hide
 
-# We define the state equation, smoothing kernel, and viscosity for a
+# We define the state equation, smoothing kernel, and viscosity for the
 # weakly compressible SPH simulation.
 smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
@@ -122,7 +122,7 @@ fluid_system = WeaklyCompressibleSPHSystem(setup.fluid;
                                            acceleration=(0.0, -gravity))
 nothing # hide
 
-# For the wall, we reuse the combined solid wall particles created above.
+# The boundary system uses the combined wall particles created above.
 boundary_model = BoundaryModelDummyParticles(setup.wall.density, setup.wall.mass,
                                              state_equation=state_equation,
                                              AdamiPressureExtrapolation(),
@@ -132,21 +132,16 @@ nothing # hide
 
 # ## Semidiscretization
 
-# With fluid and wall particles defined, we can build the
-# [`Semidiscretization`](@ref TrixiParticles.Semidiscretization) exactly as in other tutorials.
+# We construct the [`Semidiscretization`](@ref TrixiParticles.Semidiscretization)
+# from the fluid and boundary systems.
 semi = Semidiscretization(fluid_system, boundary_system)
 ode = semidiscretize(semi, tspan)
 nothing # hide
 
 # ## Time integration
 
-# The setup is now complete.
-# To start the simulation, run for example
-# ```julia
-# callbacks = CallbackSet(InfoCallback(interval=10))
-# sol = solve(ode, RDPK3SpFSAL35(), save_everystep=false, callback=callbacks)
-# ```
-# This is the same final step as in [the basic setup tutorial](@ref tut_setup).
+# We can now solve the problem. An [`InfoCallback`](@ref) prints progress during
+# the simulation.
 callbacks = CallbackSet(InfoCallback(interval=10))
 nothing # hide
 
