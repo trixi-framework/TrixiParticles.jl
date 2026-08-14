@@ -19,7 +19,7 @@ function set_initial_conditions!(v0_ode, u0_ode, semi, restart_with::Tuple{Varar
     end
 
     # Set initial conditions
-    foreach_noalloc(semi.systems, restart_with) do (system, restart_file)
+    foreach_noalloc_zip(semi.systems, restart_with) do (system, restart_file)
         v0_system = wrap_v(v0_ode, system, semi)
         u0_system = wrap_u(u0_ode, system, semi)
 
