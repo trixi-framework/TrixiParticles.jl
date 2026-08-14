@@ -2,12 +2,26 @@
     ColorfieldSurfaceNormal(; boundary_contact_threshold=0.1, interface_threshold=0.01,
                               ideal_density_threshold=0.0)
 
-Color field based computation of the interface normals.
+Color-field-based computation of fluid-interface normals. Interface normals describe local
+interface geometry and can be computed for analysis, output, or use by models that require
+interface orientation. Every interacting fluid system contributes its `color_value` to the
+discrete color gradient, even when that neighboring system does not compute its own normals.
+
+Without a surface-tension model and with [`SurfaceTensionAkinci`](@ref), the stored quantity is
+the filtered, unnormalized color gradient. The Morris models store unit normals and retain the
+raw gradient magnitude separately where required by the formulation.
 
 # Keywords
-- `boundary_contact_threshold=0.1`: If this threshold is reached the fluid is assumed to be in contact with the boundary.
-- `interface_threshold=0.01`:       Threshold for normals to be removed as being invalid.
-- `ideal_density_threshold=0.0`:    Assume particles are inside if they are above this threshold, which is relative to the `ideal_neighbor_count`.
+- `boundary_contact_threshold=0.1`: Finite value in `[0, 1]`. A dummy-boundary
+  particle is treated as being in contact with fluid when the magnitude of its smoothed
+  color field, normalized by the maximum magnitude, exceeds this value.
+- `interface_threshold=0.01`: Finite, non-negative dimensionless cutoff ``\epsilon``.
+  A raw color gradient ``n`` is discarded when ``R\lVert n\rVert \leq \epsilon``, where
+  ``R`` is the kernel support radius.
+- `ideal_density_threshold=0.0`: Finite value in `[0, 1]` controlling an optional
+  neighbor-count heuristic for free surfaces without a represented exterior phase. Zero
+  disables the heuristic. Keep this at zero for interfaces between represented phases,
+  since those interfaces can have full particle support.
 """
 struct ColorfieldSurfaceNormal{ELTYPE}
     boundary_contact_threshold::ELTYPE
@@ -17,8 +31,34 @@ end
 
 function ColorfieldSurfaceNormal(; boundary_contact_threshold=0.1, interface_threshold=0.01,
                                  ideal_density_threshold=0.0)
-    return ColorfieldSurfaceNormal(boundary_contact_threshold, interface_threshold,
-                                   ideal_density_threshold)
+    boundary_threshold = validate_surface_normal_threshold(boundary_contact_threshold,
+                                                           "boundary_contact_threshold";
+                                                           upper_bound=1)
+    normal_threshold = validate_surface_normal_threshold(interface_threshold,
+                                                         "interface_threshold")
+    density_threshold = validate_surface_normal_threshold(ideal_density_threshold,
+                                                          "ideal_density_threshold";
+                                                          upper_bound=1)
+    thresholds = promote(boundary_threshold, normal_threshold, density_threshold)
+    return ColorfieldSurfaceNormal(thresholds...)
+end
+
+function validate_surface_normal_threshold(threshold, name; upper_bound=nothing)
+    if !(threshold isa Real) || !isfinite(threshold) || threshold < 0 ||
+       (!isnothing(upper_bound) && threshold > upper_bound)
+        interval = isnothing(upper_bound) ? "non-negative" : "in [0, $upper_bound]"
+        throw(ArgumentError("`$name` must be a finite real number $interval"))
+    end
+
+    return threshold
+end
+
+@inline function default_surface_normal_method(surface_tension, surface_normal_method)
+    if isnothing(surface_normal_method) && requires_surface_normal(surface_tension)
+        return ColorfieldSurfaceNormal()
+    end
+
+    return surface_normal_method
 end
 
 function create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS, nparticles)
@@ -38,6 +78,8 @@ end
     return extract_svector(cache.surface_normal, particle_system, particle)
 end
 
+@inline surface_normal_density(system, particle, density) = density
+
 function calc_normal!(system, neighbor_system, u_system, v, v_neighbor_system,
                       u_neighbor_system, semi, surface_normal_method,
                       neighbor_surface_normal_method)
@@ -49,9 +91,11 @@ end
 # and Section 5 in Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics".
 function calc_normal!(system::AbstractFluidSystem, neighbor_system::AbstractFluidSystem,
                       u_system, v,
-                      v_neighbor_system, u_neighbor_system, semi, surface_normal_method,
-                      ::ColorfieldSurfaceNormal)
+                      v_neighbor_system, u_neighbor_system, semi,
+                      surface_normal_method::ColorfieldSurfaceNormal,
+                      neighbor_surface_normal_method)
     (; cache) = system
+    color_b = neighbor_system.cache.color
 
     system_coords = current_coordinates(u_system, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -63,9 +107,13 @@ function calc_normal!(system::AbstractFluidSystem, neighbor_system::AbstractFlui
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
         density_neighbor = current_density(v_neighbor_system,
                                            neighbor_system, neighbor)
+        density_neighbor = surface_normal_density(neighbor_system, neighbor,
+                                                  density_neighbor)
         grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
         for i in 1:ndims(system)
-            cache.surface_normal[i, particle] += m_b / density_neighbor * grad_kernel[i]
+            cache.surface_normal[i,
+                                 particle] += m_b / density_neighbor * color_b *
+                                              grad_kernel[i]
         end
 
         cache.neighbor_count[particle] += 1
@@ -90,19 +138,21 @@ function calc_boundary_normal!(system::AbstractFluidSystem, neighbor_system, u_s
     # TODO: move colorfield to extra step
     # TODO: this is only correct for a single fluid
 
-    # Reset to the constant boundary interpolated color values
-    colorfield .= initial_colorfield
+    # Contact detection depends on color magnitude, not interface orientation.
+    colorfield .= abs.(initial_colorfield)
 
     # Accumulate fluid neighbors
     foreach_point_neighbor(neighbor_system, system,
                            neighbor_system_coords, system_coords,
                            semi) do particle, neighbor, pos_diff, distance
         colorfield[particle] += hydrodynamic_mass(system, neighbor) /
-                                current_density(v, system, neighbor) * system.cache.color *
+                                current_density(v, system, neighbor) *
+                                abs(system.cache.color) *
                                 smoothing_kernel(system, distance, particle)
     end
 
     maximum_colorfield = maximum(colorfield)
+    iszero(maximum_colorfield) && return system
 
     foreach_point_neighbor(system, neighbor_system,
                            system_coords, neighbor_system_coords,
@@ -132,43 +182,34 @@ end
 
 function remove_invalid_normals!(system::AbstractFluidSystem, surface_tension,
                                  surface_normal_method)
-    (; cache) = system
-
-    # We remove invalid normals (too few neighbors) to reduce the impact of underdefined normals
-    for particle in each_integrated_particle(system)
-        # A corner has that many neighbors assuming a regular 2 * r distribution and a compact_support of 4r
-        if cache.neighbor_count[particle] < 2^ndims(system) + 1
-            cache.surface_normal[1:ndims(system), particle] .= 0
-        end
-    end
-
     return system
 end
 
-# See Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
 function remove_invalid_normals!(system::AbstractFluidSystem,
-                                 surface_tension::Union{SurfaceTensionMorris,
-                                                        SurfaceTensionMomentumMorris},
+                                 surface_tension,
                                  surface_normal_method::ColorfieldSurfaceNormal)
     (; cache, smoothing_kernel) = system
     (; ideal_density_threshold, interface_threshold) = surface_normal_method
     (; neighbor_count) = cache
 
     smoothing_length_ = initial_smoothing_length(system)
+    support_radius = compact_support(smoothing_kernel, smoothing_length_)
+    minimum_neighbor_count = 2^ndims(system) + 1
 
-    # We remove invalid normals i.e. they have a small norm (eq. 20)
-    normal_condition2 = (interface_threshold /
-                         compact_support(smoothing_kernel, smoothing_length_))^2
+    # Eq. 20 in Morris (2000) compares the color-gradient magnitude with ε/h.
+    normal_condition2 = (interface_threshold / support_radius)^2
+    reset_surface_delta!(system, surface_tension)
 
     for particle in each_integrated_particle(system)
-
         # Heuristic condition if there is no gas phase to find the free surface.
-        # We remove normals for particles which have a lot of support e.g. they are in the interior.
-        if ideal_density_threshold > 0 &&
-           ideal_density_threshold *
-           ideal_neighbor_count(Val(ndims(system)), cache.reference_particle_spacing,
-                                compact_support(smoothing_kernel, smoothing_length_)) <
-           neighbor_count[particle]
+        # This must stay disabled for fully supported interfaces between represented phases.
+        is_interior = ideal_density_threshold > 0 &&
+                      ideal_density_threshold *
+                      ideal_neighbor_count(Val(ndims(system)),
+                                           cache.reference_particle_spacing,
+                                           support_radius) < neighbor_count[particle]
+
+        if neighbor_count[particle] < minimum_neighbor_count || is_interior
             cache.surface_normal[1:ndims(system), particle] .= 0
             continue
         end
@@ -176,15 +217,39 @@ function remove_invalid_normals!(system::AbstractFluidSystem,
         particle_surface_normal = surface_normal(system, particle)
         norm2 = dot(particle_surface_normal, particle_surface_normal)
 
-        # See eq. 21
+        # Eq. 21 in Morris (2000) defines the unit normal after rejecting weak gradients.
         if norm2 > normal_condition2
-            cache.surface_normal[1:ndims(system),
-                                 particle] = particle_surface_normal / sqrt(norm2)
+            normal_magnitude = sqrt(norm2)
+            store_surface_delta!(system, surface_tension, particle, normal_magnitude)
+
+            if normalize_surface_normals(surface_tension)
+                cache.surface_normal[1:ndims(system),
+                                     particle] = particle_surface_normal / normal_magnitude
+            end
         else
             cache.surface_normal[1:ndims(system), particle] .= 0
         end
     end
 
+    return system
+end
+
+@inline normalize_surface_normals(surface_tension) = false
+@inline normalize_surface_normals(::SurfaceTensionMorris) = true
+@inline normalize_surface_normals(::SurfaceTensionMomentumMorris) = true
+
+@inline reset_surface_delta!(system, surface_tension) = system
+
+@inline function reset_surface_delta!(system, ::SurfaceTensionMomentumMorris)
+    set_zero!(system.cache.delta_s)
+    return system
+end
+
+@inline store_surface_delta!(system, surface_tension, particle, normal_magnitude) = system
+
+@inline function store_surface_delta!(system, ::SurfaceTensionMomentumMorris, particle,
+                                      normal_magnitude)
+    system.cache.delta_s[particle] = normal_magnitude
     return system
 end
 
@@ -201,7 +266,6 @@ function compute_surface_normal!(system::AbstractFluidSystem,
     set_zero!(cache.surface_normal)
     set_zero!(cache.neighbor_count)
 
-    # TODO: if color values are set only different systems need to be called
     @trixi_timeit timer() "compute surface normal" begin
         foreach_system_wrapped(semi, v_ode,
                                u_ode) do neighbor_system, v_neighbor_system,
