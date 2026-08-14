@@ -24,6 +24,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   useful for monitoring progress in real-time on clusters or batch systems (#1246).
 - Added the number of split integration time steps to the `InfoCallback` output
   when a `SplitIntegrationCallback` is used (#1194).
+
 ### Important Bugfixes
 
 - Fixed signed-distance constraints in `ParticlePackingSystem` when using a separate
