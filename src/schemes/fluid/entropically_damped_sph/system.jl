@@ -38,7 +38,10 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
                                 from the local pressure (default: `true` when using shifting, `false` otherwise).
 - `buffer_size`:                Number of buffer particles.
                                 This is needed when simulating with [`OpenBoundarySystem`](@ref).
-- `correction`:                 Correction method used for this system. (default: no correction, see [Corrections](@ref corrections))
+- `correction`:                 Correction method used for this system. (default: no correction,
+                                see [Corrections](@ref corrections)).
+                                [`AkinciFreeSurfaceCorrection`](@ref) scales viscosity and
+                                Akinci surface-tension forces but not pressure.
 - `source_terms`:               Additional source terms for this system. Has to be either `nothing`
                                 (by default), or a function of `(coords, velocity, density, pressure, t)`
                                 (which are the quantities of a single particle), returning a `Tuple`
@@ -50,14 +53,16 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
                                 The keyword argument `acceleration` should be used instead for
                                 gravity-like source terms.
 - `surface_tension`:            Surface tension model used for this SPH system. (default: no surface tension)
-- `surface_normal_method`:      The surface normal method to be used for this SPH system.
-                                (default: no surface normal method or `ColorfieldSurfaceNormal()` if a surface_tension model is used)
-- `reference_particle_spacing`: The reference particle spacing used for weighting values at the boundary,
-                                which currently is only needed when using surface tension.
-- `color_value`:                Integer label used for calculation of surface normals.
-                                Currently this is only used together with [`BoundaryModelDummyParticles`](@ref) and
-                                [`ColorfieldSurfaceNormal`](@ref): fluid-boundary normal evaluation
-                                reads the resulting boundary colorfield to detect wall contact.
+- `surface_normal_method`:      Method used to estimate fluid-interface normals. This can be
+                                configured independently for interface analysis and output and is
+                                also used by models that require interface geometry. The default is
+                                `nothing`; `ColorfieldSurfaceNormal()` is selected automatically
+                                when the surface tension model requires normals.
+- `reference_particle_spacing`: Reference spacing used by support-based normal validity
+                                checks. It is required when using a surface-normal method.
+- `color_value`:                Integer scalar used by [`ColorfieldSurfaceNormal`](@ref).
+                                Interacting fluid values define fluid-fluid color gradients;
+                                dummy-boundary contact detection also uses the fluid value.
 
 """
 struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, COR, PF, TV,
@@ -119,12 +124,13 @@ function EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel, smooth
         throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
     end
 
-    if surface_tension !== nothing && surface_normal_method === nothing
-        surface_normal_method = ColorfieldSurfaceNormal()
-    end
+    check_akinci_correction(surface_tension, correction)
+
+    surface_normal_method = default_surface_normal_method(surface_tension,
+                                                          surface_normal_method)
 
     if surface_normal_method !== nothing && reference_particle_spacing < eps()
-        throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using `ColorfieldSurfaceNormal` or a surface tension model"))
+        throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using a surface-normal method"))
     end
 
     if correction isa ShepardKernelCorrection &&
@@ -253,6 +259,12 @@ end
 
 system_correction(system::EntropicallyDampedSPHSystem) = system.correction
 
+@inline function surface_normal_density(system::EntropicallyDampedSPHSystem, particle,
+                                        density)
+    return surface_normal_density(system, system.surface_tension, system.correction,
+                                  system.density_calculator, particle, density)
+end
+
 @inline function current_velocity(v, system::EntropicallyDampedSPHSystem)
     return view(v, 1:ndims(system), :)
 end
@@ -299,16 +311,30 @@ function update_quantities!(system::EntropicallyDampedSPHSystem, v, u,
 end
 
 function update_pressure!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, semi, t)
+    compute_akinci_correction_density!(system, system.correction,
+                                       system.density_calculator, u, u_ode, semi)
+
     compute_surface_normal!(system, system.surface_normal_method, v, u, v_ode, u_ode, semi,
                             t)
     compute_surface_delta_function!(system, system.surface_tension, semi)
+end
+
+function compute_akinci_correction_density!(system, correction, density_calculator,
+                                            u, u_ode, semi)
+    return system
+end
+
+function compute_akinci_correction_density!(system, ::AkinciFreeSurfaceCorrection,
+                                            density_calculator, u, u_ode, semi)
+    compute_akinci_correction_density!(system, density_calculator, u, u_ode, semi)
+    return system
 end
 
 function update_final!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, semi, t;
                        kwargs...)
     (; surface_tension) = system
 
-    # Surface normal of neighbor and boundary needs to have been calculated already
+    # Surface-tension formulations using curvature or stress require previously computed normals.
     compute_curvature!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
     compute_stress_tensors!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
     update_average_pressure!(system, system.average_pressure_reduction, v_ode, u_ode, semi)
