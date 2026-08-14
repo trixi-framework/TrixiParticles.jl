@@ -195,7 +195,7 @@ end
 @inline function system_indices(system, semi)
     # Note that this takes only about 5 ns, while mapping systems to indices with a `Dict`
     # is ~30x slower because `hash(::System)` is very slow.
-    index = findfirst(is_equivalent_system, semi.systems)
+    index = findfirst(s -> is_equivalent_system(system, s), semi.systems)
 
     if isnothing(index)
         throw(ArgumentError("system is not in the semidiscretization. Make sure to use
