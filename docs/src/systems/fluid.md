@@ -215,17 +215,20 @@ Pages = [joinpath("general", "corrections.jl")]
 
 ### Overview of surface normal calculation in SPH
 
-Surface normals provide the directionality of forces acting at the fluid interface. They are
-used by the full Akinci model and both Morris models, but not by the cohesion-only Akinci model.
-They are calculated based on the particle properties and their spatial distribution.
+Surface normals characterize the local orientation of an interface. In SPH, this geometric
+information can be used for interface detection and reconstruction, curvature estimation,
+interfacial boundary conditions, and interfacial force models. The computed normal field is also
+available for analysis and VTK output.
 
 #### Color field and gradient-based surface normals
 
-The surface normal at a particle is derived from the color field, a scalar field assigned to particles
-to distinguish between different fluid phases or between fluid and air. The color field gradients point
-towards the interface, and the normalized gradient defines the surface normal direction.
+The surface normal at a particle can be derived from a color field, a scalar marker used to
+distinguish phases or materials. Its gradient is perpendicular to the color-field level sets and
+therefore provides an interface-normal estimate; its orientation depends on the chosen color
+convention. For a free surface whose exterior phase is not represented by particles, truncation of
+the kernel support creates the corresponding discrete color-field gradient.
 
-The simplest SPH formulation for a surface normal, ``n_a`` is given as
+The simplest SPH approximation of an unnormalized color-field normal, ``n_a``, is
 
 ```math
 n_a = \sum_b m_b \frac{c_b}{\rho_b} \nabla_a W_{ab},
@@ -238,23 +241,117 @@ where:
 - ``\rho_b`` is the density of particle ``b``,
 - ``\nabla_a W_{ab}`` is the gradient of the smoothing kernel ``W_{ab}`` with respect to particle ``a``.
 
+```@eval
+using CairoMakie
+
+let
+    coordinate = range(-2.0, 2.0, length=401)
+    interface_width = 0.3
+    colorfield = @. 0.5 * (1.0 - tanh(coordinate / interface_width))
+    colorfield_gradient = @. -0.5 / interface_width /
+                             cosh(coordinate / interface_width)^2
+
+    fig = Figure(size=(1000, 430), fontsize=18)
+    color_axis = Axis(fig[1, 1],
+                      xlabel="signed distance s/h", ylabel="color field c",
+                      title="Diffuse color-field transition")
+    gradient_axis = Axis(fig[1, 2],
+                         xlabel="signed distance s/h", ylabel="dc/d(s/h)",
+                         title="Color-field gradient")
+
+    lines!(color_axis, coordinate, colorfield, color=:steelblue, linewidth=3)
+    lines!(gradient_axis, coordinate, colorfield_gradient, color=:darkorange,
+           linewidth=3)
+    vlines!(color_axis, [0.0], color=:black, linestyle=:dash, linewidth=2)
+    vlines!(gradient_axis, [0.0], color=:black, linestyle=:dash, linewidth=2)
+    hlines!(gradient_axis, [0.0], color=(:black, 0.35), linewidth=1)
+    xlims!(color_axis, extrema(coordinate))
+    xlims!(gradient_axis, extrema(coordinate))
+
+    CairoMakie.save("colorfield_profile.png", fig)
+end
+```
+
+![A diffuse color field and its gradient across an interface](colorfield_profile.png)
+
+The color field is approximately constant within either phase. Its gradient is localized in the
+transition region and vanishes away from the interface. The sign of the gradient determines the
+normal orientation; exchanging the two color values reverses that orientation.
+
 #### Normalization of surface normals
 
-The calculated normals are normalized to unit vectors:
+The color-field gradient ``n_a`` is generally not a unit vector. Formulations that require only
+the interface orientation use the unit normal
 
 ```math
 \hat{n}_a = \frac{n_a}{\Vert n_a \Vert}.
 ```
 
-Normalization ensures that the magnitude of the normals does not bias the curvature calculations or the resulting surface tension forces.
+Normalization separates the interface orientation from the magnitude of the discrete color-field
+gradient. In TrixiParticles, the Morris formulations use unit normals for curvature or surface-stress
+calculations, while the Akinci surface-area force uses the unnormalized gradient.
+
+```@eval
+using CairoMakie
+
+let
+    coordinate = range(-1.35, 1.35, length=241)
+    radius = 0.85
+    interface_width = 0.1
+    colorfield = [0.5 * (1.0 - tanh((hypot(x, y) - radius) / interface_width))
+                  for x in coordinate, y in coordinate]
+
+    particle_spacing = 0.17
+    particle_coordinates = [(x, y) for x in (-radius):particle_spacing:radius
+                             for y in (-radius):particle_spacing:radius
+                             if hypot(x, y) <= radius]
+    particle_x = first.(particle_coordinates)
+    particle_y = last.(particle_coordinates)
+
+    angles = range(0.0, 2pi, length=13)[1:(end - 1)]
+    normal_x = -cos.(angles)
+    normal_y = -sin.(angles)
+    interface_x = radius .* cos.(angles)
+    interface_y = radius .* sin.(angles)
+
+    fig = Figure(size=(760, 650), fontsize=18)
+    axis = Axis(fig[1, 1], aspect=DataAspect(),
+                xlabel="x/h", ylabel="y/h",
+                title="Interface orientation from the color-field gradient")
+    heatmap = heatmap!(axis, coordinate, coordinate, colorfield,
+                       colormap=:viridis, colorrange=(0.0, 1.0))
+    contour!(axis, coordinate, coordinate, colorfield,
+             levels=[0.1, 0.9], color=(:white, 0.8), linewidth=1.5)
+    contour!(axis, coordinate, coordinate, colorfield,
+             levels=[0.5], color=:white, linewidth=3)
+    scatter!(axis, particle_x, particle_y, color=(:black, 0.35), markersize=5)
+    arrows2d!(axis, interface_x, interface_y, normal_x, normal_y,
+              normalize=true, lengthscale=0.3, color=:black,
+              shaftwidth=3, tipwidth=14, tiplength=10)
+    xlims!(axis, extrema(coordinate))
+    ylims!(axis, extrema(coordinate))
+    Colorbar(fig[1, 2], heatmap, label="color field c")
+
+    CairoMakie.save("colorfield_surface_normals.png", fig)
+end
+```
+
+![Color-field level sets and interface-normal directions](colorfield_surface_normals.png)
+
+The particle phase has ``c \approx 1`` and the exterior has ``c \approx 0``. Consequently,
+``\nabla c`` and the displayed unit normals point toward increasing ``c``. The arrows are
+perpendicular to the color-field level sets; reversing the color convention reverses the arrows
+without changing the interface geometry.
 
 #### Handling noise and errors in normal calculation
 
-In regions distant from the interface, the calculated normals may be small or inaccurate due to the
-smoothing kernel's support radius. To mitigate this:
+Away from an interface, the exact color-field gradient vanishes, but particle disorder and
+incomplete kernel support can produce small or poorly resolved normal estimates. To mitigate this:
 
-1. Normals below a threshold are excluded from further calculations.
-2. Curvature calculations use a corrected formulation to reduce errors near interface fringes.
+1. Normals with insufficient particle support are discarded.
+2. Morris-type calculations reject small gradients and can suppress normals in well-resolved
+   interior regions.
+3. Curvature calculations use a corrected formulation to reduce errors near interface fringes.
 
 ```@autodocs
 Modules = [TrixiParticles]

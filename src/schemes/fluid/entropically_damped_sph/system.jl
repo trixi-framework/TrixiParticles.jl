@@ -50,9 +50,11 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
                                 The keyword argument `acceleration` should be used instead for
                                 gravity-like source terms.
 - `surface_tension`:            Surface tension model used for this SPH system. (default: no surface tension)
-- `surface_normal_method`:      The surface normal method to be used for this SPH system.
-                                (default: no surface normal method or `ColorfieldSurfaceNormal()`
-                                if the surface tension model requires normals)
+- `surface_normal_method`:      Method used to estimate fluid-interface normals. This can be
+                                configured independently for interface analysis and output and is
+                                also used by models that require interface geometry. The default is
+                                `nothing`; `ColorfieldSurfaceNormal()` is selected automatically
+                                when the surface tension model requires normals.
 - `reference_particle_spacing`: The reference particle spacing used for weighting values at the boundary,
                                 which is needed when using a surface-normal method.
 - `color_value`:                Integer label used for calculation of surface normals.
@@ -308,7 +310,7 @@ function update_final!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, 
                        kwargs...)
     (; surface_tension) = system
 
-    # Surface normal of neighbor and boundary needs to have been calculated already
+    # Surface-tension formulations using curvature or stress require previously computed normals.
     compute_curvature!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
     compute_stress_tensors!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
     update_average_pressure!(system, system.average_pressure_reduction, v_ode, u_ode, semi)

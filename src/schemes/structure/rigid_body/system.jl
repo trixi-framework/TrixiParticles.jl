@@ -36,7 +36,7 @@ torque and applied consistently to all rigid particles.
                  colorfield initialization so fluids using
                  [`ColorfieldSurfaceNormal`](@ref) can detect contact with rigid
                  bodies, it participates in the multi-system color sanity check for
-                 surface-tension setups, and it is written to VTK output as `"color"`.
+                 colorfield-normal calculations, and it is written to VTK output as `"color"`.
 """
 struct RigidBodySystem{BM, CTM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
                        ST, CM, CMV, I, II, AV, RF, RT, AAF, GA, C} <:
@@ -642,7 +642,7 @@ function check_configuration(system::RigidBodySystem, systems, nhs)
                 throw(ArgumentError("`RigidBodySystem` with `BoundaryModelDummyParticles` " *
                                     "requires `reference_particle_spacing` to be set on " *
                                     "the boundary model when used together with " *
-                                    "`ColorfieldSurfaceNormal` or a surface tension model."))
+                                    "`ColorfieldSurfaceNormal`."))
             end
         end
     end

@@ -58,11 +58,11 @@
                                             state_equation=StateEquationCole(sound_speed=10.0,
                                                                              reference_density=1.0,
                                                                              exponent=1),
-                                            surface_tension)
+                                            surface_tension, color_value=0)
         edac = EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel,
                                            smoothing_length, sound_speed=10.0,
                                            density_calculator=SummationDensity(),
-                                           surface_tension)
+                                           surface_tension, color_value=0)
 
         for system in (wcsph, edac)
             @test isnothing(system.surface_normal_method)
@@ -78,6 +78,8 @@
             @test all(isfinite, dv_ode)
             @test any(!iszero, dv_ode)
         end
+
+        @test isnothing(TrixiParticles.check_system_color((wcsph, edac)))
 
         @test_throws ArgumentError WeaklyCompressibleSPHSystem(initial_condition;
                                                                smoothing_kernel,
@@ -101,9 +103,11 @@
                                                                                    reference_density=1.0,
                                                                                    exponent=1),
                                                   surface_tension=SurfaceTensionAkinci(),
-                                                  reference_particle_spacing=1.0)
+                                                  reference_particle_spacing=1.0,
+                                                  color_value=0)
         @test full_akinci.surface_normal_method isa ColorfieldSurfaceNormal
         @test haskey(full_akinci.cache, :surface_normal)
+        @test_throws ArgumentError TrixiParticles.check_system_color((full_akinci, wcsph))
     end
 
     @testset "zero Morris coefficient does not restrict the time step" begin

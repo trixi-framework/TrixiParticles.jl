@@ -2,7 +2,9 @@
     ColorfieldSurfaceNormal(; boundary_contact_threshold=0.1, interface_threshold=0.01,
                               ideal_density_threshold=0.0)
 
-Color field based computation of the interface normals.
+Color-field-based computation of fluid-interface normals. Interface normals describe local
+interface geometry and can be computed for analysis, output, or use by models that require
+interface orientation.
 
 # Keywords
 - `boundary_contact_threshold=0.1`: If this threshold is reached the fluid is assumed to be in contact with the boundary.
