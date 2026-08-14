@@ -264,11 +264,11 @@ Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
     [trixi-framework/Trixi.jl#1583](https://github.com/trixi-framework/Trixi.jl/issues/1583).
 - `restart_with=nothing`: Restart the simulation from VTK solution files created by
     [`SolutionSavingCallback`](@ref). This can be either `nothing` (default, no restart) or
-    a tuple of filenames, one for each system in the [`Semidiscretization`](@ref). The tuple
-    order must match the system order. When restarting, `semidiscretize` replaces the initial
-    time (`tspan[1]`) with the timestamp read from the VTK files. If the provided `tspan[1]`
-    does not match the restart time, it is adjusted and an info message is logged. Timestamps
-    in multiple files must match.
+     a tuple of filenames, one for each system in the [`Semidiscretization`](@ref). The tuple
+     order must match the system order. When restarting, `semidiscretize` replaces the initial
+     time (`tspan[1]`) with the timestamp read from the VTK files. If the provided `tspan[1]`
+     does not match the restart time, it is adjusted and an info message is logged. Timestamps
+     in multiple files must match.
 
 # Returns
 A `DynamicalODEProblem` (see [the OrdinaryDiffEq.jl docs](https://docs.sciml.ai/DiffEqDocs/stable/types/dynamical_types/))
