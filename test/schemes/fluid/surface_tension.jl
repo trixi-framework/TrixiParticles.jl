@@ -192,7 +192,8 @@
             distance = 0.75f0 * support_radius
             force = TrixiParticles.cohesion_force_akinci(surface_tension_f32,
                                                          support_radius, 1.0f0,
-                                                         Float32[distance, 0], distance)
+                                                         Float32[distance, 0], distance,
+                                                         Val(3))
             expected = Float32(-32 / pi * (1 - 0.75)^3 * 0.75^3 /
                                Float64(support_radius)^3)
             @test eltype(force) == Float32
@@ -263,7 +264,7 @@
             force = TrixiParticles.adhesion_force_akinci(surface_tension,
                                                          support_radius, 1.0f0,
                                                          Float32[distance, 0], distance,
-                                                         1.0f0)
+                                                         1.0f0, Val(3))
             expected = Float32(-0.007 / Float64(support_radius)^3 / sqrt(2))
             @test all(isfinite, force)
             @test isapprox(force[1], expected; rtol=4eps(Float32))
