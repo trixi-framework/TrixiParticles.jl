@@ -8,6 +8,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### API Changes
 
+- `SurfaceTensionAkinci` now requires `AkinciFreeSurfaceCorrection`, which implements the
+  neighborhood-deficiency factor required by the published combined force.
 - Akinci cohesion and adhesion kernels now use dimensionally consistent, integral-matched
   normalizations in 2D. To preserve previous pairwise kernel contributions at compact-support
   radius `h_c`, multiply the surface-tension coefficient by `627 / (790 * h_c)` and the

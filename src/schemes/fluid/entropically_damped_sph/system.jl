@@ -124,6 +124,8 @@ function EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel, smooth
         throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
     end
 
+    check_akinci_correction(surface_tension, correction)
+
     surface_normal_method = default_surface_normal_method(surface_tension,
                                                           surface_normal_method)
 

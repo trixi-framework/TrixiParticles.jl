@@ -135,6 +135,15 @@ end
 @inline requires_surface_normal(::CohesionForceAkinci) = false
 @inline requires_surface_normal(::Any) = true
 
+function check_akinci_correction(surface_tension, correction)
+    if surface_tension isa SurfaceTensionAkinci &&
+       !(correction isa AkinciFreeSurfaceCorrection)
+        throw(ArgumentError("`SurfaceTensionAkinci` requires `AkinciFreeSurfaceCorrection`"))
+    end
+
+    return surface_tension
+end
+
 function create_cache_surface_tension(::SurfaceTensionMomentumMorris, ELTYPE, NDIMS,
                                       nparticles)
     delta_s = Array{ELTYPE, 1}(undef, nparticles)

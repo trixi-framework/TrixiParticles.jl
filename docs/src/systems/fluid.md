@@ -521,6 +521,8 @@ the fluid-fluid surface force. Wall adhesion is controlled independently by the 
 It does not require surface normals or `reference_particle_spacing`. The full
 `SurfaceTensionAkinci` model and both Morris models require a surface-normal method. When one
 of these models is selected without an explicit method, `ColorfieldSurfaceNormal()` is used.
+The full Akinci model also requires `AkinciFreeSurfaceCorrection`, which supplies the
+particle-neighborhood correction in Equations 4 and 5 of Akinci et al.
 
 !!! note "Akinci kernels in two dimensions"
     Akinci et al. published the cohesion and adhesion kernels for three dimensions. In two

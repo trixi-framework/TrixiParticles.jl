@@ -132,6 +132,8 @@ function WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
         throw(ArgumentError("`ShepardKernelCorrection` cannot be used with `ContinuityDensity`"))
     end
 
+    check_akinci_correction(surface_tension, correction)
+
     surface_normal_method = default_surface_normal_method(surface_tension,
                                                           surface_normal_method)
 

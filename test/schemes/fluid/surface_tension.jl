@@ -87,13 +87,32 @@
                                                                state_equation=StateEquationCole(sound_speed=10.0,
                                                                                                 reference_density=1.0,
                                                                                                 exponent=1),
-                                                               surface_tension=SurfaceTensionAkinci())
+                                                               surface_tension=SurfaceTensionAkinci(),
+                                                               correction=AkinciFreeSurfaceCorrection(1.0))
         @test_throws ArgumentError EntropicallyDampedSPHSystem(initial_condition;
                                                                smoothing_kernel,
                                                                smoothing_length,
                                                                sound_speed=10.0,
                                                                density_calculator=SummationDensity(),
-                                                               surface_tension=SurfaceTensionAkinci())
+                                                               surface_tension=SurfaceTensionAkinci(),
+                                                               correction=AkinciFreeSurfaceCorrection(1.0))
+
+        @test_throws ArgumentError WeaklyCompressibleSPHSystem(initial_condition;
+                                                               smoothing_kernel,
+                                                               smoothing_length,
+                                                               density_calculator=SummationDensity(),
+                                                               state_equation=StateEquationCole(sound_speed=10.0,
+                                                                                                reference_density=1.0,
+                                                                                                exponent=1),
+                                                               surface_tension=SurfaceTensionAkinci(),
+                                                               reference_particle_spacing=1.0)
+        @test_throws ArgumentError EntropicallyDampedSPHSystem(initial_condition;
+                                                               smoothing_kernel,
+                                                               smoothing_length,
+                                                               sound_speed=10.0,
+                                                               density_calculator=SummationDensity(),
+                                                               surface_tension=SurfaceTensionAkinci(),
+                                                               reference_particle_spacing=1.0)
 
         full_akinci = WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
                                                   smoothing_length,
@@ -102,6 +121,7 @@
                                                                                    reference_density=1.0,
                                                                                    exponent=1),
                                                   surface_tension=SurfaceTensionAkinci(),
+                                                  correction=AkinciFreeSurfaceCorrection(1.0),
                                                   reference_particle_spacing=1.0,
                                                   color_value=0)
         @test full_akinci.surface_normal_method isa ColorfieldSurfaceNormal
