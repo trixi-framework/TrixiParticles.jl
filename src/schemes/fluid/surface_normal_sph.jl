@@ -52,8 +52,6 @@ end
     return extract_svector(cache.surface_normal, particle_system, particle)
 end
 
-@inline surface_normal_density(system, particle, density) = density
-
 function calc_normal!(system, neighbor_system, u_system, v, v_neighbor_system,
                       u_neighbor_system, semi, surface_normal_method,
                       neighbor_surface_normal_method)
@@ -79,8 +77,6 @@ function calc_normal!(system::AbstractFluidSystem, neighbor_system::AbstractFlui
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
         density_neighbor = current_density(v_neighbor_system,
                                            neighbor_system, neighbor)
-        density_neighbor = surface_normal_density(neighbor_system, neighbor,
-                                                  density_neighbor)
         grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
         for i in 1:ndims(system)
             cache.surface_normal[i, particle] += m_b / density_neighbor * grad_kernel[i]

@@ -500,7 +500,6 @@
                                                        density_calculator=SummationDensity(),
                                                        state_equation,
                                                        surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.05),
-                                                       correction=AkinciFreeSurfaceCorrection(fluid_density),
                                                        reference_particle_spacing=particle_spacing)
 
             boundary_coordinates = reshape([1.5, 0.0], 2, 1)

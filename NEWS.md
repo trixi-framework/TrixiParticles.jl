@@ -8,10 +8,9 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Important Bugfixes
 
-- Hardened surface tension model configuration by validating coefficients, avoiding unnecessary
-  surface-normal allocation for `CohesionForceAkinci`, requiring the published free-surface
-  correction for the full Akinci model, stabilizing Akinci kernels across floating-point scales,
-  and conserving pair momentum across unequal particle masses and smoothing lengths.
+- Hardened surface tension model configuration by validating coefficients and surface-normal
+  thresholds, avoiding unnecessary normal allocation for `CohesionForceAkinci`, and stabilizing
+  Akinci cohesion and adhesion kernels across floating-point scales.
 
 ## Version 0.5.3
 

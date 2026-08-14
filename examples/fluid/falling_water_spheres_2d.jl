@@ -61,8 +61,6 @@ viscosity = ArtificialViscosityMonaghan(; alpha, beta=0.0)
 density_diffusion = DensityDiffusionAntuono(delta=0.1)
 surface_tension_coefficient = 0.05
 surface_tension = SurfaceTensionAkinci(; surface_tension_coefficient)
-surface_tension_correction = surface_tension isa SurfaceTensionAkinci ?
-                             AkinciFreeSurfaceCorrection(fluid_density) : nothing
 
 sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1;
                                                      smoothing_kernel=fluid_smoothing_kernel,
@@ -70,7 +68,6 @@ sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1;
                                                      sound_speed, viscosity,
                                                      density_calculator=ContinuityDensity(),
                                                      acceleration, surface_tension,
-                                                     correction=surface_tension_correction,
                                                      reference_particle_spacing=fluid_particle_spacing)
 
 sphere = WeaklyCompressibleSPHSystem(sphere2; smoothing_kernel=fluid_smoothing_kernel,

@@ -126,15 +126,6 @@ end
 @inline requires_surface_normal(::CohesionForceAkinci) = false
 @inline requires_surface_normal(::Any) = true
 
-function check_akinci_correction(surface_tension, correction)
-    if surface_tension isa SurfaceTensionAkinci &&
-       !(correction isa AkinciFreeSurfaceCorrection)
-        throw(ArgumentError("`SurfaceTensionAkinci` requires `AkinciFreeSurfaceCorrection`"))
-    end
-
-    return surface_tension
-end
-
 function create_cache_surface_tension(::SurfaceTensionMomentumMorris, ELTYPE, NDIMS,
                                       nparticles)
     delta_s = Array{ELTYPE, 1}(undef, nparticles)
@@ -154,14 +145,10 @@ end
 # By using the `@fastpow` macro, we are consciously trading off some precision in the result
 # for enhanced computational speed. This is especially useful in scenarios where performance
 # is a higher priority than exact precision.
-@inline function cohesion_force_akinci(surface_tension, support_radius, m_b, pos_diff,
-                                       distance)
-    return cohesion_force_akinci(surface_tension.surface_tension_coefficient,
-                                 support_radius, m_b, pos_diff, distance)
-end
+@fastpow @inline function cohesion_force_akinci(surface_tension, support_radius, m_b,
+                                                pos_diff, distance)
+    (; surface_tension_coefficient) = surface_tension
 
-@fastpow @inline function cohesion_force_akinci(surface_tension_coefficient::Real,
-                                                support_radius, m_b, pos_diff, distance)
     distance >= support_radius && return zero(pos_diff)
 
     # Eq. 2 in dimensionless form avoids scale-dependent powers up to `support_radius^9`.
@@ -185,24 +172,6 @@ end
     cohesion_force = -surface_tension_coefficient * m_b * C * pos_diff / distance
 
     return cohesion_force
-end
-
-@inline function pair_support_radius_akinci(particle_system, neighbor_system, particle,
-                                            neighbor)
-    support_radius_a = compact_support(system_smoothing_kernel(particle_system),
-                                       smoothing_length(particle_system, particle))
-    support_radius_b = compact_support(system_smoothing_kernel(neighbor_system),
-                                       smoothing_length(neighbor_system, neighbor))
-    # Both directed interaction passes are guaranteed to contain pairs inside this radius.
-    return min(support_radius_a, support_radius_b)
-end
-
-# This symmetric numerical default preserves pair momentum. A physical multiphase model can
-# specialize this function once interfacial coefficients are represented explicitly.
-@inline function pair_surface_tension_coefficient_akinci(surface_tension_a,
-                                                         surface_tension_b)
-    return (surface_tension_a.surface_tension_coefficient +
-            surface_tension_b.surface_tension_coefficient) / 2
 end
 
 @inline function adhesion_force_akinci(surface_tension, support_radius, m_b, pos_diff,
@@ -242,17 +211,17 @@ end
                                         particle, neighbor, pos_diff, distance,
                                         rho_a, rho_b, grad_kernel,
                                         surface_tension_correction)
+    (; smoothing_kernel) = particle_system
+
     # No cohesion with oneself. See `src/general/smoothing_kernels.jl` for more details.
     distance^2 < eps(initial_smoothing_length(particle_system)^2) && return dv_particle
 
     m_b = hydrodynamic_mass(neighbor_system, neighbor)
-    support_radius = pair_support_radius_akinci(particle_system, neighbor_system, particle,
-                                                neighbor)
-    surface_tension_coefficient = pair_surface_tension_coefficient_akinci(surface_tension_a,
-                                                                          surface_tension_b)
+    support_radius = compact_support(smoothing_kernel,
+                                     smoothing_length(particle_system, particle))
 
     dv_particle[] += surface_tension_correction *
-                     cohesion_force_akinci(surface_tension_coefficient, support_radius, m_b,
+                     cohesion_force_akinci(surface_tension_a, support_radius, m_b,
                                            pos_diff, distance)
 
     return dv_particle
@@ -266,28 +235,23 @@ end
                                         neighbor,
                                         pos_diff, distance, rho_a, rho_b, grad_kernel,
                                         surface_tension_correction)
+    (; smoothing_kernel) = particle_system
+    (; surface_tension_coefficient) = surface_tension_a
+
+    smoothing_length_ = smoothing_length(particle_system, particle)
     # No surface tension with oneself. See `src/general/smoothing_kernels.jl` for more details.
     distance^2 < eps(initial_smoothing_length(particle_system)^2) && return dv_particle
 
-    m_a = hydrodynamic_mass(particle_system, particle)
     m_b = hydrodynamic_mass(neighbor_system, neighbor)
     n_a = surface_normal(particle_system, particle)
     n_b = surface_normal(neighbor_system, neighbor)
-    smoothing_length_a = smoothing_length(particle_system, particle)
-    smoothing_length_b = smoothing_length(neighbor_system, neighbor)
-    support_radius = pair_support_radius_akinci(particle_system, neighbor_system, particle,
-                                                neighbor)
-    distance >= support_radius && return dv_particle
-    surface_tension_coefficient = pair_surface_tension_coefficient_akinci(surface_tension_a,
-                                                                          surface_tension_b)
+    support_radius = compact_support(smoothing_kernel, smoothing_length_)
 
     dv_particle[] += surface_tension_correction *
-                     cohesion_force_akinci(surface_tension_coefficient, support_radius, m_b,
+                     cohesion_force_akinci(surface_tension_a, support_radius, m_b,
                                            pos_diff, distance)
-    normal_difference = smoothing_length_a * n_a - smoothing_length_b * n_b
-    neighbor_mass_weight = 2 * m_b / (m_a + m_b)
     dv_particle[] -= surface_tension_correction * surface_tension_coefficient *
-                     neighbor_mass_weight * normal_difference
+                     (n_a - n_b) * smoothing_length_
 
     return dv_particle
 end

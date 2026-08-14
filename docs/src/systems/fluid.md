@@ -240,15 +240,13 @@ where:
 
 #### Normalization of surface normals
 
-Models that require only the normal direction normalize the calculated gradient:
+The calculated normals are normalized to unit vectors:
 
 ```math
 \hat{n}_a = \frac{n_a}{\Vert n_a \Vert}.
 ```
 
-The Morris models use this unit normal. The Akinci surface-area term instead retains the raw
-gradient magnitude and multiplies it by the particle smoothing length, as required by the
-published formulation.
+Normalization ensures that the magnitude of the normals does not bias the curvature calculations or the resulting surface tension forces.
 
 #### Handling noise and errors in normal calculation
 
@@ -301,8 +299,6 @@ the fluid-fluid surface force. Wall adhesion is controlled independently by the 
 It does not require surface normals or `reference_particle_spacing`. The full
 `SurfaceTensionAkinci` model and both Morris models require a surface-normal method. When one
 of these models is selected without an explicit method, `ColorfieldSurfaceNormal()` is used.
-The full Akinci model also requires `AkinciFreeSurfaceCorrection`, which supplies the
-particle-neighborhood correction in Equations 4 and 5 of Akinci et al.
 
 ### [Akinci-based intra-particle force surface tension and wall adhesion model](@id akinci_ipf)
 
@@ -337,39 +333,14 @@ C(r)=\frac{32}{\pi h_c^9}
 
 #### Surface area minimization force
 
-The surface area minimization force models curvature reduction. Let ``n_i`` denote the raw color
-gradient and ``N_i=h_i n_i`` its dimensionless Akinci normal. For equal particle masses, the
-published pair force is
+The surface area minimization force models the curvature reduction effects, aligning particle motion to reduce the interface's total area.
+It acts based on the difference in surface normals:
 
 ```math
-F_{a\leftarrow b}^{\text{curvature}} = -\sigma m_a(N_a-N_b),
+F_{\text{curvature}} = -\sigma (n_a - n_b),
 ```
 
-For equal particle masses and smoothing lengths, this is the published Akinci discretization.
-For adaptive resolution, TrixiParticles forms the dimensionless normals
-``N_i=h_i n_i`` and uses the symmetric pair force
-
-```math
-F_{a\leftarrow b}^{\text{curvature}} =
--\sigma\frac{2m_am_b}{m_a+m_b}(N_a-N_b).
-```
-
-For a shared correction factor, the corresponding accelerations are equal and opposite after
-multiplication by particle mass, and reduce to the published expression when ``m_a=m_b``. The
-cohesion and curvature forces use the smaller of the two compact-support radii. This guarantees
-that both directed neighborhood searches contain every active pair. Coefficients from two
-different materials are averaged only as a conservative numerical default; this is not a physical
-multiphase interfacial-tension law. A future multiphase model must represent the independent pair
-coefficient and the pair reference density explicitly.
-
-Both Akinci contributions are multiplied by the required neighborhood-deficiency correction
-
-```math
-K_{ab}=\frac{2\rho_0}{\rho_a+\rho_b},
-```
-
-implemented by `AkinciFreeSurfaceCorrection`. With `ContinuityDensity`, an auxiliary summation
-density is reconstructed for this correction so that missing neighbors remain observable.
+where ``n_a`` and ``n_b`` are the surface normals of the interacting particles.
 
 #### Wall adhesion force
 

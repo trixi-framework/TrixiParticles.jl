@@ -86,32 +86,13 @@
                                                                state_equation=StateEquationCole(sound_speed=10.0,
                                                                                                 reference_density=1.0,
                                                                                                 exponent=1),
-                                                               surface_tension=SurfaceTensionAkinci(),
-                                                               correction=AkinciFreeSurfaceCorrection(1.0))
+                                                               surface_tension=SurfaceTensionAkinci())
         @test_throws ArgumentError EntropicallyDampedSPHSystem(initial_condition;
                                                                smoothing_kernel,
                                                                smoothing_length,
                                                                sound_speed=10.0,
                                                                density_calculator=SummationDensity(),
-                                                               surface_tension=SurfaceTensionAkinci(),
-                                                               correction=AkinciFreeSurfaceCorrection(1.0))
-
-        @test_throws ArgumentError WeaklyCompressibleSPHSystem(initial_condition;
-                                                               smoothing_kernel,
-                                                               smoothing_length,
-                                                               density_calculator=SummationDensity(),
-                                                               state_equation=StateEquationCole(sound_speed=10.0,
-                                                                                                reference_density=1.0,
-                                                                                                exponent=1),
-                                                               surface_tension=SurfaceTensionAkinci(),
-                                                               reference_particle_spacing=1.0)
-        @test_throws ArgumentError EntropicallyDampedSPHSystem(initial_condition;
-                                                               smoothing_kernel,
-                                                               smoothing_length,
-                                                               sound_speed=10.0,
-                                                               density_calculator=SummationDensity(),
-                                                               surface_tension=SurfaceTensionAkinci(),
-                                                               reference_particle_spacing=1.0)
+                                                               surface_tension=SurfaceTensionAkinci())
 
         full_akinci = WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
                                                   smoothing_length,
@@ -120,45 +101,9 @@
                                                                                    reference_density=1.0,
                                                                                    exponent=1),
                                                   surface_tension=SurfaceTensionAkinci(),
-                                                  correction=AkinciFreeSurfaceCorrection(1.0),
                                                   reference_particle_spacing=1.0)
         @test full_akinci.surface_normal_method isa ColorfieldSurfaceNormal
         @test haskey(full_akinci.cache, :surface_normal)
-    end
-
-    @testset "EDAC applies the Akinci free-surface correction" begin
-        function initial_acceleration(density_calculator, correction)
-            rho0 = 1.0
-            initial_condition = InitialCondition(; coordinates=[0.0 1.0; 0.0 0.0],
-                                                 velocity=zeros(2, 2), mass=ones(2),
-                                                 density=ones(2), particle_spacing=1.0)
-            system = EntropicallyDampedSPHSystem(initial_condition;
-                                                 smoothing_kernel=WendlandC2Kernel{2}(),
-                                                 smoothing_length=1.0, sound_speed=10.0,
-                                                 density_calculator, correction,
-                                                 surface_tension=CohesionForceAkinci(surface_tension_coefficient=0.1))
-            semi = Semidiscretization(system)
-            ode = semidiscretize(semi, (0.0, 0.1))
-            v_ode, u_ode = ode.u0.x
-            dv_ode = zero(v_ode)
-            TrixiParticles.kick!(dv_ode, v_ode, u_ode, ode.p, 0.0)
-            dv = TrixiParticles.wrap_v(dv_ode, system, semi)
-            v = TrixiParticles.wrap_v(v_ode, system, semi)
-            density = TrixiParticles.current_density(v, system, 1)
-            correction_density = TrixiParticles.correction_density(correction, system, 1,
-                                                                   density)
-            return copy(dv[1:2, :]), rho0 / correction_density
-        end
-
-        for density_calculator in (SummationDensity(), ContinuityDensity())
-            corrected,
-            correction_factor = initial_acceleration(density_calculator,
-                                                     AkinciFreeSurfaceCorrection(1.0))
-            uncorrected, _ = initial_acceleration(density_calculator, nothing)
-            @test correction_factor > 1
-            @test maximum(abs, uncorrected) > 0
-            @test isapprox(corrected, correction_factor * uncorrected; rtol=2eps())
-        end
     end
 
     @testset "zero Morris coefficient does not restrict the time step" begin
@@ -315,64 +260,6 @@
             @test isapprox(force[1], expected; rtol=4eps(Float32))
             @test iszero(force[2])
         end
-    end
-
-    @testset "adaptive Akinci pair force conserves momentum" begin
-        surface_tension_a = SurfaceTensionAkinci(surface_tension_coefficient=0.8)
-        surface_tension_b = SurfaceTensionAkinci(surface_tension_coefficient=0.2)
-        correction = AkinciFreeSurfaceCorrection(1.0)
-        smoothing_kernel = WendlandC2Kernel{2}()
-        state_equation = StateEquationCole(sound_speed=10.0, reference_density=1.0,
-                                           exponent=1)
-
-        function system_at(coordinate, mass, density, smoothing_length, surface_tension)
-            initial_condition = InitialCondition(;
-                                                 coordinates=reshape([coordinate, 0.0],
-                                                                     2, 1),
-                                                 velocity=zeros(2, 1), mass=[mass],
-                                                 density=[density], particle_spacing=0.25)
-            return WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
-                                               smoothing_length,
-                                               density_calculator=SummationDensity(),
-                                               state_equation, surface_tension, correction,
-                                               reference_particle_spacing=0.25)
-        end
-
-        mass_a, mass_b = 1.0, 4.0
-        smoothing_length_a, smoothing_length_b = 0.5, 1.0
-        system_a = system_at(0.0, mass_a, 1.0, smoothing_length_a,
-                             surface_tension_a)
-        system_b = system_at(0.6, mass_b, 1.0, smoothing_length_b,
-                             surface_tension_b)
-        system_a.cache.surface_normal[:, 1] .= (1 / smoothing_length_a, 0.0)
-        system_b.cache.surface_normal[:, 1] .= (0.0, 0.0)
-
-        pos_diff = SVector(-0.6, 0.0)
-        acceleration_a = Ref(zero(pos_diff))
-        acceleration_b = Ref(zero(pos_diff))
-        TrixiParticles.surface_tension_force!(acceleration_a, surface_tension_a,
-                                              surface_tension_b, system_a, system_b,
-                                              1, 1, pos_diff, norm(pos_diff), 1.0, 1.0,
-                                              zero(pos_diff), 1)
-        TrixiParticles.surface_tension_force!(acceleration_b, surface_tension_b,
-                                              surface_tension_a, system_b, system_a,
-                                              1, 1, -pos_diff, norm(pos_diff), 1.0, 1.0,
-                                              zero(pos_diff), 1)
-
-        @test mass_a * acceleration_a[] ≈ -mass_b * acceleration_b[]
-        @test TrixiParticles.pair_surface_tension_coefficient_akinci(surface_tension_a,
-                                                                     surface_tension_b) ==
-              0.5
-        @test TrixiParticles.pair_support_radius_akinci(system_a, system_b, 1, 1) ≈ 1.0
-
-        outside_shared_support = SVector(-1.2, 0.0)
-        acceleration = Ref(zero(outside_shared_support))
-        TrixiParticles.surface_tension_force!(acceleration, surface_tension_a,
-                                              surface_tension_b, system_a, system_b,
-                                              1, 1, outside_shared_support,
-                                              norm(outside_shared_support), 1.0, 1.0,
-                                              zero(outside_shared_support), 1)
-        @test iszero(acceleration[])
     end
 
     @testset "compute_stress_tensors! (MomentumMorris)" begin
