@@ -50,14 +50,16 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
                                 The keyword argument `acceleration` should be used instead for
                                 gravity-like source terms.
 - `surface_tension`:            Surface tension model used for this SPH system. (default: no surface tension)
-- `surface_normal_method`:      The surface normal method to be used for this SPH system.
-                                (default: no surface normal method or `ColorfieldSurfaceNormal()` if a surface_tension model is used)
-- `reference_particle_spacing`: The reference particle spacing used for weighting values at the boundary,
-                                which currently is only needed when using surface tension.
-- `color_value`:                Integer label used for calculation of surface normals.
-                                Currently this is only used together with [`BoundaryModelDummyParticles`](@ref) and
-                                [`ColorfieldSurfaceNormal`](@ref): fluid-boundary normal evaluation
-                                reads the resulting boundary colorfield to detect wall contact.
+- `surface_normal_method`:      Method used to estimate fluid-interface normals. This can be
+                                configured independently for interface analysis and output and is
+                                also used by models that require interface geometry. The default is
+                                `nothing`; `ColorfieldSurfaceNormal()` is selected automatically
+                                when the surface tension model requires normals.
+- `reference_particle_spacing`: Reference spacing used by support-based normal validity
+                                checks. It is required when using a surface-normal method.
+- `color_value`:                Integer scalar used by [`ColorfieldSurfaceNormal`](@ref).
+                                Interacting fluid values define fluid-fluid color gradients;
+                                dummy-boundary contact detection also uses the fluid value.
 
 """
 struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, COR, PF, TV,
@@ -119,12 +121,11 @@ function EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel, smooth
         throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
     end
 
-    if surface_tension !== nothing && surface_normal_method === nothing
-        surface_normal_method = ColorfieldSurfaceNormal()
-    end
+    surface_normal_method = default_surface_normal_method(surface_tension,
+                                                          surface_normal_method)
 
     if surface_normal_method !== nothing && reference_particle_spacing < eps()
-        throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using `ColorfieldSurfaceNormal` or a surface tension model"))
+        throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using a surface-normal method"))
     end
 
     if correction isa ShepardKernelCorrection &&
@@ -308,7 +309,7 @@ function update_final!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, 
                        kwargs...)
     (; surface_tension) = system
 
-    # Surface normal of neighbor and boundary needs to have been calculated already
+    # Surface-tension formulations using curvature or stress require previously computed normals.
     compute_curvature!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
     compute_stress_tensors!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
     update_average_pressure!(system, system.average_pressure_reduction, v_ode, u_ode, semi)

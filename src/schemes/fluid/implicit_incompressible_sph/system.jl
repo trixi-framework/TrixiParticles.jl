@@ -4,7 +4,7 @@
                                     viscosity=nothing,
                                     acceleration=ntuple(_ -> 0.0, ndims(smoothing_kernel)),
                                     omega=0.5, max_error=0.1, min_iterations=2,
-                                    max_iterations=20, time_step)
+                                     max_iterations=20, time_step, color_value=1)
 
 System for particles of a fluid.
 The system employs implicit incompressible SPH (IISPH), iteratively solving a linear system
@@ -30,6 +30,8 @@ See [Implicit Incompressible SPH](@ref iisph) for more details on the method.
 - `min_iterations = 2`:         Minimum number of iterations in the relaxed Jacobi scheme, independent from the termination condition
 - `max_iterations = 20`:        Maximum number of iterations in the relaxed Jacobi scheme, independent from the termination condition
 - `time_step`:                  Time step size used for the simulation
+- `color_value`:                Integer scalar contributed to fluid-fluid color gradients when
+                                interacting with a fluid using [`ColorfieldSurfaceNormal`](@ref).
 """
 struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ARRAY2D,
                                        IC, K, V, PF, C} <: AbstractFluidSystem{NDIMS}
@@ -71,7 +73,7 @@ function ImplicitIncompressibleSPHSystem(initial_condition; smoothing_kernel,
                                                              ndims(smoothing_kernel)),
                                          omega=0.5, max_error=0.1, min_iterations=2,
                                          max_iterations=20, time_step,
-                                         artificial_sound_speed=1000.0)
+                                         artificial_sound_speed=1000.0, color_value=1)
     particle_refinement = nothing # TODO
     surface_tension = nothing # TODO
 
@@ -125,7 +127,8 @@ function ImplicitIncompressibleSPHSystem(initial_condition; smoothing_kernel,
 
     cache = (;
              create_cache_refinement(initial_condition, particle_refinement,
-                                     smoothing_length)...,)
+                                     smoothing_length)...,
+             color=Int(color_value))
 
     return ImplicitIncompressibleSPHSystem(initial_condition, mass, pressure,
                                            smoothing_kernel, smoothing_length,

@@ -4,6 +4,23 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.5.4
+
+### API Changes
+
+- Akinci cohesion and adhesion kernels now use dimensionally consistent, integral-matched
+  normalizations in 2D. To preserve previous pairwise kernel contributions at compact-support
+  radius `h_c`, multiply the surface-tension coefficient by `627 / (790 * h_c)` and the
+  adhesion coefficient by `42 / (65 * h_c)`; migrated coefficients are resolution-independent.
+
+### Important Bugfixes
+
+- Hardened surface tension model configuration by validating coefficients and surface-normal
+  thresholds, avoiding unnecessary normal allocation for `CohesionForceAkinci`, and stabilizing
+  Akinci cohesion and adhesion kernels across floating-point scales.
+- Added color-weighted fluid-fluid interface normals and consistently applied surface-normal
+  validity thresholds to standalone, Akinci, and Morris calculations.
+
 ## Version 0.5.3
 
 ### Features
