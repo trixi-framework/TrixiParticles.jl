@@ -300,12 +300,6 @@ It does not require surface normals or `reference_particle_spacing`. The full
 `SurfaceTensionAkinci` model and both Morris models require a surface-normal method. When one
 of these models is selected without an explicit method, `ColorfieldSurfaceNormal()` is used.
 
-!!! warning "Akinci coefficients in two dimensions"
-    The Akinci cohesion and adhesion kernels use the normalization published for the
-    three-dimensional model. In two-dimensional simulations, their coefficients are empirical
-    numerical parameters rather than resolution-independent physical values in N/m. Recheck the
-    coefficient when changing particle spacing or smoothing length.
-
 ### [Akinci-based intra-particle force surface tension and wall adhesion model](@id akinci_ipf)
 
 The [Akinci](@cite Akinci2013) model divides surface tension into distinct force components:
