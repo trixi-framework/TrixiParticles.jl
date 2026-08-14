@@ -62,6 +62,7 @@ end
 function create_fluid_system(coordinates, velocity, mass, density, particle_spacing,
                              surface_tension;
                              surface_normal_method=ColorfieldSurfaceNormal(),
+                             color_value=1,
                              NDIMS=2, smoothing_length=1.0, wall=false, walldistance=0.0,
                              boundary_system_type=:wall,
                              smoothing_kernel=SchoenbergCubicSplineKernel{NDIMS}())
@@ -76,9 +77,13 @@ function create_fluid_system(coordinates, velocity, mass, density, particle_spac
     system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel, smoothing_length,
                                          density_calculator=SummationDensity(),
                                          state_equation,
+                                         correction=surface_tension isa
+                                                    SurfaceTensionAkinci ?
+                                                    AkinciFreeSurfaceCorrection(first(density)) :
+                                                    nothing,
                                          surface_normal_method,
                                          reference_particle_spacing=particle_spacing,
-                                         surface_tension)
+                                         surface_tension, color_value)
 
     if wall
         boundary_system = if boundary_system_type == :wall
@@ -102,6 +107,114 @@ function create_fluid_system(coordinates, velocity, mass, density, particle_spac
     TrixiParticles.update_systems_and_nhs(ode.u0.x..., semi, 0.0)
 
     return system, boundary_system, semi, ode
+end
+
+@testset "Multicolor fluid interfaces" begin
+    particle_spacing = 0.1
+    smoothing_length = 0.15
+    y_coordinates = collect(-0.5:particle_spacing:0.5)
+    coordinates_a = hcat(([x, y] for x in -0.5:particle_spacing:-0.1
+                          for y in y_coordinates)...)
+    coordinates_b = hcat(([x, y] for x in 0.0:particle_spacing:0.5
+                          for y in y_coordinates)...)
+    smoothing_kernel = WendlandC2Kernel{2}()
+    state_equation = StateEquationCole(sound_speed=10.0, reference_density=1000.0,
+                                       exponent=1)
+    normal_method = ColorfieldSurfaceNormal(interface_threshold=1.0e-6)
+
+    function interface_normal(color_a, color_b)
+        initial_condition_a = InitialCondition(; coordinates=coordinates_a,
+                                               density=fill(1000.0,
+                                                            size(coordinates_a, 2)),
+                                               particle_spacing)
+        initial_condition_b = InitialCondition(; coordinates=coordinates_b,
+                                               density=fill(1000.0,
+                                                            size(coordinates_b, 2)),
+                                               particle_spacing)
+
+        system_a = WeaklyCompressibleSPHSystem(initial_condition_a; smoothing_kernel,
+                                               smoothing_length,
+                                               density_calculator=SummationDensity(),
+                                               state_equation,
+                                               surface_normal_method=normal_method,
+                                               reference_particle_spacing=particle_spacing,
+                                               color_value=color_a)
+        # A fluid contributes its color even when it does not compute its own normals.
+        system_b = WeaklyCompressibleSPHSystem(initial_condition_b; smoothing_kernel,
+                                               smoothing_length,
+                                               density_calculator=SummationDensity(),
+                                               state_equation, color_value=color_b)
+        semi = Semidiscretization(system_a, system_b)
+        ode = semidiscretize(semi, (0.0, 0.01))
+        v_ode, u_ode = ode.u0.x
+        TrixiParticles.update_systems_and_nhs(v_ode, u_ode, semi, 0.0)
+
+        v_a = TrixiParticles.wrap_v(v_ode, system_a, semi)
+        u_a = TrixiParticles.wrap_u(u_ode, system_a, semi)
+        TrixiParticles.compute_surface_normal!(system_a, normal_method, v_a, u_a,
+                                               v_ode, u_ode, semi, 0.0)
+
+        interface_particle = argmin(eachindex(eachcol(coordinates_a))) do particle
+            abs(coordinates_a[1, particle] + particle_spacing) +
+            abs(coordinates_a[2, particle])
+        end
+
+        return TrixiParticles.surface_normal(system_a, interface_particle), system_b
+    end
+
+    increasing_normal, non_normal_neighbor = interface_normal(0, 2)
+    unit_jump_normal, _ = interface_normal(0, 1)
+    decreasing_normal, _ = interface_normal(2, 0)
+    equal_color_normal, _ = interface_normal(1, 1)
+    canceling_labels_normal, _ = interface_normal(-1, 1)
+
+    @test isnothing(non_normal_neighbor.surface_normal_method)
+    @test increasing_normal[1] > 0
+    @test decreasing_normal[1] < 0
+    @test abs(increasing_normal[2]) < 100eps()
+    @test abs(decreasing_normal[2]) < 100eps()
+    @test isapprox(norm(increasing_normal), norm(decreasing_normal); rtol=1.0e-12)
+    @test isapprox(norm(increasing_normal), 2 * norm(unit_jump_normal); rtol=1.0e-12)
+    @test iszero(equal_color_normal)
+    @test canceling_labels_normal[1] > 0
+end
+
+@testset "Standalone surface-normal thresholds" begin
+    particle_spacing = 0.1
+    coordinates = hcat(([x, y] for x in 0.0:particle_spacing:0.6
+                        for y in 0.0:particle_spacing:0.6)...)
+    velocity = zeros(2, size(coordinates, 2))
+    density = fill(1000.0, size(coordinates, 2))
+    mass = fill(10.0, size(coordinates, 2))
+
+    system, boundary, semi,
+    ode = create_fluid_system(coordinates, velocity, mass, density, particle_spacing,
+                              nothing;
+                              smoothing_length=0.15,
+                              surface_normal_method=ColorfieldSurfaceNormal(interface_threshold=1.0e6))
+    @test isnothing(boundary)
+    @test all(iszero, system.cache.surface_normal)
+
+    system, boundary, semi,
+    ode = create_fluid_system(coordinates, velocity, mass, density, particle_spacing,
+                              nothing;
+                              smoothing_length=0.15,
+                              surface_normal_method=ColorfieldSurfaceNormal(interface_threshold=0.0))
+    @test any(!iszero, system.cache.surface_normal)
+
+    system, boundary, semi,
+    ode = create_fluid_system(coordinates, velocity, mass, density, particle_spacing,
+                              nothing;
+                              smoothing_length=0.15,
+                              surface_normal_method=ColorfieldSurfaceNormal(interface_threshold=0.0,
+                                                                            ideal_density_threshold=0.01))
+    @test isnothing(boundary)
+    @test all(iszero, system.cache.surface_normal)
+
+    @test_throws ArgumentError create_fluid_system(coordinates, velocity, mass, density,
+                                                   particle_spacing, nothing;
+                                                   smoothing_length=0.15, color_value=0,
+                                                   wall=true, walldistance=particle_spacing)
 end
 
 function compute_and_test_surface_values(system, semi, ode; NDIMS=2)
