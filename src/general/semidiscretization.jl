@@ -920,8 +920,7 @@ function check_system_color(systems)
         system isa AbstractFluidSystem || return false
         system isa ParticlePackingSystem && return false
 
-        return !isnothing(system.surface_tension) ||
-               system.surface_normal_method isa ColorfieldSurfaceNormal
+        return system.surface_normal_method isa ColorfieldSurfaceNormal
     end
 
     if requires_color_check
@@ -935,7 +934,7 @@ function check_system_color(systems)
                              systems)
 
         if length(system_ids) > 1 && sum(i -> systems[i].cache.color, system_ids) == 0
-            throw(ArgumentError("If `ColorfieldSurfaceNormal` or a surface tension model is used, at least one participating system must have a color different from 0."))
+            throw(ArgumentError("When `ColorfieldSurfaceNormal` is used, at least one participating system must have a color different from 0."))
         end
     end
 end

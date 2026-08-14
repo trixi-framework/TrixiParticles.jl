@@ -1,5 +1,145 @@
-
 @testset verbose=true "Surface Tension" begin
+    @testset "constructors and capabilities" begin
+        constructors = (CohesionForceAkinci, SurfaceTensionAkinci,
+                        SurfaceTensionMorris, SurfaceTensionMomentumMorris)
+
+        for constructor in constructors
+            model = constructor(surface_tension_coefficient=0.5f0)
+            @test model.surface_tension_coefficient === 0.5f0
+            @test iszero(constructor(surface_tension_coefficient=0).surface_tension_coefficient)
+
+            for coefficient in (-1.0, NaN, Inf, -Inf, 1.0im, "invalid")
+                @test_throws ArgumentError constructor(surface_tension_coefficient=coefficient)
+            end
+        end
+
+        @test !TrixiParticles.requires_surface_normal(nothing)
+        @test !TrixiParticles.requires_surface_normal(CohesionForceAkinci())
+        @test TrixiParticles.requires_surface_normal(SurfaceTensionAkinci())
+        @test TrixiParticles.requires_surface_normal(SurfaceTensionMorris())
+        @test TrixiParticles.requires_surface_normal(SurfaceTensionMomentumMorris())
+
+        normal_method = ColorfieldSurfaceNormal(boundary_contact_threshold=1,
+                                                interface_threshold=0.1f0,
+                                                ideal_density_threshold=0.25)
+        @test normal_method isa ColorfieldSurfaceNormal{Float64}
+        @test ColorfieldSurfaceNormal(boundary_contact_threshold=0.1f0,
+                                      interface_threshold=0.01f0,
+                                      ideal_density_threshold=0.0f0) isa
+              ColorfieldSurfaceNormal{Float32}
+
+        invalid_thresholds = ((NaN, 0.01, 0.0),
+                              (-Inf, 0.01, 0.0),
+                              (0.1, Inf, 0.0),
+                              (0.1, 0.01, 1.0im),
+                              ("invalid", 0.01, 0.0))
+        for (boundary_threshold, interface_threshold, density_threshold) in
+            invalid_thresholds
+
+            @test_throws ArgumentError ColorfieldSurfaceNormal(;
+                                                               boundary_contact_threshold=boundary_threshold,
+                                                               interface_threshold,
+                                                               ideal_density_threshold=density_threshold)
+        end
+    end
+
+    @testset "cohesion-only systems do not require normals" begin
+        coordinates = [0.0 1.0;
+                       0.0 0.0]
+        initial_condition = InitialCondition(; coordinates, density=ones(2),
+                                             particle_spacing=1.0)
+        smoothing_kernel = WendlandC2Kernel{2}()
+        smoothing_length = 1.0
+        surface_tension = CohesionForceAkinci(surface_tension_coefficient=0.1)
+
+        wcsph = WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
+                                            smoothing_length,
+                                            density_calculator=SummationDensity(),
+                                            state_equation=StateEquationCole(sound_speed=10.0,
+                                                                             reference_density=1.0,
+                                                                             exponent=1),
+                                            surface_tension, color_value=0)
+        edac = EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel,
+                                           smoothing_length, sound_speed=10.0,
+                                           density_calculator=SummationDensity(),
+                                           surface_tension, color_value=0)
+
+        for system in (wcsph, edac)
+            @test isnothing(system.surface_normal_method)
+            @test !haskey(system.cache, :surface_normal)
+            @test !haskey(system.cache, :neighbor_count)
+            @test !haskey(system.cache, :reference_particle_spacing)
+
+            semi = Semidiscretization(system)
+            ode = semidiscretize(semi, (0.0, 0.1))
+            v_ode, u_ode = ode.u0.x
+            dv_ode = zero(v_ode)
+            @test_nowarn TrixiParticles.kick!(dv_ode, v_ode, u_ode, ode.p, 0.0)
+            @test all(isfinite, dv_ode)
+            @test any(!iszero, dv_ode)
+        end
+
+        @test isnothing(TrixiParticles.check_system_color((wcsph, edac)))
+
+        @test_throws ArgumentError WeaklyCompressibleSPHSystem(initial_condition;
+                                                               smoothing_kernel,
+                                                               smoothing_length,
+                                                               density_calculator=SummationDensity(),
+                                                               state_equation=StateEquationCole(sound_speed=10.0,
+                                                                                                reference_density=1.0,
+                                                                                                exponent=1),
+                                                               surface_tension=SurfaceTensionAkinci())
+        @test_throws ArgumentError EntropicallyDampedSPHSystem(initial_condition;
+                                                               smoothing_kernel,
+                                                               smoothing_length,
+                                                               sound_speed=10.0,
+                                                               density_calculator=SummationDensity(),
+                                                               surface_tension=SurfaceTensionAkinci())
+
+        full_akinci = WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
+                                                  smoothing_length,
+                                                  density_calculator=SummationDensity(),
+                                                  state_equation=StateEquationCole(sound_speed=10.0,
+                                                                                   reference_density=1.0,
+                                                                                   exponent=1),
+                                                  surface_tension=SurfaceTensionAkinci(),
+                                                  reference_particle_spacing=1.0,
+                                                  color_value=0)
+        @test full_akinci.surface_normal_method isa ColorfieldSurfaceNormal
+        @test haskey(full_akinci.cache, :surface_normal)
+        @test_throws ArgumentError TrixiParticles.check_system_color((full_akinci, wcsph))
+    end
+
+    @testset "zero Morris coefficient does not restrict the time step" begin
+        function calculate_initial_dt(surface_tension)
+            initial_condition = InitialCondition(; coordinates=[0.0 1.0; 0.0 0.0],
+                                                 density=ones(2), particle_spacing=1.0)
+            reference_particle_spacing = isnothing(surface_tension) ? 0 : 1.0
+            system = WeaklyCompressibleSPHSystem(initial_condition;
+                                                 smoothing_kernel=WendlandC2Kernel{2}(),
+                                                 smoothing_length=1.0,
+                                                 density_calculator=SummationDensity(),
+                                                 state_equation=StateEquationCole(sound_speed=10.0,
+                                                                                  reference_density=1.0,
+                                                                                  exponent=1),
+                                                 surface_tension,
+                                                 reference_particle_spacing)
+            semi = Semidiscretization(system)
+            ode = semidiscretize(semi, (0.0, 0.1))
+            v_ode, u_ode = ode.u0.x
+            return TrixiParticles.calculate_dt(v_ode, u_ode, 0.25, semi.systems[1], semi)
+        end
+
+        dt_without_surface_tension = calculate_initial_dt(nothing)
+        dt_with_zero_csf = calculate_initial_dt(SurfaceTensionMorris(;
+                                                                     surface_tension_coefficient=0.0))
+        dt_with_zero_css = calculate_initial_dt(SurfaceTensionMomentumMorris(;
+                                                                             surface_tension_coefficient=0.0))
+
+        @test dt_with_zero_csf == dt_without_surface_tension
+        @test dt_with_zero_css == dt_without_surface_tension
+    end
+
     @testset verbose=true "`cohesion_force_akinci`" begin
         surface_tension = SurfaceTensionAkinci(surface_tension_coefficient=1.0)
         support_radius = 1.0
@@ -41,6 +181,20 @@
                                                     pos_diff, test_distance) * test_distance
         @test isapprox(zero[1], 0.0, atol=6e-15)
         @test isapprox(zero[2], 0.0, atol=6e-15)
+
+        surface_tension_f32 = CohesionForceAkinci(surface_tension_coefficient=1.0f0)
+        for support_radius in (1.0f12, 1.0f-12)
+            distance = 0.75f0 * support_radius
+            force = TrixiParticles.cohesion_force_akinci(surface_tension_f32,
+                                                         support_radius, 1.0f0,
+                                                         Float32[distance, 0], distance)
+            expected = Float32(-32 / pi * (1 - 0.75)^3 * 0.75^3 /
+                               Float64(support_radius)^3)
+            @test eltype(force) == Float32
+            @test all(isfinite, force)
+            @test isapprox(force[1], expected; rtol=4eps(Float32))
+            @test iszero(force[2])
+        end
     end
 
     @testset verbose=true "adhesion_force_akinci" begin
@@ -88,6 +242,28 @@
                test_distance
         @test isapprox(zero[1], 0.0, atol=6e-15)
         @test isapprox(zero[2], 0.0, atol=6e-15)
+
+        support_radius_f32 = 15.594092f0
+        distance_f32 = prevfloat(support_radius_f32)
+        near_support = TrixiParticles.adhesion_force_akinci(surface_tension,
+                                                            support_radius_f32, 1.0f0,
+                                                            Float32[1, 0], distance_f32,
+                                                            1.0f0)
+        @test eltype(near_support) == Float32
+        @test all(isfinite, near_support)
+        @test 0 < norm(near_support) < eps(Float32)
+
+        for support_radius in (1.0f12, 1.0f-13)
+            distance = 0.75f0 * support_radius
+            force = TrixiParticles.adhesion_force_akinci(surface_tension,
+                                                         support_radius, 1.0f0,
+                                                         Float32[distance, 0], distance,
+                                                         1.0f0)
+            expected = Float32(-0.007 / Float64(support_radius)^3 / sqrt(2))
+            @test all(isfinite, force)
+            @test isapprox(force[1], expected; rtol=4eps(Float32))
+            @test iszero(force[2])
+        end
     end
 
     @testset "compute_stress_tensors! (MomentumMorris)" begin
