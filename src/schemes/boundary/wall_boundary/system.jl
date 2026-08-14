@@ -14,10 +14,9 @@ The interaction between fluid and boundary particles is specified by the boundar
 - `prescribed_motion`: For moving boundaries, a [`PrescribedMotion`](@ref) can be passed.
 - `adhesion_coefficient`: Coefficient specifying the adhesion of a fluid to the surface.
    Note: currently it is assumed that all fluids have the same adhesion coefficient.
-- `color_value`: Integer label used for calculation of surface normals.
-   Currently this is only used together with [`BoundaryModelDummyParticles`](@ref) and
-   [`ColorfieldSurfaceNormal`](@ref): fluid-boundary normal evaluation
-   reads the resulting boundary colorfield to detect wall contact.
+- `color_value`: Integer scalar used with [`BoundaryModelDummyParticles`](@ref) and
+   [`ColorfieldSurfaceNormal`](@ref). Fluid-boundary normal evaluation uses its magnitude
+   in the smoothed boundary color field that detects wall contact.
 """
 struct WallBoundarySystem{BM, ELTYPE <: Real, NDIMS, IC, CO, M, IM,
                           CA} <: AbstractBoundarySystem{NDIMS}
