@@ -7,4 +7,5 @@
     include("corrections/mixed.jl")
     include("corrections/coupling.jl")
     include("corrections/configuration.jl")
+    include("corrections/validation.jl")
 end
