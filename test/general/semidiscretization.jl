@@ -122,15 +122,6 @@
         @test visited == [1, 1]
     end
 
-    @testset verbose=true "foreach_system" begin
-        systems = (1, 2)
-        visited = [0, 0]
-        TrixiParticles.foreach_system(systems) do system
-            visited[system] += 1
-        end
-        @test visited == [1, 1]
-    end
-
     @testset verbose=true "Check Configuration" begin
         @testset verbose=true "Structure-Fluid Interaction" begin
             # Mock boundary model
