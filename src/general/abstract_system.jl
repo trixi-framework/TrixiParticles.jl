@@ -22,7 +22,7 @@ vtkname(system::AbstractBoundarySystem) = "boundary"
     # is ~30x slower because `hash(::System)` is very slow.
     systems = hasfield(typeof(systems_or_semi), :systems) ? systems_or_semi.systems :
               systems_or_semi
-    index = findfirst(==(system), systems)
+    index = findfirst(s -> s === system, systems)
 
     if isnothing(index)
         throw(ArgumentError("system is not in the semidiscretization"))

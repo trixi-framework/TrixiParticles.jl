@@ -192,18 +192,6 @@ function is_interaction_entry(entry)
     return !isempty(methods(entry))
 end
 
-@inline function system_indices(system, semi)
-    # Note that this takes only about 5 ns, while mapping systems to indices with a `Dict`
-    # is ~30x slower because `hash(::System)` is very slow.
-    index = findfirst(s -> s === system, semi.systems)
-
-    if isnothing(index)
-        throw(ArgumentError("system is not in the semidiscretization"))
-    end
-
-    return index
-end
-
 @inline is_enabled_interaction(entry::Bool) = entry
 @inline is_enabled_interaction(entry) = true
 
@@ -215,13 +203,6 @@ end
     return semi.interaction_matrix[system_indices(system, semi),
                                    system_indices(neighbor_system, semi)]
 end
-
-# This is just for readability to loop over all systems without allocations
-@inline function foreach_system(f, semi::Union{NamedTuple, Semidiscretization})
-    return foreach_noalloc(f, semi.systems)
-end
-
-@inline foreach_system(f, systems) = foreach_noalloc(f, systems)
 
 # Loop over all systems and pass the corresponding wrapped `v` and `u` arrays to `f`.
 @inline function foreach_system_wrapped(f, semi::Union{NamedTuple, Semidiscretization},
