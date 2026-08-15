@@ -249,16 +249,26 @@ end
     return nothing
 end
 
-@inline function surface_normal_method(system::AbstractFluidSystem)
-    return system.surface_normal_method
+@inline function surface_method(system::AbstractFluidSystem)
+    hasproperty(system, :surface_method) || return nothing
+    return system.surface_method
 end
 
-@inline function surface_normal_method(system)
+@inline function surface_method(system)
     return nothing
 end
 
+function surface_normal_method(system)
+    Base.depwarn("`surface_normal_method(system)` is deprecated; use `surface_method(system)`",
+                 :surface_normal_method)
+    method = surface_method(system)
+    return computes_surface_normal(method) ? method : nothing
+end
+
 @inline contributes_to_colorfield(system) = false
-@inline contributes_to_colorfield(::AbstractFluidSystem) = true
+@inline function contributes_to_colorfield(system::AbstractFluidSystem)
+    return hasproperty(system.cache, :color)
+end
 
 function restart_u(system::AbstractFluidSystem, data)
     inactive_coords = convert(coordinates_eltype(system), 1e16)
@@ -303,13 +313,13 @@ function restart_v(system::AbstractFluidSystem, data)
 end
 
 function check_configuration(fluid_system::AbstractFluidSystem, systems, nhs)
-    if !isnothing(fluid_system.surface_tension)
+    if requires_surface_normal(fluid_system.surface_tension)
         foreach_system(systems) do neighbor
-            if neighbor isa AbstractFluidSystem &&
-               isnothing(fluid_system.surface_tension) &&
-               isnothing(fluid_system.surface_normal_method)
-                throw(ArgumentError("either none or all fluid systems in a simulation need " *
-                                    "to use a surface tension model or a surface normal method."))
+            if neighbor isa AbstractFluidSystem && !(neighbor isa ParticlePackingSystem) &&
+               !computes_surface_normal(surface_method(neighbor))
+                throw(ArgumentError("all interacting fluid systems must use a surface method " *
+                                    "that computes normals when a surface-tension model " *
+                                    "requires interface normals"))
             end
         end
     end

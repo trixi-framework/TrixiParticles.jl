@@ -141,3 +141,24 @@ end
 function avg_density(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
     return NaN
 end
+
+"""
+    surface_activity
+
+Return the per-particle smooth surface activity, or `nothing` for systems without a
+configured surface method.
+"""
+function surface_activity(system::AbstractFluidSystem, dv_ode, du_ode, v_ode, u_ode,
+                          semi, t)
+    hasproperty(system.cache, :surface_activity) || return nothing
+    return view(system.cache.surface_activity, each_active_particle(system))
+end
+
+surface_activity(system, dv_ode, du_ode, v_ode, u_ode, semi, t) = nothing
+
+function surface_normal(system::AbstractFluidSystem, dv_ode, du_ode, v_ode, u_ode, semi, t)
+    computes_surface_normal(surface_method(system)) || return nothing
+    return view(system.cache.surface_normal, :, each_active_particle(system))
+end
+
+surface_normal(system, dv_ode, du_ode, v_ode, u_ode, semi, t) = nothing

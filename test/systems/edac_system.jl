@@ -143,7 +143,7 @@
         │ average pressure reduction: ……… no                                                               │
         │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
         │ surface tension: …………………………………… nothing                                                          │
-        │ surface normal method: …………………… nothing                                                          │
+        │ surface method: ……………………………………… nothing                                                          │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", system) == show_box
     end

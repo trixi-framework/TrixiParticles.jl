@@ -213,7 +213,7 @@
         │ density diffusion: ……………………………… Val{:density_diffusion}()                                        │
         │ shifting technique: …………………………… nothing                                                          │
         │ surface tension: …………………………………… nothing                                                          │
-        │ surface normal method: …………………… nothing                                                          │
+        │ surface method: ……………………………………… nothing                                                          │
         │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
         │ source terms: …………………………………………… Nothing                                                          │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""

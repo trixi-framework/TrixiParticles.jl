@@ -31,10 +31,10 @@ torque and applied consistently to all rigid particles.
                           models when fluids interact with this rigid body. This is
                           only evaluated for fluid-structure interaction with
                           surface-tension-enabled fluid systems.
-- `color_value`: Integer scalar stored as `system.cache.color`.
-                 Its magnitude is used with `BoundaryModelDummyParticles` during
-                 colorfield initialization so fluids using
-                 [`ColorfieldSurfaceNormal`](@ref) can detect contact with rigid
+- `color_value`: Integer label stored as `system.cache.color`.
+                  Currently this is used with `BoundaryModelDummyParticles` during
+                  colorfield initialization so fluids using a colorfield surface method
+                  can detect contact with rigid
                  bodies, it participates in the multi-system color sanity check for
                  colorfield-normal calculations, and it is written to VTK output as `"color"`.
 """
@@ -275,14 +275,18 @@ function initialize!(system::RigidBodySystem, semi)
     return system
 end
 
-function calc_normal!(system::AbstractFluidSystem,
-                      neighbor_system::RigidBodySystem{<:BoundaryModelDummyParticles},
-                      u_system, v, v_neighbor_system, u_neighbor_system, semi,
-                      surface_normal_method, neighbor_surface_normal_method)
+function calc_surface!(system::AbstractFluidSystem,
+                       neighbor_system::RigidBodySystem{<:BoundaryModelDummyParticles},
+                       u_system, v, v_neighbor_system, u_neighbor_system, semi,
+                       surface_method_, neighbor_surface_method)
     haskey(neighbor_system.boundary_model.cache, :initial_colorfield) || return system
 
-    return calc_boundary_normal!(system, neighbor_system, u_system, v, u_neighbor_system,
-                                 semi, surface_normal_method)
+    return calc_boundary_surface!(system, neighbor_system, u_system, v, u_neighbor_system,
+                                  semi, surface_method_)
+end
+
+@inline function contributes_boundary_colorfield(::RigidBodySystem{<:BoundaryModelDummyParticles})
+    return true
 end
 
 @inline function adhesion_force!(dv_particle,
@@ -631,10 +635,10 @@ function check_configuration(system::RigidBodySystem, systems, nhs)
         end
 
         if neighbor isa AbstractFluidSystem &&
-           neighbor.surface_normal_method isa ColorfieldSurfaceNormal
+           is_colorfield_surface_method(surface_method(neighbor))
             if !(boundary_model isa BoundaryModelDummyParticles)
                 throw(ArgumentError("`RigidBodySystem` is only compatible with " *
-                                    "`ColorfieldSurfaceNormal` when using " *
+                                    "colorfield surface methods when using " *
                                     "`BoundaryModelDummyParticles`."))
             end
 
@@ -642,7 +646,7 @@ function check_configuration(system::RigidBodySystem, systems, nhs)
                 throw(ArgumentError("`RigidBodySystem` with `BoundaryModelDummyParticles` " *
                                     "requires `reference_particle_spacing` to be set on " *
                                     "the boundary model when used together with " *
-                                    "`ColorfieldSurfaceNormal`."))
+                                    "a colorfield surface method or a surface tension model."))
             end
         end
     end

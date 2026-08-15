@@ -61,8 +61,7 @@ end
 
 function create_fluid_system(coordinates, velocity, mass, density, particle_spacing,
                              surface_tension;
-                             surface_normal_method=ColorfieldSurfaceNormal(),
-                             color_value=1,
+                             surface_method=ColorfieldSurfaceNormal(), color_value=1,
                              NDIMS=2, smoothing_length=1.0, wall=false, walldistance=0.0,
                              boundary_system_type=:wall,
                              smoothing_kernel=SchoenbergCubicSplineKernel{NDIMS}())
@@ -77,7 +76,7 @@ function create_fluid_system(coordinates, velocity, mass, density, particle_spac
     system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel, smoothing_length,
                                          density_calculator=SummationDensity(),
                                          state_equation,
-                                         surface_normal_method,
+                                         surface_method,
                                          reference_particle_spacing=particle_spacing,
                                          surface_tension, color_value)
 
@@ -218,12 +217,11 @@ function compute_and_test_surface_values(system, semi, ode; NDIMS=2)
     v = TrixiParticles.wrap_v(v0_ode, system, semi)
     u = TrixiParticles.wrap_u(u0_ode, system, semi)
 
-    # Compute the surface normals
-    TrixiParticles.compute_surface_normal!(system, system.surface_normal_method, v, u,
-                                           v0_ode, u0_ode, semi, 0.0)
+    TrixiParticles.compute_surface!(system, system.surface_method, v, u,
+                                    v0_ode, u0_ode, semi, 0.0)
 
     TrixiParticles.remove_invalid_normals!(system, system.surface_tension,
-                                           system.surface_normal_method)
+                                           system.surface_method)
 
     # After computation, check that surface normals have been computed and are not NaN or Inf
     @test all(isfinite, system.cache.surface_normal)
@@ -252,6 +250,225 @@ function compute_curvature!(system, semi, ode)
                                       v, u, v0_ode, u0_ode, semi, 0.0)
 end
 
+@testset verbose=true "Colorfield Surface Detection" begin
+    normal_method = ColorfieldSurfaceNormal(ideal_density_threshold=0.9)
+    detection_method = ColorfieldSurfaceDetection(ideal_density_threshold=0.9)
+    @test ColorfieldSurfaceNormal() == ColorfieldSurfaceNormal(0.1, 0.01, 0.0)
+    @test normal_method.interpolation_surface_threshold == 0.45
+    @test detection_method.interpolation_surface_threshold == 0.45
+    @test TrixiParticles.computes_surface_normal(normal_method)
+    @test !TrixiParticles.computes_surface_normal(detection_method)
+
+    @test_throws ArgumentError ColorfieldSurfaceNormal(boundary_contact_threshold=-0.1)
+    @test_throws ArgumentError ColorfieldSurfaceNormal(interface_threshold=Inf)
+    @test_throws ArgumentError ColorfieldSurfaceNormal(interface_taper_start=1.0)
+    @test_throws ArgumentError ColorfieldSurfaceNormal(interpolation_surface_threshold=1.1)
+    @test_throws ArgumentError ColorfieldSurfaceDetection(interface_threshold=-0.1)
+    @test_throws ArgumentError ColorfieldSurfaceDetection(interface_threshold="invalid")
+
+    particle_spacing = 0.1
+    coordinates = RectangularShape(particle_spacing, (21, 11), (0.0, 0.0),
+                                   density=1000.0)
+    smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+    system, _, semi,
+    ode = create_fluid_system(coordinates.coordinates, coordinates.velocity,
+                              coordinates.mass, coordinates.density, particle_spacing,
+                              nothing; smoothing_length=1.5 * particle_spacing,
+                              smoothing_kernel, surface_method=normal_method)
+
+    activity = system.cache.surface_activity
+    x = coordinates.coordinates
+    min_x, max_x = extrema(view(x, 1, :))
+    min_y, max_y = extrema(view(x, 2, :))
+    interior = [particle
+                for particle in eachindex(activity)
+                if min_x + 3particle_spacing < x[1, particle] <
+                   max_x - 3particle_spacing &&
+                   min_y + 3particle_spacing < x[2, particle] <
+                   max_y - 3particle_spacing]
+    top_surface = [particle
+                   for particle in eachindex(activity)
+                   if x[2, particle] == max_y &&
+                      min_x + 3particle_spacing < x[1, particle] <
+                      max_x - 3particle_spacing]
+
+    @test all(isfinite, activity)
+    @test all(iszero, activity[interior])
+    @test all(==(1), activity[top_surface])
+
+    detection_system = WeaklyCompressibleSPHSystem(coordinates;
+                                                   smoothing_kernel,
+                                                   smoothing_length=1.5 * particle_spacing,
+                                                   density_calculator=SummationDensity(),
+                                                   state_equation=system.state_equation,
+                                                   surface_method=detection_method,
+                                                   reference_particle_spacing=particle_spacing)
+    detection_semi = Semidiscretization(detection_system)
+    detection_ode = semidiscretize(detection_semi, (0.0, 0.01))
+    TrixiParticles.update_systems_and_nhs(detection_ode.u0.x..., detection_semi, 0.0)
+    @test !haskey(detection_system.cache, :surface_normal)
+    @test detection_system.cache.surface_activity == activity
+    @test isapprox(detection_system.cache.surface_gradient, system.cache.surface_normal;
+                   rtol=10eps(), atol=10eps())
+
+    edac_system = EntropicallyDampedSPHSystem(coordinates;
+                                              smoothing_kernel,
+                                              smoothing_length=1.5 * particle_spacing,
+                                              sound_speed=10.0,
+                                              density_calculator=SummationDensity(),
+                                              surface_method=detection_method,
+                                              reference_particle_spacing=particle_spacing)
+    edac_semi = Semidiscretization(edac_system)
+    edac_ode = semidiscretize(edac_semi, (0.0, 0.01))
+    TrixiParticles.update_systems_and_nhs(edac_ode.u0.x..., edac_semi, 0.0)
+    @test edac_system.cache.surface_activity == activity
+
+    iisph_system = ImplicitIncompressibleSPHSystem(coordinates;
+                                                   smoothing_kernel,
+                                                   smoothing_length=1.5 * particle_spacing,
+                                                   reference_density=1000.0,
+                                                   time_step=0.001,
+                                                   surface_method=detection_method,
+                                                   reference_particle_spacing=particle_spacing)
+    iisph_semi = Semidiscretization(iisph_system)
+    iisph_ode = semidiscretize(iisph_semi, (0.0, 0.01))
+    TrixiParticles.update_systems_and_nhs(iisph_ode.u0.x..., iisph_semi, 0.0)
+    @test iisph_system.cache.surface_activity == activity
+
+    @test_throws ArgumentError WeaklyCompressibleSPHSystem(coordinates;
+                                                           smoothing_kernel,
+                                                           smoothing_length=1.5 *
+                                                                            particle_spacing,
+                                                           density_calculator=SummationDensity(),
+                                                           state_equation=system.state_equation,
+                                                           surface_tension=SurfaceTensionMorris(),
+                                                           surface_method=detection_method,
+                                                           reference_particle_spacing=particle_spacing)
+    cohesion_system = WeaklyCompressibleSPHSystem(coordinates;
+                                                  smoothing_kernel,
+                                                  smoothing_length=1.5 * particle_spacing,
+                                                  density_calculator=SummationDensity(),
+                                                  state_equation=system.state_equation,
+                                                  surface_tension=CohesionForceAkinci())
+    @test isnothing(cohesion_system.surface_method)
+    @test !haskey(cohesion_system.cache, :surface_activity)
+
+    corrected_system = WeaklyCompressibleSPHSystem(coordinates;
+                                                   smoothing_kernel,
+                                                   smoothing_length=1.5 * particle_spacing,
+                                                   density_calculator=SummationDensity(),
+                                                   state_equation=system.state_equation,
+                                                   correction=GradientCorrection(),
+                                                   surface_method=normal_method,
+                                                   reference_particle_spacing=particle_spacing)
+    corrected_semi = Semidiscretization(corrected_system)
+    corrected_ode = semidiscretize(corrected_semi, (0.0, 0.01))
+    TrixiParticles.update_systems_and_nhs(corrected_ode.u0.x..., corrected_semi, 0.0)
+    @test corrected_system.cache.surface_activity == activity
+    @test isapprox(corrected_system.cache.surface_normal, system.cache.surface_normal;
+                   rtol=10eps(), atol=10eps())
+
+    v_ode, u_ode = ode.u0.x
+    @test TrixiParticles.surface_activity(system, nothing, nothing, v_ode, u_ode,
+                                          semi, 0.0) == activity
+    @test TrixiParticles.surface_normal(detection_system, nothing, nothing,
+                                        detection_ode.u0.x..., detection_semi, 0.0) ===
+          nothing
+
+    metadata = Dict{String, Any}()
+    TrixiParticles.add_system_data!(metadata, normal_method)
+    @test metadata["surface_method"]["computes_surface_normal"]
+    @test metadata["surface_method"]["interpolation_surface_threshold"] == 0.45
+
+    mktempdir() do output_directory
+        trixi2vtk(ode.u0, semi, 0.0; output_directory,
+                  prefix="surface_detection", overwrite=true)
+        vtk_data = vtk2trixi(joinpath(output_directory,
+                                      "surface_detection_fluid_1_current.vtu"))
+        @test vtk_data.surface_activity == activity
+        @test hasproperty(vtk_data, :surf_normal)
+
+        trixi2vtk(detection_ode.u0, detection_semi, 0.0; output_directory,
+                  prefix="detection_only", overwrite=true)
+        detection_vtk_data = vtk2trixi(joinpath(output_directory,
+                                                "detection_only_fluid_1_current.vtu"))
+        @test detection_vtk_data.surface_activity == activity
+        @test !hasproperty(detection_vtk_data, :surf_normal)
+    end
+end
+
+@testset verbose=true "Multicolor Surface Activity" begin
+    particle_spacing = 0.1
+    smoothing_length = 0.15
+    y_coordinates = collect(-0.5:particle_spacing:0.5)
+    coordinates_a = hcat(([x, y] for x in -0.5:particle_spacing:-0.1
+                          for y in y_coordinates)...)
+    coordinates_b = hcat(([x, y] for x in 0.0:particle_spacing:0.5
+                          for y in y_coordinates)...)
+    smoothing_kernel = WendlandC2Kernel{2}()
+    state_equation = StateEquationCole(sound_speed=10.0, reference_density=1000.0,
+                                       exponent=1)
+
+    function interface_geometry(color_a, color_b, surface_method_)
+        initial_condition_a = InitialCondition(; coordinates=coordinates_a,
+                                               density=fill(1000.0,
+                                                            size(coordinates_a, 2)),
+                                               particle_spacing)
+        initial_condition_b = InitialCondition(; coordinates=coordinates_b,
+                                               density=fill(1000.0,
+                                                            size(coordinates_b, 2)),
+                                               particle_spacing)
+        system_a = WeaklyCompressibleSPHSystem(initial_condition_a; smoothing_kernel,
+                                               smoothing_length,
+                                               density_calculator=SummationDensity(),
+                                               state_equation,
+                                               surface_method=surface_method_,
+                                               reference_particle_spacing=particle_spacing,
+                                               color_value=color_a)
+        system_b = WeaklyCompressibleSPHSystem(initial_condition_b; smoothing_kernel,
+                                               smoothing_length,
+                                               density_calculator=SummationDensity(),
+                                               state_equation, color_value=color_b)
+        semi = Semidiscretization(system_a, system_b)
+        ode = semidiscretize(semi, (0.0, 0.01))
+        TrixiParticles.update_systems_and_nhs(ode.u0.x..., semi, 0.0)
+
+        interface_particle = argmin(eachindex(eachcol(coordinates_a))) do particle
+            abs(coordinates_a[1, particle] + particle_spacing) +
+            abs(coordinates_a[2, particle])
+        end
+        gradient = if surface_method_ isa ColorfieldSurfaceNormal
+            TrixiParticles.surface_normal(system_a, interface_particle)
+        else
+            TrixiParticles.extract_svector(system_a.cache.surface_gradient, system_a,
+                                           interface_particle)
+        end
+        return gradient, TrixiParticles.surface_activity(system_a, interface_particle),
+               system_b
+    end
+
+    detection_method = ColorfieldSurfaceDetection(interface_threshold=1.0e-6)
+    normal_method = ColorfieldSurfaceNormal(interface_threshold=1.0e-6)
+    increasing_gradient, increasing_activity,
+    non_surface_neighbor = interface_geometry(0, 2, detection_method)
+    unit_gradient, _, _ = interface_geometry(0, 1, detection_method)
+    decreasing_gradient, decreasing_activity, _ = interface_geometry(2, 0,
+                                                                     detection_method)
+    equal_gradient, equal_activity, _ = interface_geometry(1, 1, detection_method)
+    normal_gradient, normal_activity, _ = interface_geometry(0, 2, normal_method)
+
+    @test isnothing(non_surface_neighbor.surface_method)
+    @test increasing_gradient[1] > 0
+    @test decreasing_gradient[1] < 0
+    @test isapprox(norm(increasing_gradient), 2norm(unit_gradient); rtol=1.0e-12)
+    @test norm(equal_gradient) < 100eps()
+    @test increasing_activity == 1
+    @test decreasing_activity == 1
+    @test equal_activity == 0
+    @test normal_activity == increasing_activity
+    @test normal_gradient == increasing_gradient
+end
+
 @testset verbose=true "Rigid Dummy Boundary Matches Wall Boundary" begin
     NDIMS = 2
     particle_spacing = 0.2
@@ -270,16 +487,16 @@ end
     wall_ode = create_fluid_system(coordinates, velocity, mass, density, particle_spacing,
                                    SurfaceTensionMorris(surface_tension_coefficient=0.072);
                                    NDIMS, smoothing_length, smoothing_kernel,
-                                   surface_normal_method=ColorfieldSurfaceNormal(interface_threshold=0.1,
-                                                                                 ideal_density_threshold=0.9),
+                                   surface_method=ColorfieldSurfaceNormal(interface_threshold=0.1,
+                                                                          ideal_density_threshold=0.9),
                                    wall=true, walldistance=2.0, boundary_system_type=:wall)
 
     rigid_system, rigid_boundary, rigid_semi,
     rigid_ode = create_fluid_system(coordinates, velocity, mass, density, particle_spacing,
                                     SurfaceTensionMorris(surface_tension_coefficient=0.072);
                                     NDIMS, smoothing_length, smoothing_kernel,
-                                    surface_normal_method=ColorfieldSurfaceNormal(interface_threshold=0.1,
-                                                                                  ideal_density_threshold=0.9),
+                                    surface_method=ColorfieldSurfaceNormal(interface_threshold=0.1,
+                                                                           ideal_density_threshold=0.9),
                                     wall=true, walldistance=2.0,
                                     boundary_system_type=:rigid)
 
@@ -294,6 +511,9 @@ end
                    rtol=sqrt(eps()), atol=sqrt(eps()))
     @test isapprox(rigid_system.cache.neighbor_count,
                    wall_system.cache.neighbor_count,
+                   rtol=sqrt(eps()), atol=sqrt(eps()))
+    @test isapprox(rigid_system.cache.surface_activity,
+                   wall_system.cache.surface_activity,
                    rtol=sqrt(eps()), atol=sqrt(eps()))
 end
 
@@ -328,8 +548,8 @@ end
                                       particle_spacing,
                                       SurfaceTensionMorris(surface_tension_coefficient=0.072);
                                       NDIMS, smoothing_length, smoothing_kernel,
-                                      surface_normal_method=ColorfieldSurfaceNormal(interface_threshold=0.1,
-                                                                                    ideal_density_threshold=0.9),
+                                      surface_method=ColorfieldSurfaceNormal(interface_threshold=0.1,
+                                                                             ideal_density_threshold=0.9),
                                       wall=true, walldistance=2.0)
 
             compute_and_test_surface_values(system, semi, ode; NDIMS)
@@ -428,8 +648,8 @@ end
                                       particle_spacing,
                                       SurfaceTensionAkinci(surface_tension_coefficient=0.072);
                                       NDIMS, smoothing_length, smoothing_kernel,
-                                      surface_normal_method=ColorfieldSurfaceNormal(interface_threshold=0.1,
-                                                                                    ideal_density_threshold=0.9),
+                                      surface_method=ColorfieldSurfaceNormal(interface_threshold=0.1,
+                                                                             ideal_density_threshold=0.9),
                                       wall=true, walldistance=2.0)
 
             compute_and_test_surface_values(system, semi, ode; NDIMS)

@@ -329,11 +329,15 @@ function write2vtk!(vtk, v, u, t, system::AbstractFluidSystem)
     vtk["pressure"] = [current_pressure(v, system, particle)
                        for particle in eachparticle(system)]
 
-    if system.surface_normal_method !== nothing
-        vtk["surf_normal"] = [surface_normal(system, particle)
-                              for particle in eachparticle(system)]
+    if system.surface_method !== nothing
+        vtk["surface_activity"] = system.cache.surface_activity
         vtk["neighbor_count"] = system.cache.neighbor_count
         vtk["color"] = system.cache.color
+
+        if computes_surface_normal(system.surface_method)
+            vtk["surf_normal"] = [surface_normal(system, particle)
+                                  for particle in eachparticle(system)]
+        end
     end
 
     if system.surface_tension isa SurfaceTensionMorris ||

@@ -211,7 +211,7 @@ Pages = [joinpath("general", "corrections.jl")]
 
 ---
 
-## [Surface Normals](@id surface_normal)
+## [Surface Detection And Normals](@id surface_normal)
 
 ### Overview of surface normal calculation in SPH
 
@@ -461,6 +461,28 @@ The particle phase has ``c \approx 1`` and the exterior has ``c \approx 0``. Con
 ``\nabla c`` and the displayed unit normals point toward increasing ``c``. The arrows are
 perpendicular to the color-field level sets; reversing the color convention reverses the arrows
 without changing the interface geometry.
+
+#### Surface methods and activity
+
+Fluid systems configure interface geometry with the `surface_method` keyword. Every surface
+method computes a smooth `surface_activity`. Methods derived from
+`AbstractSurfaceNormalMethod` additionally provide a normal, so normal calculation always
+includes detection.
+
+`ColorfieldSurfaceDetection` computes activity only. `ColorfieldSurfaceNormal` uses the same
+colorfield accumulation and additionally filters and stores the gradient as a surface normal.
+Different `color_value`s detect interfaces between represented liquids. A constant nonzero
+color detects a free surface because its kernel support ends at the unrepresented exterior.
+Equal colors do not create an internal interface.
+
+`surface_activity` is available in particle VTK output and as a custom quantity for
+`SolutionSavingCallback` and `PostprocessCallback`. `surf_normal` is written only for
+normal-capable methods.
+
+Point and plane interpolation evaluate the same colorfield gradient. With `cut_off_bnd=true`,
+kernel-weighted color contributions also determine whether a point belongs to the reference
+phase. This prevents extrapolation through both free surfaces and interfaces with another
+liquid while retaining the existing solid-boundary cutoff.
 
 #### Handling noise and errors in normal calculation
 

@@ -131,6 +131,111 @@
         semi_boundary = Semidiscretization(fluid_system, boundary_system)
         TrixiParticles.initialize_neighborhood_searches!(semi_boundary)
 
+        surface_detection_ic = RectangularShape(particle_spacing, (nx, ny), (0.0, 0.0),
+                                                density=1000.0)
+        surface_detection_system = WeaklyCompressibleSPHSystem(surface_detection_ic;
+                                                               smoothing_kernel,
+                                                               smoothing_length=1.5 *
+                                                                                particle_spacing,
+                                                               density_calculator=ContinuityDensity(),
+                                                               state_equation, viscosity,
+                                                               acceleration=(0.0, -9.81),
+                                                               surface_method=ColorfieldSurfaceDetection(ideal_density_threshold=0.9),
+                                                               reference_particle_spacing=particle_spacing)
+        surface_detection_system.pressure .= surface_detection_ic.pressure
+        semi_surface_detection = Semidiscretization(surface_detection_system)
+        TrixiParticles.initialize_neighborhood_searches!(semi_surface_detection)
+
+        @testset verbose=true "Interpolated Free Surface Detection" begin
+            min_x, max_x = extrema(view(surface_detection_ic.coordinates, 1, :))
+            max_y = maximum(view(surface_detection_ic.coordinates, 2, :))
+            point_coords = [(min_x + max_x) / 2 (min_x + max_x) / 2;
+                            max_y max_y + particle_spacing]
+            v_surface_detection = vcat(surface_detection_ic.velocity,
+                                       surface_detection_ic.density')
+            u_surface_detection = surface_detection_ic.coordinates
+
+            uncut = interpolate_points(point_coords, semi_surface_detection,
+                                       surface_detection_system, v_surface_detection,
+                                       u_surface_detection;
+                                       cut_off_bnd=false)
+            cut = interpolate_points(point_coords, semi_surface_detection,
+                                     surface_detection_system, v_surface_detection,
+                                     u_surface_detection;
+                                     cut_off_bnd=true)
+
+            @test all(isfinite, uncut.density)
+            @test all(isfinite, uncut.surface_activity)
+            @test uncut.surface_activity[2] > 0.9
+            @test isfinite(cut.density[1])
+            @test cut.neighbor_count[1] > 0
+            @test isnan(cut.density[2])
+            @test isnan(cut.surface_activity[2])
+            @test cut.neighbor_count[2] == 0
+
+            mktempdir() do output_directory
+                interpolate_plane_2d_vtk([min_x, max_y - particle_spacing],
+                                         [max_x, max_y + particle_spacing],
+                                         particle_spacing, semi_surface_detection,
+                                         surface_detection_system, v_surface_detection,
+                                         u_surface_detection; output_directory,
+                                         filename="surface_detection")
+                vtk_file = TrixiParticles.ReadVTK.VTKFile(joinpath(output_directory,
+                                                                   "surface_detection.vti"))
+                point_data = TrixiParticles.ReadVTK.get_point_data(vtk_file)
+                @test "surface_activity" in keys(point_data)
+            end
+        end
+
+        @testset verbose=true "Interpolated Multiphase Surface Detection" begin
+            interface_spacing = 0.1
+            y_coordinates = collect(-0.5:interface_spacing:0.5)
+            coordinates_a = hcat(([x, y] for x in -0.5:interface_spacing:-0.1
+                                  for y in y_coordinates)...)
+            coordinates_b = hcat(([x, y] for x in 0.0:interface_spacing:0.5
+                                  for y in y_coordinates)...)
+            initial_condition_a = InitialCondition(; coordinates=coordinates_a,
+                                                   density=fill(1000.0,
+                                                                size(coordinates_a, 2)),
+                                                   particle_spacing=interface_spacing)
+            initial_condition_b = InitialCondition(; coordinates=coordinates_b,
+                                                   density=fill(1000.0,
+                                                                size(coordinates_b, 2)),
+                                                   particle_spacing=interface_spacing)
+            interface_kernel = WendlandC2Kernel{2}()
+            interface_state_equation = StateEquationCole(sound_speed=10.0,
+                                                         reference_density=1000.0,
+                                                         exponent=1)
+            system_a = WeaklyCompressibleSPHSystem(initial_condition_a;
+                                                   smoothing_kernel=interface_kernel,
+                                                   smoothing_length=0.15,
+                                                   density_calculator=SummationDensity(),
+                                                   state_equation=interface_state_equation,
+                                                   surface_method=ColorfieldSurfaceDetection(interface_threshold=1.0e-6),
+                                                   reference_particle_spacing=interface_spacing,
+                                                   color_value=1)
+            system_b = WeaklyCompressibleSPHSystem(initial_condition_b;
+                                                   smoothing_kernel=interface_kernel,
+                                                   smoothing_length=0.15,
+                                                   density_calculator=SummationDensity(),
+                                                   state_equation=interface_state_equation,
+                                                   color_value=2)
+            interface_semi = Semidiscretization(system_a, system_b)
+            interface_ode = semidiscretize(interface_semi, (0.0, 0.01))
+            TrixiParticles.update_systems_and_nhs(interface_ode.u0.x..., interface_semi,
+                                                  0.0)
+            interface_points = [-0.1 0.1; 0.0 0.0]
+            uncut = interpolate_points(interface_points, interface_semi, system_a,
+                                       interface_ode.u0.x...; cut_off_bnd=false)
+            cut = interpolate_points(interface_points, interface_semi, system_a,
+                                     interface_ode.u0.x...; cut_off_bnd=true)
+
+            @test all(>(0.9), uncut.surface_activity)
+            @test isfinite(cut.density[1])
+            @test isnan(cut.density[2])
+            @test isnan(cut.surface_activity[2])
+        end
+
         # Some simple results
         expected_zero(y) = (density=[NaN], neighbor_count=[0], point_coords=[0.0; y;;],
                             velocity=[NaN; NaN;;], pressure=[NaN])

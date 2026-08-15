@@ -917,7 +917,10 @@ check_configuration(system::AbstractSystem, systems, nhs) = nothing
 
 function check_system_color(systems)
     requires_color_check = any(systems) do system
-        return surface_normal_method(system) isa ColorfieldSurfaceNormal
+        system isa AbstractFluidSystem || return false
+        system isa ParticlePackingSystem && return false
+
+        return is_colorfield_surface_method(surface_method(system))
     end
 
     if requires_color_check
@@ -927,18 +930,18 @@ function check_system_color(systems)
                                          system isa
                                          RigidBodySystem{<:BoundaryModelDummyParticles},
                                systems)
-        normal_fluid_ids = filter(i -> surface_normal_method(systems[i]) isa
-                                       ColorfieldSurfaceNormal, fluid_ids)
+        surface_fluid_ids = filter(i -> is_colorfield_surface_method(surface_method(systems[i])),
+                                   fluid_ids)
 
         participant_ids = (fluid_ids..., boundary_ids...)
         if all(i -> iszero(systems[i].cache.color), participant_ids)
-            throw(ArgumentError("When `ColorfieldSurfaceNormal` is used, at least one participating system must have a color different from 0."))
+            throw(ArgumentError("When a colorfield surface method is used, at least one participating system must have a color different from 0."))
         end
 
         if !isempty(boundary_ids) &&
-           any(i -> iszero(systems[i].cache.color), normal_fluid_ids) &&
+           any(i -> iszero(systems[i].cache.color), surface_fluid_ids) &&
            all(i -> iszero(systems[i].cache.color), boundary_ids)
-            throw(ArgumentError("A fluid with `ColorfieldSurfaceNormal` and color 0 requires " *
+            throw(ArgumentError("A fluid with a colorfield surface method and color 0 requires " *
                                 "a nonzero dummy-boundary color for contact detection."))
         end
     end

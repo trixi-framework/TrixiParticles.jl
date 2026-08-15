@@ -4,6 +4,13 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.6.0
+
+### API Changes
+
+- Renamed the fluid-system keyword `surface_normal_method` to `surface_method` and added
+  detection-only surface methods. The old constructor keyword and accessor are deprecated.
+
 ## Version 0.5.4
 
 ### Important Bugfixes

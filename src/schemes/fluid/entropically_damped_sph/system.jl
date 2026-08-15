@@ -6,7 +6,7 @@
                                 shifting_technique=nothing,
                                 alpha=0.5, viscosity=nothing,
                                 acceleration=ntuple(_ -> 0.0, NDIMS), surface_tension=nothing,
-                                surface_normal_method=nothing, buffer_size=nothing,
+                                surface_method=nothing, buffer_size=nothing,
                                 reference_particle_spacing=0.0, color_value=1,
                                 source_terms=nothing)
 
@@ -50,16 +50,13 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
                                 The keyword argument `acceleration` should be used instead for
                                 gravity-like source terms.
 - `surface_tension`:            Surface tension model used for this SPH system. (default: no surface tension)
-- `surface_normal_method`:      Method used to estimate fluid-interface normals. This can be
-                                configured independently for interface analysis and output and is
-                                also used by models that require interface geometry. The default is
-                                `nothing`; `ColorfieldSurfaceNormal()` is selected automatically
-                                when the surface tension model requires normals.
-- `reference_particle_spacing`: Reference spacing used by support-based normal validity
-                                checks. It is required when using a surface-normal method.
-- `color_value`:                Integer scalar used by [`ColorfieldSurfaceNormal`](@ref).
-                                Interacting fluid values define fluid-fluid color gradients;
-                                dummy-boundary contact detection also uses the fluid value.
+- `surface_method`:             Surface detection or normal method used by this system.
+                                Methods that compute normals always also compute surface
+                                activity. The default is `nothing`, or
+                                `ColorfieldSurfaceNormal()` when required by surface tension.
+- `reference_particle_spacing`: Reference spacing required by colorfield surface methods.
+- `color_value`:                Scalar contributed to colorfield surface detection. Different
+                                values identify represented fluid-fluid interfaces.
 
 """
 struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, COR, PF, TV,
@@ -79,7 +76,7 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, COR, 
     average_pressure_reduction        :: AVGP
     source_terms                      :: ST
     surface_tension                   :: SRFT
-    surface_normal_method             :: SRFN
+    surface_method                    :: SRFN
     buffer                            :: B
     particle_refinement               :: PR
     cache                             :: C
@@ -97,7 +94,8 @@ function EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel, smooth
                                                          ndims(smoothing_kernel)),
                                      correction=nothing,
                                      source_terms=nothing, surface_tension=nothing,
-                                     surface_normal_method=nothing, buffer_size=nothing,
+                                     surface_method=nothing, surface_normal_method=nothing,
+                                     buffer_size=nothing,
                                      reference_particle_spacing=0.0, color_value=1)
     buffer = isnothing(buffer_size) ? nothing :
              SystemBuffer(nparticles(initial_condition), buffer_size)
@@ -121,11 +119,11 @@ function EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel, smooth
         throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
     end
 
-    surface_normal_method = default_surface_normal_method(surface_tension,
-                                                          surface_normal_method)
+    surface_method = select_surface_method(surface_tension, surface_method,
+                                           surface_normal_method)
 
-    if surface_normal_method !== nothing && reference_particle_spacing < eps()
-        throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using a surface-normal method"))
+    if is_colorfield_surface_method(surface_method) && reference_particle_spacing < eps()
+        throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using a colorfield surface method"))
     end
 
     if correction isa ShepardKernelCorrection &&
@@ -146,8 +144,7 @@ function EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel, smooth
              create_cache_shifting(initial_condition, shifting_technique)...,
              create_cache_avg_pressure_reduction(initial_condition,
                                                  avg_pressure_reduction)...,
-             create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS,
-                                         n_particles)...,
+             create_cache_surface(surface_method, ELTYPE, NDIMS, n_particles)...,
              create_cache_surface_tension(surface_tension, ELTYPE, NDIMS,
                                           n_particles)...,
              create_cache_refinement(initial_condition, particle_refinement,
@@ -169,7 +166,7 @@ function EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel, smooth
                                 typeof(viscosity), typeof(correction),
                                 typeof(pressure_acceleration), typeof(shifting_technique),
                                 typeof(avg_pressure_reduction), typeof(source_terms),
-                                typeof(surface_tension), typeof(surface_normal_method),
+                                typeof(surface_tension), typeof(surface_method),
                                 typeof(buffer), Nothing,
                                 typeof(cache)}(initial_condition, mass, density_calculator,
                                                smoothing_kernel, sound_speed, viscosity,
@@ -177,7 +174,7 @@ function EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel, smooth
                                                pressure_acceleration, shifting_technique,
                                                avg_pressure_reduction,
                                                source_terms, surface_tension,
-                                               surface_normal_method, buffer,
+                                               surface_method, buffer,
                                                particle_refinement, cache)
 end
 
@@ -200,7 +197,7 @@ function Base.show(io::IO, system::EntropicallyDampedSPHSystem)
     print(io, ", ", system.smoothing_kernel)
     print(io, ", ", system.acceleration)
     print(io, ", ", system.surface_tension)
-    print(io, ", ", system.surface_normal_method)
+    print(io, ", ", system.surface_method)
     print(io, ") with ", nparticles(system), " particles")
 end
 
@@ -229,7 +226,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::EntropicallyDampedSPHSyst
                      typeof(system.average_pressure_reduction).parameters[1] ? "yes" : "no")
         summary_line(io, "acceleration", system.acceleration)
         summary_line(io, "surface tension", system.surface_tension)
-        summary_line(io, "surface normal method", system.surface_normal_method)
+        summary_line(io, "surface method", system.surface_method)
         summary_footer(io)
     end
 end
@@ -300,8 +297,7 @@ function update_quantities!(system::EntropicallyDampedSPHSystem, v, u,
 end
 
 function update_pressure!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, semi, t)
-    compute_surface_normal!(system, system.surface_normal_method, v, u, v_ode, u_ode, semi,
-                            t)
+    compute_surface!(system, system.surface_method, v, u, v_ode, u_ode, semi, t)
     compute_surface_delta_function!(system, system.surface_tension, semi)
 end
 

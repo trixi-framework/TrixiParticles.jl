@@ -291,8 +291,9 @@
                                              density_calculator=density_calc,
                                              state_equation=eq_state,
                                              surface_tension=SurfaceTensionMomentumMorris(surface_tension_coefficient=1.0),
-                                             surface_normal_method=ColorfieldSurfaceNormal(interface_threshold=0.0),
-                                             reference_particle_spacing=1.0)
+                                             surface_method=ColorfieldSurfaceNormal(interface_threshold=0.1,
+                                                                                    ideal_density_threshold=0.9),
+                                             reference_particle_spacing=1.0,)
 
         # 4. Verify Cache Contains Necessary Fields
         @test haskey(system.cache, :delta_s)
