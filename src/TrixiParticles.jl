@@ -22,9 +22,9 @@ using Printf: @printf, @sprintf
 using ReadVTK: ReadVTK
 using RecipesBase: RecipesBase, @series
 using Random: seed!
-using SciMLBase: SciMLBase, CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
-                 get_tmp_cache, set_proposed_dt!, ODESolution, ODEProblem, terminate!,
-                 add_tstop!
+using SciMLBase: SciMLBase, CallbackSet, DiscreteCallback, DynamicalODEProblem,
+                 derivative_discontinuity!, get_tmp_cache, set_proposed_dt!,
+                 ODESolution, ODEProblem, terminate!, add_tstop!
 @reexport using StaticArrays: SVector
 using StaticArrays: @SMatrix, SMatrix, setindex
 using Statistics: Statistics
@@ -41,8 +41,9 @@ using TrixiBase: @trixi_timeit, timer, timeit_debug_enabled,
                                 SerialBackend, PolyesterBackend, ThreadsStaticBackend,
                                 ThreadsDynamicBackend, default_backend
 using PointNeighbors: PointNeighbors, foreach_point_neighbor, copy_neighborhood_search,
-                      @threaded
-using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, paraview_collection, vtk_save
+                      @threaded, AbstractNeighborhoodSearch
+using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, VTKFieldData, paraview_collection,
+                vtk_save
 
 # `util.jl` needs to be first because of the macros `@trixi_timeit` and `@threaded`
 include("util.jl")
@@ -61,9 +62,11 @@ include("general/semidiscretization.jl")
 include("general/gpu.jl")
 include("preprocessing/preprocessing.jl")
 include("io/io.jl")
+include("general/restart.jl")
 include("visualization/recipes_plots.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
+export PairsNHSHandler, SharedNHSHandler
 export InitialCondition, apply_angular_velocity
 export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangianSPHSystem,
        RigidBodySystem, WallBoundarySystem, DEMSystem, BoundaryDEMSystem,
@@ -78,7 +81,7 @@ export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller, TransportVelocityAdami, ParticleShiftingTechnique,
        ParticleShiftingTechniqueSun2017, ConsistentShiftingSun2019,
-       ContinuityEquationTermSun2019, MomentumEquationTermSun2019
+       ContinuityEquationTermSun2019, MomentumEquationTermSun2019, VelocityAveraging
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        SchoenbergQuinticSplineKernel, GaussianKernel, WendlandC2Kernel, WendlandC4Kernel,
        WendlandC6Kernel, SpikyKernel, Poly6Kernel, LaguerreGaussKernel

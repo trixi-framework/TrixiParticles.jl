@@ -12,9 +12,9 @@
     end
 
     system32 = MockSystem(Float32)
-    semi32 = Semidiscretization(system32)
+    semi32 = Semidiscretization(system32, neighborhood_search_handler=PairsNHSHandler)
     system64 = MockSystem(Float64)
-    semi64 = Semidiscretization(system64)
+    semi64 = Semidiscretization(system64, neighborhood_search_handler=PairsNHSHandler)
 
     @testset "Constructor and Basic Properties" begin
         # Test default constructor

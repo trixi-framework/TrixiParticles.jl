@@ -1,3 +1,19 @@
+@testset verbose=true "foreach_noalloc" begin
+    collection1 = (1, 2)
+    visited = [0, 0]
+    TrixiParticles.foreach_noalloc(collection1) do collection
+        visited[collection] += 1
+    end
+    @test visited == [1, 1]
+
+    collection2 = (3, 4)
+    visited = []
+    TrixiParticles.foreach_noalloc_zip(collection1, collection2) do (i, j)
+        push!(visited, (i, j))
+    end
+    @test visited == [(1, 3), (2, 4)]
+end
+
 @testset verbose=true "ThreadedBroadcastArray" begin
     A = TrixiParticles.ThreadedBroadcastArray(ones(3, 3))
     B = ones(3, 3)

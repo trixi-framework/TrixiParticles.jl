@@ -94,7 +94,9 @@ end
                 # everywhere here. For some reason, this is only necessary in this and the
                 # next test, but not in the other tests in this file.
                 # Perhaps because this is inside an `if` block?
-                @test (@invokelatest (@__MODULE__).semi).neighborhood_searches[1, 1].cell_list isa
+                semi_ = @invokelatest (@__MODULE__).semi
+                @test TrixiParticles.get_neighborhood_search(first(semi_.systems),
+                                                             semi_).cell_list isa
                       FullGridCellList
                 @test (@invokelatest (@__MODULE__).sol).retcode ==
                       (@invokelatest (@__MODULE__).ReturnCode).Success
@@ -126,7 +128,9 @@ end
                     r"└ New tank length in y-direction.*\n"
                 ]
                 # See the comment in the previous test about `@invokelatest`
-                @test (@invokelatest (@__MODULE__).semi).neighborhood_searches[1, 1].cell_list isa
+                semi_ = @invokelatest (@__MODULE__).semi
+                @test TrixiParticles.get_neighborhood_search(first(semi_.systems),
+                                                             semi_).cell_list isa
                       FullGridCellList
                 @test (@invokelatest (@__MODULE__).sol).retcode ==
                       (@invokelatest (@__MODULE__).ReturnCode).Success
@@ -155,9 +159,10 @@ end
                                           sol=nothing, ode=nothing)
 
             dam_break_tests = Dict(
-                "default" => (),
+                "no density diffusion" => (density_diffusion=nothing,),
                 "DensityDiffusionMolteniColagrossi" => (density_diffusion=DensityDiffusionMolteniColagrossi(delta=0.1f0),),
-                "DensityDiffusionFerrari" => (density_diffusion=DensityDiffusionFerrari(),)
+                "DensityDiffusionFerrari" => (density_diffusion=DensityDiffusionFerrari(),),
+                "DensityDiffusionAntuono" => (density_diffusion=DensityDiffusionAntuono(delta=0.1f0),)
             )
 
             for (test_description, kwargs) in dam_break_tests
@@ -177,7 +182,9 @@ end
                         r"┌ Info: The desired tank length in y-direction.*\n",
                         r"└ New tank length in y-direction.*\n"
                     ]
-                    @test semi.neighborhood_searches[1, 1].cell_list isa FullGridCellList
+                    @test TrixiParticles.get_neighborhood_search(first(semi.systems),
+                                                                 semi).cell_list isa
+                          FullGridCellList
                     @test sol.retcode == ReturnCode.Success
                     v_ode, u_ode = sol.u[end].x
                     backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
@@ -201,7 +208,9 @@ end
                 r"┌ Info: The desired tank length in y-direction.*\n",
                 r"└ New tank length in y-direction.*\n"
             ]
-            @test semi.neighborhood_searches[1, 1].cell_list isa FullGridCellList
+            @test TrixiParticles.get_neighborhood_search(first(semi.systems),
+                                                         semi).cell_list isa
+                  FullGridCellList
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
@@ -235,7 +244,9 @@ end
                 r"┌ Info: The desired tank length in y-direction.*\n",
                 r"└ New tank length in y-direction.*\n"
             ]
-            @test semi.neighborhood_searches[1, 1].cell_list isa FullGridCellList
+            @test TrixiParticles.get_neighborhood_search(first(semi.systems),
+                                                         semi).cell_list isa
+                  FullGridCellList
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
@@ -312,8 +323,31 @@ end
                                    acceleration=(0.0f0, -gravity), state_equation,
                                    coordinates_eltype=Float32)
 
+            trixi_include_changeprecision(Float32, @__MODULE__,
+                                          joinpath(examples_dir(), "fluid",
+                                                   "hydrostatic_water_column_2d.jl");
+                                          sol=nothing, ode=nothing, tank)
+
+            # Neighborhood search with `FullGridCellList` for GPU compatibility
+            min_corner = minimum(tank.boundary.coordinates, dims=2)
+            max_corner = maximum(tank.boundary.coordinates, dims=2)
+            cell_list = FullGridCellList(; min_corner, max_corner,
+                                         max_points_per_cell=500)
+            semi_fullgrid = Semidiscretization(fluid_system, boundary_system,
+                                               neighborhood_search=GridNeighborhoodSearch{2}(;
+                                                                                             cell_list),
+                                               neighborhood_search_handler=SharedNHSHandler,
+                                               parallelization_backend=Main.parallelization_backend)
+
+            semi_pairs = Semidiscretization(fluid_system, boundary_system,
+                                            neighborhood_search=GridNeighborhoodSearch{2}(;
+                                                                                          cell_list),
+                                            neighborhood_search_handler=PairsNHSHandler,
+                                            parallelization_backend=Main.parallelization_backend)
+
             hydrostatic_water_column_tests = Dict(
                 "WCSPH default" => (),
+                "WCSPH with PairsNHSHandler" => (semi=semi_pairs,),
                 "WCSPH with source term damping" => (source_terms=SourceTermDamping(damping_coefficient=1.0f-4),),
                 "WCSPH with SummationDensity" => (fluid_density_calculator=SummationDensity(),
                                                   clip_negative_pressure=true),
@@ -363,23 +397,6 @@ end
                     println("═"^100)
                     println("$test_description")
 
-                    # Create systems with the given keyword arguments
-                    trixi_include_changeprecision(Float32, @__MODULE__,
-                                                  joinpath(examples_dir(), "fluid",
-                                                           "hydrostatic_water_column_2d.jl");
-                                                  sol=nothing, ode=nothing, tank, kwargs...)
-
-                    # Neighborhood search with `FullGridCellList` for GPU compatibility
-                    min_corner = minimum(tank.boundary.coordinates, dims=2)
-                    max_corner = maximum(tank.boundary.coordinates, dims=2)
-                    cell_list = FullGridCellList(; min_corner, max_corner,
-                                                 max_points_per_cell=500)
-                    semi_fullgrid = Semidiscretization(fluid_system, boundary_system,
-                                                       neighborhood_search=GridNeighborhoodSearch{2}(;
-                                                                                                     cell_list),
-                                                       parallelization_backend=Main.parallelization_backend)
-
-                    # Run the simulation
                     @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
                                                                      joinpath(examples_dir(),
                                                                               "fluid",
@@ -392,6 +409,10 @@ end
                     ]
 
                     @test sol.retcode == ReturnCode.Success
+                    if test_description == "WCSPH with PairsNHSHandler"
+                        @test semi.neighborhood_search_handler isa
+                              TrixiParticles.PairsNHSHandler
+                    end
                     v_ode, u_ode = sol.u[end].x
                     backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
                     @test backend == Main.parallelization_backend
@@ -682,6 +703,100 @@ end
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
         end
+
+        @trixi_testset "fsi/dam_break_plate_2d.jl with SortingCallback" begin
+            # Import variables into scope
+            trixi_include_changeprecision(Float32, @__MODULE__,
+                                          joinpath(examples_dir(), "fsi",
+                                                   "dam_break_plate_2d.jl"),
+                                          coordinates_eltype=Float32,
+                                          # Use rounded dimensions to avoid warnings
+                                          initial_fluid_size=(0.15f0, 0.29f0),
+                                          sol=nothing, ode=nothing)
+
+            # Neighborhood search with `FullGridCellList` for GPU compatibility
+            min_corner = minimum(tank.boundary.coordinates, dims=2)
+            max_corner = maximum(tank.boundary.coordinates, dims=2)
+            cell_list = FullGridCellList(; min_corner, max_corner)
+            semi = Semidiscretization(fluid_system, boundary_system, structure_system,
+                                      neighborhood_search=GridNeighborhoodSearch{2}(;
+                                                                                    cell_list),
+                                      parallelization_backend=Main.parallelization_backend)
+            ode = semidiscretize(semi, (0.0f0, 0.05f0))
+
+            # Set up callbacks
+            stepsize_callback = StepsizeCallback(cfl=1.2f0)
+            sorting_callback = SortingCallback(dt=0.02)
+            callbacks = CallbackSet(info_callback, stepsize_callback, sorting_callback)
+
+            # Run the simulation
+            sol = @trixi_test_nowarn solve(ode,
+                                           CarpenterKennedy2N54(williamson_condition=false),
+                                           dt=1.0f0, save_everystep=false,
+                                           callback=callbacks)
+
+            @test sol.retcode == ReturnCode.Success
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+            @test backend == Main.parallelization_backend
+        end
+
+        @trixi_testset "fsi/dam_break_plate_2d.jl with VTK plane interpolation" begin
+            # Import variables into scope
+            trixi_include_changeprecision(Float32, @__MODULE__,
+                                          joinpath(examples_dir(), "fsi",
+                                                   "dam_break_plate_2d.jl"),
+                                          coordinates_eltype=Float32,
+                                          # Use rounded dimensions to avoid warnings
+                                          initial_fluid_size=(0.15f0, 0.29f0),
+                                          sol=nothing, ode=nothing)
+
+            # Neighborhood search with `FullGridCellList` for GPU compatibility
+            min_corner = minimum(tank.boundary.coordinates, dims=2)
+            max_corner = maximum(tank.boundary.coordinates, dims=2)
+            cell_list = FullGridCellList(; min_corner, max_corner)
+            semi = Semidiscretization(fluid_system, boundary_system, structure_system,
+                                      neighborhood_search=GridNeighborhoodSearch{2}(;
+                                                                                    cell_list),
+                                      parallelization_backend=Main.parallelization_backend)
+            ode = semidiscretize(semi, (0.0f0, 0.05f0))
+
+            # Set up interpolation callback.
+            # No interpolation for non-fluid systems.
+            function plane_vtk(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
+                return nothing
+            end
+            function plane_vtk(::WeaklyCompressibleSPHSystem, dv_ode, du_ode, v_ode, u_ode,
+                               semi, t)
+                resolution = fluid_particle_spacing / 2
+                interpolate_plane_2d_vtk(min_corner, max_corner, resolution,
+                                         semi, semi.systems[1], v_ode, u_ode,
+                                         include_wall_velocity=true,
+                                         filename="plane_$t.vti")
+
+                # Return something non-empty to create a CSV file.
+                return 1
+            end
+            interpolation_callback = PostprocessCallback(; plane_vtk, filename="plane")
+            stepsize_callback = StepsizeCallback(cfl=1.2f0)
+            callbacks = CallbackSet(info_callback, stepsize_callback,
+                                    interpolation_callback)
+
+            # Run the simulation
+            sol = @trixi_test_nowarn solve(ode,
+                                           CarpenterKennedy2N54(williamson_condition=false),
+                                           dt=1.0f0, save_everystep=false,
+                                           callback=callbacks)
+
+            @test sol.retcode == ReturnCode.Success
+            backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
+            @test backend == Main.parallelization_backend
+
+            # Test that the callback only fired twice (once at the beginning and once at
+            # the end of the simulation).
+            @test countlines(joinpath("out", "plane.csv")) == 2 + 1 # header + 2 lines of data
+            @test isfile(joinpath("out", "plane_0.0.vti"))
+            @test isfile(joinpath("out", "plane_0.05.vti"))
+        end
     end
 
     @testset verbose=true "DEM" begin
@@ -752,6 +867,32 @@ end
                                        913.2089])
             end
 
+            @testset verbose=true "Line with different smoothing_length" begin
+                # Interpolation parameters
+                n_interpolation_points = 10
+                start_point = Float32[0.5, 0.0]
+                end_point = Float32[0.5, 0.5]
+
+                result = interpolate_line(start_point, end_point, n_interpolation_points,
+                                          semi_new, semi_new.systems[1], sol;
+                                          cut_off_bnd=false, smoothing_length=0.2f0)
+
+                @test isapprox(Array(result.computed_density),
+                               Float32[501.10648, 700.15857, 852.81036, 944.48535,
+                                       986.2611, 998.96576, 997.5659, 980.23236,
+                                       929.7254, 825.95825])
+
+                @test isapprox(Array(result.density),
+                               Float32[1001.98303, 1001.8848, 1001.7575, 1001.59985,
+                                       1001.41754, 1001.2164, 1001.0109, 1000.81616,
+                                       1000.6457, 1000.5056])
+
+                @test isapprox(Array(result.pressure),
+                               Float32[4668.169, 4437.7715, 4137.7075, 3768.1145, 3337.1655,
+                                       2863.6277, 2379.349, 1921.7727, 1519.3884,
+                                       1190.5823])
+            end
+
             @testset verbose=true "Plane" begin
                 interpolation_start = Float32[0.0, 0.0]
                 interpolation_end = Float32[1.0, 1.0]
@@ -774,5 +915,65 @@ end
                                        1958.2637, 1888.739, 802.3146, -187.81871])
             end
         end
+    end
+
+    @testset verbose=true "Restart" begin
+        trixi_include_changeprecision(Float32, @__MODULE__,
+                                      joinpath(examples_dir(), "fluid",
+                                               "poiseuille_flow_2d.jl"),
+                                      tspan=(0.0f0, 0.6f0), sound_speed_factor=10,
+                                      particle_spacing=4.0f-5, sol=nothing,
+                                      coordinates_eltype=Float32,
+                                      parallelization_backend=Main.parallelization_backend)
+
+        sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
+                    dt=1.0f0, save_everystep=false,
+                    callback=CallbackSet(callbacks, StepsizeCallback(cfl=1.5f0)))
+
+        # Since this is an open boundary simulation, the number of active particles may
+        # differ. The results must be interpolated to enable comparison with the restart
+        # simulation. The fluid domain starts at `x = 10 * particle_spacing`.
+        n_interpolation_points = 10
+        start_point = [0.0f0 + 10 * particle_spacing, channel_height / 2]
+        end_point = [channel_length - 10 * particle_spacing, channel_height / 2]
+        result_full = interpolate_line(start_point, end_point, n_interpolation_points,
+                                       sol.prob.p.semi, sol.prob.p.semi.systems[1], sol,
+                                       cut_off_bnd=false)
+
+        # Run half simulation and safe checkpoint
+        trixi_include_changeprecision(Float32, @__MODULE__,
+                                      joinpath(examples_dir(), "fluid",
+                                               "poiseuille_flow_2d.jl"),
+                                      tspan=(0.0f0, 0.3f0), sound_speed_factor=10,
+                                      particle_spacing=4.0f-5, sol=nothing,
+                                      coordinates_eltype=Float32,
+                                      parallelization_backend=Main.parallelization_backend)
+
+        sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
+                    dt=1.0f0, save_everystep=false,
+                    callback=CallbackSet(callbacks, StepsizeCallback(cfl=1.5f0)))
+
+        iter = saving_callback.affect!.affect!.latest_saved_iter
+        fluid_restart = joinpath("out", "fluid_1_$iter.vtu")
+        open_boundary_restart = joinpath("out", "open_boundary_1_$iter.vtu")
+        boundary_restart = joinpath("out", "boundary_1_$iter.vtu")
+
+        ode_restart = semidiscretize(semi, (0.3f0, 0.6f0);
+                                     restart_with=(fluid_restart, open_boundary_restart,
+                                                   boundary_restart))
+
+        sol_restart = solve(ode_restart, CarpenterKennedy2N54(williamson_condition=false),
+                            dt=1.0f0, save_everystep=false,
+                            callback=CallbackSet(UpdateCallback(),
+                                                 StepsizeCallback(cfl=1.5f0)))
+
+        result_restart = interpolate_line(start_point, end_point,
+                                          n_interpolation_points, sol_restart.prob.p.semi,
+                                          sol_restart.prob.p.semi.systems[1],
+                                          sol_restart, cut_off_bnd=false)
+
+        @test isapprox(result_full.velocity, result_restart.velocity, rtol=7.0f-5)
+        @test isapprox(result_full.density, result_restart.density, rtol=5.0f-6)
+        @test isapprox(result_full.pressure, result_restart.pressure, rtol=5.0f-4)
     end
 end
