@@ -65,6 +65,8 @@ viscosity_fluid = ArtificialViscosityMonaghan(; alpha, beta=0.0)
 density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 # density_diffusion = DensityDiffusionAntuono(delta=0.1)
 surface_method = nothing
+surface_pressure = nothing
+reference_particle_spacing = isnothing(surface_method) ? 0 : fluid_particle_spacing
 
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid; smoothing_kernel, smoothing_length,
                                            density_calculator=fluid_density_calculator,
@@ -74,8 +76,8 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid; smoothing_kernel, smoothi
                                            gradient_correction=nothing,
                                            force_correction=nothing,
                                            surface_tension=nothing,
-                                           surface_method,
-                                           reference_particle_spacing=0)
+                                           surface_method, surface_pressure,
+                                           reference_particle_spacing)
 
 # ==========================================================================================
 # ==== Boundary
@@ -92,7 +94,7 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              density_correction=nothing,
                                              gradient_correction=nothing,
                                              force_correction=nothing,
-                                             reference_particle_spacing=0,
+                                             reference_particle_spacing,
                                              viscosity=viscosity_wall,
                                              clip_negative_pressure=true)
 

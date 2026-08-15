@@ -7,7 +7,8 @@
                                 alpha=0.5, viscosity=nothing,
                                 acceleration=ntuple(_ -> 0.0, NDIMS), surface_tension=nothing,
                                 surface_method=nothing, buffer_size=nothing,
-                                reference_particle_spacing=0.0, color_value=1,
+                                surface_pressure=nothing,
+                                 reference_particle_spacing=0.0, color_value=1,
                                  density_correction=nothing, gradient_correction=nothing,
                                  force_correction=nothing, source_terms=nothing)
 
@@ -62,12 +63,15 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
                                 Methods that compute normals always also compute surface
                                 activity. The default is `nothing`, or
                                 `ColorfieldSurfaceNormal()` when required by surface tension.
+- `surface_pressure`:           Optional interface-aware pressure model. The experimental
+                                [`SurfacePressureDifference`](@ref) blends the conservative
+                                pressure acceleration with a pressure-difference operator.
 - `reference_particle_spacing`: Reference spacing required by colorfield surface methods.
 - `color_value`:                Integer phase identifier for colorfield surface detection.
                                 Its numeric magnitude and sign have no physical meaning.
 
 """
-struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, COR, PF, TV,
+struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, COR, PF, SP, TV,
                                    AVGP, ST, SRFT, SRFN, B, PR,
                                    C} <: AbstractFluidSystem{NDIMS}
     initial_condition                 :: IC
@@ -80,6 +84,7 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, COR, 
     acceleration                      :: SVector{NDIMS, ELTYPE}
     correction                        :: COR
     pressure_acceleration_formulation :: PF
+    surface_pressure                  :: SP
     shifting_technique                :: TV
     average_pressure_reduction        :: AVGP
     source_terms                      :: ST
@@ -105,6 +110,7 @@ function EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel, smooth
                                      force_correction=nothing,
                                      source_terms=nothing, surface_tension=nothing,
                                      surface_method=nothing, surface_normal_method=nothing,
+                                     surface_pressure=nothing,
                                      buffer_size=nothing,
                                      reference_particle_spacing=0.0, color_value=1)
     buffer = isnothing(buffer_size) ? nothing :
@@ -137,6 +143,8 @@ function EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel, smooth
     surface_method = select_surface_method(surface_tension, surface_method,
                                            surface_normal_method, ELTYPE)
     surface_method = check_surface_method_eltype(surface_method, ELTYPE)
+    surface_pressure = validate_surface_pressure(surface_pressure, surface_method,
+                                                 gradient_correction_)
 
     if is_colorfield_surface_method(surface_method) && reference_particle_spacing < eps()
         throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using a colorfield surface method"))
@@ -180,14 +188,16 @@ function EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel, smooth
     EntropicallyDampedSPHSystem{NDIMS, ELTYPE, typeof(initial_condition), typeof(mass),
                                 typeof(density_calculator), typeof(smoothing_kernel),
                                 typeof(viscosity), typeof(correction),
-                                typeof(pressure_acceleration), typeof(shifting_technique),
+                                typeof(pressure_acceleration), typeof(surface_pressure),
+                                typeof(shifting_technique),
                                 typeof(avg_pressure_reduction), typeof(source_terms),
                                 typeof(surface_tension), typeof(surface_method),
                                 typeof(buffer), Nothing,
                                 typeof(cache)}(initial_condition, mass, density_calculator,
                                                smoothing_kernel, sound_speed, viscosity,
                                                nu_edac, acceleration_, correction,
-                                               pressure_acceleration, shifting_technique,
+                                               pressure_acceleration, surface_pressure,
+                                               shifting_technique,
                                                avg_pressure_reduction,
                                                source_terms, surface_tension,
                                                surface_method, buffer,
@@ -214,6 +224,7 @@ function Base.show(io::IO, system::EntropicallyDampedSPHSystem)
     print(io, ", ", system.acceleration)
     print(io, ", ", system.surface_tension)
     print(io, ", ", system.surface_method)
+    print(io, ", ", system.surface_pressure)
     print(io, ") with ", nparticles(system), " particles")
 end
 
@@ -243,6 +254,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::EntropicallyDampedSPHSyst
         summary_line(io, "acceleration", system.acceleration)
         summary_line(io, "surface tension", system.surface_tension)
         summary_line(io, "surface method", system.surface_method)
+        summary_line(io, "surface pressure", system.surface_pressure)
         summary_footer(io)
     end
 end

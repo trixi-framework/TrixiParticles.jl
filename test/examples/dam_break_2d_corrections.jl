@@ -76,6 +76,34 @@
         @test count_rhs_allocations(sol) == 0
     end
 
+    @testset verbose=true "surface pressure $correction_name" for (correction_name,
+                                                                   correction) in
+                                                                  (("gradient",
+                                                                    GradientCorrection()),
+                                                                   ("mixed",
+                                                                    MixedKernelGradientCorrection()))
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "dam_break_2d.jl");
+                                         fluid_particle_spacing=particle_spacing,
+                                         smoothing_length=2 * particle_spacing,
+                                         smoothing_kernel=WendlandC6Kernel{2}(),
+                                         boundary_density_calculator=SummationDensity(),
+                                         fluid_density_calculator=SummationDensity(),
+                                         gradient_correction=correction,
+                                         surface_method=ColorfieldSurfaceDetection(ideal_density_threshold=0.9),
+                                         surface_pressure=SurfacePressureDifference(),
+                                         use_reinit=false, clip_negative_pressure=true,
+                                         prefix="surface_pressure_$(correction_name)",
+                                         tspan,
+                                         fluid_density, density_diffusion=nothing,
+                                         boundary_layers=5, sol=nothing)
+
+        sol = solve(ode, RDPK3SpFSAL35(), save_everystep=false, callback=callbacks)
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol) == 0
+    end
+
     @testset verbose=true "$correction_name" for correction_name in keys(correction_dict)
         local fluid_density_calculator = density_calculator_dict[correction_name]
         local correction = correction_dict[correction_name]

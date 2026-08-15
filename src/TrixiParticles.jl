@@ -120,6 +120,7 @@ export SurfaceTensionAkinci, CohesionForceAkinci, SurfaceTensionMorris,
 export AbstractSurfaceMethod, AbstractSurfaceNormalMethod, ColorfieldSurfaceDetection,
        ColorfieldSurfaceNormal, surface_method, computes_surface_normal, surface_activity,
        surface_normal
+export AbstractSurfacePressure, SurfacePressureDifference
 export SymplecticPositionVerlet
 export coordinates_eltype
 

@@ -204,7 +204,7 @@
                                              smoothing_length, density_calculator,
                                              state_equation, density_diffusion)
 
-        show_compact = "WeaklyCompressibleSPHSystem{2}(SummationDensity(), nothing, Val{:state_equation}(), Val{:smoothing_kernel}(), nothing, Val{:density_diffusion}(), nothing, nothing, nothing, [0.0, 0.0], nothing) with 2 particles"
+        show_compact = "WeaklyCompressibleSPHSystem{2}(SummationDensity(), nothing, Val{:state_equation}(), Val{:smoothing_kernel}(), nothing, Val{:density_diffusion}(), nothing, nothing, nothing, nothing, [0.0, 0.0], nothing) with 2 particles"
         @test repr(system) == show_compact
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -220,6 +220,7 @@
         │ shifting technique: …………………………… nothing                                                          │
         │ surface tension: …………………………………… nothing                                                          │
         │ surface method: ……………………………………… nothing                                                          │
+        │ surface pressure: ………………………………… nothing                                                          │
         │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
         │ source terms: …………………………………………… Nothing                                                          │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""

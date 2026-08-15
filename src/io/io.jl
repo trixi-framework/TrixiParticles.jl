@@ -87,6 +87,7 @@ function add_system_data!(system_data, system::AbstractFluidSystem)
     add_system_data!(system_data, shifting_technique(system))
     add_system_data!(system_data, system.surface_tension)
     add_system_data!(system_data, system.surface_method)
+    add_system_data!(system_data, surface_pressure_model(system))
     add_system_data!(system_data, system.viscosity)
     add_system_data!(system_data, system.correction)
     add_system_data!(system_data, system_state_equation(system))
@@ -345,6 +346,10 @@ function add_system_data!(system_data, surface_method_::ColorfieldSurfaceMethod)
     system_data["surface_method"]["ideal_density_threshold"] = surface_method_.ideal_density_threshold
     system_data["surface_method"]["interface_taper_start"] = surface_method_.interface_taper_start
     system_data["surface_method"]["interpolation_surface_threshold"] = surface_method_.interpolation_surface_threshold
+end
+
+function add_system_data!(system_data, surface_pressure::SurfacePressureDifference)
+    system_data["surface_pressure"] = Dict("model" => type2string(surface_pressure))
 end
 
 function add_system_data!(system_data, boundary_zone::BoundaryZone, indice)

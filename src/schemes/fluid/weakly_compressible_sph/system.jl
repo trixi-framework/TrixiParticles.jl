@@ -9,6 +9,7 @@
                                 density_correction=nothing, gradient_correction=nothing,
                                 force_correction=nothing, source_terms=nothing,
                                 surface_tension=nothing, surface_method=nothing,
+                                surface_pressure=nothing,
                                 reference_particle_spacing=0.0, color_value=1))
 
 System for particles of a fluid.
@@ -62,12 +63,15 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
                                 Methods that compute normals always also compute surface
                                 activity. The default is `nothing`, or
                                 `ColorfieldSurfaceNormal()` when required by surface tension.
+- `surface_pressure`:           Optional interface-aware pressure model. The experimental
+                                [`SurfacePressureDifference`](@ref) blends the conservative
+                                pressure acceleration with a pressure-difference operator.
 - `reference_particle_spacing`: Reference spacing required by colorfield surface methods.
 - `color_value`:                Integer phase identifier for colorfield surface detection.
                                 Its numeric magnitude and sign have no physical meaning.
 """
 struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K, V, DD, COR,
-                                   PF, SC, ST, B, SRFT, SRFN, PR,
+                                   PF, SP, SC, ST, B, SRFT, SRFN, PR,
                                    C} <: AbstractFluidSystem{NDIMS}
     initial_condition                 :: IC
     mass                              :: MA     # Array{ELTYPE, 1}
@@ -80,6 +84,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K, 
     density_diffusion                 :: DD
     correction                        :: COR
     pressure_acceleration_formulation :: PF
+    surface_pressure                  :: SP
     shifting_technique                :: SC
     source_terms                      :: ST
     surface_tension                   :: SRFT
@@ -105,6 +110,7 @@ function WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
                                      force_correction=nothing, source_terms=nothing,
                                      surface_tension=nothing, surface_method=nothing,
                                      surface_normal_method=nothing,
+                                     surface_pressure=nothing,
                                      reference_particle_spacing=0, color_value=1)
     buffer = isnothing(buffer_size) ? nothing :
              SystemBuffer(nparticles(initial_condition), buffer_size)
@@ -145,6 +151,8 @@ function WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
     surface_method = select_surface_method(surface_tension, surface_method,
                                            surface_normal_method, ELTYPE)
     surface_method = check_surface_method_eltype(surface_method, ELTYPE)
+    surface_pressure = validate_surface_pressure(surface_pressure, surface_method,
+                                                 gradient_correction_)
 
     if is_colorfield_surface_method(surface_method) && reference_particle_spacing < eps()
         throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using a colorfield surface method"))
@@ -179,7 +187,8 @@ function WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
                                        density_calculator, state_equation,
                                        smoothing_kernel, acceleration_, viscosity,
                                        density_diffusion, correction, pressure_acceleration,
-                                       shifting_technique, source_terms, surface_tension,
+                                       surface_pressure, shifting_technique, source_terms,
+                                       surface_tension,
                                        surface_method, buffer, particle_refinement,
                                        cache)
 end
@@ -197,6 +206,7 @@ function Base.show(io::IO, system::WeaklyCompressibleSPHSystem)
     print(io, ", ", system.shifting_technique)
     print(io, ", ", system.surface_tension)
     print(io, ", ", system.surface_method)
+    print(io, ", ", system.surface_pressure)
     if is_colorfield_surface_method(system.surface_method)
         print(io, ", ", system.cache.color)
     end
@@ -229,6 +239,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::WeaklyCompressibleSPHSyst
         summary_line(io, "shifting technique", system.shifting_technique)
         summary_line(io, "surface tension", system.surface_tension)
         summary_line(io, "surface method", system.surface_method)
+        summary_line(io, "surface pressure", system.surface_pressure)
         if is_colorfield_surface_method(system.surface_method)
             summary_line(io, "color", system.cache.color)
         end

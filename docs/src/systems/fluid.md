@@ -323,6 +323,22 @@ liquid while retaining the existing solid-boundary cutoff. Interpolated `surface
 applies the same minimum-support and `ideal_density_threshold` rejection criteria as the
 particle-based detection.
 
+#### Interface-aware pressure
+
+`SurfacePressureDifference()` can be passed as `surface_pressure` to WCSPH and EDAC systems.
+It blends the configured conservative pressure acceleration with the consistent difference
+operator
+
+```math
+-\frac{1}{\rho_a}\sum_b \frac{m_b}{\rho_b}
+  (p_b - p_a)\nabla_a W_{ab}
+```
+
+using the target particle's `surface_activity`. Only interactions within the same fluid
+system are blended. Boundary and cross-system interactions retain the conservative pressure
+formulation. The model is experimental, requires `GradientCorrection` or
+`MixedKernelGradientCorrection`, and is not supported by IISPH.
+
 #### Handling noise and errors in normal calculation
 
 Away from an interface, the exact color-field gradient vanishes, but particle disorder and

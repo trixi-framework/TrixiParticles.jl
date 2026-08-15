@@ -13,6 +13,11 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - The fluid `color_value` phase identifier is now always recorded in `meta.json` and written
   as `color` field data in VTK output, also for fluids without a surface method.
 
+### Features
+
+- Added an experimental surface-activity-weighted pressure-difference model for corrected
+  WCSPH and EDAC free-surface simulations.
+
 ### Important Bugfixes
 
 - Fixed Morris surface-tension curvature to accumulate the SPH sum over all interacting
