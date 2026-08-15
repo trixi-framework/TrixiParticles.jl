@@ -329,7 +329,7 @@ function system_smoothing_kernel(system::WallBoundarySystem{<:BoundaryModelDummy
 end
 
 function system_correction(system::WallBoundarySystem{<:BoundaryModelDummyParticles})
-    return system.boundary_model.correction
+    return correction_gradient(system.boundary_model.correction)
 end
 
 @inline function density_calculator(system::WallBoundarySystem)

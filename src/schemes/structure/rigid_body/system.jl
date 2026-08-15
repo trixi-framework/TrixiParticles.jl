@@ -267,7 +267,7 @@ end
 end
 
 @inline function system_correction(system::RigidBodySystem{<:BoundaryModelDummyParticles})
-    return system.boundary_model.correction
+    return correction_gradient(system.boundary_model.correction)
 end
 
 function initialize!(system::RigidBodySystem, semi)

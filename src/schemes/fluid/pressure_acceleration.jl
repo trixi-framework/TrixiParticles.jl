@@ -93,6 +93,18 @@ end
     return -volume_term * pressure_tilde * W_a
 end
 
+# Conservative extension for correction methods with asymmetric kernel gradients. This reduces
+# to the symmetric formulation above when `W_b == -W_a`.
+@inline function inter_particle_averaged_pressure(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a,
+                                                  W_b)
+    volume_a = m_a / rho_a
+    volume_b = m_b / rho_b
+    volume_term = (volume_a^2 + volume_b^2) / m_a
+    pressure_tilde = (rho_b * p_a + rho_a * p_b) / (rho_a + rho_b)
+
+    return -0.5 * volume_term * pressure_tilde * (W_a - W_b)
+end
+
 function choose_pressure_acceleration_formulation(pressure_acceleration,
                                                   density_calculator, NDIMS, ELTYPE,
                                                   correction)
