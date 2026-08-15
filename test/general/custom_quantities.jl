@@ -12,8 +12,8 @@
     smoothing_kernel = SchoenbergCubicSplineKernel{2}()
     smoothing_length = 1.2 * particle_spacing
 
-    fluid_system = EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
-                                               smoothing_length, 1.0)
+    fluid_system = EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel,
+                                               smoothing_length, sound_speed=1.0)
     fluid_system.cache.density .= initial_condition.density
 
     boundary_model = BoundaryModelDummyParticles(initial_condition.density,
@@ -38,6 +38,11 @@
             end
 
             @test isapprox(expected_ekin, ekin)
+
+            # Test the `PtrArray` path used without `ThreadedBroadcastArray`.
+            ekin_ptr_array = kinetic_energy(fluid_system, dv_ode, du_ode,
+                                            parent(v_ode), u_ode, semi, t)
+            @test isapprox(expected_ekin, ekin_ptr_array)
         end
 
         @testset "Boundary System" begin

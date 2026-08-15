@@ -1,7 +1,10 @@
 using Test
 using TrixiTest: @trixi_test_nowarn
 using TrixiParticles
+# Required to load the extension that provides `SymplecticPositionVerlet`.
+using OrdinaryDiffEqSymplecticRK
 using TrixiParticles: PointNeighbors
+using TrixiParticles.Adapt
 using LinearAlgebra
 using Printf
 using CSV: CSV
@@ -77,7 +80,13 @@ end
 
 @inline function TrixiParticles.get_neighborhood_search(system,
                                                         semi::DummySemidiscretization)
-    return get_neighborhood_search(system, system, semi)
+    return TrixiParticles.get_neighborhood_search(system, system, semi)
+end
+
+# Avoid method ambiguity
+@inline function TrixiParticles.get_neighborhood_search(system::TotalLagrangianSPHSystem,
+                                                        semi::DummySemidiscretization)
+    return TrixiParticles.get_neighborhood_search(system, system, semi)
 end
 
 include("count_allocations.jl")

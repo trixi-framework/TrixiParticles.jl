@@ -1,13 +1,14 @@
 @doc raw"""
-    EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
-                                smoothing_length, sound_speed;
+    EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel,
+                                smoothing_length, sound_speed,
                                 pressure_acceleration=inter_particle_averaged_pressure,
                                 density_calculator=SummationDensity(),
                                 shifting_technique=nothing,
                                 alpha=0.5, viscosity=nothing,
                                 acceleration=ntuple(_ -> 0.0, NDIMS), surface_tension=nothing,
                                 surface_normal_method=nothing, buffer_size=nothing,
-                                reference_particle_spacing=0.0, source_terms=nothing)
+                                reference_particle_spacing=0.0, color_value=1,
+                                source_terms=nothing)
 
 System for particles of a fluid.
 As opposed to the [weakly compressible SPH scheme](@ref wcsph), which uses an equation of state,
@@ -16,13 +17,13 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
 
 # Arguments
 - `initial_condition`:  Initial condition representing the system's particles.
-- `sound_speed`:        Speed of sound.
-- `smoothing_kernel`:   Smoothing kernel to be used for this system.
-                        See [Smoothing Kernels](@ref smoothing_kernel).
-- `smoothing_length`:   Smoothing length to be used for this system.
-                        See [Smoothing Kernels](@ref smoothing_kernel).
 
 # Keywords
+- `sound_speed`:                Speed of sound.
+- `smoothing_kernel`:           Smoothing kernel to be used for this system.
+                                See [Smoothing Kernels](@ref smoothing_kernel).
+- `smoothing_length`:           Smoothing length to be used for this system.
+                                See [Smoothing Kernels](@ref smoothing_kernel).
 - `viscosity`:                  Viscosity model for this system (default: no viscosity).
                                 Recommended: [`ViscosityAdami`](@ref).
 - `acceleration`:               Acceleration vector for the system. (default: zero vector)
@@ -53,7 +54,10 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
                                 (default: no surface normal method or `ColorfieldSurfaceNormal()` if a surface_tension model is used)
 - `reference_particle_spacing`: The reference particle spacing used for weighting values at the boundary,
                                 which currently is only needed when using surface tension.
-- `color_value`:                The value used to initialize the color of particles in the system.
+- `color_value`:                Integer label used for calculation of surface normals.
+                                Currently this is only used together with [`BoundaryModelDummyParticles`](@ref) and
+                                [`ColorfieldSurfaceNormal`](@ref): fluid-boundary normal evaluation
+                                reads the resulting boundary colorfield to detect wall contact.
 
 """
 struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, COR, PF, TV,
@@ -81,10 +85,9 @@ end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
-function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
-                                     smoothing_length, sound_speed;
+function EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel, smoothing_length,
+                                     sound_speed, density_calculator=SummationDensity(),
                                      pressure_acceleration=inter_particle_averaged_pressure,
-                                     density_calculator=SummationDensity(),
                                      shifting_technique=nothing,
                                      average_pressure_reduction=(!isnothing(shifting_technique)),
                                      alpha=0.5, viscosity=nothing,
@@ -150,14 +153,14 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                      smoothing_length)...,
              create_cache_correction(correction, initial_condition.density, NDIMS,
                                      n_particles)...,
+             # Per-system color tag for colorfield surface-normal logic and VTK output.
              color=Int(color_value))
 
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
     if reference_particle_spacing > 0
         # `reference_particle_spacing` has to be set for surface normals to be determined
-        cache = (;
-                 cache...,  # Existing cache fields
-                 reference_particle_spacing=reference_particle_spacing)
+        # Existing cache fields
+        cache = (; cache..., reference_particle_spacing)
     end
 
     EntropicallyDampedSPHSystem{NDIMS, ELTYPE, typeof(initial_condition), typeof(mass),
@@ -301,7 +304,8 @@ function update_pressure!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_od
     compute_surface_delta_function!(system, system.surface_tension, semi)
 end
 
-function update_final!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, semi, t)
+function update_final!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, semi, t;
+                       kwargs...)
     (; surface_tension) = system
 
     # Surface normal of neighbor and boundary needs to have been calculated already
@@ -330,24 +334,30 @@ function update_average_pressure!(system, ::Val{true}, v_ode, u_ode, semi)
 
     u = wrap_u(u_ode, system, semi)
 
-    # Use all other systems for the average pressure
-    @trixi_timeit timer() "compute average pressure" foreach_system(semi) do neighbor_system
-        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
-        v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
+    # Use enabled neighbor systems for the average pressure.
+    @trixi_timeit timer() "compute average pressure" begin
+        foreach_system_wrapped(semi, v_ode,
+                               u_ode) do neighbor_system, v_neighbor_system,
+                                         u_neighbor_system
+            if !has_system_interaction(system, neighbor_system, semi)
+                # No interaction between these systems.
+                return
+            end
 
-        system_coords = current_coordinates(u, system)
-        neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
+            system_coords = current_coordinates(u, system)
+            neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-        # Loop over all pairs of particles and neighbors within the kernel cutoff.
-        foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
-                               semi;
-                               points=each_integrated_particle(system)) do particle,
-                                                                           neighbor,
-                                                                           pos_diff,
-                                                                           distance
-            pressure_average[particle] += current_pressure(v_neighbor_system,
-                                                           neighbor_system, neighbor)
-            neighbor_counter[particle] += 1
+            # Loop over all pairs of particles and neighbors within the kernel cutoff.
+            foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
+                                   semi;
+                                   points=each_integrated_particle(system)) do particle,
+                                                                               neighbor,
+                                                                               pos_diff,
+                                                                               distance
+                pressure_average[particle] += current_pressure(v_neighbor_system,
+                                                               neighbor_system, neighbor)
+                neighbor_counter[particle] += 1
+            end
         end
     end
 
