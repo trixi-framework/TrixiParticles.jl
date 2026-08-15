@@ -131,9 +131,9 @@ function pressure_operator_errors(n, correction, density_calculator,
                 for particle in axes(coordinates, 2)
                 if isapprox(coordinates[1, particle], minimum(view(coordinates, 1, :));
                             atol=eps()) &&
-                   support < coordinates[2, particle] < 1.0 - support]
+                   2 * support < coordinates[2, particle] < 1.0 - 2 * support]
     # The conservative asymmetric formulation uses the correction matrix of both particles.
-    # Keep both neighborhoods away from the boundary for the interior measurement.
+    # Keep both neighborhoods away from unrelated boundaries in both samples.
     interior = [particle
                 for particle in axes(coordinates, 2)
                 if 2 * support < coordinates[1, particle] < 1.0 - 2 * support &&
