@@ -18,7 +18,7 @@ See [time integration](@ref time_integration) for more details.
 function SymplecticPositionVerlet(_...)
     error("the package OrdinaryDiffEqSymplecticRK needs to be loaded to use this scheme.")
 end
-If
+
 function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization)
     (; systems) = semi
 
