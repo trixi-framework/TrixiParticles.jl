@@ -18,3 +18,15 @@ See [time integration](@ref time_integration) for more details.
 function SymplecticPositionVerlet(_...)
     error("the package OrdinaryDiffEqSymplecticRK needs to be loaded to use this scheme.")
 end
+If
+function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization)
+    (; systems) = semi
+
+    return minimum(systems) do system
+        if system isa TotalLagrangianSPHSystem && !semi.integrate_tlsph[]
+            # Skip TLSPH systems if they are not integrated
+            return Inf
+        end
+        return calculate_dt(v_ode, u_ode, cfl_number, system, semi)
+    end
+end
