@@ -1,5 +1,6 @@
 function correction_setup(correction=nothing; n=9, perturbation=false,
                           density_calculator=ContinuityDensity(), edac=false,
+                          density_correction=nothing, gradient_correction=nothing,
                           pressure_acceleration=:default,
                           velocity=(pos -> SVector(pos[1], pos[2])))
     particle_spacing = 1.0 / n
@@ -13,11 +14,15 @@ function correction_setup(correction=nothing; n=9, perturbation=false,
         if pressure_acceleration === :default
             system = EntropicallyDampedSPHSystem(fluid; smoothing_kernel,
                                                  smoothing_length, sound_speed=10.0,
-                                                 density_calculator, correction)
+                                                 density_calculator, correction,
+                                                 density_correction,
+                                                 gradient_correction)
         else
             system = EntropicallyDampedSPHSystem(fluid; smoothing_kernel,
                                                  smoothing_length, sound_speed=10.0,
                                                  density_calculator, correction,
+                                                 density_correction,
+                                                 gradient_correction,
                                                  pressure_acceleration)
         end
     else
@@ -26,11 +31,15 @@ function correction_setup(correction=nothing; n=9, perturbation=false,
         if pressure_acceleration === :default
             system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
                                                  smoothing_length, density_calculator,
-                                                 state_equation, correction)
+                                                 state_equation, correction,
+                                                 density_correction,
+                                                 gradient_correction)
         else
             system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
                                                  smoothing_length, density_calculator,
                                                  state_equation, correction,
+                                                 density_correction,
+                                                 gradient_correction,
                                                  pressure_acceleration)
         end
     end

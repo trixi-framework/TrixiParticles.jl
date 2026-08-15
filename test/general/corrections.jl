@@ -6,4 +6,5 @@
     include("corrections/gradient.jl")
     include("corrections/mixed.jl")
     include("corrections/coupling.jl")
+    include("corrections/configuration.jl")
 end

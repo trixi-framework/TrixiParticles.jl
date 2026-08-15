@@ -114,15 +114,64 @@ fields exactly (see [Bonet, 1999](@cite Bonet1999)).
 """
 struct MixedKernelGradientCorrection end
 
+@doc raw"""
+    CorrectionConfiguration(; density=nothing, gradient=nothing)
+
+Configure density and gradient corrections independently. `density` can be `nothing` or
+[`ShepardKernelCorrection`](@ref). `gradient` can be `nothing`, [`KernelCorrection`](@ref),
+[`GradientCorrection`](@ref), [`BlendedGradientCorrection`](@ref), or
+[`MixedKernelGradientCorrection`](@ref).
+"""
+struct CorrectionConfiguration{D, G}
+    density::D
+    gradient::G
+
+    function CorrectionConfiguration(density::D, gradient::G) where {D, G}
+        if !(density === nothing || density isa ShepardKernelCorrection)
+            throw(ArgumentError("`density` must be `nothing` or `ShepardKernelCorrection()`"))
+        end
+        if !(gradient === nothing ||
+             gradient isa Union{KernelCorrection, GradientCorrection,
+                   BlendedGradientCorrection, MixedKernelGradientCorrection})
+            throw(ArgumentError("unsupported gradient correction `$(typeof(gradient))`"))
+        end
+
+        return new{D, G}(density, gradient)
+    end
+end
+
+function CorrectionConfiguration(; density=nothing, gradient=nothing)
+    return CorrectionConfiguration(density, gradient)
+end
+
 correction_density(::Any) = nothing
 correction_density(correction::ShepardKernelCorrection) = correction
+correction_density(correction::CorrectionConfiguration) = correction.density
 
 correction_gradient(::Nothing) = nothing
 correction_gradient(::ShepardKernelCorrection) = nothing
 correction_gradient(::AkinciFreeSurfaceCorrection) = nothing
 correction_gradient(correction) = correction
+correction_gradient(correction::CorrectionConfiguration) = correction.gradient
 
 correction_force(correction) = correction
+correction_force(::CorrectionConfiguration) = nothing
+
+function resolve_correction_configuration(correction, density_correction,
+                                          gradient_correction)
+    if correction !== nothing &&
+       (density_correction !== nothing || gradient_correction !== nothing)
+        throw(ArgumentError("`correction` cannot be combined with `density_correction` or " *
+                            "`gradient_correction`"))
+    end
+
+    if density_correction === nothing && gradient_correction === nothing
+        return correction
+    end
+
+    return CorrectionConfiguration(; density=density_correction,
+                                   gradient=gradient_correction)
+end
 
 function kernel_correction_coefficient(system::AbstractFluidSystem, particle)
     return system.cache.kernel_correction_coefficient[particle]
@@ -518,6 +567,14 @@ function correction_matrix_inversion_step!(corr_matrix, system, semi)
 end
 
 create_cache_correction(correction, density, NDIMS, nparticles) = (;)
+
+function create_cache_correction(correction::CorrectionConfiguration, density, NDIMS,
+                                 n_particles)
+    density_cache = create_cache_correction(correction.density, density, NDIMS, n_particles)
+    gradient_cache = create_cache_correction(correction.gradient, density, NDIMS,
+                                             n_particles)
+    return merge(density_cache, gradient_cache)
+end
 
 function create_cache_correction(::ShepardKernelCorrection, density, NDIMS, n_particles)
     return (; kernel_correction_coefficient=similar(density))

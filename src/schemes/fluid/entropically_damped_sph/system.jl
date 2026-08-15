@@ -8,7 +8,8 @@
                                 acceleration=ntuple(_ -> 0.0, NDIMS), surface_tension=nothing,
                                 surface_normal_method=nothing, buffer_size=nothing,
                                 reference_particle_spacing=0.0, color_value=1,
-                                correction=nothing, source_terms=nothing)
+                                correction=nothing, density_correction=nothing,
+                                gradient_correction=nothing, source_terms=nothing)
 
 System for particles of a fluid.
 As opposed to the [weakly compressible SPH scheme](@ref wcsph), which uses an equation of state,
@@ -41,7 +42,11 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
                                  reduced pressures and preserve linear momentum.
 - `buffer_size`:                Number of buffer particles.
                                 This is needed when simulating with [`OpenBoundarySystem`](@ref).
-- `correction`:                 Correction method used for this system. (default: no correction, see [Corrections](@ref corrections))
+- `correction`:                 Legacy keyword for configuring one correction method. Cannot be
+                                combined with `density_correction` or `gradient_correction`.
+- `density_correction`:         Density correction method. Currently supports
+                                [`ShepardKernelCorrection`](@ref) with [`SummationDensity`](@ref).
+- `gradient_correction`:        Gradient correction method. See [Corrections](@ref corrections).
 - `source_terms`:               Additional source terms for this system. Has to be either `nothing`
                                 (by default), or a function of `(coords, velocity, density, pressure, t)`
                                 (which are the quantities of a single particle), returning a `Tuple`
@@ -96,7 +101,8 @@ function EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel, smooth
                                      alpha=0.5, viscosity=nothing,
                                      acceleration=ntuple(_ -> 0.0,
                                                          ndims(smoothing_kernel)),
-                                     correction=nothing,
+                                     correction=nothing, density_correction=nothing,
+                                     gradient_correction=nothing,
                                      source_terms=nothing, surface_tension=nothing,
                                      surface_normal_method=nothing, buffer_size=nothing,
                                      reference_particle_spacing=0.0, color_value=1)
@@ -113,6 +119,8 @@ function EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel, smooth
     mass = copy(initial_condition.mass)
     n_particles = length(initial_condition.mass)
 
+    correction = resolve_correction_configuration(correction, density_correction,
+                                                  gradient_correction)
     density_correction_ = correction_density(correction)
     gradient_correction_ = correction_gradient(correction)
 
