@@ -507,8 +507,6 @@ end
     return reshape(view(array, range), Int.(size))
 end
 
-include("ode_rhs.jl")
-
 function check_configuration(systems,
                              nhs::Union{Nothing, AbstractNeighborhoodSearch})
     foreach_system(systems) do system

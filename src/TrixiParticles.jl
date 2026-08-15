@@ -59,6 +59,7 @@ include("callbacks/callbacks.jl")
 # Note that `semidiscretization.jl` depends on the system types and has to be
 # included separately. `gpu.jl` in turn depends on the semidiscretization type.
 include("general/semidiscretization.jl")
+include("general/ode_rhs.jl")
 include("general/gpu.jl")
 include("preprocessing/preprocessing.jl")
 include("io/io.jl")
