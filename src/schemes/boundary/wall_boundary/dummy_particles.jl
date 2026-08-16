@@ -243,7 +243,7 @@ end
 
 function create_cache_model(::Union{GradientCorrection, BlendedGradientCorrection}, density,
                             NDIMS, n_particles)
-    correction_matrix = Array{Float64, 3}(undef, NDIMS, NDIMS, n_particles)
+    correction_matrix = Array{eltype(density), 3}(undef, NDIMS, NDIMS, n_particles)
     return (; correction_matrix)
 end
 
