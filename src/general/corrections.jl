@@ -77,7 +77,8 @@ struct ShepardKernelCorrection end
     KernelCorrection()
 
 Kernel correction, as explained by [Bonet (1999)](@cite Bonet1999), uses Shepard interpolation
-to obtain a 0-th order accurate result, which was first proposed by Li et al.
+to obtain a zeroth-order consistent kernel gradient (an exact zero gradient for constants),
+which was first proposed by Li et al.
 This can be further extended to obtain a kernel corrected gradient as shown by [Basa et al. (2008)](@cite Basa2008).
 
 The kernel correction coefficient is determined by
@@ -284,9 +285,22 @@ function compute_correction_values!(system,
         end
     end
 
-    for particle in eachparticle(system), i in axes(dw_gamma, 1)
-        dw_gamma[i, particle] /= kernel_correction_coefficient[particle]
+    minimum_coefficient = sqrt(eps(eltype(kernel_correction_coefficient)))
+    @threaded semi for particle in eachparticle(system)
+        coefficient = kernel_correction_coefficient[particle]
+        if !isfinite(coefficient) || coefficient <= minimum_coefficient
+            kernel_correction_coefficient[particle] = one(coefficient)
+            for i in axes(dw_gamma, 1)
+                dw_gamma[i, particle] = zero(eltype(dw_gamma))
+            end
+        else
+            for i in axes(dw_gamma, 1)
+                dw_gamma[i, particle] /= coefficient
+            end
+        end
     end
+
+    return kernel_correction_coefficient
 end
 
 @doc raw"""
