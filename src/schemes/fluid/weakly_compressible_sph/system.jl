@@ -422,14 +422,16 @@ end
 
 function reinit_density!(system::WeaklyCompressibleSPHSystem, ::ContinuityDensity, v, u,
                          v_ode, u_ode, semi)
+    # Use the independently evolved density to determine particle volumes before replacing it
+    # with the reinitialized summation density.
+    kernel_correction_coefficient = similar(v, size(v, 2))
+    compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode, semi,
+                           kernel_correction_coefficient)
+
     # Compute density with `SummationDensity` and store the result in `v`,
     # overwriting the previous integrated density.
     summation_density!(system, semi, u, u_ode, v[end, :])
 
-    # Apply `ShepardKernelCorrection`
-    kernel_correction_coefficient = zeros(size(v[end, :]))
-    compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode, semi,
-                           kernel_correction_coefficient)
     @threaded semi for particle in eachparticle(system)
         v[end, particle] /= kernel_correction_coefficient[particle]
     end
