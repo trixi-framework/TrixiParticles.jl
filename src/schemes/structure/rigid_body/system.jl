@@ -270,6 +270,10 @@ end
     return correction_gradient(system.boundary_model.correction)
 end
 
+@inline function hydrodynamic_correction(system::RigidBodySystem{<:BoundaryModelDummyParticles})
+    return correction_gradient(system.boundary_model.correction)
+end
+
 @inline function kernel_correction_coefficient(system::RigidBodySystem{<:BoundaryModelDummyParticles},
                                                particle)
     return system.boundary_model.cache.kernel_correction_coefficient[particle]

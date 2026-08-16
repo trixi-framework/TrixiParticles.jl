@@ -55,7 +55,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         # It results in significant improvement for EDAC, especially with TVF,
         # but not for WCSPH, according to Ramachandran & Puri (2019), Section 3.2.
         # Note that the return value is zero when not using average pressure reduction.
-        p_avg = @inbounds average_pressure(particle_system, particle)
+        p_avg = @inbounds pair_pressure_offset(particle_system, neighbor_system, particle,
+                                               neighbor)
 
         m_a = @inbounds hydrodynamic_mass(particle_system, particle)
         m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)

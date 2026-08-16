@@ -351,6 +351,10 @@ end
     extract_smatrix(system.correction_matrix, system, particle)
 end
 
+@inline function hydrodynamic_correction(system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles})
+    return correction_gradient(system.boundary_model.correction)
+end
+
 @inline function kernel_correction_coefficient(system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles},
                                                particle)
     return system.boundary_model.cache.kernel_correction_coefficient[particle]

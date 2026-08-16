@@ -35,7 +35,10 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
                                 formulation](@ref transport_velocity_formulation) to use
                                 with this system. Default is no shifting.
 - `average_pressure_reduction`: Whether to subtract the average pressure of neighboring particles
-                                from the local pressure (default: `true` when using shifting, `false` otherwise).
+                                 from the local pressure (default: `true` when using shifting, `false` otherwise).
+                                 Interacting EDAC particles use the arithmetic mean of their local
+                                 pressure offsets so both directed pair evaluations use the same
+                                 reduced pressures and preserve linear momentum.
 - `buffer_size`:                Number of buffer particles.
                                 This is needed when simulating with [`OpenBoundarySystem`](@ref).
 - `correction`:                 Correction method used for this system. (default: no correction, see [Corrections](@ref corrections))
@@ -277,6 +280,22 @@ end
 end
 
 @inline average_pressure(system, ::Val{false}, particle) = zero(eltype(system))
+
+@propagate_inbounds function interaction_pressure_offset(system::EntropicallyDampedSPHSystem,
+                                                         particle)
+    return average_pressure(system, particle)
+end
+
+# Both directed evaluations of an EDAC pair must use the same pressure offset to preserve
+# pairwise linear momentum. This also handles pairs where only one system enables reduction.
+@propagate_inbounds function pair_pressure_offset(system::EntropicallyDampedSPHSystem,
+                                                  neighbor_system::EntropicallyDampedSPHSystem,
+                                                  particle, neighbor)
+    pressure_offset_a = average_pressure(system, particle)
+    pressure_offset_b = average_pressure(neighbor_system, neighbor)
+
+    return (pressure_offset_a + pressure_offset_b) / 2
+end
 
 @inline function current_density(v, system::EntropicallyDampedSPHSystem)
     return current_density(v, system.density_calculator, system)

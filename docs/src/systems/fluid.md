@@ -204,6 +204,24 @@ Pages = [joinpath("schemes", "fluid", "viscosity.jl")]
 
 ## [Corrections](@id corrections)
 
+Gradient corrections generally make the two kernel gradients of a particle pair asymmetric.
+The corresponding eight-argument pressure formulations are therefore selected from the
+configured correction method, even when a particular pair happens to satisfy
+``\nabla W_b = -\nabla W_a``. In that symmetric case, the asymmetric formulation reduces to
+the standard symmetric formulation.
+
+The antisymmetric combination of corrected gradients preserves pairwise linear momentum.
+Since corrected gradients are generally not parallel to the particle separation, the resulting
+force is not necessarily central and does not in general preserve angular momentum. The usual
+linear- and angular-momentum guarantee applies to symmetric radial kernel gradients.
+
+When EDAC average-pressure reduction is enabled, two interacting EDAC particles use the
+arithmetic mean of their local pressure offsets. The shared pair offset ensures that both
+directed evaluations use identical reduced pair pressures, which is required for the
+antisymmetric corrected-gradient formulation to preserve linear momentum. Interactions between
+schemes using different pressure formulations do not gain a conservation guarantee from this
+construction.
+
 ```@autodocs
 Modules = [TrixiParticles]
 Pages = [joinpath("general", "corrections.jl")]
