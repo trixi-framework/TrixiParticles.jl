@@ -4,4 +4,5 @@
     include("corrections/shepard.jl")
     include("corrections/kernel.jl")
     include("corrections/gradient.jl")
+    include("corrections/mixed.jl")
 end
