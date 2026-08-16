@@ -124,3 +124,49 @@ function corner_particle(system)
         coordinates[1, particle] + coordinates[2, particle]
     end
 end
+
+function correction_restart_result(correction; edac, density_calculator)
+    direct = correction_setup(correction; edac, density_calculator,
+                              pressure_acceleration=nothing)
+    (; system, semi, v_ode, u_ode) = direct
+    v = TrixiParticles.wrap_v(v_ode, system, semi)
+    u = TrixiParticles.wrap_u(u_ode, system, semi)
+
+    for particle in TrixiParticles.eachparticle(system)
+        v[1, particle] = 0.01particle
+        v[2, particle] = -0.02particle
+        u[1, particle] += 1.0e-3 * sin(particle)
+        u[2, particle] += 1.0e-3 * cos(particle)
+    end
+    if edac
+        v[3, :] .= range(1.0, 2.0; length=size(v, 2))
+    end
+    if density_calculator isa ContinuityDensity
+        v[end, :] .= range(900.0, 1100.0; length=size(v, 2))
+    end
+
+    dv_direct = zero(v_ode)
+    TrixiParticles.kick!(dv_direct, v_ode, u_ode,
+                         (; semi, split_integration_data=nothing), 0.0)
+
+    restarted = correction_setup(correction; edac, density_calculator,
+                                 pressure_acceleration=nothing)
+    mock_solution = (; u=[(; x=(copy(v_ode), copy(u_ode)))])
+    restart_with!(restarted.semi, mock_solution; reset_threads=false)
+    ode_restart = semidiscretize(restarted.semi, (0.0, 1.0); reset_threads=false)
+    v_restart = Array(ode_restart.u0.x[1])
+    u_restart = Array(ode_restart.u0.x[2])
+    dv_restart = zero(v_restart)
+    TrixiParticles.kick!(dv_restart, v_restart, u_restart,
+                         (; semi=ode_restart.p.semi, split_integration_data=nothing), 0.0)
+
+    cache = first(ode_restart.p.semi.systems).cache
+    cache_finite = all((:kernel_correction_coefficient, :dw_gamma,
+                        :correction_matrix)) do name
+        return !hasproperty(cache, name) || all(isfinite, getproperty(cache, name))
+    end
+
+    return (; state_equal=v_restart == v_ode && u_restart == u_ode,
+            rhs_equal=isapprox(dv_restart, dv_direct; rtol=2e-13, atol=2e-13),
+            cache_finite)
+end

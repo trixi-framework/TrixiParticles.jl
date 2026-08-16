@@ -133,6 +133,8 @@ end
     for kind in (:wcsph, :edac)
         @test correction_rhs_is_valid(kind, ShepardKernelCorrection(), SummationDensity(),
                                       backend)
+        @test correction_rhs_is_valid(kind, KernelCorrection(), ContinuityDensity(),
+                                      backend)
     end
 
     spacing = 0.1f0
