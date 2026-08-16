@@ -130,6 +130,10 @@ end
                                       backend)
         @test correction_rhs_is_valid(kind, KernelCorrection(), ContinuityDensity(),
                                       backend)
+        @test correction_rhs_is_valid(kind, GradientCorrection(), ContinuityDensity(),
+                                      backend)
+        @test correction_rhs_is_valid(kind, BlendedGradientCorrection(0.4f0),
+                                      ContinuityDensity(), backend)
     end
 
     spacing = 0.1f0
@@ -146,6 +150,21 @@ end
                                                            first(ode.p.semi.systems),
                                                            ode.p.semi)
     @test Array(coefficient) == Float32[1.0, 1.0, 1.0, 2.0]
+
+    coordinates = Float32[0.0 0.1 0.2; 0.0 0.0 0.0]
+    collinear = InitialCondition(; coordinates, velocity=zeros(Float32, 2, 3),
+                                 density=fill(1000.0f0, 3), particle_spacing=spacing)
+    system = correction_fluid(:wcsph, collinear, WendlandC6Kernel{2}(), 2spacing,
+                              ContinuityDensity(), GradientCorrection())
+    semi = Semidiscretization(system; neighborhood_search=nothing,
+                              parallelization_backend=backend)
+    ode = semidiscretize(semi, (0.0f0, 0.1f0); reset_threads=false)
+    dv_ode = similar(ode.u0.x[1])
+    fill!(dv_ode, 0.0f0)
+    TrixiParticles.kick!(dv_ode, ode.u0.x[1], ode.u0.x[2], ode.p, 0.0f0)
+    matrix = Array(first(ode.p.semi.systems).cache.correction_matrix)
+    identity = Matrix{Float32}(I, 2, 2)
+    @test all(particle -> matrix[:, :, particle] == identity, axes(matrix, 3))
 
     initial_condition = RectangularShape(spacing, (4, 4), (0.0f0, 0.0f0);
                                          density=1000.0f0,

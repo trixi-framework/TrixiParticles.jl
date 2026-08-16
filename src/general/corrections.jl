@@ -327,6 +327,9 @@ The gradient correction, as commonly proposed, involves multiplying this gradien
 
 The correction matrix  $\bm{L}_a$ is computed based on the provided particle configuration,
 aiming to make the corrected gradient more accurate, especially near domain boundaries.
+It gives a first-order consistent gradient by differentiating every affine field exactly.
+For smooth fields, the local truncation error is generally ``O(h)`` on asymmetric supports and
+``O(h^2)`` on symmetric interior supports.
 
 To satisfy
 ```math
@@ -356,6 +359,8 @@ This calculates the following,
 \tilde\nabla A_i = (1-\lambda) \nabla A_i + \lambda L_i \nabla A_i
 ```
 with ``0 \leq \lambda \leq 1`` being the blending factor.
+For a fixed ``\lambda < 1``, the uncorrected first-moment error remains and no asymptotic order
+improvement is guaranteed.
 
 # Arguments
 - `blending_factor`: Blending factor between corrected and regular SPH gradient.
@@ -364,6 +369,10 @@ struct BlendedGradientCorrection{ELTYPE <: Real}
     blending_factor::ELTYPE
 
     function BlendedGradientCorrection(blending_factor)
+        if !(zero(blending_factor) <= blending_factor <= one(blending_factor))
+            throw(ArgumentError("`blending_factor` must be between 0 and 1"))
+        end
+
         return new{eltype(blending_factor)}(blending_factor)
     end
 end
@@ -419,8 +428,10 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
                                    semi) do particle, neighbor, pos_diff, distance
                 function kernel_grad_local(correction, smoothing_kernel, pos_diff, distance,
                                            smoothing_length_, system, particle)
-                    return smoothing_kernel_grad_unsafe(system, pos_diff, distance,
-                                                        particle)
+                    # Do not dispatch through `system`: the correction matrix being used
+                    # by that path is the matrix currently being assembled here.
+                    return kernel_grad_unsafe(smoothing_kernel, pos_diff, distance,
+                                              smoothing_length_)
                 end
 
                 # Compute gradient of corrected kernel
@@ -469,8 +480,9 @@ function correction_matrix_inversion_step!(corr_matrix, system, semi)
     @threaded semi for particle in eachparticle(system)
         L = extract_smatrix(corr_matrix, system, particle)
 
-        # The matrix `L` only becomes singular when the particle and all neighbors
-        # are collinear (in 2D) or lie all in the same plane (in 3D).
+        # The matrix `L` becomes singular when the particle and all neighbors are collinear
+        # (in 2D) or lie all in the same plane (in 3D). Nearly singular matrices are also
+        # rejected below to avoid amplifying particle disorder.
         # This happens only when two (in 2D) or three (in 3D) particles are isolated,
         # or in cases where there is only one layer of fluid particles on a wall.
         # In these edge cases, we just disable the correction and set the corrected
@@ -484,7 +496,12 @@ function correction_matrix_inversion_step!(corr_matrix, system, semi)
         # so `L` is singular if and only if the position vectors X_ab don't span the
         # full space, i.e., particle a and all neighbors lie on the same line (in 2D)
         # or plane (in 3D).
-        if abs(det(L)) < 1.0f-9
+        scale = maximum(abs, L)
+        relative_determinant = abs(det(L)) / scale^ndims(system)
+        minimum_relative_determinant = sqrt(eps(eltype(L)))
+
+        if !isfinite(relative_determinant) ||
+           relative_determinant < minimum_relative_determinant
             L_inv = I
         else
             L_inv = inv(L)
