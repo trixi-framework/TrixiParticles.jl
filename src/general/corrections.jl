@@ -108,6 +108,16 @@ which results in a 1st-order-accurate SPH method (see [Bonet, 1999](@cite Bonet1
 """
 struct MixedKernelGradientCorrection end
 
+correction_density(::Any) = nothing
+correction_density(correction::ShepardKernelCorrection) = correction
+
+correction_gradient(::Nothing) = nothing
+correction_gradient(::ShepardKernelCorrection) = nothing
+correction_gradient(::AkinciFreeSurfaceCorrection) = nothing
+correction_gradient(correction) = correction
+
+correction_force(correction) = correction
+
 function kernel_correction_coefficient(system::AbstractFluidSystem, particle)
     return system.cache.kernel_correction_coefficient[particle]
 end
