@@ -63,7 +63,7 @@ end
 
     @testset verbose=true "condition" begin
         # Ensure the discrete callback only triggers for non-constant stepsize on
-        # non-adaptive integrators
+        # non-adaptive integrators.
         constant_callback = StepsizeCallback{true, Float64}(0.5)
         variable_callback = StepsizeCallback{false, Float64}(0.5)
 
