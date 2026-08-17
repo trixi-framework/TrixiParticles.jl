@@ -145,10 +145,24 @@ function TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing
         poisson_ratio_sorted = poisson_ratio
     end
 
-    initial_coordinates = copy(initial_condition_sorted.coordinates)
-    current_coordinates = copy(initial_condition_sorted.coordinates)
-    mass = copy(initial_condition_sorted.mass)
-    material_density = copy(initial_condition_sorted.density)
+    initial_coordinates = similar(initial_condition_sorted.coordinates)
+    current_coordinates = similar(initial_condition_sorted.coordinates)
+    mass = similar(initial_condition_sorted.mass)
+    material_density = similar(initial_condition_sorted.density)
+
+    # Initialize the runtime arrays in parallel so that first-touch allocation places
+    # their memory close to the threads that will access it during the simulation.
+    # The semidiscretization backend is not available in the constructor yet, and using
+    # Polyester here is harmless for serial and GPU simulations.
+    parallelization_backend = PolyesterBackend()
+    copyto!(ThreadedBroadcastArray(initial_coordinates; parallelization_backend),
+            initial_condition_sorted.coordinates)
+    copyto!(ThreadedBroadcastArray(current_coordinates; parallelization_backend),
+            initial_condition_sorted.coordinates)
+    copyto!(ThreadedBroadcastArray(mass; parallelization_backend),
+            initial_condition_sorted.mass)
+    copyto!(ThreadedBroadcastArray(material_density; parallelization_backend),
+            initial_condition_sorted.density)
     correction_matrix = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
     pk1_rho2 = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
     deformation_grad = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
