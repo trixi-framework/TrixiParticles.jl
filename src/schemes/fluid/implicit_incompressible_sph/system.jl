@@ -338,6 +338,8 @@ end
 # TODO: What do we do with the sound speed? This is needed for the viscosity.
 @inline system_sound_speed(system::ImplicitIncompressibleSPHSystem) = system.artificial_sound_speed
 
+@inline density_calculator(system::ImplicitIncompressibleSPHSystem) = nothing
+
 # Calculates the pressure values by solving a linear system with a relaxed Jacobi scheme
 function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
@@ -551,9 +553,14 @@ function calculate_predicted_velocity_and_d_ii_values!(system::ImplicitIncompres
     end
 
     # Compute predicted velocity
-    foreach_system(semi) do neighbor_system
-        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
-        v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
+    foreach_system_wrapped(semi, v_ode,
+                           u_ode) do neighbor_system, v_neighbor_system,
+                                     u_neighbor_system
+        if !has_system_interaction(system, neighbor_system, semi)
+            # No interaction between these systems.
+            return
+        end
+
         system_coords = current_coordinates(u, system)
         neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
@@ -612,6 +619,8 @@ function calculate_diagonal_elements_and_predicted_density!(system::ImplicitInco
     predicted_density .= density
 
     foreach_system(semi) do neighbor_system
+        has_system_interaction(system, neighbor_system, semi) || return
+
         calculate_diagonal_elements_and_predicted_density(a_ii, predicted_density, system,
                                                           neighbor_system, v, u, v_ode,
                                                           u_ode, semi, time_step)
@@ -879,6 +888,8 @@ function calculate_sum_d_ij_pj!(system::ImplicitIncompressibleSPHSystem, u, u_od
     set_zero!(sum_d_ij_pj)
 
     foreach_system(semi) do neighbor_system
+        has_system_interaction(system, neighbor_system, semi) || return
+
         calculate_sum_d_ij_pj!(sum_d_ij_pj, system, neighbor_system, u, u_ode, semi)
     end
 end
@@ -929,6 +940,8 @@ function calculate_sum_term_values!(system::ImplicitIncompressibleSPHSystem, u, 
     set_zero!(sum_term)
 
     foreach_system(semi) do neighbor_system
+        has_system_interaction(system, neighbor_system, semi) || return
+
         calculate_sum_term!(sum_term, system, neighbor_system, u, u_ode, semi, time_step)
     end
 end

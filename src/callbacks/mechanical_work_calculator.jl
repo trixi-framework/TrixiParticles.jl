@@ -157,8 +157,8 @@ function (callback::MechanicalWorkCalculatorCallback)(integrator)
                                        callback.only_compute_force_on_fluid, callback.dv,
                                        v_ode, u_ode, semi, t, dt)
 
-    # Tell OrdinaryDiffEq that `u` has not been modified
-    u_modified!(integrator, false)
+    # This callback only processes results and does not change the result of the right-hand side.
+    derivative_discontinuity!(integrator, false)
 
     return integrator
 end
@@ -179,19 +179,22 @@ function update_mechanical_work_calculator!(work, system, eachparticle,
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
 
-        foreach_system(semi) do neighbor_system
+        foreach_system_wrapped(semi, v_ode,
+                               u_ode) do neighbor_system, v_neighbor, u_neighbor
             if only_compute_force_on_fluid && !(neighbor_system isa AbstractFluidSystem)
-                # Not a fluid system, ignore this system
-                return
+                # Not a fluid system, ignore this system.
+                return dv
             end
 
-            v_neighbor = wrap_v(v_ode, neighbor_system, semi)
-            u_neighbor = wrap_u(u_ode, neighbor_system, semi)
+            if !has_system_interaction(system, neighbor_system, semi)
+                # No interaction between these systems.
+                return dv
+            end
 
-            interact!(dv, v, u, v_neighbor, u_neighbor,
-                      system, neighbor_system, semi,
-                      integrate_tlsph=true, # Required when using split integration
-                      eachparticle=eachparticle)
+            apply_system_interaction!(dv, v, u, v_neighbor, u_neighbor,
+                                      system, neighbor_system, semi,
+                                      integrate_tlsph=true, # Required when using split integration
+                                      eachparticle=eachparticle)
         end
 
         if !only_compute_force_on_fluid
