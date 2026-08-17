@@ -108,6 +108,53 @@
             @test ic_actual1.pressure == ic_actual2.pressure == ic_expected.pressure
         end
 
+        @testset "Apply Angular Velocity" begin
+            coordinates_2d = [0.0 2.0
+                              0.0 0.0]
+            base_velocity_2d = [1.0 1.0
+                                2.0 2.0]
+            mass_2d = [1.0, 3.0]
+            density_2d = [1000.0, 1000.0]
+            ic_2d = InitialCondition(; coordinates=coordinates_2d,
+                                     velocity=base_velocity_2d,
+                                     mass=mass_2d, density=density_2d)
+            rotated_ic_2d = apply_angular_velocity(ic_2d, 2.0)
+
+            @test rotated_ic_2d.velocity ≈ [1.0 1.0
+                                            -1.0 3.0]
+            @test ic_2d.velocity == base_velocity_2d
+            error_str = "`angular_velocity` must be a scalar for a 2D problem"
+            @test_throws ArgumentError(error_str) apply_angular_velocity(ic_2d, (2.0,))
+            @test_throws ArgumentError(error_str) apply_angular_velocity(ic_2d, (0.0, 1.0))
+            @test_throws ArgumentError(error_str) apply_angular_velocity(ic_2d, nothing)
+
+            coordinates_3d = [0.0 2.0
+                              0.0 0.0
+                              0.0 0.0]
+            base_velocity_3d = [1.0 1.0
+                                0.0 0.0
+                                0.0 0.0]
+            mass_3d = [1.0, 1.0]
+            density_3d = [1000.0, 1000.0]
+            ic_3d = InitialCondition(; coordinates=coordinates_3d,
+                                     velocity=base_velocity_3d,
+                                     mass=mass_3d, density=density_3d)
+            rotated_ic_3d = apply_angular_velocity(ic_3d, (0.0, 0.0, 2.0))
+
+            @test rotated_ic_3d.velocity ≈ [1.0 1.0
+                                            -2.0 2.0
+                                            0.0 0.0]
+            @test ic_3d.velocity == base_velocity_3d
+            error_str = "`angular_velocity` must be of length 3 for a 3D problem"
+            @test_throws ArgumentError(error_str) apply_angular_velocity(ic_3d, 2.0)
+            @test_throws ArgumentError(error_str) apply_angular_velocity(ic_3d, nothing)
+
+            ic_1d = InitialCondition(; coordinates=zeros(1, 2), velocity=zeros(1, 2),
+                                     mass=ones(2), density=ones(2))
+            error_str = "`apply_angular_velocity` currently supports only 2D and 3D, got 1D"
+            @test_throws ArgumentError(error_str) apply_angular_velocity(ic_1d, 2.0)
+        end
+
         @testset "Automatic Mass Calculation" begin
             particle_spacing = 0.13
             coordinates = [88.3 10.4 5.2 48.3 58.9;
@@ -171,6 +218,84 @@
                 @test view(initial_condition.density, start_index:end_index) ==
                       shapes[i].density
             end
+        end
+    end
+
+    @testset "Set Operations with Surface Normals" begin
+        spacing = 0.1
+        density = 1000.0
+
+        coords_a = [0.0 0.1 0.2 0.0 0.1 0.2;
+                    0.0 0.0 0.0 0.1 0.1 0.1]
+        normals_a = [0.0 0.0 0.0 0.0 0.0 0.0;
+                     1.0 1.0 1.0 -1.0 -1.0 -1.0]
+
+        coords_b = [0.2 0.3 0.4 0.2 0.3 0.4;
+                    0.0 0.0 0.0 0.1 0.1 0.1]
+        normals_b = [-1.0 -1.0 -1.0 1.0 1.0 1.0;
+                     0.0 0.0 0.0 0.0 0.0 0.0]
+
+        ic_a_normals = InitialCondition(; coordinates=coords_a, density=density,
+                                        particle_spacing=spacing, normals=normals_a)
+        ic_b_normals = InitialCondition(; coordinates=coords_b, density=density,
+                                        particle_spacing=spacing, normals=normals_b)
+
+        ic_a_no_normals = InitialCondition(; coordinates=coords_a, density=density,
+                                           particle_spacing=spacing, normals=nothing)
+        ic_b_no_normals = InitialCondition(; coordinates=coords_b, density=density,
+                                           particle_spacing=spacing, normals=nothing)
+
+        @testset "Union Normals" begin
+            # Both have normals
+            res_both = union(ic_a_normals, ic_b_normals)
+            @test size(res_both.normals, 2) == size(res_both.coordinates, 2)
+            @test size(res_both.normals, 2) == 10 # 6 from A + 4 non-overlapping from B
+            @test res_both.normals[:, 1:6] == normals_a
+            @test res_both.normals[:, 7:10] == normals_b[:, [2, 3, 5, 6]]
+
+            # First IC has normals
+            res_first = union(ic_a_normals, ic_b_no_normals)
+            @test isnothing(res_first.normals)
+
+            # Second IC has normals
+            res_second = union(ic_a_no_normals, ic_b_normals)
+            @test isnothing(res_second.normals)
+
+            # Neither has normals
+            res_none = union(ic_a_no_normals, ic_b_no_normals)
+            @test isnothing(res_none.normals)
+        end
+
+        @testset "Setdiff Normals" begin
+            # Both have normals
+            res_both = setdiff(ic_a_normals, ic_b_normals)
+            @test size(res_both.normals, 2) == 4
+            @test res_both.normals == normals_a[:, [1, 2, 4, 5]]
+
+            # First IC has normals
+            res_fluid_only = setdiff(ic_a_normals, ic_b_no_normals)
+            @test res_fluid_only.normals == normals_a[:, [1, 2, 4, 5]]
+
+            # Second IC has normals
+            res_no_normals = setdiff(ic_a_no_normals, ic_b_normals)
+            @test isnothing(res_no_normals.normals)
+        end
+
+        @testset "Intersect Normals" begin
+            # Both have normals
+            res_normals = intersect(ic_a_normals, ic_b_normals)
+            @test !isnothing(res_normals.normals)
+            @test size(res_normals.normals, 2) == 2
+            @test res_normals.normals == normals_a[:, [3, 6]]
+
+            # First IC has normals
+            res_mixed = intersect(ic_a_normals, ic_b_no_normals)
+            @test !isnothing(res_mixed.normals)
+            @test res_mixed.normals == normals_a[:, [3, 6]]
+
+            # Second IC has normals
+            res_none = intersect(ic_a_no_normals, ic_b_normals)
+            @test isnothing(res_none.normals)
         end
     end
 
@@ -347,8 +472,7 @@
                 density = [10.0, 20.0, 30.0, 40.0, 50.0]
                 pressure = [100.0, 200.0, 300.0, 400.0, 500.0]
 
-                ic = InitialCondition(coordinates=coordinates, velocity=velocity,
-                                      mass=mass, density=density, pressure=pressure)
+                ic = InitialCondition(; coordinates, velocity, mass, density, pressure)
 
                 # Move particles 2 and 4 to the end
                 particle_ids_to_move = [2, 4]
@@ -376,8 +500,7 @@
                 mass = [1.1, 2.2, 3.3, 4.4]
                 density = [10.0, 20.0, 30.0, 40.0]
 
-                ic = InitialCondition(coordinates=coordinates, velocity=velocity,
-                                      mass=mass, density=density)
+                ic = InitialCondition(; coordinates, velocity, mass, density)
 
                 # Move particle 2 multiple times (should only move once)
                 TrixiParticles.move_particles_to_end!(ic, [2, 2, 3])

@@ -1,13 +1,14 @@
 mutable struct InfoCallback
     start_time::Float64
     interval::Int
+    flush::Bool
 end
 
 function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:InfoCallback})
     @nospecialize cb # reduce precompilation time
 
     callback = cb.affect!
-    print(io, "InfoCallback(interval=", callback.interval, ")")
+    print(io, "InfoCallback(interval=", callback.interval, ", flush=$(callback.flush)", ")")
 end
 
 function Base.show(io::IO, ::MIME"text/plain", cb::DiscreteCallback{<:Any, <:InfoCallback})
@@ -19,39 +20,47 @@ function Base.show(io::IO, ::MIME"text/plain", cb::DiscreteCallback{<:Any, <:Inf
         callback = cb.affect!
 
         setup = [
-            "interval" => callback.interval
+            "interval" => callback.interval,
+            "flush" => callback.flush ? "yes" : "no"
         ]
         summary_box(io, "InfoCallback", setup)
     end
 end
 
 """
-    InfoCallback()
+    InfoCallback(; interval=0, reset_threads=true, flush=false)
 
 Create and return a callback that prints a human-readable summary of the simulation setup at the
 beginning of a simulation and then resets the timer. When the returned callback is executed
 directly, the current timer values are shown.
+
+# Keywords
+- `interval::Int`: If set to 0 (default), the callback only prints at initialization and
+                   at the end of the simulation. If set to a positive integer, the callback
+                   also prints progress every `interval` time steps.
+- `reset_threads=true`: If `true`, calls `Polyester.reset_threads!()` during
+                         initialization.
+- `flush=false`: If `true`, flushes `stdout` after each output. This is
+                 useful when running on clusters or batch systems where stdout is buffered,
+                 allowing you to monitor progress in real-time.
 """
-function InfoCallback(; interval=0, reset_threads=true)
-    info_callback = InfoCallback(0.0, interval)
+function InfoCallback(; interval=0, reset_threads=true, flush=false)
+    info_callback = InfoCallback(0.0, interval, flush)
 
     function initialize(cb, u, t, integrator)
         initialize_info_callback(cb, u, t, integrator;
                                  reset_threads)
     end
 
-    DiscreteCallback(info_callback, info_callback,
-                     save_positions=(false, false),
-                     initialize=initialize)
+    DiscreteCallback(info_callback, info_callback; save_positions=(false, false),
+                     initialize)
 end
 
 # condition
 function (info_callback::InfoCallback)(u, t, integrator)
     (; interval) = info_callback
 
-    return interval != 0 &&
-           integrator.stats.naccept % interval == 0 ||
-           isfinished(integrator)
+    return condition_integrator_interval(integrator, interval)
 end
 
 # affect!
@@ -70,8 +79,12 @@ function (info_callback::InfoCallback)(integrator)
                 @sprintf("│ run time: %.4e s", runtime_absolute))
     end
 
-    # Tell OrdinaryDiffEq that u has not been modified
-    u_modified!(integrator, false)
+    if info_callback.flush
+        flush(stdout)
+    end
+
+    # This callback only reports progress and does not change the result of the right-hand side.
+    derivative_discontinuity!(integrator, false)
 
     return nothing
 end
@@ -98,7 +111,7 @@ function initialize_info_callback(discrete_callback, u, t, integrator;
                            :total_width => 100,
                            :indentation_level => 0)
 
-    semi = integrator.p
+    semi = integrator.p.semi
     show(io_context, MIME"text/plain"(), semi)
     println(io, "\n")
     foreach_system(semi) do system
@@ -129,7 +142,7 @@ function initialize_info_callback(discrete_callback, u, t, integrator;
         push!(setup,
               "abstol" => integrator.opts.abstol,
               "reltol" => integrator.opts.reltol,
-              "controller" => integrator.opts.controller)
+              "controller" => integrator.controller_cache.controller)
     end
     summary_box(io, "Time integration", setup)
     println()
@@ -147,6 +160,10 @@ function initialize_info_callback(discrete_callback, u, t, integrator;
     # Save current time as start_time
     info_callback.start_time = time_ns()
 
+    if info_callback.flush
+        flush(stdout)
+    end
+
     return nothing
 end
 
@@ -163,7 +180,7 @@ function format_key_value_line(key::AbstractString, value::AbstractString, key_w
     # Indent the key as requested (or not at all if `indentation_level == 0`)
     indentation = prefix^indentation_level
     reduced_key_width = key_width - length(indentation)
-    squeezed_key = indentation * squeeze(key, reduced_key_width, filler=filler)
+    squeezed_key = indentation * squeeze(key, reduced_key_width; filler)
     line *= squeezed_key
     line *= ": "
     short = key_width - length(squeezed_key)
@@ -173,7 +190,7 @@ function format_key_value_line(key::AbstractString, value::AbstractString, key_w
         line *= guide^(short - 1) * " "
     end
     value_width = total_width - length(prefix) - length(suffix) - key_width - 2
-    squeezed_value = squeeze(value, value_width, filler=filler)
+    squeezed_value = squeeze(value, value_width; filler)
     line *= squeezed_value
     short = value_width - length(squeezed_value)
     line *= " "^short
@@ -239,8 +256,7 @@ function summary_line(io, key, value; key_width=30, total_width=100, indentation
     total_width = get(io, :total_width, total_width)
     indentation_level = get(io, :indentation_level, indentation_level)
 
-    s = format_key_value_line(key, value, key_width, total_width,
-                              indentation_level=indentation_level)
+    s = format_key_value_line(key, value, key_width, total_width; indentation_level)
 
     println(io, s)
 end
@@ -260,9 +276,17 @@ end
 
 function print_summary(integrator)
     println("─"^100)
-    println("Trixi simulation finished.  Final time: ", integrator.t,
-            "  Time steps: ", integrator.stats.naccept, " (accepted), ",
-            integrator.iter, " (total)")
+    println("Trixi simulation finished.")
+    # Print the final time as string to let Julia decide on the formatting
+    @printf("  %-31s %10s\n", "Final time:", string(integrator.t))
+    @printf("  %-31s %10d (accepted) %10d (total)\n",
+            "Time steps:", integrator.stats.naccept, integrator.iter)
+    if !isnothing(integrator.p.split_integration_data)
+        @printf("  %-31s %10d (accepted) %10d (total)\n",
+                "Split integration time steps:",
+                integrator.p.split_integration_data.integrator.stats.naccept,
+                integrator.p.split_integration_data.integrator.iter)
+    end
     println("─"^100)
     println()
 

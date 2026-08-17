@@ -1,6 +1,3 @@
-@inline source_terms(system) = nothing
-@inline source_terms(system::Union{AbstractFluidSystem, AbstractStructureSystem}) = system.source_terms
-
 @doc raw"""
     SourceTermDamping(; damping_coefficient)
 
@@ -10,7 +7,7 @@ of particle ``a``, where ``c`` is the damping coefficient and ``v_a`` is the vel
 particle ``a``.
 
 # Keywords
-- `damping_coefficient`:    The coefficient ``d`` above. A higher coefficient means more
+- `damping_coefficient`:    The coefficient ``c`` above. A higher coefficient means more
                             damping. A coefficient of `1e-4` is a good starting point for
                             damping a fluid at rest.
 

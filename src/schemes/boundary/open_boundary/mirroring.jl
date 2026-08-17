@@ -486,10 +486,11 @@ end
 
 # Only for inflow boundary zones
 function average_velocity!(v, u, system, boundary_zone, semi)
-    (; face_normal, zone_origin, initial_condition, flow_direction) = boundary_zone
+    (; face_normal, zone_origin, initial_condition, flow_direction,
+     is_bidirectional) = boundary_zone
 
     # Bidirectional flow
-    isnothing(flow_direction) && return v
+    is_bidirectional && return v
 
     # Outflow
     signbit(dot(flow_direction, face_normal)) && return v
@@ -526,10 +527,10 @@ end
 # Only for inflow boundary zones
 function project_velocity_on_face_normal!(v, system, particle, boundary_zone,
                                           boundary_model)
-    (; face_normal, flow_direction) = boundary_zone
+    (; face_normal, flow_direction, is_bidirectional) = boundary_zone
 
     # Bidirectional flow
-    isnothing(flow_direction) && return v
+    is_bidirectional && return v
 
     # Outflow
     signbit(dot(flow_direction, face_normal)) && return v

@@ -1,23 +1,41 @@
 """
-    Semidiscretization(systems...; neighborhood_search=GridNeighborhoodSearch{NDIMS}())
+    Semidiscretization(systems...;
+                       neighborhood_search=GridNeighborhoodSearch{NDIMS}(),
+                       neighborhood_search_handler=default_neighborhood_search_handler(neighborhood_search),
+                       parallelization_backend=PolyesterBackend(),
+                       interaction_matrix=nothing)
 
 The semidiscretization couples the passed systems to one simulation.
 
 # Arguments
-- `systems`: Systems to be coupled in this semidiscretization
+- `systems`: Systems to be coupled in this semidiscretization. Any `nothing` entries are
+             ignored.
 
 # Keywords
-- `neighborhood_search`:    The neighborhood search to be used in the simulation.
-                            By default, the [`GridNeighborhoodSearch`](@ref) is used.
-                            Use `nothing` to loop over all particles (no neighborhood search).
-                            To use other neighborhood search implementations, pass a template
-                            of a neighborhood search. See [`copy_neighborhood_search`](@ref)
-                            and the examples below for more details.
-                            To use a periodic domain, pass a [`PeriodicBox`](@ref) to the
-                            neighborhood search.
-- `threaded_nhs_update=true`:   Can be used to deactivate thread parallelization in the neighborhood search update.
-                                This can be one of the largest sources of variations between simulations
-                                with different thread numbers due to particle ordering changes.
+- `neighborhood_search=GridNeighborhoodSearch{NDIMS}()`: The neighborhood search used in
+    the simulation. Use `nothing` to loop over all particles without a neighborhood search.
+    To use another neighborhood search implementation, pass a template of a neighborhood
+    search. See [`copy_neighborhood_search`](@ref) and the examples below for more details.
+    To use a periodic domain, pass a [`PeriodicBox`](@ref) to the neighborhood search.
+- `neighborhood_search_handler`: The handler type used to store and look up neighborhood
+    searches internally. By default, [`SharedNHSHandler`](@ref) is used whenever possible
+    and [`PairsNHSHandler`](@ref) otherwise. See
+    [neighborhood search handlers](@ref neighborhood_search_handlers) for more details.
+- `parallelization_backend=PolyesterBackend()`: Backend used for parallel loops. Pass
+    `SerialBackend()` to disable parallelization. See [GPU support](@ref gpu_support) for
+    information on using GPU backends.
+- `interaction_matrix=nothing`: Matrix controlling ordered system-pair interactions after
+    filtering out `nothing` systems. With `n_systems` remaining systems, `nothing` creates
+    `trues(n_systems, n_systems)`, enabling every interaction. Rows refer to the system being
+    updated and columns to the neighbor system. `interaction_matrix[i, j] == true` uses the
+    default interaction for computing forces on system `i` by particles of system `j`, while
+    `interaction_matrix[i, j] == false` disables it. Set an entry to a callable with the
+    signature `interaction(dv, v_system, u_system, v_neighbor, u_neighbor, system, neighbor,
+    semi; kwargs...)` to use a custom interaction function. Disabled pairs are also skipped
+    in auxiliary neighbor loops such as density summation, correction factors, surface
+    normals, pressure extrapolation, and particle shifting. Disabled pairs remain available
+    through the neighborhood search handler for APIs such as point interpolation, which use
+    neighborhood searches independently of force interactions.
 
 # Examples
 ```jldoctest; output = false, setup = :(trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing); ref_system = fluid_system)
@@ -36,6 +54,12 @@ semi = Semidiscretization(fluid_system, boundary_system,
 semi = Semidiscretization(fluid_system, boundary_system,
                           neighborhood_search=nothing)
 
+interaction_matrix = trues(2, 2)
+interaction_matrix[1, 2] = false # `fluid_system` skips interactions with `boundary_system`
+semi = Semidiscretization(fluid_system, boundary_system;
+                          neighborhood_search=nothing,
+                          interaction_matrix=interaction_matrix)
+
 # output
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
 │ Semidiscretization                                                                               │
@@ -46,37 +70,44 @@ semi = Semidiscretization(fluid_system, boundary_system,
 │ total #particles: ………………………………… 636                                                              │
 │ eltype: …………………………………………………………… Float64                                                          │
 │ coordinates eltype: …………………………… Float64                                                          │
+│ interaction matrix: …………………………… 1 disabled, 0 custom                                             │
+│ disabled interactions: …………………… 1 -> 2                                                           │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-struct Semidiscretization{BACKEND, S, RU, RV, NS, UCU, IT}
-    systems                 :: S
-    ranges_u                :: RU
-    ranges_v                :: RV
-    neighborhood_searches   :: NS
-    parallelization_backend :: BACKEND
-    update_callback_used    :: UCU
-    integrate_tlsph         :: IT # `false` if TLSPH integration is decoupled
+struct Semidiscretization{BACKEND, S, RU, RV, NSH, IM, UCU, IT}
+    systems                     :: S
+    ranges_u                    :: RU
+    ranges_v                    :: RV
+    neighborhood_search_handler :: NSH
+    interaction_matrix          :: IM
+    parallelization_backend     :: BACKEND
+    update_callback_used        :: UCU
+    integrate_tlsph             :: IT # `false` if TLSPH integration is decoupled
 
     # Dispatch at `systems` to distinguish this constructor from the one below when
     # 4 systems are passed.
-    # This is an internal constructor only used in `test/count_allocations.jl`
-    # and by Adapt.jl.
-    function Semidiscretization(systems::Tuple, ranges_u, ranges_v, neighborhood_searches,
+    # This internal constructor is used by tests that replace runtime state.
+    function Semidiscretization(systems::Tuple, ranges_u, ranges_v,
+                                neighborhood_search_handler,
+                                interaction_matrix,
                                 parallelization_backend::PointNeighbors.ParallelizationBackend,
                                 update_callback_used, integrate_tlsph)
         new{typeof(parallelization_backend), typeof(systems), typeof(ranges_u),
-            typeof(ranges_v), typeof(neighborhood_searches),
-            typeof(update_callback_used),
+            typeof(ranges_v), typeof(neighborhood_search_handler),
+            typeof(interaction_matrix), typeof(update_callback_used),
             typeof(integrate_tlsph)}(systems, ranges_u, ranges_v,
-                                     neighborhood_searches, parallelization_backend,
+                                     neighborhood_search_handler, interaction_matrix,
+                                     parallelization_backend,
                                      update_callback_used, integrate_tlsph)
     end
 end
 
 function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
                             neighborhood_search=GridNeighborhoodSearch{ndims(first(systems))}(),
-                            parallelization_backend=PolyesterBackend())
+                            neighborhood_search_handler=default_neighborhood_search_handler(neighborhood_search),
+                            parallelization_backend=PolyesterBackend(),
+                            interaction_matrix=nothing)
     systems = filter(system -> !isnothing(system), systems)
 
     if isempty(systems)
@@ -88,30 +119,24 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     systems = map(system -> initialize_self_interaction_nhs(system, neighborhood_search,
                                                             parallelization_backend),
                   systems)
+    interaction_matrix = create_interaction_matrix(interaction_matrix, systems)
 
     # Check e.g. that the boundary systems are using a state equation if EDAC is not used.
     # Other checks might be added here later.
     check_configuration(systems, neighborhood_search)
 
-    @inline function ranges_from_sizes(sizes)
-        ends = cumsum(sizes)
-        starts = ends .- sizes .+ 1
-        return Tuple(starts[i]:ends[i] for i in eachindex(sizes))
-    end
-
     sizes_u = [u_nvariables(system) * n_integrated_particles(system)
                for system in systems]
-    ranges_u = ranges_from_sizes(sizes_u)
+    ranges_u = Tuple((sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])
+                     for i in eachindex(sizes_u))
     sizes_v = [v_nvariables(system) * n_integrated_particles(system)
                for system in systems]
-    ranges_v = ranges_from_sizes(sizes_v)
+    ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
+                     for i in eachindex(sizes_v))
 
-    # Create a tuple of n neighborhood searches for each of the n systems.
-    # We will need one neighborhood search for each pair of systems.
-    searches = Tuple(Tuple(create_neighborhood_search(neighborhood_search,
-                                                      system, neighbor)
-                           for neighbor in systems)
-                     for system in systems)
+    neighborhood_search_handler = create_neighborhood_search_handler(neighborhood_search_handler,
+                                                                     neighborhood_search,
+                                                                     systems)
 
     # These will be set to true inside the `UpdateCallback`.
     # Some techniques require the use of this callback, and this flag can be used
@@ -123,65 +148,106 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     # with this set to false.
     integrate_tlsph = Ref(true)
 
-    return Semidiscretization(systems, ranges_u, ranges_v, searches,
+    return Semidiscretization(systems, ranges_u, ranges_v, neighborhood_search_handler,
+                              interaction_matrix,
                               parallelization_backend, update_callback_used,
                               integrate_tlsph)
 end
 
-# Inline show function e.g. Semidiscretization(neighborhood_search=...)
-function Base.show(io::IO, semi::Semidiscretization)
-    @nospecialize semi # reduce precompilation time
-
-    print(io, "Semidiscretization(")
-    for system in semi.systems
-        print(io, system, ", ")
-    end
-    print(io, "neighborhood_search=")
-    print(io, semi.neighborhood_searches |> eltype |> eltype |> nameof)
-    print(io, ")")
+function create_interaction_matrix(::Nothing, systems)
+    n_systems = length(systems)
+    return trues(n_systems, n_systems)
 end
 
-# Show used during summary printout
-function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
-    @nospecialize semi # reduce precompilation time
-
-    if get(io, :compact, false)
-        show(io, semi)
-    else
-        summary_header(io, "Semidiscretization")
-        summary_line(io, "#spatial dimensions", ndims(semi.systems[1]))
-        summary_line(io, "#systems", length(semi.systems))
-        summary_line(io, "neighborhood search",
-                     semi.neighborhood_searches |> eltype |> eltype |> nameof)
-        summary_line(io, "total #particles", sum(nparticles.(semi.systems)))
-        summary_line(io, "eltype", eltype(semi.systems[1]))
-        summary_line(io, "coordinates eltype", coordinates_eltype(semi.systems[1]))
-        summary_footer(io)
+function create_interaction_matrix(interaction_matrix, systems)
+    n_systems = length(systems)
+    if size(interaction_matrix) != (n_systems, n_systems)
+        throw(ArgumentError("`interaction_matrix` must have size " *
+                            "($n_systems, $n_systems), but has size " *
+                            "$(size(interaction_matrix))"))
     end
+
+    # Validate values before looking at the declared element type. This lets users pass
+    # abstract containers such as `Matrix{Any}` while still rejecting invalid entries.
+    for entry in interaction_matrix
+        if !is_interaction_entry(entry)
+            throw(ArgumentError("`interaction_matrix` entries must be `true`, `false`, " *
+                                "or methods, but found `$(typeof(entry))`"))
+        end
+    end
+
+    # Rebuild abstractly typed matrices from the concrete entry types
+    # to avoid dynamic dispatch and allocations in pairwise loops.
+    if !all(isconcretetype, Base.uniontypes(eltype(interaction_matrix)))
+        entry_types = unique(map(typeof, interaction_matrix))
+        return Matrix{Union{entry_types...}}(interaction_matrix)
+    end
+
+    return Matrix{eltype(interaction_matrix)}(interaction_matrix)
 end
 
-# This is just for readability to loop over all systems with wrapped arrays.
+@inline is_interaction_entry(entry::Bool) = true
+
+function is_interaction_entry(entry)
+    return !isempty(methods(entry))
+end
+
+@inline function system_indices(system, semi)
+    # Note that this takes only about 5 ns, while mapping systems to indices with a `Dict`
+    # is ~30x slower because `hash(::System)` is very slow.
+    index = findfirst(s -> s === system, semi.systems)
+
+    if isnothing(index)
+        throw(ArgumentError("system is not in the semidiscretization"))
+    end
+
+    return index
+end
+
+@inline is_enabled_interaction(entry::Bool) = entry
+@inline is_enabled_interaction(entry) = true
+
+@inline function has_system_interaction(system, neighbor_system, semi::Semidiscretization)
+    return is_enabled_interaction(system_interaction(system, neighbor_system, semi))
+end
+
+@inline function system_interaction(system, neighbor_system, semi::Semidiscretization)
+    return semi.interaction_matrix[system_indices(system, semi),
+                                   system_indices(neighbor_system, semi)]
+end
+
+# This is just for readability to loop over all systems without allocations
+@inline function foreach_system(f, semi::Union{NamedTuple, Semidiscretization})
+    return foreach_noalloc(f, semi.systems)
+end
+
+@inline foreach_system(f, systems) = foreach_noalloc(f, systems)
+
+# Loop over all systems and pass the corresponding wrapped `v` and `u` arrays to `f`.
 @inline function foreach_system_wrapped(f, semi::Union{NamedTuple, Semidiscretization},
                                         v_ode, u_ode)
-    return foreach_system_indexed(semi) do system_index, system
-        f(system,
-          wrap_v(v_ode, system, semi, system_index),
-          wrap_u(u_ode, system, semi, system_index))
-    end
+    foreach_system_wrapped(f, semi.systems, semi, v_ode, u_ode)
 end
 
-@inline function foreach_system_wrapped(f, semi::Union{NamedTuple, Semidiscretization},
-                                        dv_ode, v_ode, u_ode)
-    return foreach_system_indexed(semi) do system_index, system
-        f(system,
-          wrap_v(dv_ode, system, semi, system_index),
-          wrap_v(v_ode, system, semi, system_index),
-          wrap_u(u_ode, system, semi, system_index))
-    end
+# All our efforts to use `foreach_noalloc` here failed. They were either allocating
+# in Julia 1.10 or in Julia 1.12.
+# Instead, we duplicate and modify the contents of `foreach_noalloc` here.
+@inline function foreach_system_wrapped(f, systems, semi, v_ode, u_ode)
+    system = first(systems)
+    remaining_systems = Base.tail(systems)
+
+    v = wrap_v(v_ode, system, semi)
+    u = wrap_u(u_ode, system, semi)
+    @inline f(system, v, u)
+
+    # Process remaining collection.
+    return foreach_system_wrapped(f, remaining_systems, semi, v_ode, u_ode)
 end
+
+@inline foreach_system_wrapped(f, systems::Tuple{}, semi, v_ode, u_ode) = nothing
 
 """
-    semidiscretize(semi, tspan; reset_threads=true)
+    semidiscretize(semi, tspan; reset_threads=true, restart_with=nothing)
 
 Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
 
@@ -190,10 +256,18 @@ Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
 - `tspan`: The time span over which the simulation will be run.
 
 # Keywords
-- `reset_threads`: A boolean flag to reset Polyester.jl threads before the simulation (default: `true`).
-  After an error within a threaded loop, threading might be disabled. Resetting the threads before the simulation
-  ensures that threading is enabled again for the simulation.
-  See also [trixi-framework/Trixi.jl#1583](https://github.com/trixi-framework/Trixi.jl/issues/1583).
+- `reset_threads=true`: Reset Polyester.jl threads before the simulation. After an error
+    within a threaded loop, threading might be disabled; resetting the threads ensures that
+    threading is enabled again for the simulation.
+    See also
+    [trixi-framework/Trixi.jl#1583](https://github.com/trixi-framework/Trixi.jl/issues/1583).
+- `restart_with=nothing`: Restart the simulation from VTK solution files created by
+    [`SolutionSavingCallback`](@ref). This can be either `nothing` (default, no restart) or
+    a tuple of filenames, one for each system in the [`Semidiscretization`](@ref). The tuple
+    order must match the system order. When restarting, `semidiscretize` replaces the initial
+    time (`tspan[1]`) with the timestamp read from the VTK files. If the provided `tspan[1]`
+    does not match the restart time, it is adjusted and an info message is logged. Timestamps
+    in multiple files must match.
 
 # Returns
 A `DynamicalODEProblem` (see [the OrdinaryDiffEq.jl docs](https://docs.sciml.ai/DiffEqDocs/stable/types/dynamical_types/))
@@ -216,20 +290,29 @@ timespan: (0.0, 1.0)
 u0: ([...], [...]) *this line is ignored by filter*
 ```
 """
-function semidiscretize(semi, tspan; reset_threads=true)
+function semidiscretize(semi, tspan; reset_threads=true, restart_with=nothing)
     (; systems) = semi
+
+    if restart_with isa String
+        restart_with = (restart_with,)
+    elseif !isnothing(restart_with) && !(restart_with isa NTuple{<:Any, String})
+        throw(ArgumentError("`restart_with` must be `nothing`, a string, or a tuple of strings, " *
+                            "got $(typeof(restart_with))"))
+    end
 
     # Check that all systems have the same eltype
     first_system = first(systems)
     if !all(system -> eltype(system) === eltype(first_system), systems)
-        throw(ArgumentError("all systems must use the same eltype"))
+        throw(ArgumentError("`eltype(system)` must be the same for all systems in the " *
+                            "`Semidiscretization`"))
     end
     ELTYPE = eltype(first_system)
 
     # Check that all systems have the same coordinates eltype
     if !all(system -> coordinates_eltype(system) === coordinates_eltype(first_system),
             systems)
-        throw(ArgumentError("all systems must use the same coordinates eltype"))
+        throw(ArgumentError("`coordinates_eltype(system)` must be the same " *
+                            "for all systems in the `Semidiscretization`"))
     end
     cELTYPE = coordinates_eltype(first_system)
 
@@ -262,62 +345,91 @@ function semidiscretize(semi, tspan; reset_threads=true)
     end
 
     # Set initial condition
-    foreach_system_wrapped(semi, v0_ode, u0_ode) do system, v0_system, u0_system
-        write_u0!(u0_system, system)
-        write_v0!(v0_system, system)
-    end
+    set_initial_conditions!(v0_ode, u0_ode, semi, restart_with)
 
     # TODO initialize after adapting to the GPU.
     # Requires https://github.com/trixi-framework/PointNeighbors.jl/pull/86.
-    initialize_neighborhood_searches!(semi)
+    initialize_neighborhood_searches!(semi, u0_ode, restart_with)
 
     if semi.parallelization_backend isa KernelAbstractions.GPU
-        # Convert all arrays to the correct array type.
+        # Convert all arrays in the systems to the correct array type.
         # When e.g. `parallelization_backend=CUDABackend()`, this will convert all `Array`s
         # to `CuArray`s, moving data to the GPU.
         # See the comments in general/gpu.jl for more details.
-        semi_ = Adapt.adapt(semi.parallelization_backend, semi)
+        systems = Adapt.adapt(semi.parallelization_backend, semi.systems)
+        semi_ = @set semi.systems = systems
+
+        # Also convert the neighborhood searches to the GPU, while keeping the
+        # handler containers on the CPU.
+        neighborhood_search_handler = adapt_neighborhood_search_handler(semi.parallelization_backend,
+                                                                        semi_.neighborhood_search_handler)
+        semi__ = @set semi_.neighborhood_search_handler = neighborhood_search_handler
 
         # We now have a new `Semidiscretization` with new systems.
         # This means that systems linking to other systems still point to old systems.
         # Therefore, we have to re-link them, which yields yet another `Semidiscretization`.
         # Note that this re-creates systems containing links, so it only works as long
         # as systems don't link to other systems containing links.
-        semi_new = Semidiscretization(set_system_links.(semi_.systems, Ref(semi_)),
-                                      semi_.ranges_u, semi_.ranges_v,
-                                      semi_.neighborhood_searches,
-                                      semi_.parallelization_backend,
-                                      semi_.update_callback_used, semi_.integrate_tlsph)
+        semi_new = @set semi__.systems = set_system_links.(semi__.systems, Ref(semi__))
 
         @info "To move data to the GPU, `semidiscretize` creates a deep copy of the passed " *
-              "`Semidiscretization`. Use `semi = ode.p` to access simulation data."
+              "`Semidiscretization`. Use `semi = ode.p.semi` to access simulation data."
     else
         semi_new = semi
     end
 
     # Initialize all particle systems
-    foreach_system(semi_new) do system
-        # Initialize this system
-        initialize!(system, semi_new)
-    end
+    initialize!(semi_new, restart_with)
 
     # Reset callback flag that will be set by the `UpdateCallback`
     semi_new.update_callback_used[] = false
 
-    return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode, tspan, semi_new)
+    # Store the semidiscretization in `p.semi` to make it accessible during time integration.
+    # In case that a `SplitIntegrationCallback` is used, we will also need to store
+    # extra split integration data in `p`, for which we create a placeholder (`nothing`)
+    # here, since we cannot change `p` from within the callback (only its contents).
+    p = @NamedTuple{semi::typeof(semi_new), split_integration_data::Any}((semi_new,
+                                                                          nothing))
+
+    return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode,
+                               time_span(tspan, restart_with), p)
+end
+
+function set_initial_conditions!(v0_ode, u0_ode, semi, restart_with::Nothing)
+    foreach_system_wrapped(semi, v0_ode, u0_ode) do system, v0_system, u0_system
+        write_u0!(u0_system, system)
+        write_v0!(v0_system, system)
+    end
+end
+
+time_span(tspan, restart_with::Nothing) = tspan
+
+function initialize!(semi::Semidiscretization, restart_with::Nothing)
+    foreach_system(semi) do system
+        # Initialize this system
+        initialize!(system, semi)
+    end
+
+    return semi
 end
 
 """
-    restart_with!(semi, sol)
+    restart_with!(semi, sol; reset_threads=true)
 
-Set the initial coordinates and velocities of all systems in `semi` to the final values
-in the solution `sol`.
+Set the restartable state of all systems in `semi` to the final values in the solution
+`sol`. This includes coordinates and velocities as well as integrated state variables such
+as density or pressure where applicable.
 [`semidiscretize`](@ref) has to be called again afterwards, or another
 [`Semidiscretization`](@ref) can be created with the updated systems.
 
 # Arguments
-- `semi`:   The semidiscretization
-- `sol`:    The `ODESolution` returned by `solve` of `OrdinaryDiffEq`
+- `semi`: The semidiscretization to update.
+- `sol`:  The `ODESolution` returned by `solve` from OrdinaryDiffEq.jl.
+
+# Keywords
+- `reset_threads=true`: Reset Polyester.jl threads before updating the systems. After an
+    error within a threaded loop, threading might be disabled; resetting the threads ensures
+    that threading is enabled again.
 """
 function restart_with!(semi, sol; reset_threads=true)
     # Optionally reset Polyester.jl threads. See
@@ -343,46 +455,36 @@ end
 # We have to pass `system` here for type stability,
 # since the type of `system` determines the return type.
 @inline function wrap_v(v_ode, system, semi)
-    return wrap_field(v_ode, system, semi.ranges_v, v_nvariables, "v",
-                      system_indices(system, semi))
-end
+    (; ranges_v) = semi
 
-@inline function wrap_v(v_ode, system, semi, system_index::Integer)
-    return wrap_field(v_ode, system, semi.ranges_v, v_nvariables, "v", system_index)
-end
+    range = ranges_v[system_indices(system, semi)]
 
-@inline function wrap_v(v_ode, system, range::AbstractUnitRange)
-    return wrap_field(v_ode, system, range, v_nvariables, "v")
+    @boundscheck begin
+        expected = v_nvariables(system) * n_integrated_particles(system)
+        if length(range) != expected
+            throw(DimensionMismatch("`v_ode` range length $(length(range)) does not match " *
+                                    "expected number of entries $expected"))
+        end
+    end
+
+    return wrap_array(v_ode, range,
+                      (StaticInt(v_nvariables(system)), n_integrated_particles(system)))
 end
 
 @inline function wrap_u(u_ode, system, semi)
-    return wrap_field(u_ode, system, semi.ranges_u, u_nvariables, "u",
-                      system_indices(system, semi))
-end
+    (; ranges_u) = semi
 
-@inline function wrap_u(u_ode, system, semi, system_index::Integer)
-    return wrap_field(u_ode, system, semi.ranges_u, u_nvariables, "u", system_index)
-end
+    range = ranges_u[system_indices(system, semi)]
 
-@inline function wrap_u(u_ode, system, range::AbstractUnitRange)
-    return wrap_field(u_ode, system, range, u_nvariables, "u")
-end
-
-@inline function wrap_field(array, system, ranges, nvariables, field_name,
-                            system_index::Integer)
-    return wrap_field(array, system, ranges[system_index], nvariables, field_name)
-end
-
-@inline function wrap_field(array, system, range::AbstractUnitRange, nvariables, field_name)
     @boundscheck begin
-        expected = nvariables(system) * n_integrated_particles(system)
+        expected = u_nvariables(system) * n_integrated_particles(system)
         range_length = length(range)
         range_length == expected ||
-            throw(DimensionMismatch("$field_name range length $range_length does not match expected $expected"))
+            throw(DimensionMismatch("u range length $range_length does not match expected $expected"))
     end
 
-    return wrap_array(array, range,
-                      (StaticInt(nvariables(system)), n_integrated_particles(system)))
+    return wrap_array(u_ode, range,
+                      (StaticInt(u_nvariables(system)), n_integrated_particles(system)))
 end
 
 @inline function wrap_array(array::Array, range, size)
@@ -405,10 +507,8 @@ end
     return reshape(view(array, range), Int.(size))
 end
 
-include("ode_rhs.jl")
-
 function check_configuration(systems,
-                             nhs::Union{Nothing, PointNeighbors.AbstractNeighborhoodSearch})
+                             nhs::Union{Nothing, AbstractNeighborhoodSearch})
     foreach_system(systems) do system
         check_configuration(system, systems, nhs)
     end
@@ -419,16 +519,26 @@ end
 check_configuration(system::AbstractSystem, systems, nhs) = nothing
 
 function check_system_color(systems)
-    if any(system isa AbstractFluidSystem && !(system isa ParticlePackingSystem) &&
-           !isnothing(system.surface_tension)
-           for system in systems)
+    requires_color_check = any(systems) do system
+        system isa AbstractFluidSystem || return false
+        system isa ParticlePackingSystem && return false
 
-        # System indices of all systems that are either a fluid or a boundary system
-        system_ids = findall(system isa Union{AbstractFluidSystem, WallBoundarySystem}
-                             for system in systems)
+        return !isnothing(system.surface_tension) ||
+               system.surface_normal_method isa ColorfieldSurfaceNormal
+    end
+
+    if requires_color_check
+
+        # Systems that contribute to the colorfield/contact logic.
+        system_ids = findall(system -> (system isa AbstractFluidSystem &&
+                                        !(system isa ParticlePackingSystem)) ||
+                                       system isa WallBoundarySystem ||
+                                       system isa
+                                       RigidBodySystem{<:BoundaryModelDummyParticles},
+                             systems)
 
         if length(system_ids) > 1 && sum(i -> systems[i].cache.color, system_ids) == 0
-            throw(ArgumentError("If a surface tension model is used the values of at least one system needs to have a color different than 0."))
+            throw(ArgumentError("If `ColorfieldSurfaceNormal` or a surface tension model is used, at least one participating system must have a color different from 0."))
         end
     end
 end
@@ -436,26 +546,93 @@ end
 # After `adapt`, the system type information may change.
 # This means that systems linking to other systems still point to old systems.
 # Therefore, we have to re-link them based on the stored system index.
-set_system_links(system, semi) = system
-
 function set_system_links(system::OpenBoundarySystem, semi)
     fluid_system = semi.systems[system.fluid_system_index[]]
 
-    return OpenBoundarySystem(system.boundary_model,
-                              system.initial_condition,
-                              fluid_system, # link to fluid system
-                              system.fluid_system_index,
-                              system.smoothing_kernel,
-                              system.smoothing_length,
-                              system.mass,
-                              system.volume,
-                              system.boundary_candidates,
-                              system.fluid_candidates,
-                              system.boundary_zone_indices,
-                              system.boundary_zones,
-                              system.buffer,
-                              system.pressure_acceleration_formulation,
-                              system.shifting_technique,
-                              system.calculate_flow_rate,
-                              system.cache)
+    return @set system.fluid_system = fluid_system
+end
+
+set_system_links(system, semi) = system
+
+# Inline show function e.g. Semidiscretization(neighborhood_search=...)
+function Base.show(io::IO, semi::Semidiscretization)
+    @nospecialize semi # reduce precompilation time
+
+    print(io, "Semidiscretization(")
+    for system in semi.systems
+        print(io, system, ", ")
+    end
+    print(io, "neighborhood_search=")
+    print(io, neighborhood_search_name(semi.neighborhood_search_handler))
+    interaction_summary = interaction_matrix_summary(semi)
+    if !isnothing(interaction_summary)
+        print(io, ", interaction_matrix=", interaction_summary)
+    end
+    print(io, ")")
+end
+
+# Show used during summary printout
+function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
+    @nospecialize semi # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, semi)
+    else
+        summary_header(io, "Semidiscretization")
+        summary_line(io, "#spatial dimensions", ndims(semi.systems[1]))
+        summary_line(io, "#systems", length(semi.systems))
+        summary_line(io, "neighborhood search",
+                     neighborhood_search_name(semi.neighborhood_search_handler))
+        summary_line(io, "total #particles", sum(nparticles.(semi.systems)))
+        summary_line(io, "eltype", eltype(semi.systems[1]))
+        summary_line(io, "coordinates eltype", coordinates_eltype(semi.systems[1]))
+        interaction_summary = interaction_matrix_summary(semi)
+        if !isnothing(interaction_summary)
+            summary_line(io, "interaction matrix", interaction_summary)
+            disabled_pairs = disabled_interaction_pairs(semi)
+            if !isnothing(disabled_pairs)
+                summary_line(io, "disabled interactions", disabled_pairs)
+            end
+
+            custom_pairs = custom_interaction_pairs(semi)
+            if !isnothing(custom_pairs)
+                summary_line(io, "custom pairs", custom_pairs)
+            end
+        end
+        summary_footer(io)
+    end
+end
+
+function interaction_matrix_summary(semi)
+    disabled = count(entry -> entry === false, semi.interaction_matrix)
+    custom = count(entry -> !(entry isa Bool), semi.interaction_matrix)
+
+    if disabled == 0 && custom == 0
+        return nothing
+    end
+
+    return "$disabled disabled, $custom custom"
+end
+
+function disabled_interaction_pairs(semi)
+    pairs = String[]
+    for system_index in axes(semi.interaction_matrix, 1),
+        neighbor_index in axes(semi.interaction_matrix, 2)
+        semi.interaction_matrix[system_index, neighbor_index] === false || continue
+        push!(pairs, "$system_index -> $neighbor_index")
+    end
+
+    return isempty(pairs) ? nothing : join(pairs, ", ")
+end
+
+function custom_interaction_pairs(semi)
+    pairs = String[]
+    for system_index in axes(semi.interaction_matrix, 1),
+        neighbor_index in axes(semi.interaction_matrix, 2)
+        interaction = semi.interaction_matrix[system_index, neighbor_index]
+        interaction isa Bool && continue
+        push!(pairs, "$system_index -> $neighbor_index ($(nameof(typeof(interaction))))")
+    end
+
+    return isempty(pairs) ? nothing : join(pairs, ", ")
 end
