@@ -454,6 +454,7 @@ function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization)
 
     # This is evaluated only once when the constant stepsize callback is initialized.
     # Pairs without an interface-specific restriction return `Inf` through dispatch.
+    # TODO avoid recomputation when implementing adaptive stepsize callback
     for i in 1:(nsystems - 1)
         system = systems[i]
         if system isa TotalLagrangianSPHSystem && !semi.integrate_tlsph[]
