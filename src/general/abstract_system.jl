@@ -163,6 +163,24 @@ end
                                         system_correction(system), system, particle)
 end
 
+# Hydrodynamic corrections of structure systems are stored in their boundary model and are
+# independent of corrections used by the structural scheme itself.
+@inline hydrodynamic_correction(system) = system_correction(system)
+
+@inline function hydrodynamic_smoothing_kernel_grad(system, pos_diff, distance, particle)
+    h = smoothing_length(system, particle)
+    correction = hydrodynamic_correction(system)
+    compact_support_ = compact_support(system_smoothing_kernel(system), h)
+
+    if distance >= compact_support_ ||
+       (skip_zero_distance(correction) && distance^2 < eps(h^2))
+        return zero(pos_diff)
+    end
+
+    return corrected_kernel_grad_unsafe(system_smoothing_kernel(system), pos_diff,
+                                        distance, h, correction, system, particle)
+end
+
 # System updates do nothing by default, but can be dispatched if needed
 function update_positions!(system, v, u, v_ode, u_ode, semi, t)
     return system
@@ -172,11 +190,27 @@ function update_quantities!(system, v, u, v_ode, u_ode, semi, t)
     return system
 end
 
+function update_density_correction_values!(system, v, u, v_ode, u_ode, semi, t)
+    return system
+end
+
+function update_density_correction!(system, v, u, v_ode, u_ode, semi, t)
+    return system
+end
+
 function update_pressure!(system, v, u, v_ode, u_ode, semi, t)
     return system
 end
 
 function update_boundary_interpolation!(system, v, u, v_ode, u_ode, semi, t)
+    return system
+end
+
+function update_gradient_correction!(system, v, u, v_ode, u_ode, semi, t)
+    return system
+end
+
+function update_surface_quantities!(system, v, u, v_ode, u_ode, semi, t)
     return system
 end
 

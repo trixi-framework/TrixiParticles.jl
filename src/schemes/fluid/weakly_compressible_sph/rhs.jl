@@ -8,6 +8,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                    eachparticle=each_integrated_particle(particle_system),
                    kwargs...)
     (; density_calculator, correction) = particle_system
+    gradient_correction = correction_gradient(correction)
+    force_correction = correction_force(correction)
 
     sound_speed = system_sound_speed(particle_system)
 
@@ -72,7 +74,7 @@ function interact!(dv, v_particle_system, u_particle_system,
             # Determine correction factors.
             # This can usually be ignored, as these are all 1 when no correction is used.
             (viscosity_correction, pressure_correction,
-             surface_tension_correction) = free_surface_correction(correction,
+             surface_tension_correction) = free_surface_correction(force_correction,
                                                                    particle_system,
                                                                    rho_a, rho_b)
 
@@ -81,7 +83,7 @@ function interact!(dv, v_particle_system, u_particle_system,
             dv_pressure = pressure_acceleration(particle_system, neighbor_system,
                                                 particle, neighbor,
                                                 m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
-                                                distance, grad_kernel, correction)
+                                                distance, grad_kernel, gradient_correction)
             dv_particle[] += dv_pressure * pressure_correction
 
             # Propagate `@inbounds` to the viscosity function, which accesses particle data
@@ -96,7 +98,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                                    particle_system, neighbor_system,
                                    v_particle_system, v_neighbor_system,
                                    particle, neighbor, m_a, m_b, rho_a, rho_b, v_a, v_b,
-                                   pos_diff, distance, grad_kernel, correction)
+                                   pos_diff, distance, grad_kernel, gradient_correction)
 
             @inbounds surface_tension_force!(dv_particle,
                                              surface_tension_a, surface_tension_b,

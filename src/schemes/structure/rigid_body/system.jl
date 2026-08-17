@@ -81,6 +81,12 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
         throw(ArgumentError("`RigidBodySystem` currently supports only 2D and 3D, got $(NDIMS)D"))
     end
 
+    if boundary_model isa BoundaryModelDummyParticles &&
+       !isnothing(boundary_model.correction)
+        throw(ArgumentError("corrections in `BoundaryModelDummyParticles` are not " *
+                            "supported for `RigidBodySystem`"))
+    end
+
     ELTYPE = eltype(initial_condition)
     acceleration_ = SVector(acceleration...)
     if length(acceleration_) != NDIMS
@@ -264,10 +270,6 @@ end
 
 @inline function system_smoothing_kernel(system::RigidBodySystem{<:BoundaryModelDummyParticles})
     return system.boundary_model.smoothing_kernel
-end
-
-@inline function system_correction(system::RigidBodySystem{<:BoundaryModelDummyParticles})
-    return system.boundary_model.correction
 end
 
 function initialize!(system::RigidBodySystem, semi)

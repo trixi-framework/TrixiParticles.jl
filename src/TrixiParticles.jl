@@ -56,11 +56,10 @@ include("general/neighborhood_search.jl")
 # `callbacks.jl` requires the system types to be defined
 include("callbacks/callbacks.jl")
 
-# Note that `semidiscretization.jl` depends on the system types and has to be
-# included separately. The following files in turn depend on the semidiscretization type.
+# Note that `semidiscretization.jl` and `time_integration.jl` depend on the system types
+# and has to be included separately. `gpu.jl` in turn depends on the semidiscretization type.
 include("general/semidiscretization.jl")
 include("general/time_integration.jl")
-include("general/ode_rhs.jl")
 include("general/gpu.jl")
 include("preprocessing/preprocessing.jl")
 include("io/io.jl")

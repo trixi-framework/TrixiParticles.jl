@@ -218,7 +218,7 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
                                                                  semi)
 end
 
-function update_inter_system_quantities!(semi, v_ode, u_ode, t)
+function update_implicit_sph!(semi, v_ode, u_ode, t)
     # This check is performed statically by the compiler and has no overhead
     if !any(system -> system isa ImplicitIncompressibleSPHSystem, semi.systems)
         return semi
@@ -227,6 +227,10 @@ function update_inter_system_quantities!(semi, v_ode, u_ode, t)
     @trixi_timeit timer() "pressure solver" pressure_solve!(semi, v_ode, u_ode)
 
     return semi
+end
+
+function update_inter_system_quantities!(semi, v_ode, u_ode, t)
+    return update_implicit_sph!(semi, v_ode, u_ode, t)
 end
 
 function predict_advection!(system::Union{ImplicitIncompressibleSPHSystem,

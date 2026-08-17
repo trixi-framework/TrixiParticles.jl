@@ -8,7 +8,7 @@
                                 acceleration=ntuple(_ -> 0.0, NDIMS), surface_tension=nothing,
                                 surface_normal_method=nothing, buffer_size=nothing,
                                 reference_particle_spacing=0.0, color_value=1,
-                                source_terms=nothing)
+                                correction=nothing, source_terms=nothing)
 
 System for particles of a fluid.
 As opposed to the [weakly compressible SPH scheme](@ref wcsph), which uses an equation of state,
@@ -111,6 +111,9 @@ function EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel, smooth
     mass = copy(initial_condition.mass)
     n_particles = length(initial_condition.mass)
 
+    density_correction_ = correction_density(correction)
+    gradient_correction_ = correction_gradient(correction)
+
     if ndims(smoothing_kernel) != NDIMS
         throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
     end
@@ -127,7 +130,7 @@ function EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel, smooth
         throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using a surface-normal method"))
     end
 
-    if correction isa ShepardKernelCorrection &&
+    if density_correction_ isa ShepardKernelCorrection &&
        density_calculator isa ContinuityDensity
         throw(ArgumentError("`ShepardKernelCorrection` cannot be used with `ContinuityDensity`"))
     end
@@ -135,7 +138,7 @@ function EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel, smooth
     pressure_acceleration = choose_pressure_acceleration_formulation(pressure_acceleration,
                                                                      density_calculator,
                                                                      NDIMS, ELTYPE,
-                                                                     correction)
+                                                                     gradient_correction_)
 
     avg_pressure_reduction = Val(average_pressure_reduction)
 
@@ -251,7 +254,9 @@ end
 
 @inline buffer(system::EntropicallyDampedSPHSystem) = system.buffer
 
-system_correction(system::EntropicallyDampedSPHSystem) = system.correction
+function system_correction(system::EntropicallyDampedSPHSystem)
+    correction_gradient(system.correction)
+end
 
 @inline function current_velocity(v, system::EntropicallyDampedSPHSystem)
     return view(v, 1:ndims(system), :)
@@ -298,16 +303,39 @@ function update_quantities!(system::EntropicallyDampedSPHSystem, v, u,
     compute_density!(system, u, u_ode, semi, system.density_calculator)
 end
 
-function update_pressure!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, semi, t)
-    (; correction, density_calculator) = system
+function update_density_correction_values!(system::EntropicallyDampedSPHSystem, v, u,
+                                           v_ode, u_ode, semi, t)
+    (; correction) = system
+    density_correction = correction_density(correction)
 
-    # These are only computed when using corrections
-    compute_correction_values!(system, correction, u, v_ode, u_ode, semi)
-    compute_gradient_correction_matrix!(correction, system, u, v_ode, u_ode, semi)
-    # `kernel_correct_density!` only performed for `SummationDensity`
-    kernel_correct_density!(system, v, u, v_ode, u_ode, semi, correction,
+    compute_correction_values!(system, density_correction, u, v_ode, u_ode, semi)
+
+    return system
+end
+
+function update_density_correction!(system::EntropicallyDampedSPHSystem, v, u, v_ode,
+                                    u_ode, semi, t)
+    (; correction, density_calculator) = system
+    density_correction = correction_density(correction)
+
+    kernel_correct_density!(system, v, u, v_ode, u_ode, semi, density_correction,
                             density_calculator)
 
+    return system
+end
+
+function update_gradient_correction!(system::EntropicallyDampedSPHSystem, v, u, v_ode,
+                                     u_ode, semi, t)
+    gradient_correction = correction_gradient(system.correction)
+
+    compute_correction_values!(system, gradient_correction, u, v_ode, u_ode, semi)
+    compute_gradient_correction_matrix!(gradient_correction, system, u, v_ode, u_ode, semi)
+
+    return system
+end
+
+function update_surface_quantities!(system::EntropicallyDampedSPHSystem, v, u, v_ode,
+                                    u_ode, semi, t)
     compute_surface_normal!(system, system.surface_normal_method, v, u, v_ode, u_ode, semi,
                             t)
     compute_surface_delta_function!(system, system.surface_tension, semi)
@@ -319,7 +347,7 @@ function kernel_correct_density!(system::EntropicallyDampedSPHSystem, v, u, v_od
 end
 
 function kernel_correct_density!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode,
-                                 semi, corr::ShepardKernelCorrection, ::SummationDensity)
+                                 semi, ::ShepardKernelCorrection, ::SummationDensity)
     system.cache.density ./= system.cache.kernel_correction_coefficient
 end
 
@@ -332,15 +360,15 @@ end
 function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
                                                          BlendedGradientCorrection,
                                                          MixedKernelGradientCorrection},
-                                             system::EntropicallyDampedSPHSystem, u,
-                                             v_ode, u_ode, semi)
-    (; cache, correction, smoothing_kernel) = system
+                                              system::EntropicallyDampedSPHSystem, u,
+                                              v_ode, u_ode, semi)
+    (; cache, smoothing_kernel) = system
     (; correction_matrix) = cache
 
     system_coords = current_coordinates(u, system)
 
     compute_gradient_correction_matrix!(correction_matrix, system, system_coords,
-                                        v_ode, u_ode, semi, correction, smoothing_kernel)
+                                        v_ode, u_ode, semi, corr, smoothing_kernel)
 end
 
 @inline function correction_matrix(system::EntropicallyDampedSPHSystem, particle)
@@ -432,4 +460,6 @@ function restart_with!(system::EntropicallyDampedSPHSystem, v, u)
         system.initial_condition.velocity[:, particle] .= v[1:ndims(system), particle]
         system.initial_condition.pressure[particle] = v[ndims(system) + 1, particle]
     end
+
+    return restart_with!(system, system.density_calculator, v, u)
 end
