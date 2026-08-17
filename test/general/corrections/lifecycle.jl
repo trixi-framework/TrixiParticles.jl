@@ -93,6 +93,10 @@
         @test forward.shepard_rhs≈reverse.shepard_rhs rtol=1e-11 atol=1e-10
     end
 
+    # The mixed gradient/Shepard case above has only one system that mutates density and
+    # therefore cannot expose sequential density correction. Use two overlapping Shepard
+    # systems so reversing their declaration order would reveal coefficients assembled from
+    # an already-corrected neighbor density.
     function ordered_shepard_result(reverse_order; edac)
         spacing = 0.1
         smoothing_length = 2spacing
@@ -132,6 +136,7 @@
         TrixiParticles.kick!(dv_ode, v_ode, u_ode,
                              (; semi=ode.p.semi, split_integration_data=nothing), 0.0)
 
+        # Compare the same physical particle clouds after reversing their tuple positions.
         index_a, index_b = reverse_order ? (2, 1) : (1, 2)
         system_a = ode.p.semi.systems[index_a]
         system_b = ode.p.semi.systems[index_b]
@@ -150,6 +155,8 @@
                 rhs_a=copy(dv_a), rhs_b=copy(dv_b))
     end
 
+    # Coefficients and every quantity derived from corrected density must be independent of
+    # system declaration order for both explicit pressure models.
     for edac in (false, true)
         forward = ordered_shepard_result(false; edac)
         reverse = ordered_shepard_result(true; edac)
@@ -184,6 +191,7 @@ end
     boundary = first(ode.p.semi.systems)
     TrixiParticles.update_systems_and_nhs(v_ode, u_ode, ode.p.semi, 0.0)
 
+    # Boundary pressure must be evaluated after Shepard normalization, not from raw density.
     @test boundary.boundary_model.pressure ≈
           state_equation.(boundary.boundary_model.cache.density)
 end
@@ -216,6 +224,9 @@ end
         return (; system, semi=ode.p.semi, v_ode, u_ode)
     end
 
+    # Reconstruct the density numerator from the lifecycle result, rho_corrected * c, and
+    # compare it with an independent summation. The second assertion makes the test sensitive
+    # to the old behavior, where the unchanged initial density was normalized instead.
     shepard = structure_setup(ShepardKernelCorrection())
     v_shepard = TrixiParticles.wrap_v(shepard.v_ode, shepard.system, shepard.semi)
     u_shepard = TrixiParticles.wrap_u(shepard.u_ode, shepard.system, shepard.semi)
@@ -227,6 +238,76 @@ end
     @test corrected_density .* coefficient ≈ raw_density atol = 5e-13
     @test maximum(abs, raw_density .- density) > 1.0
 
+    # The optimized TLSPH path assembles its density numerator alongside the Shepard
+    # coefficient, but keeps the numerator in scratch storage until every system has
+    # assembled its coefficient. Reverse a coupled fluid/TLSPH pair to ensure that this
+    # fusion does not reintroduce declaration-order dependence.
+    function ordered_fluid_structure_result(reverse_order)
+        fluid_particles = RectangularShape(particle_spacing, (3, 3), (0.0, 0.0); density)
+        fluid = WeaklyCompressibleSPHSystem(fluid_particles;
+                                            smoothing_kernel, smoothing_length,
+                                            state_equation,
+                                            density_calculator=SummationDensity(),
+                                            correction=ShepardKernelCorrection())
+
+        structure_particles = RectangularShape(particle_spacing, (3, 2), (0.0, -0.15);
+                                               density=1200.0)
+        hydrodynamic_density = fill(density,
+                                    TrixiParticles.nparticles(structure_particles))
+        hydrodynamic_mass = fill(density * particle_spacing^2,
+                                 TrixiParticles.nparticles(structure_particles))
+        boundary_model = BoundaryModelDummyParticles(hydrodynamic_density,
+                                                     hydrodynamic_mass,
+                                                     SummationDensity(), smoothing_kernel,
+                                                     smoothing_length;
+                                                     state_equation,
+                                                     correction=ShepardKernelCorrection())
+        structure = TotalLagrangianSPHSystem(structure_particles;
+                                             smoothing_kernel, smoothing_length,
+                                             young_modulus=1.0e6, poisson_ratio=0.3,
+                                             boundary_model)
+        systems = reverse_order ? (structure, fluid) : (fluid, structure)
+        semi = Semidiscretization(systems...; neighborhood_search=nothing,
+                                  parallelization_backend=SerialBackend())
+        ode = semidiscretize(semi, (0.0, 1.0); reset_threads=false)
+        v_ode = Array(ode.u0.x[1])
+        u_ode = Array(ode.u0.x[2])
+        dv_ode = zero(v_ode)
+        TrixiParticles.kick!(dv_ode, v_ode, u_ode,
+                             (; semi=ode.p.semi, split_integration_data=nothing), 0.0)
+
+        fluid = only(system
+                     for system in ode.p.semi.systems
+                     if system isa WeaklyCompressibleSPHSystem)
+        structure = only(system
+                         for system in ode.p.semi.systems
+                         if system isa TotalLagrangianSPHSystem)
+        v_fluid = TrixiParticles.wrap_v(v_ode, fluid, ode.p.semi)
+        v_structure = TrixiParticles.wrap_v(v_ode, structure, ode.p.semi)
+        dv_fluid = TrixiParticles.wrap_v(dv_ode, fluid, ode.p.semi)
+        dv_structure = TrixiParticles.wrap_v(dv_ode, structure, ode.p.semi)
+
+        return (;
+                fluid_density=copy(TrixiParticles.current_density(v_fluid, fluid)),
+                structure_density=copy(TrixiParticles.current_density(v_structure,
+                                                                      structure)),
+                fluid_coefficient=copy(fluid.cache.kernel_correction_coefficient),
+                structure_coefficient=copy(structure.boundary_model.cache.kernel_correction_coefficient),
+                fluid_rhs=copy(dv_fluid), structure_rhs=copy(dv_structure))
+    end
+
+    forward = ordered_fluid_structure_result(false)
+    reverse = ordered_fluid_structure_result(true)
+    @test forward.fluid_density≈reverse.fluid_density rtol=5e-13 atol=5e-13
+    @test forward.structure_density≈reverse.structure_density rtol=5e-13 atol=5e-13
+    @test forward.fluid_coefficient≈reverse.fluid_coefficient rtol=5e-13 atol=5e-13
+    @test forward.structure_coefficient≈reverse.structure_coefficient rtol=5e-13 atol=5e-13
+    @test forward.fluid_rhs≈reverse.fluid_rhs rtol=1e-11 atol=1e-10
+    @test forward.structure_rhs≈reverse.structure_rhs rtol=1e-11 atol=1e-10
+
+    # TLSPH has a material gradient correction and a separate hydrodynamic boundary
+    # correction. Verify that the ordinary structural gradient remains untouched while the
+    # FSI-specific path consumes the nonidentity boundary correction matrix.
     gradient = structure_setup(GradientCorrection())
     particle = first(TrixiParticles.eachparticle(gradient.system))
     pos_diff = SVector(0.05, 0.025)
@@ -244,6 +325,8 @@ end
                                                particle) ≈ raw_gradient
     @test hydrodynamic_gradient ≈ correction_matrix * raw_gradient
 
+    # Rigid-body correction caches are not implemented. Reject both density and gradient
+    # corrections at construction instead of allowing a later crash or stale normalization.
     error_message = "corrections in `BoundaryModelDummyParticles` are not supported " *
                     "for `RigidBodySystem`"
     for correction in (ShepardKernelCorrection(), GradientCorrection())

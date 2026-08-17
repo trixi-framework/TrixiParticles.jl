@@ -165,7 +165,8 @@ function TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing
                                   n_clamped_particles)
 
     cache = (; create_cache_tlsph(clamped_particles_motion, initial_condition_sorted)...,
-             create_cache_tlsph(velocity_averaging, initial_condition_sorted)...)
+             create_cache_tlsph(velocity_averaging, initial_condition_sorted)...,
+             create_cache_tlsph_boundary(boundary_model, initial_condition_sorted)...)
 
     return TotalLagrangianSPHSystem(initial_condition_sorted, initial_coordinates,
                                     current_coordinates, mass, correction_matrix,
@@ -259,6 +260,19 @@ function create_cache_tlsph(::VelocityAveraging, initial_condition)
     t_last_averaging = Ref(zero(eltype(initial_condition)))
 
     return (; averaged_velocity, t_last_averaging)
+end
+
+create_cache_tlsph_boundary(boundary_model, initial_condition) = (;)
+
+function create_cache_tlsph_boundary(boundary_model::BoundaryModelDummyParticles{SummationDensity},
+                                     initial_condition)
+    if correction_density(boundary_model.correction) isa ShepardKernelCorrection
+        # Keep the numerator separate until the global coefficient phase is complete so
+        # other systems never observe a partially updated TLSPH density.
+        return (; boundary_density_numerator=similar(boundary_model.cache.density))
+    end
+
+    return (;)
 end
 
 @inline function requires_update_callback(system::TotalLagrangianSPHSystem, semi)
@@ -470,38 +484,67 @@ function apply_prescribed_motion!(system::TotalLagrangianSPHSystem, ::Nothing, s
 end
 
 function update_quantities!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
-    update_boundary_density!(system.boundary_model, system, v, u, v_ode, u_ode, semi)
-
     # Precompute PK1 stress tensor
     @trixi_timeit timer() "stress tensor" compute_pk1_corrected!(system, semi)
 
     return system
 end
 
-@inline function update_boundary_density!(boundary_model, system::TotalLagrangianSPHSystem,
-                                          v, u, v_ode, u_ode, semi)
-    return boundary_model
-end
-
-@inline function update_boundary_density!(boundary_model::BoundaryModelDummyParticles,
-                                          system::TotalLagrangianSPHSystem,
-                                          v, u, v_ode, u_ode, semi)
-    return update_density!(boundary_model, system, v, u, v_ode, u_ode, semi)
-end
-
 function update_density_correction_values!(system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles},
                                            v, u, v_ode, u_ode, semi, t)
-    update_density_correction_values!(system.boundary_model, system, v, u, v_ode, u_ode,
-                                      semi)
+    density_correction = correction_density(system.boundary_model.correction)
+    compute_tlsph_density_correction_values!(system.boundary_model, system,
+                                             density_correction, u, v_ode, u_ode, semi)
 
     return system
+end
+
+@inline function compute_tlsph_density_correction_values!(boundary_model, system,
+                                                          density_correction, u,
+                                                          v_ode, u_ode, semi)
+    return compute_boundary_correction_values!(boundary_model, system, density_correction,
+                                               u, v_ode, u_ode, semi)
+end
+
+function compute_tlsph_density_correction_values!(boundary_model::BoundaryModelDummyParticles{SummationDensity},
+                                                  system,
+                                                  ::ShepardKernelCorrection, u,
+                                                  v_ode, u_ode, semi)
+    # Assemble the missing summation numerator together with the Shepard coefficient to avoid
+    # a second neighbor traversal.
+    return compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode,
+                                  semi,
+                                  boundary_model.cache.kernel_correction_coefficient,
+                                  system.cache.boundary_density_numerator)
 end
 
 function update_density_correction!(system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles},
                                     v, u, v_ode, u_ode, semi, t)
-    update_density_correction!(system.boundary_model, system, v, u, v_ode, u_ode, semi)
+    density_correction = correction_density(system.boundary_model.correction)
+    apply_tlsph_density_correction!(system.boundary_model, system, density_correction,
+                                    v, u, v_ode, u_ode, semi)
 
     return system
+end
+
+@inline function apply_tlsph_density_correction!(boundary_model, system,
+                                                 density_correction,
+                                                 v, u, v_ode, u_ode, semi)
+    return update_density_correction!(boundary_model, system, v, u, v_ode, u_ode, semi)
+end
+
+function apply_tlsph_density_correction!(boundary_model::BoundaryModelDummyParticles{SummationDensity},
+                                         system, ::ShepardKernelCorrection,
+                                         v, u, v_ode, u_ode, semi)
+    (; density, kernel_correction_coefficient) = boundary_model.cache
+    density_numerator = system.cache.boundary_density_numerator
+
+    @threaded semi for particle in eachparticle(system)
+        @inbounds density[particle] = density_numerator[particle] /
+                                      kernel_correction_coefficient[particle]
+    end
+
+    return boundary_model
 end
 
 function update_boundary_interpolation!(system::TotalLagrangianSPHSystem, v, u,
