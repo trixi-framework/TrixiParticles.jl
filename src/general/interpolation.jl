@@ -476,12 +476,9 @@ function interpolate_points(point_coords, semi, ref_system, v_ode, u_ode;
                               smoothing_length, cut_off_bnd, clip_negative_pressure)
 end
 
-"""Prepare interpolation neighborhood searches for every simulation system.
-
-This function either reuses an already-initialized search if the point locations and
-smoothing length are still compatible, or rebuilds a new one for the provided
-interpolation points while handling CPU/GPU backends safely.
-"""
+"""Prepare interpolation neighborhood searches for all systems.
+Reuse cached search when valid, otherwise rebuild from interpolation points and adapt
+between CPU/GPU backends as needed."""
 function process_neighborhood_searches(semi, u_ode, ref_system, smoothing_length,
                                        point_coords)
     if isapprox(smoothing_length, initial_smoothing_length(ref_system))
@@ -656,12 +653,8 @@ end
     return (; computed_density, point_coords, neighbor_count, cache...)
 end
 
-"""Create a 2D grid of points from explicit x/y coordinate ranges.
-
-The function returns a 2×N matrix of points where the first row contains x coordinates
-and the second row contains y coordinates, flattened in y-major order. This keeps the
-grid exactly aligned with interpolation ranges used by VTK output.
-"""
+"""Create a 2D point matrix from x and y ranges.
+Returns a 2×N array in y-major order so points match interpolation VTK ranges."""
 function plane_point_coords(x_range, y_range)
     ELTYPE = promote_type(eltype(x_range), eltype(y_range))
     point_coords = Array{ELTYPE, 2}(undef, 2, length(x_range) * length(y_range))
@@ -676,20 +669,14 @@ function plane_point_coords(x_range, y_range)
     return point_coords
 end
 
-"""Filter all interpolation result fields at a given point index set.
-
-This applies `filter_interpolation_field` to each value in the result named tuple so
-that only entries corresponding to the requested point indices are kept.
-"""
+"""Filter interpolation results by point indices.
+Each field in the tuple is filtered consistently across its point dimension."""
 function filter_interpolation_results(results, indices)
     return map(field -> filter_interpolation_field(field, indices), results)
 end
 
-"""Filter a single interpolation field by keeping only selected point indices.
-
-For 1D fields this is direct indexing, while for higher-rank tensors only the last
-dimension (the point axis) is filtered.
-"""
+"""Filter one interpolation field at selected points.
+For vectors this is direct indexing; for tensors, only the last axis is sliced."""
 function filter_interpolation_field(field::AbstractArray, indices)
     selectors = ntuple(dim -> dim == ndims(field) ? indices : Colon(), ndims(field))
     return field[selectors...]
