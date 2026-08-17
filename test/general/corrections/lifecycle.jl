@@ -1,7 +1,7 @@
 @testset "Cross-system update ordering" begin
     function ordered_correction_result(reverse_order; edac)
         spacing = 0.1
-        smoothing_length = 2spacing
+        smoothing_length = 2 * spacing
         smoothing_kernel = WendlandC6Kernel{2}()
         density = 1000.0
         velocity(pos) = SVector(0.1 + pos[1], -0.2 - pos[2])
@@ -99,7 +99,7 @@
     # an already-corrected neighbor density.
     function ordered_shepard_result(reverse_order; edac)
         spacing = 0.1
-        smoothing_length = 2spacing
+        smoothing_length = 2 * spacing
         smoothing_kernel = WendlandC6Kernel{2}()
         density = 1000.0
         initial_a = RectangularShape(spacing, (3, 3), (0.0, 0.0); density)
