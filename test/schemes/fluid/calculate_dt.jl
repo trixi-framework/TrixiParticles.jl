@@ -68,7 +68,7 @@
         with_morris_momentum = TestFluidSystem(0.014, 1482.0, viscosity, acceleration,
                                                morris_momentum)
 
-        # No inter-system surface tension force is evaluated unless both systems use
+        # No inter-system surface tension dt is evaluated unless both systems use
         # the same Morris model.
         @test interface_dt(no_surface_tension, with_morris, 1.2, 1000.0) == Inf
         @test interface_dt(with_morris, with_morris_momentum, 1000.0, 900.0) == Inf
