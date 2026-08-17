@@ -476,6 +476,12 @@ function interpolate_points(point_coords, semi, ref_system, v_ode, u_ode;
                               smoothing_length, cut_off_bnd, clip_negative_pressure)
 end
 
+"""Prepare interpolation neighborhood searches for every simulation system.
+
+This function either reuses an already-initialized search if the point locations and
+smoothing length are still compatible, or rebuilds a new one for the provided
+interpolation points while handling CPU/GPU backends safely.
+"""
 function process_neighborhood_searches(semi, u_ode, ref_system, smoothing_length,
                                        point_coords)
     if isapprox(smoothing_length, initial_smoothing_length(ref_system))
