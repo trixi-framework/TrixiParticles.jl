@@ -2,16 +2,20 @@
 const TrixiParticlesODESolution = ODESolution{<:Any, <:Any, <:Any, <:Any, <:Any, <:Any,
                                               <:Any, <:Any,
                                               <:ODEProblem{<:Any, <:Any, <:Any,
-                                                           <:Semidiscretization}}
+                                                           <:NamedTuple{(:semi,
+                                                                         :split_integration_data),
+                                                                        <:Tuple{Semidiscretization,
+                                                                                Any}}}}
 
 # This is the main recipe
 RecipesBase.@recipe function f(sol::TrixiParticlesODESolution)
     # Redirect everything to the next recipe
-    return sol.u[end].x..., sol.prob.p
+    return sol.u[end].x..., sol.prob.p.semi
 end
 
 # GPU version
-RecipesBase.@recipe function f(v_ode::AbstractGPUArray, u_ode, semi::Semidiscretization)
+RecipesBase.@recipe function f(v_ode::AbstractGPUArray, u_ode::AbstractGPUArray,
+                               semi::Semidiscretization)
     # Move GPU data to the CPU
     v_ode_, u_ode_, semi_ = transfer2cpu(v_ode, u_ode, semi)
 
@@ -19,7 +23,8 @@ RecipesBase.@recipe function f(v_ode::AbstractGPUArray, u_ode, semi::Semidiscret
     return v_ode_, u_ode_, semi_
 end
 
-RecipesBase.@recipe function f(v_ode, u_ode, semi::Semidiscretization;
+RecipesBase.@recipe function f(v_ode::AbstractArray, u_ode::AbstractArray,
+                               semi::Semidiscretization;
                                particle_spacings=TrixiParticles.particle_spacings(semi),
                                size=(600, 400), # Default size
                                xlims=(-Inf, Inf), ylims=(-Inf, Inf))

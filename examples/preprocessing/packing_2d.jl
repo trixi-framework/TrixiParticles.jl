@@ -83,7 +83,7 @@ tspan = (0, 10.0)
 ode = semidiscretize(semi, tspan)
 
 # Use this callback to stop the simulation when it is sufficiently close to a steady state
-steady_state = SteadyStateReachedCallback(; interval=10, interval_size=200,
+steady_state = SteadyStateReachedCallback(; interval=10, interval_size=20,
                                           abstol=1.0e-7, reltol=1.0e-6)
 
 info_callback = InfoCallback(interval=50)
