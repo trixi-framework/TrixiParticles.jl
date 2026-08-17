@@ -301,3 +301,23 @@ function Base.similar(::Broadcast.Broadcasted{ThreadedBroadcastStyle{P}},
     # TODO we only have the type `P` here and just assume that we can do `P()`
     return ThreadedBroadcastArray(similar(Array{T}, dims), parallelization_backend=P())
 end
+
+# Like `copyto!`, but parallelize over particles to use the same memory access pattern
+# as the particle loops in the right-hand side.
+@inline function copyto_threaded!(dest::Matrix, src, parallelization_backend)
+    @threaded parallelization_backend for particle in axes(dest, 2)
+        for dimension in axes(dest, 1)
+            @inbounds dest[dimension, particle] = src[dimension, particle]
+        end
+    end
+
+    return dest
+end
+
+@inline function copyto_threaded!(dest::Vector, src, parallelization_backend)
+    @threaded parallelization_backend for particle in eachindex(dest)
+        @inbounds dest[particle] = src[particle]
+    end
+
+    return dest
+end

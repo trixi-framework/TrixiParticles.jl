@@ -154,15 +154,16 @@ function TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing
     # their memory close to the threads that will access it during the simulation.
     # The semidiscretization backend is not available in the constructor yet, and using
     # Polyester here is harmless for serial and GPU simulations.
+    # This makes the RHS significantly faster on large data center CPUs
+    # (see http://github.com/trixi-framework/TrixiParticles.jl/pull/1294).
     parallelization_backend = PolyesterBackend()
-    copyto!(ThreadedBroadcastArray(initial_coordinates; parallelization_backend),
-            initial_condition_sorted.coordinates)
-    copyto!(ThreadedBroadcastArray(current_coordinates; parallelization_backend),
-            initial_condition_sorted.coordinates)
-    copyto!(ThreadedBroadcastArray(mass; parallelization_backend),
-            initial_condition_sorted.mass)
-    copyto!(ThreadedBroadcastArray(material_density; parallelization_backend),
-            initial_condition_sorted.density)
+    copyto_threaded!(initial_coordinates, initial_condition_sorted.coordinates,
+                     parallelization_backend)
+    copyto_threaded!(current_coordinates, initial_condition_sorted.coordinates,
+                     parallelization_backend)
+    copyto_threaded!(mass, initial_condition_sorted.mass, parallelization_backend)
+    copyto_threaded!(material_density, initial_condition_sorted.density,
+                     parallelization_backend)
     correction_matrix = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
     pk1_rho2 = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
     deformation_grad = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
