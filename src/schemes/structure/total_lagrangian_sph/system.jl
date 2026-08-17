@@ -150,8 +150,9 @@ function TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing
     mass = similar(initial_condition_sorted.mass)
     material_density = similar(initial_condition_sorted.density)
 
-    # Initialize the runtime arrays in parallel so that first-touch allocation places
-    # their memory close to the threads that will access it during the simulation.
+    # Initialize the runtime arrays in parallel so that, on NUMA systems, the first-touch
+    # allocation policy places their memory close to the threads that will access it
+    # during the simulation.
     # The semidiscretization backend is not available in the constructor yet, and using
     # Polyester here is harmless for serial and GPU simulations.
     # This makes the RHS significantly faster on large data center CPUs with multiple
