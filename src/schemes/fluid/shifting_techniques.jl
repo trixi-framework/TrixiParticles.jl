@@ -5,7 +5,9 @@ abstract type AbstractShiftingTechnique end
 
 # WARNING: Be careful if defining this function for a specific system type.
 # The version for a specific system type will override this generic version.
-requires_update_callback(system) = requires_update_callback(shifting_technique(system))
+function requires_update_callback(system, semi)
+    return requires_update_callback(shifting_technique(system))
+end
 requires_update_callback(::Nothing) = false
 requires_update_callback(::AbstractShiftingTechnique) = false
 
@@ -460,9 +462,12 @@ end
     Wdx = smoothing_kernel(system, dx, 1)
     h = smoothing_length(system, 1)
 
-    foreach_system(semi) do neighbor_system
-        u_neighbor = wrap_u(u_ode, neighbor_system, semi)
-        v_neighbor = wrap_v(v_ode, neighbor_system, semi)
+    foreach_system_wrapped(semi, v_ode,
+                           u_ode) do neighbor_system, v_neighbor, u_neighbor
+        if !has_system_interaction(system, neighbor_system, semi)
+            # No interaction between these systems.
+            return
+        end
 
         system_coords = current_coordinates(u, system)
         neighbor_coords = current_coordinates(u_neighbor, neighbor_system)
@@ -521,8 +526,8 @@ function particle_shifting_from_callback!(u_ode,
         apply_particle_shifting!(u_ode, shifting, system, semi, integrator.dt)
     end
 
-    # Tell OrdinaryDiffEq that `integrator.u` has been modified
-    u_modified!(integrator, true)
+    # Particle shifting updates the ODE state and introduces a derivative discontinuity.
+    derivative_discontinuity!(integrator, true)
 
     return u_ode
 end
@@ -637,9 +642,12 @@ function update_shifting!(system, shifting::TransportVelocityAdami, v, u, v_ode,
 
     set_zero!(delta_v)
 
-    foreach_system(semi) do neighbor_system
-        v_neighbor = wrap_v(v_ode, neighbor_system, semi)
-        u_neighbor = wrap_u(u_ode, neighbor_system, semi)
+    foreach_system_wrapped(semi, v_ode,
+                           u_ode) do neighbor_system, v_neighbor, u_neighbor
+        if !has_system_interaction(system, neighbor_system, semi)
+            # No interaction between these systems.
+            return
+        end
 
         system_coords = current_coordinates(u, system)
         neighbor_coords = current_coordinates(u_neighbor, neighbor_system)
