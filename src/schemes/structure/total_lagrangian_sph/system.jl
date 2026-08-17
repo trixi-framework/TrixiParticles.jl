@@ -154,8 +154,8 @@ function TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing
     # their memory close to the threads that will access it during the simulation.
     # The semidiscretization backend is not available in the constructor yet, and using
     # Polyester here is harmless for serial and GPU simulations.
-    # This makes the RHS significantly faster on large data center CPUs
-    # (see http://github.com/trixi-framework/TrixiParticles.jl/pull/1294).
+    # This makes the RHS significantly faster on large data center CPUs with multiple
+    # NUMA domains (see http://github.com/trixi-framework/TrixiParticles.jl/pull/1294).
     parallelization_backend = PolyesterBackend()
     copyto_threaded!(initial_coordinates, initial_condition_sorted.coordinates,
                      parallelization_backend)
