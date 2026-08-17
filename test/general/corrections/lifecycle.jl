@@ -92,6 +92,77 @@
         @test forward.gradient_rhs≈reverse.gradient_rhs rtol=1e-11 atol=1e-10
         @test forward.shepard_rhs≈reverse.shepard_rhs rtol=1e-11 atol=1e-10
     end
+
+    function ordered_shepard_result(reverse_order; edac)
+        spacing = 0.1
+        smoothing_length = 2spacing
+        smoothing_kernel = WendlandC6Kernel{2}()
+        density = 1000.0
+        initial_a = RectangularShape(spacing, (3, 3), (0.0, 0.0); density)
+        initial_b = RectangularShape(spacing, (3, 3), (0.05, 0.025); density)
+
+        function make_system(initial_condition)
+            if edac
+                return EntropicallyDampedSPHSystem(initial_condition;
+                                                   smoothing_kernel,
+                                                   smoothing_length,
+                                                   sound_speed=10.0,
+                                                   density_calculator=SummationDensity(),
+                                                   correction=ShepardKernelCorrection())
+            end
+
+            state_equation = StateEquationCole(; sound_speed=10.0,
+                                               reference_density=density, exponent=1)
+            return WeaklyCompressibleSPHSystem(initial_condition;
+                                               smoothing_kernel,
+                                               smoothing_length,
+                                               state_equation,
+                                               density_calculator=SummationDensity(),
+                                               correction=ShepardKernelCorrection())
+        end
+
+        systems = reverse_order ? (make_system(initial_b), make_system(initial_a)) :
+                  (make_system(initial_a), make_system(initial_b))
+        semi = Semidiscretization(systems...; neighborhood_search=nothing,
+                                  parallelization_backend=SerialBackend())
+        ode = semidiscretize(semi, (0.0, 1.0); reset_threads=false)
+        v_ode = Array(ode.u0.x[1])
+        u_ode = Array(ode.u0.x[2])
+        dv_ode = zero(v_ode)
+        TrixiParticles.kick!(dv_ode, v_ode, u_ode,
+                             (; semi=ode.p.semi, split_integration_data=nothing), 0.0)
+
+        index_a, index_b = reverse_order ? (2, 1) : (1, 2)
+        system_a = ode.p.semi.systems[index_a]
+        system_b = ode.p.semi.systems[index_b]
+        v_a = TrixiParticles.wrap_v(v_ode, system_a, ode.p.semi)
+        v_b = TrixiParticles.wrap_v(v_ode, system_b, ode.p.semi)
+        dv_a = TrixiParticles.wrap_v(dv_ode, system_a, ode.p.semi)
+        dv_b = TrixiParticles.wrap_v(dv_ode, system_b, ode.p.semi)
+
+        return (;
+                density_a=copy(TrixiParticles.current_density(v_a, system_a)),
+                density_b=copy(TrixiParticles.current_density(v_b, system_b)),
+                pressure_a=copy(TrixiParticles.current_pressure(v_a, system_a)),
+                pressure_b=copy(TrixiParticles.current_pressure(v_b, system_b)),
+                coefficient_a=copy(system_a.cache.kernel_correction_coefficient),
+                coefficient_b=copy(system_b.cache.kernel_correction_coefficient),
+                rhs_a=copy(dv_a), rhs_b=copy(dv_b))
+    end
+
+    for edac in (false, true)
+        forward = ordered_shepard_result(false; edac)
+        reverse = ordered_shepard_result(true; edac)
+
+        @test forward.density_a≈reverse.density_a rtol=5e-13 atol=5e-13
+        @test forward.density_b≈reverse.density_b rtol=5e-13 atol=5e-13
+        @test forward.pressure_a≈reverse.pressure_a rtol=5e-13 atol=5e-13
+        @test forward.pressure_b≈reverse.pressure_b rtol=5e-13 atol=5e-13
+        @test forward.coefficient_a≈reverse.coefficient_a rtol=5e-13 atol=5e-13
+        @test forward.coefficient_b≈reverse.coefficient_b rtol=5e-13 atol=5e-13
+        @test forward.rhs_a≈reverse.rhs_a rtol=1e-11 atol=1e-10
+        @test forward.rhs_b≈reverse.rhs_b rtol=1e-11 atol=1e-10
+    end
 end
 
 @testset "Boundary density before pressure" begin
@@ -115,4 +186,72 @@ end
 
     @test boundary.boundary_model.pressure ≈
           state_equation.(boundary.boundary_model.cache.density)
+end
+
+@testset "Structure correction lifecycle" begin
+    particle_spacing = 0.1
+    smoothing_length = 2particle_spacing
+    smoothing_kernel = WendlandC6Kernel{2}()
+    density = 1000.0
+    particles = RectangularShape(particle_spacing, (3, 3), (0.0, 0.0); density)
+    state_equation = StateEquationCole(; sound_speed=10.0,
+                                       reference_density=density, exponent=1)
+
+    function structure_setup(correction)
+        boundary_model = BoundaryModelDummyParticles(particles.density, particles.mass,
+                                                     SummationDensity(), smoothing_kernel,
+                                                     smoothing_length;
+                                                     state_equation, correction)
+        system = TotalLagrangianSPHSystem(particles; smoothing_kernel, smoothing_length,
+                                          young_modulus=1.0e6, poisson_ratio=0.3,
+                                          boundary_model)
+        semi = Semidiscretization(system; neighborhood_search=nothing,
+                                  parallelization_backend=SerialBackend())
+        ode = semidiscretize(semi, (0.0, 1.0); reset_threads=false)
+        v_ode = Array(ode.u0.x[1])
+        u_ode = Array(ode.u0.x[2])
+        system = first(ode.p.semi.systems)
+        TrixiParticles.update_systems_and_nhs(v_ode, u_ode, ode.p.semi, 0.0)
+
+        return (; system, semi=ode.p.semi, v_ode, u_ode)
+    end
+
+    shepard = structure_setup(ShepardKernelCorrection())
+    v_shepard = TrixiParticles.wrap_v(shepard.v_ode, shepard.system, shepard.semi)
+    u_shepard = TrixiParticles.wrap_u(shepard.u_ode, shepard.system, shepard.semi)
+    raw_density = zeros(TrixiParticles.nparticles(shepard.system))
+    TrixiParticles.summation_density!(shepard.system, shepard.semi, u_shepard,
+                                      shepard.u_ode, raw_density)
+    corrected_density = TrixiParticles.current_density(v_shepard, shepard.system)
+    coefficient = shepard.system.boundary_model.cache.kernel_correction_coefficient
+    @test corrected_density .* coefficient ≈ raw_density atol = 5e-13
+    @test maximum(abs, raw_density .- density) > 1.0
+
+    gradient = structure_setup(GradientCorrection())
+    particle = first(TrixiParticles.eachparticle(gradient.system))
+    pos_diff = SVector(0.05, 0.025)
+    distance = norm(pos_diff)
+    raw_gradient = TrixiParticles.kernel_grad(smoothing_kernel, pos_diff, distance,
+                                              smoothing_length)
+    correction_matrix = TrixiParticles.correction_matrix(gradient.system, particle)
+    hydrodynamic_gradient = TrixiParticles.hydrodynamic_smoothing_kernel_grad(gradient.system,
+                                                                              pos_diff,
+                                                                              distance,
+                                                                              particle)
+
+    @test norm(correction_matrix - I) > 1e-2
+    @test TrixiParticles.smoothing_kernel_grad(gradient.system, pos_diff, distance,
+                                               particle) ≈ raw_gradient
+    @test hydrodynamic_gradient ≈ correction_matrix * raw_gradient
+
+    error_message = "corrections in `BoundaryModelDummyParticles` are not supported " *
+                    "for `RigidBodySystem`"
+    for correction in (ShepardKernelCorrection(), GradientCorrection())
+        boundary_model = BoundaryModelDummyParticles(particles.density, particles.mass,
+                                                     SummationDensity(), smoothing_kernel,
+                                                     smoothing_length;
+                                                     state_equation, correction)
+        @test_throws ArgumentError(error_message) RigidBodySystem(particles;
+                                                                  boundary_model)
+    end
 end

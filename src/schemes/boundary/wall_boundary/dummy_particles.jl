@@ -400,13 +400,22 @@ end
     return boundary_model
 end
 
+@inline function update_density_correction_values!(boundary_model::BoundaryModelDummyParticles,
+                                                   system, v, u, v_ode, u_ode, semi)
+    (; correction) = boundary_model
+    density_correction = correction_density(correction)
+
+    compute_boundary_correction_values!(boundary_model, system, density_correction, u,
+                                        v_ode, u_ode, semi)
+
+    return boundary_model
+end
+
 @inline function update_density_correction!(boundary_model::BoundaryModelDummyParticles,
                                             system, v, u, v_ode, u_ode, semi)
     (; correction, density_calculator) = boundary_model
     density_correction = correction_density(correction)
 
-    compute_boundary_correction_values!(boundary_model, system, density_correction, u,
-                                        v_ode, u_ode, semi)
     kernel_correct_density!(boundary_model, v, u, v_ode, u_ode, semi,
                             density_correction,
                             density_calculator)

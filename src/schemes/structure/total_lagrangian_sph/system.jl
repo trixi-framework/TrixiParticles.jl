@@ -351,6 +351,10 @@ end
     extract_smatrix(system.correction_matrix, system, particle)
 end
 
+@inline function hydrodynamic_correction(system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles})
+    return correction_gradient(system.boundary_model.correction)
+end
+
 @inline function kernel_correction_coefficient(system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles},
                                                particle)
     return system.boundary_model.cache.kernel_correction_coefficient[particle]
@@ -466,8 +470,29 @@ function apply_prescribed_motion!(system::TotalLagrangianSPHSystem, ::Nothing, s
 end
 
 function update_quantities!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
+    update_boundary_density!(system.boundary_model, system, v, u, v_ode, u_ode, semi)
+
     # Precompute PK1 stress tensor
     @trixi_timeit timer() "stress tensor" compute_pk1_corrected!(system, semi)
+
+    return system
+end
+
+@inline function update_boundary_density!(boundary_model, system::TotalLagrangianSPHSystem,
+                                          v, u, v_ode, u_ode, semi)
+    return boundary_model
+end
+
+@inline function update_boundary_density!(boundary_model::BoundaryModelDummyParticles,
+                                          system::TotalLagrangianSPHSystem,
+                                          v, u, v_ode, u_ode, semi)
+    return update_density!(boundary_model, system, v, u, v_ode, u_ode, semi)
+end
+
+function update_density_correction_values!(system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles},
+                                           v, u, v_ode, u_ode, semi, t)
+    update_density_correction_values!(system.boundary_model, system, v, u, v_ode, u_ode,
+                                      semi)
 
     return system
 end
