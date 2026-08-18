@@ -11,6 +11,14 @@ state.
 Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "fluid", "implicit_incompressible_sph", "system.jl")]
 ```
+
+## Pressure solver instrumentation
+
+Pressure solver iteration counters can be inspected with
+[`iisph_pressure_iteration_stats`](@ref) and reset with
+[`reset_iisph_pressure_iteration_stats!`](@ref). These counters include pressure solve wall
+times in addition to Jacobi iteration counts.
+
 ## Derivation
 To derive the linear system of the pressure Poisson equation, we start by discretizing the
 continuity equation

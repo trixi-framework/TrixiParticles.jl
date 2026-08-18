@@ -75,15 +75,17 @@ semi = Semidiscretization(fluid_system, boundary_system;
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-struct Semidiscretization{BACKEND, S, RU, RV, NSH, IM, UCU, IT}
+struct Semidiscretization{BACKEND, S, RU, RV, NSH, IM, UCU, IT, IPS, IPC}
     systems                     :: S
     ranges_u                    :: RU
     ranges_v                    :: RV
-    neighborhood_search_handler :: NSH
+    neighborhood_search_handler  :: NSH
     interaction_matrix          :: IM
-    parallelization_backend     :: BACKEND
-    update_callback_used        :: UCU
-    integrate_tlsph             :: IT # `false` if TLSPH integration is decoupled
+    parallelization_backend      :: BACKEND
+    update_callback_used         :: UCU
+    integrate_tlsph              :: IT # `false` if TLSPH integration is decoupled
+    iisph_pressure_state        :: IPS
+    iisph_pressure_cache        :: IPC
 
     # Dispatch at `systems` to distinguish this constructor from the one below when
     # 4 systems are passed.
@@ -92,14 +94,20 @@ struct Semidiscretization{BACKEND, S, RU, RV, NSH, IM, UCU, IT}
                                 neighborhood_search_handler,
                                 interaction_matrix,
                                 parallelization_backend::PointNeighbors.ParallelizationBackend,
-                                update_callback_used, integrate_tlsph)
+                                update_callback_used, integrate_tlsph,
+                                iisph_pressure_state, iisph_pressure_cache)
         new{typeof(parallelization_backend), typeof(systems), typeof(ranges_u),
             typeof(ranges_v), typeof(neighborhood_search_handler),
             typeof(interaction_matrix), typeof(update_callback_used),
-            typeof(integrate_tlsph)}(systems, ranges_u, ranges_v,
-                                     neighborhood_search_handler, interaction_matrix,
-                                     parallelization_backend,
-                                     update_callback_used, integrate_tlsph)
+            typeof(integrate_tlsph), typeof(iisph_pressure_state),
+            typeof(iisph_pressure_cache)}(systems, ranges_u, ranges_v,
+                                          neighborhood_search_handler,
+                                          interaction_matrix,
+                                          parallelization_backend,
+                                          update_callback_used,
+                                          integrate_tlsph,
+                                          iisph_pressure_state,
+                                          iisph_pressure_cache)
     end
 end
 
@@ -148,10 +156,66 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     # with this set to false.
     integrate_tlsph = Ref(true)
 
+    iisph_pressure_state = (last_iterations=Ref(0), total_iterations=Ref(0),
+                            max_iterations=Ref(0), solve_count=Ref(0),
+                            last_solve_time=Ref(0.0), total_solve_time=Ref(0.0),
+                            max_solve_time=Ref(0.0))
+
+    iisph_pressure_cache = create_iisph_pressure_cache(systems)
+
     return Semidiscretization(systems, ranges_u, ranges_v, neighborhood_search_handler,
-                              interaction_matrix,
-                              parallelization_backend, update_callback_used,
-                              integrate_tlsph)
+                               interaction_matrix,
+                               parallelization_backend, update_callback_used,
+                               integrate_tlsph, iisph_pressure_state, iisph_pressure_cache)
+end
+
+# Create the cache for the optimized IISPH pressure loop (and the inverse diagonal
+# elements used by the pressure update). The cache is owned by the `Semidiscretization`
+# to keep the system struct small, since the closures of the neighbor loops degrade
+# in performance when the struct gets too large.
+# The cached pressure loop requires exactly one IISPH system and no `PressureBoundaries`
+# (see `supports_cached_iisph_pressure_loop`). The cache is nevertheless created for any
+# semidiscretization containing an IISPH system, since the (generic) pressure update
+# of the fallback path also uses the `inv_a_ii` entry.
+function create_iisph_pressure_cache(systems)
+    system_index = findfirst(system -> system isa ImplicitIncompressibleSPHSystem, systems)
+    isnothing(system_index) && return nothing
+
+    system = systems[system_index]
+    n_particles = nparticles(system)
+    ELTYPE = eltype(system)
+    NDIMS = ndims(system)
+
+    # One entry per wall system with `PressureBoundaries`, which participate in the
+    # pressure solve with their own pressure unknowns. The entries store a CSR structure
+    # of the fluid--wall neighbor pairs in both directions:
+    # - `fluid_*`: entries for the fluid `sum_d_ij_pj` (boundary pressure contributions)
+    # - `wall_*`: entries for the wall `sum_term`
+    wall_caches = map(filter(is_iisph_pressure_boundary_system, systems)) do wall_system
+        n_wall_particles = nparticles(wall_system)
+        return (system=wall_system,
+                fluid_offsets=zeros(Int, n_particles + 1),
+                fluid_cursor=zeros(Int, n_particles),
+                fluid_neighbor=zeros(Int, 0),
+                fluid_d_ij=zeros(ELTYPE, 0),
+                wall_offsets=zeros(Int, n_wall_particles + 1),
+                wall_cursor=zeros(Int, n_wall_particles),
+                wall_neighbor=zeros(Int, 0),
+                wall_coef_pj=zeros(ELTYPE, 0),
+                wall_grad_mass=zeros(ELTYPE, 0),
+                wall_pi_coef=zeros(ELTYPE, 0))
+    end
+
+    return (; inv_a_ii=zeros(ELTYPE, n_particles),
+            pressure_neighbor_count=zeros(Int, n_particles),
+            pressure_neighbor_offsets=zeros(Int, n_particles + 1),
+            pressure_neighbor_cursor=zeros(Int, n_particles),
+            pressure_neighbor=zeros(Int, 0),
+            pressure_d_ij=zeros(ELTYPE, 0),
+            pressure_grad_mass=zeros(ELTYPE, 0),
+            pressure_d_ji_dot_grad=zeros(ELTYPE, 0),
+            pressure_boundary_grad_mass_sum=zeros(ELTYPE, NDIMS, n_particles),
+            walls=wall_caches)
 end
 
 function create_interaction_matrix(::Nothing, systems)
@@ -202,6 +266,78 @@ end
     end
 
     return index
+end
+
+function record_iisph_pressure_iterations!(semi, iterations, solve_time=0.0)
+    state = semi.iisph_pressure_state
+
+    state.last_iterations[] = iterations
+    state.total_iterations[] += iterations
+    state.max_iterations[] = max(state.max_iterations[], iterations)
+    state.solve_count[] += 1
+    state.last_solve_time[] = solve_time
+    state.total_solve_time[] += solve_time
+    state.max_solve_time[] = max(state.max_solve_time[], solve_time)
+
+    return semi
+end
+
+"""
+    reset_iisph_pressure_iteration_stats!(semi)
+
+Reset IISPH pressure solver iteration counters in a [`Semidiscretization`](@ref).
+
+See also [`iisph_pressure_iteration_stats`](@ref).
+"""
+function reset_iisph_pressure_iteration_stats!(semi)
+    state = semi.iisph_pressure_state
+
+    state.last_iterations[] = 0
+    state.total_iterations[] = 0
+    state.max_iterations[] = 0
+    state.solve_count[] = 0
+    state.last_solve_time[] = 0.0
+    state.total_solve_time[] = 0.0
+    state.max_solve_time[] = 0.0
+
+    return semi
+end
+
+"""
+    iisph_pressure_iteration_stats(semi)
+
+Return IISPH pressure solver iteration counters for a [`Semidiscretization`](@ref).
+
+The returned named tuple contains:
+- `last_iterations`: Jacobi iterations in the most recent pressure solve
+- `total_iterations`: accumulated Jacobi iterations
+- `max_iterations`: maximum Jacobi iterations in one pressure solve
+- `solve_count`: number of recorded pressure solves
+- `average_iterations`: average Jacobi iterations per pressure solve
+- `last_solve_time`: wall time of the most recent pressure solve
+- `total_solve_time`: accumulated pressure solve wall time
+- `max_solve_time`: maximum pressure solve wall time
+- `average_solve_time`: average pressure solve wall time
+
+Use [`reset_iisph_pressure_iteration_stats!`](@ref) to reset the counters.
+"""
+function iisph_pressure_iteration_stats(semi)
+    state = semi.iisph_pressure_state
+
+    solve_count = state.solve_count[]
+    total_iterations = state.total_iterations[]
+    average_iterations = solve_count == 0 ? 0.0 : total_iterations / solve_count
+
+    return (last_iterations=state.last_iterations[],
+            total_iterations,
+            max_iterations=state.max_iterations[],
+            solve_count,
+            average_iterations,
+            last_solve_time=state.last_solve_time[],
+            total_solve_time=state.total_solve_time[],
+            max_solve_time=state.max_solve_time[],
+            average_solve_time=solve_count == 0 ? 0.0 :
+                               state.total_solve_time[] / solve_count)
 end
 
 @inline is_enabled_interaction(entry::Bool) = entry
@@ -614,6 +750,14 @@ end
 # Update the systems and neighborhood searches (NHS) for a simulation
 # before calling `interact!` to compute forces.
 function update_systems_and_nhs(v_ode, u_ode, semi, t)
+    update_systems_and_nhs_before_pressure!(v_ode, u_ode, semi, t)
+    update_implicit_sph!(semi, v_ode, u_ode, t)
+    update_systems_and_nhs_after_pressure!(v_ode, u_ode, semi, t)
+
+    return semi
+end
+
+function update_systems_and_nhs_before_pressure!(v_ode, u_ode, semi, t)
     # First update step before updating the NHS
     # (for example for writing the current coordinates in the TLSPH system)
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
@@ -631,8 +775,10 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
         update_quantities!(system, v, u, v_ode, u_ode, semi, t)
     end
 
-    update_implicit_sph!(semi, v_ode, u_ode, t)
+    return semi
+end
 
+function update_systems_and_nhs_after_pressure!(v_ode, u_ode, semi, t)
     # Perform correction and pressure calculation
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_pressure!(system, v, u, v_ode, u_ode, semi, t)
@@ -648,6 +794,8 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_final!(system, v, u, v_ode, u_ode, semi, t)
     end
+
+    return semi
 end
 
 # Some systems accumulate pairwise interaction state outside `dv_ode`. Reset that state once

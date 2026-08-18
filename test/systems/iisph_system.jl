@@ -356,6 +356,151 @@
                            -0.03)
         end
 
+        @testset "Cached pressure coefficients match generic neighbor loop" begin
+            smoothing_kernel_real = SchoenbergCubicSplineKernel{2}()
+            smoothing_length_real = 0.2
+            coordinates_real = [0.0 0.07 0.13
+                                0.0 0.02 0.00]
+            velocity_real = zeros(2, 3)
+            mass_real = [1.0, 1.1, 0.9]
+            density_real = [1000.0, 990.0, 1010.0]
+            pressure_real = [1.0, 2.0, 0.5]
+            ic_real = InitialCondition(; coordinates=coordinates_real,
+                                       velocity=velocity_real, mass=mass_real,
+                                       density=density_real, pressure=pressure_real)
+            system_real = ImplicitIncompressibleSPHSystem(ic_real;
+                                                          smoothing_kernel=smoothing_kernel_real,
+                                                          smoothing_length=smoothing_length_real,
+                                                          reference_density=1000.0,
+                                                          time_step=0.01)
+            semi_real = Semidiscretization(system_real; neighborhood_search=nothing)
+            @test semi_real.iisph_pressure_cache !== nothing
+            @test length(semi_real.iisph_pressure_cache.inv_a_ii) == 3
+            ode_real = semidiscretize(semi_real, (0.0, 0.01); reset_threads=false)
+            v_ode, u_ode = ode_real.u0.x
+
+            TrixiParticles.update_systems_and_nhs_before_pressure!(v_ode, u_ode,
+                                                                   semi_real, 0.0)
+            u_real = TrixiParticles.wrap_u(u_ode, system_real, semi_real)
+            TrixiParticles.build_iisph_pressure_cache!(system_real, u_real, u_ode,
+                                                       semi_real)
+            trial_pressure = [0.7, 1.6, 0.4]
+            system_real.pressure .= trial_pressure
+
+            u_real = TrixiParticles.wrap_u(u_ode, system_real, semi_real)
+            TrixiParticles.calculate_sum_d_ij_pj!(system_real, u_real, u_ode,
+                                                  semi_real)
+            generic_sum_d_ij_pj = copy(system_real.sum_d_ij_pj)
+            TrixiParticles.calculate_sum_term_values!(system_real, u_real, u_ode,
+                                                      semi_real)
+            generic_sum_term = copy(system_real.sum_term)
+
+            system_real.pressure .= pressure_real
+
+            # The cached pressure loop must reproduce the generic neighbor-loop results
+            # for the same trial pressure
+            system_real.pressure .= trial_pressure
+            TrixiParticles.calculate_iisph_pressure_sum_d_ij_pj!(system_real.sum_d_ij_pj,
+                                                                 trial_pressure,
+                                                                 system_real, semi_real)
+            TrixiParticles.calculate_iisph_pressure_sum_term!(system_real.sum_term,
+                                                              trial_pressure,
+                                                              system_real, semi_real)
+            @test system_real.sum_d_ij_pj ≈ generic_sum_d_ij_pj
+            @test system_real.sum_term ≈ generic_sum_term
+
+            # The inverse diagonal must match the actually computed diagonal elements
+            @test semi_real.iisph_pressure_cache.inv_a_ii ≈
+                  [abs(a) > 1.0e-9 ? inv(a) : 0.0 for a in system_real.a_ii]
+        end
+
+        @testset "Cached pressure coefficients with PressureBoundaries" begin
+            smoothing_kernel_real = SchoenbergCubicSplineKernel{2}()
+            smoothing_length_real = 0.2
+            coordinates_fluid = [0.0 0.07 0.13
+                                 0.0 0.02 0.00]
+            ic_fluid = InitialCondition(; coordinates=coordinates_fluid,
+                                        velocity=zeros(2, 3), mass=[1.0, 1.1, 0.9],
+                                        density=[1000.0, 990.0, 1010.0],
+                                        pressure=[1.0, 2.0, 0.5])
+            fluid_system = ImplicitIncompressibleSPHSystem(ic_fluid;
+                                                           smoothing_kernel=smoothing_kernel_real,
+                                                           smoothing_length=smoothing_length_real,
+                                                           reference_density=1000.0,
+                                                           omega=0.5, time_step=0.01)
+
+            # Wall particles below the fluid particles
+            coordinates_wall = [0.0 0.07 0.14
+                                -0.1 -0.1 -0.1]
+            ic_wall = InitialCondition(; coordinates=coordinates_wall, velocity=zeros(2, 3),
+                                       mass=[1.0, 1.0, 1.0],
+                                       density=[1000.0, 1000.0, 1000.0])
+            boundary_model = BoundaryModelDummyParticles(ic_wall.density, ic_wall.mass,
+                                                         PressureBoundaries(; time_step=0.01,
+                                                                            omega=0.5),
+                                                         smoothing_kernel_real,
+                                                         smoothing_length_real)
+            wall_system = WallBoundarySystem(ic_wall, boundary_model)
+
+            semi_real = Semidiscretization(fluid_system, wall_system;
+                                           neighborhood_search=nothing)
+            @test TrixiParticles.supports_cached_iisph_pressure_loop(semi_real)
+            @test length(semi_real.iisph_pressure_cache.walls) == 1
+
+            ode_real = semidiscretize(semi_real, (0.0, 0.01); reset_threads=false)
+            v_ode, u_ode = ode_real.u0.x
+
+            TrixiParticles.update_systems_and_nhs_before_pressure!(v_ode, u_ode,
+                                                                   semi_real, 0.0)
+
+            u_fluid = TrixiParticles.wrap_u(u_ode, fluid_system, semi_real)
+            TrixiParticles.build_iisph_pressure_cache!(fluid_system, u_fluid, u_ode,
+                                                       semi_real)
+
+            trial_pressure = [0.7, 1.6, 0.4]
+            trial_wall_pressure = [0.3, 0.9, 0.1]
+            fluid_system.pressure .= trial_pressure
+            boundary_model.pressure .= trial_wall_pressure
+
+            # Generic neighbor-loop results
+            u_fluid = TrixiParticles.wrap_u(u_ode, fluid_system, semi_real)
+            TrixiParticles.calculate_sum_d_ij_pj!(fluid_system, u_fluid, u_ode, semi_real)
+            generic_sum_d_ij_pj = copy(fluid_system.sum_d_ij_pj)
+            TrixiParticles.calculate_sum_term_values!(fluid_system, u_fluid, u_ode,
+                                                      semi_real)
+            generic_sum_term = copy(fluid_system.sum_term)
+            u_wall = TrixiParticles.wrap_u(u_ode, wall_system, semi_real)
+            TrixiParticles.calculate_sum_term_values!(wall_system, u_wall, u_ode,
+                                                      semi_real)
+            generic_wall_sum_term = copy(boundary_model.cache.sum_term)
+
+            # Cached pressure loop results (includes the wall `sum_term`)
+            TrixiParticles.calculate_cached_sum_d_ij_pj!(fluid_system, semi_real)
+            TrixiParticles.calculate_cached_sum_term_values!(fluid_system, semi_real)
+
+            @test fluid_system.sum_d_ij_pj ≈ generic_sum_d_ij_pj
+            @test fluid_system.sum_term ≈ generic_sum_term
+            @test boundary_model.cache.sum_term ≈ generic_wall_sum_term
+        end
+
+        @testset "Pressure cache ownership" begin
+            # The pressure cache is owned by the `Semidiscretization` and only created
+            # when an IISPH system is present.
+            ic_wcsph = InitialCondition(; coordinates=[0.0 0.07; 0.0 0.02],
+                                        velocity=zeros(2, 2), mass=[1.0, 1.1],
+                                        density=[1000.0, 990.0])
+            wcsph_system = WeaklyCompressibleSPHSystem(ic_wcsph;
+                                                       smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
+                                                       smoothing_length=0.2,
+                                                       density_calculator=ContinuityDensity(),
+                                                       state_equation=StateEquationCole(;
+                                                                                       sound_speed=1.0,
+                                                                                       reference_density=1000.0,
+                                                                                       exponent=7))
+            semi_wcsph = Semidiscretization(wcsph_system; neighborhood_search=nothing)
+            @test semi_wcsph.iisph_pressure_cache === nothing
+        end
+
         @testset "Boundary coefficients (PressureMirroring doubles a_ii)" begin
             mass_a = [2.0]
             density_a = [5.0]
@@ -441,7 +586,7 @@
             system_pressure.a_ii .= [0.5, 1.0e-10]
             fill!(system_pressure.density_error, 0.0)
 
-            semi = DummySemidiscretization()
+            semi = DummySemidiscretization(; iisph_pressure_cache=(; inv_a_ii=zeros(2)))
             # First particle uses standard Jacobi update; second hits the safeguarded zero-a_ii path.
             # For particle 1: (1-omega)*0 + omega/a_ii * (source - sum_term) with omega=0.4,
             # source=(1000-990)=10, a_ii=0.5, sum_term=5 gives pressure 4 and density_error -3
@@ -455,6 +600,17 @@
                                                             semi)
 
             @test isapprox(relative_error, -0.003)
+            @test isapprox(system_pressure.pressure, [4.0, 0.0])
+            @test isapprox(system_pressure.density_error, [-3.0, 0.0])
+
+            system_pressure.pressure .= 0.0
+            system_pressure.density_error .= 0.0
+            semi.iisph_pressure_cache.inv_a_ii .= [2.0, 0.0]
+
+            relative_error_cached = TrixiParticles.pressure_update(system_pressure,
+                                                                   semi)
+
+            @test isapprox(relative_error_cached, relative_error)
             @test isapprox(system_pressure.pressure, [4.0, 0.0])
             @test isapprox(system_pressure.density_error, [-3.0, 0.0])
         end

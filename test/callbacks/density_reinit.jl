@@ -168,7 +168,9 @@
                                                           semi_runtime.interaction_matrix,
                                                           semi_runtime.parallelization_backend,
                                                           semi_runtime.update_callback_used,
-                                                          semi_runtime.integrate_tlsph)
+                                                          semi_runtime.integrate_tlsph,
+                                                          semi_runtime.iisph_pressure_state,
+                                                          semi_runtime.iisph_pressure_cache)
         vu_ode = deepcopy(ode.u0)
         v_ode, u_ode = vu_ode.x
         TrixiParticles.update_nhs!(semi_replaced, u_ode)
