@@ -381,6 +381,9 @@
 
             TrixiParticles.update_systems_and_nhs_before_pressure!(v_ode, u_ode,
                                                                    semi_real, 0.0)
+            u_real = TrixiParticles.wrap_u(u_ode, system_real, semi_real)
+            TrixiParticles.build_iisph_pressure_cache!(system_real, u_real, u_ode,
+                                                       semi_real)
             trial_pressure = [0.7, 1.6, 0.4]
             system_real.pressure .= trial_pressure
 
@@ -409,6 +412,75 @@
             # The inverse diagonal must match the actually computed diagonal elements
             @test semi_real.iisph_pressure_cache.inv_a_ii ≈
                   [abs(a) > 1.0e-9 ? inv(a) : 0.0 for a in system_real.a_ii]
+        end
+
+        @testset "Cached pressure coefficients with PressureBoundaries" begin
+            smoothing_kernel_real = SchoenbergCubicSplineKernel{2}()
+            smoothing_length_real = 0.2
+            coordinates_fluid = [0.0 0.07 0.13
+                                 0.0 0.02 0.00]
+            ic_fluid = InitialCondition(; coordinates=coordinates_fluid,
+                                        velocity=zeros(2, 3), mass=[1.0, 1.1, 0.9],
+                                        density=[1000.0, 990.0, 1010.0],
+                                        pressure=[1.0, 2.0, 0.5])
+            fluid_system = ImplicitIncompressibleSPHSystem(ic_fluid;
+                                                           smoothing_kernel=smoothing_kernel_real,
+                                                           smoothing_length=smoothing_length_real,
+                                                           reference_density=1000.0,
+                                                           omega=0.5, time_step=0.01)
+
+            # Wall particles below the fluid particles
+            coordinates_wall = [0.0 0.07 0.14
+                                -0.1 -0.1 -0.1]
+            ic_wall = InitialCondition(; coordinates=coordinates_wall, velocity=zeros(2, 3),
+                                       mass=[1.0, 1.0, 1.0],
+                                       density=[1000.0, 1000.0, 1000.0])
+            boundary_model = BoundaryModelDummyParticles(ic_wall.density, ic_wall.mass,
+                                                         PressureBoundaries(; time_step=0.01,
+                                                                            omega=0.5),
+                                                         smoothing_kernel_real,
+                                                         smoothing_length_real)
+            wall_system = WallBoundarySystem(ic_wall, boundary_model)
+
+            semi_real = Semidiscretization(fluid_system, wall_system;
+                                           neighborhood_search=nothing)
+            @test TrixiParticles.supports_cached_iisph_pressure_loop(semi_real)
+            @test length(semi_real.iisph_pressure_cache.walls) == 1
+
+            ode_real = semidiscretize(semi_real, (0.0, 0.01); reset_threads=false)
+            v_ode, u_ode = ode_real.u0.x
+
+            TrixiParticles.update_systems_and_nhs_before_pressure!(v_ode, u_ode,
+                                                                   semi_real, 0.0)
+
+            u_fluid = TrixiParticles.wrap_u(u_ode, fluid_system, semi_real)
+            TrixiParticles.build_iisph_pressure_cache!(fluid_system, u_fluid, u_ode,
+                                                       semi_real)
+
+            trial_pressure = [0.7, 1.6, 0.4]
+            trial_wall_pressure = [0.3, 0.9, 0.1]
+            fluid_system.pressure .= trial_pressure
+            boundary_model.pressure .= trial_wall_pressure
+
+            # Generic neighbor-loop results
+            u_fluid = TrixiParticles.wrap_u(u_ode, fluid_system, semi_real)
+            TrixiParticles.calculate_sum_d_ij_pj!(fluid_system, u_fluid, u_ode, semi_real)
+            generic_sum_d_ij_pj = copy(fluid_system.sum_d_ij_pj)
+            TrixiParticles.calculate_sum_term_values!(fluid_system, u_fluid, u_ode,
+                                                      semi_real)
+            generic_sum_term = copy(fluid_system.sum_term)
+            u_wall = TrixiParticles.wrap_u(u_ode, wall_system, semi_real)
+            TrixiParticles.calculate_sum_term_values!(wall_system, u_wall, u_ode,
+                                                      semi_real)
+            generic_wall_sum_term = copy(boundary_model.cache.sum_term)
+
+            # Cached pressure loop results (includes the wall `sum_term`)
+            TrixiParticles.calculate_cached_sum_d_ij_pj!(fluid_system, semi_real)
+            TrixiParticles.calculate_cached_sum_term_values!(fluid_system, semi_real)
+
+            @test fluid_system.sum_d_ij_pj ≈ generic_sum_d_ij_pj
+            @test fluid_system.sum_term ≈ generic_sum_term
+            @test boundary_model.cache.sum_term ≈ generic_wall_sum_term
         end
 
         @testset "Pressure cache ownership" begin

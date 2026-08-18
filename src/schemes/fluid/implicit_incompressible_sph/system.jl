@@ -222,6 +222,14 @@ function update_implicit_sph!(semi, v_ode, u_ode, t)
     if !any(system -> system isa ImplicitIncompressibleSPHSystem, semi.systems)
         return semi
     end
+
+    # Build the pressure cache right before the pressure solve, when the quantities of
+    # all systems (in particular the boundary densities) have been updated
+    foreach_system(semi) do system
+        u = wrap_u(u_ode, system, semi)
+        build_iisph_pressure_cache!(system, u, u_ode, semi)
+    end
+
     @trixi_timeit timer() "pressure solver" pressure_solve!(semi, v_ode, u_ode)
 
     return semi
@@ -233,8 +241,6 @@ function predict_advection!(system::Union{ImplicitIncompressibleSPHSystem,
     calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_ode, semi)
 
     calculate_diagonal_elements_and_predicted_density!(system, v, u, v_ode, u_ode, semi)
-
-    build_iisph_pressure_cache!(system, u, u_ode, semi)
 
     return system
 end
@@ -249,7 +255,8 @@ function build_iisph_pressure_cache!(system::ImplicitIncompressibleSPHSystem, u,
 
     (; pressure_neighbor_count, pressure_neighbor_offsets, pressure_neighbor_cursor,
        pressure_neighbor, pressure_d_ij, pressure_grad_mass,
-       pressure_d_ji_dot_grad, pressure_boundary_grad_mass_sum) = semi.iisph_pressure_cache
+       pressure_d_ji_dot_grad, pressure_boundary_grad_mass_sum,
+       walls) = semi.iisph_pressure_cache
 
     fill!(pressure_neighbor_count, 0)
     set_zero!(pressure_boundary_grad_mass_sum)
@@ -280,19 +287,143 @@ function build_iisph_pressure_cache!(system::ImplicitIncompressibleSPHSystem, u,
         fill_iisph_pressure_cache_entries!(system, neighbor_system, u, u_ode, semi)
     end
 
+    for wall_cache in walls
+        build_iisph_wall_pressure_cache!(wall_cache, system, u, u_ode, semi)
+    end
+
     return system
+end
+
+# Build the CSR structures of one wall system with `PressureBoundaries`. The entries of
+# the fluid--wall neighbor pairs are stored in both directions, since the fluid
+# `sum_d_ij_pj` needs the current boundary pressures and the wall `sum_term` needs the
+# current fluid pressures and fluid `sum_d_ij_pj` values.
+function build_iisph_wall_pressure_cache!(wall_cache, system, u, u_ode, semi)
+    wall_system = wall_cache.system
+    (; fluid_offsets, fluid_cursor, wall_offsets, wall_cursor) = wall_cache
+
+    has_system_interaction(system, wall_system, semi) ||
+        return reset_iisph_wall_pressure_cache!(wall_cache)
+
+    fill!(view(fluid_offsets, 1:(length(fluid_offsets) - 1)), 0)
+    fill!(view(wall_offsets, 1:(length(wall_offsets) - 1)), 0)
+
+    system_coords = current_coordinates(u, system)
+    u_wall = wrap_u(u_ode, wall_system, semi)
+    wall_coords = current_coordinates(u_wall, wall_system)
+
+    # Count fluid -> wall entries (for the fluid `sum_d_ij_pj`)
+    foreach_point_neighbor(system, wall_system, system_coords, wall_coords, semi;
+                           points=each_integrated_particle(system)) do particle, neighbor,
+                                                                       pos_diff, distance
+        @inbounds fluid_offsets[particle] += 1
+    end
+
+    # Count wall -> fluid entries (for the wall `sum_term`)
+    foreach_point_neighbor(wall_system, system, wall_coords, system_coords, semi;
+                           points=each_integrated_particle(wall_system)) do particle,
+                                                                            neighbor,
+                                                                            pos_diff,
+                                                                            distance
+        @inbounds wall_offsets[particle] += 1
+    end
+
+    n_fluid_entries = finalize_iisph_csr_offsets!(fluid_offsets)
+    n_wall_entries = finalize_iisph_csr_offsets!(wall_offsets)
+
+    resize!(wall_cache.fluid_neighbor, n_fluid_entries)
+    resize!(wall_cache.fluid_d_ij, ndims(system) * n_fluid_entries)
+    resize!(wall_cache.wall_neighbor, n_wall_entries)
+    resize!(wall_cache.wall_coef_pj, n_wall_entries)
+    resize!(wall_cache.wall_grad_mass, ndims(system) * n_wall_entries)
+    resize!(wall_cache.wall_pi_coef, n_wall_entries)
+    copyto!(fluid_cursor, 1, fluid_offsets, 1, length(fluid_cursor))
+    copyto!(wall_cursor, 1, wall_offsets, 1, length(wall_cursor))
+
+    time_step = system.time_step
+
+    # Fill fluid -> wall entries: `d_ij` values (eq. 9 in Ihmsen et al. (2013)) to be
+    # multiplied with the current boundary pressure in each pressure solver iteration
+    foreach_point_neighbor(system, wall_system, system_coords, wall_coords, semi;
+                           points=each_integrated_particle(system)) do particle, neighbor,
+                                                                       pos_diff, distance
+        grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
+        d_ij_ = calculate_d_ij(system, wall_system, neighbor, grad_kernel, time_step)
+
+        @inbounds begin
+            entry = fluid_cursor[particle]
+            fluid_cursor[particle] = entry + 1
+            wall_cache.fluid_neighbor[entry] = neighbor
+
+            base = (entry - 1) * ndims(system)
+            for i in 1:ndims(system)
+                wall_cache.fluid_d_ij[base + i] = d_ij_[i]
+            end
+        end
+    end
+
+    # Fill wall -> fluid entries for the wall `sum_term` (eq. 13 in Ihmsen et al. (2013))
+    foreach_point_neighbor(wall_system, system, wall_coords, system_coords, semi;
+                           points=each_integrated_particle(wall_system)) do particle,
+                                                                            neighbor,
+                                                                            pos_diff,
+                                                                            distance
+        grad_kernel = smoothing_kernel_grad(wall_system, pos_diff, distance, particle)
+        m_j = hydrodynamic_mass(system, neighbor)
+        d_jj = d_ii(system, neighbor)
+        d_ji_ = calculate_d_ji(wall_system, system, particle, -grad_kernel, time_step)
+
+        @inbounds begin
+            entry = wall_cursor[particle]
+            wall_cursor[particle] = entry + 1
+            wall_cache.wall_neighbor[entry] = neighbor
+            wall_cache.wall_coef_pj[entry] = m_j * dot(d_jj, grad_kernel)
+            wall_cache.wall_pi_coef[entry] = m_j * dot(d_ji_, grad_kernel)
+
+            base = (entry - 1) * ndims(system)
+            for i in 1:ndims(system)
+                wall_cache.wall_grad_mass[base + i] = m_j * grad_kernel[i]
+            end
+        end
+    end
+
+    return wall_cache
+end
+
+function reset_iisph_wall_pressure_cache!(wall_cache)
+    resize!(wall_cache.fluid_neighbor, 0)
+    resize!(wall_cache.fluid_d_ij, 0)
+    resize!(wall_cache.wall_neighbor, 0)
+    resize!(wall_cache.wall_coef_pj, 0)
+    resize!(wall_cache.wall_grad_mass, 0)
+    resize!(wall_cache.wall_pi_coef, 0)
+
+    return wall_cache
+end
+
+# Turn the per-particle entry counts stored in `offsets[1:n]` (with `n = length(offsets) - 1`)
+# into CSR offsets and return the total number of entries.
+function finalize_iisph_csr_offsets!(offsets)
+    n = length(offsets) - 1
+    total = 0
+    @inbounds for particle in 1:n
+        count = offsets[particle]
+        offsets[particle] = total + 1
+        total += count
+    end
+    offsets[n + 1] = total + 1
+
+    return total
 end
 
 function supports_cached_iisph_pressure_loop(semi)
     iisph_system_count = 0
-    has_pressure_boundaries = false
 
     foreach_system(semi) do system
         iisph_system_count += system isa ImplicitIncompressibleSPHSystem ? 1 : 0
-        has_pressure_boundaries |= is_iisph_pressure_boundary_system(system)
     end
 
-    return iisph_system_count == 1 && !has_pressure_boundaries
+    return iisph_system_count == 1
 end
 
 is_iisph_pressure_boundary_system(system) = false
@@ -332,6 +463,9 @@ function accumulate_iisph_boundary_pressure_cache!(pressure_boundary_grad_mass_s
                                                    system::ImplicitIncompressibleSPHSystem,
                                                    neighbor_system::AbstractBoundarySystem,
                                                    u, u_ode, semi)
+    has_system_interaction(system, neighbor_system, semi) ||
+        return pressure_boundary_grad_mass_sum
+
     system_coords = current_coordinates(u, system)
     neighbor_coords = current_coordinates(wrap_u(u_ode, neighbor_system, semi),
                                           neighbor_system)
@@ -671,6 +805,31 @@ function calculate_cached_sum_d_ij_pj!(system::ImplicitIncompressibleSPHSystem, 
     calculate_iisph_pressure_sum_d_ij_pj!(system.sum_d_ij_pj, system.pressure, system,
                                           semi)
 
+    # Add the boundary pressure contributions (`PressureBoundaries`)
+    for wall_cache in semi.iisph_pressure_cache.walls
+        add_iisph_wall_pressure_contributions!(system, wall_cache, semi)
+    end
+
+    return system
+end
+
+function add_iisph_wall_pressure_contributions!(system, wall_cache, semi)
+    (; fluid_offsets, fluid_neighbor, fluid_d_ij) = wall_cache
+    wall_system = wall_cache.system
+    wall_pressure = current_pressure(nothing, wall_system)
+    sum_d_ij_pj = system.sum_d_ij_pj
+
+    @threaded semi for particle in each_integrated_particle(system)
+        @inbounds for entry in fluid_offsets[particle]:(fluid_offsets[particle + 1] - 1)
+            neighbor = fluid_neighbor[entry]
+            p_neighbor = wall_pressure[neighbor]
+            base = (entry - 1) * ndims(system)
+            for i in 1:ndims(system)
+                sum_d_ij_pj[i, particle] += fluid_d_ij[base + i] * p_neighbor
+            end
+        end
+    end
+
     return system
 end
 
@@ -700,9 +859,50 @@ function calculate_cached_sum_term_values!(system, semi)
 end
 
 function calculate_cached_sum_term_values!(system::ImplicitIncompressibleSPHSystem, semi)
+    # The wall `sum_term` values (`PressureBoundaries`) only depend on the fluid
+    # `sum_d_ij_pj` values and pressures, which are up to date at this point
+    for wall_cache in semi.iisph_pressure_cache.walls
+        calculate_iisph_wall_sum_term!(wall_cache, system, semi)
+    end
+
     calculate_iisph_pressure_sum_term!(system.sum_term, system.pressure, system, semi)
 
     return system
+end
+
+# Calculate the sum term (eq. 13 in Ihmsen et al. (2013)) of one wall system with
+# `PressureBoundaries` from the cached coefficients:
+# \sum_j m_j * (-d_jj p_j - (sum_d_jk p_k - d_ji p_i)) \cdot \nabla W_ij
+function calculate_iisph_wall_sum_term!(wall_cache, system, semi)
+    (; wall_offsets, wall_neighbor, wall_coef_pj, wall_grad_mass, wall_pi_coef) = wall_cache
+    wall_system = wall_cache.system
+    (; boundary_model) = wall_system
+    (; sum_term) = boundary_model.cache
+    wall_pressure = boundary_model.pressure
+    fluid_pressure = system.pressure
+    fluid_sum_d_ij_pj = system.sum_d_ij_pj
+
+    set_zero!(sum_term)
+
+    @threaded semi for particle in each_integrated_particle(wall_system)
+        sum_term_particle = zero(eltype(system))
+        pressure_particle = @inbounds wall_pressure[particle]
+
+        @inbounds for entry in wall_offsets[particle]:(wall_offsets[particle + 1] - 1)
+            neighbor = wall_neighbor[entry]
+            sum_term_particle -= wall_coef_pj[entry] * fluid_pressure[neighbor]
+            sum_term_particle += wall_pi_coef[entry] * pressure_particle
+
+            base = (entry - 1) * ndims(system)
+            for i in 1:ndims(system)
+                sum_term_particle -= wall_grad_mass[base + i] * fluid_sum_d_ij_pj[i, neighbor]
+            end
+        end
+
+        @inbounds sum_term[particle] = sum_term_particle
+    end
+
+    return wall_cache
 end
 
 function calculate_iisph_pressure_sum_term!(sum_term, pressure,

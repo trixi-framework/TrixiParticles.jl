@@ -178,13 +178,33 @@ end
 # semidiscretization containing an IISPH system, since the (generic) pressure update
 # of the fallback path also uses the `inv_a_ii` entry.
 function create_iisph_pressure_cache(systems)
-    system = findfirst(system -> system isa ImplicitIncompressibleSPHSystem, systems)
-    isnothing(system) && return nothing
+    system_index = findfirst(system -> system isa ImplicitIncompressibleSPHSystem, systems)
+    isnothing(system_index) && return nothing
 
-    system = systems[system]
+    system = systems[system_index]
     n_particles = nparticles(system)
     ELTYPE = eltype(system)
     NDIMS = ndims(system)
+
+    # One entry per wall system with `PressureBoundaries`, which participate in the
+    # pressure solve with their own pressure unknowns. The entries store a CSR structure
+    # of the fluid--wall neighbor pairs in both directions:
+    # - `fluid_*`: entries for the fluid `sum_d_ij_pj` (boundary pressure contributions)
+    # - `wall_*`: entries for the wall `sum_term`
+    wall_caches = map(filter(is_iisph_pressure_boundary_system, systems)) do wall_system
+        n_wall_particles = nparticles(wall_system)
+        return (system=wall_system,
+                fluid_offsets=zeros(Int, n_particles + 1),
+                fluid_cursor=zeros(Int, n_particles),
+                fluid_neighbor=zeros(Int, 0),
+                fluid_d_ij=zeros(ELTYPE, 0),
+                wall_offsets=zeros(Int, n_wall_particles + 1),
+                wall_cursor=zeros(Int, n_wall_particles),
+                wall_neighbor=zeros(Int, 0),
+                wall_coef_pj=zeros(ELTYPE, 0),
+                wall_grad_mass=zeros(ELTYPE, 0),
+                wall_pi_coef=zeros(ELTYPE, 0))
+    end
 
     return (; inv_a_ii=zeros(ELTYPE, n_particles),
             pressure_neighbor_count=zeros(Int, n_particles),
@@ -194,7 +214,8 @@ function create_iisph_pressure_cache(systems)
             pressure_d_ij=zeros(ELTYPE, 0),
             pressure_grad_mass=zeros(ELTYPE, 0),
             pressure_d_ji_dot_grad=zeros(ELTYPE, 0),
-            pressure_boundary_grad_mass_sum=zeros(ELTYPE, NDIMS, n_particles))
+            pressure_boundary_grad_mass_sum=zeros(ELTYPE, NDIMS, n_particles),
+            walls=wall_caches)
 end
 
 function create_interaction_matrix(::Nothing, systems)
