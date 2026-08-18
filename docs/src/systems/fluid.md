@@ -60,7 +60,7 @@ The force exerted by particle ``b`` on particle ``a`` due to artificial viscosit
 ```math
 \bm{f}_{ab}^{\text{AV}} =
 \begin{cases}
-    m_a m_b \frac{\alpha c \mu_{ab} + \beta \mu_{ab}^2}{\bar{\rho}_{ab}}
+    m_a m_b \frac{\alpha c \mu_{ab} - \beta \mu_{ab}^2}{\bar{\rho}_{ab}}
     \nabla_a W_{ab}, & \text{if } \bm{v}_{ab} \cdot \bm{r}_{ab} < 0, \\
     0, & \text{otherwise}.
 \end{cases}

@@ -76,7 +76,7 @@ end
         (; alpha, beta, epsilon) = viscosity
         mu = div_fast(h * vr, (current_distance^2 + epsilon * h^2))
         c = sound_speed
-        pi_ab = div_fast(alpha * c * mu + beta * mu^2, rho_mean) * grad_kernel
+        pi_ab = div_fast(alpha * c * mu - beta * mu^2, rho_mean) * grad_kernel
 
         det_F = det(F_a)
         if abs(det_F) < 1.0f-9
