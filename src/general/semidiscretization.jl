@@ -518,6 +518,8 @@ function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization)
         return calculate_dt(v_ode, u_ode, cfl_number, system, semi)
     end
 
+    # Inter-system interface dt. Only active for system pairs that share a
+    # Morris surface-tension model; all other pairs return Inf through dispatch.
     dt_interfaces = Inf
     nsystems = length(systems)
 
