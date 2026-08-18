@@ -61,14 +61,14 @@ function interact!(dv, v_particle_system, u_particle_system,
         dv_pressure_boundary = 2 * p_boundary * (m_b / (rho_a * rho_b)) * grad_kernel
 
         # Propagate `@inbounds` to the viscosity function, which accesses particle data
-        dv_viscosity_ = @inbounds dv_viscosity(zero(pos_diff),
-                                               viscosity_model(fluid_system,
-                                                               neighbor_system),
-                                               particle_system, neighbor_system,
-                                               v_particle_system, v_neighbor_system,
-                                               particle, neighbor, pos_diff, distance,
-                                               sound_speed, m_a, m_b, rho_a, rho_b,
-                                               v_a, v_b, grad_kernel)
+        dv_viscosity_ = @inbounds add_dv_viscosity(zero(pos_diff),
+                                                   viscosity_model(fluid_system,
+                                                                   neighbor_system),
+                                                   particle_system, neighbor_system,
+                                                   v_particle_system, v_neighbor_system,
+                                                   particle, neighbor, pos_diff, distance,
+                                                   sound_speed, m_a, m_b, rho_a, rho_b,
+                                                   v_a, v_b, grad_kernel)
 
         dv_particle = dv_pressure + dv_viscosity_ + dv_pressure_boundary
 
@@ -81,11 +81,13 @@ function interact!(dv, v_particle_system, u_particle_system,
         v_diff = v_a - v_b
 
         # Propagate `@inbounds` to the continuity equation, which accesses particle data
-        drho_particle = @inbounds continuity_equation(zero(rho_a),
-                                                      particle_system, neighbor_system,
-                                                      particle, neighbor, pos_diff,
-                                                      distance, m_b, rho_a, rho_b, v_a, v_b,
-                                                      grad_kernel)
+        drho_particle = @inbounds add_continuity_equation(zero(rho_a),
+                                                          particle_system,
+                                                          neighbor_system,
+                                                          particle, neighbor, pos_diff,
+                                                          distance, m_b, rho_a, rho_b,
+                                                          v_a, v_b,
+                                                          grad_kernel)
         dv[end, particle] += drho_particle
 
         # Open boundary pressure evolution matches the corresponding fluid system:

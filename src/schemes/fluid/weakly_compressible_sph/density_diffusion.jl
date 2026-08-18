@@ -210,12 +210,12 @@ function update!(density_diffusion::DensityDiffusionAntuono, v, u, system, semi)
     return density_diffusion
 end
 
-@propagate_inbounds function density_diffusion(drho_particle,
-                                               density_diffusion::AbstractDensityDiffusion,
-                                               particle_system::Union{AbstractFluidSystem,
-                                                                      OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}},
-                                               particle, neighbor, pos_diff, distance,
-                                               m_b, rho_a, rho_b, grad_kernel)
+@propagate_inbounds function add_density_diffusion(drho_particle,
+                                                   density_diffusion::AbstractDensityDiffusion,
+                                                   particle_system::Union{AbstractFluidSystem,
+                                                                          OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}},
+                                                   particle, neighbor, pos_diff,
+                                                   distance, m_b, rho_a, rho_b, grad_kernel)
     # Density diffusion terms are all zero for distance zero.
     # If `skip_zero_distance` is `true`, we can assume that this function isn't called
     # for distance zero because these neighbors have already been skipped.
@@ -243,8 +243,8 @@ end
 end
 
 # Density diffusion `nothing` or interaction other than fluid-fluid
-@inline function density_diffusion(drho_particle, density_diffusion, particle_system,
-                                   particle, neighbor, pos_diff, distance,
-                                   m_b, rho_a, rho_b, grad_kernel)
+@inline function add_density_diffusion(drho_particle, density_diffusion,
+                                       particle_system, particle, neighbor, pos_diff,
+                                       distance, m_b, rho_a, rho_b, grad_kernel)
     return drho_particle
 end

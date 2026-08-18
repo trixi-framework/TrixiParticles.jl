@@ -138,29 +138,31 @@ function compute_density!(system, u, u_ode, semi, ::SummationDensity)
 end
 
 # With 'SummationDensity', density is calculated in wcsph/system.jl:compute_density!
-@inline function continuity_equation(drho_particle, ::SummationDensity,
-                                     particle_system, neighbor_system,
-                                     particle, neighbor, pos_diff, distance,
-                                     m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+@inline function add_continuity_equation(drho_particle, ::SummationDensity,
+                                         particle_system, neighbor_system,
+                                         particle, neighbor, pos_diff, distance,
+                                         m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
     return drho_particle
 end
 
 # This formulation was chosen to be consistent with the used pressure_acceleration formulations
-@propagate_inbounds function continuity_equation(drho_particle,
-                                                 ::ContinuityDensity,
-                                                 particle_system::AbstractFluidSystem,
-                                                 neighbor_system,
-                                                 particle, neighbor, pos_diff, distance,
-                                                 m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
-    continuity_equation(drho_particle, particle_system, neighbor_system,
-                        particle, neighbor, pos_diff, distance,
-                        m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+@propagate_inbounds function add_continuity_equation(drho_particle,
+                                                     ::ContinuityDensity,
+                                                     particle_system::AbstractFluidSystem,
+                                                     neighbor_system,
+                                                     particle, neighbor, pos_diff,
+                                                     distance, m_b, rho_a, rho_b, v_a, v_b,
+                                                     grad_kernel)
+    add_continuity_equation(drho_particle, particle_system, neighbor_system,
+                            particle, neighbor, pos_diff, distance,
+                            m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
 end
 
-@propagate_inbounds function continuity_equation(drho_particle,
-                                                 particle_system, neighbor_system,
-                                                 particle, neighbor, pos_diff, distance,
-                                                 m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+@propagate_inbounds function add_continuity_equation(drho_particle,
+                                                     particle_system, neighbor_system,
+                                                     particle, neighbor, pos_diff,
+                                                     distance, m_b, rho_a, rho_b, v_a, v_b,
+                                                     grad_kernel)
     v_diff = v_a - v_b
 
     v_diff = continuity_equation_shifting_term(v_diff,
@@ -177,10 +179,11 @@ end
     # with the same physical properties i.e. density and viscosity.
     # TODO: shouldn't be applied to particles on the interface (depends on PR #539)
     if particle_system === neighbor_system
-        drho_particle = density_diffusion(drho_particle, density_diffusion(particle_system),
-                                          particle_system, particle, neighbor,
-                                          pos_diff, distance, m_b, rho_a, rho_b,
-                                          grad_kernel)
+        drho_particle = add_density_diffusion(drho_particle,
+                                              density_diffusion(particle_system),
+                                              particle_system, particle, neighbor,
+                                              pos_diff, distance, m_b, rho_a, rho_b,
+                                              grad_kernel)
     end
 
     return drho_particle

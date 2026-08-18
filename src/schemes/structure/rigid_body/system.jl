@@ -285,11 +285,11 @@ function calc_normal!(system::AbstractFluidSystem,
                                  semi, surface_normal_method)
 end
 
-@inline function adhesion_force(dv_particle,
-                                surface_tension::AkinciTypeSurfaceTension,
-                                particle_system::AbstractFluidSystem,
-                                neighbor_system::RigidBodySystem,
-                                particle, neighbor, pos_diff, distance)
+@inline function add_dv_adhesion(dv_particle,
+                                 surface_tension::AkinciTypeSurfaceTension,
+                                 particle_system::AbstractFluidSystem,
+                                 neighbor_system::RigidBodySystem,
+                                 particle, neighbor, pos_diff, distance)
     (; adhesion_coefficient) = neighbor_system
 
     # No adhesion with oneself. See `src/general/smoothing_kernels.jl` for more details.

@@ -14,19 +14,19 @@ struct PenaltyForceGanzenmueller{ELTYPE}
     end
 end
 
-@inline function dv_penalty_force(dv_particle, penalty_force::Nothing,
-                                  particle, neighbor, initial_pos_diff, initial_distance,
-                                  current_pos_diff, current_distance,
-                                  system, m_a, m_b, rho_a, rho_b, F_a, F_b)
+@inline function add_penalty_force(dv_particle, penalty_force::Nothing,
+                                   particle, neighbor, initial_pos_diff, initial_distance,
+                                   current_pos_diff, current_distance,
+                                   system, m_a, m_b, rho_a, rho_b, F_a, F_b)
     return dv_particle
 end
 
-@propagate_inbounds function dv_penalty_force(dv_particle,
-                                              penalty_force::PenaltyForceGanzenmueller,
-                                              particle, neighbor, initial_pos_diff,
-                                              initial_distance,
-                                              current_pos_diff, current_distance,
-                                              system, m_a, m_b, rho_a, rho_b, F_a, F_b)
+@propagate_inbounds function add_penalty_force(dv_particle,
+                                               penalty_force::PenaltyForceGanzenmueller,
+                                               particle, neighbor, initial_pos_diff,
+                                               initial_distance,
+                                               current_pos_diff, current_distance,
+                                               system, m_a, m_b, rho_a, rho_b, F_a, F_b)
     (; alpha) = penalty_force
 
     # Since this is one of the most performance critical functions, using fast divisions

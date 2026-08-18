@@ -162,21 +162,22 @@ end
 end
 
 # Skip
-@inline function surface_tension_force(dv_particle, surface_tension_a, surface_tension_b,
-                                       particle_system, neighbor_system, particle,
-                                       neighbor, pos_diff, distance, rho_a, rho_b,
-                                       grad_kernel, surface_tension_correction)
+@inline function add_dv_surface_tension(dv_particle, surface_tension_a,
+                                        surface_tension_b,
+                                        particle_system, neighbor_system, particle,
+                                        neighbor, pos_diff, distance, rho_a, rho_b,
+                                        grad_kernel, surface_tension_correction)
     return dv_particle
 end
 
-@inline function surface_tension_force(dv_particle,
-                                       surface_tension_a::CohesionForceAkinci,
-                                       surface_tension_b::CohesionForceAkinci,
-                                       particle_system::AbstractFluidSystem,
-                                       neighbor_system::AbstractFluidSystem,
-                                       particle, neighbor, pos_diff, distance,
-                                       rho_a, rho_b, grad_kernel,
-                                       surface_tension_correction)
+@inline function add_dv_surface_tension(dv_particle,
+                                        surface_tension_a::CohesionForceAkinci,
+                                        surface_tension_b::CohesionForceAkinci,
+                                        particle_system::AbstractFluidSystem,
+                                        neighbor_system::AbstractFluidSystem,
+                                        particle, neighbor, pos_diff, distance,
+                                        rho_a, rho_b, grad_kernel,
+                                        surface_tension_correction)
     (; smoothing_kernel) = particle_system
 
     # No cohesion with oneself. See `src/general/smoothing_kernels.jl` for more details.
@@ -193,14 +194,14 @@ end
     return dv_particle
 end
 
-@inline function surface_tension_force(dv_particle,
-                                       surface_tension_a::SurfaceTensionAkinci,
-                                       surface_tension_b::SurfaceTensionAkinci,
-                                       particle_system::AbstractFluidSystem,
-                                       neighbor_system::AbstractFluidSystem, particle,
-                                       neighbor,
-                                       pos_diff, distance, rho_a, rho_b, grad_kernel,
-                                       surface_tension_correction)
+@inline function add_dv_surface_tension(dv_particle,
+                                        surface_tension_a::SurfaceTensionAkinci,
+                                        surface_tension_b::SurfaceTensionAkinci,
+                                        particle_system::AbstractFluidSystem,
+                                        neighbor_system::AbstractFluidSystem,
+                                        particle, neighbor,
+                                        pos_diff, distance, rho_a, rho_b, grad_kernel,
+                                        surface_tension_correction)
     (; smoothing_kernel) = particle_system
     (; surface_tension_coefficient) = surface_tension_a
 
@@ -221,14 +222,14 @@ end
 
     return dv_particle
 end
-@inline function surface_tension_force(dv_particle,
-                                       surface_tension_a::SurfaceTensionMorris,
-                                       surface_tension_b::SurfaceTensionMorris,
-                                       particle_system::AbstractFluidSystem,
-                                       neighbor_system::AbstractFluidSystem,
-                                       particle, neighbor, pos_diff, distance,
-                                       rho_a, rho_b, grad_kernel,
-                                       surface_tension_correction)
+@inline function add_dv_surface_tension(dv_particle,
+                                        surface_tension_a::SurfaceTensionMorris,
+                                        surface_tension_b::SurfaceTensionMorris,
+                                        particle_system::AbstractFluidSystem,
+                                        neighbor_system::AbstractFluidSystem,
+                                        particle, neighbor, pos_diff, distance,
+                                        rho_a, rho_b, grad_kernel,
+                                        surface_tension_correction)
     (; surface_tension_coefficient) = surface_tension_a
 
     # No surface tension with oneself. See `src/general/smoothing_kernels.jl` for more details.
@@ -296,14 +297,14 @@ function compute_surface_delta_function!(system, ::SurfaceTensionMomentumMorris,
     return system
 end
 
-@inline function surface_tension_force(dv_particle,
-                                       surface_tension_a::SurfaceTensionMomentumMorris,
-                                       surface_tension_b::SurfaceTensionMomentumMorris,
-                                       particle_system::AbstractFluidSystem,
-                                       neighbor_system::AbstractFluidSystem,
-                                       particle, neighbor, pos_diff, distance,
-                                       rho_a, rho_b, grad_kernel,
-                                       surface_tension_correction)
+@inline function add_dv_surface_tension(dv_particle,
+                                        surface_tension_a::SurfaceTensionMomentumMorris,
+                                        surface_tension_b::SurfaceTensionMomentumMorris,
+                                        particle_system::AbstractFluidSystem,
+                                        neighbor_system::AbstractFluidSystem,
+                                        particle, neighbor, pos_diff, distance,
+                                        rho_a, rho_b, grad_kernel,
+                                        surface_tension_correction)
     (; surface_tension_coefficient) = surface_tension_a
 
     # No surface tension with oneself. See `src/general/smoothing_kernels.jl` for more details.
@@ -320,11 +321,11 @@ end
     return dv_particle
 end
 
-@inline function adhesion_force(dv_particle,
-                                surface_tension::AkinciTypeSurfaceTension,
-                                particle_system::AbstractFluidSystem,
-                                neighbor_system::AbstractBoundarySystem,
-                                particle, neighbor, pos_diff, distance)
+@inline function add_dv_adhesion(dv_particle,
+                                 surface_tension::AkinciTypeSurfaceTension,
+                                 particle_system::AbstractFluidSystem,
+                                 neighbor_system::AbstractBoundarySystem,
+                                 particle, neighbor, pos_diff, distance)
     (; adhesion_coefficient) = neighbor_system
 
     # No adhesion with oneself. See `src/general/smoothing_kernels.jl` for more details.
@@ -343,7 +344,7 @@ end
     return dv_particle
 end
 
-@inline function adhesion_force(dv_particle, surface_tension, particle_system,
-                                neighbor_system, particle, neighbor, pos_diff, distance)
+@inline function add_dv_adhesion(dv_particle, surface_tension, particle_system,
+                                 neighbor_system, particle, neighbor, pos_diff, distance)
     return dv_particle
 end
