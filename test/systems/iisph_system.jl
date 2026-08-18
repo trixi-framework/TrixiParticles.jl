@@ -393,24 +393,22 @@
             generic_sum_term = copy(system_real.sum_term)
 
             system_real.pressure .= pressure_real
-            operator = iisph_pressure_operator(system_real, semi_real)
-            Ap = similar(trial_pressure)
-            rhs = similar(trial_pressure)
-            residual = similar(trial_pressure)
-            z = similar(trial_pressure)
 
-            mul!(Ap, operator, trial_pressure)
-            iisph_pressure_rhs!(rhs, operator)
-            iisph_pressure_residual!(residual, trial_pressure, rhs, operator)
-            iisph_pressure_apply_preconditioner!(z, residual, operator)
-
+            # The cached pressure loop must reproduce the generic neighbor-loop results
+            # for the same trial pressure
+            system_real.pressure .= trial_pressure
+            TrixiParticles.calculate_iisph_pressure_sum_d_ij_pj!(system_real.sum_d_ij_pj,
+                                                                 trial_pressure,
+                                                                 system_real, semi_real)
+            TrixiParticles.calculate_iisph_pressure_sum_term!(system_real.sum_term,
+                                                              trial_pressure,
+                                                              system_real, semi_real)
             @test system_real.sum_d_ij_pj ≈ generic_sum_d_ij_pj
             @test system_real.sum_term ≈ generic_sum_term
-            @test Ap ≈ system_real.a_ii .* trial_pressure .+ generic_sum_term
-            @test rhs ≈ [TrixiParticles.iisph_source_term(system_real, particle)
-                         for particle in eachindex(rhs)]
-            @test residual ≈ rhs .- Ap
-            @test z ≈ semi_real.iisph_pressure_cache.inv_a_ii .* residual
+
+            # The inverse diagonal must match the actually computed diagonal elements
+            @test semi_real.iisph_pressure_cache.inv_a_ii ≈
+                  [abs(a) > 1.0e-9 ? inv(a) : 0.0 for a in system_real.a_ii]
         end
 
         @testset "Pressure cache ownership" begin
