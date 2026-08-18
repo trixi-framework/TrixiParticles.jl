@@ -4,6 +4,14 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.5.4
+
+### Bugfixes
+
+- Fixed mathematical inconsistencies in the SPH documentation, including incorrect
+  formulas, inconsistent force-vs-acceleration notation, and wrong LaTeX text-mode
+  commands (#1086).
+
 ## Version 0.5.3
 
 ### Features
