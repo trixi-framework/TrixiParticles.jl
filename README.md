@@ -27,10 +27,10 @@ TrixiParticles.jl focuses on the following use cases:
 It offers intuitive configuration, robust pre- and post-processing, and vendor-agnostic GPU support based on the Julia package [KernelAbstractions.jl](https://github.com/JuliaGPU/KernelAbstractions.jl).
 
 ## JuliaCon 2024
-[![YouTube](https://github.com/user-attachments/assets/dc2be627-a799-4bfd-9226-2077f737c4b0)](https://www.youtube.com/watch?v=ReLkKUV4kTw)
+[![YouTube](https://github.com/user-attachments/assets/a9fd65de-13dc-424d-b518-e7f4b417eff3)](https://www.youtube.com/watch?v=ReLkKUV4kTw)
 
 ## JuliaCon 2026
-[![YouTube](https://private-user-images.githubusercontent.com/73897120/636629312-f81bd16c-0c14-4fbf-9b20-affc5d84e86c.png?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3ODY4NzQ1OTcsIm5iZiI6MTc4Njg3NDI5NywicGF0aCI6Ii83Mzg5NzEyMC82MzY2MjkzMTItZjgxYmQxNmMtMGMxNC00ZmJmLTliMjAtYWZmYzVkODRlODZjLnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNjA4MTYlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjYwODE2VDA5NTgxN1omWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPWRiODc5YmNkMTdkYjM1Y2U0MTAxYjhjNTA5NjE0NDJkYWJhMDc3ZGRkOThmZWJhMzEwZjQ3NTZjZDcyZDA4NWMmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0JnJlc3BvbnNlLWNvbnRlbnQtdHlwZT1pbWFnZSUyRnBuZyJ9.fRmPSzz7j7cZ9jk9oNtLOC4biEBke4qstLmGV2vtyHE)](https://www.youtube.com/watch?v=_1HKnl1Jngw&t=3607s)
+[![YouTube](https://github.com/user-attachments/assets/ccf4e567-0adb-490e-9c2c-f36217dd5ca3)](https://www.youtube.com/watch?v=_1HKnl1Jngw&t=3607s)
 
 
 ## Features
