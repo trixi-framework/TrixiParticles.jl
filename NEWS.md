@@ -28,6 +28,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Important Bugfixes
 
+- Fixed the sign of the quadratic term in `ArtificialViscosityMonaghan` (#1295).
 - Fixed signed-distance constraints in `ParticlePackingSystem` when using a separate
   interpolation smoothing length (#1189).
 - Fixed open boundaries with periodic boundary zones (#1237).

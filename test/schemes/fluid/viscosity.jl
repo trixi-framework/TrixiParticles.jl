@@ -39,6 +39,15 @@
 
         @test isapprox(dv[][1], -0.02049217623299368, atol=6e-15)
         @test isapprox(dv[][2], 0.03073826434949052, atol=6e-15)
+
+        # The quadratic term must dissipate kinetic energy.
+        # This test verifies its sign, which is not covered above since `beta=0`.
+        viscosity_beta = ArtificialViscosityMonaghan(alpha=0.0, beta=2.0)
+        dv_beta = Ref(zero(v_diff))
+        viscosity_beta(dv_beta, system_wcsph, system_wcsph,
+                       v, v, 1, 2, pos_diff, distance,
+                       sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+        @test dot(dv_beta[], v_diff) < 0
     end
     @testset verbose=true "`ViscosityMorris`" begin
         nu = 7e-3
