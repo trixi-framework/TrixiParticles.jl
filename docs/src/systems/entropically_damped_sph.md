@@ -3,7 +3,7 @@
 As opposed to the [weakly compressible SPH scheme](weakly_compressible_sph.md), which uses an equation of state,
 this scheme uses a pressure evolution equation to calculate the pressure
 ```math
-\frac{\mathrm{d} p_a}{\mathrm{d}t} =  - \rho_a c_s^2 (\nabla \cdot v)_a + \nu_{\mathrm{EDAC}} (\nabla^2 p)_a,
+\frac{\mathrm{d} p_a}{\mathrm{d}t} =  - \rho_a c_s^2 (\nabla \cdot v)_a + \nu_{\text{EDAC}} (\nabla^2 p)_a,
 ```
 which is derived by [Clausen (2013)](@cite Clausen2013). This equation is similar to the continuity equation (first term, see
 [`ContinuityDensity`](@ref)), but also contains a pressure damping term (second term, similar to density diffusion,
@@ -24,7 +24,7 @@ is the speed of sound and ``v_{ab} = v_a - v_b`` is the difference in the veloci
 
 The second term smooths the pressure through the introduction of entropy and is discretized as
 ```math
-\left.\nu_{\mathrm{EDAC}} \nabla^2 p \right|_a
+\left.\nu_{\text{EDAC}} \nabla^2 p \right|_a
 = \sum_b \frac{V_a^2 + V_b^2}{m_a}\,
 \tilde{\eta}_{ab}\,
 \frac{p_{ab}}{\Vert r_{ab} \Vert^2 + 0.01 h_{ab}^2}\,
@@ -35,11 +35,11 @@ where ``V_a``, ``V_b`` denote the particle volumes, ``p_{ab}= p_a - p_b``,
 
 The dynamic EDAC viscosity for particle ``a`` is
 ```math
-\eta_a = \rho_a \nu_{\mathrm{EDAC}},
+\eta_a = \rho_a \nu_{\text{EDAC}},
 ```
 with
 ```math
-\nu_{\mathrm{EDAC}} = \frac{\alpha h c_s}{8},
+\nu_{\text{EDAC}} = \frac{\alpha h c_s}{8},
 ```
 and the harmonic mean
 ```math

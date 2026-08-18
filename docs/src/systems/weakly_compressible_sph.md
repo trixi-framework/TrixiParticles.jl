@@ -294,7 +294,7 @@ for the WCSPH method with [`ContinuityDensity`](@ref).
 
 The TIC formulation changes this term to
 ```math
-\bm{f}_{ab}^{\mathrm{TIC}} = -m_a m_b \frac{|p_a| + p_b}{\rho_a \rho_b} \nabla_a W_{ab}.
+\bm{f}_{ab}^{\text{TIC}} = -m_a m_b \frac{|p_a| + p_b}{\rho_a \rho_b} \nabla_a W_{ab}.
 ```
 Note that this formulation is asymmetric and sacrifices conservation of linear and angular
 momentum.
