@@ -16,7 +16,8 @@ function copy_semi_with_no_update_nhs(semi)
     return Semidiscretization(semi.systems, semi.ranges_u, semi.ranges_v,
                               neighborhood_search_handler, semi.interaction_matrix,
                               SerialBackend(), Ref(true),
-                              Ref(true), semi.iisph_pressure_state)
+                              Ref(true), semi.iisph_pressure_state,
+                              semi.iisph_pressure_cache)
 end
 
 function no_update_nhs_handler(handler::TrixiParticles.PairsNHSHandler)

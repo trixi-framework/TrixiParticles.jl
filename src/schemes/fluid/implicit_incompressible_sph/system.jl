@@ -50,7 +50,6 @@ struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ARRAY2D,
     advection_velocity                :: ARRAY2D # Array{ELTYPE, 2}
     d_ii                              :: ARRAY2D # Eq. 9
     a_ii                              :: ARRAY1D # Diagonal elements of the implicit pressure equation (Eq. 6)
-    inv_a_ii                          :: ARRAY1D # Cached inverse diagonal elements
     sum_d_ij_pj                       :: ARRAY2D # \sum_j d_{ij} p_j (Eq. 10)
     sum_term                          :: ARRAY1D # Sum term of Eq. 13
     density_error                     :: ARRAY1D # Temporary storage for parallel reduction
@@ -118,7 +117,6 @@ function ImplicitIncompressibleSPHSystem(initial_condition; smoothing_kernel,
     density = copy(initial_condition.density)
     predicted_density = zeros(ELTYPE, n_particles)
     a_ii = zeros(ELTYPE, n_particles)
-    inv_a_ii = zeros(ELTYPE, n_particles)
     d_ii = zeros(ELTYPE, NDIMS, n_particles)
     advection_velocity = zeros(ELTYPE, NDIMS, n_particles)
     sum_d_ij_pj = zeros(ELTYPE, NDIMS, n_particles)
@@ -127,32 +125,18 @@ function ImplicitIncompressibleSPHSystem(initial_condition; smoothing_kernel,
 
     cache = (;
              create_cache_refinement(initial_condition, particle_refinement,
-                                     smoothing_length)...,
-             create_cache_iisph_pressure(initial_condition, NDIMS, ELTYPE)...,)
+                                     smoothing_length)...,)
 
     return ImplicitIncompressibleSPHSystem(initial_condition, mass, pressure,
                                            smoothing_kernel, smoothing_length,
                                            reference_density, acceleration_, viscosity,
                                            pressure_acceleration, nothing, surface_tension,
                                            particle_refinement, density, predicted_density,
-                                           advection_velocity, d_ii, a_ii, inv_a_ii,
+                                           advection_velocity, d_ii, a_ii,
                                            sum_d_ij_pj,
                                            sum_term, density_error, omega, max_error,
                                            min_iterations, max_iterations, time_step,
                                            artificial_sound_speed, cache)
-end
-
-function create_cache_iisph_pressure(initial_condition, NDIMS, ELTYPE)
-    n_particles = nparticles(initial_condition)
-
-    return (pressure_neighbor_count=zeros(Int, n_particles),
-            pressure_neighbor_offsets=zeros(Int, n_particles + 1),
-            pressure_neighbor_cursor=zeros(Int, n_particles),
-            pressure_neighbor=zeros(Int, 0),
-            pressure_d_ij=zeros(ELTYPE, 0),
-            pressure_grad_mass=zeros(ELTYPE, 0),
-            pressure_d_ji_dot_grad=zeros(ELTYPE, 0),
-            pressure_boundary_grad_mass_sum=zeros(ELTYPE, NDIMS, n_particles))
 end
 
 """
@@ -161,9 +145,10 @@ end
 Matrix-free IISPH pressure operator assembled from cached per-step neighbor coefficients.
 
 The operator applies ``A p`` for the current IISPH pressure equation, where ``A`` contains
-the diagonal entries `system.a_ii` and the cached off-diagonal pressure couplings. Build
-the operator after the IISPH prediction step has updated the pressure cache, for example
-inside the pressure solver or after `update_systems_and_nhs_before_pressure!`.
+the diagonal entries `system.a_ii` and the cached off-diagonal pressure couplings stored
+in `semi.iisph_pressure_cache`. Build the operator after the IISPH prediction step has
+updated the pressure cache, for example inside the pressure solver or after
+`update_systems_and_nhs_before_pressure!`.
 
 Use [`iisph_pressure_operator`](@ref) to construct an operator with compatibility checks.
 """
@@ -268,7 +253,8 @@ function iisph_pressure_apply_preconditioner!(z, residual,
                                 "number of IISPH particles $(nparticles(system))"))
 
     @threaded semi for particle in eachparticle(system)
-        @inbounds z[particle] = system.inv_a_ii[particle] * residual[particle]
+        @inbounds z[particle] = semi.iisph_pressure_cache.inv_a_ii[particle] *
+                                residual[particle]
     end
 
     return z
@@ -382,10 +368,9 @@ function build_iisph_pressure_cache!(system::ImplicitIncompressibleSPHSystem, u,
                                      semi)
     supports_cached_iisph_pressure_loop(semi) || return system
 
-    (; cache) = system
     (; pressure_neighbor_count, pressure_neighbor_offsets, pressure_neighbor_cursor,
        pressure_neighbor, pressure_d_ij, pressure_grad_mass,
-       pressure_d_ji_dot_grad, pressure_boundary_grad_mass_sum) = cache
+       pressure_d_ji_dot_grad, pressure_boundary_grad_mass_sum) = semi.iisph_pressure_cache
 
     fill!(pressure_neighbor_count, 0)
     set_zero!(pressure_boundary_grad_mass_sum)
@@ -495,7 +480,7 @@ function fill_iisph_pressure_cache_entries!(system::ImplicitIncompressibleSPHSys
                                             neighbor_system::ImplicitIncompressibleSPHSystem,
                                             u, u_ode, semi)
     (; pressure_neighbor_cursor, pressure_neighbor, pressure_d_ij, pressure_grad_mass,
-       pressure_d_ji_dot_grad) = system.cache
+       pressure_d_ji_dot_grad) = semi.iisph_pressure_cache
 
     time_step = system.time_step
     system_coords = current_coordinates(u, system)
@@ -612,7 +597,8 @@ end
 function calculate_diagonal_elements_and_predicted_density!(system::ImplicitIncompressibleSPHSystem,
                                                             v, u, v_ode,
                                                             u_ode, semi)
-    (; a_ii, density, predicted_density, inv_a_ii) = system
+    (; a_ii, density, predicted_density) = system
+    inv_a_ii = semi.iisph_pressure_cache.inv_a_ii
     time_step = system.time_step
 
     set_zero!(a_ii)
@@ -812,7 +798,7 @@ end
 function calculate_iisph_pressure_sum_d_ij_pj!(sum_d_ij_pj, pressure,
                                                system::ImplicitIncompressibleSPHSystem,
                                                semi)
-    (; pressure_neighbor_offsets, pressure_neighbor, pressure_d_ij) = system.cache
+    (; pressure_neighbor_offsets, pressure_neighbor, pressure_d_ij) = semi.iisph_pressure_cache
 
     set_zero!(sum_d_ij_pj)
 
@@ -845,7 +831,7 @@ function calculate_iisph_pressure_sum_term!(sum_term, pressure,
                                             semi)
     (; d_ii, sum_d_ij_pj) = system
     (; pressure_neighbor_offsets, pressure_neighbor, pressure_grad_mass,
-       pressure_d_ji_dot_grad, pressure_boundary_grad_mass_sum) = system.cache
+       pressure_d_ji_dot_grad, pressure_boundary_grad_mass_sum) = semi.iisph_pressure_cache
 
     set_zero!(sum_term)
 
@@ -967,7 +953,8 @@ function pressure_update(system, semi)
 end
 
 function pressure_update(system::ImplicitIncompressibleSPHSystem, semi)
-    (; pressure, sum_term, reference_density, a_ii, inv_a_ii, omega, density_error) = system
+    (; pressure, sum_term, reference_density, a_ii, omega, density_error) = system
+    inv_a_ii = semi.iisph_pressure_cache.inv_a_ii
 
     # Update the pressure values
     relative_density_error = pressure_update(system, pressure, reference_density, a_ii,

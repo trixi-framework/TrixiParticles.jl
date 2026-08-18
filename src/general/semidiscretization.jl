@@ -75,7 +75,7 @@ semi = Semidiscretization(fluid_system, boundary_system;
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-struct Semidiscretization{BACKEND, S, RU, RV, NSH, IM, UCU, IT, IPS}
+struct Semidiscretization{BACKEND, S, RU, RV, NSH, IM, UCU, IT, IPS, IPC}
     systems                     :: S
     ranges_u                    :: RU
     ranges_v                    :: RV
@@ -85,6 +85,7 @@ struct Semidiscretization{BACKEND, S, RU, RV, NSH, IM, UCU, IT, IPS}
     update_callback_used         :: UCU
     integrate_tlsph              :: IT # `false` if TLSPH integration is decoupled
     iisph_pressure_state        :: IPS
+    iisph_pressure_cache        :: IPC
 
     # Dispatch at `systems` to distinguish this constructor from the one below when
     # 4 systems are passed.
@@ -94,17 +95,19 @@ struct Semidiscretization{BACKEND, S, RU, RV, NSH, IM, UCU, IT, IPS}
                                 interaction_matrix,
                                 parallelization_backend::PointNeighbors.ParallelizationBackend,
                                 update_callback_used, integrate_tlsph,
-                                iisph_pressure_state)
+                                iisph_pressure_state, iisph_pressure_cache)
         new{typeof(parallelization_backend), typeof(systems), typeof(ranges_u),
             typeof(ranges_v), typeof(neighborhood_search_handler),
             typeof(interaction_matrix), typeof(update_callback_used),
-            typeof(integrate_tlsph), typeof(iisph_pressure_state)}(systems, ranges_u, ranges_v,
-                                                                 neighborhood_search_handler,
-                                                                 interaction_matrix,
-                                                                 parallelization_backend,
-                                                                 update_callback_used,
-                                                                 integrate_tlsph,
-                                                                 iisph_pressure_state)
+            typeof(integrate_tlsph), typeof(iisph_pressure_state),
+            typeof(iisph_pressure_cache)}(systems, ranges_u, ranges_v,
+                                          neighborhood_search_handler,
+                                          interaction_matrix,
+                                          parallelization_backend,
+                                          update_callback_used,
+                                          integrate_tlsph,
+                                          iisph_pressure_state,
+                                          iisph_pressure_cache)
     end
 end
 
@@ -155,16 +158,43 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
 
     iisph_pressure_state = (last_iterations=Ref(0), total_iterations=Ref(0),
                             max_iterations=Ref(0), solve_count=Ref(0),
-                            step_iterations=Ref(0), step_max_iterations=Ref(0),
-                            step_solve_count=Ref(0),
                             last_solve_time=Ref(0.0), total_solve_time=Ref(0.0),
-                            max_solve_time=Ref(0.0),
-                            step_solve_time=Ref(0.0), step_max_solve_time=Ref(0.0))
+                            max_solve_time=Ref(0.0))
+
+    iisph_pressure_cache = create_iisph_pressure_cache(systems)
 
     return Semidiscretization(systems, ranges_u, ranges_v, neighborhood_search_handler,
                                interaction_matrix,
                                parallelization_backend, update_callback_used,
-                               integrate_tlsph, iisph_pressure_state)
+                               integrate_tlsph, iisph_pressure_state, iisph_pressure_cache)
+end
+
+# Create the cache for the optimized IISPH pressure loop (and the inverse diagonal
+# elements used by the pressure update). The cache is owned by the `Semidiscretization`
+# to keep the system struct small, since the closures of the neighbor loops degrade
+# in performance when the struct gets too large.
+# The cached pressure loop requires exactly one IISPH system and no `PressureBoundaries`
+# (see `supports_cached_iisph_pressure_loop`). The cache is nevertheless created for any
+# semidiscretization containing an IISPH system, since the (generic) pressure update
+# of the fallback path also uses the `inv_a_ii` entry.
+function create_iisph_pressure_cache(systems)
+    system = findfirst(system -> system isa ImplicitIncompressibleSPHSystem, systems)
+    isnothing(system) && return nothing
+
+    system = systems[system]
+    n_particles = nparticles(system)
+    ELTYPE = eltype(system)
+    NDIMS = ndims(system)
+
+    return (; inv_a_ii=zeros(ELTYPE, n_particles),
+            pressure_neighbor_count=zeros(Int, n_particles),
+            pressure_neighbor_offsets=zeros(Int, n_particles + 1),
+            pressure_neighbor_cursor=zeros(Int, n_particles),
+            pressure_neighbor=zeros(Int, 0),
+            pressure_d_ij=zeros(ELTYPE, 0),
+            pressure_grad_mass=zeros(ELTYPE, 0),
+            pressure_d_ji_dot_grad=zeros(ELTYPE, 0),
+            pressure_boundary_grad_mass_sum=zeros(ELTYPE, NDIMS, n_particles))
 end
 
 function create_interaction_matrix(::Nothing, systems)
@@ -224,14 +254,9 @@ function record_iisph_pressure_iterations!(semi, iterations, solve_time=0.0)
     state.total_iterations[] += iterations
     state.max_iterations[] = max(state.max_iterations[], iterations)
     state.solve_count[] += 1
-    state.step_iterations[] += iterations
-    state.step_max_iterations[] = max(state.step_max_iterations[], iterations)
-    state.step_solve_count[] += 1
     state.last_solve_time[] = solve_time
     state.total_solve_time[] += solve_time
     state.max_solve_time[] = max(state.max_solve_time[], solve_time)
-    state.step_solve_time[] += solve_time
-    state.step_max_solve_time[] = max(state.step_max_solve_time[], solve_time)
 
     return semi
 end
@@ -253,61 +278,8 @@ function reset_iisph_pressure_iteration_stats!(semi)
     state.last_solve_time[] = 0.0
     state.total_solve_time[] = 0.0
     state.max_solve_time[] = 0.0
-    reset_iisph_pressure_step_stats!(semi)
 
     return semi
-end
-
-"""
-    reset_iisph_pressure_step_stats!(semi)
-
-Reset IISPH pressure solver counters accumulated since the previous accepted time step.
-
-See also [`iisph_pressure_step_stats`](@ref).
-"""
-function reset_iisph_pressure_step_stats!(semi)
-    state = semi.iisph_pressure_state
-
-    state.step_iterations[] = 0
-    state.step_max_iterations[] = 0
-    state.step_solve_count[] = 0
-    state.step_solve_time[] = 0.0
-    state.step_max_solve_time[] = 0.0
-
-    return semi
-end
-
-"""
-    iisph_pressure_step_stats(semi)
-
-Return IISPH pressure solver counters accumulated since the previous accepted time step.
-
-The returned named tuple contains:
-- `total_iterations`: accumulated Jacobi iterations in the current step
-- `max_iterations`: maximum Jacobi iterations in one pressure solve in the current step
-- `solve_count`: number of recorded pressure solves in the current step
-- `average_iterations`: average Jacobi iterations per pressure solve in the current step
-- `total_solve_time`: accumulated pressure solve wall time in the current step
-- `max_solve_time`: maximum pressure solve wall time in the current step
-- `average_solve_time`: average pressure solve wall time in the current step
-
-Use [`reset_iisph_pressure_step_stats!`](@ref) to reset these counters.
-"""
-function iisph_pressure_step_stats(semi)
-    state = semi.iisph_pressure_state
-
-    solve_count = state.step_solve_count[]
-    total_iterations = state.step_iterations[]
-    average_iterations = solve_count == 0 ? 0.0 : total_iterations / solve_count
-
-    return (total_iterations,
-            max_iterations=state.step_max_iterations[],
-            solve_count,
-            average_iterations,
-            total_solve_time=state.step_solve_time[],
-            max_solve_time=state.step_max_solve_time[],
-            average_solve_time=solve_count == 0 ? 0.0 :
-                               state.step_solve_time[] / solve_count)
 end
 
 """

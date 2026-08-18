@@ -16,10 +16,7 @@ Pages = [joinpath("schemes", "fluid", "implicit_incompressible_sph", "system.jl"
 
 Pressure solver iteration counters can be inspected with
 [`iisph_pressure_iteration_stats`](@ref) and reset with
-[`reset_iisph_pressure_iteration_stats!`](@ref).
-Per-step counters can be inspected with
-[`iisph_pressure_step_stats`](@ref) and reset with
-[`reset_iisph_pressure_step_stats!`](@ref). These counters include pressure solve wall
+[`reset_iisph_pressure_iteration_stats!`](@ref). These counters include pressure solve wall
 times in addition to Jacobi iteration counts.
 
 ## Matrix-free pressure operator
@@ -29,6 +26,8 @@ The cached IISPH pressure equation can be accessed as a matrix-free
 [`iisph_pressure_residual!`](@ref), and
 [`iisph_pressure_apply_preconditioner!`](@ref). This operator layer is intended for
 accelerated pressure solvers that reuse the same per-step neighbor coefficients.
+The cached coefficients are owned by the [`Semidiscretization`](@ref)
+(`semi.iisph_pressure_cache`) and are rebuilt once per time step.
 
 ## Derivation
 To derive the linear system of the pressure Poisson equation, we start by discretizing the

@@ -374,6 +374,8 @@
                                                           reference_density=1000.0,
                                                           time_step=0.01)
             semi_real = Semidiscretization(system_real; neighborhood_search=nothing)
+            @test semi_real.iisph_pressure_cache !== nothing
+            @test length(semi_real.iisph_pressure_cache.inv_a_ii) == 3
             ode_real = semidiscretize(semi_real, (0.0, 0.01); reset_threads=false)
             v_ode, u_ode = ode_real.u0.x
 
@@ -408,7 +410,25 @@
             @test rhs ≈ [TrixiParticles.iisph_source_term(system_real, particle)
                          for particle in eachindex(rhs)]
             @test residual ≈ rhs .- Ap
-            @test z ≈ system_real.inv_a_ii .* residual
+            @test z ≈ semi_real.iisph_pressure_cache.inv_a_ii .* residual
+        end
+
+        @testset "Pressure cache ownership" begin
+            # The pressure cache is owned by the `Semidiscretization` and only created
+            # when an IISPH system is present.
+            ic_wcsph = InitialCondition(; coordinates=[0.0 0.07; 0.0 0.02],
+                                        velocity=zeros(2, 2), mass=[1.0, 1.1],
+                                        density=[1000.0, 990.0])
+            wcsph_system = WeaklyCompressibleSPHSystem(ic_wcsph;
+                                                       smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
+                                                       smoothing_length=0.2,
+                                                       density_calculator=ContinuityDensity(),
+                                                       state_equation=StateEquationCole(;
+                                                                                       sound_speed=1.0,
+                                                                                       reference_density=1000.0,
+                                                                                       exponent=7))
+            semi_wcsph = Semidiscretization(wcsph_system; neighborhood_search=nothing)
+            @test semi_wcsph.iisph_pressure_cache === nothing
         end
 
         @testset "Boundary coefficients (PressureMirroring doubles a_ii)" begin
@@ -496,7 +516,7 @@
             system_pressure.a_ii .= [0.5, 1.0e-10]
             fill!(system_pressure.density_error, 0.0)
 
-            semi = DummySemidiscretization()
+            semi = DummySemidiscretization(; iisph_pressure_cache=(; inv_a_ii=zeros(2)))
             # First particle uses standard Jacobi update; second hits the safeguarded zero-a_ii path.
             # For particle 1: (1-omega)*0 + omega/a_ii * (source - sum_term) with omega=0.4,
             # source=(1000-990)=10, a_ii=0.5, sum_term=5 gives pressure 4 and density_error -3
@@ -515,7 +535,7 @@
 
             system_pressure.pressure .= 0.0
             system_pressure.density_error .= 0.0
-            system_pressure.inv_a_ii .= [2.0, 0.0]
+            semi.iisph_pressure_cache.inv_a_ii .= [2.0, 0.0]
 
             relative_error_cached = TrixiParticles.pressure_update(system_pressure,
                                                                    semi)
