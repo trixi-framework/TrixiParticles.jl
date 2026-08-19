@@ -65,18 +65,21 @@ trixi2vtk(boundary_sampled, filename="boundary")
 background_pressure = 1.0
 
 smoothing_length = 0.8 * particle_spacing
+neighborhood_search = GridNeighborhoodSearch{2}()
+
 packing_system = ParticlePackingSystem(shape_sampled; smoothing_length,
                                        signed_distance_field, place_on_shell,
-                                       background_pressure)
+                                       background_pressure, neighborhood_search)
 
 boundary_system = ParticlePackingSystem(boundary_sampled; smoothing_length,
                                         is_boundary=true, signed_distance_field,
                                         place_on_shell, boundary_compress_factor=0.8,
-                                        background_pressure)
+                                        background_pressure, neighborhood_search)
 
 # ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(packing_system, boundary_system)
+semi = Semidiscretization(packing_system, boundary_system;
+                          neighborhood_search, parallelization_backend=PolyesterBackend())
 
 # Use a high `tspan` to guarantee that the simulation runs at least for `maxiters`
 tspan = (0, 10.0)

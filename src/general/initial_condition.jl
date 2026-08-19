@@ -99,7 +99,7 @@ initial_condition = InitialCondition(; coordinates, velocity=x -> 2x, mass=1.0, 
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-struct InitialCondition{ELTYPE, C, MATRIX, VECTOR, N}
+struct InitialCondition{ELTYPE, C, MATRIX <: AbstractArray{ELTYPE}, VECTOR <: AbstractVector{ELTYPE}, N}
     particle_spacing :: ELTYPE
     coordinates      :: C      # Array{coordinates_eltype, 2}
     velocity         :: MATRIX # Array{ELTYPE, 2}
@@ -384,9 +384,9 @@ Base.intersect(initial_condition::InitialCondition) = initial_condition
 function InitialCondition(sol::ODESolution, system, semi; use_final_velocity=false,
                           min_particle_distance=(system.initial_condition.particle_spacing /
                                                  4))
+    # Build the initial condition on the CPU, even if `sol` lives on the GPU.
+    v_ode, u_ode, system, semi = transfer2cpu(sol.u[end].x..., system, semi)
     ic = system.initial_condition
-
-    v_ode, u_ode = sol.u[end].x
 
     v = wrap_v(v_ode, system, semi)
     u = wrap_u(u_ode, system, semi)
