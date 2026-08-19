@@ -253,7 +253,7 @@ function kinetic_energy(system::ParticlePackingSystem,
     is_boundary && return zero(eltype(system))
 
     squared_velocity = sum(abs2, advection_velocity; dims=1)
-    return mapreduce(*, +, squared_velocity, initial_condition.mass) / 2
+    return mapreduce(*,+,squared_velocity,initial_condition.mass) / 2
 end
 
 @inline source_terms(system::ParticlePackingSystem) = nothing
