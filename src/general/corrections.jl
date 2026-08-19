@@ -52,7 +52,8 @@ end
     ShepardKernelCorrection()
 
 Kernel correction, as explained by [Bonet (1999)](@cite Bonet1999), uses Shepard interpolation
-to obtain a 0-th order accurate result, which was first proposed by [Li et al. (1996)](@cite Li1996).
+to obtain a zeroth-order consistent result (exact reproduction of constants), which was first
+proposed by [Li et al. (1996)](@cite Li1996).
 
 The kernel correction coefficient is determined by
 ```math
@@ -61,7 +62,10 @@ c(x) = \sum_{b=1} V_b W_b(x),
 where ``V_b = m_b / \rho_b`` is the volume of particle ``b``.
 
 This correction is applied with [`SummationDensity`](@ref) to correct the density and leads
-to an improvement, especially at free surfaces.
+to an improvement, especially at free surfaces. With summation density, the current one-pass
+implementation uses the provisional density in ``V_b`` and therefore reduces the free-surface
+error without guaranteeing convergence. [`DensityReinitializationCallback`](@ref) instead uses
+the independently evolved continuity density and realizes the consistent Shepard operator.
 
 !!! note
     - It is also referred to as "0th order correction".
@@ -73,7 +77,8 @@ struct ShepardKernelCorrection end
     KernelCorrection()
 
 Kernel correction, as explained by [Bonet (1999)](@cite Bonet1999), uses Shepard interpolation
-to obtain a 0-th order accurate result, which was first proposed by Li et al.
+to obtain a zeroth-order consistent kernel gradient (an exact zero gradient for constants),
+which was first proposed by Li et al.
 This can be further extended to obtain a kernel corrected gradient as shown by [Basa et al. (2008)](@cite Basa2008).
 
 The kernel correction coefficient is determined by
@@ -100,13 +105,73 @@ struct KernelCorrection end
     MixedKernelGradientCorrection()
 
 Combines [`GradientCorrection`](@ref) and [`KernelCorrection`](@ref),
-which results in a 1st-order-accurate SPH method (see [Bonet, 1999](@cite Bonet1999)).
+which results in a first-order consistent kernel gradient reproducing both constant and affine
+fields exactly (see [Bonet, 1999](@cite Bonet1999)).
 
 # Notes:
 - Stability issues, especially when particles separate into small clusters.
 - Doubles the computational effort.
 """
 struct MixedKernelGradientCorrection end
+
+@doc raw"""
+    CorrectionConfiguration(; density=nothing, gradient=nothing)
+
+Configure density and gradient corrections independently. `density` can be `nothing` or
+[`ShepardKernelCorrection`](@ref). `gradient` can be `nothing`, [`KernelCorrection`](@ref),
+[`GradientCorrection`](@ref), [`BlendedGradientCorrection`](@ref), or
+[`MixedKernelGradientCorrection`](@ref).
+"""
+struct CorrectionConfiguration{D, G}
+    density::D
+    gradient::G
+
+    function CorrectionConfiguration(density::D, gradient::G) where {D, G}
+        if !(density === nothing || density isa ShepardKernelCorrection)
+            throw(ArgumentError("`density` must be `nothing` or `ShepardKernelCorrection()`"))
+        end
+        if !(gradient === nothing ||
+             gradient isa Union{KernelCorrection, GradientCorrection,
+                   BlendedGradientCorrection, MixedKernelGradientCorrection})
+            throw(ArgumentError("unsupported gradient correction `$(typeof(gradient))`"))
+        end
+
+        return new{D, G}(density, gradient)
+    end
+end
+
+function CorrectionConfiguration(; density=nothing, gradient=nothing)
+    return CorrectionConfiguration(density, gradient)
+end
+
+correction_density(::Any) = nothing
+correction_density(correction::ShepardKernelCorrection) = correction
+correction_density(correction::CorrectionConfiguration) = correction.density
+
+correction_gradient(::Nothing) = nothing
+correction_gradient(::ShepardKernelCorrection) = nothing
+correction_gradient(::AkinciFreeSurfaceCorrection) = nothing
+correction_gradient(correction) = correction
+correction_gradient(correction::CorrectionConfiguration) = correction.gradient
+
+correction_force(correction) = correction
+correction_force(::CorrectionConfiguration) = nothing
+
+function resolve_correction_configuration(correction, density_correction,
+                                          gradient_correction)
+    if correction !== nothing &&
+       (density_correction !== nothing || gradient_correction !== nothing)
+        throw(ArgumentError("`correction` cannot be combined with `density_correction` or " *
+                            "`gradient_correction`"))
+    end
+
+    if density_correction === nothing && gradient_correction === nothing
+        return correction
+    end
+
+    return CorrectionConfiguration(; density=density_correction,
+                                   gradient=gradient_correction)
+end
 
 function kernel_correction_coefficient(system::AbstractFluidSystem, particle)
     return system.cache.kernel_correction_coefficient[particle]
@@ -166,7 +231,22 @@ function compute_shepard_coeff!(system, system_coords, v_ode, u_ode, semi,
         end
     end
 
+    sanitize_kernel_correction_coefficient!(kernel_correction_coefficient, system, semi)
+
     return kernel_correction_coefficient
+end
+
+function sanitize_kernel_correction_coefficient!(coefficient, system, semi)
+    minimum_coefficient = sqrt(eps(eltype(coefficient)))
+
+    @threaded semi for particle in eachparticle(system)
+        value = coefficient[particle]
+        if !isfinite(value) || value <= minimum_coefficient
+            coefficient[particle] = one(value)
+        end
+    end
+
+    return coefficient
 end
 
 function dw_gamma(system::AbstractFluidSystem, particle)
@@ -255,9 +335,22 @@ function compute_correction_values!(system,
         end
     end
 
-    for particle in eachparticle(system), i in axes(dw_gamma, 1)
-        dw_gamma[i, particle] /= kernel_correction_coefficient[particle]
+    minimum_coefficient = sqrt(eps(eltype(kernel_correction_coefficient)))
+    @threaded semi for particle in eachparticle(system)
+        coefficient = kernel_correction_coefficient[particle]
+        if !isfinite(coefficient) || coefficient <= minimum_coefficient
+            kernel_correction_coefficient[particle] = one(coefficient)
+            for i in axes(dw_gamma, 1)
+                dw_gamma[i, particle] = zero(eltype(dw_gamma))
+            end
+        else
+            for i in axes(dw_gamma, 1)
+                dw_gamma[i, particle] /= coefficient
+            end
+        end
     end
+
+    return kernel_correction_coefficient
 end
 
 @doc raw"""
@@ -284,6 +377,9 @@ The gradient correction, as commonly proposed, involves multiplying this gradien
 
 The correction matrix  $\bm{L}_a$ is computed based on the provided particle configuration,
 aiming to make the corrected gradient more accurate, especially near domain boundaries.
+It gives a first-order consistent gradient by differentiating every affine field exactly.
+For smooth fields, the local truncation error is generally ``O(h)`` on asymmetric supports and
+``O(h^2)`` on symmetric interior supports.
 
 To satisfy
 ```math
@@ -313,6 +409,8 @@ This calculates the following,
 \tilde\nabla A_i = (1-\lambda) \nabla A_i + \lambda L_i \nabla A_i
 ```
 with ``0 \leq \lambda \leq 1`` being the blending factor.
+For a fixed ``\lambda < 1``, the uncorrected first-moment error remains and no asymptotic order
+improvement is guaranteed.
 
 # Arguments
 - `blending_factor`: Blending factor between corrected and regular SPH gradient.
@@ -321,6 +419,10 @@ struct BlendedGradientCorrection{ELTYPE <: Real}
     blending_factor::ELTYPE
 
     function BlendedGradientCorrection(blending_factor)
+        if !(zero(blending_factor) <= blending_factor <= one(blending_factor))
+            throw(ArgumentError("`blending_factor` must be between 0 and 1"))
+        end
+
         return new{eltype(blending_factor)}(blending_factor)
     end
 end
@@ -376,8 +478,10 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
                                    semi) do particle, neighbor, pos_diff, distance
                 function kernel_grad_local(correction, smoothing_kernel, pos_diff, distance,
                                            smoothing_length_, system, particle)
-                    return smoothing_kernel_grad_unsafe(system, pos_diff, distance,
-                                                        particle)
+                    # Do not dispatch through `system`: the correction matrix being used
+                    # by that path is the matrix currently being assembled here.
+                    return kernel_grad_unsafe(smoothing_kernel, pos_diff, distance,
+                                              smoothing_length_)
                 end
 
                 # Compute gradient of corrected kernel
@@ -426,8 +530,9 @@ function correction_matrix_inversion_step!(corr_matrix, system, semi)
     @threaded semi for particle in eachparticle(system)
         L = extract_smatrix(corr_matrix, system, particle)
 
-        # The matrix `L` only becomes singular when the particle and all neighbors
-        # are collinear (in 2D) or lie all in the same plane (in 3D).
+        # The matrix `L` becomes singular when the particle and all neighbors are collinear
+        # (in 2D) or lie all in the same plane (in 3D). Nearly singular matrices are also
+        # rejected below to avoid amplifying particle disorder.
         # This happens only when two (in 2D) or three (in 3D) particles are isolated,
         # or in cases where there is only one layer of fluid particles on a wall.
         # In these edge cases, we just disable the correction and set the corrected
@@ -441,7 +546,12 @@ function correction_matrix_inversion_step!(corr_matrix, system, semi)
         # so `L` is singular if and only if the position vectors X_ab don't span the
         # full space, i.e., particle a and all neighbors lie on the same line (in 2D)
         # or plane (in 3D).
-        if abs(det(L)) < 1.0f-9
+        scale = maximum(abs, L)
+        relative_determinant = abs(det(L)) / scale^ndims(system)
+        minimum_relative_determinant = sqrt(eps(eltype(L)))
+
+        if !isfinite(relative_determinant) ||
+           relative_determinant < minimum_relative_determinant
             L_inv = I
         else
             L_inv = inv(L)
@@ -457,6 +567,14 @@ function correction_matrix_inversion_step!(corr_matrix, system, semi)
 end
 
 create_cache_correction(correction, density, NDIMS, nparticles) = (;)
+
+function create_cache_correction(correction::CorrectionConfiguration, density, NDIMS,
+                                 n_particles)
+    density_cache = create_cache_correction(correction.density, density, NDIMS, n_particles)
+    gradient_cache = create_cache_correction(correction.gradient, density, NDIMS,
+                                             n_particles)
+    return merge(density_cache, gradient_cache)
+end
 
 function create_cache_correction(::ShepardKernelCorrection, density, NDIMS, n_particles)
     return (; kernel_correction_coefficient=similar(density))

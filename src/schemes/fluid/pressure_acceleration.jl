@@ -76,8 +76,10 @@ end
 # different inter-particle averages or to assume different inter-particle distributions.
 # Ramachandran (2019) and Adami (2012) use this formulation for the pressure acceleration.
 #
-# However, the tests show that the formulation is only linear and angular momentum conserving
-# but not energy conserving.
+# With a symmetric radial kernel gradient, the formulation conserves linear and angular
+# momentum, but not energy. With asymmetric corrected gradients, the formulation below still
+# conserves linear momentum, while the generally non-central pair force does not conserve
+# angular momentum.
 #
 # Note that the authors also used this formulation for an ISPH method in (https://doi.org/10.1016/j.jcp.2007.07.013)
 #
@@ -91,6 +93,21 @@ end
     pressure_tilde = (rho_b * p_a + rho_a * p_b) / (rho_a + rho_b)
 
     return -volume_term * pressure_tilde * W_a
+end
+
+# Linear-momentum-conserving extension for correction methods with asymmetric kernel gradients.
+# The asymmetric overload is selected based on the configured correction, even when a particular
+# particle pair happens to have symmetric gradients. It reduces to the symmetric formulation
+# above when `W_b == -W_a`.
+@inline function inter_particle_averaged_pressure(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a,
+                                                  W_b)
+    volume_a = m_a / rho_a
+    volume_b = m_b / rho_b
+    volume_term = (volume_a^2 + volume_b^2) / m_a
+    pressure_tilde = (rho_b * p_a + rho_a * p_b) / (rho_a + rho_b)
+
+    half = oftype(volume_term, 0.5)
+    return -half * volume_term * pressure_tilde * (W_a - W_b)
 end
 
 function choose_pressure_acceleration_formulation(pressure_acceleration,
@@ -143,6 +160,15 @@ end
 
 @inline pressure_acceleration_formulation(system) = system.pressure_acceleration_formulation
 
+# Use the local pressure offset by default. Specialized pair methods can combine offsets from
+# both systems when both directed interaction evaluations support the same reduction.
+@inline interaction_pressure_offset(system, particle) = zero(eltype(system))
+
+@propagate_inbounds function pair_pressure_offset(system, neighbor_system, particle,
+                                                  neighbor)
+    return interaction_pressure_offset(system, particle)
+end
+
 # Formulation using symmetric gradient formulation for corrections not depending on local neighborhood.
 @inline function pressure_acceleration(particle_system, neighbor_system, particle, neighbor,
                                        m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
@@ -161,7 +187,7 @@ end
                                                          GradientCorrection,
                                                          BlendedGradientCorrection,
                                                          MixedKernelGradientCorrection})
-    W_b = smoothing_kernel_grad(neighbor_system, -pos_diff, distance, neighbor)
+    W_b = hydrodynamic_smoothing_kernel_grad(neighbor_system, -pos_diff, distance, neighbor)
 
     # With correction, the kernel gradient is not necessarily symmetric, so call the
     # asymmetric version of the pressure acceleration formulation.

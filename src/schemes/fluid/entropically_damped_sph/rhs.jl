@@ -4,6 +4,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                    particle_system::EntropicallyDampedSPHSystem,
                    neighbor_system, semi)
     (; sound_speed, density_calculator, correction, nu_edac) = particle_system
+    gradient_correction = correction_gradient(correction)
 
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -54,7 +55,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         # It results in significant improvement for EDAC, especially with TVF,
         # but not for WCSPH, according to Ramachandran & Puri (2019), Section 3.2.
         # Note that the return value is zero when not using average pressure reduction.
-        p_avg = @inbounds average_pressure(particle_system, particle)
+        p_avg = @inbounds pair_pressure_offset(particle_system, neighbor_system, particle,
+                                               neighbor)
 
         m_a = @inbounds hydrodynamic_mass(particle_system, particle)
         m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
@@ -63,7 +65,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                                             particle, neighbor,
                                             m_a, m_b, p_a - p_avg, p_b - p_avg, rho_a,
                                             rho_b, pos_diff, distance, grad_kernel,
-                                            correction)
+                                            gradient_correction)
 
         dv_particle = Ref(dv_pressure)
         @inbounds dv_viscosity!(dv_particle, particle_system, neighbor_system,
@@ -77,7 +79,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                                particle_system, neighbor_system,
                                v_particle_system, v_neighbor_system,
                                particle, neighbor, m_a, m_b, rho_a, rho_b, v_a, v_b,
-                               pos_diff, distance, grad_kernel, correction)
+                               pos_diff, distance, grad_kernel, gradient_correction)
 
         @inbounds surface_tension_force!(dv_particle, surface_tension_a,
                                          surface_tension_b,

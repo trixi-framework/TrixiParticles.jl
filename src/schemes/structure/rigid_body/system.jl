@@ -267,7 +267,25 @@ end
 end
 
 @inline function system_correction(system::RigidBodySystem{<:BoundaryModelDummyParticles})
-    return system.boundary_model.correction
+    return correction_gradient(system.boundary_model.correction)
+end
+
+@inline function hydrodynamic_correction(system::RigidBodySystem{<:BoundaryModelDummyParticles})
+    return correction_gradient(system.boundary_model.correction)
+end
+
+@inline function kernel_correction_coefficient(system::RigidBodySystem{<:BoundaryModelDummyParticles},
+                                               particle)
+    return system.boundary_model.cache.kernel_correction_coefficient[particle]
+end
+
+@inline function dw_gamma(system::RigidBodySystem{<:BoundaryModelDummyParticles}, particle)
+    return extract_svector(system.boundary_model.cache.dw_gamma, system, particle)
+end
+
+@inline function correction_matrix(system::RigidBodySystem{<:BoundaryModelDummyParticles},
+                                   particle)
+    return extract_smatrix(system.boundary_model.cache.correction_matrix, system, particle)
 end
 
 function initialize!(system::RigidBodySystem, semi)
@@ -360,6 +378,13 @@ function restart_with!(system::RigidBodySystem, v, u)
     return system
 end
 
+function update_density_correction!(system::RigidBodySystem{<:BoundaryModelDummyParticles},
+                                    v, u, v_ode, u_ode, semi, t)
+    update_density_correction!(system.boundary_model, system, v, u, v_ode, u_ode, semi)
+
+    return system
+end
+
 function update_boundary_interpolation!(system::RigidBodySystem, v, u, v_ode, u_ode,
                                         semi, t)
     return update_boundary_interpolation!(system.boundary_model, system, v, u, v_ode,
@@ -374,6 +399,13 @@ end
 function update_boundary_interpolation!(boundary_model, system::RigidBodySystem, v, u,
                                         v_ode, u_ode, semi, t)
     update_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi)
+    return system
+end
+
+function update_gradient_correction!(system::RigidBodySystem{<:BoundaryModelDummyParticles},
+                                     v, u, v_ode, u_ode, semi, t)
+    update_gradient_correction!(system.boundary_model, system, v, u, v_ode, u_ode, semi)
+
     return system
 end
 

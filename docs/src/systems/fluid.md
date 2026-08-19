@@ -209,6 +209,195 @@ Pages = [joinpath("schemes", "fluid", "viscosity.jl")]
 
 ## [Corrections](@id corrections)
 
+Gradient corrections generally make the two kernel gradients of a particle pair asymmetric.
+The corresponding eight-argument pressure formulations are therefore selected from the
+configured correction method, even when a particular pair happens to satisfy
+``\nabla W_b = -\nabla W_a``. In that symmetric case, the asymmetric formulation reduces to
+the standard symmetric formulation.
+
+The antisymmetric combination of corrected gradients preserves pairwise linear momentum.
+Since corrected gradients are generally not parallel to the particle separation, the resulting
+force is not necessarily central and does not in general preserve angular momentum. The usual
+linear- and angular-momentum guarantee applies to symmetric radial kernel gradients.
+
+When EDAC average-pressure reduction is enabled, two interacting EDAC particles use the
+arithmetic mean of their local pressure offsets. The shared pair offset ensures that both
+directed evaluations use identical reduced pair pressures, which is required for the
+antisymmetric corrected-gradient formulation to preserve linear momentum. Interactions between
+schemes using different pressure formulations do not gain a conservation guarantee from this
+construction.
+
+### Configuration
+
+Density and gradient corrections can be configured independently for WCSPH and EDAC:
+
+```julia
+fluid_system = WeaklyCompressibleSPHSystem(initial_condition;
+                                           density_calculator=SummationDensity(),
+                                           state_equation, smoothing_kernel,
+                                           smoothing_length,
+                                           density_correction=ShepardKernelCorrection(),
+                                           gradient_correction=MixedKernelGradientCorrection())
+```
+
+The legacy `correction` keyword remains available for selecting one correction, but it cannot be
+combined with the two role-specific keywords.
+
+| System | Density handling | Supported correction behavior |
+|:-------|:-----------------|:------------------------------|
+| WCSPH with [`SummationDensity`](@ref) | Density is recomputed algebraically at every RHS evaluation | Shepard can filter density; all gradient corrections are supported |
+| WCSPH with [`ContinuityDensity`](@ref) | Density is an evolved ODE variable | Gradient corrections are supported; Shepard is applied only by [`DensityReinitializationCallback`](@ref) |
+| EDAC with [`SummationDensity`](@ref) | Density is algebraic and pressure is evolved independently | Same one-pass Shepard limitation as WCSPH; all gradient corrections are supported |
+| EDAC with [`ContinuityDensity`](@ref) | Density and pressure are evolved ODE variables | Gradient corrections are supported; continuous Shepard density overwrite is rejected |
+| [`ImplicitIncompressibleSPHSystem`](@ref) | Summation density is coupled to the pressure projection | Corrections are not supported |
+
+IISPH relies on antisymmetric raw kernel gradients throughout its pressure matrix. Supporting an
+asymmetric corrected gradient would require rederiving every projection term, so corrections are
+intentionally not exposed for IISPH.
+
+The default pressure acceleration is selected to match the density evolution law. When passing a
+formulation explicitly, the caller is responsible for choosing the corresponding pairing:
+
+| Pressure acceleration | Consistent density calculator | Asymmetric gradient corrections |
+|:----------------------|:-------------------|:--------------------------------|
+| `pressure_acceleration_summation_density` | [`SummationDensity`](@ref) | Supported |
+| `pressure_acceleration_continuity_density` | [`ContinuityDensity`](@ref) | Supported |
+| `inter_particle_averaged_pressure` | Either | Supported |
+| [`tensile_instability_control`](@ref) | [`ContinuityDensity`](@ref) | Not supported |
+
+For a correction whose gradients differ at particles ``a`` and ``b``, the conservative extensions
+use both ``\widetilde{\nabla}W_{ab}^{(a)}`` and
+``\widetilde{\nabla}W_{ba}^{(b)}``. They reduce algebraically to the original formulas when the
+gradient is antisymmetric and give equal-and-opposite pair forces for arbitrary corrected
+gradients. Tensile instability control has no such extension and is therefore rejected with
+`KernelCorrection`, `GradientCorrection`, `BlendedGradientCorrection`, and
+`MixedKernelGradientCorrection`.
+
+### Consistency validation
+
+The consistency degree of an SPH correction describes which polynomial fields its discrete
+operator reproduces exactly. This is different from a convergence order: zeroth-order
+consistency means exact constants, while first-order consistency means exact affine fields
+([Bonet and Lok (1999)](@cite Bonet1999); [Sigalotti et al. (2021)](@cite Sigalotti2021)).
+
+The correction operators are validated on regular and perturbed particle patches by comparing
+their discrete moments with the analytical identities
+
+```math
+\sum_b V_b \widetilde{\nabla}W_{ab} = \bm{0}, \qquad
+\sum_b V_b \widetilde{\nabla}W_{ab}(\bm{x}_b-\bm{x}_a)^T = \bm{I}.
+```
+
+The local truncation scaling follows by inserting a Taylor expansion into the discrete
+interpolation ``I_h f`` and direct gradient ``G_h f``:
+
+```math
+\bm{M}_k = \sum_b V_b(\bm{x}_b-\bm{x}_a)^{\otimes k}W_{ab}, \qquad
+\bm{G}_k = \sum_b V_b\widetilde{\nabla}W_{ab}
+            \otimes(\bm{x}_b-\bm{x}_a)^{\otimes k}.
+```
+
+```math
+I_h f-f_a = (M_0-1)f_a + \bm{M}_1 \cdot \nabla f_a
+             + \frac{1}{2}\bm{M}_2 : \nabla^2 f_a + \cdots,
+```
+
+```math
+G_h f-\nabla f_a = f_a\bm{G}_0 + (\bm{G}_1-\bm{I})\nabla f_a
+                    + \frac{1}{2}\bm{G}_2 : \nabla^2 f_a + \cdots.
+```
+
+Here ``M_k=O(h^k)`` and ``G_k=O(h^{k-1})``. Consequently, exact constants give an
+``O(h)`` interpolation on a generic one-sided support, while an exact linear gradient gives an
+``O(h)`` derivative there. On a symmetric interior support, odd moments cancel and both can
+display ``O(h^2)`` local truncation errors. The expected behavior of the implemented operators is:
+
+| Correction | Enforced discrete moment | Generic/truncated support | Symmetric interior support |
+|:-----------|:-------------------------|:--------------------------|:---------------------------|
+| [`ShepardKernelCorrection`](@ref) | ``M_0=1`` | ``O(h)`` interpolation | ``O(h^2)`` interpolation |
+| [`KernelCorrection`](@ref) | ``\bm{G}_0=\bm{0}`` | Removes the ``O(h^{-1})`` constant leakage, but leaves an ``O(1)`` first-moment error | No guaranteed rate at fixed ``\Delta x/h`` |
+| [`GradientCorrection`](@ref) | ``\bm{G}_1=\bm{I}`` for the difference gradient | ``O(h)`` gradient | ``O(h^2)`` gradient |
+| [`BlendedGradientCorrection`](@ref) | ``\bm{G}_1`` error scaled by ``1-\lambda`` | Fixed ``\lambda<1`` leaves an ``O(1)`` error | No guaranteed asymptotic rate at fixed ``\Delta x/h`` |
+| [`MixedKernelGradientCorrection`](@ref) | ``\bm{G}_0=\bm{0}`` and ``\bm{G}_1=\bm{I}`` | ``O(h)`` gradient | ``O(h^2)`` gradient |
+
+The Shepard interpolation scalings in this table assume prescribed volumes ``V_b`` that are
+consistent with the interpolated field. The current [`SummationDensity`](@ref) implementation
+instead forms ``V_b=m_b/\rho_b`` from the uncorrected summation density and performs one
+normalization pass. At a truncated free surface with fixed ``\Delta x/h``, this reduces the error
+constant but does not remove the ``O(1)`` boundary error. The validation therefore reports the
+ideal normalized interpolation and the production summation-density update as separate operators.
+The continuity-density reinitialization uses the evolved density as an independent volume source
+and therefore recovers the expected Shepard scaling.
+
+These are local operator scalings on self-similar regular particle patches with
+``h\propto\Delta x``; they are not convergence rates of the complete SPH scheme. Classical SPH
+also has a particle quadrature error depending on ``\Delta x/h`` and the particle distribution.
+Formal convergence without consistency correction generally requires the joint limit
+``h\to0``, ``\Delta x/h\to0``, and an increasing neighbor count
+([Quinlan et al. (2006)](@cite Quinlan2006); [Zhu et al. (2015)](@cite Zhu2015)).
+
+The reproducible study reports boundary and interior scalings separately. It prints a Markdown
+table and writes its complete data to
+`out/correction_convergence.csv`:
+
+```bash
+julia --project=. validation/corrections/convergence.jl
+```
+
+#### Measured operator scaling
+
+The following values are from the finest refinement (``N=96`` particles per coordinate
+direction) of a cubic manufactured field with a [`WendlandC6Kernel`](@ref),
+``h/\Delta x=2``, and prescribed particle volumes.
+The boundary sample uses a one-sided kernel support away from the corners; the interior sample
+has a complete symmetric support. The measured scaling is calculated between ``N=48`` and
+``N=96``. The summation-density rows use the production [`SummationDensity`](@ref) update instead
+of prescribed volumes; the reinitialization row uses the evolved continuity density as its volume
+source.
+
+| Method | Operator | Boundary ``L_2`` error | Boundary scaling | Interior ``L_2`` error | Interior scaling |
+|:-------|:---------|-----------------------:|-----------------:|-----------------------:|-----------------:|
+| Uncorrected | Interpolation | ``2.622e-1`` | ``-0.007`` | ``2.956e-4`` | ``0.543`` |
+| [`ShepardKernelCorrection`](@ref) | Normalized interpolation | ``1.567e-3`` | ``1.052`` | ``4.466e-5`` | ``2.014`` |
+| Uncorrected | Direct gradient | ``6.339e1`` | ``-1.009`` | ``7.226e-4`` | ``-0.090`` |
+| [`KernelCorrection`](@ref) | Direct gradient | ``3.200e-1`` | ``-0.005`` | ``9.735e-4`` | ``-0.068`` |
+| [`GradientCorrection`](@ref) | Difference gradient | ``1.123e-2`` | ``1.010`` | ``2.381e-5`` | ``2.016`` |
+| [`BlendedGradientCorrection`](@ref), ``\lambda=0.5`` | Difference gradient | ``1.765e-1`` | ``-0.049`` | ``3.539e-4`` | ``-0.170`` |
+| [`MixedKernelGradientCorrection`](@ref) | Direct gradient | ``9.173e-3`` | ``1.012`` | ``2.381e-5`` | ``2.016`` |
+| Uncorrected | Summation density | ``2.631e-1`` | ``-0.002`` | ``2.537e-4`` | ``0.040`` |
+| [`ShepardKernelCorrection`](@ref) | Summation density | ``1.918e-1`` | ``-0.004`` | ``2.557e-4`` | ``0.076`` |
+| [`ShepardKernelCorrection`](@ref) | Continuity-density reinitialization | ``3.810e-4`` | ``1.010`` | ``2.401e-6`` | ``2.001`` |
+
+#### Measured pressure acceleration
+
+The same study evaluates every supported pressure-acceleration pairing with a manufactured
+pressure that vanishes at the left free surface and the exact acceleration
+``-\nabla p/\rho``. Since a conservative asymmetric pair uses correction data from both particles,
+the interior sample keeps both kernel neighborhoods complete. Each entry below is the interior
+``L_2`` error at ``N=96`` followed by the scaling from ``N=48`` to ``N=96``.
+
+| Correction | Summation-density pressure | Inter-particle, summation density | Continuity-density pressure | Inter-particle, continuity density |
+|:-----------|----------------------------:|----------------------------------:|----------------------------:|----------------------------------:|
+| None | ``9.557e-4 / -0.162`` | ``9.557e-4 / -0.162`` | ``7.046e-4 / -0.224`` | ``7.046e-4 / -0.224`` |
+| [`ShepardKernelCorrection`](@ref) | ``9.557e-4 / -0.162`` | ``9.557e-4 / -0.162`` | Not applicable | Not applicable |
+| [`KernelCorrection`](@ref) | ``9.557e-4 / -0.162`` | ``9.557e-4 / -0.162`` | ``9.557e-4 / -0.162`` | ``9.557e-4 / -0.162`` |
+| [`GradientCorrection`](@ref) | ``3.439e-5 / 2.021`` | ``3.439e-5 / 2.021`` | ``3.439e-5 / 2.021`` | ``3.439e-5 / 2.021`` |
+| [`BlendedGradientCorrection`](@ref), ``\lambda=0.5`` | ``4.613e-4 / -0.355`` | ``4.613e-4 / -0.355`` | ``3.358e-4 / -0.509`` | ``3.358e-4 / -0.509`` |
+| [`MixedKernelGradientCorrection`](@ref) | ``3.439e-5 / 2.021`` | ``3.439e-5 / 2.021`` | ``3.439e-5 / 2.021`` | ``3.439e-5 / 2.021`` |
+| Shepard density + mixed gradient | ``3.465e-5 / 2.004`` | ``3.465e-5 / 2.005`` | Not applicable | Not applicable |
+
+For positive pressure, [`tensile_instability_control`](@ref) reduces exactly to the uncorrected
+continuity-density pressure law and produces the same measured errors. All formulations have a
+constant-pressure null response in the complete interior to an absolute acceleration error below
+``1e-7``.
+
+On the truncated free-surface row, none of the conservative pressure operators converges at fixed
+``h/\Delta x``; the observed scaling remains approximately zero. The local correction moments
+constrain one particle's gradient operator, but do not impose consistency on a conservative pair
+assembled from two differently truncated neighborhoods. This limitation is reported rather than
+hidden by applying a non-conservative one-sided pressure difference. The complete boundary and
+interior data for every variation are written to `out/correction_convergence.csv`.
+
 ```@autodocs
 Modules = [TrixiParticles]
 Pages = [joinpath("general", "corrections.jl")]
