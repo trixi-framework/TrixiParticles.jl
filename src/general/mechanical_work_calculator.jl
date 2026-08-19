@@ -212,19 +212,21 @@ function compute_structure_acceleration!(dv, v, u, system, eachparticle,
                                          v_ode, u_ode, semi, t)
     set_zero!(dv)
 
-    foreach_system(semi) do neighbor_system
+    foreach_system_wrapped(semi, v_ode, u_ode) do neighbor_system, v_neighbor, u_neighbor
         if only_compute_force_on_fluid && !(neighbor_system isa AbstractFluidSystem)
             # Not a fluid system, ignore this system.
-            return nothing
+            return dv
         end
 
-        v_neighbor = wrap_v(v_ode, neighbor_system, semi)
-        u_neighbor = wrap_u(u_ode, neighbor_system, semi)
+        if !has_system_interaction(system, neighbor_system, semi)
+            # No interaction between these systems.
+            return dv
+        end
 
-        interact!(dv, v, u, v_neighbor, u_neighbor,
-                  system, neighbor_system, semi,
-                  integrate_tlsph=true, # Required when using split integration
-                  eachparticle=eachparticle)
+        apply_system_interaction!(dv, v, u, v_neighbor, u_neighbor,
+                                  system, neighbor_system, semi,
+                                  integrate_tlsph=true, # Required when using split integration
+                                  eachparticle=eachparticle)
 
         return nothing
     end
