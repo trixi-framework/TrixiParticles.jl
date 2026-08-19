@@ -13,6 +13,7 @@ end
 # ==========================================================================================
 # ==== Resolution
 n_particles_y = 4
+parallelization_backend = PolyesterBackend()
 
 # ==========================================================================================
 # ==== Experiment Setup
@@ -126,7 +127,8 @@ n_buffer_particles = 20 * tank.n_particles_per_dimension[2]^(NDIMS - 1)
 # ==== Packing
 packing = false
 if packing
-    foot_pocket, fluid = sample_and_pack(particle_spacing, center, blade, tank.fluid)
+    foot_pocket, fluid = sample_and_pack(particle_spacing, center, blade, tank.fluid;
+                                         parallelization_backend)
     fin = union(blade, foot_pocket)
 else
     foot_pocket = sample_foot_pocket(particle_spacing, center, blade)
@@ -323,7 +325,7 @@ neighborhood_search = GridNeighborhoodSearch{2}(; periodic_box, cell_list,
 
 semi = Semidiscretization(fluid_system, boundary_system, open_boundary_system,
                           structure_system; neighborhood_search,
-                          parallelization_backend=PolyesterBackend())
+                          parallelization_backend)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)

@@ -33,7 +33,8 @@ function _sample_foot_pocket(particle_spacing, center, blade)
     return geometry, foot_pocket
 end
 
-function sample_and_pack(particle_spacing, center, blade, fluid)
+function sample_and_pack(particle_spacing, center, blade, fluid;
+                         parallelization_backend)
     geometry, foot_pocket = _sample_foot_pocket(particle_spacing, center, blade)
 
     foot_sdf = SignedDistanceField(geometry, particle_spacing;
@@ -68,8 +69,17 @@ function sample_and_pack(particle_spacing, center, blade, fluid)
                                                  signed_distance_field=nothing,
                                                  background_pressure)
 
+    packing_coordinates = hcat(foot_pocket.coordinates,
+                               boundary_for_packing.coordinates, blade.coordinates)
+    min_corner = minimum(packing_coordinates, dims=2)
+    max_corner = maximum(packing_coordinates, dims=2)
+    cell_list = FullGridCellList(; min_corner, max_corner)
+    neighborhood_search = GridNeighborhoodSearch{2}(; cell_list,
+                                                    update_strategy=ParallelUpdate())
+
     semi_packing = Semidiscretization(foot_packing_system, fluid_packing_system,
-                                      blade_packing_system)
+                                      blade_packing_system; neighborhood_search,
+                                      parallelization_backend)
 
     ode_packing = semidiscretize(semi_packing, (0.0, 100.0))
 
@@ -123,14 +133,15 @@ function sample_and_pack(particle_spacing, center, blade, fluid)
                                                  signed_distance_field=nothing,
                                                  background_pressure)
 
-    min_corner = minimum(fixed_union.coordinates, dims=2)
-    max_corner = maximum(fixed_union.coordinates, dims=2)
+    packing_coordinates = hcat(pack_fluid.coordinates, fixed_union.coordinates)
+    min_corner = minimum(packing_coordinates, dims=2)
+    max_corner = maximum(packing_coordinates, dims=2)
     cell_list = FullGridCellList(; min_corner, max_corner)
     neighborhood_search = GridNeighborhoodSearch{2}(; cell_list,
                                                     update_strategy=ParallelUpdate())
 
     semi_packing = Semidiscretization(fluid_packing_system, fixed_packing_system;
-                                      neighborhood_search)
+                                      neighborhood_search, parallelization_backend)
 
     ode_packing = semidiscretize(semi_packing, (0.0, 50.0))
 
