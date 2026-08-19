@@ -38,15 +38,30 @@ function is_clamped_structure_particle(coordinates, particle, simulate_foot_pock
     x = coordinates[1, particle] - center[1]
 
     if simulate_foot_pocket
-        # The foot pocket is modeled as a rigid structure on the left side,
-        # and as an elastic structure on the right side.
-        rigid_elastic_split_x = -0.27
+        y = coordinates[2, particle] - center[2]
+        rigid_elastic_split_x = -0.28
+        rounding_radius = 0.02
+        x_circle_center = rigid_elastic_split_x - rounding_radius
 
-        return x <= rigid_elastic_split_x
-    else
-        # The elastic part of the blade starts at x = 0 in the fin coordinate system.
-        return x <= 0.0
+        x > rigid_elastic_split_x && return false
+        x <= x_circle_center && return true
+
+        # At x = x_circle_center, the DXF intersects the top and bottom surfaces at
+        # y = 0.06666 and y = -0.020261, respectively. The circle centers are
+        # one radius inside the foot pocket so that each transition is a quarter circle.
+        rounding_start_top = 0.04666
+        rounding_start_bottom = -0.000261
+
+        circle_y_offset = sqrt(max(rounding_radius^2 - (x - x_circle_center)^2, 0.0))
+
+        y > rounding_start_top + circle_y_offset && return false
+        y < rounding_start_bottom - circle_y_offset && return false
+
+        return true
     end
+
+    # The elastic part of the blade starts at x = 0 in the fin coordinate system.
+    return x <= 0.0
 end
 
 function artificial_material_properties(x)
@@ -136,7 +151,7 @@ end
     distance_from_blade_center = abs(y_relative)
 
     # There is no material interface along the free part of the blade.
-    x >= 0 && return 0.0
+    x_relative >= 0 && return 0.0
 
     # Blend the material interface around the edge of the artificially thick blade.
     # The discontinuity is half a particle spacing beyond the outer blade particles.
@@ -152,6 +167,7 @@ end
 
     inner_edge = material_discontinuity_distance - inner_width
     outer_edge = material_discontinuity_distance + outer_width
+
     distance_from_blade_center <= inner_edge && return 0.0
     distance_from_blade_center >= outer_edge && return 1.0
 
