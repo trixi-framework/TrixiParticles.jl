@@ -222,11 +222,12 @@ hydrodynamic_densites = fluid_density * ones(size(structure.density))
 hydrodynamic_masses = hydrodynamic_densites * particle_spacing^2
 
 boundary_model_structure = BoundaryModelDummyParticles(hydrodynamic_densites,
-                                                   hydrodynamic_masses,
-                                                   state_equation=state_equation,
-                                                   boundary_density_calculator,
-                                                   smoothing_kernel, smoothing_length_fluid,
-                                                   viscosity=viscosity_fin)
+                                                       hydrodynamic_masses,
+                                                       state_equation=state_equation,
+                                                       boundary_density_calculator,
+                                                       smoothing_kernel,
+                                                       smoothing_length_fluid,
+                                                       viscosity=viscosity_fin)
 
 # Compute mass, density and modulus.
 apply_material_properties!(structure, simulate_foot_pocket)
