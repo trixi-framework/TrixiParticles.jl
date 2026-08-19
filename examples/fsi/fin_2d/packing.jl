@@ -49,33 +49,34 @@ function sample_and_pack(particle_spacing, center, blade, fluid;
     boundary_for_packing = TrixiParticles.@set boundary_for_packing.coordinates = coordinates_fp64
     boundary_for_packing = setdiff(boundary_for_packing, blade)
 
+    packing_coordinates = hcat(foot_pocket.coordinates,
+                               boundary_for_packing.coordinates, blade.coordinates)
+    min_corner = minimum(packing_coordinates, dims=2) .- 5 * particle_spacing
+    max_corner = maximum(packing_coordinates, dims=2) .+ 5 * particle_spacing
+    cell_list = FullGridCellList(; min_corner, max_corner)
+    neighborhood_search = GridNeighborhoodSearch{2}(; cell_list,
+                                                    update_strategy=ParallelUpdate())
+
     background_pressure = 1.0
     smoothing_length_packing = 0.8 * particle_spacing
     foot_packing_system = ParticlePackingSystem(foot_pocket;
                                                 smoothing_length=smoothing_length_packing,
                                                 signed_distance_field=foot_sdf,
-                                                background_pressure)
+                                                background_pressure, neighborhood_search)
 
     # This is just a thin layer of fluid particles against which the foot is packed.
     fluid_packing_system = ParticlePackingSystem(boundary_for_packing;
                                                  smoothing_length=smoothing_length_packing,
                                                  signed_distance_field=foot_sdf,
                                                  is_boundary=true, background_pressure,
-                                                 boundary_compress_factor=0.8)
+                                                 boundary_compress_factor=0.8,
+                                                 neighborhood_search)
 
     blade_packing_system = ParticlePackingSystem(blade;
                                                  smoothing_length=smoothing_length_packing,
                                                  fixed_system=true,
                                                  signed_distance_field=nothing,
-                                                 background_pressure)
-
-    packing_coordinates = hcat(foot_pocket.coordinates,
-                               boundary_for_packing.coordinates, blade.coordinates)
-    min_corner = minimum(packing_coordinates, dims=2)
-    max_corner = maximum(packing_coordinates, dims=2)
-    cell_list = FullGridCellList(; min_corner, max_corner)
-    neighborhood_search = GridNeighborhoodSearch{2}(; cell_list,
-                                                    update_strategy=ParallelUpdate())
+                                                 background_pressure, neighborhood_search)
 
     semi_packing = Semidiscretization(foot_packing_system, fluid_packing_system,
                                       blade_packing_system; neighborhood_search,
