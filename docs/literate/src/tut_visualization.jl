@@ -107,16 +107,19 @@ restart_files = (joinpath("out", "fluid_1_$iter.vtu"),
                  joinpath("out", "open_boundary_1_$iter.vtu"),
                  joinpath("out", "boundary_1_$iter.vtu"),
                  joinpath("out", "boundary_2_$iter.vtu"))
+nothing # hide
 
 # With these files, we can reconstruct the solution at the saved time.
 ode = semidiscretize(semi, tspan; restart_with=restart_files)
 v_ode, u_ode = ode.u0.x
 t = ode.tspan[1]
+nothing # hide
 
 # Before we can plot or interpolate the solution, however, we need to update the
 # semidiscretization to re-calculate quantities such as pressure and to update the
 # neighborhood search.
 TrixiParticles.update_systems_and_nhs(v_ode, u_ode, semi, t)
+nothing # hide
 
 # The reconstructed arrays can be plotted like we did above.
 v_fluid = TrixiParticles.wrap_v(v_ode, fluid_system, semi)
