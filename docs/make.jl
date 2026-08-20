@@ -42,6 +42,8 @@ Literate.markdown(joinpath("docs", "literate", "src", "tut_rigid_body_fsi.jl"),
                   joinpath("docs", "src", "tutorials"))
 Literate.markdown(joinpath("docs", "literate", "src", "tut_packing.jl"),
                   joinpath("docs", "src", "tutorials"))
+Literate.markdown(joinpath("docs", "literate", "src", "tut_visualization.jl"),
+                  joinpath("docs", "src", "tutorials"))
 
 copy_file("AUTHORS.md",
           "in the [LICENSE.md](LICENSE.md) file" => "under [License](@ref)")
@@ -87,7 +89,9 @@ makedocs(sitename="TrixiParticles.jl",
                      "Setting up your simulation from scratch" => joinpath("tutorials",
                                                                            "tut_setup.md"),
                      "Modifying or extending components of TrixiParticles.jl within a simulation file" => joinpath("tutorials",
-                                                                                                                   "tut_custom_kernel.md")
+                                                                                                                   "tut_custom_kernel.md"),
+                     "Visualizing particle data with Plots.jl" => joinpath("tutorials",
+                                                                            "tut_visualization.md")
                  ],
                  "Fluid-Structure Interaction" => [
                      "Fluid-structure interaction with rigid bodies" => joinpath("tutorials",
