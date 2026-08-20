@@ -1,12 +1,12 @@
 @testset verbose=true "MechanicalWorkCalculator" begin
     coordinates = [0.0 1.0 0.0 1.0; 0.0 0.0 1.0 1.0]
     initial_condition = InitialCondition(; coordinates, velocity=zeros(2, 4),
-                                            mass=ones(4), density=fill(1000.0, 4),
-                                            pressure=0.0, particle_spacing=-1.0)
+                                         mass=ones(4), density=fill(1000.0, 4),
+                                         pressure=0.0, particle_spacing=-1.0)
     system_ = TotalLagrangianSPHSystem(initial_condition;
-                                        smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
-                                        smoothing_length=sqrt(2), young_modulus=1.0,
-                                        poisson_ratio=0.4, clamped_particles=3:4)
+                                       smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
+                                       smoothing_length=sqrt(2), young_modulus=1.0,
+                                       poisson_ratio=0.4, clamped_particles=3:4)
     semi = Semidiscretization(system_)
     system = semi.systems[1]
 
