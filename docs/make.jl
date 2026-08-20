@@ -35,7 +35,7 @@ function copy_file(filename, replaces...;
 end
 
 tutorials_output_dir = joinpath("docs", "src", "tutorials")
-rm(tutorials_output_dir; recursive=true)
+rm(tutorials_output_dir; recursive=true, force=true)
 mkpath(tutorials_output_dir)
 
 Literate.markdown(joinpath("docs", "literate", "src", "tut_setup.jl"),
