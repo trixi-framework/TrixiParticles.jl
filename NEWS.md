@@ -6,11 +6,12 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ## Version 0.5.4
 
-### Bugfixes
+### Important Bugfixes
 
 - Fixed mathematical inconsistencies in the SPH documentation, including incorrect
   formulas, inconsistent force-vs-acceleration notation, and wrong LaTeX text-mode
   commands (#1086).
+- Fixed restarting with EDAC from solution objects (#1213) and from VTK files (#1297).
 
 ## Version 0.5.3
 
