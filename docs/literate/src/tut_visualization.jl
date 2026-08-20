@@ -6,6 +6,8 @@
 
 using TrixiParticles
 using Plots
+#src # Reset GR's process-wide color table, which can be exhausted by earlier tutorials.
+Plots.closeall() # hide
 
 # The example defines the particle spacing as `particle_spacing_factor * cylinder_diameter`.
 # We deliberately use a very coarse particle resolution. This makes the distinction between
