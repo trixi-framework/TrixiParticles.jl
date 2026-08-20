@@ -91,7 +91,7 @@ makedocs(sitename="TrixiParticles.jl",
                      "Modifying or extending components of TrixiParticles.jl within a simulation file" => joinpath("tutorials",
                                                                                                                    "tut_custom_kernel.md"),
                      "Visualizing particle data with Plots.jl" => joinpath("tutorials",
-                                                                            "tut_visualization.md")
+                                                                           "tut_visualization.md")
                  ],
                  "Fluid-Structure Interaction" => [
                      "Fluid-structure interaction with rigid bodies" => joinpath("tutorials",
