@@ -310,6 +310,7 @@ end
 @propagate_inbounds function current_acceleration(system::TotalLagrangianSPHSystem,
                                                   particle)
     if particle <= system.n_integrated_particles || !system.clamped_particles_moving[]
+        # TODO Return `dv` of solid particles
         return zero(SVector{ndims(system), eltype(system)})
     end
 
