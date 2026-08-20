@@ -12,6 +12,10 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   formulas, inconsistent force-vs-acceleration notation, and wrong LaTeX text-mode
   commands (#1086).
 
+### Features
+
+- Added GPU support for particle packing (#1296).
+
 ## Version 0.5.3
 
 ### Features
