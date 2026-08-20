@@ -1,24 +1,18 @@
 @testset verbose=true "MechanicalWorkCalculator" begin
-    # Mock system
-    struct MockSystem <: TrixiParticles.AbstractStructureSystem{2}
-        eltype::Type
-    end
-    TrixiParticles.nparticles(::MockSystem) = 4
-    Base.eltype(system::MockSystem) = system.eltype
-
-    function TrixiParticles.create_neighborhood_search(neighborhood_search,
-                                                       system::MockSystem, neighbor)
-        return nothing
-    end
-
-    system32 = MockSystem(Float32)
-    semi32 = Semidiscretization(system32, neighborhood_search_handler=PairsNHSHandler)
-    system64 = MockSystem(Float64)
-    semi64 = Semidiscretization(system64, neighborhood_search_handler=PairsNHSHandler)
+    coordinates = [0.0 1.0 0.0 1.0; 0.0 0.0 1.0 1.0]
+    initial_condition = InitialCondition(; coordinates, velocity=zeros(2, 4),
+                                            mass=ones(4), density=fill(1000.0, 4),
+                                            pressure=0.0, particle_spacing=-1.0)
+    system_ = TotalLagrangianSPHSystem(initial_condition;
+                                        smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
+                                        smoothing_length=sqrt(2), young_modulus=1.0,
+                                        poisson_ratio=0.4, clamped_particles=3:4)
+    semi = Semidiscretization(system_)
+    system = semi.systems[1]
 
     @testset "Constructor and Basic Properties" begin
         # Test default constructor
-        calculator = MechanicalWorkCalculator(system64, semi64)
+        calculator = MechanicalWorkCalculator(system, semi)
         @test calculator.system_index == 1
         @test calculator.t == 0.0
         @test calculator.work == 0.0
@@ -26,28 +20,28 @@
         @test !calculator.initialized
         @test calculator.dv isa Array{Float64, 2}
         @test size(calculator.dv) == (2, 4)
-        @test calculator.eachparticle == 5:4
+        @test calculator.eachparticle == 3:4
         @test calculated_mechanical_work(calculator) == 0.0
 
         # Test constructor with explicit particle range
-        calculator = MechanicalWorkCalculator(system64, semi64; eachparticle=1:2)
+        calculator = MechanicalWorkCalculator(system, semi; eachparticle=1:2)
         @test calculator.eachparticle == 1:2
         @test eltype(calculator.work) == Float64
         @test eltype(calculator.t) == Float64
         @test eltype(calculator.power) == Float64
-
-        # Test with specific element type
-        calculator = MechanicalWorkCalculator(system32, semi32)
-        @test eltype(calculator.work) == Float32
-        @test eltype(calculator.t) == Float32
-        @test eltype(calculator.power) == Float32
     end
 
     @testset "reset_custom_quantity!" begin
-        calculator = MechanicalWorkCalculator(system64, semi64)
+        calculator = MechanicalWorkCalculator(system, semi)
+        calculator.t = 1.0
+        calculator.work = 2.0
+        calculator.power = 3.0
         calculator.initialized = true
 
         @test TrixiParticles.reset_custom_quantity!(calculator) === calculator
+        @test calculator.t == 0.0
+        @test calculator.work == 0.0
+        @test calculator.power == 0.0
         @test !calculator.initialized
     end
 

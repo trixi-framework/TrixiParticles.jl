@@ -307,6 +307,15 @@ end
     return current_clamped_velocity(v, system, system.clamped_particles_motion, particle)
 end
 
+@propagate_inbounds function current_acceleration(system::TotalLagrangianSPHSystem,
+                                                  particle)
+    if particle <= system.n_integrated_particles || !system.clamped_particles_moving[]
+        return zero(SVector{ndims(system), eltype(system)})
+    end
+
+    return extract_svector(system.cache.acceleration, system, particle)
+end
+
 @inline function current_clamped_velocity(v, system, prescribed_motion, particle)
     (; cache, clamped_particles_moving) = system
 

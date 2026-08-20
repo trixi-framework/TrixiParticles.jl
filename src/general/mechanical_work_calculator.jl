@@ -73,7 +73,7 @@ mechanical_work = calculated_mechanical_work(mechanical_work_calculator)
 ```
 """
 mutable struct MechanicalWorkCalculator{ELTYPE, DV, EP}
-    t                           :: ELTYPE # Time of last call
+    t                           :: Float64 # Time of last call
     work                        :: ELTYPE
     power                       :: ELTYPE
     initialized                 :: Bool
@@ -83,9 +83,7 @@ mutable struct MechanicalWorkCalculator{ELTYPE, DV, EP}
     only_compute_force_on_fluid :: Bool
 end
 
-# This should dispatch on `TotalLagrangianSPHSystem`, but this name is not yet defined
-# due to the include order.
-function MechanicalWorkCalculator(system::AbstractStructureSystem, semi;
+function MechanicalWorkCalculator(system::TotalLagrangianSPHSystem, semi;
                                   eachparticle=(n_integrated_particles(system) + 1):nparticles(system),
                                   only_compute_force_on_fluid=false)
     ELTYPE = eltype(system)
@@ -96,21 +94,15 @@ function MechanicalWorkCalculator(system::AbstractStructureSystem, semi;
     # so this can be a regular `Array` even when the simulation is running on a GPU.
     dv = Array{ELTYPE, 2}(undef, (v_nvariables(system), nparticles(system)))
 
-    return MechanicalWorkCalculator(zero(ELTYPE), zero(ELTYPE), zero(ELTYPE), false,
+    return MechanicalWorkCalculator(0.0, zero(ELTYPE), zero(ELTYPE), false,
                                     system_index, dv, eachparticle,
                                     only_compute_force_on_fluid)
 end
 
-function reset!(calculator::MechanicalWorkCalculator)
+function reset_custom_quantity!(calculator::MechanicalWorkCalculator)
     calculator.t = zero(calculator.t)
     calculator.work = zero(calculator.work)
     calculator.power = zero(calculator.power)
-    calculator.initialized = false
-
-    return calculator
-end
-
-function reset_custom_quantity!(calculator::MechanicalWorkCalculator)
     calculator.initialized = false
 
     return calculator
@@ -147,7 +139,7 @@ function (calculator::MechanicalWorkCalculator)(system, dv_ode, du_ode, v_ode, u
     end
 
     dt = t - calculator.t
-    calculator.t = t
+    calculator.t = Float64(t)
 
     @trixi_timeit timer() "calculate mechanical work" begin
         current_power = calculate_mechanical_power(system,
@@ -193,15 +185,22 @@ function calculate_mechanical_power(system, eachparticle,
     # Note that this is a reduction, so we cannot use `@threaded` here.
     for particle in eachparticle
         velocity = current_velocity(v, system, particle)
-        dv_particle = extract_svector(dv, system, particle)
+        acceleration_from_loads = extract_svector(dv, system, particle)
+        prescribed_acceleration = if only_compute_force_on_fluid
+            zero(acceleration_from_loads)
+        else
+            current_acceleration(system, particle)
+        end
 
-        # The force on the clamped particle is mass times acceleration
-        F_particle = system.mass[particle] * dv_particle
+        # For prescribed motion, the force required to accelerate the particle is
+        # `mass * (prescribed_acceleration - acceleration_from_loads)`. For integrated
+        # particles, `prescribed_acceleration` is zero and this reduces to the force exerted
+        # by the particle on its surroundings. When only fluid forces are requested, the
+        # prescribed acceleration is intentionally omitted.
+        force_exerted_by_particle = system.mass[particle] *
+                                    (prescribed_acceleration - acceleration_from_loads)
 
-        # To obtain mechanical work, we need to integrate the instantaneous power.
-        # Instantaneous power is force applied BY the particle times its velocity.
-        # The force applied BY the particle is the negative of the force applied ON it.
-        power += dot(-F_particle, velocity)
+        power += dot(force_exerted_by_particle, velocity)
     end
 
     return power

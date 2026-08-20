@@ -51,6 +51,8 @@ include("general/abstract_system.jl")
 include("general/general.jl")
 include("setups/setups.jl")
 include("schemes/schemes.jl")
+# `mechanical_work_calculator.jl` requires `TotalLagrangianSPHSystem` to be defined.
+include("general/mechanical_work_calculator.jl")
 # `neighborhood_search.jl` requires the system types to be defined
 include("general/neighborhood_search.jl")
 # `callbacks.jl` requires the system types to be defined

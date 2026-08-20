@@ -127,6 +127,9 @@ function initialize_postprocess_callback!(cb::PostprocessCallback, u, t, integra
 
     cb.git_hash[] = compute_git_hash()
 
+    empty!(cb.data)
+    empty!(cb.times)
+
     for quantity in values(cb.func)
         reset_custom_quantity!(quantity)
     end

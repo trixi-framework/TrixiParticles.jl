@@ -146,6 +146,34 @@
             end
         end
 
+        @trixi_testset "mechanical work of a free-falling clamped beam" begin
+            # Gravity accelerates the beam and its clamp equally, so the clamp does no work.
+            gravity = 2.0
+            free_fall(x, t) = x + SVector(0.0, -gravity * t^2 / 2)
+            prescribed_motion = PrescribedMotion(free_fall, Returns(true))
+
+            @trixi_test_nowarn trixi_include(@__MODULE__,
+                                             joinpath(examples_dir(), "structure",
+                                                      "oscillating_beam_2d.jl"),
+                                             tspan=(0.0, 0.2),
+                                             clamped_particles_motion=prescribed_motion,
+                                             ode=nothing, sol=nothing) [
+                r"\[ Info: To create the self-interaction neighborhood search.*\n"
+            ]
+
+            ode = semidiscretize(semi, tspan)
+            system = ode.p.semi.systems[1]
+            mechanical_work = MechanicalWorkCalculator(system, semi)
+            postprocess_callback = PostprocessCallback(; interval=1, mechanical_work,
+                                                       write_file_interval=0)
+
+            sol = @trixi_test_nowarn solve(ode, RDPK3SpFSAL49(), save_everystep=false,
+                                           callback=postprocess_callback)
+
+            @test sol.retcode == ReturnCode.Success
+            @test isapprox(calculated_mechanical_work(mechanical_work), 0.0; atol=1.0e-3)
+        end
+
         @trixi_testset "structure/colliding_rigid_spheres_2d.jl" begin
             @trixi_test_nowarn trixi_include(@__MODULE__,
                                              joinpath(examples_dir(), "structure",
