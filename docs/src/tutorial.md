@@ -6,7 +6,7 @@
 
 1. [Setting up your simulation from scratch](tutorials/tut_setup.md): learn the structure of a simulation file and run a complete WCSPH example.
 2. [Modifying or extending components of TrixiParticles.jl within a simulation file](tutorials/tut_custom_kernel.md): replace selected parts of an existing setup without cloning the package.
-3. [Visualizing particle data with Plots.jl](tutorials/tut_visualization.md): compare discrete particle plots with interpolated fields on a Cartesian grid.
+3. [Visualizing particle data with Plots.jl](@ref tut_visualization): compare discrete particle plots with interpolated fields on a Cartesian grid.
 4. [Particle packing tutorial](tutorials/tut_packing.md): build a body-fitted particle configuration for complex geometries.
 
 ## Tutorials
@@ -39,7 +39,7 @@ directly in the file you run.
 - Focus: `trixi_include`, custom kernels, rapid iteration
 - Choose this if: you want to prototype changes without cloning and modifying the package
 
-### [Visualizing particle data with Plots.jl](tutorials/tut_visualization.md)
+### [Visualizing particle data with Plots.jl](@ref tut_visualization)
 
 ```@raw html
 <img src="../tutorials/tut_visualization_interpolated_velocity.png"

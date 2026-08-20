@@ -10,6 +10,11 @@ directory relative to the current working directory.
 VTK files can be opened in visualization tools such as [ParaView](https://www.paraview.org/)
 and [VisIt](https://visit.llnl.gov/).
 
+These VTK files contain the discrete particle data representing the continuous SPH
+solution approximation. To visualize the interpolated solution on a regular grid
+(either in Julia or as VTI with tools like ParaView), see the tutorial on
+[visualizing particle data with Plots.jl](@ref tut_visualization).
+
 ### ParaView
 
 Follow these steps to view the exported VTK files in ParaView:

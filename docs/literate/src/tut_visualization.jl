@@ -12,12 +12,10 @@ Plots.closeall() # hide
 # The example defines the particle spacing as `particle_spacing_factor * cylinder_diameter`.
 # We deliberately use a very coarse particle resolution. This makes the distinction between
 # the discrete particles and the interpolated field in the next section clear.
-# To remove visual clutter, we disable the info callback.
-# Since we visualize with Plots.jl, we also disable the saving callback.
+# To remove visual clutter on this page, we disable the info callback.
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "vortex_street_2d.jl");
-              particle_spacing_factor=0.2,
-              info_callback=nothing, saving_callback=nothing);
+              particle_spacing_factor=0.2, info_callback=nothing);
 nothing # hide
 
 # ## Visualizing discrete particles
@@ -90,4 +88,77 @@ nothing # hide
 # above with [`interpolate_plane_2d_vtk`](@ref):
 interpolate_plane_2d_vtk(interpolation_min, interpolation_max, interpolation_spacing,
                          semi, fluid_system, sol; filename="vortex_street_velocity")
+nothing # hide
+
+# ## Plotting saved VTK data
+
+# Saved VTK files can be loaded for plotting and interpolation without running the
+# simulation again. In a new Julia session, first load only the example setup. By setting
+# both `sol` and `ode` to `nothing`, we can skip the simulation and load only the setup.
+trixi_include(@__MODULE__,
+              joinpath(examples_dir(), "fluid", "vortex_street_2d.jl");
+              particle_spacing_factor=0.2, info_callback=nothing,
+              sol=nothing, ode=nothing)
+
+# Here, iteration 100 corresponds to the earlier simulation time `t = 2`. A restart file is
+# required for every system, in the same order as in `semi`.
+iter = 100
+restart_files = (joinpath("out", "fluid_1_$iter.vtu"),
+                 joinpath("out", "open_boundary_1_$iter.vtu"),
+                 joinpath("out", "boundary_1_$iter.vtu"),
+                 joinpath("out", "boundary_2_$iter.vtu"))
+
+# With these files, we can reconstruct the solution at the saved time.
+ode = semidiscretize(semi, tspan; restart_with=restart_files)
+v_ode, u_ode = ode.u0.x
+t = ode.tspan[1]
+
+# Before we can plot or interpolate the solution, however, we need to update the
+# semidiscretization to re-calculate quantities such as pressure and to update the
+# neighborhood search.
+TrixiParticles.update_systems_and_nhs(v_ode, u_ode, semi, t)
+
+# The reconstructed arrays can be plotted like we did above.
+v_fluid = TrixiParticles.wrap_v(v_ode, fluid_system, semi)
+active_particles = TrixiParticles.eachparticle(fluid_system)
+particle_velocity = TrixiParticles.current_velocity(v_fluid,
+                                                    fluid_system)[:, active_particles]
+particle_velocity_magnitude = vec(sqrt.(sum(abs2, particle_velocity; dims=1)))
+
+particle_plot_vtk = plot(v_ode, u_ode, semi; zcolor=particle_velocity_magnitude,
+                         color=:viridis, xlims=(0.25, 1.8), ylims=(0.1, 0.9),
+                         legend=false, xlabel="x", ylabel="y", colorbar=true,
+                         colorbar_title="|v|", size=(900, 450))
+plot!(particle_plot_vtk; dpi=200) # hide
+savefig(particle_plot_vtk, "tut_visualization_particles_vtk.png") # hide
+nothing # hide
+
+# ![Particle visualization reconstructed from VTK](tut_visualization_particles_vtk.png)
+
+# Interpolation works directly on the same reconstructed arrays.
+interpolated_vtk = interpolate_plane_2d(interpolation_min, interpolation_max,
+                                        interpolation_spacing, semi, fluid_system,
+                                        v_ode, u_ode)
+interpolated_velocity_magnitude = vec(sqrt.(sum(abs2, interpolated_vtk.velocity;
+                                                dims=1)))
+nothing # hide
+
+interpolated_plot_vtk = scatter(interpolated_vtk.point_coords[1, :],
+                                interpolated_vtk.point_coords[2, :];
+                                marker_z=interpolated_velocity_magnitude,
+                                color=:viridis, marker=:square, markerstrokewidth=0,
+                                markersize=2.5, aspect_ratio=:equal, size=(900, 450),
+                                xlims=(0.25, 1.8), ylims=(0.1, 0.9),
+                                xlabel="x", ylabel="y", label=nothing,
+                                colorbar_title="|v|")
+plot!(interpolated_plot_vtk; dpi=200) # hide
+savefig(interpolated_plot_vtk, "tut_visualization_interpolated_velocity_vtk.png") # hide
+nothing # hide
+
+# ![Interpolated velocity reconstructed from VTK](tut_visualization_interpolated_velocity_vtk.png)
+
+# And, as before, we can also write the interpolation to a VTK file for ParaView.
+interpolate_plane_2d_vtk(interpolation_min, interpolation_max, interpolation_spacing,
+                         semi, fluid_system, v_ode, u_ode;
+                         filename="vortex_street_velocity_vtk")
 nothing # hide
