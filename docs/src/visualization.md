@@ -1,7 +1,7 @@
 # Visualization
 
 For instructions on how to visualize simulation data in Julia, see the tutorial on
-[visualizing particle data with Plots.jl](tutorials/tut_visualization.md).
+[visualizing particle data with Plots.jl](@ref tut_visualization).
 
 ## Export VTK files
 You can export particle data as VTK files by using the [`SolutionSavingCallback`](@ref).

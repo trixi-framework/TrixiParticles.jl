@@ -1,4 +1,4 @@
-# # [Visualizing particle data with Plots.jl](@id tutorials/tut_visualization.md)
+# # [Visualizing particle data with Plots.jl](@id tut_visualization)
 
 # In this tutorial, we run the two-dimensional vortex street from
 # [`examples/fluid/vortex_street_2d.jl`](https://github.com/trixi-framework/TrixiParticles.jl/blob/main/examples/fluid/vortex_street_2d.jl)
@@ -88,3 +88,4 @@ nothing # hide
 # above with [`interpolate_plane_2d_vtk`](@ref):
 interpolate_plane_2d_vtk(interpolation_min, interpolation_max, interpolation_spacing,
                          semi, fluid_system, sol; filename="vortex_street_velocity")
+nothing # hide

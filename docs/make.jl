@@ -34,16 +34,20 @@ function copy_file(filename, replaces...;
     write(new_file, content)
 end
 
+tutorials_output_dir = joinpath("docs", "src", "tutorials")
+rm(tutorials_output_dir; recursive=true)
+mkpath(tutorials_output_dir)
+
 Literate.markdown(joinpath("docs", "literate", "src", "tut_setup.jl"),
-                  joinpath("docs", "src", "tutorials"))
+                  tutorials_output_dir)
 Literate.markdown(joinpath("docs", "literate", "src", "tut_custom_kernel.jl"),
-                  joinpath("docs", "src", "tutorials"))
+                  tutorials_output_dir)
 Literate.markdown(joinpath("docs", "literate", "src", "tut_rigid_body_fsi.jl"),
-                  joinpath("docs", "src", "tutorials"))
+                  tutorials_output_dir)
 Literate.markdown(joinpath("docs", "literate", "src", "tut_packing.jl"),
-                  joinpath("docs", "src", "tutorials"))
+                  tutorials_output_dir)
 Literate.markdown(joinpath("docs", "literate", "src", "tut_visualization.jl"),
-                  joinpath("docs", "src", "tutorials"))
+                  tutorials_output_dir)
 
 copy_file("AUTHORS.md",
           "in the [LICENSE.md](LICENSE.md) file" => "under [License](@ref)")
