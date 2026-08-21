@@ -146,8 +146,7 @@ makedocs(sitename="TrixiParticles.jl",
          ])
 
 # Simulations in the doctests and literate tutorials generate VTK and other output files
-# in `docs/build/tutorials/out`.
-# Do not commit these files to `gh-pages` for every documentation preview.
+# in `docs/build/tutorials/out`. Do not commit these files to `gh-pages`.
 rm(joinpath("docs", "build", "tutorials", "out"); recursive=true, force=true)
 
 deploydocs(repo="github.com/trixi-framework/TrixiParticles.jl",
