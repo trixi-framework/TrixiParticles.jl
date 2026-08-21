@@ -21,7 +21,8 @@ end
 function get_system_plot_data(u_ode, system, semi, particle_spacing)
     u = wrap_u(u_ode, system, semi)
     periodic_box = get_neighborhood_search(system, semi).periodic_box
-    coordinates = PointNeighbors.periodic_coords(active_coordinates(u, system), periodic_box)
+    coordinates = PointNeighbors.periodic_coords(active_coordinates(u, system),
+                                                 periodic_box)
 
     x = collect(coordinates[1, :])
     y = collect(coordinates[2, :])
@@ -104,7 +105,8 @@ RecipesBase.@recipe function f(initial_conditions::InitialCondition...)
     return (first(initial_conditions), ics...)
 end
 
-RecipesBase.@recipe function f(::Union{AbstractSystem, InitialCondition, Semidiscretization},
+RecipesBase.@recipe function f(::Union{AbstractSystem, InitialCondition,
+                                       Semidiscretization},
                                data...; size=(600, 400), xlims=(Inf, Inf), ylims=(Inf, Inf))
     # `data` is a tuple of named tuples, passed from the recipe above.
     # Each named tuple contains coordinates and metadata for a system or initial condition.
