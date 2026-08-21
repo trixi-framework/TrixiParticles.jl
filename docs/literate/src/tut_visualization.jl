@@ -33,7 +33,7 @@ particle_velocity = TrixiParticles.current_velocity(v_fluid,
                                                     fluid_system)[:, active_particles]
 particle_velocity_magnitude = vec(sqrt.(sum(abs2, particle_velocity; dims=1)))
 
-particle_plot = plot(sol; zcolor=particle_velocity_magnitude, color=:viridis,
+particle_plot = plot(fluid_system, sol; zcolor=particle_velocity_magnitude, color=:viridis,
                      xlims=(0.25, 1.8), ylims=(0.1, 0.9), legend=false,
                      xlabel="x", ylabel="y", colorbar=true, colorbar_title="|v|",
                      size=(900, 450))

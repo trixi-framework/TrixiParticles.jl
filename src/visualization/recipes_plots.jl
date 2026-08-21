@@ -13,14 +13,47 @@ RecipesBase.@recipe function f(sol::TrixiParticlesODESolution)
     return sol.u[end].x..., sol.prob.p.semi
 end
 
-# GPU version
-RecipesBase.@recipe function f(v_ode::AbstractGPUArray, u_ode::AbstractGPUArray,
-                               semi::Semidiscretization)
-    # Move GPU data to the CPU
-    v_ode_, u_ode_, semi_ = transfer2cpu(v_ode, u_ode, semi)
+RecipesBase.@recipe function f(system::AbstractSystem, sol::TrixiParticlesODESolution)
+    # Redirect everything to the single-system recipe
+    return system, sol.u[end].x..., sol.prob.p.semi
+end
 
-    # Redirect everything to the next recipe
-    return v_ode_, u_ode_, semi_
+function get_system_plot_data(u_ode, system, semi, particle_spacing)
+    u = wrap_u(u_ode, system, semi)
+    periodic_box = get_neighborhood_search(system, semi).periodic_box
+    coordinates = PointNeighbors.periodic_coords(active_coordinates(u, system), periodic_box)
+
+    x = collect(coordinates[1, :])
+    y = collect(coordinates[2, :])
+
+    if particle_spacing < 0
+        particle_spacing = 0.0
+    end
+
+    x_min, x_max = extrema(x)
+    y_min, y_max = extrema(y)
+
+    # Add one particle radius around the center of the particles
+    # to obtain the domain size.
+    x_min -= 0.5particle_spacing
+    x_max += 0.5particle_spacing
+    y_min -= 0.5particle_spacing
+    y_max += 0.5particle_spacing
+
+    return (; x, y, x_min, x_max, y_min, y_max, particle_spacing,
+            label=timer_name(system))
+end
+
+RecipesBase.@recipe function f(system::AbstractSystem, v_ode::AbstractArray,
+                               u_ode::AbstractArray, semi::Semidiscretization)
+    # Move data to the CPU if on the GPU.
+    # `transfer2cpu` also validates that `system` is in `semi.systems`, even on the CPU.
+    v_ode_, u_ode_, system_, semi_ = transfer2cpu(v_ode, u_ode, system, semi)
+
+    particle_spacing = system_.initial_condition.particle_spacing
+    system_data = get_system_plot_data(u_ode_, system_, semi_, particle_spacing)
+
+    return (system_, system_data)
 end
 
 RecipesBase.@recipe function f(v_ode::AbstractArray, u_ode::AbstractArray,
@@ -28,40 +61,18 @@ RecipesBase.@recipe function f(v_ode::AbstractArray, u_ode::AbstractArray,
                                particle_spacings=TrixiParticles.particle_spacings(semi),
                                size=(600, 400), # Default size
                                xlims=(-Inf, Inf), ylims=(-Inf, Inf))
-    # We need to split this in two recipes in order to find the minimum and maximum
-    # coordinates across all systems.
-    # In this first recipe, we collect the data for each system,
+    # Move data to the CPU if on the GPU.
+    # `transfer2cpu` also validates that all systems are in `semi.systems`, even on the CPU.
+    v_ode_, u_ode_, semi_ = transfer2cpu(v_ode, u_ode, semi)
+
+    # Find the minimum and maximum coordinates across all systems,
     # and then pass it to the next recipe.
-    systems_data = map(enumerate(semi.systems)) do (i, system)
-        u = wrap_u(u_ode, system, semi)
-        periodic_box = get_neighborhood_search(system, semi).periodic_box
-        coordinates = PointNeighbors.periodic_coords(active_coordinates(u, system),
-                                                     periodic_box)
-
-        x = collect(coordinates[1, :])
-        y = collect(coordinates[2, :])
-
-        particle_spacing = particle_spacings[i]
-        if particle_spacing < 0
-            particle_spacing = 0.0
-        end
-
-        x_min, x_max = extrema(x)
-        y_min, y_max = extrema(y)
-
-        # Add one particle radius around the center of the particles
-        # to obtain the domain size.
-        x_min -= 0.5particle_spacing
-        x_max += 0.5particle_spacing
-        y_min -= 0.5particle_spacing
-        y_max += 0.5particle_spacing
-
-        return (; x, y, x_min, x_max, y_min, y_max, particle_spacing,
-                label=timer_name(system))
+    systems_data = map(enumerate(semi_.systems)) do (i, system)
+        get_system_plot_data(u_ode_, system, semi_, particle_spacings[i])
     end
 
     # Pass the semidiscretization and the collected data to the next recipe
-    return (semi, systems_data...)
+    return (semi_, systems_data...)
 end
 
 function particle_spacings(semi::Semidiscretization)
@@ -93,7 +104,7 @@ RecipesBase.@recipe function f(initial_conditions::InitialCondition...)
     return (first(initial_conditions), ics...)
 end
 
-RecipesBase.@recipe function f(::Union{InitialCondition, Semidiscretization},
+RecipesBase.@recipe function f(::Union{AbstractSystem, InitialCondition, Semidiscretization},
                                data...; size=(600, 400), xlims=(Inf, Inf), ylims=(Inf, Inf))
     # `data` is a tuple of named tuples, passed from the recipe above.
     # Each named tuple contains coordinates and metadata for a system or initial condition.
