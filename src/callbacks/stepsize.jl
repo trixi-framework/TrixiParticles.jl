@@ -14,16 +14,16 @@ The current implementation is using the simplest form of CFL condition, which ch
 time step size that is constant during the simulation.
 The step size is therefore only applied once at the beginning of the simulation.
 
- The step size ``\Delta t`` is chosen as the minimum
- ```math
+The step size ``\Delta t`` is chosen as the minimum
+```math
     \Delta t = \min(\Delta t_\nu, \Delta t_a, \Delta t_c, \Delta t_\sigma),
- ```
- where
- ```math
+```
+where
+```math
     \Delta t_\nu = 0.125 \, h^2 / \nu, \quad \Delta t_a = 0.25 \sqrt{h / \lVert g \rVert},
-    \quad \Delta t_c = \text{CFL} \, h / c, \,
+    \quad \Delta t_c = \text{CFL} \, h / c, \quad
     \Delta t_\sigma = \sqrt{\frac{\bar{\rho} h^3}{2 \pi \sigma}},
- ```
+```
 with ``\nu = \alpha h c / (2n + 4)``, where ``\alpha`` is the parameter of the viscosity
 and ``n`` is the number of dimensions.
 The capillary restriction ``\Delta t_\sigma`` is applied when using [`SurfaceTensionMorris`](@ref)

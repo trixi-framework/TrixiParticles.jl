@@ -196,14 +196,15 @@ end
 end
 
 # Skip
-@inline function surface_tension_force!(dv_particle, surface_tension_a, surface_tension_b,
+@inline function add_dv_surface_tension(dv_particle, surface_tension_a,
+                                        surface_tension_b,
                                         particle_system, neighbor_system, particle,
                                         neighbor, pos_diff, distance, rho_a, rho_b,
                                         grad_kernel, surface_tension_correction)
     return dv_particle
 end
 
-@inline function surface_tension_force!(dv_particle,
+@inline function add_dv_surface_tension(dv_particle,
                                         surface_tension_a::CohesionForceAkinci,
                                         surface_tension_b::CohesionForceAkinci,
                                         particle_system::AbstractFluidSystem,
@@ -220,19 +221,19 @@ end
     support_radius = compact_support(smoothing_kernel,
                                      smoothing_length(particle_system, particle))
 
-    dv_particle[] += surface_tension_correction *
-                     cohesion_force_akinci(surface_tension_a, support_radius, m_b,
-                                           pos_diff, distance)
+    dv_particle += surface_tension_correction *
+                   cohesion_force_akinci(surface_tension_a, support_radius, m_b,
+                                         pos_diff, distance)
 
     return dv_particle
 end
 
-@inline function surface_tension_force!(dv_particle,
+@inline function add_dv_surface_tension(dv_particle,
                                         surface_tension_a::SurfaceTensionAkinci,
                                         surface_tension_b::SurfaceTensionAkinci,
                                         particle_system::AbstractFluidSystem,
-                                        neighbor_system::AbstractFluidSystem, particle,
-                                        neighbor,
+                                        neighbor_system::AbstractFluidSystem,
+                                        particle, neighbor,
                                         pos_diff, distance, rho_a, rho_b, grad_kernel,
                                         surface_tension_correction)
     (; smoothing_kernel) = particle_system
@@ -247,15 +248,15 @@ end
     n_b = surface_normal(neighbor_system, neighbor)
     support_radius = compact_support(smoothing_kernel, smoothing_length_)
 
-    dv_particle[] += surface_tension_correction *
-                     cohesion_force_akinci(surface_tension_a, support_radius, m_b,
-                                           pos_diff, distance)
-    dv_particle[] -= surface_tension_correction * surface_tension_coefficient *
-                     (n_a - n_b) * smoothing_length_
+    dv_particle += surface_tension_correction *
+                   cohesion_force_akinci(surface_tension_a, support_radius, m_b,
+                                         pos_diff, distance)
+    dv_particle -= surface_tension_correction * surface_tension_coefficient *
+                   (n_a - n_b) * smoothing_length_
 
     return dv_particle
 end
-@inline function surface_tension_force!(dv_particle,
+@inline function add_dv_surface_tension(dv_particle,
                                         surface_tension_a::SurfaceTensionMorris,
                                         surface_tension_b::SurfaceTensionMorris,
                                         particle_system::AbstractFluidSystem,
@@ -271,8 +272,8 @@ end
     n_a = surface_normal(particle_system, particle)
     curvature_a = curvature(particle_system, particle)
 
-    dv_particle[] -= surface_tension_correction * surface_tension_coefficient / rho_a *
-                     curvature_a * n_a
+    dv_particle -= surface_tension_correction * surface_tension_coefficient / rho_a *
+                   curvature_a * n_a
 
     return dv_particle
 end
@@ -330,7 +331,7 @@ function compute_surface_delta_function!(system, ::SurfaceTensionMomentumMorris,
     return system
 end
 
-@inline function surface_tension_force!(dv_particle,
+@inline function add_dv_surface_tension(dv_particle,
                                         surface_tension_a::SurfaceTensionMomentumMorris,
                                         surface_tension_b::SurfaceTensionMomentumMorris,
                                         particle_system::AbstractFluidSystem,
@@ -348,18 +349,17 @@ end
 
     m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
-    dv_particle[] += surface_tension_correction * surface_tension_coefficient * m_b *
-                     (S_a + S_b) / (rho_a * rho_b) * grad_kernel
+    dv_particle += surface_tension_correction * surface_tension_coefficient * m_b *
+                   (S_a + S_b) / (rho_a * rho_b) * grad_kernel
 
     return dv_particle
 end
 
-@inline function adhesion_force!(dv_particle,
+@inline function add_dv_adhesion(dv_particle,
                                  surface_tension::AkinciTypeSurfaceTension,
                                  particle_system::AbstractFluidSystem,
-                                 neighbor_system::AbstractBoundarySystem, particle,
-                                 neighbor,
-                                 pos_diff, distance)
+                                 neighbor_system::AbstractBoundarySystem,
+                                 particle, neighbor, pos_diff, distance)
     (; adhesion_coefficient) = neighbor_system
 
     # No adhesion with oneself. See `src/general/smoothing_kernels.jl` for more details.
@@ -372,13 +372,13 @@ end
 
     support_radius = compact_support(particle_system.smoothing_kernel,
                                      smoothing_length(particle_system, particle))
-    dv_particle[] += adhesion_force_akinci(surface_tension, support_radius, m_b, pos_diff,
-                                           distance, adhesion_coefficient)
+    dv_particle += adhesion_force_akinci(surface_tension, support_radius, m_b, pos_diff,
+                                         distance, adhesion_coefficient)
 
     return dv_particle
 end
 
-@inline function adhesion_force!(dv_particle, surface_tension, particle_system,
+@inline function add_dv_adhesion(dv_particle, surface_tension, particle_system,
                                  neighbor_system, particle, neighbor, pos_diff, distance)
     return dv_particle
 end

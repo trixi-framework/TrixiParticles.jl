@@ -55,12 +55,12 @@ by Balsara ([Balsara1995](@cite)) or Morris ([Morris1997](@cite)).
 
 ##### Mathematical Formulation
 
-The acceleration contribution from particle ``b`` to particle ``a`` is
+The force exerted by particle ``b`` on particle ``a`` due to artificial viscosity is
 
 ```math
-\left.\frac{\mathrm{d}\bm{v}_a}{\mathrm{d}t}\right|_{ab}^{\text{AV}} =
+\bm{f}_{ab}^{\text{AV}} =
 \begin{cases}
-    m_b \frac{\alpha c \mu_{ab} + \beta \mu_{ab}^2}{\bar{\rho}_{ab}}
+    m_a m_b \frac{\alpha c \mu_{ab} + \beta \mu_{ab}^2}{\bar{\rho}_{ab}}
     \nabla_a W_{ab}, & \text{if } \bm{v}_{ab} \cdot \bm{r}_{ab} < 0, \\
     0, & \text{otherwise}.
 \end{cases}
@@ -107,10 +107,10 @@ This results in a more realistic representation of flow dynamics in weakly compr
 
 ##### Mathematical Formulation
 
-An additional force term ``\tilde{\bm{F}}_{ab}`` is introduced in the momentum equation:
+An additional force term ``\tilde{\bm{f}}_{ab}`` is introduced in the momentum equation:
 
 ```math
-\tilde{\bm{F}}_{ab} =
+\tilde{\bm{f}}_{ab} =
 m_a m_b \frac{(\mu_a + \mu_b)\, \bm{r}_{ab} \cdot \nabla_a W_{ab}}
 {\rho_a \rho_b (\Vert \bm{r}_{ab} \Vert^2 + \epsilon h^2)}\, \bm{v}_{ab},
 ```
@@ -135,7 +135,7 @@ while minimizing compressibility effects. This results in accurate laminar flow 
 The viscous interaction is modeled through the following pairwise force:
 
 ```math
-\bm{F}_{ab}^{\nu} =
+\bm{f}_{ab}^{\nu} =
 \left( V_a^2 + V_b^2 \right)\,
 \bar{\eta}_{ab}\,
 \frac{\nabla_a W_{ab} \cdot \bm{r}_{ab}}
