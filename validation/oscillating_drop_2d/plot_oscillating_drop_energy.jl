@@ -24,7 +24,6 @@ result_filename = "validation_result_oscillating_drop_2d_dx_$formatted_resolutio
 
 p = plot(; size=(900, 500),
            xlabel=L"t / T",
-           ylabel="Relative energy",
            title="Oscillating Drop Energy Components",
            xlims=(0, 12),
            ylims=(-0.018, 0.005),
@@ -89,7 +88,7 @@ if include_trixiparticles_reference
         linestyle_tp_ref = :dash
         plot_energy(joinpath(case_dir, result_filename), linestyle_tp_ref)
         plot!(p, [0], [-1]; color=:black, linestyle=linestyle_tp_ref, linewidth=2,
-              label="TrixiParticles reference")
+              label="TrixiParticles.jl")
     else
         @warn "TrixiParticles reference file not found: $case_dir/$result_filename"
     end
