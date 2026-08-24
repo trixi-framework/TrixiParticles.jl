@@ -227,8 +227,8 @@
 
         @testset verbose=true "Fluid Surface Tension Consistency" begin
             struct FluidSurfaceMock <: TrixiParticles.AbstractFluidSystem{2}
-                surface_tension
-                surface_normal_method
+                surface_tension::Any
+                surface_normal_method::Any
             end
 
             system_with_surface = FluidSurfaceMock(SurfaceTensionMorris(),
