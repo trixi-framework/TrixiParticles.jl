@@ -49,6 +49,12 @@ The validation records interpolated centerline velocity profiles with
 `PostprocessCallback`. The error against the analytical profile is computed
 after the run from those JSON files.
 
+The current SPH viscosity model evaluates the Carreau-Yasuda law from a local
+pairwise shear-rate estimate `|v_a - v_b| / |r_a - r_b|`. This avoids the old
+particle-spacing-sized regularization in the denominator, but it is still not a
+full reconstruction of the continuum invariant `sqrt(2S:S)`. A future
+particle-gradient reconstruction would be needed for that stricter definition.
+
 ## Running
 
 Default run:
@@ -57,9 +63,13 @@ Default run:
 julia --project=run validation/poiseuille_carreau_2d/validation_poiseuille_carreau_2d.jl
 ```
 
-The default uses `ny = 50`, `t_end_factor = 0.1`, and analytical initial
-conditions so it can be run quickly while still checking the numerical profile
-against the analytical solution.
+The default uses `ny = 50`, `t_end_factor = 0.1`, analytical initial conditions,
+`WendlandC2Kernel`, no particle shifting, and a timestamped output root. The
+timestamp avoids mixing a new interrupted run with stale VTU files from an older
+run. Strict steady-profile error bounds are checked for analytical initial
+conditions. Newtonian-start runs are useful as transient relaxation experiments,
+but they skip those steady-profile assertions by default because shear-thinning
+and shear-thickening cases can require much longer physical times to relax.
 
 To change parameters from an interactive Julia session, use `trixi_include`:
 
@@ -69,15 +79,19 @@ trixi_include(@__MODULE__,
               joinpath(validation_dir(), "poiseuille_carreau_2d",
                        "validation_poiseuille_carreau_2d.jl");
               ny=200, t_end_factor=0.02,
-              n_values=(0.25, 0.5, 1.0, 1.5))
+              n_values=(0.25, 0.5, 1.0, 1.5),
+              output_root="out_poiseuille_carreau/manual_run")
 ```
 
-The initial condition mode is one of `:newtonian`, `:analytical`, or `:zero`.
+The initial condition mode is one of `:newtonian`, `:analytical`, or
+`:zero`. The viscosity model is one of `:carreau` or `:newtonian`; the
+plain Newtonian option uses the same periodic channel setup with
+`ViscosityAdami(nu=nu0)` and is useful as a control case.
 
 Results are written to:
 
 ```text
-out_poiseuille_carreau/n_<n>/
+out_poiseuille_carreau/run_<timestamp>/n_<n>/
 ```
 
 Each case contains VTU output and a

@@ -14,6 +14,9 @@ using OrdinaryDiffEqLowStorageRK
 #   polystyrenes". Rheologica Acta, Volume 20, Issue 2 (1981), pages 163-178.
 #   https://doi.org/10.1007/BF01513059
 #
+# The validation setup follows the pressure-driven Poiseuille benchmark in
+# Coclite et al. (2020), but uses WCSPH with an equivalent body acceleration.
+#
 # This example simulates pressure-driven channel flow with the
 # `ViscosityCarreauYasuda` non-Newtonian viscosity model. The driving pressure
 # gradient is represented by an equivalent body acceleration.
@@ -27,10 +30,19 @@ ny = 50
 # ==== Experiment Setup
 t_end_factor = 0.1
 eps_factor = 1.0
+viscosity_epsilon = 0.01
 sound_speed_factor = 60.0
 initial_condition_mode = :analytical
 power_law_index = 1.0
+viscosity_model = :carreau
 parallelization_backend = PolyesterBackend()
+output_directory = nothing
+smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+time_integrator = RDPK3SpFSAL35()
+cfl_number = 0.2
+abstol = 1.0e-7
+reltol = 1.0e-4
+maxiters = 2_000_000
 
 channel_height = 1.0
 channel_length = 6.0 * channel_height
@@ -53,7 +65,10 @@ t_end = t_end_factor * channel_height / reference_velocity
 tspan = (0.0, t_end)
 
 if !(initial_condition_mode in (:newtonian, :analytical, :zero))
-    throw(ArgumentError("initial condition mode must be :newtonian, :analytical, or :zero"))
+    throw(ArgumentError("initial_condition_mode must be :newtonian, :analytical, or :zero"))
+end
+if !(viscosity_model in (:carreau, :newtonian))
+    throw(ArgumentError("viscosity_model must be :carreau or :newtonian"))
 end
 
 # ==========================================================================================
@@ -177,18 +192,22 @@ tank = RectangularTank(particle_spacing, (channel_length, channel_height),
                        coordinates_eltype=Float64)
 
 smoothing_length = 1.2 * particle_spacing
-smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 sound_speed = sound_speed_factor * reference_velocity
 state_equation = StateEquationCole(; sound_speed,
                                    reference_density=fluid_density,
                                    exponent=7)
 
-viscosity = ViscosityCarreauYasuda(; nu0, nu_inf,
-                                   lambda=carreau_time_constant,
-                                   a=lambda_exponent,
-                                   n=power_law_index,
-                                   epsilon=max(0.5, eps_factor) * particle_spacing)
+viscosity = if viscosity_model == :newtonian
+    ViscosityAdami(nu=nu0)
+else
+    ViscosityCarreauYasuda(; nu0, nu_inf,
+                           lambda=carreau_time_constant,
+                           a=lambda_exponent,
+                           n=power_law_index,
+                           epsilon=viscosity_epsilon,
+                           shear_rate_epsilon=eps_factor * eps(Float64))
+end
 
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid;
                                            density_calculator=ContinuityDensity(),
@@ -225,20 +244,22 @@ semi = Semidiscretization(fluid_system, boundary_system;
 
 ode = semidiscretize(semi, tspan)
 
-output_directory = joinpath("out_poiseuille_carreau", "n_$power_law_index")
+if output_directory === nothing
+    output_directory = joinpath("out_poiseuille_carreau", "n_$power_law_index")
+end
 
 info_callback = InfoCallback(interval=200)
 saving_callback = SolutionSavingCallback(; dt=t_end / 20,
                                          prefix="",
                                          output_directory)
 pp_callback = nothing
-cfl_callback = StepsizeCallback(cfl=0.2)
+cfl_callback = StepsizeCallback(cfl=cfl_number)
 callbacks = CallbackSet(info_callback, saving_callback, pp_callback,
                         cfl_callback, UpdateCallback())
 
-sol = solve(ode, RDPK3SpFSAL35();
-            abstol=1.0e-7,
-            reltol=1.0e-4,
+sol = solve(ode, time_integrator;
+            abstol=abstol,
+            reltol=reltol,
             save_everystep=false,
             callback=callbacks,
-            maxiters=2_000_000);
+            maxiters=maxiters);

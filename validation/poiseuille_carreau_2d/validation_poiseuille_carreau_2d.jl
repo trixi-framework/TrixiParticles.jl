@@ -1,4 +1,6 @@
 using TrixiParticles
+using OrdinaryDiffEqLowStorageRK
+using Dates
 
 include("analytical_solution.jl")
 
@@ -23,9 +25,20 @@ n_values = default_n_values
 
 t_end_factor = 0.1
 eps_factor = 1.0
+viscosity_epsilon = 0.01
 sound_speed_factor = 60.0
 initial_condition_mode = :analytical
+viscosity_model = :carreau
 parallelization_backend = PolyesterBackend()
+smoothing_kernel = WendlandC2Kernel{2}()
+time_integrator = RDPK3SpFSAL35()
+cfl_number = 0.2
+abstol = 1.0e-7
+reltol = 1.0e-4
+maxiters = 2_000_000
+output_root = joinpath("out_poiseuille_carreau",
+                       "run_" * Dates.format(now(), dateformat"yyyymmdd_HHMMSS"))
+check_error_bounds = initial_condition_mode == :analytical
 
 channel_height = 1.0
 channel_length = 6.0 * channel_height
@@ -107,7 +120,7 @@ for power_law_index in n_values
             power_law_index, " ---")
 
     n_label = replace(string(power_law_index), "." => "p")
-    output_directory = joinpath("out_poiseuille_carreau", "n_$power_law_index")
+    output_directory = joinpath(output_root, "n_$power_law_index")
     result_filename = "validation_run_poiseuille_carreau_2d_n_$(n_label)_ny_$ny"
 
     pp_callback = PostprocessCallback(; dt=t_end_factor * channel_height /
@@ -119,11 +132,17 @@ for power_law_index in n_values
                                       write_csv=false,
                                       write_file_interval=0)
 
+    example_kwargs = (;
+        ny, t_end_factor, eps_factor, viscosity_epsilon, sound_speed_factor,
+        power_law_index, parallelization_backend, pp_callback,
+        output_directory, smoothing_kernel, time_integrator,
+        cfl_number, abstol, reltol, maxiters,
+        NamedTuple{(:initial_condition_mode, :viscosity_model)}((
+            QuoteNode(initial_condition_mode), QuoteNode(viscosity_model)))...)
+
     trixi_include(@__MODULE__,
                   joinpath(examples_dir(), "fluid", "poiseuille_carreau_2d.jl");
-                  ny, t_end_factor, eps_factor, sound_speed_factor,
-                  initial_condition_mode=QuoteNode(initial_condition_mode),
-                  power_law_index, parallelization_backend, pp_callback)
+                  example_kwargs...)
 
     _, profiles = profile_history(output_directory, result_filename)
     relative_l2_errors, max_velocity_errors = error_history(profiles, power_law_index)
@@ -133,5 +152,9 @@ for power_law_index in n_values
     final_relative_l2_errors[power_law_index] = relative_l2_error
     final_max_velocity_errors[power_law_index] = max_velocity_error
 
-    @assert relative_l2_error <= relative_l2_error_bounds[power_law_index] "relative L2 error $(relative_l2_error) exceeded bound $(relative_l2_error_bounds[power_law_index]) for n = $(power_law_index)"
+    if check_error_bounds
+        @assert relative_l2_error <= relative_l2_error_bounds[power_law_index] "relative L2 error $(relative_l2_error) exceeded bound $(relative_l2_error_bounds[power_law_index]) for n = $(power_law_index)"
+    else
+        @info "Skipping steady-profile error bound for transient initial condition" power_law_index initial_condition_mode relative_l2_error
+    end
 end

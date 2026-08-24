@@ -518,7 +518,8 @@ end
 end
 
 @doc raw"""
-    ViscosityCarreauYasuda(; nu0, nu_inf, lambda, a, n, epsilon=0.01)
+    ViscosityCarreauYasuda(; nu0, nu_inf, lambda, a, n, epsilon=0.01,
+                           shear_rate_epsilon=eps())
 
 Non-Newtonian viscosity model based on the Carreau–Yasuda law [Carreau (1972)](@cite Carreau1972), [Yasuda et al. (1981)](@cite Yasuda1981).
 
@@ -527,22 +528,27 @@ See [the docs on viscosity](@ref viscosity_sph) for an overview and comparison o
 # Keywords
 - `nu0`:     Zero-shear kinematic viscosity.
 - `nu_inf`:  Infinite-shear kinematic viscosity.
-- `lambda`:  Time constant of the Carreau–Yasuda law.
+- `lambda`:  Time constant of the Carreau-Yasuda law.
 - `a`:       Yasuda parameter controlling the transition shape.
 - `n`:       Power-law index (shear-thinning/thickening behavior).
-- `epsilon`: Parameter to prevent singularities in the shear-rate approximation.
+- `epsilon`: Dimensionless regularization in the Adami viscous-force denominator.
+- `shear_rate_epsilon`: Dimensionless lower bound for the distance used in the
+                        pairwise shear-rate estimate, scaled by the smoothing length.
 """
 struct ViscosityCarreauYasuda{ELTYPE}
-    nu0     :: ELTYPE  # zero-shear kinematic viscosity
-    nu_inf  :: ELTYPE  # infinite-shear kinematic viscosity
-    lambda  :: ELTYPE  # time constant
-    a       :: ELTYPE  # Yasuda parameter
-    n       :: ELTYPE  # power-law index
-    epsilon :: ELTYPE  # regularization
+    nu0::ELTYPE                 # zero-shear kinematic viscosity
+    nu_inf::ELTYPE              # infinite-shear kinematic viscosity
+    lambda::ELTYPE              # time constant
+    a::ELTYPE                   # Yasuda parameter
+    n::ELTYPE                   # power-law index
+    epsilon::ELTYPE             # Adami force regularization
+    shear_rate_epsilon::ELTYPE  # shear-rate distance regularization
 end
 
-function ViscosityCarreauYasuda(; nu0, nu_inf, lambda, a, n, epsilon=0.01)
-    ViscosityCarreauYasuda{typeof(nu0)}(nu0, nu_inf, lambda, a, n, epsilon)
+function ViscosityCarreauYasuda(; nu0, nu_inf, lambda, a, n, epsilon=0.01,
+                                shear_rate_epsilon=eps(typeof(nu0)))
+    ViscosityCarreauYasuda{typeof(nu0)}(nu0, nu_inf, lambda, a, n, epsilon,
+                                        shear_rate_epsilon)
 end
 
 @propagate_inbounds function (viscosity::ViscosityCarreauYasuda)(dv_particle,
@@ -566,10 +572,12 @@ end
     v_b = viscous_velocity(v_neighbor_system, neighbor_system, neighbor, v_b)
     v_diff = v_a - v_b
 
-    # Since this is one of the most performance critical functions, using fast divisions
-    # here gives a significant speedup on GPUs.
-    # See the docs page "Development" for more details on `div_fast`.
-    gamma_dot = div_fast(sqrt(dot(v_diff, v_diff)), (distance + epsilon))
+    # This is only a local pairwise approximation of the shear-rate magnitude.
+    # Do not add a particle-spacing-sized offset here: that changes the physical
+    # shear rate. The small lower bound only protects pathological near-zero distances.
+    shear_rate_distance = max(distance, viscosity.shear_rate_epsilon *
+                                       smoothing_length_average)
+    gamma_dot = div_fast(sqrt(dot(v_diff, v_diff)), shear_rate_distance)
 
     # Compute Carreau-Yasuda effective viscosity
     (; nu0, nu_inf, lambda, a, n) = viscosity
