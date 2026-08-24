@@ -175,9 +175,9 @@
                                                    smoothing_length,
                                                    density_calculator=ContinuityDensity(),
                                                    state_equation=StateEquationCole(;
-                                                                                     sound_speed=1.0,
-                                                                                     reference_density=density[1],
-                                                                                     exponent=7),
+                                                                                    sound_speed=1.0,
+                                                                                    reference_density=density[1],
+                                                                                    exponent=7),
                                                    buffer_size=1)
         fluid_system.pressure[1:3] .= pressure
 
