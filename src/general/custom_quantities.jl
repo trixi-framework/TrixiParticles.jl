@@ -1,7 +1,7 @@
 """
     kinetic_energy
 
-Returns the total kinetic energy of all particles in a system.
+Returns the total kinetic energy of all active particles in a system.
 """
 function kinetic_energy(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
     v = wrap_v(v_ode, system, semi)
@@ -35,7 +35,7 @@ end
 """
     total_mass
 
-Returns the total mass of all particles in a system.
+Returns the total mass of all active particles in a system.
 """
 function total_mass(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
     return sum(active_values(system.mass, system))
@@ -58,7 +58,7 @@ end
 """
     max_pressure
 
-Returns the maximum pressure over all particles in a system.
+Returns the maximum pressure over all active particles in a system.
 """
 function max_pressure(system::AbstractFluidSystem, dv_ode, du_ode, v_ode, u_ode, semi, t)
     v = wrap_v(v_ode, system, semi)
@@ -72,7 +72,7 @@ end
 """
     min_pressure
 
-Returns the minimum pressure over all particles in a system.
+Returns the minimum pressure over all active particles in a system.
 """
 function min_pressure(system::AbstractFluidSystem, dv_ode, du_ode, v_ode, u_ode, semi, t)
     v = wrap_v(v_ode, system, semi)
@@ -86,7 +86,7 @@ end
 """
     avg_pressure
 
-Returns the average pressure over all particles in a system.
+Returns the average pressure over all active particles in a system.
 """
 function avg_pressure(system::AbstractFluidSystem, dv_ode, du_ode, v_ode, u_ode, semi, t)
     v = wrap_v(v_ode, system, semi)
@@ -101,7 +101,7 @@ end
 """
     max_density
 
-Returns the maximum density over all particles in a system.
+Returns the maximum density over all active particles in a system.
 """
 function max_density(system::AbstractFluidSystem, dv_ode, du_ode, v_ode, u_ode, semi, t)
     v = wrap_v(v_ode, system, semi)
@@ -115,7 +115,7 @@ end
 """
     min_density
 
-Returns the minimum density over all particles in a system.
+Returns the minimum density over all active particles in a system.
 """
 function min_density(system::AbstractFluidSystem, dv_ode, du_ode, v_ode, u_ode, semi, t)
     v = wrap_v(v_ode, system, semi)
@@ -129,7 +129,7 @@ end
 """
     avg_density
 
-Returns the average_density over all particles in a system.
+Returns the average density over all active particles in a system.
 """
 function avg_density(system::AbstractFluidSystem, dv_ode, du_ode, v_ode, u_ode, semi, t)
     v = wrap_v(v_ode, system, semi)
