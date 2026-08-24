@@ -124,6 +124,7 @@ where ``d`` is the number of dimensions.
 - `update_everystage=true`:   Update the renormalized density gradient in every stage.
                               If `false`, update it between time steps from an
                               [`UpdateCallback`](@ref), which is then required.
+                              The cadence is controlled by the `UpdateCallback`.
 
 See [`AbstractDensityDiffusion`](@ref TrixiParticles.AbstractDensityDiffusion)
 for an overview and comparison of implemented density diffusion terms.
