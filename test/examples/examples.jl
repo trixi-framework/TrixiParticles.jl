@@ -361,9 +361,9 @@
                                              E=1e7, # Stiffer plate
                                              maxiters=500) [
                 r"\[ Info: To create the self-interaction neighborhood search.*\n",
-                "┌ Warning: Verbosity toggle: max_iters \n",
-                r".*Interrupted. Larger maxiters is needed.*\n",
-                r"└ @ SciMLBase.*\n"
+                # The diagnostics included in this warning and the package reporting
+                # its source depend on the SciML version.
+                r"┌ Warning: Verbosity toggle: max_iters \n(?s:.*?)└ @ (?:SciMLBase|DiffEqBase).*\n"
             ]
             @test sol.retcode == ReturnCode.MaxIters
             if VERSION < v"1.12"
