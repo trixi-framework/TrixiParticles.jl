@@ -151,10 +151,8 @@ function create_cache_density_diffusion(initial_condition,
     ELTYPE = eltype(initial_condition)
     n_particles = nparticles(initial_condition)
 
-    density_diffusion_correction_matrix = Array{ELTYPE, 3}(undef, NDIMS, NDIMS,
-                                                           n_particles)
-    density_diffusion_normalized_density_gradient = Array{ELTYPE, 2}(undef, NDIMS,
-                                                                     n_particles)
+    density_diffusion_correction_matrix = zeros(ELTYPE, NDIMS, NDIMS, n_particles)
+    density_diffusion_normalized_density_gradient = zeros(ELTYPE, NDIMS, n_particles)
 
     return (; density_diffusion_correction_matrix,
             density_diffusion_normalized_density_gradient)
