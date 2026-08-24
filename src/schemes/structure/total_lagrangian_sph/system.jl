@@ -307,6 +307,29 @@ end
     return current_clamped_velocity(v, system, system.clamped_particles_motion, particle)
 end
 
+@propagate_inbounds function current_acceleration(system::TotalLagrangianSPHSystem,
+                                                  particle)
+    return current_acceleration(system, system.clamped_particles_motion, particle)
+end
+
+@propagate_inbounds function current_acceleration(system::TotalLagrangianSPHSystem,
+                                                  clamped_particles_motion, particle)
+    return zero(SVector{ndims(system), eltype(system)})
+end
+
+# `clamped_particles_moving` is always `false` without a `PrescribedMotion`,
+# but both branches are compiled on GPUs, so we need the "no `PrescribedMotion`" dispatch
+# above to avoid access to the undefined field `cache.acceleration`.
+@propagate_inbounds function current_acceleration(system::TotalLagrangianSPHSystem,
+                                                  ::PrescribedMotion, particle)
+    if particle <= system.n_integrated_particles || !system.clamped_particles_moving[]
+        # TODO Return `dv` of solid particles
+        return zero(SVector{ndims(system), eltype(system)})
+    end
+
+    return extract_svector(system.cache.acceleration, system, particle)
+end
+
 @inline function current_clamped_velocity(v, system, prescribed_motion, particle)
     (; cache, clamped_particles_moving) = system
 
