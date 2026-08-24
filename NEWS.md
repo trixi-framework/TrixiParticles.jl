@@ -6,6 +6,11 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ## Version 0.5.4
 
+### Features
+
+- Added a plotting recipe to plot particles of individual systems (#1298).
+- Added a tutorial on plotting particles and interpolated fields (#1298).
+
 ### Important Bugfixes
 
 - Fixed mathematical inconsistencies in the SPH documentation, including incorrect
