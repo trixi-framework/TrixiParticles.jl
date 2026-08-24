@@ -187,7 +187,7 @@ function Base.show(io::IO, system::WeaklyCompressibleSPHSystem)
     print(io, ", ", system.surface_tension)
     print(io, ", ", system.surface_normal_method)
     if system.surface_normal_method isa ColorfieldSurfaceNormal
-        print(io, ", ", system.color)
+        print(io, ", ", system.cache.color)
     end
     print(io, ", ", system.acceleration)
     print(io, ", ", system.source_terms)
