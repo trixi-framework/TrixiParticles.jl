@@ -49,10 +49,14 @@ extra_callback = PostprocessCallback(; filename, output_directory="out",
                                      potential_energy=potential_energy(omega),
                                      compressible_energy, q_delta)
 
+# Use `RK4()` with `using OrdinaryDiffEqLowOrderRK` to match the paper's time integration
+# scheme, but `CarpenterKennedy2N54()` is faster and the results are visually identical.
+time_integration_scheme = CarpenterKennedy2N54(williamson_condition=false)
+
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "oscillating_drop_2d.jl");
               fluid_particle_spacing, n_periods, omega, viscosity, sphere_type,
               extra_callback, info_callback=InfoCallback(interval=500),
-              saving_callback=nothing,
+              saving_callback=nothing, time_integration_scheme,
               parallelization_backend=PolyesterBackend())
 
 println("Oscillating drop energy validation written to out/$filename.json")
