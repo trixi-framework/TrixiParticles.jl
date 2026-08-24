@@ -10,9 +10,8 @@ https://doi.org/10.1016/j.cma.2015.02.004
 The following files are provided here:
 
 1. `validation_oscillating_drop_2d.jl`: Script that runs the oscillating drop example
-   at coarse resolution `fluid_particle_spacing = 0.05` (`R / dx = 20`) and
-   extracts the energy components plotted in Figure 3 of Antuono et al. (2015). The
-   resolution used in the paper is `R / dx = 200`. To run the validation at this
+   and extracts the energy components plotted in Figure 3 of Antuono et al. (2015).
+   The resolution used in the paper is `R / dx = 200`. To run the validation at this
    resolution, use
    `trixi_include("validation_oscillating_drop_2d.jl", fluid_particle_spacing=0.005)`.
 2. `plot_oscillating_drop_energy.jl`: Script to plot the current simulation results
