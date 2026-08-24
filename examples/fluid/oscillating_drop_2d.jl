@@ -59,7 +59,7 @@ smoothing_kernel = WendlandC2Kernel{2}()
 fluid_density_calculator = ContinuityDensity()
 viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 
-density_diffusion = DensityDiffusionAntuono(delta=0.1)
+density_diffusion = DensityDiffusionAntuono(delta=0.1, update_everystage=false)
 fluid_system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel, smoothing_length,
                                            density_calculator=fluid_density_calculator,
                                            state_equation, viscosity, density_diffusion,
@@ -77,11 +77,13 @@ semi = Semidiscretization(fluid_system; parallelization_backend=PolyesterBackend
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=50)
-saving_callback = nothing#SolutionSavingCallback(dt=0.04, prefix="")
+saving_callback = SolutionSavingCallback(dt=0.04, prefix="")
 stepsize_callback = StepsizeCallback(cfl=2.6)
+update_callback = UpdateCallback()
 extra_callback = nothing # This can be overwritten with `trixi_include`.
 
-callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback, extra_callback)
+callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback, update_callback,
+                        extra_callback)
 
 time_integration_scheme = CarpenterKennedy2N54(williamson_condition=false)
 sol = solve(ode, time_integration_scheme,
