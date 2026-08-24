@@ -112,7 +112,7 @@ function (update_callback!::UpdateCallback)(integrator)
 
         foreach_system(semi) do system
             update_density_diffusion_from_callback!(system, density_diffusion(system),
-                                                    v_ode, u_ode, semi)
+                                                    v_ode, u_ode, semi, integrator)
         end
 
         # If TLSPH is not integrated, the averaged velocity will be updated in the

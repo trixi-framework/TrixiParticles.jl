@@ -20,7 +20,7 @@ abstract type AbstractDensityDiffusion end
 @inline density_diffusion(system) = nothing
 
 function update_density_diffusion_from_callback!(system, density_diffusion,
-                                                 v_ode, u_ode, semi)
+                                                 v_ode, u_ode, semi, integrator)
     return system
 end
 
@@ -132,7 +132,7 @@ for an overview and comparison of implemented density diffusion terms.
 struct DensityDiffusionAntuono{ELTYPE, UPDATE_EVERYSTAGE} <: AbstractDensityDiffusion
     delta::ELTYPE
 
-    function DensityDiffusionAntuono(; delta, update_everystage=true)
+    function DensityDiffusionAntuono(; delta, update_everystage::Bool=true)
         new{typeof(delta), update_everystage}(delta)
     end
 end
@@ -246,13 +246,17 @@ end
 function update_density_diffusion_from_callback!(system,
                                                  density_diffusion::DensityDiffusionAntuono{<:Any,
                                                                                             false},
-                                                 v_ode, u_ode, semi)
+                                                 v_ode, u_ode, semi, integrator)
     v = wrap_v(v_ode, system, semi)
     u = wrap_u(u_ode, system, semi)
 
     @trixi_timeit timer() "update density diffusion" begin
         update_density_diffusion!(density_diffusion, v, u, system, semi)
     end
+
+    # Updating the density diffusion changes data used by the RHS, which means that
+    # cached derivatives need to be recomputed.
+    derivative_discontinuity!(integrator, true)
 
     return system
 end
