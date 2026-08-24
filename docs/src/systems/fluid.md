@@ -55,38 +55,36 @@ by Balsara ([Balsara1995](@cite)) or Morris ([Morris1997](@cite)).
 
 ##### Mathematical Formulation
 
-The force exerted by particle ``b`` on particle ``a`` due to artificial viscosity is given by:
+The force exerted by particle ``b`` on particle ``a`` due to artificial viscosity is
 
 ```math
-F_{ab}^{\text{AV}} = - m_a m_b \Pi_{ab} \nabla W_{ab}
+\bm{f}_{ab}^{\text{AV}} =
+\begin{cases}
+    m_a m_b \frac{\alpha c \mu_{ab} + \beta \mu_{ab}^2}{\bar{\rho}_{ab}}
+    \nabla_a W_{ab}, & \text{if } \bm{v}_{ab} \cdot \bm{r}_{ab} < 0, \\
+    0, & \text{otherwise}.
+\end{cases}
 ```
 
 where:
 
-- ``\Pi_{ab}`` is the artificial viscosity term defined as:
-  ```math
-  \Pi_{ab} =
-  \begin{cases}
-      -\frac{\alpha c \mu_{ab} + \beta \mu_{ab}^2}{\bar{\rho}_{ab}} & \text{if } \mathbf{v}_{ab} \cdot \mathbf{r}_{ab} < 0, \\
-      0 & \text{otherwise}
-  \end{cases}
-  ```
 - ``\alpha`` and ``\beta`` are viscosity parameters,
 - ``c`` is the local speed of sound,
 - ``\bar{\rho}_{ab}`` is the arithmetic mean of the densities of particles ``a`` and ``b``.
 
-The term ``\mu_{ab}`` is defined as:
+The term ``\mu_{ab}`` is defined as
 
 ```math
-\mu_{ab} = \frac{h \, v_{ab} \cdot r_{ab}}{\Vert r_{ab} \Vert^2 + \epsilon h^2},
+\mu_{ab} = \frac{h \, \bm{v}_{ab} \cdot \bm{r}_{ab}}
+                {\Vert \bm{r}_{ab} \Vert^2 + \epsilon h^2},
 ```
 
 with:
 
 - ``h`` being the smoothing length,
 - ``\epsilon`` a small parameter to prevent singularities,
-- ``r_{ab} = r_a - r_b`` representing the difference of the coordinate vectors,
-- ``v_{ab} = v_a - v_b`` representing the relative velocity between particles.
+- ``\bm{r}_{ab} = \bm{r}_a - \bm{r}_b`` representing the difference of the coordinate vectors,
+- ``\bm{v}_{ab} = \bm{v}_a - \bm{v}_b`` representing the relative velocity between particles.
 
 ##### Resolution Dependency and Effective Viscosity
 
@@ -109,19 +107,21 @@ This results in a more realistic representation of flow dynamics in weakly compr
 
 ##### Mathematical Formulation
 
-An additional force term ``\tilde{f}_{ab}`` is introduced to the pressure gradient force ``f_{ab}`` between particles ``a`` and ``b``:
+An additional force term ``\tilde{\bm{f}}_{ab}`` is introduced in the momentum equation:
 
 ```math
-\tilde{f}_{ab} = m_a m_b \frac{(\mu_a + \mu_b)\, r_{ab} \cdot \nabla W_{ab}}{\rho_a \rho_b (\Vert r_{ab} \Vert^2 + \epsilon h^2)}\, v_{ab},
+\tilde{\bm{f}}_{ab} =
+m_a m_b \frac{(\mu_a + \mu_b)\, \bm{r}_{ab} \cdot \nabla_a W_{ab}}
+{\rho_a \rho_b (\Vert \bm{r}_{ab} \Vert^2 + \epsilon h^2)}\, \bm{v}_{ab},
 ```
 
 where:
 
-- ``\mu_a = \rho_a \nu`` and ``\mu_b = \rho_b \nu`` represent the dynamic viscosities of particles ``a``and ``b`` (with ``\nu`` being the kinematic viscosity),
-- ``r_{ab} = r_a - r_b`` represents the difference of the coordinate vectors,
-- ``v_{ab} = v_a - v_b`` represents the relative velocity between particles.
+- ``\mu_a = \rho_a \nu`` and ``\mu_b = \rho_b \nu`` represent the dynamic viscosities of particles ``a`` and ``b`` (with ``\nu`` being the kinematic viscosity),
+- ``\bm{r}_{ab} = \bm{r}_a - \bm{r}_b`` represents the difference of the coordinate vectors,
+- ``\bm{v}_{ab} = \bm{v}_a - \bm{v}_b`` represents the relative velocity between particles,
 - `` h `` is the smoothing length,
-- `` \nabla W_{ab} `` is the gradient of the smoothing kernel,
+- `` \nabla_a W_{ab} `` is the gradient of the smoothing kernel,
 - `` \epsilon `` is a small parameter to prevent singularities.
 
 #### ViscosityAdami
@@ -132,19 +132,24 @@ while minimizing compressibility effects. This results in accurate laminar flow 
 
 ##### Mathematical Formulation
 
-The viscous interaction is modeled through a shear force for incompressible flows:
+The viscous interaction is modeled through the following pairwise force:
 
 ```math
-f_{ab} = \sum_w \bar{\eta}_{ab} \left( V_a^2 + V_b^2 \right) \frac{v_{ab}}{||r_{ab}||^2 + \epsilon h_{ab}^2} \, (\nabla W_{ab} \cdot r_{ab}),
+\bm{f}_{ab}^{\nu} =
+\left( V_a^2 + V_b^2 \right)\,
+\bar{\eta}_{ab}\,
+\frac{\nabla_a W_{ab} \cdot \bm{r}_{ab}}
+{\Vert \bm{r}_{ab} \Vert^2 + \epsilon h_{ab}^2}\,
+\bm{v}_{ab}.
 ```
 
 where:
 
-- `` r_{ab} = r_a - r_b `` is the difference of the coordinate vectors,
-- `` v_{ab} = v_a - v_b `` is their relative velocity,
+- `` \bm{r}_{ab} = \bm{r}_a - \bm{r}_b `` is the difference of the coordinate vectors,
+- `` \bm{v}_{ab} = \bm{v}_a - \bm{v}_b `` is their relative velocity,
 - `` V_a = m_a / \rho_a`` and `` V_b = m_b / \rho_b`` are the particle volumes,
-- `` h_{ab} `` is the smoothing length,
-- `` \nabla W_{ab} `` is the gradient of the smoothing kernel,
+- `` h_{ab} = \frac{1}{2}(h_a + h_b) `` is the arithmetic mean of the smoothing lengths,
+- `` \nabla_a W_{ab} `` is the gradient of the smoothing kernel,
 - `` \epsilon `` is a small parameter that prevents singularities (see [Ramachandran (2019)](@cite Ramachandran2019)).
 
 The inter-particle-averaged shear stress is defined as:
@@ -227,10 +232,10 @@ The surface normal at a particle is derived from the color field, a scalar field
 to distinguish between different fluid phases or between fluid and air. The color field gradients point
 towards the interface, and the normalized gradient defines the surface normal direction.
 
-The simplest SPH formulation for a surface normal, ``n_a`` is given as
+In the literature, the unnormalized surface normal ``\bm{n}_a`` is commonly written as
 
 ```math
-n_a = \sum_b m_b \frac{c_b}{\rho_b} \nabla_a W_{ab},
+\bm{n}_a = \sum_b m_b \frac{c_b}{\rho_b} \nabla_a W_{ab},
 ```
 
 where:
@@ -240,12 +245,14 @@ where:
 - ``\rho_b`` is the density of particle ``b``,
 - ``\nabla_a W_{ab}`` is the gradient of the smoothing kernel ``W_{ab}`` with respect to particle ``a``.
 
+For single-fluid surface-normal calculations, ``c_b = 1`` for neighboring fluid particles.
+
 #### Normalization of surface normals
 
 The calculated normals are normalized to unit vectors:
 
 ```math
-\hat{n}_a = \frac{n_a}{\Vert n_a \Vert}.
+\hat{\bm{n}}_a = \frac{\bm{n}_a}{\Vert \bm{n}_a \Vert}.
 ```
 
 Normalization ensures that the magnitude of the normals does not bias the curvature calculations or the resulting surface tension forces.
@@ -293,11 +300,12 @@ In the following table some values are shown for reference. The values marked wi
 
 ### [Akinci-based intra-particle force surface tension and wall adhesion model](@id akinci_ipf)
 
-The [Akinci](@cite Akinci2013) model divides surface tension into distinct force components:
+The [Akinci](@cite Akinci2013) model divides surface tension into distinct force components,
+which TrixiParticles.jl applies as acceleration contributions.
 
-#### Cohesion force
+#### Cohesion contribution
 
-The cohesion force captures the attraction between particles at the fluid interface, creating the effect of surface tension.
+The cohesion contribution captures the attraction between particles at the fluid interface, creating the effect of surface tension.
 It is defined by the distance between particles and the support radius ``h_c``, using a kernel-based formulation.
 
 **Key features:**
@@ -305,10 +313,11 @@ It is defined by the distance between particles and the support radius ``h_c``, 
 - Particles within half the support radius experience a repulsive force to prevent clustering.
 - Particles beyond half the radius but within the support radius experience an attractive force to simulate cohesion.
 
-Mathematically:
+In the acceleration form used by TrixiParticles.jl, the pairwise cohesion contribution is
 
 ```math
-F_{\text{cohesion}} = -\sigma m_b C(r) \frac{r}{\Vert r \Vert},
+\left.\frac{\mathrm{d}\bm{v}_a}{\mathrm{d} t}\right|_{ab}^{\text{cohesion}}
+= -\sigma m_b C(r) \frac{\bm{r}}{\Vert \bm{r} \Vert},
 ```
 
 where ``C(r)``, the cohesion kernel, is defined as:
@@ -317,29 +326,29 @@ where ``C(r)``, the cohesion kernel, is defined as:
 C(r)=\frac{32}{\pi h_c^9}
 \begin{cases}
 (h_c-r)^3 r^3, & \text{if } 2r > h_c, \\
-2(h_c-r)^3 r^3 - \frac{h^6}{64}, & \text{if } r > 0 \text{ and } 2r \leq h_c, \\
+2(h_c-r)^3 r^3 - \frac{h_c^6}{64}, & \text{if } r > 0 \text{ and } 2r \leq h_c, \\
 0, & \text{otherwise.}
 \end{cases}
 ```
 
-#### Surface area minimization force
+#### Surface area minimization contribution
 
-The surface area minimization force models the curvature reduction effects, aligning particle motion to reduce the interface's total area.
-It acts based on the difference in surface normals:
-
+The surface area minimization contribution models curvature reduction and acts on the
+difference in surface normals. TrixiParticles.jl uses the local smoothing length:
 ```math
-F_{\text{curvature}} = -\sigma (n_a - n_b),
+\left.\frac{\mathrm{d}\bm{v}_a}{\mathrm{d} t}\right|_{ab}^{\text{curvature}}
+= -\sigma h (\bm{n}_a - \bm{n}_b),
 ```
+where ``\bm{n}_a`` and ``\bm{n}_b`` are the surface normals of the interacting particles.
 
-where ``n_a`` and ``n_b`` are the surface normals of the interacting particles.
+#### Wall adhesion contribution
 
-#### Wall adhesion force
-
-This force models the interaction between fluid and solid boundaries, simulating adhesion effects at walls.
+This contribution models the interaction between fluid and solid boundaries, simulating adhesion effects at walls.
 It uses a custom kernel with a peak at 0.75 times the support radius:
 
 ```math
-F_{\text{adhesion}} = -\beta m_b A(r) \frac{r}{\Vert r \Vert},
+\left.\frac{\mathrm{d}\bm{v}_a}{\mathrm{d} t}\right|_{ab}^{\text{adhesion}}
+= -\beta m_b A(r) \frac{\bm{r}}{\Vert \bm{r} \Vert},
 ```
 
 where ``A(r)`` is the adhesion kernel:
@@ -360,11 +369,13 @@ The method described by [Morris](@cite Morris2000) estimates curvature by combin
 The computed curvature is then used to determine forces acting perpendicular to the interface.
 While this method provides accurate surface tension forces, it does not explicitly conserve momentum.
 
-In the Morris model, surface tension is computed based on local interface curvature ``\kappa`` and the unit surface normal ``\hat{n}.``
-By estimating ``\hat{n}`` and ``\kappa`` at each particle near the interface, the surface tension force for particle a can be written as:
+In the Morris model, surface tension is computed based on local interface curvature ``\kappa`` and the unit surface normal ``\hat{\bm{n}}``.
+By estimating ``\hat{\bm{n}}`` and ``\kappa`` at each particle near the interface, the
+surface tension force for particle ``a`` can be written as
 
 ```math
-F_{\text{surface tension}} = - \sigma \frac{\kappa_a}{\rho_a}\hat{n}_a
+\bm{F}_{a}^{\sigma}
+= - m_a \sigma \frac{\kappa_a}{\rho_a}\hat{\bm{n}}_a.
 ```
 
 This formulation focuses directly on geometric properties of the interface, making it relatively straightforward to implement when a reliable interface detection
@@ -381,28 +392,35 @@ where accumulated numerical error can be significant.
 
 #### Stress tensor formulation
 
-The surface tension force can be seen as a divergence of a stress tensor ``S``
+The surface tension force can be written as the divergence of a stress tensor ``\bm{S}``:
 
 ```math
-F_{\text{surface tension}} = \nabla \cdot S,
+\bm{F}_{a}^{\sigma} = m_a \nabla \cdot \bm{S},
 ```
 
-with ``S`` defined as
+with
 
 ```math
-S = \sigma \delta_s (I - \hat{n} \otimes \hat{n}),
+\bm{S} = \sigma \delta_s (I - \hat{\bm{n}} \otimes \hat{\bm{n}}).
 ```
 
 with:
 
 - ``\delta_s``: Surface delta function,
-- ``\hat{n}``: Unit normal vector,
+- ``\hat{\bm{n}}``: Unit normal vector,
 - ``I``: Identity matrix.
 
 This divergence can be computed numerically in the SPH framework as
 
 ```math
-\sum_b \frac{m_b}{\rho_a \rho_b} (S_a + S_b) \nabla W_{ab}
+\bm{F}_{a}^{\sigma}
+= m_a \sum_b \frac{m_b}{\rho_a \rho_b} (\bm{S}_a + \bm{S}_b) \nabla_a W_{ab}.
+```
+
+TrixiParticles.jl stores ``\sigma`` outside the tensor and uses the stabilized tensor
+```math
+\bm{S}_a^{\text{impl}}
+= \delta_{s,a} (I - \hat{\bm{n}}_a \otimes \hat{\bm{n}}_a) - \delta_{s,\max} I,
 ```
 
 #### Advantages and limitations
