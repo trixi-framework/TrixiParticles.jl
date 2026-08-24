@@ -61,22 +61,19 @@ by Balsara ([Balsara1995](@cite)) or Morris ([Morris1997](@cite)).
 
 ##### Mathematical Formulation
 
-The force exerted by particle ``b`` on particle ``a`` due to artificial viscosity is given by
+The force exerted by particle ``b`` on particle ``a`` due to artificial viscosity is
 
 ```math
-\bm{F}_{ab}^{\text{AV}} = - m_a m_b \Pi_{ab} \nabla_a W_{ab}.
+\bm{f}_{ab}^{\text{AV}} =
+\begin{cases}
+    m_a m_b \frac{\alpha c \mu_{ab} + \beta \mu_{ab}^2}{\bar{\rho}_{ab}}
+    \nabla_a W_{ab}, & \text{if } \bm{v}_{ab} \cdot \bm{r}_{ab} < 0, \\
+    0, & \text{otherwise}.
+\end{cases}
 ```
 
 where:
 
-- ``\Pi_{ab}`` is the artificial viscosity term defined as:
-  ```math
-  \Pi_{ab} =
-  \begin{cases}
-      -\frac{\alpha c \mu_{ab} + \beta \mu_{ab}^2}{\bar{\rho}_{ab}} & \text{if } \mathbf{v}_{ab} \cdot \mathbf{r}_{ab} < 0, \\
-      0 & \text{otherwise}
-  \end{cases}
-  ```
 - ``\alpha`` and ``\beta`` are viscosity parameters,
 - ``c`` is the local speed of sound,
 - ``\bar{\rho}_{ab}`` is the arithmetic mean of the densities of particles ``a`` and ``b``.
@@ -116,10 +113,10 @@ This results in a more realistic representation of flow dynamics in weakly compr
 
 ##### Mathematical Formulation
 
-An additional force term ``\tilde{\bm{F}}_{ab}`` is introduced in the momentum equation:
+An additional force term ``\tilde{\bm{f}}_{ab}`` is introduced in the momentum equation:
 
 ```math
-\tilde{\bm{F}}_{ab} =
+\tilde{\bm{f}}_{ab} =
 m_a m_b \frac{(\mu_a + \mu_b)\, \bm{r}_{ab} \cdot \nabla_a W_{ab}}
 {\rho_a \rho_b (\Vert \bm{r}_{ab} \Vert^2 + \epsilon h^2)}\, \bm{v}_{ab},
 ```
@@ -144,7 +141,7 @@ while minimizing compressibility effects. This results in accurate laminar flow 
 The viscous interaction is modeled through the following pairwise force:
 
 ```math
-\bm{F}_{ab}^{\nu} =
+\bm{f}_{ab}^{\nu} =
 \left( V_a^2 + V_b^2 \right)\,
 \bar{\eta}_{ab}\,
 \frac{\nabla_a W_{ab} \cdot \bm{r}_{ab}}
@@ -252,12 +249,7 @@ where:
 - ``\rho_b`` is the density of particle ``b``,
 - ``\nabla_a W_{ab}`` is the gradient of the smoothing kernel ``W_{ab}`` with respect to particle ``a``.
 
-Implementation note: for the single-fluid surface-normal calculation in TrixiParticles.jl,
-this reduces to
-```math
-\bm{n}_a = \sum_b m_b \frac{1}{\rho_b} \nabla_a W_{ab},
-```
-i.e. effectively ``c_b = 1`` for neighboring fluid particles.
+For single-fluid surface-normal calculations, ``c_b = 1`` for neighboring fluid particles.
 
 #### Normalization of surface normals
 
@@ -312,11 +304,12 @@ In the following table some values are shown for reference. The values marked wi
 
 ### [Akinci-based intra-particle force surface tension and wall adhesion model](@id akinci_ipf)
 
-The [Akinci](@cite Akinci2013) model divides surface tension into distinct force components:
+The [Akinci](@cite Akinci2013) model divides surface tension into distinct force components,
+which TrixiParticles.jl applies as acceleration contributions.
 
-#### Cohesion force
+#### Cohesion contribution
 
-The cohesion force captures the attraction between particles at the fluid interface, creating the effect of surface tension.
+The cohesion contribution captures the attraction between particles at the fluid interface, creating the effect of surface tension.
 It is defined by the distance between particles and the support radius ``h_c``, using a kernel-based formulation.
 
 **Key features:**
@@ -324,10 +317,11 @@ It is defined by the distance between particles and the support radius ``h_c``, 
 - Particles within half the support radius experience a repulsive force to prevent clustering.
 - Particles beyond half the radius but within the support radius experience an attractive force to simulate cohesion.
 
-The pairwise cohesion force is
+In the acceleration form used by TrixiParticles.jl, the pairwise cohesion contribution is
 
 ```math
-\bm{F}_{\text{cohesion}} = -\sigma m_b C(r) \frac{\bm{r}}{\Vert \bm{r} \Vert},
+\left.\frac{\mathrm{d}\bm{v}_a}{\mathrm{d} t}\right|_{ab}^{\text{cohesion}}
+= -\sigma m_b C(r) \frac{\bm{r}}{\Vert \bm{r} \Vert},
 ```
 
 where ``C(r)``, the cohesion kernel, is defined as:
@@ -341,33 +335,24 @@ C(r)=\frac{32}{\pi h_c^9}
 \end{cases}
 ```
 
-#### Surface area minimization force
+#### Surface area minimization contribution
 
-The surface area minimization force models curvature reduction and acts on the
-difference in surface normals:
-
-```math
-\bm{F}_{\text{curvature}} = -\sigma (\bm{n}_a - \bm{n}_b),
-```
-
-where ``\bm{n}_a`` and ``\bm{n}_b`` are the surface normals of the interacting particles.
-Implementation note: TrixiParticles.jl uses
+The surface area minimization contribution models curvature reduction and acts on the
+difference in surface normals. TrixiParticles.jl uses the local smoothing length:
 ```math
 \left.\frac{\mathrm{d}\bm{v}_a}{\mathrm{d} t}\right|_{ab}^{\text{curvature}}
 = -\sigma h (\bm{n}_a - \bm{n}_b),
 ```
-which uses the same normal-difference direction but scales the magnitude with the
-local smoothing length ``h``. For constant ``h``, this factor can be absorbed into
-the coefficient ``\sigma``; for variable smoothing lengths, it makes the curvature
-contribution depend on the local kernel support.
+where ``\bm{n}_a`` and ``\bm{n}_b`` are the surface normals of the interacting particles.
 
-#### Wall adhesion force
+#### Wall adhesion contribution
 
-This force models the interaction between fluid and solid boundaries, simulating adhesion effects at walls.
+This contribution models the interaction between fluid and solid boundaries, simulating adhesion effects at walls.
 It uses a custom kernel with a peak at 0.75 times the support radius:
 
 ```math
-\bm{F}_{\text{adhesion}} = -\beta m_b A(r) \frac{\bm{r}}{\Vert \bm{r} \Vert},
+\left.\frac{\mathrm{d}\bm{v}_a}{\mathrm{d} t}\right|_{ab}^{\text{adhesion}}
+= -\beta m_b A(r) \frac{\bm{r}}{\Vert \bm{r} \Vert},
 ```
 
 where ``A(r)`` is the adhesion kernel:
@@ -436,13 +421,11 @@ This divergence can be computed numerically in the SPH framework as
 = m_a \sum_b \frac{m_b}{\rho_a \rho_b} (\bm{S}_a + \bm{S}_b) \nabla_a W_{ab}.
 ```
 
-Implementation note: TrixiParticles.jl evaluates the corresponding acceleration and uses
-the stabilized stress tensor
+TrixiParticles.jl stores ``\sigma`` outside the tensor and uses the stabilized tensor
 ```math
 \bm{S}_a^{\text{impl}}
 = \delta_{s,a} (I - \hat{\bm{n}}_a \otimes \hat{\bm{n}}_a) - \delta_{s,\max} I,
 ```
-with the factor ``\sigma`` applied outside the pairwise sum.
 
 #### Advantages and limitations
 
