@@ -6,14 +6,14 @@ Returns the total kinetic energy of all particles in a system.
 function kinetic_energy(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
     v = wrap_v(v_ode, system, semi)
 
-    velocity = reinterpret(reshape, SVector{ndims(system), eltype(v)},
-                           view(current_velocity(v, system), :,
-                                each_active_particle(system)))
+    # Avoid `reinterpret`ing as vector of `SVector`s, which ignores the column stride
+    # of a row-sliced `PtrArray`.
+    # See https://github.com/JuliaSIMD/StrideArrays.jl/issues/95.
+    velocity = view(current_velocity(v, system), :, each_active_particle(system))
+    squared_velocity = sum(abs2, velocity; dims=1)
     mass = view(system.mass, each_active_particle(system))
 
-    return mapreduce(+, velocity, mass) do v_i, m_i
-        return m_i * dot(v_i, v_i) / 2
-    end
+    return mapreduce(*,+,squared_velocity,mass) / 2
 end
 
 function kinetic_energy(system::AbstractStructureSystem,

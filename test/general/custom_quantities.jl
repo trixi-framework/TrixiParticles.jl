@@ -38,6 +38,11 @@
             end
 
             @test isapprox(expected_ekin, ekin)
+
+            # Test the `PtrArray` path used without `ThreadedBroadcastArray`.
+            ekin_ptr_array = kinetic_energy(fluid_system, dv_ode, du_ode,
+                                            parent(v_ode), u_ode, semi, t)
+            @test isapprox(expected_ekin, ekin_ptr_array)
         end
 
         @testset "Boundary System" begin
