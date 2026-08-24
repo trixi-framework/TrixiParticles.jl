@@ -6,6 +6,11 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ## Version 0.5.4
 
+### Features
+
+- Added option to update `DensityDiffusionAntuono` between time steps instead of updating
+  in every stage of the time integration scheme (#1301).
+
 ### Important Bugfixes
 
 - Fixed mathematical inconsistencies in the SPH documentation, including incorrect

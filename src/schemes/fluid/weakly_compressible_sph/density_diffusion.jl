@@ -15,7 +15,14 @@ See [Density Diffusion](@ref density_diffusion) for a comparison and more detail
 """
 abstract type AbstractDensityDiffusion end
 
+@inline requires_update_callback(::AbstractDensityDiffusion) = false
+
 @inline density_diffusion(system) = nothing
+
+function update_density_diffusion_from_callback!(system, density_diffusion,
+                                                 v_ode, u_ode, semi)
+    return system
+end
 
 # Most density diffusion formulations don't need updating
 function update!(density_diffusion, v, u, system, semi)
@@ -88,7 +95,7 @@ end
 end
 
 @doc raw"""
-    DensityDiffusionAntuono(; delta)
+    DensityDiffusionAntuono(; delta, update_everystage=true)
 
 The commonly used density diffusion terms by [Antuono (2010)](@cite Antuono2010), also referred to as
 δ-SPH. The density diffusion term by [Molteni (2009)](@cite Molteni2009) is extended by a second
@@ -112,16 +119,28 @@ L_a := \left( -\sum_{b} V_b r_{ab} \otimes \nabla W_{ab} \right)^{-1} \in \R^{d 
 ```
 where ``d`` is the number of dimensions.
 
+# Keywords
+- `delta`:                    Density diffusion coefficient.
+- `update_everystage=true`:   Update the renormalized density gradient in every stage.
+                              If `false`, update it between time steps from an
+                              [`UpdateCallback`](@ref), which is then required.
+
 See [`AbstractDensityDiffusion`](@ref TrixiParticles.AbstractDensityDiffusion)
 for an overview and comparison of implemented density diffusion terms.
 """
-struct DensityDiffusionAntuono{ELTYPE} <: AbstractDensityDiffusion
+struct DensityDiffusionAntuono{ELTYPE, UPDATE_EVERYSTAGE} <: AbstractDensityDiffusion
     delta::ELTYPE
 
-    function DensityDiffusionAntuono(; delta)
-        new{typeof(delta)}(delta)
+    function DensityDiffusionAntuono(; delta, update_everystage=true)
+        new{typeof(delta), update_everystage}(delta)
     end
 end
+
+@inline function requires_update_callback(::DensityDiffusionAntuono{<:Any, false})
+    return true
+end
+
+@inline update_everystage(::DensityDiffusionAntuono{<:Any, UPDATE_EVERYSTAGE}) where {UPDATE_EVERYSTAGE} = UPDATE_EVERYSTAGE
 
 create_cache_density_diffusion(initial_condition, density_diffusion) = (;)
 
@@ -143,8 +162,10 @@ end
 function Base.show(io::IO, density_diffusion::DensityDiffusionAntuono)
     @nospecialize density_diffusion # reduce precompilation time
 
-    print(io, "DensityDiffusionAntuono(")
+    print(io, "DensityDiffusionAntuono(delta=")
     print(io, density_diffusion.delta)
+    print(io, ", update_everystage=")
+    print(io, update_everystage(density_diffusion))
     print(io, ")")
 end
 
@@ -173,7 +194,19 @@ end
     return div_fast(result, distance^2) * pos_diff
 end
 
-function update!(density_diffusion::DensityDiffusionAntuono, v, u, system, semi)
+function update!(density_diffusion::DensityDiffusionAntuono{<:Any, true}, v, u, system,
+                 semi)
+    return update_density_diffusion!(density_diffusion, v, u, system, semi)
+end
+
+# With `update_everystage=false`, the regular stage update is disabled.
+function update!(density_diffusion::DensityDiffusionAntuono{<:Any, false}, v, u, system,
+                 semi)
+    return density_diffusion
+end
+
+function update_density_diffusion!(density_diffusion::DensityDiffusionAntuono, v, u,
+                                   system, semi)
     density_diffusion_correction_matrix = system.cache.density_diffusion_correction_matrix
     normalized_density_gradient = system.cache.density_diffusion_normalized_density_gradient
 
@@ -208,6 +241,21 @@ function update!(density_diffusion::DensityDiffusionAntuono, v, u, system, semi)
     end
 
     return density_diffusion
+end
+
+# Only the callback-updated variant is updated from the `UpdateCallback`.
+function update_density_diffusion_from_callback!(system,
+                                                 density_diffusion::DensityDiffusionAntuono{<:Any,
+                                                                                            false},
+                                                 v_ode, u_ode, semi)
+    v = wrap_v(v_ode, system, semi)
+    u = wrap_u(u_ode, system, semi)
+
+    @trixi_timeit timer() "update density diffusion" begin
+        update_density_diffusion!(density_diffusion, v, u, system, semi)
+    end
+
+    return system
 end
 
 @propagate_inbounds function add_density_diffusion(drho_particle,
