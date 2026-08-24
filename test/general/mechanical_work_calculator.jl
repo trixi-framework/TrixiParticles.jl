@@ -154,30 +154,29 @@
     end
 
     @testset "ThrustCalculator constructor and force projection" begin
-        @test_throws UndefKeywordError ThrustCalculator(system64, semi64)
+        @test_throws UndefKeywordError ThrustCalculator(system, semi)
 
-        calculator = ThrustCalculator(system64, semi64; direction=SVector(1.0, 0.0))
+        calculator = ThrustCalculator(system, semi; direction=SVector(1.0, 0.0))
         @test calculator.system_index == 1
         @test calculator.thrust == 0.0
         @test calculator.dv isa Array{Float64, 2}
         @test size(calculator.dv) == (2, 4)
-        @test calculator.eachparticle == eachparticle(system64)
+        @test calculator.eachparticle == eachparticle(system)
         @test calculator.direction == SVector(1.0, 0.0)
         @test calculated_thrust(calculator) == 0.0
 
-        calculator = ThrustCalculator(system32, semi32; direction=(0.0, 2.0),
+        calculator = ThrustCalculator(system, semi; direction=(0.0, 2.0),
                                       eachparticle=2:3)
-        @test eltype(calculator.thrust) == Float32
-        @test calculator.direction == SVector(0.0f0, 1.0f0)
+        @test calculator.direction == SVector(0.0, 1.0)
         @test calculator.eachparticle == 2:3
 
-        @test_throws ArgumentError ThrustCalculator(system64, semi64; direction=(0.0, 0.0))
+        @test_throws ArgumentError ThrustCalculator(system, semi; direction=(0.0, 0.0))
 
         dv = [2.0 -1.0 0.0 3.0
               4.0 5.0 -2.0 1.0]
-        @test TrixiParticles.projected_force(dv, system64, eachparticle(system64),
+        @test TrixiParticles.projected_force(dv, system, eachparticle(system),
                                              SVector(1.0, 0.0)) == 12.0
-        @test TrixiParticles.projected_force(dv, system64, 2:3,
+        @test TrixiParticles.projected_force(dv, system, 2:3,
                                              SVector(0.0, 1.0)) == 4.0
 
         TrixiParticles.reset!(calculator)
