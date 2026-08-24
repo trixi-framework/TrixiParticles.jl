@@ -104,8 +104,9 @@ function error_history(profiles, power_law_index)
     max_velocity_errors = Float64[]
 
     for profile in profiles
-        relative_l2_error, max_velocity_error = velocity_profile_errors(profile,
-                                                                        analytical_velocity)
+        relative_l2_error,
+        max_velocity_error = velocity_profile_errors(profile,
+                                                     analytical_velocity)
         push!(relative_l2_errors, relative_l2_error)
         push!(max_velocity_errors, max_velocity_error)
     end
@@ -123,8 +124,9 @@ for power_law_index in n_values
     output_directory = joinpath(output_root, "n_$power_law_index")
     result_filename = "validation_run_poiseuille_carreau_2d_n_$(n_label)_ny_$ny"
 
-    pp_callback = PostprocessCallback(; dt=t_end_factor * channel_height /
-                                           reference_velocity / 20,
+    pp_callback = PostprocessCallback(;
+                                      dt=t_end_factor * channel_height /
+                                         reference_velocity / 20,
                                       output_directory,
                                       filename=result_filename,
                                       mean_velocity_x,
@@ -133,12 +135,12 @@ for power_law_index in n_values
                                       write_file_interval=0)
 
     example_kwargs = (;
-        ny, t_end_factor, eps_factor, viscosity_epsilon, sound_speed_factor,
-        power_law_index, parallelization_backend, pp_callback,
-        output_directory, smoothing_kernel, time_integrator,
-        cfl_number, abstol, reltol, maxiters,
-        NamedTuple{(:initial_condition_mode, :viscosity_model)}((
-            QuoteNode(initial_condition_mode), QuoteNode(viscosity_model)))...)
+                      ny, t_end_factor, eps_factor, viscosity_epsilon, sound_speed_factor,
+                      power_law_index, parallelization_backend, pp_callback,
+                      output_directory, smoothing_kernel, time_integrator,
+                      cfl_number, abstol, reltol, maxiters,
+                      NamedTuple{(:initial_condition_mode, :viscosity_model)}((QuoteNode(initial_condition_mode),
+                                                                               QuoteNode(viscosity_model)))...)
 
     trixi_include(@__MODULE__,
                   joinpath(examples_dir(), "fluid", "poiseuille_carreau_2d.jl");

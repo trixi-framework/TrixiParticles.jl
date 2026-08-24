@@ -536,13 +536,13 @@ See [the docs on viscosity](@ref viscosity_sph) for an overview and comparison o
                         pairwise shear-rate estimate, scaled by the smoothing length.
 """
 struct ViscosityCarreauYasuda{ELTYPE}
-    nu0::ELTYPE                 # zero-shear kinematic viscosity
-    nu_inf::ELTYPE              # infinite-shear kinematic viscosity
-    lambda::ELTYPE              # time constant
-    a::ELTYPE                   # Yasuda parameter
-    n::ELTYPE                   # power-law index
-    epsilon::ELTYPE             # Adami force regularization
-    shear_rate_epsilon::ELTYPE  # shear-rate distance regularization
+    nu0                :: ELTYPE  # zero-shear kinematic viscosity
+    nu_inf             :: ELTYPE  # infinite-shear kinematic viscosity
+    lambda             :: ELTYPE  # time constant
+    a                  :: ELTYPE  # Yasuda parameter
+    n                  :: ELTYPE  # power-law index
+    epsilon            :: ELTYPE  # Adami force regularization
+    shear_rate_epsilon :: ELTYPE  # shear-rate distance regularization
 end
 
 function ViscosityCarreauYasuda(; nu0, nu_inf, lambda, a, n, epsilon=0.01,
@@ -575,8 +575,9 @@ end
     # This is only a local pairwise approximation of the shear-rate magnitude.
     # Do not add a particle-spacing-sized offset here: that changes the physical
     # shear rate. The small lower bound only protects pathological near-zero distances.
-    shear_rate_distance = max(distance, viscosity.shear_rate_epsilon *
-                                       smoothing_length_average)
+    shear_rate_distance = max(distance,
+                              viscosity.shear_rate_epsilon *
+                              smoothing_length_average)
     gamma_dot = div_fast(sqrt(dot(v_diff, v_diff)), shear_rate_distance)
 
     # Compute Carreau-Yasuda effective viscosity
