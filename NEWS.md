@@ -20,6 +20,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Fixed restarting with EDAC from solution objects (#1213) and from VTK files (#1297).
 - Fixed the Morris surface tension curvature, which was divided by a reset correction
   factor when more than one fluid system used a surface normal method (#1214).
+- Fixed characteristic open boundaries to keep fallback values local to each boundary zone
+  and reject unsupported bidirectional zones (#1203).
 - Fixed the custom quantities `kinetic_energy`, `total_mass`, `max_pressure`, `min_pressure`,
   `avg_pressure`, `max_density`, `min_density` and `avg_density` to only take active particles
   into account (#1184).
