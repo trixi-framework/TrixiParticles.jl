@@ -196,7 +196,8 @@
         @test TrixiParticles.projected_force(dv, system, 2:3,
                                              SVector(0.0, 1.0)) == 3.0
 
-        TrixiParticles.reset!(calculator32)
+        calculator32.thrust = 1.0f0
+        @test TrixiParticles.reset_custom_quantity!(calculator32) === calculator32
         @test calculated_thrust(calculator32) === 0.0f0
     end
 

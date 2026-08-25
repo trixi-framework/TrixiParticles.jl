@@ -286,9 +286,7 @@ mutable struct ThrustCalculator{ELTYPE, DV, EP, D}
     direction    :: D
 end
 
-# This should dispatch on `TotalLagrangianSPHSystem`, but this name is not yet defined
-# due to the include order.
-function ThrustCalculator(system::AbstractStructureSystem, semi;
+function ThrustCalculator(system::TotalLagrangianSPHSystem, semi;
                           direction, eachparticle=eachparticle(system))
     ELTYPE = eltype(system)
     system_index = system_indices(system, semi)
@@ -312,7 +310,7 @@ function ThrustCalculator(system::AbstractStructureSystem, semi;
     return ThrustCalculator(zero(ELTYPE), system_index, dv, eachparticle, direction_)
 end
 
-function reset!(calculator::ThrustCalculator)
+function reset_custom_quantity!(calculator::ThrustCalculator)
     calculator.thrust = zero(calculator.thrust)
 
     return calculator

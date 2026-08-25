@@ -262,7 +262,11 @@
             @test isapprox(calculated_mechanical_work(mechanical_work2),
                            expected_energy_fluid,
                            rtol=5e-4)
-            @test isfinite(calculated_thrust(thrust))
+            recorded_thrust = postprocess_callback.affect!.data["thrust_structure_1"]
+            @test !isempty(recorded_thrust)
+            @test all(isfinite, recorded_thrust)
+            @test calculated_thrust(thrust) == last(recorded_thrust)
+            @test !iszero(calculated_thrust(thrust))
         end
 
         @trixi_testset "fsi/falling_water_column_2d.jl" begin
