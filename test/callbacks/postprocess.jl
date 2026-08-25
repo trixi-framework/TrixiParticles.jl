@@ -15,6 +15,31 @@
                                                                                      t) -> 1)
     end
 
+    @testset verbose=true "reset custom quantity" begin
+        @test TrixiParticles.reset_custom_quantity!(identity) === identity
+
+        callback = PostprocessCallback(; interval=1, example_quantity=identity)
+        postprocess_callback = callback.affect!
+
+        # Add some data to make sure it gets cleared.
+        postprocess_callback.data["example_quantity"] = Any[1.0]
+        push!(postprocess_callback.times, 1.0)
+
+        semi = nothing
+        integrator = (; p=(; semi), opts=(; callback=(; discrete_callbacks=Any[])))
+
+        function (callback::TrixiParticles.PostprocessCallback)(::typeof(integrator))
+            return callback
+        end
+
+        TrixiParticles.set_callbacks_used!(semi::Nothing, integrator) = nothing
+
+        TrixiParticles.initialize_postprocess_callback!(postprocess_callback, nothing,
+                                                        0.0, integrator)
+        @test isempty(postprocess_callback.data)
+        @test isempty(postprocess_callback.times)
+    end
+
     @testset verbose=true "show" begin
         function example_function(system, v_ode, u_ode, semi, t)
             return 0
