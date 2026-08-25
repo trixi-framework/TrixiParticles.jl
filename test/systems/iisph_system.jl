@@ -489,4 +489,30 @@
             @test TrixiParticles.maximum_iisph_iterations(system_iters) == 7
         end
     end
+
+    @testset "Reject incompatible fluid systems" begin
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        smoothing_length = 0.5
+        coordinates = [0.0 0.1
+                       0.0 0.2]
+        velocity = zeros(2, 2)
+        mass = [1.0, 1.0]
+        density = [1000.0, 1000.0]
+        pressure = [0.0, 0.0]
+        ic = InitialCondition(; coordinates, velocity, mass, density, pressure)
+
+        iisph_system = ImplicitIncompressibleSPHSystem(ic;
+                                                       smoothing_kernel,
+                                                       smoothing_length,
+                                                       reference_density=1000.0,
+                                                       time_step=0.5)
+        edac_system = EntropicallyDampedSPHSystem(ic; smoothing_kernel,
+                                                  smoothing_length,
+                                                  sound_speed=10.0)
+
+        error_str = "`ImplicitIncompressibleSPHSystem` cannot be used together with " *
+                    "`EntropicallyDampedSPHSystem`"
+        @test_throws ArgumentError(error_str) Semidiscretization(iisph_system,
+                                                                 edac_system)
+    end
 end
