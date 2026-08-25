@@ -2,7 +2,7 @@ steps:
   - label: "CUDA"
     plugins:
       - JuliaCI/julia#v1:
-          version: "1.12"
+          version: "1.13"
     agents:
       queue: "cuda"
     command: |
@@ -15,7 +15,7 @@ steps:
   - label: "AMDGPU"
     plugins:
       - JuliaCI/julia#v1:
-          version: "1.12"
+          version: "1.13"
     agents:
       queue: "rocm"
     command: |
@@ -42,7 +42,7 @@ steps:
   - label: "Metal"
     plugins:
       - JuliaCI/julia#v1:
-          version: "1.12"
+          version: "1.13"
     agents:
       queue: "metal"
     command: |
