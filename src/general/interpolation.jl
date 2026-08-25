@@ -500,7 +500,8 @@ function process_neighborhood_searches(semi, u_ode, ref_system, smoothing_length
             # We can use the existing neighborhood searches.
             # Update existing NHS with the current coordinates.
             update_nhs!(semi, u_ode)
-            return semi.neighborhood_searches[system_indices(ref_system, semi), :]
+            return map(system -> get_neighborhood_search(ref_system, system, semi),
+                       semi.systems)
         end
     end
 
@@ -524,7 +525,8 @@ function process_neighborhood_searches(semi, u_ode, ref_system, smoothing_length
         nhs_cpu = PointNeighbors.copy_neighborhood_search(old_nhs_cpu, search_radius,
                                                           nparticles(system))
 
-        PointNeighbors.initialize!(nhs_cpu, point_coords_cpu, system_coords_cpu)
+        PointNeighbors.initialize!(nhs_cpu, point_coords_cpu, system_coords_cpu;
+                                   eachindex_y=each_active_particle(system))
 
         if semi.parallelization_backend isa KernelAbstractions.GPU
             nhs = Adapt.adapt(semi.parallelization_backend, nhs_cpu)
