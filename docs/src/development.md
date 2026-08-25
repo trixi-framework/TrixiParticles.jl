@@ -53,7 +53,7 @@ To create a new release for TrixiParticles.jl, perform the following steps:
    ```
    @JuliaRegistrator register
    ```
-7. Wait for the magic to happen. Specifically, JuliaRegistrator will create a new PR to the
+7. Wait for the magic to happen! Specifically, JuliaRegistrator will create a new PR to the
    Julia registry with the new release information. After a grace period of ~15 minutes,
    this PR will be merged automatically. A short while after,
    [TagBot](https://github.com/trixi-framework/TrixiParticles.jl/blob/main/.github/workflows/TagBot.yml)
