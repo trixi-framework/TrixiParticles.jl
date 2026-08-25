@@ -16,6 +16,7 @@ using OrdinaryDiffEqLowStorageRK
 # ==========================================================================================
 # ==== Resolution
 particle_spacing = 0.03
+wall_particle_spacing = particle_spacing
 boundary_layers = 3
 contact_distance = 2.0 * particle_spacing
 
@@ -28,7 +29,7 @@ square_side_length = 0.18
 square_density = 1000.0
 square_particles_per_side = round(Int, square_side_length / particle_spacing)
 # Place the lowest square particles one contact distance above the top wall particles.
-square_bottom_y = contact_distance - particle_spacing
+square_bottom_y = contact_distance - (particle_spacing + wall_particle_spacing) / 2
 
 square_frictionless = RectangularShape(particle_spacing,
                                        (square_particles_per_side,
@@ -51,12 +52,13 @@ wall_density = 1000.0
 
 # `RectangularTank` supplies flat-face normals, so rigid-wall contact uses the projected
 # distance to the floor and does not require finer wall sampling than the rigid bodies.
-floor = RectangularTank(particle_spacing, (0.0, 0.0), (floor_length, floor_height),
+floor = RectangularTank(wall_particle_spacing, (0.0, 0.0),
+                        (floor_length, floor_height),
                         wall_density, n_layers=boundary_layers,
                         min_coordinates=(-1.5, 0.0),
                         faces=(false, false, true, false))
 
-boundary_model = BoundaryModelMonaghanKajtar(10.0, 1.0, particle_spacing,
+boundary_model = BoundaryModelMonaghanKajtar(10.0, 1.0, wall_particle_spacing,
                                              floor.boundary.mass)
 boundary_system = WallBoundarySystem(floor.boundary, boundary_model)
 

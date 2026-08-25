@@ -124,6 +124,13 @@
         # The endpoint is after the analytical stop time, so the body should no longer slide.
         @test all(abs(result.final_horizontal_velocity) < 0.05
                   for result in validation_results)
+
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(validation_dir(),
+                                                  "rigid_body_sliding_2d",
+                                                  "plot_rigid_body_sliding_results.jl"))
+        # Two numerical trajectories and one analytical trajectory are plotted.
+        @test length(ax.scene.plots) >= 3
     end
 
     @trixi_testset "TGV_2D" begin
