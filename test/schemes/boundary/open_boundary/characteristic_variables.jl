@@ -38,6 +38,10 @@
     end
 
     @testset "Fallback is zone-local" begin
+        # This test creates two inflows far away from each other, the "near" one with fluid neighbors,
+        # the "far" one without. When evaluating characteristics of the far inflow, no fluid neighbors
+        # are found, so it should fall back to using previous values of other inflow particles.
+        # This test checks that this fallback does not use previous values from the other inflow zone.
         face_vertices = ([0.0, 0.0], [0.0, 0.5])
         face_vertices_far = ([10.0, 0.0], [10.0, 0.5])
         flow_direction = SVector(1.0, 0.0)
