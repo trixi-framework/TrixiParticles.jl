@@ -1,4 +1,6 @@
 @trixi_testset "Contact Model and Rigid-Wall Contact" begin
+    # A single particle approaching a wall gives analytically simple penetration and force
+    # values for checking contact-model construction and runtime interaction paths.
     rigid_coordinates = reshape([0.0, 0.05], 2, 1)
     rigid_velocity = reshape([0.0, -1.0], 2, 1)
     rigid_mass = [1.0]
@@ -29,6 +31,7 @@
                                       normal_damping=20.0,
                                       contact_distance=0.1)
 
+    # Copying a normal-only model fills all inactive friction parameters with zero.
     runtime_model = TrixiParticles.copy_contact_model(contact_model, 0.1, Float64)
     @test runtime_model.normal_stiffness ≈ 2.0e4
     @test runtime_model.normal_damping ≈ 20.0
@@ -40,6 +43,8 @@
     @test runtime_model.stick_velocity_tolerance ≈ 1.0e-6
     @test runtime_model.penetration_slop ≈ 0.0
 
+    # Runtime copies adopt the system's scalar type and replace a zero contact distance with
+    # the system particle spacing.
     advanced_contact_model = RigidContactModel(; normal_stiffness=5.0,
                                                normal_damping=1.5,
                                                static_friction_coefficient=0.6,
@@ -61,13 +66,15 @@
     @test advanced_runtime_model.stick_velocity_tolerance ≈ Float32(1.0e-5)
     @test advanced_runtime_model.penetration_slop ≈ Float32(0.01)
 
+    # The same spacing fallback also applies when no contact distance is supplied.
     spacing_scaled_model = RigidContactModel(; normal_stiffness=5.0)
     spacing_scaled_runtime = TrixiParticles.copy_contact_model(spacing_scaled_model,
                                                                0.125,
                                                                Float64)
     @test spacing_scaled_runtime.contact_distance ≈ 0.125
 
-    # Reject parameters that would silently configure no physical tangential response.
+    # Reject invalid normal/friction values and incomplete friction configurations rather
+    # than silently constructing a model with no physical tangential response.
     @test_throws ArgumentError RigidContactModel(; normal_stiffness=0.0)
     @test_throws ArgumentError RigidContactModel(; normal_stiffness=1.0,
                                                  normal_damping=-1.0)
@@ -122,12 +129,14 @@
                                                                 1.0f0)
     @test norm(sliding_force_f32) ≈ norm(sliding_force) rtol = 5.0f-6
 
+    # Pair reduction must be independent of the order in which the two bodies are visited.
     pair_parameters_12 = TrixiParticles.rigid_contact_pair_parameters(force_model,
                                                                       advanced_contact_model)
     pair_parameters_21 = TrixiParticles.rigid_contact_pair_parameters(advanced_contact_model,
                                                                       force_model)
     @test pair_parameters_12 == pair_parameters_21
 
+    # Only frictional contact needs persistent history and therefore an update callback.
     rigid_system = RigidBodySystem(rigid_ic;
                                    acceleration=(0.0, 0.0),
                                    contact_model=contact_model)
@@ -153,6 +162,8 @@
     @test isnothing(rigid_system.cache.contact_tangential_displacement)
     @test TrixiParticles.requires_update_callback(rigid_system_advanced)
     @test rigid_system_advanced.cache.contact_tangential_displacement isa Dict
+    # Contact configuration is serialized with the system and determines rigid-wall search
+    # support; the reverse wall-rigid direction does not initiate contact.
     rigid_system_data = Dict{String, Any}()
     TrixiParticles.add_system_data!(rigid_system_data, rigid_system)
     @test rigid_system_data["contact_model"]["model"] ==
@@ -174,7 +185,7 @@
                                                 boundary_system))
     @test_throws ArgumentError RigidBodySystem(rigid_ic; contact_model, max_manifolds=0)
 
-    # Runtime metadata and timestep estimates must expose every active contact parameter.
+    # Runtime metadata must expose every active friction parameter for reproducibility.
     system_meta_data = Dict{String, Any}()
     TrixiParticles.add_system_data!(system_meta_data, rigid_system)
     @test system_meta_data["contact_model"]["normal_stiffness"] ≈ 2.0e4
@@ -199,6 +210,7 @@
     dv_ode = zero(v_ode)
     wall_contact_dt = sqrt(rigid_mass[1] / contact_model.normal_stiffness)
 
+    # The stable contact step is the minimum active spring and damping timescale.
     @test TrixiParticles.contact_time_step(rigid_system) ≈ wall_contact_dt
     @test TrixiParticles.contact_time_step(rigid_system, boundary_system) ≈
           wall_contact_dt
@@ -247,6 +259,8 @@
     direct_force = copy(rigid_system.force_per_particle)
     direct_resultant_force = rigid_system.resultant_force[]
 
+    # Repeating the same direct interaction after a cache reset must reproduce, rather than
+    # accumulate, force and diagnostic values.
     TrixiParticles.set_zero!(dv_ode)
     TrixiParticles.update_final!(rigid_system, v_rigid, u_rigid, v_ode, u_ode, semi,
                                  0.0)
@@ -260,6 +274,7 @@
     @test rigid_system.force_per_particle == direct_force
     @test rigid_system.resultant_force[] ≈ direct_resultant_force
 
+    # Finalizing without a preceding interaction must not retain stale contact resultants.
     TrixiParticles.set_zero!(dv_ode)
     TrixiParticles.update_final!(rigid_system, v_rigid, u_rigid, v_ode, u_ode, semi,
                                  0.0)
@@ -272,6 +287,8 @@
     @test iszero(rigid_system.resultant_torque[])
     @test iszero(rigid_system.angular_acceleration_force[])
 
+    # Contact distance, not the shorter hydrodynamic kernel support, controls whether the
+    # rigid particle and wall become neighbors.
     far_rigid_ic = InitialCondition(; coordinates=reshape([0.0, 0.09], 2, 1),
                                     velocity=rigid_velocity,
                                     mass=rigid_mass,

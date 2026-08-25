@@ -40,6 +40,8 @@
                                    acceleration=(0.0, 0.0),
                                    contact_model=history_model)
 
+    # Tangential displacement is path-dependent, so frictional systems allocate history and
+    # require accepted-step updates.
     @test TrixiParticles.requires_update_callback(rigid_system)
     @test rigid_system.cache.contact_tangential_displacement isa Dict
 
@@ -47,6 +49,7 @@
     ode = semidiscretize(semi, (0.0, 0.01))
     v_ode, u_ode = ode.u0.x
     dv_ode = zero(v_ode)
+    # Evaluating the RHS without the required callback must fail before using stale history.
     update_error = try
         TrixiParticles.kick!(dv_ode, v_ode, u_ode, ode.p, 0.0)
         nothing
@@ -81,6 +84,8 @@
 
     TrixiParticles.reset_contact_history!(rigid_system)
 
+    # A direct accepted-step update creates a wall-contact key and integrates the slip over
+    # exactly the supplied step size.
     TrixiParticles.update_rigid_contact_eachstep!(rigid_system, v_ode, u_ode, semi, 0.0,
                                                   1.0e-3)
 
@@ -124,6 +129,8 @@
     TrixiParticles.update_rigid_contact_eachstep!(rigid_system, v_ode, u_ode, semi, 0.0,
                                                   1.0e-3)
 
+    # Recreated history opposes horizontal slip while the normal force opposes penetration;
+    # both signs must survive reduction from particle forces to acceleration.
     TrixiParticles.update_final!(rigid_system, v_rigid, u_rigid, v_ode, u_ode, semi,
                                  0.0)
     TrixiParticles.reset_interaction_caches!(semi)
@@ -136,6 +143,7 @@
     @test dv[1, 1] < 0.0
     @test dv[2, 1] > 0.0
 
+    # Once contact is lost, its path-dependent displacement must not affect future contacts.
     u_rigid[2, 1] = 0.2
     TrixiParticles.update_rigid_contact_eachstep!(rigid_system, v_ode, u_ode, semi, 0.0,
                                                   1.0e-3)
@@ -209,6 +217,8 @@
     TrixiParticles.interact!(dv_ode_rigid, v_ode_rigid, u_ode_rigid,
                              rigid_system_2, rigid_system_1, semi_rigid)
 
+    # The uncapped pair force uses the symmetric pair parameters and opposite tangential
+    # histories, so both ordered passes must agree on one analytical force.
     pair_contact_distance = max(rigid_contact_model_1.contact_distance,
                                 rigid_contact_model_2.contact_distance)
     pair_normal_stiffness = (rigid_contact_model_1.normal_stiffness +
@@ -240,6 +250,7 @@
     @test rigid_system_1.cache.max_contact_penetration[] ≈ pair_penetration
     @test rigid_system_2.cache.max_contact_penetration[] ≈ pair_penetration
 
+    # Separating the bodies removes both ordered copies of their shared contact history.
     u_rigid_2[1, 1] = 0.5
     TrixiParticles.update_rigid_contact_eachstep!(rigid_system_1, v_ode_rigid,
                                                   u_ode_rigid, semi_rigid, 0.0,

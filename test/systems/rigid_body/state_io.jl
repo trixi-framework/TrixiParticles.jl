@@ -1,4 +1,6 @@
 @trixi_testset "IO Data" begin
+    # Exported system data combines state-derived rigid kinematics with zero-valued force and
+    # contact diagnostics before any interactions have run.
     coordinates = [-1.0 1.0
                    0.0 0.0]
     velocity = [0.0 0.0
@@ -40,6 +42,8 @@
 end
 
 @trixi_testset "Restart" begin
+    # Restart replaces the ODE initial arrays immediately, while derived kinematics and force
+    # caches remain unchanged until the normal update lifecycle runs.
     coordinates = [0.0 1.0 2.0
                    0.0 0.0 0.0]
     velocity = [0.0 0.0 0.0
@@ -84,6 +88,8 @@ end
     @test rigid_system.resultant_torque[] == stale_torque
     @test rigid_system.angular_acceleration_force[] == stale_angular_acceleration_force
 
+    # Timestep estimation must use the restarted state even before cache refresh; afterwards,
+    # the refreshed center-of-mass and rotation values must describe that same state.
     expected_center_of_mass = [4.0, 3.0]
     expected_relative_coordinates = u_new .- expected_center_of_mass
     semi = Semidiscretization(rigid_system, neighborhood_search=nothing)
@@ -101,6 +107,8 @@ end
 end
 
 @trixi_testset "Velocity Components with ContinuityDensity" begin
+    # Hydrodynamic density adds an ODE component, but exported velocity and acceleration must
+    # still contain exactly the physical spatial dimensions.
     coordinates = [0.0 0.1
                    0.0 0.0]
     mass = [1.0, 1.0]
@@ -129,6 +137,8 @@ end
 end
 
 @trixi_testset "Configuration" begin
+    # Rigid bodies are boundaries, not fluids: reject unsupported fluid-rigid and surface
+    # tension combinations during semidiscretization instead of failing in the RHS.
     coordinates = [1.0 2.0
                    1.0 2.0]
     mass = [1.0, 1.0]

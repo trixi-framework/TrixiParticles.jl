@@ -1,10 +1,10 @@
 # ==========================================================================================
 # 2D Sliding Rigid Squares with and without Wall Friction
 #
-# Two identical rigid squares slide on the same floor. The left square uses the normal-only
-# rigid contact model from PR1, while the right square uses the frictional wall-contact path
-# added in PR2. The frictional square slows down and starts rotating due to tangential wall
-# forces, whereas the normal-only square keeps sliding without spin-up.
+# Two identical rigid squares slide on the same floor. The left square uses normal-only rigid
+# contact, while the right square also uses Coulomb friction. The frictional square slows down
+# and starts rotating due to tangential wall forces, whereas the normal-only square keeps
+# sliding without spin-up.
 #
 # In ParaView, compare the trajectories and the rigid-body field data such as
 # `angular_velocity`, `contact_count`, and `max_contact_penetration`.
@@ -16,7 +16,10 @@ using OrdinaryDiffEqLowStorageRK
 # ==========================================================================================
 # ==== Resolution
 particle_spacing = 0.03
+# Finer wall sampling makes its discrete contact normals approximate a flat floor.
+wall_particle_spacing = particle_spacing / 3
 boundary_layers = 3
+contact_distance = 2.0 * particle_spacing
 
 # ==========================================================================================
 # ==== Experiment Setup
@@ -26,7 +29,8 @@ tspan = (0.0, 0.8)
 square_side_length = 0.18
 square_density = 1000.0
 square_particles_per_side = round(Int, square_side_length / particle_spacing)
-square_bottom_y = 0.03
+# Place the lowest square particles one contact distance above the top wall particles.
+square_bottom_y = contact_distance - (particle_spacing + wall_particle_spacing) / 2
 
 square_frictionless = RectangularShape(particle_spacing,
                                        (square_particles_per_side,
@@ -47,28 +51,29 @@ floor_length = 3.0
 floor_height = 0.03
 wall_density = 1000.0
 
-floor = RectangularTank(particle_spacing, (0.0, 0.0), (floor_length, floor_height),
+floor = RectangularTank(wall_particle_spacing, (0.0, 0.0),
+                        (floor_length, floor_height),
                         wall_density, n_layers=boundary_layers,
                         min_coordinates=(-1.5, 0.0),
                         faces=(false, false, true, false))
 
-boundary_model = BoundaryModelMonaghanKajtar(10.0, 1.0, particle_spacing,
+boundary_model = BoundaryModelMonaghanKajtar(10.0, 1.0, wall_particle_spacing,
                                              floor.boundary.mass)
 boundary_system = WallBoundarySystem(floor.boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Rigid Structures
 contact_model_frictionless = RigidContactModel(; normal_stiffness=2.0e5,
-                                               normal_damping=180.0,
-                                               contact_distance=2.0 * particle_spacing)
+                                               normal_damping=100.0,
+                                               contact_distance)
 
 contact_model_frictional = RigidContactModel(; normal_stiffness=2.0e5,
-                                             normal_damping=180.0,
+                                             normal_damping=100.0,
                                              static_friction_coefficient=0.6,
                                              kinetic_friction_coefficient=0.4,
                                              tangential_stiffness=1.0e5,
                                              tangential_damping=150.0,
-                                             contact_distance=2.0 * particle_spacing)
+                                             contact_distance)
 
 structure_system_frictionless = RigidBodySystem(square_frictionless;
                                                 contact_model=contact_model_frictionless,

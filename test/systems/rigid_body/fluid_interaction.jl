@@ -1,4 +1,6 @@
 @trixi_testset "Akinci Adhesion Matches Wall Boundary" begin
+    # Replacing a stationary wall particle with a rigid particle must leave the fluid-side
+    # Akinci adhesion acceleration unchanged.
     particle_spacing = 1.0
     smoothing_kernel = SchoenbergCubicSplineKernel{2}()
     smoothing_length = 1.0
@@ -61,6 +63,7 @@
         return fluid, boundary, copy(dv_fluid[:, 1])
     end
 
+    # The rigid resultant is the equal and opposite reaction to the fluid adhesion force.
     _, _, dv_wall = run_setup(:wall)
     fluid_rigid, rigid_system, dv_rigid = run_setup(:rigid)
 
@@ -71,6 +74,8 @@
 end
 
 @trixi_testset "Rigid Interaction Caches Stay Zero without Fluid Neighbors" begin
+    # An isolated rigid body exercises the full RHS cache lifecycle without contributing any
+    # interaction force or torque.
     rigid_ic = InitialCondition(coordinates=reshape([0.0, 0.0], 2, 1),
                                 velocity=zeros(2, 1),
                                 mass=[1.0],
@@ -96,6 +101,8 @@ end
 end
 
 @trixi_testset "Rigid Resultants Accumulate over Multiple Fluid Systems" begin
+    # Compare each fluid independently with the combined setup to ensure each ordered
+    # fluid-rigid pass contributes once to the shared rigid resultants.
     particle_spacing = 1.0
     smoothing_kernel = SchoenbergCubicSplineKernel{2}()
     smoothing_length = 1.0
@@ -151,6 +158,8 @@ end
 
     fluid_positions = ((1.5, 0.0), (-1.5, 1.0))
 
+    # Particle accelerations, force, torque, and rotational acceleration are all linear sums
+    # of the two independent fluid interactions.
     rigid_1, dv_1 = run_setup((fluid_positions[1],))
     rigid_2, dv_2 = run_setup((fluid_positions[2],))
     rigid_both, dv_both = run_setup(fluid_positions)
@@ -169,6 +178,8 @@ end
 end
 
 @trixi_testset "Rigid Bodies Ignore Open Boundary Interactions" begin
+    # Open-boundary buffer particles are not physical walls and must neither enter rigid
+    # neighbor searches nor exchange forces with rigid bodies.
     particle_spacing = 1.0
     smoothing_kernel = SchoenbergCubicSplineKernel{2}()
     smoothing_length = 1.0
@@ -223,12 +234,15 @@ end
     rigid = semi.systems[2]
     open_boundary = semi.systems[3]
 
+    # Zero support prevents automatic neighbor pairs in both ordered interaction directions.
     @test iszero(TrixiParticles.compact_support(rigid, open_boundary))
     @test iszero(TrixiParticles.compact_support(open_boundary, rigid))
 
     v_ode, u_ode = ode.u0.x
     dv_ode = zero(v_ode)
 
+    # Direct calls are also no-ops, guarding against accidental dispatch independent of the
+    # neighborhood-search exclusion.
     TrixiParticles.interact!(dv_ode, v_ode, u_ode, rigid, open_boundary, semi)
     TrixiParticles.interact!(dv_ode, v_ode, u_ode, open_boundary, rigid, semi)
 
