@@ -88,26 +88,29 @@ sol = solve(ode, time_integration_scheme,
             dt=1.0, # This is overwritten by the stepsize callback.
             save_everystep=false, callback=callbacks);
 
-# Use `let` block to define the function with the *current values* of the global variables,
-# instead of reading the globals every time it is called, which would make it slow.
-let omega = omega
-    @inline global function exact_solution_rhs(u, p, t)
-        sigma, A, B = u
+compute_error = true
+if compute_error
+    # Use `let` block to define the function with the *current values* of the global variables,
+    # instead of reading the globals every time it is called, which would make it slow.
+    let omega = omega
+        @inline global function exact_solution_rhs(u, p, t)
+            sigma, A, B = u
 
-        dsigma = (sigma^2 + omega^2) * ((B^2 - A^2) / (B^2 + A^2))
-        dA = sigma * A
-        dB = -sigma * B
+            dsigma = (sigma^2 + omega^2) * ((B^2 - A^2) / (B^2 + A^2))
+            dA = sigma * A
+            dB = -sigma * B
 
-        return SVector(dsigma, dA, dB)
+            return SVector(dsigma, dA, dB)
+        end
     end
+
+    exact_u0 = SVector(sigma, radius, radius)
+    exact_solution_ode = ODEProblem(exact_solution_rhs, exact_u0, tspan)
+
+    # Use the same time integrator to avoid compilation of another integrator in CI
+    sol_exact = solve(exact_solution_ode, RDPK3SpFSAL49(), save_everystep=false)
+
+    # Error in the semi-major axis of the elliptical drop
+    error_A = maximum(sol.u[end].x[2]) + 0.5 * fluid_particle_spacing -
+              maximum(sol_exact.u[end][2:3])
 end
-
-exact_u0 = SVector(sigma, radius, radius)
-exact_solution_ode = ODEProblem(exact_solution_rhs, exact_u0, tspan)
-
-# Use the same time integrator to avoid compilation of another integrator in CI
-sol_exact = solve(exact_solution_ode, RDPK3SpFSAL49(), save_everystep=false)
-
-# Error in the semi-major axis of the elliptical drop
-error_A = maximum(sol.u[end].x[2]) + 0.5 * fluid_particle_spacing -
-          maximum(sol_exact.u[end][2:3])

@@ -57,6 +57,7 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "oscillating_drop_2
               fluid_particle_spacing, n_periods, omega, viscosity, sphere_type,
               extra_callback, info_callback=InfoCallback(interval=500),
               saving_callback=nothing, time_integration_scheme,
+              compute_error=false,
               parallelization_backend=PolyesterBackend())
 
 println("Oscillating drop energy validation written to out/$filename.json")
