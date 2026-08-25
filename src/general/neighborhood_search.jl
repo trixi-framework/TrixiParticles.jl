@@ -190,8 +190,9 @@ end
         return contact_model.contact_distance
     end
 
-    # Geometry-normal contact uses projected normal distance. Expand the Euclidean candidate
-    # radius by one wall spacing so tangential grid offsets cannot hide a valid contact.
+    # Geometry-normal contact uses projected normal distance. Search out to the hypotenuse of
+    # the contact distance and one wall spacing so a tangential grid offset cannot hide a
+    # valid projected contact.
     wall_spacing = particle_spacing(neighbor, first(eachparticle(neighbor)))
     wall_spacing > 0 || return contact_model.contact_distance
     return hypot(contact_model.contact_distance, wall_spacing)

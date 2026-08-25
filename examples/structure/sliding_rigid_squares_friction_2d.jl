@@ -49,6 +49,8 @@ floor_length = 3.0
 floor_height = 0.03
 wall_density = 1000.0
 
+# `RectangularTank` supplies flat-face normals, so rigid-wall contact uses the projected
+# distance to the floor and does not require finer wall sampling than the rigid bodies.
 floor = RectangularTank(particle_spacing, (0.0, 0.0), (floor_length, floor_height),
                         wall_density, n_layers=boundary_layers,
                         min_coordinates=(-1.5, 0.0),

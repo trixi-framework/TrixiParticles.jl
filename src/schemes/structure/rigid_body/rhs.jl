@@ -24,6 +24,8 @@ function add_source_terms!(dv, v, u, system::RigidBodySystem, semi, t, integrate
     source_force = zero(SVector{NDIMS, ELTYPE})
     source_torque = zero(system.resultant_torque[])
 
+    # Evaluate each particle source at the current state and reduce its equivalent force and
+    # moment about the current center of mass. Rigid systems do not carry a pressure field.
     for particle in each_integrated_particle(system)
         coordinates = current_coords(u, system, particle)
         velocity = current_velocity(v, system, particle)
@@ -40,10 +42,15 @@ function add_source_terms!(dv, v, u, system::RigidBodySystem, semi, t, integrate
 
     translational_acceleration = source_force / system.total_mass
     angular_acceleration = system.inverse_inertia[] * source_torque
+
+    # Pair interactions have already populated the diagnostics, so custom-source resultants
+    # are additive. Uniform `system.acceleration` is prescribed kinematics and is excluded.
     system.resultant_force[] += source_force
     system.resultant_torque[] += source_torque
     system.angular_acceleration_force[] += angular_acceleration
 
+    # Apply a_com + alpha x r to each particle instead of the original source acceleration.
+    # The common rigid acceleration preserves all relative particle distances.
     @threaded semi for particle in each_integrated_particle(system)
         relative_position = @inbounds extract_svector(system.relative_coordinates,
                                                       system, particle)
@@ -328,9 +335,10 @@ end
     return particle_system
 end
 
-# Prefer geometry normals carried by the wall initial condition. Since their orientation is
-# intentionally not prescribed by `InitialCondition`, orient each normal toward the contacting
-# rigid particle. Walls without usable normals retain radial particle-pair contact.
+# Return the unit contact normal and separation used by the penalty law. `pos_diff` points
+# from the wall particle to the rigid particle. Since `InitialCondition` does not prescribe
+# normal orientation, flip the geometry normal toward the rigid particle before projecting
+# the separation onto it. Walls without usable normals retain radial particle-pair contact.
 @inline function rigid_wall_contact_geometry(wall_system::WallBoundarySystem, wall_particle,
                                              pos_diff, radial_distance)
     boundary_normals = wall_system.cache.boundary_normals

@@ -65,6 +65,8 @@ create_cache_boundary(::Nothing, initial_condition) = (;)
 
 function create_cache_boundary_normals(initial_condition)
     normals = initial_condition.normals
+    # Preserve the reference normals in the initial condition. Prescribed motion writes the
+    # transported vectors to this cache, while stationary walls retain the copied values.
     boundary_normals = isnothing(normals) ? nothing : copy(normals)
 
     return (; boundary_normals)
@@ -214,8 +216,10 @@ function apply_prescribed_motion!(system::WallBoundarySystem,
         prescribed_motion(coordinates, velocity, acceleration, ismoving, system, semi, t)
 
         # Initial-condition normals are attached to wall particles. Transform a normal by
-        # moving its tip with the same map as the particle, which is exact for prescribed
-        # rigid translations and rotations and avoids requiring an orientation API.
+        # moving its tip with the same map as the particle:
+        # n(t) = Phi(x_0 + n_0, t) - Phi(x_0, t).
+        # This is exact for prescribed rigid translations and rotations and avoids requiring
+        # a separate orientation API.
         boundary_normals = cache.boundary_normals
         if ismoving[] && !isnothing(boundary_normals)
             movement_function = prescribed_motion.movement_function

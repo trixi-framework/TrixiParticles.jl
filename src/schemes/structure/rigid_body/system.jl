@@ -31,7 +31,9 @@ torque and applied consistently to all rigid particles.
 - `source_terms`: Optional source terms of the form
                   `(coords, velocity, density, pressure, t) -> source`. Particle source
                   accelerations are mass-weighted and reduced to one rigid resultant force
-                  and torque, so spatially varying sources cannot deform the body.
+                  and torque, so spatially varying sources cannot deform the body. The
+                  callback receives material density and zero pressure; its resultants are
+                  included in the rigid-body force and torque diagnostics.
 - `adhesion_coefficient`: Wall-adhesion strength used by Akinci-type surface tension
                           models when fluids interact with this rigid body. This is
                           only evaluated for fluid-structure interaction with

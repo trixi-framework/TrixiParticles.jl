@@ -1,6 +1,8 @@
 @trixi_testset "Rigid Dynamic Invariants" begin
     using OrdinaryDiffEqLowStorageRK
 
+    # Recover physical rigid-body observables from one partitioned ODE state so every
+    # invariant below is evaluated consistently at the initial and final times.
     function rigid_state(state, system, semi)
         v_ode, u_ode = state.x
         v = TrixiParticles.wrap_v(v_ode, system, semi)
@@ -19,11 +21,15 @@
                 center_of_mass_velocity, rotation)
     end
 
+    # Pairwise distances are independent of translation and rotation, making them a direct
+    # measure of whether the particle representation remains rigid.
     function pairwise_distances(coordinates)
         return [norm(coordinates[:, i] - coordinates[:, j])
                 for i in axes(coordinates, 2) for j in (i + 1):size(coordinates, 2)]
     end
 
+    # Compare the physical translational-plus-rotational energy rather than summing material
+    # particle velocities, which would count the rigid representation instead of the body.
     function kinetic_energy(state, system)
         translation = 0.5 * system.total_mass * sum(abs2, state.center_of_mass_velocity)
         rotation = 0.5 * dot(state.rotation.angular_velocity,
@@ -100,6 +106,7 @@
     @test pairwise_distances(source_final.coordinates) ≈
           pairwise_distances(source_initial.coordinates) rtol = 1.0e-8
 
+    # Repeat the nonuniform-source check in 3D to exercise vector torque and tensor inertia.
     source_terms_3d = (coords, velocity, density, pressure,
                        t) -> SVector(coords[2], -coords[1], coords[3])
     source_ic_3d = InitialCondition(; coordinates=coordinates_3d, mass=ones(6),
@@ -167,6 +174,8 @@
 end
 
 @trixi_testset "Geometry-Aware Rigid-Wall Contact" begin
+    # Evaluate one deliberately tangentially offset rigid particle against a sampled flat wall.
+    # Returning the support radius also checks that projected contacts enter the neighbor list.
     function flat_wall_force(wall_spacing)
         contact_distance = 0.1
         normal_distance = 0.08
@@ -230,6 +239,7 @@ end
     @test fallback_normal ≈ pos_diff / 0.1
     @test fallback_distance ≈ 0.1
 
+    # A present but degenerate normal follows the same radial fallback as a missing normal.
     zero_normal_ic = InitialCondition(; coordinates=zeros(2, 1), mass=[1.0],
                                       density=[1.0], particle_spacing=0.1,
                                       normals=zeros(2, 1))

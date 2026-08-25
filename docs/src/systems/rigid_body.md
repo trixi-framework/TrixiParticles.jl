@@ -113,17 +113,40 @@ both bodies have nonzero friction coefficients.
 ### Wall Manifolds
 
 When the wall `InitialCondition` provides `normals`, rigid-wall contact uses the wall geometry
-instead of the radial direction between particle centers. The stored normal is oriented
-toward the contacting rigid particle, and penetration is measured from the particle
-separation projected onto that normal. The Euclidean neighborhood-search radius is expanded
-by one wall spacing so a tangential offset between the rigid and wall grids cannot hide a
-valid projected contact. This makes flat-wall forces insensitive to tangential particle
-alignment and wall resolution.
+instead of the radial direction between particle centers. For rigid-particle position
+``\boldsymbol{x}_r``, wall-particle position ``\boldsymbol{x}_w``, and normalized wall normal
+``\boldsymbol{n}_w``, the normal is first oriented so that
 
-Normals attached to a wall follow its `PrescribedMotion`; translations leave them unchanged
-and rotations rotate them with the wall. If normals are absent or have zero length, contact
-falls back to the radial particle-pair direction for compatibility with arbitrary particle
-walls.
+```math
+(\boldsymbol{x}_r - \boldsymbol{x}_w) \cdot \boldsymbol{n}_w \ge 0.
+```
+
+The distance used by the contact law is then the projected distance
+
+```math
+r_n = (\boldsymbol{x}_r - \boldsymbol{x}_w) \cdot \boldsymbol{n}_w
+```
+
+rather than the radial particle separation. To ensure the neighborhood search still finds
+every projected contact, its Euclidean support radius is expanded to
+``\sqrt{d_c^2 + \Delta x_w^2}``, where ``\Delta x_w`` is the wall particle spacing. A
+tangential offset between the rigid and wall grids therefore cannot hide a valid contact.
+This makes flat-wall forces insensitive to tangential particle alignment and wall resolution.
+
+Normals attached to a wall follow its `PrescribedMotion`. For movement map
+``\boldsymbol{\Phi}``, reference position ``\boldsymbol{x}_w^0``, and reference normal
+``\boldsymbol{n}_w^0``, the transported normal is computed from
+
+```math
+\boldsymbol{n}_w(t) =
+\boldsymbol{\Phi}(\boldsymbol{x}_w^0 + \boldsymbol{n}_w^0, t) -
+\boldsymbol{\Phi}(\boldsymbol{x}_w^0, t).
+```
+
+This is exact for prescribed rigid translations and rotations: translations cancel while
+rotations rotate the normal with the wall. Contact normalizes the result before use. If
+normals are absent or have zero length, contact falls back to the radial particle-pair
+direction for compatibility with arbitrary particle walls.
 
 Here, a contact manifold is a discrete approximation of one locally smooth contact
 patch. A rigid particle touching a flat wall will usually produce one manifold,
@@ -151,6 +174,37 @@ the runtime system.
 If no `contact_model` is specified for a rigid body, rigid-wall and rigid-rigid contact
 for that system are disabled.
 
+### Source Terms
+
+`source_terms` has the signature
+`(coordinates, velocity, density, pressure, time) -> acceleration`. For a rigid body,
+`density` is the material density of the particle and `pressure` is zero. A source may vary
+spatially, but applying its acceleration independently to every particle would deform the
+body. Instead, accelerations ``\boldsymbol{a}_i`` are mass-weighted and reduced about the
+current center of mass:
+
+```math
+\boldsymbol{F}_s = \sum_i m_i \boldsymbol{a}_i, \qquad
+\boldsymbol{\tau}_s = \sum_i \boldsymbol{r}_i \times
+                      (m_i \boldsymbol{a}_i).
+```
+
+The resulting center-of-mass and angular accelerations are
+
+```math
+\boldsymbol{a}_{\mathrm{cm}} = \frac{\boldsymbol{F}_s}{M}, \qquad
+\boldsymbol{\alpha}_s = \boldsymbol{I}^{-1}\boldsymbol{\tau}_s.
+```
+
+Each material particle receives
+``\boldsymbol{a}_{\mathrm{cm}} + \boldsymbol{\alpha}_s \times \boldsymbol{r}_i``.
+This preserves rigid relative motion while allowing a nonuniform source to drive both
+translation and rotation. Source force and torque are included in `resultant_force` and
+`resultant_torque` diagnostics.
+
+The `acceleration` keyword is different: it prescribes one uniform body acceleration directly
+and is intentionally not included in force or torque diagnostics.
+
 ### Lifecycle and Limitations
 
 Positive friction coefficients require positive tangential stiffness or damping. Contact
@@ -169,12 +223,6 @@ rigid-rigid pair uses the reduced mass formed from the lightest particle in each
 For output and postprocessing, rigid bodies also expose the diagnostics
 `contact_count` and `max_contact_penetration`. They are available through rigid-body
 system data and VTK output.
-
-Custom `source_terms` are interpreted as particle accelerations, multiplied by material
-particle mass, and reduced to a resultant force and torque before being applied. They can
-therefore drive translation and rotation without exciting non-rigid particle motion. The
-uniform `acceleration` keyword remains a prescribed body acceleration and is not included in
-the resultant-force diagnostics.
 
 ```@autodocs
 Modules = [TrixiParticles]
