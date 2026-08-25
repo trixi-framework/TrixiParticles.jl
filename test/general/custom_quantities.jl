@@ -38,6 +38,11 @@
             end
 
             @test isapprox(expected_ekin, ekin)
+
+            # Test the `PtrArray` path used without `ThreadedBroadcastArray`.
+            ekin_ptr_array = kinetic_energy(fluid_system, dv_ode, du_ode,
+                                            parent(v_ode), u_ode, semi, t)
+            @test isapprox(expected_ekin, ekin_ptr_array)
         end
 
         @testset "Boundary System" begin
@@ -115,5 +120,94 @@
             # Boundary system should return NaN
             @test isnan(avg_density(boundary_system, dv_ode, du_ode, v_ode, u_ode, semi, t))
         end
+    end
+
+    @testset "Structure kinetic energy" begin
+        struct EnergyStructureMock{IC, M} <: TrixiParticles.AbstractStructureSystem{2}
+            initial_condition::IC
+            mass::M
+        end
+
+        Base.eltype(::EnergyStructureMock) = Float64
+        TrixiParticles.compact_support(::EnergyStructureMock, neighbor) = 1.0
+        function TrixiParticles.write_u0!(u0, system::EnergyStructureMock)
+            u0 .= system.initial_condition.coordinates
+            return u0
+        end
+        function TrixiParticles.write_v0!(v0, system::EnergyStructureMock)
+            v0 .= system.initial_condition.velocity
+            return v0
+        end
+
+        coordinates = [0.0 1.0 2.0
+                       0.0 0.0 0.0]
+        velocity = [1.0 2.0 3.0
+                    4.0 5.0 6.0]
+        mass = [1.0, 2.0, 3.0]
+        ic = InitialCondition(; coordinates, velocity, mass, density=ones(3))
+        system = EnergyStructureMock(ic, mass)
+        semi = Semidiscretization(system; neighborhood_search=nothing)
+        ode = semidiscretize(semi, (0.0, 1.0))
+        v_ode, u_ode = ode.u0.x
+        dv_ode, du_ode = similar(v_ode), similar(u_ode)
+
+        expected = sum(axes(velocity, 2)) do particle
+            return mass[particle] * dot(velocity[:, particle], velocity[:, particle]) / 2
+        end
+
+        @test kinetic_energy(system, dv_ode, du_ode, v_ode, u_ode, semi, t) == expected
+    end
+
+    @testset "Active particle reductions" begin
+        coordinates = [0.0 1.0 2.0
+                       0.0 0.0 0.0]
+        velocity = [1.0 10.0 3.0
+                    2.0 20.0 4.0]
+        mass = [1.0, 2.0, 4.0]
+        density = [10.0, 50.0, 30.0]
+        pressure = [100.0, 500.0, 300.0]
+
+        # The density needs to be constant when using a buffer, so we set it in `v_ode` below
+        ic = InitialCondition(; coordinates, velocity, mass,
+                              density=fill(density[1], 3), particle_spacing=1.0)
+        fluid_system = WeaklyCompressibleSPHSystem(ic;
+                                                   smoothing_kernel,
+                                                   smoothing_length,
+                                                   density_calculator=ContinuityDensity(),
+                                                   state_equation=StateEquationCole(;
+                                                                                    sound_speed=1.0,
+                                                                                    reference_density=density[1],
+                                                                                    exponent=7),
+                                                   buffer_size=1)
+        fluid_system.pressure[1:3] .= pressure
+
+        # Deactivate particle 2
+        fluid_system.buffer.active_particle[2] = false
+        TrixiParticles.update_system_buffer!(fluid_system.buffer)
+
+        semi_active = Semidiscretization(fluid_system)
+        ode = semidiscretize(semi_active, (0.0, 1.0))
+        v_ode, u_ode = ode.u0.x
+        dv_ode, du_ode = similar(v_ode), similar(u_ode)
+
+        # Set varying densities in `v_ode` (density is the last row for `ContinuityDensity`)
+        reshape(v_ode, 3, :)[3, 1:3] .= density
+
+        @test total_mass(fluid_system, dv_ode, du_ode, v_ode, u_ode, semi_active, t) ==
+              5.0
+        @test max_pressure(fluid_system, dv_ode, du_ode, v_ode, u_ode, semi_active, t) ==
+              300.0
+        @test min_pressure(fluid_system, dv_ode, du_ode, v_ode, u_ode, semi_active, t) ==
+              100.0
+        @test avg_pressure(fluid_system, dv_ode, du_ode, v_ode, u_ode, semi_active, t) ==
+              200.0
+        @test max_density(fluid_system, dv_ode, du_ode, v_ode, u_ode, semi_active, t) ==
+              30.0
+        @test min_density(fluid_system, dv_ode, du_ode, v_ode, u_ode, semi_active, t) ==
+              10.0
+        @test avg_density(fluid_system, dv_ode, du_ode, v_ode, u_ode, semi_active, t) ==
+              20.0
+        @test kinetic_energy(fluid_system, dv_ode, du_ode, v_ode, u_ode, semi_active, t) ==
+              52.5
     end
 end
