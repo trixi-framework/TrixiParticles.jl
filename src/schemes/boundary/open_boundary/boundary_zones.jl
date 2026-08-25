@@ -385,8 +385,9 @@ function set_up_boundary_zone(boundary_face, face_normal, density, particle_spac
     end
 
     # Validate boundary geometry before sampling particles.
-    unit_spanning_set, _ = calculate_spanning_vectors(boundary_face,
-                                                      one(eltype(face_normal)))
+    unit_spanning_set,
+    _ = calculate_spanning_vectors(boundary_face,
+                                   one(eltype(face_normal)))
     dot_face_normal = dot(normalize(unit_spanning_set[:, 1]), face_normal)
 
     if !isapprox(abs(dot_face_normal), 1)
