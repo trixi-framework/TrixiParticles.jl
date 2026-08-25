@@ -107,6 +107,25 @@
         @test isapprox(errors[:edac][2], 0.0, atol=0.033)
         @test isapprox(errors[:wcsph][2], 0.0, atol=0.045)
     end
+
+    @trixi_testset "rigid_body_sliding_2d" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(validation_dir(),
+                                                  "rigid_body_sliding_2d",
+                                                  "validation_rigid_body_sliding_2d.jl"))
+
+        @test all(solution.retcode == ReturnCode.Success for solution in solutions)
+
+        # Both wall resolutions should reproduce the analytical Coulomb stopping distance.
+        @test all(isapprox(error, 0.0; atol=0.05)
+                  for error in stopping_distance_errors)
+        # Geometry-normal contact should make the result insensitive to wall sampling.
+        @test isapprox(wall_resolution_error, 0.0; atol=0.02)
+        # The endpoint is after the analytical stop time, so the body should no longer slide.
+        @test all(abs(result.final_horizontal_velocity) < 0.05
+                  for result in validation_results)
+    end
+
     @trixi_testset "TGV_2D" begin
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(validation_dir(),
