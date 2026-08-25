@@ -9,6 +9,8 @@ horizontal plane,
 s = \frac{v_0^2}{2 \mu_k g}.
 ```
 
+![Numerical and analytical stopping trajectories with displacement error](rigid_body_sliding_2d.svg)
+
 The comparison assumes that the body starts in contact, remains in the kinetic-slip regime
 until stopping, and experiences a constant normal load equal to its weight. The script runs
 the same rigid square with wall particle spacings `0.03` and `0.015`. It reports the stopping
@@ -37,3 +39,5 @@ Then create the comparison plot with
 JULIA_LOAD_PATH="@:$PWD:@stdlib" julia --project=test \
   validation/rigid_body_sliding_2d/plot_rigid_body_sliding_results.jl
 ```
+
+Set `save_figure = true` to regenerate `rigid_body_sliding_2d.svg` in this directory.
