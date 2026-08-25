@@ -83,12 +83,8 @@
         zone_1_particles = findall(==(1), boundary_system.boundary_zone_indices)
         zone_2_particles = findall(==(2), boundary_system.boundary_zone_indices)
 
-        @test any(!isapprox(characteristic, 0.0)
-                  for characteristic in boundary_system.cache.characteristics[:,
-                                                                              zone_1_particles])
-        @test all(isapprox(characteristic, 0.0)
-                  for characteristic in boundary_system.cache.characteristics[:,
-                                                                              zone_2_particles])
+        @test !all(iszero, boundary_system.cache.characteristics[:, zone_1_particles])
+        @test all(iszero, boundary_system.cache.characteristics[:, zone_2_particles])
     end
 
     # Face vertices of open boundary
