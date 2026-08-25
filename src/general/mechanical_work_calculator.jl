@@ -298,7 +298,7 @@ function ThrustCalculator(system::AbstractStructureSystem, semi;
     if length(direction) != ndims(system)
         throw(ArgumentError("length of `direction` must match the number of dimensions"))
     end
-    direction_ = SVector(Tuple(direction))
+    direction_ = SVector{ndims(system), ELTYPE}(Tuple(direction))
     if iszero(direction_)
         throw(ArgumentError("`direction` must not be zero"))
     end

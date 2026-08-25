@@ -170,6 +170,23 @@
         @test calculator.direction == SVector(0.0, 1.0)
         @test calculator.eachparticle == 2:3
 
+        initial_condition32 = InitialCondition(; coordinates=Float32.(coordinates),
+                                               velocity=zeros(Float32, 2, 4),
+                                               mass=ones(Float32, 4),
+                                               density=fill(1000.0f0, 4),
+                                               pressure=0.0f0,
+                                               particle_spacing=-1.0f0)
+        system32_ = TotalLagrangianSPHSystem(initial_condition32;
+                                             smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
+                                             smoothing_length=Float32(sqrt(2)),
+                                             young_modulus=1.0f0,
+                                             poisson_ratio=0.4f0,
+                                             clamped_particles=3:4)
+        semi32 = Semidiscretization(system32_)
+        system32 = semi32.systems[1]
+        calculator32 = ThrustCalculator(system32, semi32; direction=(0.0, 2.0))
+        @test calculator32.direction === SVector(0.0f0, 1.0f0)
+
         @test_throws ArgumentError ThrustCalculator(system, semi; direction=(0.0, 0.0))
 
         dv = [2.0 -1.0 0.0 3.0
@@ -179,8 +196,8 @@
         @test TrixiParticles.projected_force(dv, system, 2:3,
                                              SVector(0.0, 1.0)) == 3.0
 
-        TrixiParticles.reset!(calculator)
-        @test calculated_thrust(calculator) == 0.0f0
+        TrixiParticles.reset!(calculator32)
+        @test calculated_thrust(calculator32) === 0.0f0
     end
 
     @testset "ThrustCalculator FSI force" begin

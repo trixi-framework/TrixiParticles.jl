@@ -15,10 +15,10 @@ Modules = [TrixiParticles]
 Pages = ["general/custom_quantities.jl"]
 ```
 
-# Mechanical Work Calculator
+# Mechanical Work and Thrust Calculators
 
-The `MechanicalWorkCalculator` is a special custom quantity to be used with the
-[`PostprocessCallback`](@ref).
+The `MechanicalWorkCalculator` and `ThrustCalculator` are special custom quantities to be
+used with the [`PostprocessCallback`](@ref).
 
 ```@autodocs
 Modules = [TrixiParticles]
