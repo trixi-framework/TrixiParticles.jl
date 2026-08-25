@@ -6,6 +6,59 @@ function finalize_interaction!(particle_system::RigidBodySystem,
     return particle_system
 end
 
+# A custom source may vary over the body, but independently applying those accelerations to
+# particles would introduce deformation. Reduce source accelerations to a force and torque,
+# then distribute the equivalent rigid translational and rotational acceleration.
+function add_source_terms!(dv, v, u, system::RigidBodySystem, semi, t, integrate_tlsph)
+    if !iszero(system.acceleration)
+        @threaded semi for particle in each_integrated_particle(system)
+            add_acceleration!(dv, system, particle)
+        end
+    end
+
+    source_terms = system.source_terms
+    isnothing(source_terms) && return dv
+
+    NDIMS = ndims(system)
+    ELTYPE = eltype(system)
+    source_force = zero(SVector{NDIMS, ELTYPE})
+    source_torque = zero(system.resultant_torque[])
+
+    for particle in each_integrated_particle(system)
+        coordinates = current_coords(u, system, particle)
+        velocity = current_velocity(v, system, particle)
+        density = system.material_density[particle]
+        pressure = zero(ELTYPE)
+        source_acceleration = SVector{NDIMS, ELTYPE}(source_terms(coordinates, velocity,
+                                                                  density, pressure, t))
+        particle_force = system.mass[particle] * source_acceleration
+        relative_position = extract_svector(system.relative_coordinates, system, particle)
+
+        source_force += particle_force
+        source_torque += cross_product(relative_position, particle_force)
+    end
+
+    translational_acceleration = source_force / system.total_mass
+    angular_acceleration = system.inverse_inertia[] * source_torque
+    system.resultant_force[] += source_force
+    system.resultant_torque[] += source_torque
+    system.angular_acceleration_force[] += angular_acceleration
+
+    @threaded semi for particle in each_integrated_particle(system)
+        relative_position = @inbounds extract_svector(system.relative_coordinates,
+                                                      system, particle)
+        rotational_acceleration = cross_product(angular_acceleration, relative_position)
+
+        for dim in 1:NDIMS
+            @inbounds dv[dim,
+                         particle] += translational_acceleration[dim] +
+                                      rotational_acceleration[dim]
+        end
+    end
+
+    return dv
+end
+
 # Rigid-body kinematics depend only on the current rigid state, so apply them once
 # after all pairwise interactions instead of revisiting them for every rigid-rigid pair.
 function apply_kinematic_acceleration!(dv, particle_system::RigidBodySystem, semi)
@@ -240,11 +293,13 @@ end
     ELTYPE = eltype(particle_system)
     distance <= eps(ELTYPE) && return particle_system
 
-    penetration = contact_model.contact_distance - distance
+    normal,
+    normal_distance = rigid_wall_contact_geometry(neighbor_system, neighbor,
+                                                  pos_diff, distance)
+    penetration = contact_model.contact_distance - normal_distance
     penetration_effective = penetration - contact_model.penetration_slop
     penetration_effective <= 0 && return particle_system
 
-    normal = pos_diff / distance
     wall_velocity = current_velocity(v_neighbor_system, neighbor_system, neighbor)
     wall_position = current_coords(u_neighbor_system, neighbor_system, neighbor)
     density = convert(ELTYPE, neighbor_system.initial_condition.density[neighbor])
@@ -271,6 +326,25 @@ end
                                       penetration_effective)
 
     return particle_system
+end
+
+# Prefer geometry normals carried by the wall initial condition. Since their orientation is
+# intentionally not prescribed by `InitialCondition`, orient each normal toward the contacting
+# rigid particle. Walls without usable normals retain radial particle-pair contact.
+@inline function rigid_wall_contact_geometry(wall_system::WallBoundarySystem, wall_particle,
+                                             pos_diff, radial_distance)
+    boundary_normals = wall_system.cache.boundary_normals
+    isnothing(boundary_normals) && return pos_diff / radial_distance, radial_distance
+
+    wall_normal = extract_svector(boundary_normals, wall_system, wall_particle)
+    normal_norm = norm(wall_normal)
+    normal_norm <= eps(eltype(wall_system)) &&
+        return pos_diff / radial_distance, radial_distance
+
+    normal = wall_normal / normal_norm
+    dot(normal, pos_diff) < 0 && (normal = -normal)
+
+    return normal, dot(pos_diff, normal)
 end
 
 # Assign a wall-contact sample to an existing manifold or open a new manifold slot.

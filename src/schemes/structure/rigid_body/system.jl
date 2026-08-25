@@ -29,7 +29,9 @@ torque and applied consistently to all rigid particles.
                    particle. Persistent friction history is matched by geometry rather than
                    by these manifold slots.
 - `source_terms`: Optional source terms of the form
-                  `(coords, velocity, density, pressure, t) -> source`.
+                  `(coords, velocity, density, pressure, t) -> source`. Particle source
+                  accelerations are mass-weighted and reduced to one rigid resultant force
+                  and torque, so spatially varying sources cannot deform the body.
 - `adhesion_coefficient`: Wall-adhesion strength used by Akinci-type surface tension
                           models when fluids interact with this rigid body. This is
                           only evaluated for fluid-structure interaction with

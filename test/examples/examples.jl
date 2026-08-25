@@ -251,8 +251,8 @@
 
             # Normal-only contact should preserve horizontal sliding without spinning up.
             @test isapprox(frictionless_com_velocity[1],
-                           frictional_initial_com_velocity[1]; rtol=0.05)
-            @test abs(frictionless_rotation.angular_velocity) < 0.05
+                           frictional_initial_com_velocity[1]; rtol=0.005)
+            @test abs(frictionless_rotation.angular_velocity) < 1.0e-3
 
             # Wall friction should stop the other square near the analytical stopping
             # distance and exert a torque because it acts below the center of mass.

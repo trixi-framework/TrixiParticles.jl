@@ -18,6 +18,9 @@ The interaction between fluid and boundary particles is specified by the boundar
    Currently this is only used together with [`BoundaryModelDummyParticles`](@ref) and
    [`ColorfieldSurfaceNormal`](@ref): fluid-boundary normal evaluation
    reads the resulting boundary colorfield to detect wall contact.
+
+Normals supplied by `initial_condition` are cached with the wall and follow
+[`PrescribedMotion`](@ref). Rigid-wall contact uses them as geometric contact normals.
 """
 struct WallBoundarySystem{BM, ELTYPE <: Real, NDIMS, IC, CO, M, IM,
                           CA} <: AbstractBoundarySystem{NDIMS}
@@ -49,7 +52,8 @@ function WallBoundarySystem(initial_condition, model; prescribed_motion=nothing,
     ismoving = Ref(!isnothing(prescribed_motion))
     initialize_prescribed_motion!(prescribed_motion, initial_condition)
 
-    cache = create_cache_boundary(prescribed_motion, initial_condition)
+    cache = (; create_cache_boundary(prescribed_motion, initial_condition)...,
+             create_cache_boundary_normals(initial_condition)...)
     # Boundary color tag used for dummy-particle colorfield initialization/contact tests.
     cache = (cache..., color=Int(color_value))
 
@@ -58,6 +62,13 @@ function WallBoundarySystem(initial_condition, model; prescribed_motion=nothing,
 end
 
 create_cache_boundary(::Nothing, initial_condition) = (;)
+
+function create_cache_boundary_normals(initial_condition)
+    normals = initial_condition.normals
+    boundary_normals = isnothing(normals) ? nothing : copy(normals)
+
+    return (; boundary_normals)
+end
 
 function create_cache_boundary(prescribed_motion::PrescribedMotion, initial_condition)
     initial_coordinates = copy(initial_condition.coordinates)
@@ -201,6 +212,26 @@ function apply_prescribed_motion!(system::WallBoundarySystem,
 
     @trixi_timeit timer() "apply prescribed motion" begin
         prescribed_motion(coordinates, velocity, acceleration, ismoving, system, semi, t)
+
+        # Initial-condition normals are attached to wall particles. Transform a normal by
+        # moving its tip with the same map as the particle, which is exact for prescribed
+        # rigid translations and rotations and avoids requiring an orientation API.
+        boundary_normals = cache.boundary_normals
+        if ismoving[] && !isnothing(boundary_normals)
+            movement_function = prescribed_motion.movement_function
+            initial_normals = system.initial_condition.normals
+            @threaded semi for particle in prescribed_motion.moving_particles
+                initial_position = initial_coords(system, particle)
+                current_position = current_coords(nothing, system, particle)
+                initial_normal = extract_svector(initial_normals, system, particle)
+                current_normal = movement_function(initial_position + initial_normal, t) -
+                                 current_position
+
+                for dim in 1:ndims(system)
+                    @inbounds boundary_normals[dim, particle] = current_normal[dim]
+                end
+            end
+        end
     end
 
     return system

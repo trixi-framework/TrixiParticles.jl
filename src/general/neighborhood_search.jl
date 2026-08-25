@@ -186,7 +186,15 @@ end
 @inline function compact_support(system::RigidBodySystem,
                                  contact_model::RigidContactModel,
                                  neighbor::WallBoundarySystem)
-    return contact_model.contact_distance
+    if isnothing(neighbor.initial_condition.normals) || nparticles(neighbor) == 0
+        return contact_model.contact_distance
+    end
+
+    # Geometry-normal contact uses projected normal distance. Expand the Euclidean candidate
+    # radius by one wall spacing so tangential grid offsets cannot hide a valid contact.
+    wall_spacing = particle_spacing(neighbor, first(eachparticle(neighbor)))
+    wall_spacing > 0 || return contact_model.contact_distance
+    return hypot(contact_model.contact_distance, wall_spacing)
 end
 
 @inline function compact_support(system::RigidBodySystem, neighbor::RigidBodySystem)

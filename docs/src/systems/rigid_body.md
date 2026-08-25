@@ -43,10 +43,16 @@ rigid_system = RigidBodySystem(initial_condition; contact_model)
 update_callback = UpdateCallback(interval=1)
 ```
 
+Penalty contact also requires a timestep short enough to resolve its spring and damping
+scales. Add `StepsizeCallback(cfl=0.5)` to contact simulations, or impose an equivalent
+`dtmax`. The automatic estimate includes every active normal and tangential contact scale.
+
 ### Force Law
 
 Let ``\delta = d_c - r - \delta_0`` be the effective penetration after subtracting
 `penetration_slop`, and let ``v_n`` be relative velocity along the outward contact normal.
+For walls with geometry normals, ``r`` is the particle separation projected onto that normal;
+otherwise it is the radial particle separation.
 The non-attractive normal-force magnitude is
 
 ```math
@@ -106,6 +112,19 @@ both bodies have nonzero friction coefficients.
 
 ### Wall Manifolds
 
+When the wall `InitialCondition` provides `normals`, rigid-wall contact uses the wall geometry
+instead of the radial direction between particle centers. The stored normal is oriented
+toward the contacting rigid particle, and penetration is measured from the particle
+separation projected onto that normal. The Euclidean neighborhood-search radius is expanded
+by one wall spacing so a tangential offset between the rigid and wall grids cannot hide a
+valid projected contact. This makes flat-wall forces insensitive to tangential particle
+alignment and wall resolution.
+
+Normals attached to a wall follow its `PrescribedMotion`; translations leave them unchanged
+and rotations rotate them with the wall. If normals are absent or have zero length, contact
+falls back to the radial particle-pair direction for compatibility with arbitrary particle
+walls.
+
 Here, a contact manifold is a discrete approximation of one locally smooth contact
 patch. A rigid particle touching a flat wall will usually produce one manifold,
 while corners or edges can produce several.
@@ -150,6 +169,12 @@ rigid-rigid pair uses the reduced mass formed from the lightest particle in each
 For output and postprocessing, rigid bodies also expose the diagnostics
 `contact_count` and `max_contact_penetration`. They are available through rigid-body
 system data and VTK output.
+
+Custom `source_terms` are interpreted as particle accelerations, multiplied by material
+particle mass, and reduced to a resultant force and torque before being applied. They can
+therefore drive translation and rotation without exciting non-rigid particle motion. The
+uniform `acceleration` keyword remains a prescribed body acceleration and is not included in
+the resultant-force diagnostics.
 
 ```@autodocs
 Modules = [TrixiParticles]

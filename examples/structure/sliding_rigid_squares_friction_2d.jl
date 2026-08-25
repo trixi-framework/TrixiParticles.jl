@@ -16,8 +16,6 @@ using OrdinaryDiffEqLowStorageRK
 # ==========================================================================================
 # ==== Resolution
 particle_spacing = 0.03
-# Finer wall sampling makes its discrete contact normals approximate a flat floor.
-wall_particle_spacing = particle_spacing / 3
 boundary_layers = 3
 contact_distance = 2.0 * particle_spacing
 
@@ -30,7 +28,7 @@ square_side_length = 0.18
 square_density = 1000.0
 square_particles_per_side = round(Int, square_side_length / particle_spacing)
 # Place the lowest square particles one contact distance above the top wall particles.
-square_bottom_y = contact_distance - (particle_spacing + wall_particle_spacing) / 2
+square_bottom_y = contact_distance - particle_spacing
 
 square_frictionless = RectangularShape(particle_spacing,
                                        (square_particles_per_side,
@@ -51,13 +49,12 @@ floor_length = 3.0
 floor_height = 0.03
 wall_density = 1000.0
 
-floor = RectangularTank(wall_particle_spacing, (0.0, 0.0),
-                        (floor_length, floor_height),
+floor = RectangularTank(particle_spacing, (0.0, 0.0), (floor_length, floor_height),
                         wall_density, n_layers=boundary_layers,
                         min_coordinates=(-1.5, 0.0),
                         faces=(false, false, true, false))
 
-boundary_model = BoundaryModelMonaghanKajtar(10.0, 1.0, wall_particle_spacing,
+boundary_model = BoundaryModelMonaghanKajtar(10.0, 1.0, particle_spacing,
                                              floor.boundary.mass)
 boundary_system = WallBoundarySystem(floor.boundary, boundary_model)
 
@@ -95,10 +92,12 @@ ode = semidiscretize(semi, tspan)
 info_callback = InfoCallback(interval=50)
 saving_callback = SolutionSavingCallback(dt=0.02, output_directory="out", prefix="")
 
-callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback())
+stepsize_callback = StepsizeCallback(cfl=0.5)
+callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback(),
+                        stepsize_callback)
 
+# Error control handles the free motion while the stepsize callback resolves contact.
 sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-6,
             reltol=1e-4,
-            dtmax=1e-3,
             save_everystep=false, callback=callbacks);

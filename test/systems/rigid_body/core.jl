@@ -136,11 +136,35 @@ end
     dv_ode = similar(v_ode)
     fill!(dv_ode, 0.0)
 
+    v = TrixiParticles.wrap_v(v_ode, system, semi)
+    u = TrixiParticles.wrap_u(u_ode, system, semi)
+    TrixiParticles.update_final!(system, v, u, v_ode, u_ode, semi, 0.0)
     TrixiParticles.add_source_terms!(dv_ode, v_ode, u_ode, semi, 0.0)
 
+    # Treat the returned source values as particle accelerations, then reduce their
+    # mass-weighted forces and moments to one rigid translational/rotational acceleration.
+    expected_force = SVector(sum(mass .* material_densities), 0.0)
+    expected_torque = sum(-system.relative_coordinates[2, particle] * mass[particle] *
+                          material_densities[particle]
+                          for particle in eachindex(mass))
+    expected_translation = expected_force / sum(mass)
+    expected_angular_acceleration = system.inverse_inertia[] * expected_torque
+    expected_acceleration = reduce(hcat,
+                                   (expected_translation +
+                                    TrixiParticles.cross_product(expected_angular_acceleration,
+                                                                 TrixiParticles.extract_svector(system.relative_coordinates,
+                                                                                                system,
+                                                                                                particle))
+                                    for particle in eachindex(mass)))
+
     dv = TrixiParticles.wrap_v(dv_ode, system, semi)
-    @test dv[1, :] == material_densities
-    @test dv[2, :] == zeros(2)
+    @test dv ≈ expected_acceleration
+    @test system.resultant_force[] ≈ expected_force
+    @test system.resultant_torque[] ≈ expected_torque
+    @test system.angular_acceleration_force[] ≈ expected_angular_acceleration
+    relative_position = coordinates[:, 2] - coordinates[:, 1]
+    relative_acceleration = dv[:, 2] - dv[:, 1]
+    @test dot(relative_position, relative_acceleration) ≈ 0.0 atol = 256 * eps()
 end
 
 @trixi_testset "Initial Angular Velocity" begin
