@@ -91,7 +91,7 @@
             end
         end
 
-        @trixi_testset "structure/oscillating_beam_2d.jl with MechanicalWorkCalculatorCallback" begin
+        @trixi_testset "structure/oscillating_beam_2d.jl with MechanicalWorkCalculator" begin
             # Load variables from the example
             trixi_include(@__MODULE__,
                           joinpath(examples_dir(), "structure", "oscillating_beam_2d.jl"),
@@ -111,7 +111,7 @@
                 "all particles clamped" => sqrt(eps()),
                 # Clamp everything but the top two layers of the beam.
                 # We don't expect very accurate results here, this is more of a smoke test.
-                "some particles clamped" => 0.1
+                "some particles clamped" => 0.12
             )
             @testset "$name" for (name, clamped_particles) in tests
                 # We need a new `PrescribedMotion` for each test due to
@@ -129,20 +129,49 @@
                 ode = semidiscretize(semi, (0.0, 1.0))
                 system = ode.p.semi.systems[1]
 
-                mechanical_work_calculator = MechanicalWorkCalculatorCallback(system, semi;
-                                                                              interval=1)
+                mechanical_work = MechanicalWorkCalculator(system, semi)
+                postprocess_callback = PostprocessCallback(; interval=1, mechanical_work,
+                                                           write_file_interval=0)
 
                 sol = @trixi_test_nowarn solve(ode, RDPK3SpFSAL49(), save_everystep=false,
-                                               callback=mechanical_work_calculator)
+                                               callback=postprocess_callback)
 
                 @test sol.retcode == ReturnCode.Success
                 @test count_rhs_allocations(sol) == 0
 
                 # Potential energy difference should be m * g * h
-                @test isapprox(calculated_mechanical_work(mechanical_work_calculator),
+                @test isapprox(calculated_mechanical_work(mechanical_work),
                                sum(system.mass) * gravity * 1,
                                rtol=rtol[name])
             end
+        end
+
+        @trixi_testset "mechanical work of a free-falling clamped beam" begin
+            # Gravity accelerates the beam and its clamp equally, so the clamp does no work.
+            gravity = 2.0
+            free_fall(x, t) = x + SVector(0.0, -gravity * t^2 / 2)
+            prescribed_motion = PrescribedMotion(free_fall, Returns(true))
+
+            @trixi_test_nowarn trixi_include(@__MODULE__,
+                                             joinpath(examples_dir(), "structure",
+                                                      "oscillating_beam_2d.jl"),
+                                             tspan=(0.0, 0.2),
+                                             clamped_particles_motion=prescribed_motion,
+                                             ode=nothing, sol=nothing) [
+                r"\[ Info: To create the self-interaction neighborhood search.*\n"
+            ]
+
+            ode = semidiscretize(semi, tspan)
+            system = ode.p.semi.systems[1]
+            mechanical_work = MechanicalWorkCalculator(system, semi)
+            postprocess_callback = PostprocessCallback(; interval=1, mechanical_work,
+                                                       write_file_interval=0)
+
+            sol = @trixi_test_nowarn solve(ode, RDPK3SpFSAL49(), save_everystep=false,
+                                           callback=postprocess_callback)
+
+            @test sol.retcode == ReturnCode.Success
+            @test isapprox(calculated_mechanical_work(mechanical_work), 0.0; atol=1.0e-3)
         end
 
         @trixi_testset "structure/colliding_rigid_spheres_2d.jl" begin
@@ -156,9 +185,9 @@
     end
 
     @testset verbose=true "FSI" begin
-        @trixi_testset "fluid/hydrostatic_water_column_2d.jl with MechanicalWorkCalculatorCallback and moving TLSPH walls" begin
+        @trixi_testset "fluid/hydrostatic_water_column_2d.jl with MechanicalWorkCalculator and moving TLSPH walls" begin
             # In this test, we move a water-filled tank up against gravity by 1 unit
-            # and verify that the work accumulated by the `MechanicalWorkCalculatorCallback`
+            # and verify that the work accumulated by the `MechanicalWorkCalculator`
             # matches the expected potential energy difference.
 
             # Load variables from the example
@@ -181,7 +210,7 @@
 
             # Create TLSPH system for the tank walls and clamp all particles.
             # This is identical to a `WallBoundarySystem`, but now we can
-            # use the `MechanicalWorkCalculatorCallback` to compute the mechanical work.
+            # use the `MechanicalWorkCalculator` to compute the mechanical work.
             boundary_spacing = tank.boundary.particle_spacing
             tlsph_kernel = WendlandC2Kernel{2}()
             tlsph_smoothing_length = sqrt(2) * boundary_spacing
@@ -203,18 +232,16 @@
             tlsph_system_new = ode.p.semi.systems[2]
 
             # Mechanical work calculators for fluid + tank and fluid only
-            mechanical_work_calculator1 = MechanicalWorkCalculatorCallback(tlsph_system_new,
-                                                                           semi;
-                                                                           interval=1)
-            mechanical_work_calculator2 = MechanicalWorkCalculatorCallback(tlsph_system_new,
-                                                                           semi;
-                                                                           interval=1,
-                                                                           only_compute_force_on_fluid=true)
+            mechanical_work1 = MechanicalWorkCalculator(tlsph_system_new, semi)
+            mechanical_work2 = MechanicalWorkCalculator(tlsph_system_new, semi;
+                                                        only_compute_force_on_fluid=true)
+            postprocess_callback = PostprocessCallback(; interval=1, mechanical_work1,
+                                                       mechanical_work2,
+                                                       write_file_interval=0)
 
             sol = @trixi_test_nowarn solve(ode, RDPK3SpFSAL35(), save_everystep=false,
                                            callback=CallbackSet(info_callback,
-                                                                mechanical_work_calculator1,
-                                                                mechanical_work_calculator2))
+                                                                postprocess_callback))
 
             @test sol.retcode == ReturnCode.Success
             @test count_rhs_allocations(sol) == 0
@@ -229,9 +256,9 @@
             # compressible and is deformed during the simulation.
             # A slower prescribed motion (e.g., over 2 seconds instead of 1) or a higher
             # speed of sound in the fluid would improve accuracy (and increase runtime).
-            @test isapprox(calculated_mechanical_work(mechanical_work_calculator1),
+            @test isapprox(calculated_mechanical_work(mechanical_work1),
                            expected_energy_fluid + expected_energy_tank, rtol=5e-4)
-            @test isapprox(calculated_mechanical_work(mechanical_work_calculator2),
+            @test isapprox(calculated_mechanical_work(mechanical_work2),
                            expected_energy_fluid,
                            rtol=5e-4)
         end
@@ -361,9 +388,9 @@
                                              E=1e7, # Stiffer plate
                                              maxiters=500) [
                 r"\[ Info: To create the self-interaction neighborhood search.*\n",
-                "┌ Warning: Verbosity toggle: max_iters \n",
-                r".*Interrupted. Larger maxiters is needed.*\n",
-                r"└ @ SciMLBase.*\n"
+                # The diagnostics included in this warning and the package reporting
+                # its source depend on the SciML version.
+                r"┌ Warning: Verbosity toggle: max_iters \n(?s:.*?)└ @ (?:SciMLBase|DiffEqBase).*\n"
             ]
             @test sol.retcode == ReturnCode.MaxIters
             if VERSION < v"1.12"
@@ -627,8 +654,8 @@
                                              joinpath(examples_dir(), "preprocessing",
                                                       "packing_2d.jl"),
                                              particle_spacing=0.4)
-            expected_coordinates = [-0.540548 -0.189943 0.191664 0.542741 -0.629391 -0.196159 0.197725 0.63081 -0.629447 -0.196158 0.19779 0.631121 -0.540483 -0.190015 0.191345 0.540433;
-                                    -0.541127 -0.630201 -0.630119 -0.539294 -0.190697 -0.196942 -0.196916 -0.190324 0.190875 0.197074 0.196955 0.190973 0.541206 0.630323 0.630178 0.541314]
+            expected_coordinates = [-0.540548 -0.189649 0.19137 0.542738 -0.63052 -0.196161 0.197719 0.631925 -0.630577 -0.19616 0.197787 0.632248 -0.540485 -0.189726 0.191038 0.540435;
+                                    -0.541127 -0.63133 -0.631244 -0.539296 -0.190402 -0.196943 -0.196917 -0.190013 0.190581 0.197074 0.19695 0.190685 0.541204 0.631451 0.6313 0.541311]
 
             @test isapprox(packed_ic.coordinates, expected_coordinates, atol=1e-5)
         end

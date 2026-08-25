@@ -94,7 +94,9 @@ end
                 # everywhere here. For some reason, this is only necessary in this and the
                 # next test, but not in the other tests in this file.
                 # Perhaps because this is inside an `if` block?
-                @test (@invokelatest (@__MODULE__).semi).neighborhood_searches[1, 1].cell_list isa
+                semi_ = @invokelatest (@__MODULE__).semi
+                @test TrixiParticles.get_neighborhood_search(first(semi_.systems),
+                                                             semi_).cell_list isa
                       FullGridCellList
                 @test (@invokelatest (@__MODULE__).sol).retcode ==
                       (@invokelatest (@__MODULE__).ReturnCode).Success
@@ -126,7 +128,9 @@ end
                     r"└ New tank length in y-direction.*\n"
                 ]
                 # See the comment in the previous test about `@invokelatest`
-                @test (@invokelatest (@__MODULE__).semi).neighborhood_searches[1, 1].cell_list isa
+                semi_ = @invokelatest (@__MODULE__).semi
+                @test TrixiParticles.get_neighborhood_search(first(semi_.systems),
+                                                             semi_).cell_list isa
                       FullGridCellList
                 @test (@invokelatest (@__MODULE__).sol).retcode ==
                       (@invokelatest (@__MODULE__).ReturnCode).Success
@@ -178,7 +182,9 @@ end
                         r"┌ Info: The desired tank length in y-direction.*\n",
                         r"└ New tank length in y-direction.*\n"
                     ]
-                    @test semi.neighborhood_searches[1, 1].cell_list isa FullGridCellList
+                    @test TrixiParticles.get_neighborhood_search(first(semi.systems),
+                                                                 semi).cell_list isa
+                          FullGridCellList
                     @test sol.retcode == ReturnCode.Success
                     v_ode, u_ode = sol.u[end].x
                     backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
@@ -202,7 +208,9 @@ end
                 r"┌ Info: The desired tank length in y-direction.*\n",
                 r"└ New tank length in y-direction.*\n"
             ]
-            @test semi.neighborhood_searches[1, 1].cell_list isa FullGridCellList
+            @test TrixiParticles.get_neighborhood_search(first(semi.systems),
+                                                         semi).cell_list isa
+                  FullGridCellList
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
@@ -236,7 +244,9 @@ end
                 r"┌ Info: The desired tank length in y-direction.*\n",
                 r"└ New tank length in y-direction.*\n"
             ]
-            @test semi.neighborhood_searches[1, 1].cell_list isa FullGridCellList
+            @test TrixiParticles.get_neighborhood_search(first(semi.systems),
+                                                         semi).cell_list isa
+                  FullGridCellList
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
@@ -313,8 +323,31 @@ end
                                    acceleration=(0.0f0, -gravity), state_equation,
                                    coordinates_eltype=Float32)
 
+            trixi_include_changeprecision(Float32, @__MODULE__,
+                                          joinpath(examples_dir(), "fluid",
+                                                   "hydrostatic_water_column_2d.jl");
+                                          sol=nothing, ode=nothing, tank)
+
+            # Neighborhood search with `FullGridCellList` for GPU compatibility
+            min_corner = minimum(tank.boundary.coordinates, dims=2)
+            max_corner = maximum(tank.boundary.coordinates, dims=2)
+            cell_list = FullGridCellList(; min_corner, max_corner,
+                                         max_points_per_cell=500)
+            semi_fullgrid = Semidiscretization(fluid_system, boundary_system,
+                                               neighborhood_search=GridNeighborhoodSearch{2}(;
+                                                                                             cell_list),
+                                               neighborhood_search_handler=SharedNHSHandler,
+                                               parallelization_backend=Main.parallelization_backend)
+
+            semi_pairs = Semidiscretization(fluid_system, boundary_system,
+                                            neighborhood_search=GridNeighborhoodSearch{2}(;
+                                                                                          cell_list),
+                                            neighborhood_search_handler=PairsNHSHandler,
+                                            parallelization_backend=Main.parallelization_backend)
+
             hydrostatic_water_column_tests = Dict(
                 "WCSPH default" => (),
+                "WCSPH with PairsNHSHandler" => (semi=semi_pairs,),
                 "WCSPH with source term damping" => (source_terms=SourceTermDamping(damping_coefficient=1.0f-4),),
                 "WCSPH with SummationDensity" => (fluid_density_calculator=SummationDensity(),
                                                   clip_negative_pressure=true),
@@ -364,23 +397,6 @@ end
                     println("═"^100)
                     println("$test_description")
 
-                    # Create systems with the given keyword arguments
-                    trixi_include_changeprecision(Float32, @__MODULE__,
-                                                  joinpath(examples_dir(), "fluid",
-                                                           "hydrostatic_water_column_2d.jl");
-                                                  sol=nothing, ode=nothing, tank, kwargs...)
-
-                    # Neighborhood search with `FullGridCellList` for GPU compatibility
-                    min_corner = minimum(tank.boundary.coordinates, dims=2)
-                    max_corner = maximum(tank.boundary.coordinates, dims=2)
-                    cell_list = FullGridCellList(; min_corner, max_corner,
-                                                 max_points_per_cell=500)
-                    semi_fullgrid = Semidiscretization(fluid_system, boundary_system,
-                                                       neighborhood_search=GridNeighborhoodSearch{2}(;
-                                                                                                     cell_list),
-                                                       parallelization_backend=Main.parallelization_backend)
-
-                    # Run the simulation
                     @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
                                                                      joinpath(examples_dir(),
                                                                               "fluid",
@@ -393,6 +409,10 @@ end
                     ]
 
                     @test sol.retcode == ReturnCode.Success
+                    if test_description == "WCSPH with PairsNHSHandler"
+                        @test semi.neighborhood_search_handler isa
+                              TrixiParticles.PairsNHSHandler
+                    end
                     v_ode, u_ode = sol.u[end].x
                     backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
                     @test backend == Main.parallelization_backend
@@ -895,5 +915,65 @@ end
                                        1958.2637, 1888.739, 802.3146, -187.81871])
             end
         end
+    end
+
+    @testset verbose=true "Restart" begin
+        trixi_include_changeprecision(Float32, @__MODULE__,
+                                      joinpath(examples_dir(), "fluid",
+                                               "poiseuille_flow_2d.jl"),
+                                      tspan=(0.0f0, 0.6f0), sound_speed_factor=10,
+                                      particle_spacing=4.0f-5, sol=nothing,
+                                      coordinates_eltype=Float32,
+                                      parallelization_backend=Main.parallelization_backend)
+
+        sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
+                    dt=1.0f0, save_everystep=false,
+                    callback=CallbackSet(callbacks, StepsizeCallback(cfl=1.5f0)))
+
+        # Since this is an open boundary simulation, the number of active particles may
+        # differ. The results must be interpolated to enable comparison with the restart
+        # simulation. The fluid domain starts at `x = 10 * particle_spacing`.
+        n_interpolation_points = 10
+        start_point = [0.0f0 + 10 * particle_spacing, channel_height / 2]
+        end_point = [channel_length - 10 * particle_spacing, channel_height / 2]
+        result_full = interpolate_line(start_point, end_point, n_interpolation_points,
+                                       sol.prob.p.semi, sol.prob.p.semi.systems[1], sol,
+                                       cut_off_bnd=false)
+
+        # Run half simulation and safe checkpoint
+        trixi_include_changeprecision(Float32, @__MODULE__,
+                                      joinpath(examples_dir(), "fluid",
+                                               "poiseuille_flow_2d.jl"),
+                                      tspan=(0.0f0, 0.3f0), sound_speed_factor=10,
+                                      particle_spacing=4.0f-5, sol=nothing,
+                                      coordinates_eltype=Float32,
+                                      parallelization_backend=Main.parallelization_backend)
+
+        sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
+                    dt=1.0f0, save_everystep=false,
+                    callback=CallbackSet(callbacks, StepsizeCallback(cfl=1.5f0)))
+
+        iter = saving_callback.affect!.affect!.latest_saved_iter
+        fluid_restart = joinpath("out", "fluid_1_$iter.vtu")
+        open_boundary_restart = joinpath("out", "open_boundary_1_$iter.vtu")
+        boundary_restart = joinpath("out", "boundary_1_$iter.vtu")
+
+        ode_restart = semidiscretize(semi, (0.3f0, 0.6f0);
+                                     restart_with=(fluid_restart, open_boundary_restart,
+                                                   boundary_restart))
+
+        sol_restart = solve(ode_restart, CarpenterKennedy2N54(williamson_condition=false),
+                            dt=1.0f0, save_everystep=false,
+                            callback=CallbackSet(UpdateCallback(),
+                                                 StepsizeCallback(cfl=1.5f0)))
+
+        result_restart = interpolate_line(start_point, end_point,
+                                          n_interpolation_points, sol_restart.prob.p.semi,
+                                          sol_restart.prob.p.semi.systems[1],
+                                          sol_restart, cut_off_bnd=false)
+
+        @test isapprox(result_full.velocity, result_restart.velocity, rtol=7.0f-5)
+        @test isapprox(result_full.density, result_restart.density, rtol=5.0f-6)
+        @test isapprox(result_full.pressure, result_restart.pressure, rtol=5.0f-4)
     end
 end
