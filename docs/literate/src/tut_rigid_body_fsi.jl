@@ -228,8 +228,8 @@ nothing # hide
 
 # ## Step 3: With contact model
 # Finally, we add a `contact_model` to handle collisions between rigid bodies and between
-# rigid bodies and the tank. Here we also enable the frictional rigid-wall path, so we need
-# `UpdateCallback()` to update the tangential contact history between time steps.
+# rigid bodies and the tank. Here we also enable frictional contact, so we need
+# `UpdateCallback(interval=1)` to update tangential contact history after every accepted step.
 
 contact_model = RigidContactModel(; normal_stiffness=2.0e5,
                                   normal_damping=150.0,

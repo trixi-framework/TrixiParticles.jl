@@ -189,6 +189,40 @@
                                                       "sliding_rigid_squares_friction_2d.jl"),
                                              tspan=(0.0, 0.3))
             @test sol.retcode == ReturnCode.Success
+
+            v_ode_final, u_ode_final = sol.u[end].x
+            v_frictionless = TrixiParticles.wrap_v(v_ode_final,
+                                                   structure_system_frictionless, semi)
+            u_frictionless = TrixiParticles.wrap_u(u_ode_final,
+                                                   structure_system_frictionless, semi)
+            v_frictional = TrixiParticles.wrap_v(v_ode_final,
+                                                 structure_system_frictional, semi)
+            u_frictional = TrixiParticles.wrap_u(u_ode_final,
+                                                 structure_system_frictional, semi)
+            frictionless_coords = TrixiParticles.current_coordinates(u_frictionless,
+                                                                     structure_system_frictionless)
+            frictionless_velocity = TrixiParticles.current_velocity(v_frictionless,
+                                                                    structure_system_frictionless)
+            frictional_coords = TrixiParticles.current_coordinates(u_frictional,
+                                                                   structure_system_frictional)
+            frictional_velocity = TrixiParticles.current_velocity(v_frictional,
+                                                                  structure_system_frictional)
+            _,
+            frictionless_com_velocity = TrixiParticles.rigid_center_of_mass_kinematics(structure_system_frictionless,
+                                                                                       frictionless_coords,
+                                                                                       frictionless_velocity)
+            frictional_com,
+            frictional_com_velocity = TrixiParticles.rigid_center_of_mass_kinematics(structure_system_frictional,
+                                                                                     frictional_coords,
+                                                                                     frictional_velocity)
+            frictional_rotation = TrixiParticles.rigid_rotational_kinematics(structure_system_frictional,
+                                                                             frictional_coords,
+                                                                             frictional_velocity,
+                                                                             frictional_com,
+                                                                             frictional_com_velocity)
+
+            @test abs(frictional_com_velocity[1]) < abs(frictionless_com_velocity[1])
+            @test abs(frictional_rotation.angular_velocity) > 0.1
         end
     end
 

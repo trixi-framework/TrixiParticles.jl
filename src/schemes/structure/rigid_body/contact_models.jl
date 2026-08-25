@@ -10,7 +10,7 @@ end
 
 Shared tangential-history key for rigid contact.
 
-`contact_slot` stores the wall-manifold index for rigid-wall contact and the neighbor
+`contact_slot` stores a persistent wall-contact ID for rigid-wall contact and the neighbor
 particle index for rigid-rigid contact.
 """
 struct RigidContactKey
@@ -20,10 +20,17 @@ struct RigidContactKey
     contact_kind::RigidContactKind
 end
 
+# Accepted-step geometry used to reconnect a transient wall manifold to its history key.
+# The anchor is the weighted wall position of the manifold, not the rigid-particle position.
+struct WallContactDescriptor{NDIMS, ELTYPE}
+    anchor::SVector{NDIMS, ELTYPE}
+    normal::SVector{NDIMS, ELTYPE}
+end
+
 @inline wall_contact_key(neighbor_system_index, local_particle,
-                         manifold_index) = RigidContactKey(neighbor_system_index,
-                                                           local_particle, manifold_index,
-                                                           WallContact)
+                         contact_id) = RigidContactKey(neighbor_system_index,
+                                                       local_particle, contact_id,
+                                                       WallContact)
 
 @inline rigid_rigid_contact_key(neighbor_system_index, local_particle,
                                 neighbor_particle) = RigidContactKey(neighbor_system_index,
@@ -57,9 +64,21 @@ end
                       penetration_slop=nothing)
 
 Shared rigid-contact model used by the active rigid-wall and rigid-rigid contact paths.
-Rigid-wall contact currently combines the linear normal spring-dashpot law with
-history-driven tangential friction updated through `UpdateCallback`, while rigid-rigid
-contact remains normal-only but shares the same runtime model and history-key design.
+Both contact paths combine the linear normal spring-dashpot law with tangential friction.
+Tangential spring history is updated through `UpdateCallback`.
+Positive friction coefficients require positive tangential stiffness or damping.
+
+# Keywords
+- `normal_stiffness`: Stiffness of the linear normal spring.
+- `normal_damping`: Damping coefficient in the normal relative-velocity direction.
+- `static_friction_coefficient`: Coulomb limit for the trial tangential force.
+- `kinetic_friction_coefficient`: Coulomb limit after the static limit is exceeded.
+- `tangential_stiffness`: Stiffness of the history-dependent tangential spring.
+- `tangential_damping`: Damping coefficient in the tangential relative-velocity direction.
+- `contact_distance`: Maximum particle separation at which contact is active.
+- `stick_velocity_tolerance`: Velocity scale used to regularize kinetic friction near zero
+  slip speed. Set it to zero to disable regularization.
+- `penetration_slop`: Penetration ignored before the contact law is applied.
 
 If `contact_distance == 0`, the particle spacing of the `RigidBodySystem` will be used
 as contact distance when the model is adapted via
@@ -143,6 +162,17 @@ function RigidContactModel(; normal_stiffness,
     penetration_slop_ >= 0 ||
         throw(ArgumentError("`penetration_slop` must be non-negative"))
 
+    tangential_response = tangential_stiffness_ > 0 || tangential_damping_ > 0
+    friction_enabled = static_friction_coefficient_ > 0
+    if tangential_mode && friction_enabled && !tangential_response
+        throw(ArgumentError("positive friction coefficients require positive " *
+                            "`tangential_stiffness` or `tangential_damping`"))
+    end
+    if tangential_response && !friction_enabled
+        throw(ArgumentError("positive tangential stiffness or damping requires a positive " *
+                            "`static_friction_coefficient`"))
+    end
+
     return RigidContactModel(normal_stiffness_, normal_damping_,
                              static_friction_coefficient_,
                              kinetic_friction_coefficient_,
@@ -151,6 +181,44 @@ function RigidContactModel(; normal_stiffness,
                              contact_distance_,
                              stick_velocity_tolerance_,
                              penetration_slop_)
+end
+
+@inline function has_tangential_contact(contact_model::RigidContactModel)
+    return contact_model.static_friction_coefficient > 0 &&
+           (contact_model.tangential_stiffness > 0 ||
+            contact_model.tangential_damping > 0)
+end
+
+@inline function rigid_contact_pair_parameters(contact_model::RigidContactModel,
+                                               neighbor_contact_model::RigidContactModel)
+    # Both ordered rigid-rigid interaction passes must evaluate exactly the same law for
+    # action-reaction symmetry. Conservative limits are used for unilateral parameters;
+    # stiffness and damping are arithmetic means because neither body owns the pair law.
+    return (;
+            normal_stiffness=(contact_model.normal_stiffness +
+                              neighbor_contact_model.normal_stiffness) / 2,
+            normal_damping=(contact_model.normal_damping +
+                            neighbor_contact_model.normal_damping) / 2,
+            static_friction_coefficient=min(contact_model.static_friction_coefficient,
+                                            neighbor_contact_model.static_friction_coefficient),
+            kinetic_friction_coefficient=min(contact_model.kinetic_friction_coefficient,
+                                             neighbor_contact_model.kinetic_friction_coefficient),
+            tangential_stiffness=(contact_model.tangential_stiffness +
+                                  neighbor_contact_model.tangential_stiffness) / 2,
+            tangential_damping=(contact_model.tangential_damping +
+                                neighbor_contact_model.tangential_damping) / 2,
+            contact_distance=max(contact_model.contact_distance,
+                                 neighbor_contact_model.contact_distance),
+            stick_velocity_tolerance=max(contact_model.stick_velocity_tolerance,
+                                         neighbor_contact_model.stick_velocity_tolerance),
+            penetration_slop=max(contact_model.penetration_slop,
+                                 neighbor_contact_model.penetration_slop))
+end
+
+@inline function has_tangential_contact(contact_parameters::NamedTuple)
+    return contact_parameters.static_friction_coefficient > 0 &&
+           (contact_parameters.tangential_stiffness > 0 ||
+            contact_parameters.tangential_damping > 0)
 end
 
 function copy_contact_model(model::RigidContactModel, particle_spacing,
@@ -197,7 +265,22 @@ end
                                    system::RigidBodySystem)
     # A wall is treated as an infinite-mass contact partner, so the reduced mass collapses
     # to the mass of the rigid body particle itself.
-    return sqrt(minimum(system.mass) / contact_model.normal_stiffness)
+    return contact_time_step(contact_model, minimum(system.mass))
+end
+
+@inline function contact_time_step(contact_parameters, effective_mass::Real)
+    # Spring modes scale as sqrt(m/k), while dashpot modes scale as m/c. Returning the
+    # smallest active scale lets the caller apply the usual global CFL factor once.
+    normal_elastic = sqrt(effective_mass / contact_parameters.normal_stiffness)
+    normal_damping = contact_parameters.normal_damping > 0 ?
+                     effective_mass / contact_parameters.normal_damping : Inf
+    tangential_elastic = contact_parameters.tangential_stiffness > 0 ?
+                         sqrt(effective_mass /
+                              contact_parameters.tangential_stiffness) : Inf
+    tangential_damping = contact_parameters.tangential_damping > 0 ?
+                         effective_mass / contact_parameters.tangential_damping : Inf
+
+    return min(normal_elastic, normal_damping, tangential_elastic, tangential_damping)
 end
 
 @inline function contact_time_step(system::RigidBodySystem,
@@ -208,18 +291,16 @@ end
     contact_model = system.contact_model::RigidContactModel
     neighbor_contact_model = neighbor.contact_model::RigidContactModel
 
-    # For rigid-rigid contact, use one symmetric pair stiffness and the reduced mass of the
-    # lightest contact-carrying particles of both bodies. This makes the estimate invariant
-    # under swapping `system` and `neighbor`.
-    pair_normal_stiffness = (contact_model.normal_stiffness +
-                             neighbor_contact_model.normal_stiffness) / 2
+    # Use symmetric pair parameters and the reduced mass of the lightest contact-carrying
+    # particles of both bodies. This makes the estimate invariant under swapping the systems.
+    pair_parameters = rigid_contact_pair_parameters(contact_model, neighbor_contact_model)
 
     system_min_mass = minimum(system.mass)
     neighbor_min_mass = minimum(neighbor.mass)
     reduced_mass = system_min_mass * neighbor_min_mass /
                    (system_min_mass + neighbor_min_mass)
 
-    return sqrt(reduced_mass / pair_normal_stiffness)
+    return contact_time_step(pair_parameters, reduced_mass)
 end
 
 @inline function contact_time_step(system::RigidBodySystem,
