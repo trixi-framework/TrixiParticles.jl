@@ -187,7 +187,7 @@ function Base.show(io::IO, system::WeaklyCompressibleSPHSystem)
     print(io, ", ", system.surface_tension)
     print(io, ", ", system.surface_normal_method)
     if system.surface_normal_method isa ColorfieldSurfaceNormal
-        print(io, ", ", system.color)
+        print(io, ", ", system.cache.color)
     end
     print(io, ", ", system.acceleration)
     print(io, ", ", system.source_terms)
@@ -405,7 +405,9 @@ function reinit_density!(system::WeaklyCompressibleSPHSystem, ::ContinuityDensit
     kernel_correction_coefficient = zeros(size(v[end, :]))
     compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode, semi,
                            kernel_correction_coefficient)
-    v[end, :] ./= kernel_correction_coefficient
+    @threaded semi for particle in eachparticle(system)
+        v[end, particle] /= kernel_correction_coefficient[particle]
+    end
 
     compute_pressure!(system, v, semi)
 

@@ -124,12 +124,11 @@ function initialize_split_integration!(cb, vu_ode, t, integrator)
     end
 
     # These neighborhood searches are never used
-    periodic_box = extract_periodic_box(semi.neighborhood_searches[1, 1])
+    periodic_box = extract_periodic_box(get_neighborhood_search(first(systems), semi))
     neighborhood_search = TrivialNeighborhoodSearch{ndims(first(systems))}(; periodic_box)
-    semi_split = Semidiscretization(systems...,
+    semi_split = Semidiscretization(systems...;
                                     neighborhood_search=neighborhood_search,
                                     parallelization_backend=semi.parallelization_backend)
-
     sizes_u = (u_nvariables(system) * n_integrated_particles(system) for system in systems)
     sizes_v = (v_nvariables(system) * n_integrated_particles(system) for system in systems)
 
@@ -207,17 +206,15 @@ function (split_integration_callback::SplitIntegrationCallback)(integrator)
     data.t_ref[] = new_t
 
     if isapprox(new_t, old_t)
-        # Tell OrdinaryDiffEq that `u` has NOT been modified.
         # Usually, `u` is modified in the split integration above, but if the split
         # integrator has already been advanced to the new step time in the last stage of the
-        # previous step, the split integration above is skipped and `u` is not modified.
-        # (Technically, the split integration `u` is copied to the large `u` to account for
-        # potential caching errors, but the RHS of the last stage of the previous step
-        # can be reused for FSAL methods, which is what `u_modified!` is for.)
-        u_modified!(integrator, false)
+        # previous step, the split integration above is skipped and only the split integration `u`
+        # is copied to the large `u` to account for potential caching errors.
+        # This does not affect the RHS of the large integrator, so no discontinuity is introduced.
+        derivative_discontinuity!(integrator, false)
     else
-        # Tell OrdinaryDiffEq that `u` has been modified.
-        u_modified!(integrator, true)
+        # Split integration updates the ODE state and introduces a derivative discontinuity.
+        derivative_discontinuity!(integrator, true)
     end
 
     return integrator
@@ -368,9 +365,9 @@ function kick_split!(dv_ode_split, v_ode_split, u_ode_split, p, t)
         update_systems_split!(semi_split, v_ode_split, u_ode_split, t)
     end
 
-    # Only compute structure-structure self-interaction.
-    # structure-fluid interaction forces are computed once
-    # before the split time integration loop and are applied below.
+    # Compute TLSPH self-interactions in the split integrator.
+    # Interactions with systems outside the split integrator are computed once before
+    # the split time integration loop and are applied below.
     @trixi_timeit timer() "system interaction" begin
         self_interaction_split!(dv_ode_split, v_ode_split, u_ode_split,
                                 semi_split, semi_large)
@@ -418,43 +415,54 @@ function update_systems_split!(semi_split, v_ode_split, u_ode_split, t)
 end
 
 function self_interaction_split!(dv_ode_split, v_ode_split, u_ode_split, semi_split, semi)
-    # Only loop over (TLSPH) systems in the split integrator
+    # Only loop over (TLSPH) systems in the split integrator.
     foreach_system_wrapped(semi_split, v_ode_split, u_ode_split) do system, v, u
+        dv = wrap_v(dv_ode_split, system, semi_split)
+
         # Construct string for the interactions timer.
         system_index = system_indices(system, semi)
         timer_str = "$(timer_name(system))$system_index-$(timer_name(system))$system_index"
 
-        dv = wrap_v(dv_ode_split, system, semi_split)
-
         @trixi_timeit timer() timer_str begin
-            interact!(dv, v, u, v, u, system, system, semi; integrate_tlsph=true)
+            apply_system_interaction!(dv, v, u, v, u, system, system, semi;
+                                      integrate_tlsph=true)
         end
     end
 end
 
 function other_interaction_split!(dv_ode_split, semi, v_ode, u_ode, semi_split)
     # Only loop over (TLSPH) systems in the split integrator.
-    # We wrap with `semi`, so we cannot use `foreach_system_wrapped` here.
-    foreach_system(semi_split) do system
-        dv = wrap_v(dv_ode_split, system, semi_split)
-        v_system = wrap_v(v_ode, system, semi)
-        u_system = wrap_u(u_ode, system, semi)
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v_system, u_system
+        if !any(split_system -> split_system === system, semi_split.systems)
+            # Not part of the split integrator, ignore this system.
+            return
+        end
 
-        # Loop over all neighbors in the big integrator
-        foreach_system_wrapped(semi, v_ode, u_ode) do neighbor, v_neighbor, u_neighbor
-            if system === neighbor
-                # Only compute interaction with other systems
+        dv = wrap_v(dv_ode_split, system, semi_split)
+
+        # Loop over all interacting neighbors in the big integrator
+        # TLSPH self-interactions are integrated with the split state.
+        foreach_system_wrapped(semi, v_ode,
+                               u_ode) do neighbor_system, v_neighbor, u_neighbor
+            if system === neighbor_system
+                # Self-interactions are handled by the split integrator.
+                return
+            end
+
+            if !has_system_interaction(system, neighbor_system, semi)
+                # No interaction between these systems.
                 return
             end
 
             # Construct string for the interactions timer.
             system_index = system_indices(system, semi)
-            neighbor_index = system_indices(neighbor, semi)
-            timer_str = "$(timer_name(system))$system_index-$(timer_name(neighbor))$neighbor_index"
+            neighbor_index = system_indices(neighbor_system, semi)
+            timer_str = "$(timer_name(system))$system_index-$(timer_name(neighbor_system))$neighbor_index"
 
             @trixi_timeit timer() timer_str begin
-                interact!(dv, v_system, u_system, v_neighbor, u_neighbor,
-                          system, neighbor, semi; integrate_tlsph=true)
+                apply_system_interaction!(dv, v_system, u_system, v_neighbor, u_neighbor,
+                                          system, neighbor_system, semi;
+                                          integrate_tlsph=true)
             end
         end
     end
@@ -571,8 +579,9 @@ function update_averaged_velocity_callback!(integrator)
         compute_averaged_velocity!(system, v_ode, semi, t_new)
     end
 
-    # Tell OrdinaryDiffEq that `integrator.u` has not been modified
-    u_modified!(integrator, false)
+    # This callback does not modify `integrator.u` and hence does not change the result
+    # of the right-hand side.
+    derivative_discontinuity!(integrator, false)
 
     return integrator
 end
