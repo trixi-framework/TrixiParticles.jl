@@ -643,7 +643,8 @@
             v_no_wall_velocity = interpolate_points(points_coords, semi_boundary,
                                                     include_wall_velocity=false,
                                                     fluid_system, v_ode, u_ode).velocity
-            v_wall_velocity_without_cutoff = interpolate_points(points_coords, semi_boundary,
+            v_wall_velocity_without_cutoff = interpolate_points(points_coords,
+                                                                semi_boundary,
                                                                 include_wall_velocity=true,
                                                                 cut_off_bnd=false,
                                                                 fluid_system, v_ode,
