@@ -294,6 +294,8 @@ end
 
 function initialize!(system::WallBoundarySystem, semi)
     initialize_colorfield!(system, system.boundary_model, semi)
+    initialize_interpolation_coords!(system, system.boundary_model,
+                                     system.boundary_model.density_calculator)
     return system
 end
 
@@ -321,6 +323,20 @@ function initialize_colorfield!(system, ::BoundaryModelDummyParticles, semi)
             cache.neighbor_count[particle] += 1
         end
     end
+    return system
+end
+
+@inline initialize_interpolation_coords!(system, boundary_model,
+                                         density_calculator) = system
+
+@inline function initialize_interpolation_coords!(system, boundary_model,
+                                                  density_calculator::MarronePressureExtrapolation)
+    (; normals) = system.initial_condition
+    (; coordinates) = system
+    (; interpolation_coords) = boundary_model.cache
+
+    interpolation_coords .= coordinates .- 2 .* normals
+
     return system
 end
 
