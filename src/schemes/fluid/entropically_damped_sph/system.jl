@@ -377,24 +377,30 @@ function update_average_pressure!(system, ::Val{true}, v_ode, u_ode, semi)
 
     u = wrap_u(u_ode, system, semi)
 
-    # Use all other systems for the average pressure
-    @trixi_timeit timer() "compute average pressure" foreach_system(semi) do neighbor_system
-        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
-        v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
+    # Use enabled neighbor systems for the average pressure.
+    @trixi_timeit timer() "compute average pressure" begin
+        foreach_system_wrapped(semi, v_ode,
+                               u_ode) do neighbor_system, v_neighbor_system,
+                                         u_neighbor_system
+            if !has_system_interaction(system, neighbor_system, semi)
+                # No interaction between these systems.
+                return
+            end
 
-        system_coords = current_coordinates(u, system)
-        neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
+            system_coords = current_coordinates(u, system)
+            neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-        # Loop over all pairs of particles and neighbors within the kernel cutoff.
-        foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
-                               semi;
-                               points=each_integrated_particle(system)) do particle,
-                                                                           neighbor,
-                                                                           pos_diff,
-                                                                           distance
-            pressure_average[particle] += current_pressure(v_neighbor_system,
-                                                           neighbor_system, neighbor)
-            neighbor_counter[particle] += 1
+            # Loop over all pairs of particles and neighbors within the kernel cutoff.
+            foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
+                                   semi;
+                                   points=each_integrated_particle(system)) do particle,
+                                                                               neighbor,
+                                                                               pos_diff,
+                                                                               distance
+                pressure_average[particle] += current_pressure(v_neighbor_system,
+                                                               neighbor_system, neighbor)
+                neighbor_counter[particle] += 1
+            end
         end
     end
 
@@ -424,6 +430,6 @@ function restart_with!(system::EntropicallyDampedSPHSystem, v, u)
     for particle in each_integrated_particle(system)
         system.initial_condition.coordinates[:, particle] .= u[:, particle]
         system.initial_condition.velocity[:, particle] .= v[1:ndims(system), particle]
-        system.initial_condition.pressure[particle] = v[end, particle]
+        system.initial_condition.pressure[particle] = v[ndims(system) + 1, particle]
     end
 end
