@@ -205,8 +205,8 @@ function calculate_normals!(normals, boundary_coordinates, boundary_spacing,
     corner_indices, = boundary_indices
     offset = boundary_spacing / 2
 
-    # Check if a face exists and if there are
-    # any particles associated with it.
+    # Check if a face exists and if there are 
+    # any particles associated with it. 
     function face_has_particles(i)
         return faces[i] && !isempty(face_indices[i])
     end
@@ -305,8 +305,8 @@ function calculate_normals!(normals, boundary_coordinates, boundary_spacing,
         end
     end
 
-    # Check if a face exists and if there
-    # are any particles associated with it.
+    # Check if a face exists and if there 
+    # are any particles associated with it. 
     function face_has_particles(idxs, i)
         return faces[i] && !isempty(idxs[i])
     end
@@ -851,7 +851,7 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{3},
         end
     end
 
-    # z aligned edge (left-top)
+    # z aligned edge (left-top) 
     if faces[left] && faces[top]
         edge_1_4 = rectangular_shape_coords(particle_spacing,
                                             (n_layers, n_layers, n_particles_z),
@@ -1031,7 +1031,7 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{3},
         end
     end
 
-    # left top front
+    # left top front 
     if faces[left] && faces[top] && faces[front]
         corner_1_4_5 = rectangular_shape_coords(particle_spacing,
                                                 (n_layers, n_layers, n_layers),
