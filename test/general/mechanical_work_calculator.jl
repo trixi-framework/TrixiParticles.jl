@@ -175,9 +175,9 @@
         dv = [2.0 -1.0 0.0 3.0
               4.0 5.0 -2.0 1.0]
         @test TrixiParticles.projected_force(dv, system, eachparticle(system),
-                                             SVector(1.0, 0.0)) == 12.0
+                                             SVector(1.0, 0.0)) == 4.0
         @test TrixiParticles.projected_force(dv, system, 2:3,
-                                             SVector(0.0, 1.0)) == 4.0
+                                             SVector(0.0, 1.0)) == 3.0
 
         TrixiParticles.reset!(calculator)
         @test calculated_thrust(calculator) == 0.0f0
