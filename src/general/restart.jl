@@ -19,7 +19,7 @@ function set_initial_conditions!(v0_ode, u0_ode, semi, restart_with::Tuple{Varar
     end
 
     # Set initial conditions
-    foreach_noalloc(semi.systems, restart_with) do (system, restart_file)
+    foreach_noalloc_zip(semi.systems, restart_with) do (system, restart_file)
         v0_system = wrap_v(v0_ode, system, semi)
         u0_system = wrap_u(u0_ode, system, semi)
 
@@ -60,7 +60,7 @@ end
 function write_density_and_pressure!(v_restart, system,
                                      density_calculator::ContinuityDensity,
                                      pressure, density)
-    v_restart[size(v_restart, 1), :] = density
+    v_restart[end, :] = density
 
     return v_restart
 end
@@ -68,8 +68,8 @@ end
 function write_density_and_pressure!(v_restart, system::EntropicallyDampedSPHSystem,
                                      density_calculator::ContinuityDensity,
                                      pressure, density)
-    v_restart[size(v_restart, 1), :] = density
-    v_restart[size(v_restart, 1) - 1, :] = pressure
+    v_restart[end, :] = density
+    v_restart[ndims(system) + 1, :] = pressure
 
     return v_restart
 end
@@ -77,7 +77,7 @@ end
 function write_density_and_pressure!(v_restart, system::EntropicallyDampedSPHSystem,
                                      density_calculator::SummationDensity,
                                      pressure, density)
-    v_restart[size(v_restart, 1) - 1, :] = pressure
+    v_restart[ndims(system) + 1, :] = pressure
 
     return v_restart
 end
