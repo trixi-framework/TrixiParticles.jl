@@ -117,11 +117,13 @@ function delta_sph_density_rate(system::WeaklyCompressibleSPHSystem,
         mass_neighbor = TrixiParticles.hydrodynamic_mass(system, neighbor)
         grad_kernel = TrixiParticles.smoothing_kernel_grad(system, pos_diff, distance,
                                                            particle)
-        drho_particle = Ref(zero(rho_particle))
-        TrixiParticles.density_diffusion!(drho_particle, density_diffusion, system,
-                                          particle, neighbor, pos_diff, distance,
-                                          mass_neighbor, rho_particle, rho_neighbor,
-                                          grad_kernel)
+
+        drho_particle = TrixiParticles.add_density_diffusion(zero(rho_particle),
+                                                             density_diffusion, system,
+                                                             particle, neighbor, pos_diff,
+                                                             distance,
+                                                             mass_neighbor, rho_particle,
+                                                             rho_neighbor, grad_kernel)
         density_rate[particle] += drho_particle[]
 
         return nothing
@@ -153,7 +155,6 @@ function (quantity::DeltaSPHHeat)(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
 
     dt = t - quantity.previous_time
     quantity.previous_time = t
-    quantity.previous_power = power
 
     if !quantity.initialized
         quantity.q_delta = 0.0
@@ -167,6 +168,8 @@ function (quantity::DeltaSPHHeat)(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
     end
 
     quantity.q_delta -= (quantity.previous_power + power) * dt / 2
+
+    quantity.previous_power = power
 
     return quantity.q_delta
 end
