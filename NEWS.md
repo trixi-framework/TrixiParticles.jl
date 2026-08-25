@@ -4,6 +4,24 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.5.4
+
+### API Changes
+
+- Replaced the experimental `MechanicalWorkCalculatorCallback` with
+  `MechanicalWorkCalculator`, which can be passed as a custom quantity to
+  `PostprocessCallback` (#1228).
+
+### Important Bugfixes
+
+- Fixed mathematical inconsistencies in the SPH documentation, including incorrect
+  formulas, inconsistent force-vs-acceleration notation, and wrong LaTeX text-mode
+  commands (#1086).
+- Fixed restarting with EDAC from solution objects (#1213) and from VTK files (#1297).
+- Fixed the custom quantities `kinetic_energy`, `total_mass`, `max_pressure`, `min_pressure`,
+  `avg_pressure`, `max_density`, `min_density` and `avg_density` to only take active particles
+  into account (#1184).
+
 ## Version 0.5.3
 
 ### Features
