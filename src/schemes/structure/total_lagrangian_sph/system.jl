@@ -307,6 +307,29 @@ end
     return current_clamped_velocity(v, system, system.clamped_particles_motion, particle)
 end
 
+@propagate_inbounds function current_acceleration(system::TotalLagrangianSPHSystem,
+                                                  particle)
+    return current_acceleration(system, system.clamped_particles_motion, particle)
+end
+
+@propagate_inbounds function current_acceleration(system::TotalLagrangianSPHSystem,
+                                                  clamped_particles_motion, particle)
+    return zero(SVector{ndims(system), eltype(system)})
+end
+
+# `clamped_particles_moving` is always `false` without a `PrescribedMotion`,
+# but both branches are compiled on GPUs, so we need the "no `PrescribedMotion`" dispatch
+# above to avoid access to the undefined field `cache.acceleration`.
+@propagate_inbounds function current_acceleration(system::TotalLagrangianSPHSystem,
+                                                  ::PrescribedMotion, particle)
+    if particle <= system.n_integrated_particles || !system.clamped_particles_moving[]
+        # TODO Return `dv` of solid particles
+        return zero(SVector{ndims(system), eltype(system)})
+    end
+
+    return extract_svector(system.cache.acceleration, system, particle)
+end
+
 @inline function current_clamped_velocity(v, system, prescribed_motion, particle)
     (; cache, clamped_particles_moving) = system
 
@@ -509,18 +532,15 @@ end
 
         # Accumulate the contributions over all neighbors before writing
         # to `deformation_grad` to reduce the number of memory writes.
-        # Note that we need a `Ref` in order to be able to update these variables
-        # inside the closure in the `foreach_neighbor` loop.
-        result = Ref(zero(L_a))
+        result = @inbounds mapreduce_neighbor(+, initial_coords, initial_coords,
+                                              neighborhood_search, backend, particle;
+                                              init=zero(L_a)) do particle, neighbor,
+                                                                 initial_pos_diff,
+                                                                 initial_distance
 
-        # Loop over all neighbors within the kernel cutoff
-        @inbounds foreach_neighbor(initial_coords, initial_coords,
-                                   neighborhood_search, backend,
-                                   particle) do particle, neighbor,
-                                                initial_pos_diff, initial_distance
             # Skip neighbors with the same position because the kernel gradient is zero.
             # Note that `return` only exits the closure, i.e., skips the current neighbor.
-            skip_zero_distance(system) && initial_distance < almostzero && return
+            skip_zero_distance(system) && initial_distance < almostzero && return zero(L_a)
 
             # Now that we know that `distance` is not zero, we can safely call the unsafe
             # version of the kernel gradient to avoid redundant zero checks.
@@ -539,13 +559,17 @@ end
             pos_diff = convert.(eltype(system), pos_diff_)
 
             # The tensor product pos_diff ⊗ (L_{0a} * ∇W) is equivalent to multiplication
-            # by the transpose: pos_diff * (L_{0a} * ∇W)ᵀ = pos_diff * ∇Wᵀ * L_{0a}ᵀ.
-            result[] -= volume * pos_diff * grad_kernel' * L_a'
+            # by the transpose: pos_diff * (L_{0a} * ∇W)ᵀ = (L_{0a} * ∇W * pos_diffᵀ)ᵀ
+            # The original form is:
+            #   -volume * pos_diff * (L_a * grad_kernel)'
+            # Equivalent transposed form that is much faster in 3D:
+            F_T = -volume * L_a * grad_kernel * pos_diff'
+            return F_T'
         end
 
         for j in 1:ndims(system), i in 1:ndims(system)
             # We overwrite every entry of `deformation_grad`, so no `set_zero!` is required.
-            @inbounds deformation_grad[i, j, particle] = result[][i, j]
+            @inbounds deformation_grad[i, j, particle] = result[i, j]
         end
     end
 
@@ -628,6 +652,16 @@ function restart_with!(system::TotalLagrangianSPHSystem, v, u)
 
     # This is dispatched in the boundary system.jl file
     restart_with!(system, system.boundary_model, v, u)
+end
+
+function restart_u(system::TotalLagrangianSPHSystem, data)
+    # The integration array requires only the particles that need to be integrated
+    return data.coordinates[:, each_integrated_particle(system)]
+end
+
+function restart_v(system::TotalLagrangianSPHSystem, data)
+    # The integration array requires only the particles that need to be integrated
+    return data.velocity[:, each_integrated_particle(system)]
 end
 
 # An explanation of these equation can be found in

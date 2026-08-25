@@ -343,7 +343,8 @@ function write2vtk!(vtk, v, u, t, system::AbstractFluidSystem)
 
         surface_tension_a = surface_tension_model(system)
         surface_tension_b = surface_tension_model(system)
-        nhs = create_neighborhood_search(nothing, system, system)
+        nhs = create_neighborhood_search(TrivialNeighborhoodSearch{ndims(system)}(),
+                                         system, system)
 
         foreach_point_neighbor(system_coords, system_coords,
                                nhs) do particle, neighbor, pos_diff, distance
@@ -351,13 +352,16 @@ function write2vtk!(vtk, v, u, t, system::AbstractFluidSystem)
             rho_b = current_density(v, system, neighbor)
             grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
-            dv_surface_tension = Ref(zero(pos_diff))
-            surface_tension_force!(dv_surface_tension,
-                                   surface_tension_a, surface_tension_b,
-                                   system, system, particle, neighbor,
-                                   pos_diff, distance, rho_a, rho_b, grad_kernel, 1)
+            dv_surface_tension = add_dv_surface_tension(zero(pos_diff),
+                                                        surface_tension_a,
+                                                        surface_tension_b,
+                                                        system, system, particle,
+                                                        neighbor,
+                                                        pos_diff, distance, rho_a,
+                                                        rho_b,
+                                                        grad_kernel, 1)
 
-            surface_tension[1:ndims(system), particle] .+= dv_surface_tension[]
+            surface_tension[1:ndims(system), particle] .+= dv_surface_tension
         end
         vtk["surface_tension"] = surface_tension
 
@@ -447,6 +451,16 @@ function write2vtk!(vtk, v, u, t, system::OpenBoundarySystem)
                       for particle in eachparticle(system)]
     vtk["pressure"] = [current_pressure(v, system, particle)
                        for particle in eachparticle(system)]
+    vtk["zone_id"] = [system.boundary_zone_indices[particle]
+                      for particle in eachparticle(system)]
+
+    if any(pm -> isa(pm, AbstractPressureModel), system.cache.pressure_reference_values)
+        for (i, pressure_model) in enumerate(system.cache.pressure_reference_values)
+            if pressure_model isa AbstractPressureModel
+                vtk["boundary_zone_pressure_$i"] = system.cache.pressure_reference_values[i].pressure[]
+            end
+        end
+    end
 
     if system.calculate_flow_rate
         Q_total = zero(eltype(system))
