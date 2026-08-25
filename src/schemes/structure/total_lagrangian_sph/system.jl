@@ -145,10 +145,10 @@ function TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing
         poisson_ratio_sorted = poisson_ratio
     end
 
-    initial_coordinates = copy(initial_condition_sorted.coordinates)
-    current_coordinates = copy(initial_condition_sorted.coordinates)
-    mass = copy(initial_condition_sorted.mass)
-    material_density = copy(initial_condition_sorted.density)
+    initial_coordinates = similar(initial_condition_sorted.coordinates)
+    current_coordinates = similar(initial_condition_sorted.coordinates)
+    mass = similar(initial_condition_sorted.mass)
+    material_density = similar(initial_condition_sorted.density)
     correction_matrix = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
     pk1_rho2 = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
     deformation_grad = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
@@ -209,9 +209,14 @@ function initialize_self_interaction_nhs(system::TotalLagrangianSPHSystem,
     self_interaction_nhs = copy_neighborhood_search(template, search_radius,
                                                     nparticles(system))
 
+    # The runtime arrays of a TLSPH system are intentionally left uninitialized until
+    # `semidiscretize`, where they can be initialized in parallel for NUMA awareness.
+    # Build the static self-interaction NHS directly from the initial condition instead.
+    initial_coordinates = system.initial_condition.coordinates
+
     # Note that for large numbers of particles, initialization can take a while
     PointNeighbors.initialize!(self_interaction_nhs,
-                               system.initial_coordinates, system.initial_coordinates,
+                               initial_coordinates, initial_coordinates,
                                parallelization_backend=PolyesterBackend())
 
     # Self-interaction only requires neighbors in the initial configuration,
@@ -415,6 +420,11 @@ function initialize!(system::TotalLagrangianSPHSystem, semi)
     (; correction_matrix) = system
 
     initial_coords = initial_coordinates(system)
+
+    copyto_threaded!(initial_coords, system.initial_condition.coordinates, semi)
+    copyto_threaded!(system.current_coordinates, system.initial_condition.coordinates, semi)
+    copyto_threaded!(system.mass, system.initial_condition.mass, semi)
+    copyto_threaded!(system.material_density, system.initial_condition.density, semi)
 
     density_fun(particle) = system.material_density[particle]
 

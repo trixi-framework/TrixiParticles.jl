@@ -453,6 +453,14 @@ end
 
 # === Initialization ===
 
+# This function is only used below in the NHS initialization.
+@inline initial_coordinates_nhs(system) = initial_coordinates(system)
+
+# TLSPH runtime arrays are initialized after the neighborhood searches for NUMA awareness.
+@inline function initial_coordinates_nhs(system::TotalLagrangianSPHSystem)
+    return system.initial_condition.coordinates
+end
+
 function initialize_neighborhood_searches!(semi, u0_ode, restart_with::Nothing)
     initialize_neighborhood_searches!(semi)
 end
@@ -472,8 +480,8 @@ function initialize_neighborhood_search!(semi, system, neighbor)
     # Currently, this cannot use `semi.parallelization_backend`
     # because data is still on the CPU.
     PointNeighbors.initialize!(get_neighborhood_search(system, neighbor, semi),
-                               initial_coordinates(system),
-                               initial_coordinates(neighbor),
+                               initial_coordinates_nhs(system),
+                               initial_coordinates_nhs(neighbor),
                                eachindex_y=each_active_particle(neighbor),
                                parallelization_backend=PolyesterBackend())
 
