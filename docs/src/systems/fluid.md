@@ -4,6 +4,12 @@ Currently available fluid methods are the [weakly compressible SPH method](@ref 
 [entropically damped artificial compressibility for SPH](@ref edac).
 This page lists models and techniques that apply to both of these methods.
 
+!!! note
+    The formulas on this page follow the force notation commonly used in the SPH literature.
+    TrixiParticles.jl usually evaluates the corresponding acceleration contributions internally.
+    Whenever the implemented discretization differs from the literature formula, both forms are
+    stated explicitly.
+
 ## [Viscosity](@id viscosity_sph)
 
 Viscosity is a critical physical property governing momentum diffusion within a fluid.
