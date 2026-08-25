@@ -376,8 +376,8 @@ function calculate_flow_rate!(system::OpenBoundarySystem{<:Any, ELTYPE, NDIMS},
         (; boundary_zones) = system
         (; boundary_zones_flow_rate) = system.cache
 
-        foreach_noalloc(boundary_zones,
-                        boundary_zones_flow_rate) do (boundary_zone, flow_rate)
+        foreach_noalloc_zip(boundary_zones,
+                            boundary_zones_flow_rate) do (boundary_zone, flow_rate)
             (; face_normal) = boundary_zone
             (; sample_velocity, area_increment) = boundary_zone.cache
 
@@ -397,12 +397,15 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
 
     u_fluid = wrap_u(u_ode, fluid_system, semi)
     v_fluid = wrap_v(v_ode, fluid_system, semi)
+    periodic_box = get_neighborhood_search(fluid_system, system, semi).periodic_box
 
     boundary_candidates .= false
 
     # Check the boundary particles whether they're leaving the boundary zone
     @threaded semi for particle in each_integrated_particle(system)
-        particle_coords = current_coords(u, system, particle)
+        particle_coords = PointNeighbors.periodic_coords(current_coords(u, system,
+                                                                        particle),
+                                                         periodic_box)
 
         # Check if boundary particle is outside the boundary zone
         boundary_zone = current_boundary_zone(system, particle)
@@ -423,7 +426,7 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
 
         boundary_zone = current_boundary_zone(system, particle)
         convert_particle!(system, fluid_system, boundary_zone, particle, particle_new,
-                          v, u, v_fluid, u_fluid)
+                          v, u, v_fluid, u_fluid, periodic_box)
     end
 
     update_system_buffer!(system.buffer)
@@ -433,7 +436,9 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
 
     # Check the fluid particles whether they're entering the boundary zone
     @threaded semi for fluid_particle in each_integrated_particle(fluid_system)
-        fluid_coords = current_coords(u_fluid, fluid_system, fluid_particle)
+        fluid_coords = PointNeighbors.periodic_coords(current_coords(u_fluid, fluid_system,
+                                                                     fluid_particle),
+                                                      periodic_box)
 
         # Check if fluid particle is in any boundary zone
         for boundary_zone in boundary_zones
@@ -454,7 +459,7 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
         particle_new = available_boundary_particles[i]
 
         convert_particle!(fluid_system, system, particle, particle_new,
-                          v, u, v_fluid, u_fluid)
+                          v, u, v_fluid, u_fluid, periodic_box)
     end
 
     update_system_buffer!(system.buffer)
@@ -471,9 +476,11 @@ end
 # Buffer particle is outside the boundary zone
 @inline function convert_particle!(system::OpenBoundarySystem, fluid_system,
                                    boundary_zone, particle, particle_new,
-                                   v, u, v_fluid, u_fluid)
+                                   v, u, v_fluid, u_fluid, periodic_box)
     # Position relative to the origin of the transition face
-    relative_position = current_coords(u, system, particle) - boundary_zone.zone_origin
+    nonperiodic_coords = current_coords(u, system, particle)
+    particle_coords = PointNeighbors.periodic_coords(nonperiodic_coords, periodic_box)
+    relative_position = particle_coords - boundary_zone.zone_origin
 
     # Check if particle is in- or outside the fluid domain.
     # `face_normal` is always pointing into the fluid domain.
@@ -488,7 +495,8 @@ end
     end
 
     # Activate a new particle in simulation domain
-    transfer_particle!(fluid_system, system, particle, particle_new, v_fluid, u_fluid, v, u)
+    transfer_particle!(fluid_system, system, particle, particle_new,
+                       v_fluid, u_fluid, v, u, periodic_box)
 
     # Reset position of boundary particle back to the beginning of the boundary zone.
     # If we translated it by exactly `zone_width` along `-face_normal`, rounding
@@ -518,9 +526,11 @@ end
 
 # Fluid particle is in boundary zone
 @inline function convert_particle!(fluid_system::AbstractFluidSystem, system,
-                                   particle, particle_new, v, u, v_fluid, u_fluid)
+                                   particle, particle_new, v, u, v_fluid, u_fluid,
+                                   periodic_box)
     # Activate particle in boundary zone
-    transfer_particle!(system, fluid_system, particle, particle_new, v, u, v_fluid, u_fluid)
+    transfer_particle!(system, fluid_system, particle, particle_new,
+                       v, u, v_fluid, u_fluid, periodic_box)
 
     # Deactivate particle in interior domain
     deactivate_particle!(fluid_system, particle, v_fluid, u_fluid)
@@ -529,7 +539,7 @@ end
 end
 
 @inline function transfer_particle!(system_new, system_old, particle_old, particle_new,
-                                    v_new, u_new, v_old, u_old)
+                                    v_new, u_new, v_old, u_old, periodic_box)
     # Activate new particle
     system_new.buffer.active_particle[particle_new] = true
 
@@ -541,9 +551,12 @@ end
     pressure = current_pressure(v_old, system_old, particle_old)
     set_particle_pressure!(v_new, system_new, particle_new, pressure)
 
+    nonperiodic_coords = current_coords(u_old, system_old, particle_old)
+    particle_coords = PointNeighbors.periodic_coords(nonperiodic_coords, periodic_box)
+
     # Exchange position and velocity
     for dim in 1:ndims(system_new)
-        u_new[dim, particle_new] = u_old[dim, particle_old]
+        u_new[dim, particle_new] = particle_coords[dim]
         v_new[dim, particle_new] = v_old[dim, particle_old]
     end
 
@@ -671,11 +684,18 @@ function interpolate_velocity!(system::OpenBoundarySystem, boundary_zone,
 
     # Shepard-normalized interpolation:
     #   v(p) = (Σ_b v_b V_b W_pb) / (Σ_b V_b W_pb)
-    foreach_system(semi) do neighbor_system
-        use_open_boundary_interpolation_neighbor(neighbor_system) || return neighbor_system
+    foreach_system_wrapped(semi, v_ode,
+                           u_ode) do neighbor_system, v_neighbor, u_neighbor
+        if !use_open_boundary_interpolation_neighbor(neighbor_system)
+            # Not a valid interpolation neighbor, ignore this system.
+            return
+        end
 
-        v_neighbor = wrap_v(v_ode, neighbor_system, semi)
-        u_neighbor = wrap_u(u_ode, neighbor_system, semi)
+        if !has_system_interaction(system, neighbor_system, semi)
+            # No interaction between these systems.
+            return
+        end
+
         neighbor_coords = current_coordinates(u_neighbor, neighbor_system)
 
         # We can do this because we require the neighborhood search to support querying neighbors

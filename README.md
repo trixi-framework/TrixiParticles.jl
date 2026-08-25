@@ -26,7 +26,24 @@ TrixiParticles.jl focuses on the following use cases:
 
 It offers intuitive configuration, robust pre- and post-processing, and vendor-agnostic GPU support based on the Julia package [KernelAbstractions.jl](https://github.com/JuliaGPU/KernelAbstractions.jl).
 
-[![YouTube](https://github.com/user-attachments/assets/dc2be627-a799-4bfd-9226-2077f737c4b0)](https://www.youtube.com/watch?v=V7FWl4YumcA&t=4667s)
+## Conference Talks
+
+<table align="center" border="0" width="100%">
+  <tr>
+    <td align="center" width="50%">
+      <b>JuliaCon 2024</b><br>
+      <a href="https://www.youtube.com/watch?v=ReLkKUV4kTw">
+        <img src="https://github.com/user-attachments/assets/a9fd65de-13dc-424d-b518-e7f4b417eff3" style="width: 90%;"/>
+      </a>
+    </td>
+    <td align="center" width="50%">
+      <b>JuliaCon 2026</b><br>
+      <a href="https://www.youtube.com/watch?v=_1HKnl1Jngw&t=3607s">
+        <img src="https://github.com/user-attachments/assets/ccf4e567-0adb-490e-9c2c-f36217dd5ca3" style="width: 90%;"/>
+      </a>
+    </td>
+  </tr>
+</table>
 
 ## Features
 - Incompressible Navier-Stokes flows
