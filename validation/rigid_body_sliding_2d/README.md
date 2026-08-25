@@ -13,18 +13,19 @@ s = \frac{v_0^2}{2 \mu_k g}.
 
 The comparison assumes that the body starts in contact, remains in the kinetic-slip regime
 until stopping, and experiences a constant normal load equal to its weight. The script runs
-the same rigid square with wall particle spacings `0.03` and `0.015`. It reports the stopping
-distance error for each resolution, the final horizontal velocity, and the difference between
-the two numerical stopping distances. Numerical trajectories are written to JSON and CSV in
-`out/validation_result_rigid_body_sliding_2d_wall_spacing_*`; the analytical trajectory is
-added to each JSON file for plotting.
+kinetic friction coefficients `0.2`, `0.3`, and `0.4` at wall spacing `0.03`. It also repeats
+the `0.4` case at wall spacing `0.015` as a separate resolution-independence check. The plot
+shows the friction-factor sweep; wall resolution is reported as a scalar error because its
+trajectories intentionally overlap. Numerical trajectories are written to JSON and CSV in
+`out/validation_result_rigid_body_sliding_2d_mu_*_wall_spacing_*`; the analytical trajectory
+is added to each JSON file for plotting.
 
 The following files are provided:
 
-1. `validation_rigid_body_sliding_2d.jl`: Runs the example at both wall resolutions and
-   computes the stopping-distance and wall-resolution errors.
-2. `plot_rigid_body_sliding_results.jl`: Optionally plots both numerical trajectories against
-   the analytical trajectory after the validation has generated its output files.
+1. `validation_rigid_body_sliding_2d.jl`: Runs the example for the friction-factor sweep and
+   wall-resolution check, then computes the stopping-distance and resolution errors.
+2. `plot_rigid_body_sliding_results.jl`: Optionally plots the numerical and analytical
+   trajectories and their signed errors after validation has generated its output files.
 
 Run the validation from the repository root with
 

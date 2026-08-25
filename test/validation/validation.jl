@@ -129,9 +129,9 @@
                                          joinpath(validation_dir(),
                                                   "rigid_body_sliding_2d",
                                                   "plot_rigid_body_sliding_results.jl"))
-        # Plot two numerical trajectories, the analytical trajectory, and both error curves.
-        @test length(ax.scene.plots) >= 3
-        @test length(error_ax.scene.plots) >= 3
+        # Plot numerical/analytical trajectories and errors for all three friction factors.
+        @test length(ax.scene.plots) >= 6
+        @test length(error_ax.scene.plots) >= 4
     end
 
     @trixi_testset "TGV_2D" begin

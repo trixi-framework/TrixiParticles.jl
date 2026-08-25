@@ -23,6 +23,8 @@ contact_distance = 2.0 * particle_spacing
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 9.81
+static_friction_coefficient = 0.6
+kinetic_friction_coefficient = 0.4
 tspan = (0.0, 0.8)
 
 square_side_length = 0.18
@@ -70,8 +72,8 @@ contact_model_frictionless = RigidContactModel(; normal_stiffness=2.0e5,
 
 contact_model_frictional = RigidContactModel(; normal_stiffness=2.0e5,
                                              normal_damping=100.0,
-                                             static_friction_coefficient=0.6,
-                                             kinetic_friction_coefficient=0.4,
+                                             static_friction_coefficient,
+                                             kinetic_friction_coefficient,
                                              tangential_stiffness=1.0e5,
                                              tangential_damping=150.0,
                                              contact_distance)

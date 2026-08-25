@@ -3,8 +3,8 @@
 #
 # A rigid square slides on a horizontal wall under Coulomb friction. While it is slipping,
 # its center-of-mass acceleration is -mu_k * g, so its analytical stopping distance is
-# v_0^2 / (2 * mu_k * g). Running the example at two wall resolutions also verifies that
-# geometry-normal wall contact is independent of tangential wall-particle sampling.
+# v_0^2 / (2 * mu_k * g). A friction-factor sweep validates this relation, while repeating
+# one case at two wall resolutions checks independence from tangential wall-particle sampling.
 # ==========================================================================================
 
 using TrixiParticles
@@ -15,13 +15,11 @@ using OrdinaryDiffEqLowStorageRK
 # ==== Resolution and Experiment Setup
 particle_spacing = 0.03
 wall_particle_spacings = (particle_spacing, particle_spacing / 2)
-tspan = (0.0, 0.3)
+friction_coefficients = (0.2, 0.3, 0.4)
+reference_friction_coefficient = 0.4
+tspan = (0.0, 0.65)
 gravity = 9.81
 initial_velocity = 1.0
-kinetic_friction_coefficient = 0.4
-analytical_stopping_time = initial_velocity / (kinetic_friction_coefficient * gravity)
-analytical_stopping_distance = initial_velocity^2 /
-                               (2 * kinetic_friction_coefficient * gravity)
 
 # ==========================================================================================
 # ==== Sensors
@@ -46,9 +44,11 @@ frictional_horizontal_velocity(system, data, t) = nothing
 
 # ==========================================================================================
 # ==== Run Simulations and Compute Errors
-function run_rigid_body_sliding_validation(wall_particle_spacing; tspan)
+function run_rigid_body_sliding_validation(kinetic_friction_coefficient,
+                                           wall_particle_spacing; tspan)
+    friction_milli = round(Int, 1000 * kinetic_friction_coefficient)
     spacing_millimeters = round(Int, 1000 * wall_particle_spacing)
-    filename = "validation_result_rigid_body_sliding_2d_wall_spacing_$(spacing_millimeters)"
+    filename = "validation_result_rigid_body_sliding_2d_mu_$(friction_milli)_wall_spacing_$(spacing_millimeters)"
     output_directory = "out"
 
     postprocess_callback = PostprocessCallback(; dt=0.005, output_directory, filename,
@@ -57,11 +57,11 @@ function run_rigid_body_sliding_validation(wall_particle_spacing; tspan)
                                                frictional_horizontal_velocity)
 
     # Reuse the public example setup, but replace its solve so validation can install a
-    # postprocess callback and vary only the wall resolution.
+    # postprocess callback and vary friction and wall resolution.
     trixi_include(@__MODULE__,
                   joinpath(examples_dir(), "structure",
                            "sliding_rigid_squares_friction_2d.jl");
-                  wall_particle_spacing, tspan, sol=nothing)
+                  wall_particle_spacing, kinetic_friction_coefficient, tspan, sol=nothing)
 
     callbacks = CallbackSet(UpdateCallback(), StepsizeCallback(cfl=0.5),
                             postprocess_callback)
@@ -78,6 +78,10 @@ function run_rigid_body_sliding_validation(wall_particle_spacing; tspan)
     time_values = Float64.(run_data[position_key]["time"])
     position_values = Float64.(run_data[position_key]["values"])
     velocity_values = Float64.(run_data[velocity_key]["values"])
+    analytical_stopping_time = initial_velocity /
+                               (kinetic_friction_coefficient * gravity)
+    analytical_stopping_distance = initial_velocity^2 /
+                                   (2 * kinetic_friction_coefficient * gravity)
     stopping_distance = last(position_values) - first(position_values)
     relative_error = abs(stopping_distance - analytical_stopping_distance) /
                      analytical_stopping_distance
@@ -105,22 +109,34 @@ function run_rigid_body_sliding_validation(wall_particle_spacing; tspan)
         JSON.print(io, run_data, 4)
     end
 
-    return (; wall_particle_spacing, sol, run_filename, stopping_distance, relative_error,
+    return (; kinetic_friction_coefficient, wall_particle_spacing, sol, run_filename,
+            analytical_stopping_distance, stopping_distance, relative_error,
             final_horizontal_velocity=last(velocity_values))
 end
 
-validation_results = [run_rigid_body_sliding_validation(wall_particle_spacing; tspan)
-                      for wall_particle_spacing in wall_particle_spacings]
+friction_validation_results = [run_rigid_body_sliding_validation(coefficient,
+                                                                 first(wall_particle_spacings);
+                                                                 tspan)
+                               for coefficient in friction_coefficients]
+reference_result = only(filter(result -> result.kinetic_friction_coefficient ==
+                                         reference_friction_coefficient,
+                               friction_validation_results))
+fine_resolution_result = run_rigid_body_sliding_validation(reference_friction_coefficient,
+                                                           last(wall_particle_spacings);
+                                                           tspan)
+resolution_validation_results = (reference_result, fine_resolution_result)
+validation_results = vcat(friction_validation_results, [fine_resolution_result])
 solutions = [result.sol for result in validation_results]
 stopping_distance_errors = [result.relative_error for result in validation_results]
-wall_resolution_error = abs(validation_results[1].stopping_distance -
-                            validation_results[2].stopping_distance) /
-                        analytical_stopping_distance
+wall_resolution_error = abs(resolution_validation_results[1].stopping_distance -
+                            resolution_validation_results[2].stopping_distance) /
+                        reference_result.analytical_stopping_distance
 
 println("Validation results for 2D rigid-body sliding:")
-println("  Analytical stopping distance: $analytical_stopping_distance")
 for result in validation_results
-    println("  Wall spacing $(result.wall_particle_spacing): " *
+    println("  mu_k=$(result.kinetic_friction_coefficient), " *
+            "wall spacing=$(result.wall_particle_spacing): " *
+            "analytical distance=$(result.analytical_stopping_distance), " *
             "distance=$(result.stopping_distance), " *
             "relative error=$(result.relative_error), " *
             "final velocity=$(result.final_horizontal_velocity)")
