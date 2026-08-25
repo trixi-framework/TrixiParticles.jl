@@ -17,6 +17,10 @@ end
            requires_update_callback(system.contact_model)
 end
 
+@inline function requires_update_callback(system::RigidBodySystem, semi)
+    return requires_update_callback(system)
+end
+
 @inline function normal_friction_reference_force(contact_model::RigidContactModel,
                                                  penetration, normal_velocity)
     elastic_force = contact_model.normal_stiffness * penetration
@@ -86,8 +90,11 @@ function update_rigid_contact_eachstep!(system::RigidBodySystem{<:Any, <:Any, ND
     return system
 end
 
-update_contact_history_pair!(system, neighbor_system, v_system, u_system, v_ode, u_ode,
-                             semi, dt, active_contact_keys) = active_contact_keys
+function update_contact_history_pair!(system, neighbor_system, v_system, u_system, v_ode,
+                                      u_ode,
+                                      semi, dt, active_contact_keys)
+    active_contact_keys
+end
 
 function update_contact_history_pair!(system::RigidBodySystem{<:Any, <:Any, NDIMS},
                                       neighbor_system::WallBoundarySystem,

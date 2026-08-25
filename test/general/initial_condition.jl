@@ -221,6 +221,84 @@
         end
     end
 
+    @testset "Set Operations with Surface Normals" begin
+        spacing = 0.1
+        density = 1000.0
+
+        coords_a = [0.0 0.1 0.2 0.0 0.1 0.2;
+                    0.0 0.0 0.0 0.1 0.1 0.1]
+        normals_a = [0.0 0.0 0.0 0.0 0.0 0.0;
+                     1.0 1.0 1.0 -1.0 -1.0 -1.0]
+
+        coords_b = [0.2 0.3 0.4 0.2 0.3 0.4;
+                    0.0 0.0 0.0 0.1 0.1 0.1]
+        normals_b = [-1.0 -1.0 -1.0 1.0 1.0 1.0;
+                     0.0 0.0 0.0 0.0 0.0 0.0]
+
+        ic_a_normals = InitialCondition(; coordinates=coords_a, density=density,
+                                        particle_spacing=spacing, normals=normals_a)
+        ic_b_normals = InitialCondition(; coordinates=coords_b, density=density,
+                                        particle_spacing=spacing, normals=normals_b)
+
+        ic_a_no_normals = InitialCondition(; coordinates=coords_a, density=density,
+                                           particle_spacing=spacing, normals=nothing)
+        ic_b_no_normals = InitialCondition(; coordinates=coords_b, density=density,
+                                           particle_spacing=spacing, normals=nothing)
+
+        @testset "Union Normals" begin
+            # Both have normals
+            res_both = union(ic_a_normals, ic_b_normals)
+            @test size(res_both.normals, 2) == size(res_both.coordinates, 2)
+            @test size(res_both.normals, 2) == 10 # 6 from A + 4 non-overlapping from B
+            @test res_both.normals[:, 1:6] == normals_a
+            @test res_both.normals[:, 7:10] == normals_b[:, [2, 3, 5, 6]]
+
+            # First IC has normals
+            res_first = union(ic_a_normals, ic_b_no_normals)
+            @test isnothing(res_first.normals)
+
+            # Second IC has normals
+            res_second = union(ic_a_no_normals, ic_b_normals)
+            @test isnothing(res_second.normals)
+
+            # Neither has normals
+            res_none = union(ic_a_no_normals, ic_b_no_normals)
+            @test isnothing(res_none.normals)
+        end
+
+        @testset "Setdiff Normals" begin
+            # Both have normals
+            res_both = setdiff(ic_a_normals, ic_b_normals)
+            @test size(res_both.normals, 2) == 4
+            @test res_both.normals == normals_a[:, [1, 2, 4, 5]]
+
+            # First IC has normals
+            res_fluid_only = setdiff(ic_a_normals, ic_b_no_normals)
+            @test res_fluid_only.normals == normals_a[:, [1, 2, 4, 5]]
+
+            # Second IC has normals
+            res_no_normals = setdiff(ic_a_no_normals, ic_b_normals)
+            @test isnothing(res_no_normals.normals)
+        end
+
+        @testset "Intersect Normals" begin
+            # Both have normals
+            res_normals = intersect(ic_a_normals, ic_b_normals)
+            @test !isnothing(res_normals.normals)
+            @test size(res_normals.normals, 2) == 2
+            @test res_normals.normals == normals_a[:, [3, 6]]
+
+            # First IC has normals
+            res_mixed = intersect(ic_a_normals, ic_b_no_normals)
+            @test !isnothing(res_mixed.normals)
+            @test res_mixed.normals == normals_a[:, [3, 6]]
+
+            # Second IC has normals
+            res_none = intersect(ic_a_no_normals, ic_b_normals)
+            @test isnothing(res_none.normals)
+        end
+    end
+
     @testset "Union of Shapes with Different Spacing" begin
         shape1 = RectangularShape(0.13, (9, 10), (0.0, 0.0), density=1.0)
         shape2 = RectangularShape(0.1, (4, 5), (1.0, 1.0), density=1.0)
@@ -394,8 +472,7 @@
                 density = [10.0, 20.0, 30.0, 40.0, 50.0]
                 pressure = [100.0, 200.0, 300.0, 400.0, 500.0]
 
-                ic = InitialCondition(coordinates=coordinates, velocity=velocity,
-                                      mass=mass, density=density, pressure=pressure)
+                ic = InitialCondition(; coordinates, velocity, mass, density, pressure)
 
                 # Move particles 2 and 4 to the end
                 particle_ids_to_move = [2, 4]
@@ -423,8 +500,7 @@
                 mass = [1.1, 2.2, 3.3, 4.4]
                 density = [10.0, 20.0, 30.0, 40.0]
 
-                ic = InitialCondition(coordinates=coordinates, velocity=velocity,
-                                      mass=mass, density=density)
+                ic = InitialCondition(; coordinates, velocity, mass, density)
 
                 # Move particle 2 multiple times (should only move once)
                 TrixiParticles.move_particles_to_end!(ic, [2, 2, 3])

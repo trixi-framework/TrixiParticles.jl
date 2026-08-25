@@ -11,7 +11,7 @@ include("../validation_util.jl")
 # ==========================================================================================
 
 using TrixiParticles
-using OrdinaryDiffEq
+using OrdinaryDiffEqLowStorageRK
 using JSON
 
 # ==========================================================================================
@@ -51,15 +51,13 @@ function run_simulation(method; n_particles_plate_y, tspan)
                              kinetic_energy)
 
     trixi_include(@__MODULE__,
-                  joinpath(examples_dir(), "fsi", "hydrostatic_water_column_2d.jl"),
-                  use_edac=method.use_edac,
-                  n_particles_plate_y=n_particles_plate_y,
-                  update_strategy=SerialUpdate(),
-                  tspan=tspan,
-                  prefix=pp_filename,
+                  joinpath(examples_dir(), "fsi", "hydrostatic_water_column_2d.jl");
+                  use_edac=method.use_edac, n_particles_plate_y,
+                  update_strategy=SerialUpdate(), tspan, prefix=pp_filename,
                   extra_callback=pp)
 
-    return pp_filename, sol
+    # `@invokelatest` is required with Julia 1.12
+    return pp_filename, @invokelatest (@__MODULE__).sol
 end
 
 methods = ((name=:edac, use_edac=true),
@@ -68,9 +66,7 @@ errors = Dict{Symbol, Tuple{Float64, Float64}}()
 
 for method in methods
     pp_filename,
-    _ = run_simulation(method;
-                       n_particles_plate_y=n_particles_plate_y,
-                       tspan=tspan)
+    _ = run_simulation(method; n_particles_plate_y, tspan)
 
     # Load the run JSON file and add the analytical solution as a single point.
     run_filename = joinpath("out", pp_filename * ".json")

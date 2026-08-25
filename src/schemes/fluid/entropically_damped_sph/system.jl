@@ -1,6 +1,6 @@
 @doc raw"""
-    EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
-                                smoothing_length, sound_speed;
+    EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel,
+                                smoothing_length, sound_speed,
                                 pressure_acceleration=inter_particle_averaged_pressure,
                                 density_calculator=SummationDensity(),
                                 shifting_technique=nothing,
@@ -17,13 +17,13 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
 
 # Arguments
 - `initial_condition`:  Initial condition representing the system's particles.
-- `sound_speed`:        Speed of sound.
-- `smoothing_kernel`:   Smoothing kernel to be used for this system.
-                        See [Smoothing Kernels](@ref smoothing_kernel).
-- `smoothing_length`:   Smoothing length to be used for this system.
-                        See [Smoothing Kernels](@ref smoothing_kernel).
 
 # Keywords
+- `sound_speed`:                Speed of sound.
+- `smoothing_kernel`:           Smoothing kernel to be used for this system.
+                                See [Smoothing Kernels](@ref smoothing_kernel).
+- `smoothing_length`:           Smoothing length to be used for this system.
+                                See [Smoothing Kernels](@ref smoothing_kernel).
 - `viscosity`:                  Viscosity model for this system (default: no viscosity).
                                 Recommended: [`ViscosityAdami`](@ref).
 - `acceleration`:               Acceleration vector for the system. (default: zero vector)
@@ -85,10 +85,9 @@ end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
-function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
-                                     smoothing_length, sound_speed;
+function EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel, smoothing_length,
+                                     sound_speed, density_calculator=SummationDensity(),
                                      pressure_acceleration=inter_particle_averaged_pressure,
-                                     density_calculator=SummationDensity(),
                                      shifting_technique=nothing,
                                      average_pressure_reduction=(!isnothing(shifting_technique)),
                                      alpha=0.5, viscosity=nothing,
@@ -160,9 +159,8 @@ function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
     if reference_particle_spacing > 0
         # `reference_particle_spacing` has to be set for surface normals to be determined
-        cache = (;
-                 cache...,  # Existing cache fields
-                 reference_particle_spacing=reference_particle_spacing)
+        # Existing cache fields
+        cache = (; cache..., reference_particle_spacing)
     end
 
     EntropicallyDampedSPHSystem{NDIMS, ELTYPE, typeof(initial_condition), typeof(mass),
@@ -336,24 +334,30 @@ function update_average_pressure!(system, ::Val{true}, v_ode, u_ode, semi)
 
     u = wrap_u(u_ode, system, semi)
 
-    # Use all other systems for the average pressure
-    @trixi_timeit timer() "compute average pressure" foreach_system(semi) do neighbor_system
-        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
-        v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
+    # Use enabled neighbor systems for the average pressure.
+    @trixi_timeit timer() "compute average pressure" begin
+        foreach_system_wrapped(semi, v_ode,
+                               u_ode) do neighbor_system, v_neighbor_system,
+                                         u_neighbor_system
+            if !has_system_interaction(system, neighbor_system, semi)
+                # No interaction between these systems.
+                return
+            end
 
-        system_coords = current_coordinates(u, system)
-        neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
+            system_coords = current_coordinates(u, system)
+            neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-        # Loop over all pairs of particles and neighbors within the kernel cutoff.
-        foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
-                               semi;
-                               points=each_integrated_particle(system)) do particle,
-                                                                           neighbor,
-                                                                           pos_diff,
-                                                                           distance
-            pressure_average[particle] += current_pressure(v_neighbor_system,
-                                                           neighbor_system, neighbor)
-            neighbor_counter[particle] += 1
+            # Loop over all pairs of particles and neighbors within the kernel cutoff.
+            foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
+                                   semi;
+                                   points=each_integrated_particle(system)) do particle,
+                                                                               neighbor,
+                                                                               pos_diff,
+                                                                               distance
+                pressure_average[particle] += current_pressure(v_neighbor_system,
+                                                               neighbor_system, neighbor)
+                neighbor_counter[particle] += 1
+            end
         end
     end
 
@@ -383,6 +387,6 @@ function restart_with!(system::EntropicallyDampedSPHSystem, v, u)
     for particle in each_integrated_particle(system)
         system.initial_condition.coordinates[:, particle] .= u[:, particle]
         system.initial_condition.velocity[:, particle] .= v[1:ndims(system), particle]
-        system.initial_condition.pressure[particle] = v[end, particle]
+        system.initial_condition.pressure[particle] = v[ndims(system) + 1, particle]
     end
 end

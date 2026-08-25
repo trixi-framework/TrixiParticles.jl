@@ -1,7 +1,6 @@
 """
-    ImplicitIncompressibleSPHSystem(initial_condition,
-                                    smoothing_kernel, smoothing_length,
-                                    reference_density;
+    ImplicitIncompressibleSPHSystem(initial_condition; smoothing_kernel,
+                                    smoothing_length, reference_density,
                                     viscosity=nothing,
                                     acceleration=ntuple(_ -> 0.0, ndims(smoothing_kernel)),
                                     omega=0.5, max_error=0.1, min_iterations=2,
@@ -16,13 +15,13 @@ See [Implicit Incompressible SPH](@ref iisph) for more details on the method.
 
 # Arguments
 - `initial_condition`:  [`InitialCondition`](@ref) representing the system's particles.
-- `smoothing_kernel`:   Smoothing kernel to be used for this system.
-                        See [Smoothing Kernels](@ref smoothing_kernel).
-- `smoothing_length`:   Smoothing length to be used for this system.
-                        See [Smoothing Kernels](@ref smoothing_kernel).
-- `reference_density`:  Reference density used for the fluid particles
 
-# Keyword Arguments
+# Keywords
+- `smoothing_kernel`:           Smoothing kernel to be used for this system.
+                                See [Smoothing Kernels](@ref smoothing_kernel).
+- `smoothing_length`:           Smoothing length to be used for this system.
+                                See [Smoothing Kernels](@ref smoothing_kernel).
+- `reference_density`:          Reference density used for the fluid particles.
 - `viscosity`:                  Currently, only [`ViscosityMorris`](@ref)
                                 and [`ViscosityAdami`](@ref) are supported.
 - `acceleration`:               Acceleration vector for the system. (default: zero vector)
@@ -65,9 +64,8 @@ end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
-function ImplicitIncompressibleSPHSystem(initial_condition,
-                                         smoothing_kernel, smoothing_length,
-                                         reference_density;
+function ImplicitIncompressibleSPHSystem(initial_condition; smoothing_kernel,
+                                         smoothing_length, reference_density,
                                          viscosity=nothing,
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),
@@ -204,6 +202,8 @@ end
 # TODO: What do we do with the sound speed? This is needed for the viscosity.
 @inline system_sound_speed(system::ImplicitIncompressibleSPHSystem) = system.artificial_sound_speed
 
+@inline density_calculator(system::ImplicitIncompressibleSPHSystem) = nothing
+
 # Calculates the pressure values by solving a linear system with a relaxed Jacobi scheme
 function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
@@ -263,9 +263,14 @@ function calculate_predicted_velocity_and_d_ii_values!(system::ImplicitIncompres
     end
 
     # Compute predicted velocity
-    foreach_system(semi) do neighbor_system
-        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
-        v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
+    foreach_system_wrapped(semi, v_ode,
+                           u_ode) do neighbor_system, v_neighbor_system,
+                                     u_neighbor_system
+        if !has_system_interaction(system, neighbor_system, semi)
+            # No interaction between these systems.
+            return
+        end
+
         system_coords = current_coordinates(u, system)
         neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
@@ -281,16 +286,22 @@ function calculate_predicted_velocity_and_d_ii_values!(system::ImplicitIncompres
             rho_a = @inbounds current_density(v_particle_system, system, particle)
             rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
 
+            v_a = @inbounds current_velocity(v_particle_system, system, particle)
+            v_b = @inbounds current_velocity(v_neighbor_system, neighbor_system, neighbor)
+
             grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
-            dv_viscosity_ = @inbounds dv_viscosity(system, neighbor_system,
-                                                   v_particle_system, v_neighbor_system,
-                                                   particle, neighbor, pos_diff, distance,
-                                                   sound_speed, m_a, m_b, rho_a, rho_b,
-                                                   grad_kernel)
+            dv_viscosity_ = @inbounds add_dv_viscosity(zero(pos_diff), system,
+                                                       neighbor_system,
+                                                       v_particle_system, v_neighbor_system,
+                                                       particle, neighbor, pos_diff,
+                                                       distance,
+                                                       sound_speed, m_a, m_b, rho_a, rho_b,
+                                                       v_a, v_b, grad_kernel)
             # Add all other non-pressure forces
             for i in 1:ndims(system)
-                @inbounds advection_velocity[i, particle] += time_step * dv_viscosity_[i]
+                @inbounds advection_velocity[i,
+                                             particle] += time_step * dv_viscosity_[i]
             end
             # Calculate d_ii with eq. 9 in Ihmsen et al. (2013)
             for i in 1:ndims(system)
@@ -318,6 +329,8 @@ function calculate_diagonal_elements_and_predicted_density!(system::ImplicitInco
     predicted_density .= density
 
     foreach_system(semi) do neighbor_system
+        has_system_interaction(system, neighbor_system, semi) || return
+
         calculate_diagonal_elements_and_predicted_density(a_ii, predicted_density, system,
                                                           neighbor_system, v, u, v_ode,
                                                           u_ode, semi, time_step)
@@ -470,6 +483,8 @@ function calculate_sum_d_ij_pj!(system::ImplicitIncompressibleSPHSystem, u, u_od
     set_zero!(sum_d_ij_pj)
 
     foreach_system(semi) do neighbor_system
+        has_system_interaction(system, neighbor_system, semi) || return
+
         calculate_sum_d_ij_pj!(sum_d_ij_pj, system, neighbor_system, u, u_ode, semi)
     end
 end
@@ -519,6 +534,8 @@ function calculate_sum_term_values!(system::ImplicitIncompressibleSPHSystem, u, 
     set_zero!(sum_term)
 
     foreach_system(semi) do neighbor_system
+        has_system_interaction(system, neighbor_system, semi) || return
+
         calculate_sum_term!(sum_term, system, neighbor_system, u, u_ode, semi, time_step)
     end
 end

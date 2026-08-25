@@ -72,7 +72,8 @@ makedocs(sitename="TrixiParticles.jl",
          plugins=[bib],
          # Run doctests and check docs for the following modules
          modules=[TrixiParticles, TrixiBase],
-         format=Documenter.HTML(; assets=Asciicast.assets()),
+         # Set edit_link explicitly to avoid `git remote show origin` lookups.
+         format=Documenter.HTML(; assets=Asciicast.assets(), edit_link="main"),
          # Explicitly specify documentation structure
          pages=[
              "Home" => "index.md",
@@ -126,8 +127,8 @@ makedocs(sitename="TrixiParticles.jl",
                                                                            "implicit_incompressible_sph.md")
                      ],
                      "Discrete Element Method (Solid)" => joinpath("systems", "dem.md"),
-                     "Rigid Body SPH (Rigid Structure)" => joinpath("systems",
-                                                                    "rigid_body.md"),
+                     "Rigid Body Dynamics (Rigid Structure)" => joinpath("systems",
+                                                                         "rigid_body.md"),
                      "Total Lagrangian SPH (Elastic Structure)" => joinpath("systems",
                                                                             "total_lagrangian_sph.md"),
                      "Boundary" => joinpath("systems", "boundary.md")

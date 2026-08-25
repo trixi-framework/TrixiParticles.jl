@@ -291,23 +291,26 @@ function calc_normal!(system::AbstractFluidSystem,
                                  semi, surface_normal_method)
 end
 
-@inline function adhesion_force(surface_tension::AkinciTypeSurfaceTension,
-                                particle_system::AbstractFluidSystem,
-                                neighbor_system::RigidBodySystem,
-                                particle, neighbor, pos_diff, distance)
+@inline function add_dv_adhesion(dv_particle,
+                                 surface_tension::AkinciTypeSurfaceTension,
+                                 particle_system::AbstractFluidSystem,
+                                 neighbor_system::RigidBodySystem,
+                                 particle, neighbor, pos_diff, distance)
     (; adhesion_coefficient) = neighbor_system
 
     # No adhesion with oneself. See `src/general/smoothing_kernels.jl` for more details.
-    distance^2 < eps(initial_smoothing_length(particle_system)^2) && return zero(pos_diff)
+    distance^2 < eps(initial_smoothing_length(particle_system)^2) && return dv_particle
 
-    abs(adhesion_coefficient) < eps() && return zero(pos_diff)
+    abs(adhesion_coefficient) < eps() && return dv_particle
 
     m_b = hydrodynamic_mass(neighbor_system, neighbor)
     support_radius = compact_support(system_smoothing_kernel(particle_system),
                                      smoothing_length(particle_system, particle))
 
-    return adhesion_force_akinci(surface_tension, support_radius, m_b, pos_diff, distance,
-                                 adhesion_coefficient)
+    dv_particle += adhesion_force_akinci(surface_tension, support_radius, m_b,
+                                         pos_diff, distance, adhesion_coefficient)
+
+    return dv_particle
 end
 
 function write_u0!(u0, system::RigidBodySystem)
@@ -380,8 +383,15 @@ function update_boundary_interpolation!(boundary_model, system::RigidBodySystem,
     return system
 end
 
-function update_final!(system::RigidBodySystem, v, u, v_ode, u_ode, semi, t;
-                       reset_interaction_caches=true)
+function reset_interaction_caches!(system::RigidBodySystem)
+    set_zero!(system.force_per_particle)
+    system.cache.contact_count[] = 0
+    system.cache.max_contact_penetration[] = zero(eltype(system))
+
+    return system
+end
+
+function update_final!(system::RigidBodySystem, v, u, v_ode, u_ode, semi, t)
     system_coords = current_coordinates(u, system)
     system_velocity = current_velocity(v, system)
     center_of_mass,
@@ -393,13 +403,6 @@ function update_final!(system::RigidBodySystem, v, u, v_ode, u_ode, semi, t;
                                                         center_of_mass,
                                                         center_of_mass_velocity;
                                                         relative_coordinates=system.relative_coordinates)
-
-    if reset_interaction_caches
-        # Reset pairwise interaction accumulation before the next RHS assembly.
-        set_zero!(system.force_per_particle)
-        system.cache.contact_count[] = 0
-        system.cache.max_contact_penetration[] = zero(eltype(system))
-    end
 
     system.center_of_mass[] = center_of_mass
     system.center_of_mass_velocity[] = center_of_mass_velocity
@@ -458,7 +461,19 @@ end
 
 function calculate_dt(v_ode, u_ode, cfl_number, system::RigidBodySystem, semi)
     spacing = particle_spacing(system, first(eachparticle(system)))
-    contact_dt = cfl_number * contact_time_step(system, semi)
+    contact_dt = Inf
+
+    # Contact stability depends on the most restrictive *actual* rigid contact partner of
+    # this body.
+    foreach_system(semi) do neighbor
+        has_system_interaction(system, neighbor, semi) || return
+
+        neighbor === system && return
+
+        if neighbor isa Union{RigidBodySystem, WallBoundarySystem}
+            contact_dt = min(contact_dt, cfl_number * contact_time_step(system, neighbor))
+        end
+    end
 
     v = wrap_v(v_ode, system, semi)
     u = wrap_u(u_ode, system, semi)
@@ -476,8 +491,7 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::RigidBodySystem, semi)
     radius = rotational_kinematics.max_radius
     angular_speed = norm(rotational_kinematics.angular_velocity)
     # The rigid-body CFL estimate is evaluated from the current state before the
-    # force/torque resultants are refreshed, so use only kinematic contributions
-    # that can be reconstructed directly from `(u, v)`.
+    # force/torque resultants are refreshed.
     angular_acceleration = norm(rotational_kinematics.gyroscopic_acceleration)
     translational_acceleration = zero(center_of_mass_velocity)
 
@@ -510,9 +524,12 @@ end
     return neighbor_system.boundary_model.viscosity
 end
 
-@inline function viscous_velocity(v, system::RigidBodySystem, particle)
-    # This function is only used in fluid-structure interaction, so it is never called when `boundary_model` is `nothing`
-    return viscous_velocity(v, system.boundary_model.viscosity, system, particle)
+@propagate_inbounds function viscous_velocity(v, system::RigidBodySystem,
+                                              particle, v_particle)
+    # This function is only used in fluid-structure interaction,
+    # so it is never called when `boundary_model` is `nothing`
+    return viscous_velocity(v, system.boundary_model.viscosity, system,
+                            particle, v_particle)
 end
 
 @inline acceleration_source(system::RigidBodySystem) = system.acceleration

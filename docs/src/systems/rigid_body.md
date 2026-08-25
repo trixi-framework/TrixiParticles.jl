@@ -39,6 +39,15 @@ the active behavior is not identical yet:
 - and rigid-rigid remains normal-only for now, even though the tangential-history key
   design is already shared with the wall path.
 
+Here, a contact manifold is a discrete approximation of one locally smooth contact
+patch. A rigid particle touching a flat wall will usually produce one manifold,
+while corners or edges can produce several.
+
+The number of cached rigid-wall manifolds per rigid particle is controlled by the
+`RigidBodySystem(...; max_manifolds=8)` keyword argument. If more wall-contact
+patches are detected than cached manifold slots are available, the implementation
+falls back to the best-matching existing manifold for that particle.
+
 `contact_distance` defines when contact starts. If `contact_distance == 0`, the
 particle spacing of the `RigidBodySystem` is used when the contact model is adapted to
 the runtime system.

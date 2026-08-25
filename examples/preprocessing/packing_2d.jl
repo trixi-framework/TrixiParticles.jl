@@ -13,7 +13,7 @@
 # ==========================================================================================
 
 using TrixiParticles
-using OrdinaryDiffEq, Plots
+using OrdinaryDiffEqLowStorageRK, Plots
 
 filename = "circle"
 file = pkgdir(TrixiParticles, "examples", "preprocessing", "data", filename * ".asc")
@@ -50,7 +50,7 @@ shape_sampled = ComplexShape(geometry; particle_spacing, density,
 
 # Returns `InitialCondition`
 boundary_sampled = sample_boundary(signed_distance_field; boundary_density=density,
-                                   boundary_thickness, place_on_shell=place_on_shell)
+                                   boundary_thickness, place_on_shell)
 
 trixi2vtk(shape_sampled)
 trixi2vtk(boundary_sampled, filename="boundary")
@@ -65,14 +65,13 @@ trixi2vtk(boundary_sampled, filename="boundary")
 background_pressure = 1.0
 
 smoothing_length = 0.8 * particle_spacing
-packing_system = ParticlePackingSystem(shape_sampled; smoothing_length=smoothing_length,
-                                       signed_distance_field, place_on_shell=place_on_shell,
+packing_system = ParticlePackingSystem(shape_sampled; smoothing_length,
+                                       signed_distance_field, place_on_shell,
                                        background_pressure)
 
-boundary_system = ParticlePackingSystem(boundary_sampled; smoothing_length=smoothing_length,
+boundary_system = ParticlePackingSystem(boundary_sampled; smoothing_length,
                                         is_boundary=true, signed_distance_field,
-                                        place_on_shell=place_on_shell,
-                                        boundary_compress_factor=0.8,
+                                        place_on_shell, boundary_compress_factor=0.8,
                                         background_pressure)
 
 # ==========================================================================================
@@ -84,7 +83,7 @@ tspan = (0, 10.0)
 ode = semidiscretize(semi, tspan)
 
 # Use this callback to stop the simulation when it is sufficiently close to a steady state
-steady_state = SteadyStateReachedCallback(; interval=10, interval_size=200,
+steady_state = SteadyStateReachedCallback(; interval=10, interval_size=20,
                                           abstol=1.0e-7, reltol=1.0e-6)
 
 info_callback = InfoCallback(interval=50)

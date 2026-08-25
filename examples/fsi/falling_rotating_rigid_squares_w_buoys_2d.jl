@@ -6,13 +6,13 @@
 # ==========================================================================================
 
 using TrixiParticles
-using OrdinaryDiffEq
+using OrdinaryDiffEqLowStorageRK
 
 tspan = (0.0, 2.0)
 
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fsi", "falling_rotating_rigid_squares_2d.jl"),
-              sol=nothing);
+              sol=nothing; tspan);
 
 small_sphere_radius = 0.15
 small_sphere_density = 500.0
@@ -42,5 +42,5 @@ extra_structure_systems = [begin
                            for x in small_sphere_x_positions]
 
 trixi_include(@__MODULE__,
-              joinpath(examples_dir(), "fsi", "falling_rotating_rigid_squares_2d.jl"),
-              extra_structure_systems=extra_structure_systems, tspan=tspan);
+              joinpath(examples_dir(), "fsi", "falling_rotating_rigid_squares_2d.jl");
+              extra_structure_systems, tspan);

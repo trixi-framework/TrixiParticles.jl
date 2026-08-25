@@ -58,23 +58,24 @@
                             "IISPH"
                         ]
                             if system_name == "WCSPH"
-                                system = WeaklyCompressibleSPHSystem(fluid,
+                                system = WeaklyCompressibleSPHSystem(fluid;
+                                                                     smoothing_kernel,
+                                                                     smoothing_length,
                                                                      density_calculator,
                                                                      state_equation,
-                                                                     smoothing_kernel,
-                                                                     smoothing_length;
                                                                      pressure_acceleration)
                             elseif system_name == "EDAC"
-                                system = EntropicallyDampedSPHSystem(fluid,
+                                system = EntropicallyDampedSPHSystem(fluid;
                                                                      smoothing_kernel,
-                                                                     smoothing_length, 0.0;
+                                                                     smoothing_length,
+                                                                     sound_speed=0.0,
                                                                      density_calculator,
                                                                      pressure_acceleration)
                             elseif system_name == "IISPH"
-                                system = ImplicitIncompressibleSPHSystem(fluid,
+                                system = ImplicitIncompressibleSPHSystem(fluid;
                                                                          smoothing_kernel,
                                                                          smoothing_length,
-                                                                         1000.0,
+                                                                         reference_density=1000.0,
                                                                          time_step=0.001)
                             end
 
@@ -130,18 +131,21 @@
             for seed in 1:3
                 # A larger number of particles will increase accumulated errors in the
                 # summation. A larger tolerance has to be used for the tests below.
-                fluid = rectangular_patch(particle_spacing, (3, 3), seed=seed)
-                system_wcsph = WeaklyCompressibleSPHSystem(fluid, density_calculator,
-                                                           state_equation, smoothing_kernel,
-                                                           smoothing_length)
+                fluid = rectangular_patch(particle_spacing, (3, 3); seed)
+                system_wcsph = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
+                                                           smoothing_length,
+                                                           density_calculator,
+                                                           state_equation)
 
-                system_edac = EntropicallyDampedSPHSystem(fluid, smoothing_kernel,
+                system_edac = EntropicallyDampedSPHSystem(fluid; smoothing_kernel,
+                                                          smoothing_length,
+                                                          sound_speed=0.0,
                                                           pressure_acceleration=nothing,
-                                                          density_calculator=density_calculator,
-                                                          smoothing_length, 0.0)
+                                                          density_calculator)
 
-                system_iisph = ImplicitIncompressibleSPHSystem(fluid, smoothing_kernel,
-                                                               smoothing_length, 1000.0,
+                system_iisph = ImplicitIncompressibleSPHSystem(fluid; smoothing_kernel,
+                                                               smoothing_length,
+                                                               reference_density=1000.0,
                                                                time_step=0.001)
 
                 n_particles = TrixiParticles.nparticles(system_edac)
