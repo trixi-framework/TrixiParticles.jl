@@ -72,9 +72,9 @@
         v = TrixiParticles.wrap_v(v0_ode, boundary_system, semi)
         u = TrixiParticles.wrap_u(u0_ode, boundary_system, semi)
 
-# Evaluate the characteristics to make sure that particles of the near inflow have non-zero
-# characteristics. Then, evaluate again, and test that the far inflow particles don't use the
-# non-zero characteristics of the particles in the other inflow zone.
+        # Evaluate the characteristics to make sure that particles of the near inflow have non-zero
+        # characteristics. Then, evaluate again, and test that the far inflow particles don't use the
+        # non-zero characteristics of the particles in the other inflow zone.
         TrixiParticles.evaluate_characteristics!(boundary_system,
                                                  v, u, v0_ode, u0_ode, semi, 2.0)
         TrixiParticles.evaluate_characteristics!(boundary_system,
