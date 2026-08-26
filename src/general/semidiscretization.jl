@@ -938,9 +938,11 @@ end
 end
 
 function check_update_callback(semi)
+    semi.update_callback_used[] && return
+
     foreach_system(semi) do system
         # This check will be optimized away if the system does not require the callback
-        if requires_update_callback(system, semi) && !semi.update_callback_used[]
+        if requires_update_callback(system, semi)
             system_name = system |> typeof |> nameof
             throw(ArgumentError("`UpdateCallback` is required for `$system_name`"))
         end
