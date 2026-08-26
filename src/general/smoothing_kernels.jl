@@ -820,3 +820,68 @@ end
     # C' = 1 / (4 * pi * h^3 * C) = C_ / (h^3)
     return C_ * h_inv^3
 end
+
+@doc raw"""
+    ParabolicKernel{NDIMS}()
+
+Parabolic smoothing kernel given by
+```math
+    W(r, h) = \frac{1}{h^d} w(r/h)
+```
+with
+```math
+w(q) = \sigma \begin{cases}
+    1 - q^2   & \text{if } 0 \leq q < 1, \\
+    0         & \text{if } q \geq 1,
+\end{cases}
+```
+where ``d`` is the number of dimensions and ``\sigma`` is a normalization factor.
+The normalization factor ``\sigma`` is ``3 / 4`` in one dimension, ``2 / \pi``
+in two dimensions, and ``15 / (8 \pi)`` in three dimensions.
+
+This kernel function has a compact support of ``[0, h]``.
+
+The parabolic kernel is intended for Total Lagrangian SPH (TLSPH), where the
+gradient is evaluated with respect to initial coordinates. With
+``X_{ij} = X_i - X_j``, this kernel yields
+```math
+    \nabla W_{ij} = -c X_{ij},
+```
+where ``c`` is constant for fixed smoothing length. This is the kernel that makes
+the basic Peridynamics discretization equivalent to TLSPH, as shown by
+[Ganzenmüller et al. (2015)](@cite Ganzenmueller2015b).
+
+!!! warning
+    This kernel is not useful for fluid SPH. Its simple gradient causes severe
+    particle clustering in fluid simulations. Use it only for TLSPH applications.
+
+For general information and usage see [Smoothing Kernels](@ref smoothing_kernel).
+"""
+struct ParabolicKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
+
+@inline function kernel_unsafe(kernel::ParabolicKernel, r::Real, h)
+    h_inv = 1 / h
+    q = r * h_inv
+
+    return normalization_factor(kernel, h_inv) * (1 - q^2)
+end
+
+@inline function kernel_deriv_div_r_unsafe(kernel::ParabolicKernel, r::Real, h)
+    h_inv = 1 / h
+
+    return -2 * normalization_factor(kernel, h_inv) * h_inv^2
+end
+
+@inline compact_support(::ParabolicKernel, h) = h
+
+@inline function normalization_factor(::ParabolicKernel{1}, h_inv)
+    return oftype(h_inv, 3 / 4) * h_inv
+end
+
+@inline function normalization_factor(::ParabolicKernel{2}, h_inv)
+    return oftype(h_inv, 2 / pi) * h_inv^2
+end
+
+@inline function normalization_factor(::ParabolicKernel{3}, h_inv)
+    return oftype(h_inv, 15 / (8 * pi)) * h_inv^3
+end
