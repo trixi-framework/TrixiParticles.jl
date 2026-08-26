@@ -16,7 +16,7 @@ using OrdinaryDiffEqLowStorageRK
 
 # ==========================================================================================
 # ==== Resolution
-particle_spacing = 0.02
+particle_spacing = 0.1
 
 # ==========================================================================================
 # ==== Experiment Setup
@@ -70,7 +70,7 @@ smoothing_kernel = SchoenbergQuinticSplineKernel{2}()
 perturb_coordinates = true
 fluid = RectangularShape(particle_spacing, (n_particles_xy, n_particles_xy), (0.0, 0.0),
                          # Perturb particle coordinates to avoid stagnant streamlines without TVF
-                         coordinates_perturbation=perturb_coordinates ? 0.2 : nothing, # To avoid stagnant streamlines when not using TVF.
+                         coordinates_perturbation=perturb_coordinates ? 0.1 : nothing, # To avoid stagnant streamlines when not using TVF.
                          density=fluid_density, pressure=initial_pressure_function,
                          velocity=initial_velocity_function)
 if wcsph
