@@ -57,6 +57,57 @@ are the Lamé coefficients, where $E$ is the Young's modulus and $\nu$ is the Po
 
 The term $\bm{f}_a^{PF}$ is an optional penalty force. See e.g. [`PenaltyForceGanzenmueller`](@ref).
 
+### Bond-Associated Quadrature
+
+The traditional formulation above is selected with `model=StandardTLSPHModel()`.
+With `model=BondAssociatedTLSPHModel()`, the corrected gradient is interpreted as the
+`:C1` reproducing-kernel gradient weight used by the bond-associated correspondence
+formulation in Peridynamics.jl. For
+$\bm{\xi}_{ab} = \bm{X}_b - \bm{X}_a$ and particle volume
+$V_b = m_{0b}/\rho_{0b}$, define
+```math
+\omega_{ab} =
+-\frac{\nabla_{0a} W(\bm{X}_{ab}) \cdot \bm{X}_{ab}}
+      {\lVert\bm{X}_{ab}\rVert^2}, \qquad
+w_a = \sum_b \omega_{ab} V_b,
+```
+and
+```math
+\bm{\Phi}_{ab} = V_b \bm{L}_{0a} \nabla_{0a} W(\bm{X}_{ab}).
+```
+These are algebraically the `:C1` moment matrix and gradient weights.
+
+The deformation gradient associated with the center of bond $ab$ is
+```math
+\bm{F}_{ab}
+= \frac{\bm{F}_a + \bm{F}_b}{2}
++ \left(\bm{x}_b - \bm{x}_a
+  - \frac{\bm{F}_a + \bm{F}_b}{2}\bm{\xi}_{ab}\right)
+  \frac{\bm{\xi}_{ab}^T}{\lVert\bm{\xi}_{ab}\rVert^2}.
+```
+Let $\bm{P}_{ab}$ be the PK1 stress evaluated from $\bm{F}_{ab}$ with the material
+parameters of particle $a$. The transverse stress integral is
+```math
+\bm{Q}_a = \sum_b \omega_{ab}
+\left(\frac{1}{2w_a} + \frac{1}{2w_b}\right) V_b
+\bm{P}_{ab}
+\left(\bm{I} - \frac{\bm{\xi}_{ab}\bm{\xi}_{ab}^T}
+{\lVert\bm{\xi}_{ab}\rVert^2}\right).
+```
+The directed force state and acceleration are then
+```math
+\bm{t}_{ab}
+= \frac{\omega_{ab}}{w_a\lVert\bm{\xi}_{ab}\rVert^2}
+  \bm{P}_{ab}\bm{\xi}_{ab}
++ \frac{\bm{Q}_a\bm{\Phi}_{ab}}{V_b},
+\qquad
+\frac{\mathrm{d}\bm{v}_a}{\mathrm{d}t}
+= \frac{1}{\rho_{0a}}\sum_b V_b(\bm{t}_{ab} - \bm{t}_{ba}).
+```
+This is the bond-associated quadrature update implemented in
+[`Peridynamics.jl`](https://github.com/kaipartmann/Peridynamics.jl/blob/main/src/physics/rk_correspondence.jl),
+adapted to the existing TLSPH kernels and two- or three-dimensional particle systems.
+
 ```@autodocs
 Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "structure", "total_lagrangian_sph", "system.jl")]
