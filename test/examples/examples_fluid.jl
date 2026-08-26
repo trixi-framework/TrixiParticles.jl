@@ -227,12 +227,7 @@
             r"└ New tank length in y-direction.*\n"
         ]
         @test sol.retcode == ReturnCode.Success
-        if VERSION < v"1.11"
-            # For some reason, 1.10 produces allocations here
-            @test count_rhs_allocations(sol) <= 32
-        else
-            @test count_rhs_allocations(sol) == 0
-        end
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/dam_break_2d_iisph.jl with PressureMirroring" begin
@@ -245,12 +240,7 @@
             r"└ New tank length in y-direction.*\n"
         ]
         @test sol.retcode == ReturnCode.Success
-        if VERSION < v"1.11"
-            # For some reason, 1.10 produces allocations here
-            @test count_rhs_allocations(sol) <= 32
-        else
-            @test count_rhs_allocations(sol) == 0
-        end
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/dam_break_2d_iisph.jl with AdamiPressureExtrapolation" begin
@@ -263,12 +253,7 @@
             r"└ New tank length in y-direction.*\n"
         ]
         @test sol.retcode == ReturnCode.Success
-        if VERSION < v"1.11"
-            # For some reason, 1.10 produces allocations here
-            @test count_rhs_allocations(sol) <= 32
-        else
-            @test count_rhs_allocations(sol) == 0
-        end
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/dam_break_2d_iisph.jl with BernoulliPressureExtrapolation" begin
@@ -281,12 +266,7 @@
             r"└ New tank length in y-direction.*\n"
         ]
         @test sol.retcode == ReturnCode.Success
-        if VERSION < v"1.11"
-            # For some reason, 1.10 produces allocations here
-            @test count_rhs_allocations(sol) <= 32
-        else
-            @test count_rhs_allocations(sol) == 0
-        end
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/dam_break_2d_iisph.jl with PressureBoundaries" begin
@@ -298,12 +278,7 @@
             r"└ New tank length in y-direction.*\n"
         ]
         @test sol.retcode == ReturnCode.Success
-        if VERSION < v"1.11"
-            # For some reason, 1.10 produces allocations here
-            @test count_rhs_allocations(sol) <= 32
-        else
-            @test count_rhs_allocations(sol) == 0
-        end
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/dam_break_2d_gpu.jl" begin

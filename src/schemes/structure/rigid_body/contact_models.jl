@@ -48,8 +48,11 @@ end
 @inline Base.isequal(lhs::RigidContactKey, rhs::RigidContactKey) = lhs == rhs
 
 @inline function Base.hash(key::RigidContactKey, h::UInt)
-    return hash((key.neighbor_system_index, key.local_particle,
-                 key.contact_slot, key.contact_kind), h)
+    h = hash(key.neighbor_system_index, h)
+    h = hash(key.local_particle, h)
+    h = hash(key.contact_slot, h)
+    h = hash(key.contact_kind, h)
+    return h
 end
 
 """

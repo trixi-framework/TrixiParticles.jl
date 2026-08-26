@@ -12,13 +12,7 @@
                 r"\[ Info: To create the self-interaction neighborhood search.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
-            if VERSION < v"1.12"
-                # Older Julia versions produce allocations because `get_neighborhood_search`
-                # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol) < 200
-            else
-                @test count_rhs_allocations(sol) == 0
-            end
+            @test count_rhs_allocations(sol) == 0
         end
 
         @trixi_testset "structure/oscillating_beam_2d.jl with penalty force" begin
@@ -37,13 +31,7 @@
             sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false), dt=1.0,
                         save_everystep=false, callback=callbacks)
             @test sol.retcode == ReturnCode.Success
-            if VERSION < v"1.12"
-                # Older Julia versions produce allocations because `get_neighborhood_search`
-                # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol) < 200
-            else
-                @test count_rhs_allocations(sol) == 0
-            end
+            @test count_rhs_allocations(sol) == 0
         end
 
         @trixi_testset "structure/oscillating_beam_2d.jl with penalty force and viscosity" begin
@@ -56,13 +44,7 @@
                 r"\[ Info: To create the self-interaction neighborhood search.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
-            if VERSION < v"1.12"
-                # Older Julia versions produce allocations because `get_neighborhood_search`
-                # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol) < 200
-            else
-                @test count_rhs_allocations(sol) == 0
-            end
+            @test count_rhs_allocations(sol) == 0
         end
 
         @trixi_testset "structure/oscillating_beam_2d.jl with rotating clamp" begin
@@ -82,13 +64,7 @@
                 r"\[ Info: To create the self-interaction neighborhood search.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
-            if VERSION < v"1.12"
-                # Older Julia versions produce allocations because `get_neighborhood_search`
-                # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol) < 200
-            else
-                @test count_rhs_allocations(sol) == 0
-            end
+            @test count_rhs_allocations(sol) == 0
         end
 
         @trixi_testset "structure/oscillating_beam_2d.jl with MechanicalWorkCalculator" begin
@@ -350,13 +326,7 @@
                 r"\[ Info: To create the self-interaction neighborhood search.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
-            if VERSION < v"1.12"
-                # Older Julia versions produce allocations because `get_neighborhood_search`
-                # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol) < 200
-            else
-                @test count_rhs_allocations(sol) == 0
-            end
+            @test count_rhs_allocations(sol) == 0
         end
 
         @trixi_testset "fsi/dam_break_plate_2d.jl" begin
@@ -369,13 +339,7 @@
                 r"\[ Info: To create the self-interaction neighborhood search.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
-            if VERSION < v"1.12"
-                # Older Julia versions produce allocations because `get_neighborhood_search`
-                # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol) < 200
-            else
-                @test count_rhs_allocations(sol) == 0
-            end
+            @test count_rhs_allocations(sol) == 0
         end
 
         @trixi_testset "fsi/dam_break_plate_2d.jl velocity averaging" begin
@@ -444,13 +408,7 @@
                 r"\[ Info: To create the self-interaction neighborhood search.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
-            if VERSION < v"1.12"
-                # Older Julia versions produce allocations because `get_neighborhood_search`
-                # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol) < 200
-            else
-                @test count_rhs_allocations(sol) == 0
-            end
+            @test count_rhs_allocations(sol) == 0
         end
 
         @trixi_testset "fsi/dam_break_plate_2d.jl split integration" begin
@@ -472,13 +430,7 @@
                 r"┌ Warning: Verbosity toggle: max_iters \n(?s:.*?)└ @ (?:SciMLBase|DiffEqBase).*\n"
             ]
             @test sol.retcode == ReturnCode.MaxIters
-            if VERSION < v"1.12"
-                # Older Julia versions produce allocations because `get_neighborhood_search`
-                # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol) < 200
-            else
-                @test count_rhs_allocations(sol) == 0
-            end
+            @test count_rhs_allocations(sol) == 0
 
             # Use split integration and verify that we need fewer than 400 iterations
             split_integration = SplitIntegrationCallback(CarpenterKennedy2N54(williamson_condition=false),
@@ -490,13 +442,7 @@
                                             save_everystep=false, callback=callbacks)
 
             @test sol2.retcode == ReturnCode.Success
-            if VERSION < v"1.12"
-                # Older Julia versions produce allocations because `get_neighborhood_search`
-                # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol2; split_integration) < 200
-            else
-                @test count_rhs_allocations(sol2; split_integration) == 0
-            end
+            @test count_rhs_allocations(sol2; split_integration) == 0
 
             # Use stage-level coupling and verify that it is not compatible with
             # the fluid time integration scheme `RDPK3SpFSAL49`.
@@ -520,13 +466,7 @@
                                             save_everystep=false, callback=callbacks)
 
             @test sol2.retcode == ReturnCode.Success
-            if VERSION < v"1.12"
-                # Older Julia versions produce allocations because `get_neighborhood_search`
-                # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol2; split_integration) < 200
-            else
-                @test count_rhs_allocations(sol2; split_integration) == 0
-            end
+            @test count_rhs_allocations(sol2; split_integration) == 0
 
             # Use split integration and verify that it is actually used for TLSPH
             # by using a time step that is too large and verifying that it is crashing.
@@ -550,13 +490,7 @@
                 r"\[ Info: To create the self-interaction neighborhood search.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
-            if VERSION < v"1.12"
-                # Older Julia versions produce allocations because `get_neighborhood_search`
-                # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol) < 200
-            else
-                @test count_rhs_allocations(sol) == 0
-            end
+            @test count_rhs_allocations(sol) == 0
         end
 
         @trixi_testset "fsi/falling_spheres_2d.jl" begin
@@ -567,15 +501,7 @@
                 r"\[ Info: To create the self-interaction neighborhood search.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
-            if VERSION > v"1.11"
-                # Newer Version than 1.11 produce more allocations
-                # todo: unclear where this is from
-                @test count_rhs_allocations(sol) < 1000
-            else
-                # Older Julia versions than 1.12 produce allocations because `get_neighborhood_search`
-                # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol) < 200
-            end
+            @test count_rhs_allocations(sol) == 0
         end
 
         @trixi_testset "fsi/falling_rigid_spheres_2d.jl" begin
@@ -584,13 +510,7 @@
                                                       "falling_rigid_spheres_2d.jl"),
                                              tspan=(0.0, 0.5))
             @test sol.retcode == ReturnCode.Success
-            if VERSION < v"1.12"
-                # Older Julia versions produce allocations because `get_neighborhood_search`
-                # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol) < 500
-            else
-                @test count_rhs_allocations(sol) == 0
-            end
+            @test count_rhs_allocations(sol) == 0
         end
 
         @trixi_testset "fsi/hydrostatic_water_column_2d.jl" begin
@@ -601,13 +521,7 @@
                 r"\[ Info: To create the self-interaction neighborhood search.*\n",
             ]
             @test sol.retcode == ReturnCode.Success
-            if VERSION < v"1.12"
-                # Older Julia versions produce allocations because `get_neighborhood_search`
-                # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol) < 500
-            else
-                @test count_rhs_allocations(sol) == 0
-            end
+            @test count_rhs_allocations(sol) == 0
         end
 
         @trixi_testset "fsi/falling_rotating_rigid_squares_2d.jl" begin
@@ -616,13 +530,7 @@
                                                       "falling_rotating_rigid_squares_2d.jl"),
                                              tspan=(0.0, 0.5))
             @test sol.retcode == ReturnCode.Success
-            if VERSION < v"1.12"
-                # Older Julia versions produce allocations because `get_neighborhood_search`
-                # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol) < 500
-            else
-                @test count_rhs_allocations(sol) == 0
-            end
+            @test count_rhs_allocations(sol) == 0
         end
 
         @trixi_testset "fsi/falling_rotating_rigid_squares_w_buoys_2d.jl" begin
@@ -633,13 +541,7 @@
                 r"WARNING: Method definition structure_boundary_model.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
-            if VERSION < v"1.12"
-                # Older Julia versions produce allocations because `get_neighborhood_search`
-                # is not type-stable with TLSPH or rigid.
-                @test count_rhs_allocations(sol) < 2000
-            else
-                @test count_rhs_allocations(sol) == 0
-            end
+            @test count_rhs_allocations(sol) == 0
         end
 
         @trixi_testset "fsi/hydrostatic_water_column_2d.jl with EDAC" begin
@@ -651,13 +553,7 @@
                 r"\[ Info: To create the self-interaction neighborhood search.*\n",
             ]
             @test sol.retcode == ReturnCode.Success
-            if VERSION < v"1.12"
-                # Older Julia versions produce allocations because `get_neighborhood_search`
-                # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol) < 500
-            else
-                @test count_rhs_allocations(sol) == 0
-            end
+            @test count_rhs_allocations(sol) == 0
         end
     end
 
