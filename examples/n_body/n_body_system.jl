@@ -38,7 +38,9 @@ TrixiParticles.timer_name(::NBodySystem) = "nbody"
 
 @inline Base.eltype(system::NBodySystem{NDIMS, ELTYPE}) where {NDIMS, ELTYPE} = ELTYPE
 
-@inline TrixiParticles.gravity_model(system::NBodySystem) = system.gravity
+function TrixiParticles.compact_support(system::NBodySystem, ::NBodySystem)
+    system.gravity.cutoff_radius
+end
 
 function TrixiParticles.write_u0!(u0, system::NBodySystem)
     u0 .= system.initial_condition.coordinates
@@ -61,17 +63,23 @@ function TrixiParticles.update_nhs!(neighborhood_search,
                                           points_moving=(true, true))
 end
 
-function TrixiParticles.compact_support(system::NBodySystem,
-                                        neighbor::NBodySystem)
-    return TrixiParticles.gravity_model(system, neighbor).cutoff_radius
-end
-
 function TrixiParticles.interact!(dv, v_particle_system, u_particle_system,
                                   v_neighbor_system, u_neighbor_system,
                                   particle_system::NBodySystem,
                                   neighbor_system::NBodySystem, semi)
     (; mass) = neighbor_system
-    gravity = TrixiParticles.gravity_model(particle_system, neighbor_system)
+    gravity = particle_system.gravity
+
+    # Different parameters in the two ordered interactions would violate pairwise symmetry.
+    if particle_system !== neighbor_system
+        neighbor_gravity = neighbor_system.gravity
+        if gravity.gravitational_constant != neighbor_gravity.gravitational_constant ||
+           gravity.softening_length != neighbor_gravity.softening_length ||
+           gravity.cutoff_radius != neighbor_gravity.cutoff_radius
+            throw(ArgumentError("interacting `NBodySystem`s must use identical gravity " *
+                                "parameters to preserve pairwise force symmetry"))
+        end
+    end
 
     system_coords = TrixiParticles.current_coordinates(u_particle_system, particle_system)
     neighbor_coords = TrixiParticles.current_coordinates(u_neighbor_system, neighbor_system)
@@ -82,7 +90,12 @@ function TrixiParticles.interact!(dv, v_particle_system, u_particle_system,
                                           semi) do particle, neighbor, pos_diff, distance
         # No interaction of a particle with itself
         particle_system === neighbor_system && particle === neighbor && return
-        iszero(distance) && return
+
+        if iszero(distance) && gravity isa NewtonianGravity{<:Real, false}
+            throw(DomainError(distance,
+                              "unsoftened Newtonian gravity is singular for " *
+                              "distinct particles at the same position"))
+        end
 
         factor = TrixiParticles.gravity_acceleration_factor(gravity, distance,
                                                             mass[neighbor])
@@ -97,8 +110,14 @@ end
 
 function energy(v_ode, u_ode, system, semi)
     (; mass) = system
-    gravity = TrixiParticles.gravity_model(system)
-    (; gravitational_constant, softening_length, cutoff_radius) = gravity
+    (; gravitational_constant, softening_length, cutoff_radius) = system.gravity
+
+    # Shift a finite-cutoff potential to zero at the cutoff without changing its force.
+    inverse_cutoff_distance = if isinf(cutoff_radius)
+        zero(eltype(system))
+    else
+        inv(sqrt(cutoff_radius^2 + softening_length^2))
+    end
 
     e = zero(eltype(system))
 
@@ -118,8 +137,8 @@ function energy(v_ode, u_ode, system, semi)
 
             if distance <= cutoff_radius
                 softened_distance = sqrt(distance^2 + softening_length^2)
-                e -= gravitational_constant * mass[particle] * mass[neighbor] /
-                     softened_distance
+                e -= gravitational_constant * mass[particle] * mass[neighbor] *
+                     (inv(softened_distance) - inverse_cutoff_distance)
             end
         end
     end

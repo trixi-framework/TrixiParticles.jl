@@ -1,23 +1,53 @@
-abstract type AbstractGravityModel end
-
 @doc raw"""
     NewtonianGravity(; gravitational_constant, softening_length=0, cutoff_radius=Inf)
 
 Model for Newtonian pairwise self-gravity.
 
+For the displacement ``\Delta \boldsymbol{x}_{ab} = \boldsymbol{x}_a -
+\boldsymbol{x}_b`` and distance ``r = \lVert \Delta \boldsymbol{x}_{ab} \rVert``, the
+acceleration of particle ``a`` due to a neighbor ``b`` of mass ``m_b`` is
+
+```math
+\boldsymbol{a}_{ab} = -G m_b
+    \frac{\Delta \boldsymbol{x}_{ab}}{(r^2 + \epsilon^2)^{3/2}}.
+```
+
+This is Plummer softening with softening length ``\epsilon``. The acceleration is applied
+for ``r \leq r_c`` and is zero for ``r > r_c``, where ``r_c`` is the cutoff radius. At
+zero distance, the softened model (``\epsilon > 0``) has zero acceleration. The unsoftened
+model is singular for distinct coincident particles and raises a `DomainError`.
+
+With a finite cutoff, a continuous potential corresponding to this acceleration is
+
+```math
+U_{ab}(r) = -G m_a m_b \left(
+    \frac{1}{\sqrt{r^2 + \epsilon^2}} -
+    \frac{1}{\sqrt{r_c^2 + \epsilon^2}}
+\right)
+```
+
+for ``r \leq r_c``, and zero otherwise. For ``r_c = \infty``, the second term vanishes.
+
 # Keywords
-- `gravitational_constant`: Strength of the pairwise gravity interaction.
-- `softening_length=0`: Distance regularization used by pairwise interaction kernels.
-- `cutoff_radius=Inf`: Maximum interaction distance used by pairwise interaction kernels.
+- `gravitational_constant`: Non-negative, finite gravitational constant ``G``.
+- `softening_length=0`: Non-negative, finite Plummer softening length ``\epsilon``.
+- `cutoff_radius=Inf`: Positive cutoff radius ``r_c`` or `Inf`.
+
+All parameters, coordinates, masses, and times must use one consistent unit system. In
+particular, ``G`` has dimensions ``L^3 M^{-1} T^{-2}``, while `softening_length` and
+`cutoff_radius` have the same length unit as the particle coordinates.
 """
-struct NewtonianGravity{ELTYPE <: Real, SOFTENED, CUTOFF} <: AbstractGravityModel
+# Encode softening and cutoff as type parameters so the common Newtonian path has no
+# runtime branches.
+struct NewtonianGravity{ELTYPE <: Real, SOFTENED, CUTOFF}
     gravitational_constant :: ELTYPE
     softening_length       :: ELTYPE
     cutoff_radius          :: ELTYPE
 
-    function NewtonianGravity(; gravitational_constant,
-                              softening_length=zero(gravitational_constant),
-                              cutoff_radius=oftype(float(gravitational_constant), Inf))
+    function NewtonianGravity(; gravitational_constant::Real,
+                              softening_length::Real=zero(gravitational_constant),
+                              cutoff_radius::Real=oftype(float(gravitational_constant),
+                                                         Inf))
         gravitational_constant_, softening_length_,
         cutoff_radius_ = promote(gravitational_constant,
                                  softening_length,
@@ -45,32 +75,31 @@ struct NewtonianGravity{ELTYPE <: Real, SOFTENED, CUTOFF} <: AbstractGravityMode
     end
 end
 
-@inline gravity_model(system) = nothing
-
-@inline function gravity_model(particle_system, neighbor_system)
-    return gravity_model(particle_system)
-end
-
 @inline function gravity_acceleration(gravity::NewtonianGravity, pos_diff, distance,
                                       neighbor_mass)
     if iszero(distance)
+        if gravity isa NewtonianGravity{<:Real, false}
+            throw(DomainError(distance,
+                              "unsoftened Newtonian gravity is singular at zero distance"))
+        end
+
         return zero(pos_diff)
     end
 
     return gravity_acceleration_factor(gravity, distance, neighbor_mass) * pos_diff
 end
 
-@inline function gravity_acceleration_factor(gravity::NewtonianGravity{ELTYPE, false,
+@inline function gravity_acceleration_factor(gravity::NewtonianGravity{<:Real, false,
                                                                        false},
-                                             distance, neighbor_mass) where {ELTYPE}
+                                             distance, neighbor_mass)
     (; gravitational_constant) = gravity
 
     return -gravitational_constant * neighbor_mass * (1 / distance^3)
 end
 
-@inline function gravity_acceleration_factor(gravity::NewtonianGravity{ELTYPE, true,
+@inline function gravity_acceleration_factor(gravity::NewtonianGravity{<:Real, true,
                                                                        false},
-                                             distance, neighbor_mass) where {ELTYPE}
+                                             distance, neighbor_mass)
     (; gravitational_constant, softening_length) = gravity
 
     distance_square = distance^2 + softening_length^2
@@ -79,9 +108,9 @@ end
     return -gravitational_constant * neighbor_mass * inverse_distance_cube
 end
 
-@inline function gravity_acceleration_factor(gravity::NewtonianGravity{ELTYPE, false,
+@inline function gravity_acceleration_factor(gravity::NewtonianGravity{<:Real, false,
                                                                        true},
-                                             distance, neighbor_mass) where {ELTYPE}
+                                             distance, neighbor_mass)
     (; gravitational_constant, cutoff_radius) = gravity
 
     distance > cutoff_radius && return zero(distance)
@@ -89,9 +118,9 @@ end
     return -gravitational_constant * neighbor_mass * (1 / distance^3)
 end
 
-@inline function gravity_acceleration_factor(gravity::NewtonianGravity{ELTYPE, true,
+@inline function gravity_acceleration_factor(gravity::NewtonianGravity{<:Real, true,
                                                                        true},
-                                             distance, neighbor_mass) where {ELTYPE}
+                                             distance, neighbor_mass)
     (; gravitational_constant, softening_length, cutoff_radius) = gravity
 
     distance > cutoff_radius && return zero(distance)
@@ -100,22 +129,4 @@ end
     inverse_distance_cube = inv(distance_square * sqrt(distance_square))
 
     return -gravitational_constant * neighbor_mass * inverse_distance_cube
-end
-
-@inline function gravity_acceleration(::Nothing, pos_diff, distance, neighbor_mass)
-    return zero(pos_diff)
-end
-
-@inline function gravity_interaction!(dv_particle, gravity::NewtonianGravity,
-                                      particle_system, neighbor_system, particle,
-                                      neighbor, pos_diff, distance, m_a, m_b)
-    dv_particle[] += gravity_acceleration(gravity, pos_diff, distance, m_b)
-
-    return dv_particle
-end
-
-@inline function gravity_interaction!(dv_particle, ::Nothing, particle_system,
-                                      neighbor_system, particle, neighbor,
-                                      pos_diff, distance, m_a, m_b)
-    return dv_particle
 end
