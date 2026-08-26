@@ -41,7 +41,7 @@ using TrixiBase: @trixi_timeit, timer, timeit_debug_enabled,
                                 SerialBackend, PolyesterBackend, ThreadsStaticBackend,
                                 ThreadsDynamicBackend, default_backend
 using PointNeighbors: PointNeighbors, foreach_point_neighbor, copy_neighborhood_search,
-                      @threaded
+                      @threaded, AbstractNeighborhoodSearch
 using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, VTKFieldData, paraview_collection,
                 vtk_save
 
@@ -51,6 +51,8 @@ include("general/abstract_system.jl")
 include("general/general.jl")
 include("setups/setups.jl")
 include("schemes/schemes.jl")
+# `mechanical_work_calculator.jl` requires `TotalLagrangianSPHSystem` to be defined.
+include("general/mechanical_work_calculator.jl")
 # `neighborhood_search.jl` requires the system types to be defined
 include("general/neighborhood_search.jl")
 # `callbacks.jl` requires the system types to be defined
@@ -66,6 +68,7 @@ include("general/restart.jl")
 include("visualization/recipes_plots.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
+export PairsNHSHandler, SharedNHSHandler
 export InitialCondition, apply_angular_velocity
 export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangianSPHSystem,
        RigidBodySystem, WallBoundarySystem, DEMSystem, BoundaryDEMSystem,
@@ -74,8 +77,7 @@ export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangian
 export BoundaryZone, InFlow, OutFlow, BidirectionalFlow
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
        PostprocessCallback, StepsizeCallback, UpdateCallback, SteadyStateReachedCallback,
-       SplitIntegrationCallback, MechanicalWorkCalculatorCallback,
-       calculated_mechanical_work,
+       SplitIntegrationCallback, MechanicalWorkCalculator, calculated_mechanical_work,
        SortingCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller, TransportVelocityAdami, ParticleShiftingTechnique,
