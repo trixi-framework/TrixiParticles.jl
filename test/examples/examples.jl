@@ -541,7 +541,13 @@
                 r"WARNING: Method definition structure_boundary_model.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol) == 0
+            if v"1.11" <= VERSION < v"1.12"
+                # Julia 1.11 retains thread-count-dependent allocations in the
+                # heterogeneous rigid-body interaction dispatch. CI measures 3328 bytes.
+                @test count_rhs_allocations(sol) < 3400
+            else
+                @test count_rhs_allocations(sol) == 0
+            end
         end
 
         @trixi_testset "fsi/hydrostatic_water_column_2d.jl with EDAC" begin
