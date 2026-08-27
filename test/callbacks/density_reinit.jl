@@ -216,4 +216,73 @@
                                                                         (;
                                                                          systems=(MockNoDensityReinitSystem(:boundary),)))
     end
+
+    @testset "nonuniform multi-system reinitialization with buffer" begin
+        spacing = 0.1
+        kernel = WendlandC6Kernel{2}()
+        smoothing_length = 2spacing
+        state_equation = StateEquationCole(; sound_speed=10.0,
+                                           reference_density=1000.0, exponent=1)
+        initial1 = RectangularShape(spacing, (3, 3), (0.0, 0.0); density=1000.0)
+        initial2 = RectangularShape(spacing, (3, 3), (0.35, 0.0); density=1000.0)
+        system1 = WeaklyCompressibleSPHSystem(initial1; smoothing_kernel=kernel,
+                                              smoothing_length,
+                                              density_calculator=ContinuityDensity(),
+                                              state_equation, buffer_size=2)
+        system2 = WeaklyCompressibleSPHSystem(initial2; smoothing_kernel=kernel,
+                                              smoothing_length,
+                                              density_calculator=ContinuityDensity(),
+                                              state_equation)
+        semi = Semidiscretization(system1, system2; neighborhood_search=nothing,
+                                  parallelization_backend=SerialBackend())
+        callback = DensityReinitializationCallback(system1, semi; interval=1,
+                                                   reinit_initial_solution=false)
+        ode = semidiscretize(semi, (0.0, 1.0); reset_threads=false)
+        semi = ode.p.semi
+        system1, system2 = semi.systems
+        vu_ode = deepcopy(ode.u0)
+        v_ode, u_ode = vu_ode.x
+        v1 = TrixiParticles.wrap_v(v_ode, system1, semi)
+        v2 = TrixiParticles.wrap_v(v_ode, system2, semi)
+        u1 = TrixiParticles.wrap_u(u_ode, system1, semi)
+        u2 = TrixiParticles.wrap_u(u_ode, system2, semi)
+        active1 = collect(TrixiParticles.eachparticle(system1))
+        active2 = collect(TrixiParticles.eachparticle(system2))
+        v1[end, active1] .= range(800.0, 1200.0; length=length(active1))
+        v2[end, active2] .= range(900.0, 1100.0; length=length(active2))
+        density2_before = copy(v2[end, :])
+
+        TrixiParticles.update_nhs!(semi, u_ode)
+        coefficient = zeros(size(v1, 2))
+        TrixiParticles.compute_shepard_coeff!(system1,
+                                              TrixiParticles.current_coordinates(u1,
+                                                                                 system1),
+                                              v_ode, u_ode, semi, coefficient)
+        summation = zeros(size(v1, 2))
+        TrixiParticles.summation_density!(system1, semi, u1, u_ode, summation)
+        expected = summation[active1] ./ coefficient[active1]
+
+        cross_contribution = zeros(size(v1, 2))
+        coords1 = TrixiParticles.current_coordinates(u1, system1)
+        coords2 = TrixiParticles.current_coordinates(u2, system2)
+        TrixiParticles.foreach_point_neighbor(system1, system2, coords1, coords2,
+                                              semi) do particle, neighbor, pos_diff,
+                                                       distance
+            volume = TrixiParticles.hydrodynamic_mass(system2, neighbor) /
+                     TrixiParticles.current_density(v2, system2, neighbor)
+            cross_contribution[particle] += volume *
+                                            TrixiParticles.smoothing_kernel(system1,
+                                                                            distance,
+                                                                            particle)
+        end
+
+        integrator = MockDensityReinitIntegrator((; semi), vu_ode, 0.05)
+        callback.affect!(integrator)
+        inactive1 = setdiff(axes(v1, 2), active1)
+
+        @test v1[end, active1]≈expected rtol=2e-14 atol=2e-14
+        @test all(iszero, v1[end, inactive1])
+        @test v2[end, :] == density2_before
+        @test any(>(0), cross_contribution[active1])
+    end
 end
