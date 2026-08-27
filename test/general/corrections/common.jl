@@ -1,3 +1,6 @@
+# Set up a single semidiscretized fluid system with the given correction.
+# Re-extract the system from the ODE, since `semidiscretize` replaces systems by
+# runtime copies.
 function correction_setup(correction=nothing; n=9, perturbation=false,
                           density_calculator=ContinuityDensity(), edac=false,
                           pressure_acceleration=:default,
@@ -45,6 +48,7 @@ function correction_setup(correction=nothing; n=9, perturbation=false,
     return (; system, semi, v_ode, u_ode, particle_spacing)
 end
 
+# Poison all correction caches with `NaN` to verify that the next update recomputes them.
 function fill_correction_cache!(system, value)
     for name in (:kernel_correction_coefficient, :dw_gamma, :correction_matrix)
         hasproperty(system.cache, name) || continue
@@ -53,6 +57,7 @@ function fill_correction_cache!(system, value)
     return system
 end
 
+# Recompute all correction caches by running a full `update_systems_and_nhs` pass.
 function update_correction!(setup)
     (; system, semi, v_ode, u_ode) = setup
     fill_correction_cache!(system, NaN)
@@ -60,6 +65,9 @@ function update_correction!(setup)
     return setup
 end
 
+# Recompute, in a naive loop, the zeroth and first gradient moments and the direct and
+# difference kernel-gradient interpolations of a scalar field. These reference values are
+# compared against the corrections computed by TrixiParticles.
 function correction_moments(setup; field=(pos -> 1.0))
     (; system, semi, v_ode, u_ode) = setup
     v = TrixiParticles.wrap_v(v_ode, system, semi)
@@ -105,6 +113,8 @@ function correction_moments(setup; field=(pos -> 1.0))
             difference_gradient)
 end
 
+# Find the particle closest to the lower-left corner, where the correction is
+# least accurate due to missing neighbors.
 function corner_particle(system)
     coordinates = TrixiParticles.initial_coordinates(system)
     return argmin(eachindex(axes(coordinates, 2))) do particle

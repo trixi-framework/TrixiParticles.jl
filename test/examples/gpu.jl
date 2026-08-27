@@ -78,6 +78,7 @@ end
 end
 
 @testset verbose=true "Correction lifecycle $TRIXIPARTICLES_TEST_" begin
+    # Build a fluid system of the given kind (`:wcsph` or `:edac`) with a correction.
     function correction_fluid(kind, initial_condition, smoothing_kernel,
                               smoothing_length, density_calculator, correction)
         if kind == :wcsph
@@ -94,6 +95,8 @@ end
                                            density_calculator, correction)
     end
 
+    # All correction caches present in the system must stay on the backend, keep
+    # `Float32` values, and remain finite.
     function correction_cache_is_valid(system, backend)
         return all((:kernel_correction_coefficient, :dw_gamma,
                     :correction_matrix)) do name
@@ -118,6 +121,7 @@ end
         v_ode, u_ode = ode.u0.x
         dv_ode = similar(v_ode)
         fill!(dv_ode, 0.0f0)
+        # Evaluate the RHS, which triggers the staged correction updates.
         TrixiParticles.kick!(dv_ode, v_ode, u_ode, ode.p, 0.0f0)
 
         return eltype(dv_ode) == Float32 && all(isfinite, Array(dv_ode)) &&
@@ -125,6 +129,7 @@ end
     end
 
     backend = Main.parallelization_backend
+    # Check the RHS evaluation with the Shepard correction for both system types.
     for kind in (:wcsph, :edac)
         @test correction_rhs_is_valid(kind, ShepardKernelCorrection(), SummationDensity(),
                                       backend)
@@ -139,6 +144,8 @@ end
     semi = Semidiscretization(system; neighborhood_search=nothing,
                               parallelization_backend=backend)
     ode = semidiscretize(semi, (0.0f0, 0.1f0); reset_threads=false)
+    # The sanitizer must replace zero and NaN coefficients by one on the GPU,
+    # leaving valid coefficients untouched.
     coefficient = Adapt.adapt(backend, Float32[0.0, NaN, 1.0, 2.0])
     TrixiParticles.sanitize_kernel_correction_coefficient!(coefficient,
                                                            first(ode.p.semi.systems),
@@ -163,6 +170,8 @@ end
     v = TrixiParticles.wrap_v(v_ode, system, ode.p.semi)
     u = TrixiParticles.wrap_u(u_ode, system, ode.p.semi)
     density = collect(range(800.0f0, 1200.0f0; length=size(v, 2)))
+    # Start from a non-constant continuity density, so that the reinitialization
+    # actually has to update values on the GPU.
     v[end, :] .= Adapt.adapt(backend, density)
     TrixiParticles.update_nhs!(ode.p.semi, u_ode)
     TrixiParticles.reinit_density!(system, v, u, v_ode, u_ode, ode.p.semi)
