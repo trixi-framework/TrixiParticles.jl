@@ -334,7 +334,10 @@ The gradient correction, as commonly proposed, involves multiplying this gradien
 
 The correction matrix  $\bm{L}_a$ is computed based on the provided particle configuration,
 aiming to make the corrected gradient more accurate, especially near domain boundaries.
-It gives a first-order consistent gradient by differentiating every affine field exactly.
+When its first-moment matrix is full rank and passes the singularity threshold, the
+correction gives a first-order consistent gradient by differentiating every affine field
+exactly. Rejected matrices fall back to the uncorrected gradient and do not retain this
+property.
 For smooth fields, the local truncation error is generally ``O(h)`` on asymmetric supports and
 ``O(h^2)`` on symmetric interior supports.
 
@@ -503,15 +506,28 @@ function correction_matrix_inversion_step!(corr_matrix, system, semi)
         # so `L` is singular if and only if the position vectors X_ab don't span the
         # full space, i.e., particle a and all neighbors lie on the same line (in 2D)
         # or plane (in 3D).
-        scale = maximum(abs, L)
-        relative_determinant = abs(det(L)) / scale^ndims(system)
         minimum_relative_determinant = sqrt(eps(eltype(L)))
+        scale = maximum(abs, L)
 
-        if !isfinite(relative_determinant) ||
-           relative_determinant < minimum_relative_determinant
-            L_inv = I
+        if isfinite(scale) && !iszero(scale)
+            L_scaled = L / scale
+            relative_determinant = abs(det(L_scaled))
+
+            if isfinite(relative_determinant) &&
+               relative_determinant >= minimum_relative_determinant
+                # Avoid rescaling roundoff when the direct determinant is representable.
+                raw_determinant = det(L)
+                if isfinite(raw_determinant) && !iszero(raw_determinant)
+                    candidate = inv(L)
+                else
+                    candidate = inv(L_scaled) / scale
+                end
+                L_inv = all(isfinite, candidate) ? candidate : one(L)
+            else
+                L_inv = one(L)
+            end
         else
-            L_inv = inv(L)
+            L_inv = one(L)
         end
 
         # Write inverse back to `corr_matrix`

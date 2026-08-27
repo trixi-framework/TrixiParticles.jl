@@ -141,6 +141,45 @@ end
                                       ContinuityDensity(), backend)
     end
 
+    function mixed_boundary_rhs_is_valid(backend)
+        spacing = 0.1f0
+        smoothing_kernel = WendlandC6Kernel{2}()
+        fluid_initial = RectangularShape(spacing, (4, 4), (0.0f0, 0.0f0);
+                                         density=1000.0f0,
+                                         coordinates_eltype=Float32)
+        correction = MixedKernelGradientCorrection()
+        fluid = correction_fluid(:wcsph, fluid_initial, smoothing_kernel, 2spacing,
+                                 ContinuityDensity(), correction)
+
+        boundary_initial = RectangularShape(spacing, (4, 1), (0.0f0, -spacing);
+                                            density=1000.0f0,
+                                            coordinates_eltype=Float32)
+        state_equation = StateEquationCole(; sound_speed=10.0f0,
+                                           reference_density=1000.0f0, exponent=1)
+        boundary_model = BoundaryModelDummyParticles(boundary_initial.density,
+                                                     boundary_initial.mass,
+                                                     SummationDensity(), smoothing_kernel,
+                                                     2spacing; state_equation, correction)
+        boundary = WallBoundarySystem(boundary_initial, boundary_model)
+        semi = Semidiscretization(fluid, boundary; neighborhood_search=nothing,
+                                  parallelization_backend=backend)
+        ode = semidiscretize(semi, (0.0f0, 0.1f0); reset_threads=false)
+        dv_ode = similar(ode.u0.x[1])
+        fill!(dv_ode, 0.0f0)
+        TrixiParticles.kick!(dv_ode, ode.u0.x[1], ode.u0.x[2], ode.p, 0.0f0)
+
+        boundary_cache = last(ode.p.semi.systems).boundary_model.cache
+        cache_is_valid = all((:kernel_correction_coefficient, :dw_gamma,
+                              :correction_matrix)) do name
+            values = getproperty(boundary_cache, name)
+            return eltype(values) == Float32 && all(isfinite, Array(values)) &&
+                   TrixiParticles.KernelAbstractions.get_backend(values) == backend
+        end
+        return all(isfinite, Array(dv_ode)) && cache_is_valid
+    end
+
+    @test mixed_boundary_rhs_is_valid(backend)
+
     spacing = 0.1f0
     initial_condition = RectangularShape(spacing, (2, 2), (0.0f0, 0.0f0);
                                          density=1000.0f0,

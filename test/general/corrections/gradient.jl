@@ -46,11 +46,43 @@
     mass32 = fill(10.0f0, 4)
     state_equation32 = StateEquationCole(; sound_speed=10.0f0,
                                          reference_density=1000.0f0, exponent=1)
-    boundary = BoundaryModelDummyParticles(density32, mass32, SummationDensity(),
-                                           WendlandC6Kernel{2}(), 0.2f0;
-                                           state_equation=state_equation32,
-                                           correction=GradientCorrection())
-    @test eltype(boundary.cache.correction_matrix) == Float32
+    for correction in (GradientCorrection(), BlendedGradientCorrection(0.4f0),
+         MixedKernelGradientCorrection())
+        boundary = BoundaryModelDummyParticles(density32, mass32, SummationDensity(),
+                                               WendlandC6Kernel{2}(), 0.2f0;
+                                               state_equation=state_equation32, correction)
+        @test eltype(boundary.cache.correction_matrix) == Float32
+        if hasproperty(boundary.cache, :dw_gamma)
+            @test eltype(boundary.cache.dw_gamma) == Float32
+        end
+    end
+
+    @testset "scale-independent inversion" begin
+        cases = ((Float32, 2, 1.0f-30),
+                 (Float32, 2, 1.0f20),
+                 (Float32, 3, 1.0f-16),
+                 (Float32, 3, 1.0f13),
+                 (Float64, 2, 1.0e-200),
+                 (Float64, 3, 1.0e150))
+        for (ELTYPE, NDIMS, scale) in cases
+            inverse = invert_scaled_correction_matrix(ELTYPE, Val(NDIMS), scale)
+            expected = Matrix{ELTYPE}(I, NDIMS, NDIMS) / scale
+            @test all(isfinite, inverse)
+            @test inverse ≈ expected rtol = 10eps(ELTYPE)
+        end
+
+        # The normalized matrix is valid, but rescaling its inverse overflows.
+        inverse = invert_scaled_correction_matrix(Float32, Val(1), 1.0f-39)
+        @test inverse == ones(Float32, 1, 1)
+
+        # The entry scale squared is finite, but this matrix's determinant overflows.
+        scale = 1.4f19
+        matrix = Float32[scale scale; -scale scale]
+        inverse = invert_correction_matrix(matrix)
+        expected = Float32[0.5 -0.5; 0.5 0.5] / scale
+        @test all(isfinite, inverse)
+        @test inverse ≈ expected rtol = 10eps(Float32)
+    end
 
     particle_spacing = 0.25
     particles = RectangularShape(particle_spacing, (4, 4, 4), (0.0, 0.0, 0.0);
