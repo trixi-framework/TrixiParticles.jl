@@ -41,13 +41,12 @@ In the literature, this kind of boundary particles is referred to as
 The key detail of this boundary condition and the only difference between the boundary models
 in these references is the way the density and pressure of boundary particles is computed.
 
-Since boundary particles are treated like fluid particles, their density and pressure enter
-the pressure-acceleration operator selected by the interacting fluid system. For the
-summation-density pressure operator, the pressure force on fluid particle ``a`` due to
-boundary particle ``b`` is
+Since boundary particles are treated like dummy fluid particles, the force
+on fluid particle ``a`` due to boundary particle ``b`` is computed by the
+pressure acceleration formulation of the fluid system, e.g., for [`ContinuityDensity`](@ref),
 ```math
 \bm{f}_{ab}^{p}
-= -m_a m_b \left( \frac{p_a}{\rho_a^2} + \frac{p_b}{\rho_b^2} \right)
+= -m_a m_b \frac{p_a + p_b}{\rho_a \rho_b}
 \nabla_{r_a} W(\Vert r_a - r_b \Vert, h).
 ```
 The quantities to be defined here are the density ``\rho_b`` and pressure ``p_b``
@@ -106,11 +105,11 @@ where the sum is over all fluid particles, ``\rho_f`` and ``p_f`` denote the den
 Identical to the pressure ``p_b`` calculated via [`AdamiPressureExtrapolation`](@ref),
 but with an added dynamic pressure term:
 ```math
-p_b = \frac{\sum_f (p_f + p_{f,\mathrm{dyn}} + \rho_f (\bm{g} - \bm{a}_b) \cdot \bm{r}_{bf}) W(\Vert r_{bf} \Vert, h)}{\sum_f W(\Vert r_{bf} \Vert, h)},
+p_b = \frac{\sum_f (p_f + p_{f,\text{dyn}} + \rho_f (\bm{g} - \bm{a}_b) \cdot \bm{r}_{bf}) W(\Vert r_{bf} \Vert, h)}{\sum_f W(\Vert r_{bf} \Vert, h)},
 ```
 with
 ```math
-p_{f,\mathrm{dyn}} = \frac{1}{2} \, \text{factor} \, \rho_f
+p_{f,\text{dyn}} = \frac{1}{2} \, \text{factor} \, \rho_f
 \left(
 \frac{(\bm{v}_b - \bm{v}_f) \cdot \bm{r}_{bf}}{\Vert \bm{r}_{bf} \Vert}
 \right)^2,
@@ -135,13 +134,13 @@ reference pressure (the corresponding pressure to the reference density by the s
 #### 6. [`PressureMirroring`](@ref)
 
 Instead of calculating density and pressure for each boundary particle, we modify the
-boundary pressure used in the pressure-acceleration operator. For the summation-density
-pressure operator, this corresponds to modifying the pressure force
+boundary pressure used in the pressure-acceleration operator.
+With [`SummationDensity`](@ref), this corresponds to modifying the pressure force
 ```math
 \bm{F}_a^{p} = -m_a \sum_b m_b \left( \frac{p_a}{\rho_a^2} + \frac{p_b}{\rho_b^2} \right) \nabla_a W_{ab},
 ```
-to replace the unknown density ``\rho_b`` if ``b`` is a boundary particle by the reference density
-and the unknown pressure ``p_b`` if ``b`` is a boundary particle by the pressure ``p_a`` of the
+to replace the unknown density $\rho_b$ if $b$ is a boundary particle by the reference density
+and the unknown pressure $p_b$ if $b$ is a boundary particle by the pressure $p_a$ of the
 interacting fluid particle. The force therefore becomes
 ```math
 \bm{F}_a^{p} = -m_a \sum_f m_f \left( \frac{p_a}{\rho_a^2} + \frac{p_f}{\rho_f^2} \right) \nabla_a W_{af}
