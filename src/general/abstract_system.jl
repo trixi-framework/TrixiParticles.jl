@@ -119,7 +119,6 @@ end
 end
 
 @inline function current_acceleration(system, particle)
-    # TODO: Return `dv` of solid particles
     return zero(SVector{ndims(system), eltype(system)})
 end
 
