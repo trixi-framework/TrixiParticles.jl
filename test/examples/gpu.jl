@@ -154,6 +154,65 @@ end
                                                            ode.p.semi)
     @test Array(coefficient) == Float32[1.0, 1.0, 1.0, 1.0f-4, 2.0]
 
+    # Kernel correction must fall back to coefficient one and zero offset for degenerate
+    # coefficients (zero, non-finite, or below `sqrt(eps(Float32))`) and remain on the GPU.
+    function kernel_correction_fallback_is_valid(kind, correction, density_calculator,
+                                                 backend; mass_value=0.0f0,
+                                                 expect_dv_finite=true)
+        spacing_ = 0.1f0
+        ic = RectangularShape(spacing_, (4, 4), (0.0f0, 0.0f0);
+                              density=1000.0f0, coordinates_eltype=Float32)
+        sys = correction_fluid(kind, ic, WendlandC6Kernel{2}(), 2spacing_,
+                               density_calculator, correction)
+        sys.mass .= mass_value
+        semi = Semidiscretization(sys; neighborhood_search=nothing,
+                                  parallelization_backend=backend)
+        ode = semidiscretize(semi, (0.0f0, 0.1f0); reset_threads=false)
+        v_ode, u_ode = ode.u0.x
+        sys_gpu = first(ode.p.semi.systems)
+        dv_ode = similar(v_ode)
+        fill!(dv_ode, 0.0f0)
+        TrixiParticles.kick!(dv_ode, v_ode, u_ode, ode.p, 0.0f0)
+        coeff = Array(sys_gpu.cache.kernel_correction_coefficient)
+        dw = Array(sys_gpu.cache.dw_gamma)
+        backend_ok = TrixiParticles.KernelAbstractions.get_backend(sys_gpu.cache.kernel_correction_coefficient) ==
+                     backend &&
+                     TrixiParticles.KernelAbstractions.get_backend(sys_gpu.cache.dw_gamma) ==
+                     backend
+        caches_ok = all(==(1.0f0), coeff) && all(iszero, dw) &&
+                    all(isfinite, coeff) && all(isfinite, dw) &&
+                    eltype(coeff) == Float32 && eltype(dw) == Float32 && backend_ok
+        dv_ok = !expect_dv_finite || all(isfinite, Array(dv_ode))
+        return caches_ok && dv_ok
+    end
+
+    for kind in (:wcsph, :edac),
+        correction in (KernelCorrection(), MixedKernelGradientCorrection()),
+        density_calculator in (ContinuityDensity(), SummationDensity())
+
+        # Zero mass => degenerate coefficient => fallback. Only WCSPH with
+        # ContinuityDensity keeps a finite density and finite RHS.
+        expect_finite = (kind === :wcsph && density_calculator isa ContinuityDensity)
+        @test kernel_correction_fallback_is_valid(kind, correction, density_calculator,
+                                                  backend; mass_value=0.0f0,
+                                                  expect_dv_finite=expect_finite)
+        # Tiny mass below `sqrt(eps(Float32))` threshold => fallback
+        # (only well-defined for ContinuityDensity, where density is independent of mass).
+        if density_calculator isa ContinuityDensity
+            @test kernel_correction_fallback_is_valid(kind, correction,
+                                                      density_calculator, backend;
+                                                      mass_value=1.0f-8,
+                                                      expect_dv_finite=expect_finite)
+        end
+        # Non-finite mass => fallback caches remain finite
+        @test kernel_correction_fallback_is_valid(kind, correction, density_calculator,
+                                                  backend; mass_value=Float32(NaN),
+                                                  expect_dv_finite=false)
+        @test kernel_correction_fallback_is_valid(kind, correction, density_calculator,
+                                                  backend; mass_value=Float32(Inf),
+                                                  expect_dv_finite=false)
+    end
+
     initial_condition = RectangularShape(spacing, (4, 4), (0.0f0, 0.0f0);
                                          density=1000.0f0,
                                          coordinates_eltype=Float32)

@@ -78,7 +78,8 @@ struct ShepardKernelCorrection end
     KernelCorrection()
 
 Kernel correction, as explained by [Bonet (1999)](@cite Bonet1999), uses Shepard interpolation
-to obtain a zeroth-order consistent kernel gradient (an exact zero gradient for constants),
+to obtain a zeroth-order consistent kernel gradient (an exact zero gradient for constants
+when the correction coefficient is valid),
 which was first proposed by Li et al.
 This can be further extended to obtain a kernel corrected gradient as shown by [Basa et al. (2008)](@cite Basa2008).
 
@@ -94,6 +95,13 @@ The gradient of corrected kernel is determined by
 
 This correction can be applied with [`SummationDensity`](@ref) and
 [`ContinuityDensity`](@ref), which leads to an improvement, especially at free surfaces.
+
+When the kernel correction coefficient is non-finite or not larger than
+`sqrt(eps(T))` for the coefficient element type `T`, the correction is disabled
+for that particle by setting the coefficient to one and the gradient offset
+`γ` (`dw_gamma`) to zero. The corrected gradient then falls back to the
+uncorrected kernel gradient and zeroth-order gradient consistency is not
+retained for the degenerate particle.
 
 !!! note
     - This only works when the boundary model uses [`SummationDensity`](@ref) (yet).
