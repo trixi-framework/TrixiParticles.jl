@@ -4,7 +4,8 @@
 function correction_setup(correction=nothing; n=9, perturbation=false,
                           density_calculator=ContinuityDensity(), edac=false,
                           pressure_acceleration=:default,
-                          velocity=(pos -> SVector(pos[1], pos[2])))
+                          velocity=(pos -> SVector(pos[1], pos[2])), buffer_size=nothing,
+                          neighborhood_search=GridNeighborhoodSearch{2}())
     particle_spacing = 1.0 / n
     smoothing_length = 2.0 * particle_spacing
     smoothing_kernel = WendlandC6Kernel{2}()
@@ -16,12 +17,13 @@ function correction_setup(correction=nothing; n=9, perturbation=false,
         if pressure_acceleration === :default
             system = EntropicallyDampedSPHSystem(fluid; smoothing_kernel,
                                                  smoothing_length, sound_speed=10.0,
-                                                 density_calculator, correction)
+                                                 density_calculator, correction,
+                                                 buffer_size)
         else
             system = EntropicallyDampedSPHSystem(fluid; smoothing_kernel,
                                                  smoothing_length, sound_speed=10.0,
                                                  density_calculator, correction,
-                                                 pressure_acceleration)
+                                                 pressure_acceleration, buffer_size)
         end
     else
         state_equation = StateEquationCole(; sound_speed=10.0,
@@ -29,16 +31,17 @@ function correction_setup(correction=nothing; n=9, perturbation=false,
         if pressure_acceleration === :default
             system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
                                                  smoothing_length, density_calculator,
-                                                 state_equation, correction)
+                                                 state_equation, correction, buffer_size)
         else
             system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
                                                  smoothing_length, density_calculator,
                                                  state_equation, correction,
-                                                 pressure_acceleration)
+                                                 pressure_acceleration, buffer_size)
         end
     end
 
-    semi = Semidiscretization(system; parallelization_backend=SerialBackend())
+    semi = Semidiscretization(system; neighborhood_search,
+                              parallelization_backend=SerialBackend())
     ode = semidiscretize(semi, (0.0, 1.0); reset_threads=false)
     v_ode = Array(ode.u0.x[1])
     u_ode = Array(ode.u0.x[2])

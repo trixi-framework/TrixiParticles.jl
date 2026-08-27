@@ -16,14 +16,21 @@
     @test all(isfinite, setup_edac.system.cache.kernel_correction_coefficient)
     @test all(isfinite, setup_edac.system.cache.density)
 
-    # The sanitizer must replace zero and NaN coefficients by one, leaving valid
-    # coefficients untouched.
-    coefficients = ones(TrixiParticles.nparticles(setup.system))
-    coefficients[1] = 0.0
-    coefficients[2] = NaN
+    # Only nonfinite and nonpositive coefficients are invalid. In particular,
+    # Float32 values below `sqrt(eps(Float32))` remain valid Shepard normalizers.
+    coefficients = Float32[0, -1, NaN, Inf, 1.0f-4]
     TrixiParticles.sanitize_kernel_correction_coefficient!(coefficients, setup.system,
                                                            setup.semi)
-    @test coefficients[1:2] == ones(2)
+    @test coefficients == Float32[1, 1, 1, 1, 1.0f-4]
+
+    # Correction caches include inactive open-boundary buffer entries. Sanitizing
+    # every coefficient prevents the full-array density division from producing NaNs.
+    buffered = update_correction!(correction_setup(ShepardKernelCorrection();
+                                                   density_calculator=SummationDensity(),
+                                                   buffer_size=2,
+                                                   neighborhood_search=nothing))
+    @test all(isfinite, buffered.system.cache.kernel_correction_coefficient)
+    @test all(isfinite, buffered.system.cache.density)
 end
 
 @testset "Shepard partition of unity" begin

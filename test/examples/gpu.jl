@@ -144,13 +144,13 @@ end
     semi = Semidiscretization(system; neighborhood_search=nothing,
                               parallelization_backend=backend)
     ode = semidiscretize(semi, (0.0f0, 0.1f0); reset_threads=false)
-    # The sanitizer must replace zero and NaN coefficients by one on the GPU,
-    # leaving valid coefficients untouched.
-    coefficient = Adapt.adapt(backend, Float32[0.0, NaN, 1.0, 2.0])
+    # The sanitizer must replace invalid coefficients by one on the GPU while
+    # preserving valid Float32 normalizers below `sqrt(eps(Float32))`.
+    coefficient = Adapt.adapt(backend, Float32[0.0, NaN, -1.0, 1.0f-4, 2.0])
     TrixiParticles.sanitize_kernel_correction_coefficient!(coefficient,
                                                            first(ode.p.semi.systems),
                                                            ode.p.semi)
-    @test Array(coefficient) == Float32[1.0, 1.0, 1.0, 2.0]
+    @test Array(coefficient) == Float32[1.0, 1.0, 1.0, 1.0f-4, 2.0]
 
     initial_condition = RectangularShape(spacing, (4, 4), (0.0f0, 0.0f0);
                                          density=1000.0f0,
@@ -176,6 +176,13 @@ end
     TrixiParticles.update_nhs!(ode.p.semi, u_ode)
     TrixiParticles.reinit_density!(system, v, u, v_ode, u_ode, ode.p.semi)
     @test all(isfinite, Array(v[end, :]))
+
+    # A constant field is the zeroth-order consistency invariant of the Shepard
+    # operator. This checks density and pressure values, not only finiteness.
+    v[end, :] .= 1000.0f0
+    TrixiParticles.reinit_density!(system, v, u, v_ode, u_ode, ode.p.semi)
+    @test Array(v[end, :])≈fill(1000.0f0, size(v, 2)) rtol=2e-5 atol=2e-5
+    @test maximum(abs, Array(system.pressure)) < 1.0f-2
 end
 
 @testset verbose=true "Examples $TRIXIPARTICLES_TEST_" begin

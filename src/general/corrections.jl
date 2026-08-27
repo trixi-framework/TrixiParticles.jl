@@ -63,9 +63,10 @@ where ``V_b = m_b / \rho_b`` is the volume of particle ``b``.
 
 This correction is applied with [`SummationDensity`](@ref) to correct the density and leads
 to an improvement, especially at free surfaces. With summation density, the current one-pass
-implementation uses the provisional density in ``V_b`` and therefore reduces the free-surface
-error without guaranteeing convergence. [`DensityReinitializationCallback`](@ref) instead uses
-the independently evolved continuity density and realizes the consistent Shepard operator.
+implementation uses the density available when each system is processed and therefore reduces
+the free-surface error without guaranteeing convergence for multiple interacting systems.
+[`DensityReinitializationCallback`](@ref) computes all simultaneously requested corrections
+from the independently evolved continuity density before replacing any density.
 
 !!! note
     - It is also referred to as "0th order correction".
@@ -186,11 +187,9 @@ function compute_shepard_coeff!(system, system_coords, v_ode, u_ode, semi,
 end
 
 function sanitize_kernel_correction_coefficient!(coefficient, system, semi)
-    minimum_coefficient = sqrt(eps(eltype(coefficient)))
-
-    @threaded semi for particle in eachparticle(system)
+    @threaded semi for particle in eachindex(coefficient)
         value = coefficient[particle]
-        if !isfinite(value) || value <= minimum_coefficient
+        if !isfinite(value) || value <= zero(value)
             coefficient[particle] = one(value)
         end
     end
