@@ -12,6 +12,7 @@
         p::Any
         u::Any
         t::Float64
+        opts::Any
     end
 
     density_reinit_calls = Symbol[]
@@ -69,7 +70,7 @@
         system = MockDensityReinitSystem(nothing, :fluid)
         vu_ode = (; x=(:v_ode, :u_ode))
         semi = (; systems=(system,))
-        integrator = MockDensityReinitIntegrator((; semi), vu_ode, 0.0)
+        integrator = MockDensityReinitIntegrator((; semi), vu_ode, 0.0, nothing)
 
         TrixiParticles.get_neighborhood_search(system::MockDensityReinitSystem,
                                                neighbor::MockDensityReinitSystem,
@@ -276,7 +277,7 @@
                                                                             particle)
         end
 
-        integrator = MockDensityReinitIntegrator((; semi), vu_ode, 0.05)
+        integrator = MockDensityReinitIntegrator((; semi), vu_ode, 0.05, nothing)
         callback.affect!(integrator)
         inactive1 = setdiff(axes(v1, 2), active1)
 
@@ -284,5 +285,71 @@
         @test all(iszero, v1[end, inactive1])
         @test v2[end, :] == density2_before
         @test any(>(0), cross_contribution[active1])
+    end
+
+    @testset "simultaneous interacting reinitialization" begin
+        spacing = 0.1
+        kernel = WendlandC6Kernel{2}()
+        state_equation = StateEquationCole(; sound_speed=10.0,
+                                           reference_density=1000.0, exponent=1)
+        initial1 = RectangularShape(spacing, (2, 2), (0.0, 0.0); density=1000.0)
+        initial2 = RectangularShape(spacing, (2, 2), (0.1, 0.0); density=1000.0)
+        system1 = WeaklyCompressibleSPHSystem(initial1; smoothing_kernel=kernel,
+                                              smoothing_length=2spacing,
+                                              density_calculator=ContinuityDensity(),
+                                              state_equation)
+        system2 = WeaklyCompressibleSPHSystem(initial2; smoothing_kernel=kernel,
+                                              smoothing_length=2spacing,
+                                              density_calculator=ContinuityDensity(),
+                                              state_equation)
+        semi = Semidiscretization(system1, system2; neighborhood_search=nothing,
+                                  parallelization_backend=SerialBackend())
+        ode = semidiscretize(semi, (0.0, 1.0); reset_threads=false)
+        semi = ode.p.semi
+        system1, system2 = semi.systems
+        vu_ode = deepcopy(ode.u0)
+        v_ode, u_ode = vu_ode.x
+        v1 = TrixiParticles.wrap_v(v_ode, system1, semi)
+        v2 = TrixiParticles.wrap_v(v_ode, system2, semi)
+        u1 = TrixiParticles.wrap_u(u_ode, system1, semi)
+        u2 = TrixiParticles.wrap_u(u_ode, system2, semi)
+        v1[end, :] .= range(800.0, 1200.0; length=size(v1, 2))
+        v2[end, :] .= range(1600.0, 2400.0; length=size(v2, 2))
+        TrixiParticles.update_nhs!(semi, u_ode)
+
+        coefficient1 = zeros(size(v1, 2))
+        coefficient2 = zeros(size(v2, 2))
+        TrixiParticles.compute_shepard_coeff!(system1,
+                                              TrixiParticles.current_coordinates(u1,
+                                                                                 system1),
+                                              v_ode, u_ode, semi, coefficient1)
+        TrixiParticles.compute_shepard_coeff!(system2,
+                                              TrixiParticles.current_coordinates(u2,
+                                                                                 system2),
+                                              v_ode, u_ode, semi, coefficient2)
+        expected1 = zeros(size(v1, 2))
+        expected2 = zeros(size(v2, 2))
+        TrixiParticles.summation_density!(system1, semi, u1, u_ode, expected1)
+        TrixiParticles.summation_density!(system2, semi, u2, u_ode, expected2)
+        expected1 ./= coefficient1
+        expected2 ./= coefficient2
+
+        density_callback1 = DensityReinitializationCallback(system1, semi; dt=1.0,
+                                                            reinit_initial_solution=false)
+        density_callback2 = DensityReinitializationCallback(system2, semi; dt=1.0,
+                                                            reinit_initial_solution=false)
+        callback1 = density_callback1.affect!
+        callback2 = density_callback2.affect!
+        callbacks = CallbackSet(density_callback1, density_callback2)
+        integrator = MockDensityReinitIntegrator((; semi), vu_ode, 0.05,
+                                                 (; callback=callbacks))
+        callback1(integrator)
+
+        @test v1[end, :]≈expected1 rtol=2e-14 atol=2e-14
+        @test v2[end, :]≈expected2 rtol=2e-14 atol=2e-14
+        @test callback2.last_t == integrator.t
+        density_after = copy(v2[end, :])
+        callback2(integrator)
+        @test v2[end, :] == density_after
     end
 end
