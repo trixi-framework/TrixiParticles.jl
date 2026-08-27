@@ -36,6 +36,11 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Added the number of split integration time steps to the `InfoCallback` output
   when a `SplitIntegrationCallback` is used (#1194).
 
+### Performance
+
+- Improved multithreaded TLSPH performance on NUMA systems by initializing runtime
+  arrays in parallel (#1294).
+
 ### Important Bugfixes
 
 - Fixed signed-distance constraints in `ParticlePackingSystem` when using a separate
