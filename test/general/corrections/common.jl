@@ -68,6 +68,31 @@ function update_correction!(setup)
     return setup
 end
 
+struct CorrectionMatrixTestSystem{NDIMS, ELTYPE} <: TrixiParticles.AbstractSystem{NDIMS}
+    mass::Vector{ELTYPE}
+end
+
+function invert_scaled_correction_matrix(::Type{ELTYPE}, ::Val{NDIMS},
+                                         scale::ELTYPE) where {ELTYPE,
+                                                               NDIMS}
+    matrix = zeros(ELTYPE, NDIMS, NDIMS)
+    for i in 1:NDIMS
+        matrix[i, i] = scale
+    end
+
+    return invert_correction_matrix(matrix)
+end
+
+function invert_correction_matrix(matrix::AbstractMatrix{ELTYPE}) where {ELTYPE}
+    NDIMS = size(matrix, 1)
+    system = CorrectionMatrixTestSystem{NDIMS, ELTYPE}(ones(ELTYPE, 1))
+    correction_matrix = reshape(copy(matrix), NDIMS, NDIMS, 1)
+
+    TrixiParticles.correction_matrix_inversion_step!(correction_matrix, system,
+                                                     DummySemidiscretization())
+    return correction_matrix[:, :, 1]
+end
+
 # Recompute, in a naive loop, the zeroth and first gradient moments and the direct and
 # difference kernel-gradient interpolations of a scalar field. These reference values are
 # compared against the corrections computed by TrixiParticles.
