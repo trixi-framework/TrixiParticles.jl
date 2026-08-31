@@ -940,7 +940,6 @@ function check_update_callback(semi)
     end
 end
 
-
 function check_configuration(systems,
                              nhs::Union{Nothing, AbstractNeighborhoodSearch})
     foreach_system(systems) do system

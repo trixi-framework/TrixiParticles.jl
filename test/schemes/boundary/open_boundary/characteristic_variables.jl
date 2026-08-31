@@ -38,6 +38,10 @@
     end
 
     @testset "Fallback is zone-local" begin
+        # This test creates two inflows far away from each other, the "near" one with fluid neighbors,
+        # the "far" one without. When evaluating characteristics of the far inflow, no fluid neighbors
+        # are found, so it should fall back to using previous values of other inflow particles.
+        # This test checks that this fallback does not use previous values from the other inflow zone.
         face_vertices = ([0.0, 0.0], [0.0, 0.5])
         face_vertices_far = ([10.0, 0.0], [10.0, 0.5])
         flow_direction = SVector(1.0, 0.0)
@@ -68,6 +72,9 @@
         v = TrixiParticles.wrap_v(v0_ode, boundary_system, semi)
         u = TrixiParticles.wrap_u(u0_ode, boundary_system, semi)
 
+        # Evaluate the characteristics to make sure that particles of the near inflow have non-zero
+        # characteristics. Then, evaluate again, and test that the far inflow particles don't use the
+        # non-zero characteristics of the particles in the other inflow zone.
         TrixiParticles.evaluate_characteristics!(boundary_system,
                                                  v, u, v0_ode, u0_ode, semi, 2.0)
         TrixiParticles.evaluate_characteristics!(boundary_system,
@@ -76,12 +83,8 @@
         zone_1_particles = findall(==(1), boundary_system.boundary_zone_indices)
         zone_2_particles = findall(==(2), boundary_system.boundary_zone_indices)
 
-        @test any(!isapprox(characteristic, 0.0)
-                  for characteristic in boundary_system.cache.characteristics[:,
-                                                            zone_1_particles])
-        @test all(isapprox(characteristic, 0.0)
-                  for characteristic in boundary_system.cache.characteristics[:,
-                                                            zone_2_particles])
+        @test !all(iszero, boundary_system.cache.characteristics[:, zone_1_particles])
+        @test all(iszero, boundary_system.cache.characteristics[:, zone_2_particles])
     end
 
     # Face vertices of open boundary

@@ -251,8 +251,6 @@ function calc_curvature!(system::AbstractFluidSystem, neighbor_system::AbstractF
     system_coords = current_coordinates(u_system, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-    set_zero!(correction_factor)
-
     foreach_point_neighbor(system, neighbor_system,
                            system_coords, neighbor_system_coords,
                            semi) do particle, neighbor, pos_diff, distance
@@ -275,11 +273,6 @@ function calc_curvature!(system::AbstractFluidSystem, neighbor_system::AbstractF
         end
     end
 
-    # Eq. 23
-    for particle in each_integrated_particle(system)
-        curvature[particle] /= (correction_factor[particle] + eps())
-    end
-
     return system
 end
 
@@ -294,6 +287,7 @@ function compute_curvature!(system::AbstractFluidSystem,
 
     # Reset surface curvature
     set_zero!(cache.curvature)
+    set_zero!(cache.correction_factor)
 
     @trixi_timeit timer() "compute surface curvature" begin
         foreach_system_wrapped(semi, v_ode,
@@ -309,5 +303,9 @@ function compute_curvature!(system::AbstractFluidSystem,
                             surface_normal_method(neighbor_system))
         end
     end
+
+    # Eq. 23 in Morris 2000
+    cache.curvature ./= (cache.correction_factor .+ eps())
+
     return system
 end
