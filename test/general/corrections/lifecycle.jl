@@ -69,23 +69,25 @@
         shepard_system = only(system
                               for system in ode.p.semi.systems
                               if system.correction isa ShepardKernelCorrection)
-        v_gradient = TrixiParticles.wrap_v(v_ode, gradient_system, ode.p.semi)
-        v_shepard = TrixiParticles.wrap_v(v_ode, shepard_system, ode.p.semi)
-        dv_gradient = TrixiParticles.wrap_v(dv_ode, gradient_system, ode.p.semi)
-        dv_shepard = TrixiParticles.wrap_v(dv_ode, shepard_system, ode.p.semi)
+        GC.@preserve v_ode dv_ode begin
+            v_gradient = TrixiParticles.wrap_v(v_ode, gradient_system, ode.p.semi)
+            v_shepard = TrixiParticles.wrap_v(v_ode, shepard_system, ode.p.semi)
+            dv_gradient = TrixiParticles.wrap_v(dv_ode, gradient_system, ode.p.semi)
+            dv_shepard = TrixiParticles.wrap_v(dv_ode, shepard_system, ode.p.semi)
 
-        return (;
-                gradient_density=copy(TrixiParticles.current_density(v_gradient,
-                                                                     gradient_system)),
-                shepard_density=copy(TrixiParticles.current_density(v_shepard,
-                                                                    shepard_system)),
-                gradient_pressure=copy(TrixiParticles.current_pressure(v_gradient,
-                                                                       gradient_system)),
-                shepard_pressure=copy(TrixiParticles.current_pressure(v_shepard,
-                                                                      shepard_system)),
-                correction_matrix=copy(gradient_system.cache.correction_matrix),
-                shepard_coefficient=copy(shepard_system.cache.kernel_correction_coefficient),
-                gradient_rhs=copy(dv_gradient), shepard_rhs=copy(dv_shepard))
+            return (;
+                    gradient_density=copy(TrixiParticles.current_density(v_gradient,
+                                                                         gradient_system)),
+                    shepard_density=copy(TrixiParticles.current_density(v_shepard,
+                                                                        shepard_system)),
+                    gradient_pressure=copy(TrixiParticles.current_pressure(v_gradient,
+                                                                           gradient_system)),
+                    shepard_pressure=copy(TrixiParticles.current_pressure(v_shepard,
+                                                                          shepard_system)),
+                    correction_matrix=copy(gradient_system.cache.correction_matrix),
+                    shepard_coefficient=copy(shepard_system.cache.kernel_correction_coefficient),
+                    gradient_rhs=copy(dv_gradient), shepard_rhs=copy(dv_shepard))
+        end
     end
 
     # Check all correction-coupled quantities for both WCSPH and EDAC systems.
