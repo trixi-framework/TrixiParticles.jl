@@ -46,6 +46,7 @@
     mass32 = fill(10.0f0, 4)
     state_equation32 = StateEquationCole(; sound_speed=10.0f0,
                                          reference_density=1000.0f0, exponent=1)
+    # Every correction variant allocates boundary caches in the boundary scalar type.
     for correction in (GradientCorrection(), BlendedGradientCorrection(0.4f0),
          MixedKernelGradientCorrection())
         boundary = BoundaryModelDummyParticles(density32, mass32, SummationDensity(),
@@ -57,6 +58,7 @@
         end
     end
 
+    # Normalizing before inversion must handle correction matrices over a wide scale range.
     @testset "scale-independent inversion" begin
         cases = ((Float32, 2, 1.0f-30),
                  (Float32, 2, 1.0f20),

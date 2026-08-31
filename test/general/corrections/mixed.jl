@@ -3,6 +3,7 @@
     linear_field(pos) = 2.0 + 3.0 * pos[1] - 2.0 * pos[2]
     exact_gradient = [3.0, -2.0]
 
+    # Both fluid formulations allocate finite caches for all mixed correction components.
     for edac in (false, true)
         setup = correction_setup(MixedKernelGradientCorrection(); edac,
                                  pressure_acceleration=nothing)
@@ -12,6 +13,7 @@
         @test all(isfinite, setup.system.cache.correction_matrix)
     end
 
+    # The composed correction reproduces constants and affine fields on regular and perturbed grids.
     for perturbation in (false, true)
         setup = update_correction!(correction_setup(MixedKernelGradientCorrection();
                                                     perturbation))
@@ -25,6 +27,7 @@
                       TrixiParticles.eachparticle(setup.system)) < 1e-11
     end
 
+    # A uniform fluid state has the analytic continuity-density rate of -2000.
     setup = correction_setup(MixedKernelGradientCorrection())
     dv_ode = zero(setup.v_ode)
     TrixiParticles.kick!(dv_ode, setup.v_ode, setup.u_ode,
@@ -33,6 +36,7 @@
     density_error = dv[end, :] .+ 2000.0
     @test sqrt(sum(abs2, density_error) / length(density_error)) < 2e-10
 
+    # Restarting preserves state, RHS, and correction caches for every density formulation.
     for edac in (false, true),
         density_calculator in (SummationDensity(),
                                ContinuityDensity())
@@ -43,6 +47,7 @@
         @test result.cache_finite
     end
 
+    # Boundary cache arrays retain the system scalar type.
     density32 = fill(1000.0f0, 4)
     mass32 = fill(10.0f0, 4)
     state_equation = StateEquationCole(; sound_speed=10.0f0,
