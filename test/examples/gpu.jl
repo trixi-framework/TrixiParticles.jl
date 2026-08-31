@@ -143,6 +143,7 @@ end
                                       ContinuityDensity(), backend)
     end
 
+    # Mixed correction also requires kernel and gradient caches on a fluid-boundary pair.
     function mixed_boundary_rhs_is_valid(backend)
         spacing = 0.1f0
         smoothing_kernel = WendlandC6Kernel{2}()
@@ -258,6 +259,7 @@ end
                                                   expect_dv_finite=false)
     end
 
+    # A collinear support has a singular gradient moment and must fall back to identity.
     coordinates = Float32[0.0 0.1 0.2; 0.0 0.0 0.0]
     collinear = InitialCondition(; coordinates, velocity=zeros(Float32, 2, 3),
                                  density=fill(1000.0f0, 3), particle_spacing=spacing)

@@ -1,4 +1,5 @@
 @testset "Kernel correction" begin
+    # Kernel correction initializes both cache components for WCSPH and EDAC.
     for edac in (false, true)
         setup = correction_setup(KernelCorrection(); edac,
                                  pressure_acceleration=nothing)
@@ -8,12 +9,14 @@
         @test all(isfinite, setup.system.cache.dw_gamma)
     end
 
+    # The corrected gradient of a constant field vanishes on regular and perturbed grids.
     for perturbation in (false, true)
         setup = update_correction!(correction_setup(KernelCorrection(); perturbation))
         moments = correction_moments(setup)
         @test maximum(abs, moments.zeroth_gradient_moment) < 2e-12
     end
 
+    # Boundary cache arrays retain the boundary scalar type.
     density32 = fill(1000.0f0, 4)
     mass32 = fill(10.0f0, 4)
     state_equation = StateEquationCole(; sound_speed=10.0f0,
@@ -24,6 +27,7 @@
                                            correction=KernelCorrection())
     @test eltype(boundary.cache.dw_gamma) == Float32
 
+    # Restarting preserves the correction state and its resulting RHS.
     for edac in (false, true),
         density_calculator in (SummationDensity(),
                                ContinuityDensity())

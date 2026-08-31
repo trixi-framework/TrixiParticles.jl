@@ -3,9 +3,11 @@
     linear_field(pos) = 2.0 + 3.0 * pos[1] - 2.0 * pos[2]
     exact_gradient = [3.0, -2.0]
 
+    # Blending is a convex combination of uncorrected and gradient-corrected kernels.
     @test_throws ArgumentError BlendedGradientCorrection(-0.1)
     @test_throws ArgumentError BlendedGradientCorrection(1.1)
 
+    # Both gradient variants must initialize finite matrices for WCSPH and EDAC.
     for correction in (GradientCorrection(), BlendedGradientCorrection(0.4)),
         edac in (false, true)
         setup = correction_setup(correction; edac, pressure_acceleration=nothing)
@@ -13,6 +15,7 @@
         @test all(isfinite, setup.system.cache.correction_matrix)
     end
 
+    # Gradient correction reproduces affine fields; blending interpolates its first moment.
     for perturbation in (false, true)
         raw_setup = update_correction!(correction_setup(nothing; perturbation))
         raw_moments = correction_moments(raw_setup; field=linear_field)
@@ -86,6 +89,7 @@
         @test inverse ≈ expected rtol = 10eps(Float32)
     end
 
+    # A 3D regular grid must yield an identity first-moment matrix.
     particle_spacing = 0.25
     particles = RectangularShape(particle_spacing, (4, 4, 4), (0.0, 0.0, 0.0);
                                  density=1000.0)
@@ -125,6 +129,7 @@
     end
     @test first_moment ≈ Matrix{Float64}(I, 3, 3) atol = 3e-12
 
+    # Singular and nearly singular neighbor configurations fall back to the identity matrix.
     for y_offset in (0.0, 1.0e-12)
         coordinates = [0.0 0.1 0.2; 0.0 y_offset 0.0]
         initial = InitialCondition(; coordinates, velocity=zeros(2, 3),
@@ -146,6 +151,7 @@
         end
     end
 
+    # Gradient correction restores the analytic density rate for this uniform flow.
     analytic_density_rate = -2000.0
     errors = Dict{Any, Float64}()
     for correction in (nothing, GradientCorrection(), BlendedGradientCorrection(0.4))
@@ -161,6 +167,7 @@
     @test errors[BlendedGradientCorrection(0.4)] < errors[nothing]
     @test errors[nothing] > 1.0
 
+    # Correction caches and the RHS survive restarts across all supported formulations.
     for correction in (GradientCorrection(), BlendedGradientCorrection(0.4)),
         edac in (false, true),
         density_calculator in (SummationDensity(), ContinuityDensity())

@@ -219,6 +219,7 @@
     end
 
     @testset "nonuniform multi-system reinitialization with buffer" begin
+        # Reinitialize one buffered system from a second interacting system without changing it.
         spacing = 0.1
         kernel = WendlandC6Kernel{2}()
         smoothing_length = 2spacing
@@ -249,10 +250,12 @@
         u2 = TrixiParticles.wrap_u(u_ode, system2, semi)
         active1 = collect(TrixiParticles.eachparticle(system1))
         active2 = collect(TrixiParticles.eachparticle(system2))
+        # Use nonuniform densities to distinguish a true summation update from stale values.
         v1[end, active1] .= range(800.0, 1200.0; length=length(active1))
         v2[end, active2] .= range(900.0, 1100.0; length=length(active2))
         density2_before = copy(v2[end, :])
 
+        # Compute the expected Shepard-normalized density independently of the callback.
         TrixiParticles.update_nhs!(semi, u_ode)
         coefficient = zeros(size(v1, 2))
         TrixiParticles.compute_shepard_coeff!(system1,
@@ -263,6 +266,7 @@
         TrixiParticles.summation_density!(system1, semi, u1, u_ode, summation)
         expected = summation[active1] ./ coefficient[active1]
 
+        # Confirm that the expected density includes particles from the other system.
         cross_contribution = zeros(size(v1, 2))
         coords1 = TrixiParticles.current_coordinates(u1, system1)
         coords2 = TrixiParticles.current_coordinates(u2, system2)
@@ -277,6 +281,7 @@
                                                                             particle)
         end
 
+        # The callback updates active particles only and leaves the other system untouched.
         integrator = MockDensityReinitIntegrator((; semi), vu_ode, 0.05, nothing)
         callback.affect!(integrator)
         inactive1 = setdiff(axes(v1, 2), active1)
@@ -288,6 +293,7 @@
     end
 
     @testset "simultaneous interacting reinitialization" begin
+        # Two callbacks must use the same pre-reinitialization state, independent of callback order.
         spacing = 0.1
         kernel = WendlandC6Kernel{2}()
         state_equation = StateEquationCole(; sound_speed=10.0,
@@ -317,6 +323,7 @@
         v2[end, :] .= range(1600.0, 2400.0; length=size(v2, 2))
         TrixiParticles.update_nhs!(semi, u_ode)
 
+        # Construct both expected densities before either callback writes to the shared state.
         coefficient1 = zeros(size(v1, 2))
         coefficient2 = zeros(size(v2, 2))
         TrixiParticles.compute_shepard_coeff!(system1,
@@ -334,6 +341,7 @@
         expected1 ./= coefficient1
         expected2 ./= coefficient2
 
+        # Calling one callback triggers the coordinated reinitialization of both systems once.
         density_callback1 = DensityReinitializationCallback(system1, semi; dt=1.0,
                                                             reinit_initial_solution=false)
         density_callback2 = DensityReinitializationCallback(system2, semi; dt=1.0,

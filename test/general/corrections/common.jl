@@ -150,6 +150,7 @@ function corner_particle(system)
     end
 end
 
+# Compare an uninterrupted RHS evaluation with one after serializing and restoring its state.
 function correction_restart_result(correction; edac, density_calculator)
     direct = correction_setup(correction; edac, density_calculator,
                               pressure_acceleration=nothing)
@@ -157,6 +158,7 @@ function correction_restart_result(correction; edac, density_calculator)
     v = TrixiParticles.wrap_v(v_ode, system, semi)
     u = TrixiParticles.wrap_u(u_ode, system, semi)
 
+    # Make both state vectors nonuniform so stale correction caches affect the RHS.
     for particle in TrixiParticles.eachparticle(system)
         v[1, particle] = 0.01particle
         v[2, particle] = -0.02particle
@@ -174,6 +176,7 @@ function correction_restart_result(correction; edac, density_calculator)
     TrixiParticles.kick!(dv_direct, v_ode, u_ode,
                          (; semi, split_integration_data=nothing), 0.0)
 
+    # Restart from copies to ensure the restart path, rather than shared state, restores caches.
     restarted = correction_setup(correction; edac, density_calculator,
                                  pressure_acceleration=nothing)
     mock_solution = (; u=[(; x=(copy(v_ode), copy(u_ode)))])

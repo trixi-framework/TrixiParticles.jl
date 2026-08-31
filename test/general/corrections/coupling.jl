@@ -1,3 +1,4 @@
+# A sentinel correction verifies that force corrections are routed independently.
 struct CustomForceCorrection end
 
 function TrixiParticles.free_surface_correction(::CustomForceCorrection,
@@ -15,6 +16,7 @@ end
 end
 
 @testset "Supported pressure variation matrix" begin
+    # Store a nonuniform pressure in the state location used by each formulation.
     function set_pressure_field!(setup, edac)
         pressure = range(1.0, 2.0; length=TrixiParticles.nparticles(setup.system))
         if edac
@@ -29,6 +31,7 @@ end
         return setup
     end
 
+    # Enumerate only correction and pressure-formulation combinations supported by each density model.
     summation_corrections = (nothing, ShepardKernelCorrection(), KernelCorrection(),
                              GradientCorrection(), BlendedGradientCorrection(0.5),
                              MixedKernelGradientCorrection())
@@ -42,6 +45,7 @@ end
                            TrixiParticles.pressure_acceleration_continuity_density,
                            TrixiParticles.inter_particle_averaged_pressure)
 
+    # All supported summation-density combinations produce a finite, nonzero pressure force.
     for edac in (false, true), correction in summation_corrections,
         pressure_acceleration in summation_pressure
         setup = correction_setup(correction; n=4, edac,
@@ -55,6 +59,7 @@ end
         @test any(!iszero, view(dv_ode, 1:2, :))
     end
 
+    # Exercise the corresponding continuity-density combinations.
     for edac in (false, true), correction in continuity_corrections,
         pressure_acceleration in continuity_pressure
         setup = correction_setup(correction; n=4, edac,
@@ -68,6 +73,7 @@ end
         @test any(!iszero, view(dv_ode, 1:2, :))
     end
 
+    # Tensile instability control permits the uncorrected continuity formulation only.
     for edac in (false, true)
         setup = correction_setup(; n=4, edac,
                                  density_calculator=ContinuityDensity(),
@@ -88,6 +94,7 @@ end
 end
 
 @testset "Corrected structure coupling" begin
+    # Check every correction cache associated with either a fluid or structure boundary model.
     function cache_is_finite(system)
         cache = system isa Union{RigidBodySystem, TotalLagrangianSPHSystem} ?
                 system.boundary_model.cache : system.cache
@@ -97,6 +104,7 @@ end
         end
     end
 
+    # Build a perturbed fluid-structure pair and return force-balance diagnostics.
     function coupled_result(kind, structure_kind, correction;
                             boundary_correction=correction, reverse_order=false,
                             average_pressure_reduction=false)
@@ -108,6 +116,7 @@ end
                          StateEquationCole(; sound_speed=10.0,
                                            reference_density=density,
                                            exponent=1) : nothing
+        # Break pair symmetry so corrected gradients and the reaction-force path are exercised.
         fluid_initial = RectangularShape(spacing, (4, 3), (0.0, 0.0); density)
         fluid_initial.coordinates[1, 2] += 0.013
         fluid_initial.coordinates[2, 5] -= 0.009
@@ -148,6 +157,7 @@ end
                                                  boundary_model)
         end
 
+        # Reversing this order must not affect corrections or the coupled RHS.
         systems = reverse_order ? (structure, fluid) : (fluid, structure)
         semi = Semidiscretization(systems...; neighborhood_search=nothing,
                                   parallelization_backend=SerialBackend())
@@ -169,6 +179,7 @@ end
             v_fluid[3, :] .= range(1.0, 2.0; length=size(v_fluid, 2))
         end
 
+        # Compare total fluid and structure forces rather than their incompatible accelerations.
         dv_ode = zero(v_ode)
         TrixiParticles.kick!(dv_ode, v_ode, u_ode,
                              (; semi=ode.p.semi, split_integration_data=nothing), 0.0)
@@ -197,6 +208,7 @@ end
                        cache_is_finite(structure))
     end
 
+    # Every supported correction conserves momentum for rigid and deformable structures.
     corrections = (KernelCorrection(), GradientCorrection(),
                    BlendedGradientCorrection(0.4), MixedKernelGradientCorrection())
     for kind in (:wcsph, :edac), structure_kind in (:rigid, :tlsph),
@@ -207,6 +219,7 @@ end
         @test result.relative_residual < 2e-13
     end
 
+    # Global system ordering must not alter EDAC fluid-structure results.
     for structure_kind in (:rigid, :tlsph)
         forward = coupled_result(:edac, structure_kind, GradientCorrection())
         reverse = coupled_result(:edac, structure_kind, GradientCorrection();
@@ -218,11 +231,13 @@ end
         @test forward.structure_force≈reverse.structure_force rtol=1e-11 atol=1e-10
     end
 
+    # Pair-pressure offsets must preserve the same reaction-force balance.
     result = coupled_result(:edac, :rigid, GradientCorrection();
                             average_pressure_reduction=true)
     @test result.force_scale > eps()
     @test result.relative_residual < 2e-13
 
+    # Kernel corrections remain conservative when only the fluid owns the correction cache.
     for structure_kind in (:rigid, :tlsph),
         correction in (KernelCorrection(), MixedKernelGradientCorrection())
         result = coupled_result(:wcsph, structure_kind, correction;
