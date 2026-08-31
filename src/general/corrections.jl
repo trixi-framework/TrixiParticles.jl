@@ -437,25 +437,6 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
 
             foreach_point_neighbor(system, neighbor_system, coordinates, neighbor_coords,
                                    semi) do particle, neighbor, pos_diff, distance
-                function kernel_grad_local(correction, smoothing_kernel, pos_diff, distance,
-                                           smoothing_length_, system, particle)
-                    # Do not dispatch through `system`: the correction matrix being used
-                    # by that path is the matrix currently being assembled here.
-                    return kernel_grad_unsafe(smoothing_kernel, pos_diff, distance,
-                                              smoothing_length_)
-                end
-
-                # Compute gradient of corrected kernel
-                function kernel_grad_local(correction::MixedKernelGradientCorrection,
-                                           smoothing_kernel, pos_diff, distance,
-                                           smoothing_length_, system, particle)
-                    return corrected_kernel_grad_unsafe(smoothing_kernel, pos_diff,
-                                                        distance,
-                                                        smoothing_length_,
-                                                        KernelCorrection(), system,
-                                                        particle)
-                end
-
                 # Skip neighbors with the same position if the kernel gradient is zero.
                 # Note that `return` only exits the closure, i.e., skips the current neighbor.
                 skip_zero_distance(correction) && distance < almostzero && return
@@ -463,9 +444,12 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
                 # Now that we know that `distance` is not zero, we can safely call the unsafe
                 # version of the kernel gradient to avoid redundant zero checks.
                 smoothing_length_ = smoothing_length(system, particle)
-                grad_kernel = kernel_grad_local(correction, smoothing_kernel, pos_diff,
-                                                distance, smoothing_length_, system,
-                                                particle)
+                grad_kernel = correction_matrix_kernel_grad_unsafe(correction,
+                                                                   smoothing_kernel,
+                                                                   pos_diff, distance,
+                                                                   smoothing_length_,
+                                                                   system,
+                                                                   particle)
 
                 volume = hydrodynamic_mass(neighbor_system, neighbor) /
                          current_density(v_neighbor_system, neighbor_system, neighbor)
@@ -485,6 +469,21 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
     correction_matrix_inversion_step!(corr_matrix, system, semi)
 
     return corr_matrix
+end
+
+@inline function correction_matrix_kernel_grad_unsafe(correction, smoothing_kernel,
+                                                      pos_diff,
+                                                      distance, smoothing_length_, system,
+                                                      particle)
+    return kernel_grad_unsafe(smoothing_kernel, pos_diff, distance, smoothing_length_)
+end
+
+@inline function correction_matrix_kernel_grad_unsafe(::MixedKernelGradientCorrection,
+                                                      smoothing_kernel, pos_diff, distance,
+                                                      smoothing_length_, system, particle)
+    return corrected_kernel_grad_unsafe(smoothing_kernel, pos_diff, distance,
+                                        smoothing_length_,
+                                        KernelCorrection(), system, particle)
 end
 
 function correction_matrix_inversion_step!(corr_matrix, system, semi)
@@ -560,8 +559,9 @@ end
 
 function create_cache_correction(::MixedKernelGradientCorrection, density, NDIMS,
                                  n_particles)
-    dw_gamma = Array{eltype(density)}(undef, NDIMS, n_particles)
-    correction_matrix = Array{eltype(density), 3}(undef, NDIMS, NDIMS, n_particles)
+    kernel_cache = create_cache_correction(KernelCorrection(), density, NDIMS, n_particles)
+    gradient_cache = create_cache_correction(GradientCorrection(), density, NDIMS,
+                                             n_particles)
 
-    return (; kernel_correction_coefficient=similar(density), dw_gamma, correction_matrix)
+    return (; kernel_cache..., gradient_cache...)
 end
