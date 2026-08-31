@@ -139,6 +139,8 @@ end
                                       backend)
         @test correction_rhs_is_valid(kind, BlendedGradientCorrection(0.4f0),
                                       ContinuityDensity(), backend)
+        @test correction_rhs_is_valid(kind, MixedKernelGradientCorrection(),
+                                      ContinuityDensity(), backend)
     end
 
     function mixed_boundary_rhs_is_valid(backend)
