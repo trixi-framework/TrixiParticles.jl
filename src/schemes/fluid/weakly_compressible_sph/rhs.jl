@@ -110,7 +110,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                     v_particle_system, v_neighbor_system,
                                                     particle, neighbor, m_a, m_b, rho_a,
                                                     rho_b, v_a, v_b, pos_diff, distance,
-                                                    grad_kernel, correction)
+                                                    grad_kernel, gradient_correction)
 
             dv_particle = @inbounds add_dv_surface_tension(dv_particle,
                                                            surface_tension_a,
