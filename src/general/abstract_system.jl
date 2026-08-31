@@ -139,6 +139,11 @@ end
     return skip_zero_distance(system_correction(system))
 end
 
+@inline function zero_distance_gradient_mode(system::AbstractSystem, neighbor_system)
+    return zero_distance_gradient_mode(system_correction(system),
+                                       hydrodynamic_correction(neighbor_system))
+end
+
 # Robust/safe version of the function below. In performance-critical code, manually check
 # the kernel support, call `skip_zero_distance` and then `smoothing_kernel_grad_unsafe`.
 @inline function smoothing_kernel_grad(system, pos_diff, distance, particle)

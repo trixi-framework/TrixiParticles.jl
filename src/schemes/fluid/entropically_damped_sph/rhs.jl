@@ -5,6 +5,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                    neighbor_system, semi)
     (; sound_speed, density_calculator, correction, nu_edac) = particle_system
     gradient_correction = correction_gradient(correction)
+    force_correction = correction_force(correction)
 
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -20,6 +21,7 @@ function interact!(dv, v_particle_system, u_particle_system,
     # Note that `sqrt(eps(h^2)) != eps(h)`.
     h = initial_smoothing_length(particle_system)
     almostzero = sqrt(eps(h^2))
+    zero_distance_mode = zero_distance_gradient_mode(particle_system, neighbor_system)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     foreach_point_neighbor(particle_system, neighbor_system,
@@ -28,14 +30,13 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                                                 neighbor,
                                                                                 pos_diff,
                                                                                 distance
-        # Skip neighbors with the same position because the kernel gradient is zero.
+        # Skip neighbors with the same position when both endpoint gradients are zero.
         # Note that `return` only exits the closure, i.e., skips the current neighbor.
-        skip_zero_distance(particle_system) && distance < almostzero && return
+        skip_zero_distance(zero_distance_mode, distance, almostzero) && return
 
-        # Now that we know that `distance` is not zero, we can safely call the unsafe
-        # version of the kernel gradient to avoid redundant zero checks.
-        grad_kernel = smoothing_kernel_grad_unsafe(particle_system, pos_diff,
-                                                   distance, particle)
+        grad_kernel = local_smoothing_kernel_grad_unsafe(zero_distance_mode,
+                                                         particle_system, pos_diff,
+                                                         distance, particle, almostzero)
 
         # `foreach_point_neighbor` makes sure that `particle` and `neighbor` are
         # in bounds of the respective system. For performance reasons, we use `@inbounds`
@@ -61,7 +62,13 @@ function interact!(dv, v_particle_system, u_particle_system,
         m_a = @inbounds hydrodynamic_mass(particle_system, particle)
         m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
 
-        dv_pressure = pressure_acceleration(particle_system, neighbor_system,
+        (viscosity_correction, pressure_correction,
+         surface_tension_correction) = free_surface_correction(force_correction,
+                                                               particle_system,
+                                                               rho_a, rho_b)
+
+        dv_pressure = pressure_correction *
+                      pressure_acceleration(particle_system, neighbor_system,
                                             particle, neighbor,
                                             m_a, m_b, p_a - p_avg, p_b - p_avg, rho_a,
                                             rho_b, pos_diff, distance, grad_kernel,
@@ -72,12 +79,13 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                  v_particle_system, v_neighbor_system,
                                                  particle, neighbor, pos_diff, distance,
                                                  sound_speed, m_a, m_b, rho_a, rho_b,
-                                                 v_a, v_b, grad_kernel)
+                                                 v_a, v_b, grad_kernel,
+                                                 viscosity_correction)
 
         # Extra terms in the momentum equation when using a shifting technique
         dv_particle = @inbounds add_dv_shifting(dv_particle,
-                                                 shifting_technique(particle_system),
-                                                 particle_system, neighbor_system,
+                                                shifting_technique(particle_system),
+                                                particle_system, neighbor_system,
                                                 v_particle_system, v_neighbor_system,
                                                 particle, neighbor, m_a, m_b, rho_a, rho_b,
                                                 v_a, v_b,
@@ -89,7 +97,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                        particle_system, neighbor_system,
                                                        particle, neighbor,
                                                        pos_diff, distance,
-                                                       rho_a, rho_b, grad_kernel, 1)
+                                                       rho_a, rho_b, grad_kernel,
+                                                       surface_tension_correction)
 
         dv_particle = @inbounds add_dv_adhesion(dv_particle, surface_tension_a,
                                                 particle_system, neighbor_system,

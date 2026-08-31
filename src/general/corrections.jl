@@ -508,20 +508,25 @@ function correction_matrix_inversion_step!(corr_matrix, system, semi)
         # full space, i.e., particle a and all neighbors lie on the same line (in 2D)
         # or plane (in 3D).
         minimum_relative_determinant = sqrt(eps(eltype(L)))
-        scale = maximum(abs, L)
+        entry_scale = maximum(abs, L)
 
-        if isfinite(scale) && !iszero(scale)
-            L_scaled = L / scale
+        if isfinite(entry_scale) && !iszero(entry_scale)
+            # Normalize by the Frobenius norm, which is invariant under rotations.
+            # Scaling by the largest entry first keeps the norm calculation finite.
+            L_entry_scaled = L / entry_scale
+            frobenius_scale = norm(L_entry_scaled)
+            L_scaled = L_entry_scaled / frobenius_scale
             relative_determinant = abs(det(L_scaled))
 
-            if isfinite(relative_determinant) &&
+            if isfinite(frobenius_scale) && !iszero(frobenius_scale) &&
+               isfinite(relative_determinant) &&
                relative_determinant >= minimum_relative_determinant
                 # Avoid rescaling roundoff when the direct determinant is representable.
                 raw_determinant = det(L)
                 if isfinite(raw_determinant) && !iszero(raw_determinant)
                     candidate = inv(L)
                 else
-                    candidate = inv(L_scaled) / scale
+                    candidate = inv(L_scaled) / frobenius_scale / entry_scale
                 end
                 L_inv = all(isfinite, candidate) ? candidate : one(L)
             else

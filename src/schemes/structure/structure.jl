@@ -34,18 +34,20 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
     # Note that `sqrt(eps(h^2)) != eps(h)`.
     h = initial_smoothing_length(neighbor_system)
     almostzero = sqrt(eps(h^2))
+    zero_distance_mode = zero_distance_gradient_mode(neighbor_system, particle_system)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     foreach_point_neighbor(particle_system, neighbor_system,
                            system_coords, neighbor_coords, semi;
                            points=eachparticle) do particle, neighbor, pos_diff, distance
-        # Skip neighbors with the same position because the kernel gradient is zero.
+        # Skip neighbors with the same position when both endpoint gradients are zero.
         # Note that `return` only exits the closure, i.e., skips the current neighbor.
-        skip_zero_distance(neighbor_system) && distance < almostzero && return
+        skip_zero_distance(zero_distance_mode, distance, almostzero) && return
 
         # The structure-oriented gradient is used by viscosity and adhesion below.
-        grad_kernel = smoothing_kernel_grad_unsafe(neighbor_system, pos_diff,
-                                                   distance, neighbor)
+        grad_kernel = local_smoothing_kernel_grad_unsafe(zero_distance_mode,
+                                                         neighbor_system, pos_diff,
+                                                         distance, neighbor, almostzero)
 
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
@@ -73,8 +75,11 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
         # reversed displacement would not yield the reaction force. Instead, compute the fluid
         # acceleration with the same orientation and apply its exact negative to the structure.
         fluid_pos_diff = -pos_diff
-        fluid_grad_kernel = smoothing_kernel_grad_unsafe(neighbor_system, fluid_pos_diff,
-                                                         distance, neighbor)
+        fluid_grad_kernel = local_smoothing_kernel_grad_unsafe(zero_distance_mode,
+                                                               neighbor_system,
+                                                               fluid_pos_diff,
+                                                               distance, neighbor,
+                                                               almostzero)
         dv_fluid_pressure = pressure_acceleration(neighbor_system, particle_system,
                                                   neighbor, particle,
                                                   m_b, m_a, p_fluid - p_avg,
@@ -82,15 +87,15 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
                                                   fluid_pos_diff, distance,
                                                   fluid_grad_kernel,
                                                   system_correction(neighbor_system))
-        pressure_correction = interaction_pressure_correction(neighbor_system, rho_b,
-                                                              rho_a)
+        (viscosity_correction, pressure_correction,
+         _) = interaction_force_corrections(neighbor_system, rho_b, rho_a)
 
         dv_particle = add_dv_viscosity(-dv_fluid_pressure * pressure_correction,
                                        neighbor_system, particle_system,
                                        v_neighbor_system, v_particle_system,
                                        neighbor, particle, pos_diff, distance,
                                        sound_speed, m_b, m_a, rho_b, rho_a,
-                                       v_b, v_a, grad_kernel)
+                                       v_b, v_a, grad_kernel, viscosity_correction)
 
         dv_particle = add_dv_adhesion(dv_particle, surface_tension,
                                       neighbor_system, particle_system,
@@ -109,12 +114,16 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
     return dv
 end
 
-@inline interaction_pressure_correction(system, rho_a, rho_b) = one(rho_a)
+@inline function interaction_force_corrections(system, rho_a, rho_b)
+    one_ = one(rho_a)
+    return one_, one_, one_
+end
 
-@inline function interaction_pressure_correction(system::WeaklyCompressibleSPHSystem,
-                                                 rho_a, rho_b)
+@inline function interaction_force_corrections(system::Union{WeaklyCompressibleSPHSystem,
+                                                             EntropicallyDampedSPHSystem},
+                                               rho_a, rho_b)
     return free_surface_correction(correction_force(system.correction), system,
-                                   rho_a, rho_b)[2]
+                                   rho_a, rho_b)
 end
 
 @inline function add_continuity_equation(drho_particle,

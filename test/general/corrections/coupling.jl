@@ -286,11 +286,15 @@ end
     @test force_corrected.structure_force≈3*uncorrected.structure_force rtol=1e-11 atol=1e-10
 
     # Either endpoint can own an asymmetric correction without creating a net pair force.
-    function heterogeneous_edac_result(correction_a, correction_b; reverse_order=false)
+    function heterogeneous_edac_result(correction_a, correction_b; reverse_order=false,
+                                       collocated=false)
         spacing = 0.1
         kernel = WendlandC6Kernel{2}()
         initial_a = RectangularShape(spacing, (4, 3), (0.0, 0.0); density=1000.0)
         initial_b = RectangularShape(spacing, (4, 3), (0.03, 0.02); density=1000.0)
+        if collocated
+            initial_b.coordinates[:, 1] .= initial_a.coordinates[:, 1]
+        end
         system_a = EntropicallyDampedSPHSystem(initial_a; smoothing_kernel=kernel,
                                                smoothing_length=2spacing, sound_speed=10.0,
                                                density_calculator=SummationDensity(),
@@ -332,4 +336,46 @@ end
             @test norm(result.force) / result.scale < 2e-12
         end
     end
+
+    # A collocated pair still has a nonzero kernel-corrected gradient when its support is
+    # asymmetric. Both directed evaluations must therefore use the pair-aware zero-distance path.
+    for correction in (KernelCorrection(), MixedKernelGradientCorrection()),
+        corrections in ((correction, nothing), (nothing, correction)),
+        reverse_order in (false, true)
+        result = heterogeneous_edac_result(corrections...; reverse_order, collocated=true)
+        @test result.finite
+        @test result.scale > eps()
+        @test norm(result.force) / result.scale < 2e-12
+    end
+
+    # EDAC must apply the force role of Akinci's correction, not only its gradient role.
+    function edac_viscosity_rhs(correction)
+        spacing = 0.1
+        density = 500.0
+        velocity = pos -> SVector(pos[1]^2 + pos[2], pos[2]^2 - pos[1])
+        initial = RectangularShape(spacing, (4, 3), (0.0, 0.0); density, velocity)
+        system = EntropicallyDampedSPHSystem(initial;
+                                             smoothing_kernel=WendlandC6Kernel{2}(),
+                                             smoothing_length=2spacing,
+                                             sound_speed=10.0,
+                                             density_calculator=ContinuityDensity(),
+                                             pressure_acceleration=nothing,
+                                             viscosity=ViscosityAdami(nu=0.01), correction)
+        semi = Semidiscretization(system; neighborhood_search=nothing,
+                                  parallelization_backend=SerialBackend())
+        ode = semidiscretize(semi, (0.0, 1.0); reset_threads=false)
+        v_ode = Array(ode.u0.x[1])
+        u_ode = Array(ode.u0.x[2])
+        dv_ode = zero(v_ode)
+        TrixiParticles.kick!(dv_ode, v_ode, u_ode,
+                             (; semi=ode.p.semi, split_integration_data=nothing), 0.0)
+        system = first(ode.p.semi.systems)
+        dv = TrixiParticles.wrap_v(dv_ode, system, ode.p.semi)
+        return copy(view(dv, 1:2, :))
+    end
+
+    uncorrected_viscosity = edac_viscosity_rhs(nothing)
+    corrected_viscosity = edac_viscosity_rhs(AkinciFreeSurfaceCorrection(1000.0))
+    @test norm(uncorrected_viscosity) > eps()
+    @test corrected_viscosity≈2uncorrected_viscosity rtol=2e-13 atol=2e-13
 end
