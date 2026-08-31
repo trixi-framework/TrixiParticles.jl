@@ -113,10 +113,7 @@ end
 function choose_pressure_acceleration_formulation(pressure_acceleration,
                                                   density_calculator, NDIMS, ELTYPE,
                                                   correction)
-    if correction isa KernelCorrection ||
-       correction isa GradientCorrection ||
-       correction isa BlendedGradientCorrection ||
-       correction isa MixedKernelGradientCorrection
+    if has_asymmetric_gradient(correction)
         if isempty(methods(pressure_acceleration,
                            (ELTYPE, ELTYPE, ELTYPE, ELTYPE, ELTYPE, ELTYPE,
                             SVector{NDIMS, ELTYPE}, SVector{NDIMS, ELTYPE})))
@@ -139,6 +136,13 @@ function choose_pressure_acceleration_formulation(pressure_acceleration,
 
     return pressure_acceleration
 end
+
+@inline has_asymmetric_gradient(::Any) = false
+
+@inline has_asymmetric_gradient(::Union{KernelCorrection,
+                                        GradientCorrection,
+                                        BlendedGradientCorrection,
+                                        MixedKernelGradientCorrection}) = true
 
 function choose_pressure_acceleration_formulation(pressure_acceleration::Nothing,
                                                   density_calculator::SummationDensity,
@@ -169,28 +173,54 @@ end
     return interaction_pressure_offset(system, particle)
 end
 
-# Formulation using symmetric gradient formulation for corrections not depending on local neighborhood.
+# Formulation using both corrected gradients whenever either endpoint uses a correction that
+# breaks pair-gradient symmetry. Both directed evaluations then use the same formulation.
 @inline function pressure_acceleration(particle_system, neighbor_system, particle, neighbor,
                                        m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
                                        distance, W_a, correction)
-    # Without correction or with `AkinciFreeSurfaceCorrection`, the kernel gradient is
-    # symmetric, so call the symmetric version of the pressure acceleration formulation.
+    if has_asymmetric_gradient(correction) ||
+       has_asymmetric_gradient(hydrodynamic_correction(neighbor_system))
+        W_b = hydrodynamic_smoothing_kernel_grad(neighbor_system, -pos_diff, distance,
+                                                 neighbor)
+
+        return pressure_acceleration_formulation(particle_system)(m_a, m_b, rho_a, rho_b,
+                                                                  p_a, p_b, W_a, W_b)
+    end
+
     return pressure_acceleration_formulation(particle_system)(m_a, m_b, rho_a, rho_b,
                                                               p_a, p_b, W_a)
 end
 
-# Formulation using asymmetric gradient formulation for corrections depending on local neighborhood.
-@inline function pressure_acceleration(particle_system, neighbor_system, particle, neighbor,
-                                       m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
-                                       distance, W_a,
-                                       correction::Union{KernelCorrection,
-                                                         GradientCorrection,
-                                                         BlendedGradientCorrection,
-                                                         MixedKernelGradientCorrection})
-    W_b = hydrodynamic_smoothing_kernel_grad(neighbor_system, -pos_diff, distance, neighbor)
+function check_pressure_acceleration_configuration(systems, interaction_matrix)
+    foreach_system(systems) do particle_system
+        particle_system isa AbstractFluidSystem || return
 
-    # With correction, the kernel gradient is not necessarily symmetric, so call the
-    # asymmetric version of the pressure acceleration formulation.
-    return pressure_acceleration_formulation(particle_system)(m_a, m_b, rho_a, rho_b,
-                                                              p_a, p_b, W_a, W_b)
+        foreach_system(systems) do neighbor_system
+            interaction = interaction_matrix[findfirst(system -> system === particle_system,
+                                                       systems),
+                                             findfirst(system -> system === neighbor_system,
+                                                       systems)]
+            interaction === true || return
+
+            correction = system_correction(particle_system)
+            if !has_asymmetric_gradient(correction) &&
+               !has_asymmetric_gradient(hydrodynamic_correction(neighbor_system))
+                return
+            end
+
+            NDIMS = ndims(particle_system)
+            ELTYPE = eltype(particle_system)
+            formulation = pressure_acceleration_formulation(particle_system)
+            signature = (ELTYPE, ELTYPE, ELTYPE, ELTYPE, ELTYPE, ELTYPE,
+                         SVector{NDIMS, ELTYPE}, SVector{NDIMS, ELTYPE})
+            if isempty(methods(formulation, signature))
+                throw(ArgumentError("the pressure acceleration formulation of " *
+                                    "`$(nameof(typeof(particle_system)))` must provide " *
+                                    "`m_a, m_b, rho_a, rho_b, p_a, p_b, W_a, W_b` when " *
+                                    "interacting with an asymmetric gradient correction"))
+            end
+        end
+    end
+
+    return nothing
 end

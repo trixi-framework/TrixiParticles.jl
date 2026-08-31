@@ -183,6 +183,80 @@ end
 
     @test mixed_boundary_rhs_is_valid(backend)
 
+    # Exercise the corrected fluid-structure reaction path on the selected backend.
+    function corrected_structure_rhs_is_valid(kind, structure_kind, backend)
+        spacing = 0.1f0
+        density = 1000.0f0
+        kernel = WendlandC6Kernel{2}()
+        smoothing_length = 2spacing
+        state_equation = StateEquationCole(; sound_speed=10.0f0,
+                                           reference_density=density, exponent=1)
+        fluid_initial = RectangularShape(spacing, (4, 3), (0.0f0, 0.0f0);
+                                         density, coordinates_eltype=Float32)
+        fluid = if kind == :wcsph
+            WeaklyCompressibleSPHSystem(fluid_initial; smoothing_kernel=kernel,
+                                        smoothing_length,
+                                        density_calculator=SummationDensity(),
+                                        state_equation, correction=GradientCorrection())
+        else
+            EntropicallyDampedSPHSystem(fluid_initial; smoothing_kernel=kernel,
+                                        smoothing_length, sound_speed=10.0f0,
+                                        density_calculator=SummationDensity(),
+                                        correction=GradientCorrection())
+        end
+
+        structure_initial = RectangularShape(spacing, (4, 2), (0.0f0, -0.2f0);
+                                             density=1200.0f0,
+                                             coordinates_eltype=Float32)
+        hydrodynamic_mass = fill(density * spacing^2,
+                                 TrixiParticles.nparticles(structure_initial))
+        boundary_model = BoundaryModelDummyParticles(fill(density,
+                                                          TrixiParticles.nparticles(structure_initial)),
+                                                     hydrodynamic_mass,
+                                                     AdamiPressureExtrapolation(), kernel,
+                                                     smoothing_length;
+                                                     state_equation,
+                                                     correction=GradientCorrection())
+        structure = if structure_kind == :rigid
+            RigidBodySystem(structure_initial; boundary_model, particle_spacing=spacing)
+        else
+            TotalLagrangianSPHSystem(structure_initial; smoothing_kernel=kernel,
+                                     smoothing_length, young_modulus=0.0f0,
+                                     poisson_ratio=0.0f0, boundary_model)
+        end
+
+        semi = Semidiscretization(fluid, structure; neighborhood_search=nothing,
+                                  parallelization_backend=backend)
+        ode = semidiscretize(semi, (0.0f0, 0.1f0); reset_threads=false)
+        v_ode, u_ode = ode.u0.x
+        dv_ode = similar(v_ode)
+        fill!(dv_ode, 0.0f0)
+        TrixiParticles.kick!(dv_ode, v_ode, u_ode, ode.p, 0.0f0)
+
+        fluid = only(system
+                     for system in ode.p.semi.systems
+                     if system isa TrixiParticles.AbstractFluidSystem)
+        structure = only(system
+                         for system in ode.p.semi.systems
+                         if system isa Union{RigidBodySystem, TotalLagrangianSPHSystem})
+        dv_fluid = Array(TrixiParticles.wrap_v(dv_ode, fluid, ode.p.semi))
+        fluid_force = vec(sum(Array(fluid.mass)' .* view(dv_fluid, 1:2, :); dims=2))
+        structure_force = if structure isa RigidBodySystem
+            vec(sum(Array(structure.force_per_particle); dims=2))
+        else
+            dv_structure = Array(TrixiParticles.wrap_v(dv_ode, structure, ode.p.semi))
+            vec(sum(Array(structure.mass)' .* view(dv_structure, 1:2, :); dims=2))
+        end
+        force_scale = norm(fluid_force) + norm(structure_force)
+
+        return all(isfinite, Array(dv_ode)) && force_scale > eps(Float32) &&
+               norm(fluid_force + structure_force) / force_scale < 2e-4
+    end
+
+    for kind in (:wcsph, :edac), structure_kind in (:rigid, :tlsph)
+        @test corrected_structure_rhs_is_valid(kind, structure_kind, backend)
+    end
+
     spacing = 0.1f0
     initial_condition = RectangularShape(spacing, (2, 2), (0.0f0, 0.0f0);
                                          density=1000.0f0,

@@ -184,9 +184,10 @@ function compute_shepard_coeff!(system, system_coords, v_ode, u_ode, semi,
                 volume = m_b / rho_b
 
                 kernel_correction_coefficient[particle] += volume *
-                                                           smoothing_kernel(system,
-                                                                            distance,
-                                                                            particle)
+                                                           kernel(hydrodynamic_smoothing_kernel(system),
+                                                                  distance,
+                                                                  hydrodynamic_smoothing_length(system,
+                                                                                                particle))
             end
         end
     end
@@ -261,7 +262,7 @@ function compute_correction_values!(system,
             # Since the coordinates are in the order of the smoothing length `h`, `distance^2` is in
             # the order of `h^2`, so we need to check `distance < sqrt(eps(h^2))`.
             # Note that `sqrt(eps(h^2)) != eps(h)`.
-            h = initial_smoothing_length(system)
+            h = hydrodynamic_smoothing_length(system, nothing)
             almostzero = sqrt(eps(h^2))
 
             # Loop over all pairs of particles and neighbors within the kernel cutoff
@@ -272,8 +273,9 @@ function compute_correction_values!(system,
                 volume = m_b / rho_b
 
                 # Use uncorrected kernel to compute correction coefficients
-                W = kernel(system_smoothing_kernel(system), distance,
-                           smoothing_length(system, particle))
+                smoothing_kernel = hydrodynamic_smoothing_kernel(system)
+                smoothing_length_ = hydrodynamic_smoothing_length(system, particle)
+                W = kernel(smoothing_kernel, distance, smoothing_length_)
 
                 kernel_correction_coefficient[particle] += volume * W
 
@@ -281,9 +283,8 @@ function compute_correction_values!(system,
                 if distance > almostzero
                     # Now that we know that `distance` is not zero, we can safely call the
                     # unsafe version of the kernel gradient to avoid redundant zero checks.
-                    grad_W = kernel_grad_unsafe(system_smoothing_kernel(system), pos_diff,
-                                                distance,
-                                                smoothing_length(system, particle))
+                    grad_W = kernel_grad_unsafe(smoothing_kernel, pos_diff, distance,
+                                                smoothing_length_)
                     tmp = volume * grad_W
                     for i in axes(dw_gamma, 1)
                         dw_gamma[i, particle] += tmp[i]
@@ -443,7 +444,7 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
 
                 # Now that we know that `distance` is not zero, we can safely call the unsafe
                 # version of the kernel gradient to avoid redundant zero checks.
-                smoothing_length_ = smoothing_length(system, particle)
+                smoothing_length_ = hydrodynamic_smoothing_length(system, particle)
                 grad_kernel = correction_matrix_kernel_grad_unsafe(correction,
                                                                    smoothing_kernel,
                                                                    pos_diff, distance,

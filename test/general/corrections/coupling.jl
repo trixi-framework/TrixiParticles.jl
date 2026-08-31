@@ -107,7 +107,9 @@ end
     # Build a perturbed fluid-structure pair and return force-balance diagnostics.
     function coupled_result(kind, structure_kind, correction;
                             boundary_correction=correction, reverse_order=false,
-                            average_pressure_reduction=false)
+                            average_pressure_reduction=false,
+                            structural_smoothing_kernel=nothing,
+                            structural_smoothing_length=nothing)
         spacing = 0.1
         density = 1000.0
         kernel = WendlandC6Kernel{2}()
@@ -149,9 +151,13 @@ end
             structure = RigidBodySystem(structure_initial; boundary_model,
                                         particle_spacing=spacing)
         else
+            structural_smoothing_kernel = isnothing(structural_smoothing_kernel) ?
+                                          kernel : structural_smoothing_kernel
+            structural_smoothing_length = isnothing(structural_smoothing_length) ?
+                                          smoothing_length : structural_smoothing_length
             structure = TotalLagrangianSPHSystem(structure_initial;
-                                                 smoothing_kernel=kernel,
-                                                 smoothing_length,
+                                                 smoothing_kernel=structural_smoothing_kernel,
+                                                 smoothing_length=structural_smoothing_length,
                                                  young_modulus=0.0,
                                                  poisson_ratio=0.0,
                                                  boundary_model)
@@ -204,6 +210,7 @@ end
 
         return (; relative_residual, force_scale, fluid_force, structure_force,
                 fluid_rhs=copy(dv_fluid), fluid_correction, structure_correction,
+                fluid, structure,
                 finite=all(isfinite, dv_ode) && cache_is_finite(fluid) &&
                        cache_is_finite(structure))
     end
@@ -245,5 +252,84 @@ end
         @test result.finite
         @test result.force_scale > eps()
         @test result.relative_residual < 2e-13
+    end
+
+    # The structural discretization must not affect gradients reconstructed from the
+    # TLSPH boundary model.
+    distinct_structural = coupled_result(:wcsph, :tlsph, GradientCorrection();
+                                         structural_smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
+                                         structural_smoothing_length=0.025)
+    @test distinct_structural.finite
+    structure = distinct_structural.structure
+    pos_diff = SVector(0.1, 0.0)
+    distance = norm(pos_diff)
+    @test TrixiParticles.smoothing_kernel_grad(structure, pos_diff, distance, 1) ==
+          zero(pos_diff)
+    hydrodynamic_gradient = TrixiParticles.hydrodynamic_smoothing_kernel_grad(structure,
+                                                                              pos_diff,
+                                                                              distance, 1)
+    expected_gradient = TrixiParticles.corrected_kernel_grad_unsafe(structure.boundary_model.smoothing_kernel,
+                                                                    pos_diff, distance,
+                                                                    structure.boundary_model.smoothing_length,
+                                                                    TrixiParticles.correction_gradient(structure.boundary_model.correction),
+                                                                    structure, 1)
+    @test hydrodynamic_gradient≈expected_gradient rtol=1e-13 atol=1e-13
+    @test !iszero(hydrodynamic_gradient)
+
+    # The WCSPH reaction must retain the same nonunit pressure correction as the fluid RHS.
+    uncorrected = coupled_result(:wcsph, :rigid, nothing)
+    force_corrected = coupled_result(:wcsph, :rigid, CustomForceCorrection();
+                                     boundary_correction=nothing)
+    @test force_corrected.finite
+    @test force_corrected.relative_residual < 2e-13
+    @test force_corrected.fluid_force≈3*uncorrected.fluid_force rtol=1e-11 atol=1e-10
+    @test force_corrected.structure_force≈3*uncorrected.structure_force rtol=1e-11 atol=1e-10
+
+    # Either endpoint can own an asymmetric correction without creating a net pair force.
+    function heterogeneous_edac_result(correction_a, correction_b; reverse_order=false)
+        spacing = 0.1
+        kernel = WendlandC6Kernel{2}()
+        initial_a = RectangularShape(spacing, (4, 3), (0.0, 0.0); density=1000.0)
+        initial_b = RectangularShape(spacing, (4, 3), (0.03, 0.02); density=1000.0)
+        system_a = EntropicallyDampedSPHSystem(initial_a; smoothing_kernel=kernel,
+                                               smoothing_length=2spacing, sound_speed=10.0,
+                                               density_calculator=SummationDensity(),
+                                               correction=correction_a)
+        system_b = EntropicallyDampedSPHSystem(initial_b; smoothing_kernel=kernel,
+                                               smoothing_length=2spacing, sound_speed=10.0,
+                                               density_calculator=SummationDensity(),
+                                               correction=correction_b)
+        systems = reverse_order ? (system_b, system_a) : (system_a, system_b)
+        semi = Semidiscretization(systems...; neighborhood_search=nothing,
+                                  parallelization_backend=SerialBackend())
+        ode = semidiscretize(semi, (0.0, 1.0); reset_threads=false)
+        v_ode = Array(ode.u0.x[1])
+        u_ode = Array(ode.u0.x[2])
+        for system in ode.p.semi.systems
+            v = TrixiParticles.wrap_v(v_ode, system, ode.p.semi)
+            v[3, :] .= range(1.0, 2.0; length=size(v, 2))
+        end
+        dv_ode = zero(v_ode)
+        TrixiParticles.kick!(dv_ode, v_ode, u_ode,
+                             (; semi=ode.p.semi, split_integration_data=nothing), 0.0)
+        force = zeros(2)
+        scale = zero(eltype(force))
+        for system in ode.p.semi.systems
+            dv = TrixiParticles.wrap_v(dv_ode, system, ode.p.semi)
+            system_force = vec(sum(system.mass' .* view(dv, 1:2, :); dims=2))
+            force .+= system_force
+            scale += norm(system_force)
+        end
+        return (; force, scale, finite=all(isfinite, dv_ode))
+    end
+
+    for corrections in ((GradientCorrection(), nothing),
+                        (nothing, GradientCorrection()))
+        for reverse_order in (false, true)
+            result = heterogeneous_edac_result(corrections...; reverse_order)
+            @test result.finite
+            @test result.scale > eps()
+            @test norm(result.force) / result.scale < 2e-12
+        end
     end
 end

@@ -109,6 +109,14 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
     return dv
 end
 
+@inline interaction_pressure_correction(system, rho_a, rho_b) = one(rho_a)
+
+@inline function interaction_pressure_correction(system::WeaklyCompressibleSPHSystem,
+                                                 rho_a, rho_b)
+    return free_surface_correction(correction_force(system.correction), system,
+                                   rho_a, rho_b)[2]
+end
+
 @inline function add_continuity_equation(drho_particle,
                                          particle_system::AbstractStructureSystem,
                                          neighbor_system::AbstractFluidSystem,
