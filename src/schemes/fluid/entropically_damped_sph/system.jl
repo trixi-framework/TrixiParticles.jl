@@ -55,8 +55,8 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
                                 activity. The default is `nothing`, or
                                 `ColorfieldSurfaceNormal()` when required by surface tension.
 - `reference_particle_spacing`: Reference spacing required by colorfield surface methods.
-- `color_value`:                Scalar contributed to colorfield surface detection. Different
-                                values identify represented fluid-fluid interfaces.
+- `color_value`:                Integer phase identifier for colorfield surface detection.
+                                Its numeric magnitude and sign have no physical meaning.
 
 """
 struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, COR, PF, TV,

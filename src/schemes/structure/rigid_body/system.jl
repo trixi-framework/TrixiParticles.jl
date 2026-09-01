@@ -31,12 +31,8 @@ torque and applied consistently to all rigid particles.
                           models when fluids interact with this rigid body. This is
                           only evaluated for fluid-structure interaction with
                           surface-tension-enabled fluid systems.
-- `color_value`: Integer label stored as `system.cache.color`.
-                  Currently this is used with `BoundaryModelDummyParticles` during
-                  colorfield initialization so fluids using a colorfield surface method
-                  can detect contact with rigid
-                 bodies, it participates in the multi-system color sanity check for
-                 colorfield-normal calculations, and it is written to VTK output as `"color"`.
+- `color_value`: Integer phase tag stored as `system.cache.color` and written to VTK output.
+                 Rigid-body support in colorfield surface calculations is label-independent.
 """
 struct RigidBodySystem{BM, CTM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
                        ST, CM, CMV, I, II, AV, RF, RT, AAF, GA, C} <:
@@ -285,8 +281,8 @@ function calc_surface!(system::AbstractFluidSystem,
                                   semi, surface_method_)
 end
 
-@inline function contributes_boundary_colorfield(::RigidBodySystem{<:BoundaryModelDummyParticles})
-    return true
+@inline function contributes_boundary_colorfield(system::RigidBodySystem{<:BoundaryModelDummyParticles})
+    return haskey(system.boundary_model.cache, :initial_colorfield)
 end
 
 @inline function adhesion_force!(dv_particle,
@@ -632,22 +628,6 @@ function check_configuration(system::RigidBodySystem, systems, nhs)
         if neighbor isa AbstractFluidSystem && boundary_model === nothing
             throw(ArgumentError("a boundary model for `RigidBodySystem` must be specified " *
                                 "when simulating a fluid-structure interaction."))
-        end
-
-        if neighbor isa AbstractFluidSystem &&
-           is_colorfield_surface_method(surface_method(neighbor))
-            if !(boundary_model isa BoundaryModelDummyParticles)
-                throw(ArgumentError("`RigidBodySystem` is only compatible with " *
-                                    "colorfield surface methods when using " *
-                                    "`BoundaryModelDummyParticles`."))
-            end
-
-            if !haskey(boundary_model.cache, :initial_colorfield)
-                throw(ArgumentError("`RigidBodySystem` with `BoundaryModelDummyParticles` " *
-                                    "requires `reference_particle_spacing` to be set on " *
-                                    "the boundary model when used together with " *
-                                    "a colorfield surface method or a surface tension model."))
-            end
         end
     end
 end

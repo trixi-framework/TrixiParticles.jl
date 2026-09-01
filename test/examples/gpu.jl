@@ -77,6 +77,64 @@ end
     end
 end
 
+@testset verbose=true "Colorfield Surface Methods $TRIXIPARTICLES_TEST_" begin
+    function surface_result(system_type, surface_method_, backend)
+        particle_spacing = 0.1f0
+        smoothing_length = 0.15f0
+        initial_condition = RectangularShape(particle_spacing, (9, 7), (0.0f0, 0.0f0),
+                                             density=1000.0f0)
+        smoothing_kernel = WendlandC2Kernel{2}()
+
+        system = if system_type == :wcsph
+            state_equation = StateEquationCole(sound_speed=10.0f0,
+                                               reference_density=1000.0f0,
+                                               exponent=1)
+            WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
+                                        smoothing_length,
+                                        density_calculator=SummationDensity(),
+                                        state_equation,
+                                        surface_method=surface_method_,
+                                        reference_particle_spacing=particle_spacing)
+        else
+            EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel,
+                                        smoothing_length, sound_speed=10.0f0,
+                                        density_calculator=SummationDensity(),
+                                        surface_method=surface_method_,
+                                        reference_particle_spacing=particle_spacing)
+        end
+
+        min_corner = minimum(initial_condition.coordinates, dims=2)
+        max_corner = maximum(initial_condition.coordinates, dims=2)
+        cell_list = FullGridCellList(; min_corner, max_corner)
+        neighborhood_search = GridNeighborhoodSearch{2}(; cell_list)
+        semi = Semidiscretization(system; neighborhood_search,
+                                  parallelization_backend=backend)
+        ode = semidiscretize(semi, (0.0f0, 0.01f0))
+        runtime_semi = ode.p.semi
+        runtime_system = first(runtime_semi.systems)
+        TrixiParticles.update_systems_and_nhs(ode.u0.x..., runtime_semi, 0.0f0)
+
+        activity = Array(runtime_system.cache.surface_activity)
+        gradient = Array(TrixiParticles.surface_gradient(runtime_system.cache,
+                                                         runtime_system.surface_method))
+        return (; activity, gradient, runtime_system)
+    end
+
+    detection_method = ColorfieldSurfaceDetection(0.1f0, 0.01f0, 0.9f0, 0.8f0, 0.45f0)
+    normal_method = ColorfieldSurfaceNormal(0.1f0, 0.01f0, 0.9f0, 0.8f0, 0.45f0)
+    for (system_type, surface_method_) in ((:wcsph, detection_method),
+         (:wcsph, normal_method),
+         (:edac, detection_method))
+        cpu = surface_result(system_type, surface_method_, SerialBackend())
+        gpu = surface_result(system_type, surface_method_, Main.parallelization_backend)
+
+        @test isapprox(gpu.activity, cpu.activity; rtol=5.0f-5, atol=5.0f-6)
+        @test isapprox(gpu.gradient, cpu.gradient; rtol=5.0f-5, atol=5.0f-6)
+        @test TrixiParticles.KernelAbstractions.get_backend(gpu.runtime_system.cache.surface_activity) ==
+              Main.parallelization_backend
+    end
+end
+
 @testset verbose=true "Examples $TRIXIPARTICLES_TEST_" begin
     @testset verbose=true "Fluid" begin
         @trixi_testset "fluid/dam_break_2d_gpu.jl Float64" begin

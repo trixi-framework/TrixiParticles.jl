@@ -58,8 +58,8 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
                                 activity. The default is `nothing`, or
                                 `ColorfieldSurfaceNormal()` when required by surface tension.
 - `reference_particle_spacing`: Reference spacing required by colorfield surface methods.
-- `color_value`:                Scalar contributed to colorfield surface detection. Different
-                                values identify represented fluid-fluid interfaces.
+- `color_value`:                Integer phase identifier for colorfield surface detection.
+                                Its numeric magnitude and sign have no physical meaning.
 """
 struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K, V, DD, COR,
                                    PF, SC, ST, B, SRFT, SRFN, PR,

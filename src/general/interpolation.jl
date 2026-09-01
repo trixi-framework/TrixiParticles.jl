@@ -611,6 +611,7 @@ end
                                contributes_boundary_colorfield(neighbor_system))
         surface_color = contributes_to_colorfield(neighbor_system) ?
                         neighbor_system.cache.color : reference_color
+        phase_weight = colorfield_phase_weight(reference_color, surface_color, ELTYPE)
 
         foreach_point_neighbor(point_coords, neighbor_coords, nhs;
                                parallelization_backend) do point, neighbor, pos_diff,
@@ -623,7 +624,7 @@ end
                 grad_kernel = kernel_grad(ref_smoothing_kernel, pos_diff, distance,
                                           smoothing_length)
                 for i in 1:ndims(ref_system)
-                    surface_gradient[i, point] += volume_b * surface_color * grad_kernel[i]
+                    surface_gradient[i, point] += volume_b * phase_weight * grad_kernel[i]
                 end
 
                 if neighbor_system isa AbstractFluidSystem

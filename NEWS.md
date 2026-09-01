@@ -13,6 +13,12 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ## Version 0.5.4
 
+### API Changes
+
+- Replaced the experimental `MechanicalWorkCalculatorCallback` with
+  `MechanicalWorkCalculator`, which can be passed as a custom quantity to
+  `PostprocessCallback` (#1228).
+
 ### Important Bugfixes
 
 - Hardened surface tension model configuration by validating coefficients and surface-normal

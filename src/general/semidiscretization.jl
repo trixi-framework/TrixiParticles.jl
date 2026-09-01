@@ -123,7 +123,7 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
 
     # Check e.g. that the boundary systems are using a state equation if EDAC is not used.
     # Other checks might be added here later.
-    check_configuration(systems, neighborhood_search)
+    check_configuration(systems, neighborhood_search, interaction_matrix)
 
     sizes_u = [u_nvariables(system) * n_integrated_particles(system)
                for system in systems]
@@ -906,46 +906,21 @@ end
 
 function check_configuration(systems,
                              nhs::Union{Nothing, AbstractNeighborhoodSearch})
+    n_systems = length(systems)
+    return check_configuration(systems, nhs, trues(n_systems, n_systems))
+end
+
+function check_configuration(systems,
+                             nhs::Union{Nothing, AbstractNeighborhoodSearch},
+                             interaction_matrix)
     foreach_system(systems) do system
         check_configuration(system, systems, nhs)
     end
 
-    check_system_color(systems)
+    check_surface_configuration(systems, interaction_matrix)
 end
 
 check_configuration(system::AbstractSystem, systems, nhs) = nothing
-
-function check_system_color(systems)
-    requires_color_check = any(systems) do system
-        system isa AbstractFluidSystem || return false
-        system isa ParticlePackingSystem && return false
-
-        return is_colorfield_surface_method(surface_method(system))
-    end
-
-    if requires_color_check
-        fluid_ids = findall(contributes_to_colorfield, systems)
-        boundary_ids = findall(system -> system isa
-                                         WallBoundarySystem{<:BoundaryModelDummyParticles} ||
-                                         system isa
-                                         RigidBodySystem{<:BoundaryModelDummyParticles},
-                               systems)
-        surface_fluid_ids = filter(i -> is_colorfield_surface_method(surface_method(systems[i])),
-                                   fluid_ids)
-
-        participant_ids = (fluid_ids..., boundary_ids...)
-        if all(i -> iszero(systems[i].cache.color), participant_ids)
-            throw(ArgumentError("When a colorfield surface method is used, at least one participating system must have a color different from 0."))
-        end
-
-        if !isempty(boundary_ids) &&
-           any(i -> iszero(systems[i].cache.color), surface_fluid_ids) &&
-           all(i -> iszero(systems[i].cache.color), boundary_ids)
-            throw(ArgumentError("A fluid with a colorfield surface method and color 0 requires " *
-                                "a nonzero dummy-boundary color for contact detection."))
-        end
-    end
-end
 
 # After `adapt`, the system type information may change.
 # This means that systems linking to other systems still point to old systems.

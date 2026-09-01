@@ -8,10 +8,10 @@ abstract type AbstractSurfaceNormalMethod <: AbstractSurfaceMethod end
                                  interface_taper_start=0.8,
                                  interpolation_surface_threshold=0.45)
 
-Detect fluid surfaces from the magnitude of a colorfield gradient. Different
-`color_value`s detect represented fluid-fluid interfaces, while incomplete constant-color
-support detects a free surface. This method computes [`surface_activity`](@ref), but does
-not expose a surface normal.
+Detect fluid surfaces from the magnitude of a colorfield gradient. `color_value` is a
+categorical phase identifier: unequal values detect represented fluid-fluid interfaces,
+while incomplete same-phase support detects a free surface. This method computes
+[`surface_activity`](@ref), but does not expose a surface normal.
 """
 struct ColorfieldSurfaceDetection{ELTYPE} <: AbstractSurfaceMethod
     boundary_contact_threshold::ELTYPE
@@ -122,7 +122,10 @@ end
 @inline is_colorfield_surface_method(::ColorfieldSurfaceMethod) = true
 
 @inline contributes_boundary_colorfield(system) = false
-@inline contributes_boundary_colorfield(::AbstractBoundarySystem) = true
+
+@inline function colorfield_phase_weight(color_a, color_b, ::Type{ELTYPE}) where {ELTYPE}
+    return ifelse(color_a == color_b, one(ELTYPE), zero(ELTYPE))
+end
 
 @inline function default_surface_method(surface_tension, surface_method)
     if isnothing(surface_method) && requires_surface_normal(surface_tension)
@@ -229,7 +232,9 @@ function calc_surface!(system::AbstractFluidSystem,
 
     (; cache) = system
     gradient = surface_gradient(cache, surface_method)
-    color_b = neighbor_system.cache.color
+    phase_weight = colorfield_phase_weight(system.cache.color,
+                                           neighbor_system.cache.color,
+                                           eltype(system))
     system_coords = current_coordinates(u_system, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
@@ -242,7 +247,7 @@ function calc_surface!(system::AbstractFluidSystem,
         grad_kernel = kernel_grad(system_smoothing_kernel(system), pos_diff, distance,
                                   smoothing_length(system, particle))
         for i in 1:ndims(system)
-            gradient[i, particle] += volume_b * color_b * grad_kernel[i]
+            gradient[i, particle] += volume_b * phase_weight * grad_kernel[i]
         end
         cache.neighbor_count[particle] += 1
     end
@@ -257,17 +262,16 @@ function calc_boundary_surface!(system::AbstractFluidSystem, neighbor_system, u_
     gradient = surface_gradient(cache, surface_method)
     (; colorfield, initial_colorfield) = neighbor_system.boundary_model.cache
     (; boundary_contact_threshold) = surface_method
-    color_a = system.cache.color
 
     system_coords = current_coordinates(u_system, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-    colorfield .= abs.(initial_colorfield)
+    colorfield .= initial_colorfield
     foreach_point_neighbor(neighbor_system, system,
                            neighbor_system_coords, system_coords,
                            semi) do particle, neighbor, pos_diff, distance
         colorfield[particle] += hydrodynamic_mass(system, neighbor) /
-                                current_density(v, system, neighbor) * abs(color_a) *
+                                current_density(v, system, neighbor) *
                                 smoothing_kernel(system, distance, particle)
     end
 
@@ -283,7 +287,7 @@ function calc_boundary_surface!(system::AbstractFluidSystem, neighbor_system, u_
             grad_kernel = kernel_grad(system_smoothing_kernel(system), pos_diff, distance,
                                       smoothing_length(system, particle))
             for i in 1:ndims(system)
-                gradient[i, particle] += volume_a * color_a * grad_kernel[i]
+                gradient[i, particle] += volume_a * grad_kernel[i]
             end
             cache.neighbor_count[particle] += 1
         end
@@ -297,6 +301,8 @@ function calc_surface!(system::AbstractFluidSystem,
                        u_system, v, v_neighbor_system, u_neighbor_system, semi,
                        surface_method::ColorfieldSurfaceMethod,
                        neighbor_surface_method)
+    contributes_boundary_colorfield(neighbor_system) || return system
+
     return calc_boundary_surface!(system, neighbor_system, u_system, v, u_neighbor_system,
                                   semi, surface_method)
 end
@@ -315,21 +321,23 @@ function invalid_surface_particle(system, surface_method::ColorfieldSurfaceMetho
 end
 
 function finalize_surface!(system::AbstractFluidSystem, surface_tension,
-                           surface_method::ColorfieldSurfaceMethod)
+                           surface_method::ColorfieldSurfaceMethod, semi)
     gradient = surface_gradient(system.cache, surface_method)
     support_radius = compact_support(system_smoothing_kernel(system),
                                      initial_smoothing_length(system))
 
-    for particle in each_integrated_particle(system)
+    @threaded semi for particle in each_integrated_particle(system)
         particle_gradient = extract_svector(gradient, system, particle)
         gradient_norm = norm(particle_gradient)
         activity = gradient_surface_activity(gradient_norm, support_radius, surface_method)
 
         if invalid_surface_particle(system, surface_method, particle, support_radius)
-            system.cache.surface_activity[particle] = zero(activity)
-            gradient[1:ndims(system), particle] .= 0
+            @inbounds system.cache.surface_activity[particle] = zero(activity)
+            for i in 1:ndims(system)
+                @inbounds gradient[i, particle] = zero(eltype(gradient))
+            end
         else
-            system.cache.surface_activity[particle] = activity
+            @inbounds system.cache.surface_activity[particle] = activity
         end
     end
 
@@ -337,29 +345,35 @@ function finalize_surface!(system::AbstractFluidSystem, surface_tension,
 end
 
 function finalize_surface!(system::AbstractFluidSystem, surface_tension,
-                           surface_method::ColorfieldSurfaceNormal)
+                           surface_method::ColorfieldSurfaceNormal, semi)
     gradient = surface_gradient(system.cache, surface_method)
     support_radius = compact_support(system_smoothing_kernel(system),
                                      initial_smoothing_length(system))
     normal_condition2 = (surface_method.interface_threshold / support_radius)^2
 
-    for particle in each_integrated_particle(system)
+    @threaded semi for particle in each_integrated_particle(system)
         particle_gradient = extract_svector(gradient, system, particle)
         norm2 = dot(particle_gradient, particle_gradient)
         gradient_norm = sqrt(norm2)
         activity = gradient_surface_activity(gradient_norm, support_radius, surface_method)
 
         if invalid_surface_particle(system, surface_method, particle, support_radius)
-            system.cache.surface_activity[particle] = zero(activity)
-            gradient[1:ndims(system), particle] .= 0
+            @inbounds system.cache.surface_activity[particle] = zero(activity)
+            for i in 1:ndims(system)
+                @inbounds gradient[i, particle] = zero(eltype(gradient))
+            end
         elseif norm2 > normal_condition2
-            system.cache.surface_activity[particle] = activity
+            @inbounds system.cache.surface_activity[particle] = activity
             if normalize_surface_normals(surface_tension)
-                gradient[1:ndims(system), particle] = particle_gradient / gradient_norm
+                for i in 1:ndims(system)
+                    @inbounds gradient[i, particle] = particle_gradient[i] / gradient_norm
+                end
             end
         else
-            system.cache.surface_activity[particle] = activity
-            gradient[1:ndims(system), particle] .= 0
+            @inbounds system.cache.surface_activity[particle] = activity
+            for i in 1:ndims(system)
+                @inbounds gradient[i, particle] = zero(eltype(gradient))
+            end
         end
     end
 
@@ -394,14 +408,9 @@ function compute_surface!(system::AbstractFluidSystem,
                           surface_method(neighbor_system))
         end
     end
-    finalize_surface!(system, surface_tension, surface_method_)
+    finalize_surface!(system, surface_tension, surface_method_, semi)
 
     return system
-end
-
-function remove_invalid_normals!(system::AbstractFluidSystem, surface_tension,
-                                 surface_method::ColorfieldSurfaceNormal)
-    return finalize_surface!(system, surface_tension, surface_method)
 end
 
 function calc_curvature!(system, neighbor_system, u_system, v,

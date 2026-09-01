@@ -228,239 +228,35 @@ therefore provides an interface-normal estimate; its orientation depends on the 
 convention. For a free surface whose exterior phase is not represented by particles, truncation of
 the kernel support creates the corresponding discrete color-field gradient.
 
-The simplest SPH approximation of an unnormalized color-field normal, ``n_a``, is
+For phase ``a``, the unnormalized surface normal is computed from a phase-local indicator
+``\chi_a``:
 
 ```math
-n_a = \sum_b m_b \frac{c_b}{\rho_b} \nabla_a W_{ab},
+\bm{n}_a = \sum_b m_b \frac{\chi_a(b)}{\rho_b} \nabla_a W_{ab},
 ```
 
 where:
 
-- ``c_b`` is the color field value for particle ``b``,
+- ``\chi_a(b)`` is one when particles ``a`` and ``b`` have the same `color_value` and
+  zero otherwise,
 - ``m_b`` is the mass of particle ``b``,
 - ``\rho_b`` is the density of particle ``b``,
 - ``\nabla_a W_{ab}`` is the gradient of the smoothing kernel ``W_{ab}`` with respect to particle ``a``.
 
-TrixiParticles evaluates this sum over every interacting physical fluid system. A neighboring
-fluid therefore contributes its `color_value` even when it does not compute its own normals.
-Particle-packing preprocessing systems are excluded. At a free surface, particles in the
-unrepresented exterior phase are absent from the sum.
-
-```@eval
-using CairoMakie
-
-let
-    coordinate = range(-2.0, 2.0, length=401)
-    interface_width = 0.3
-    colorfield = @. 0.5 * (1.0 - tanh(coordinate / interface_width))
-    colorfield_gradient = @. -0.5 / interface_width /
-                             cosh(coordinate / interface_width)^2
-
-    fig = Figure(size=(1000, 430), fontsize=18)
-    color_axis = Axis(fig[1, 1],
-                      xlabel="signed distance s/h", ylabel="color field c",
-                      title="Diffuse color-field transition")
-    gradient_axis = Axis(fig[1, 2],
-                         xlabel="signed distance s/h", ylabel="dc/d(s/h)",
-                         title="Color-field gradient")
-
-    lines!(color_axis, coordinate, colorfield, color=:steelblue, linewidth=3)
-    lines!(gradient_axis, coordinate, colorfield_gradient, color=:darkorange,
-           linewidth=3)
-    vlines!(color_axis, [0.0], color=:black, linestyle=:dash, linewidth=2)
-    vlines!(gradient_axis, [0.0], color=:black, linestyle=:dash, linewidth=2)
-    hlines!(gradient_axis, [0.0], color=(:black, 0.35), linewidth=1)
-    xlims!(color_axis, extrema(coordinate))
-    xlims!(gradient_axis, extrema(coordinate))
-
-    CairoMakie.save("colorfield_profile.png", fig)
-end
-```
-
-![A diffuse color field and its gradient across an interface](colorfield_profile.png)
-
-The color field is approximately constant within either phase. Its gradient is localized in the
-transition region and vanishes away from the interface. The sign of the gradient determines the
-normal orientation; exchanging the two color values reverses that orientation.
-
-##### Multiple color values
-
-With more than two color values, every transition between unequal values contributes to the
-color-field gradient. The direction of each gradient points toward the larger color value, while
-its magnitude depends on the size of the color jump.
-
-This is useful when several represented fluid phases or materials need to remain distinguishable in a
-single scalar field. The value of ``c`` identifies the local region, while ``\nabla c`` locates and
-orients each interface. This information can support interface reconstruction, phase-specific
-boundary conditions, and post-processing. Assigning the same color value to two adjacent regions
-deliberately makes their common boundary invisible to the color-field gradient.
-
-```@eval
-using CairoMakie
-
-let
-    coordinate = range(-3.0, 3.0, length=601)
-    interface_width = 0.18
-    smooth_step(position) = @. 0.5 *
-                               (1.0 + tanh((coordinate - position) / interface_width))
-    smooth_step_gradient(position) = @. 0.5 / interface_width /
-                                        cosh((coordinate - position) / interface_width)^2
-
-    color_a, color_b, color_c = 0.0, 2.0, 1.0
-    colorfield = color_a .+
-                 (color_b - color_a) .* smooth_step(-1.0) .+
-                 (color_c - color_b) .* smooth_step(1.0)
-    colorfield_gradient = (color_b - color_a) .* smooth_step_gradient(-1.0) .+
-                          (color_c - color_b) .* smooth_step_gradient(1.0)
-
-    fig = Figure(size=(1000, 430), fontsize=18)
-    color_axis = Axis(fig[1, 1],
-                      xlabel="signed distance s/h", ylabel="color field c",
-                      title="Three color values")
-    gradient_axis = Axis(fig[1, 2],
-                         xlabel="signed distance s/h", ylabel="dc/d(s/h)",
-                         title="Interface gradients")
-
-    lines!(color_axis, coordinate, colorfield, color=:steelblue, linewidth=3)
-    lines!(gradient_axis, coordinate, colorfield_gradient, color=:darkorange,
-           linewidth=3)
-    text!(color_axis, -2.0, 0.3, text="A: c = 0", align=(:center, :center))
-    text!(color_axis, 0.0, 1.5, text="B: c = 2", align=(:center, :center))
-    text!(color_axis, 2.0, 0.7, text="C: c = 1", align=(:center, :center))
-    vlines!(color_axis, [-1.0, 1.0], color=:black, linestyle=:dash, linewidth=2)
-    vlines!(gradient_axis, [-1.0, 1.0], color=:black, linestyle=:dash, linewidth=2)
-    hlines!(gradient_axis, [0.0], color=(:black, 0.35), linewidth=1)
-    xlims!(color_axis, extrema(coordinate))
-    xlims!(gradient_axis, extrema(coordinate))
-
-    CairoMakie.save("multiple_color_values.png", fig)
-
-    vertical_coordinate = range(-1.0, 1.0, length=101)
-    colorfield_2d = repeat(reshape(colorfield, :, 1), 1, length(vertical_coordinate))
-    particle_coordinates = [(x, y) for x in -2.75:0.25:2.75
-                             for y in -0.8:0.25:0.8]
-    particle_x = first.(particle_coordinates)
-    particle_y = last.(particle_coordinates)
-
-    normal_y = collect(range(-0.7, 0.7, length=5))
-    normal_origins_x = vcat(fill(-1.0, length(normal_y)),
-                            fill(1.0, length(normal_y)))
-    normal_origins_y = vcat(normal_y, normal_y)
-    normal_directions_x = vcat(fill(1.0, length(normal_y)),
-                               fill(-1.0, length(normal_y)))
-    normal_directions_y = zeros(length(normal_directions_x))
-
-    normal_fig = Figure(size=(1000, 430), fontsize=18)
-    normal_axis = Axis(normal_fig[1, 1], aspect=DataAspect(),
-                       xlabel="x/h", ylabel="y/h",
-                       title="Unit normals at multiple color interfaces")
-    heatmap = heatmap!(normal_axis, coordinate, vertical_coordinate, colorfield_2d,
-                       colormap=:viridis, colorrange=(0.0, 2.0))
-    scatter!(normal_axis, particle_x, particle_y, color=(:black, 0.3), markersize=5)
-    text!(normal_axis, -2.0, 0.88, text="A: c = 0", color=:white,
-          align=(:center, :top))
-    text!(normal_axis, 0.0, 0.88, text="B: c = 2", color=:black,
-          align=(:center, :top))
-    text!(normal_axis, 2.0, 0.88, text="C: c = 1", color=:white,
-          align=(:center, :top))
-    vlines!(normal_axis, [-1.0, 1.0], color=:white, linewidth=3)
-    arrows2d!(normal_axis, normal_origins_x, normal_origins_y,
-              normal_directions_x, normal_directions_y,
-              normalize=true, lengthscale=0.45, color=:black,
-              shaftwidth=3, tipwidth=14, tiplength=10)
-    xlims!(normal_axis, extrema(coordinate))
-    ylims!(normal_axis, extrema(vertical_coordinate))
-    Colorbar(normal_fig[1, 2], heatmap, label="color field c")
-
-    CairoMakie.save("multiple_color_surface_normals.png", normal_fig)
-end
-```
-
-![A color field and its gradient for three different color values](multiple_color_values.png)
-
-Here the regions from left to right have ``c_A=0``, ``c_B=2``, and ``c_C=1``. At the
-``A-B`` interface, the positive gradient points from ``A`` to ``B``. At the ``B-C`` interface,
-the negative gradient points from ``C`` to ``B``. The first peak is twice as large because
-``|c_B-c_A|=2`` instead of ``|c_C-c_B|=1``. Thus, numerical color differences affect an
-unnormalized color-field normal. Normalization removes this difference from the direction but not
-from formulations that retain the raw gradient magnitude, including the Akinci area term and the
-momentum-conserving Morris surface delta. Color contrasts must therefore be selected consistently
-when those models are used.
-
-![Resulting surface normals for three color values](multiple_color_surface_normals.png)
-
-The unit-normal directions are defined only in the transition regions. At the ``A-B`` interface
-they point to the right, from ``A`` toward the larger value in ``B``. At the ``B-C`` interface they
-point to the left, again toward ``B``. Inside each constant-color region the gradient vanishes, so
-the unit normal is undefined and is represented numerically by a zero vector. If the opposite
-orientation is required, the normal sign must be reversed according to the chosen phase convention.
+The numeric magnitude and sign of `color_value` therefore have no physical meaning. For a
+single fluid, ``\chi_a(b) = 1`` for neighboring fluid particles, including when the phase is
+labeled zero.
 
 #### Normalization of surface normals
 
-The color-field gradient ``n_a`` is generally not a unit vector. Formulations that require only
-the interface orientation use the unit normal
+The Morris surface-tension models normalize the calculated normals to unit vectors:
 
 ```math
 \hat{n}_a = \frac{n_a}{\Vert n_a \Vert}.
 ```
 
-Normalization separates the interface orientation from the magnitude of the discrete color-field
-gradient. In TrixiParticles, standalone analysis/VTK output and the Akinci surface-area force use
-the filtered, unnormalized gradient. The Morris formulations use unit normals for curvature or
-surface-stress calculations; the momentum-conserving formulation separately retains the raw
-gradient magnitude as its surface delta function.
-
-```@eval
-using CairoMakie
-
-let
-    coordinate = range(-1.35, 1.35, length=241)
-    radius = 0.85
-    interface_width = 0.1
-    colorfield = [0.5 * (1.0 - tanh((hypot(x, y) - radius) / interface_width))
-                  for x in coordinate, y in coordinate]
-
-    particle_spacing = 0.17
-    particle_coordinates = [(x, y) for x in (-radius):particle_spacing:radius
-                             for y in (-radius):particle_spacing:radius
-                             if hypot(x, y) <= radius]
-    particle_x = first.(particle_coordinates)
-    particle_y = last.(particle_coordinates)
-
-    angles = range(0.0, 2pi, length=13)[1:(end - 1)]
-    normal_x = -cos.(angles)
-    normal_y = -sin.(angles)
-    interface_x = radius .* cos.(angles)
-    interface_y = radius .* sin.(angles)
-
-    fig = Figure(size=(760, 650), fontsize=18)
-    axis = Axis(fig[1, 1], aspect=DataAspect(),
-                xlabel="x/h", ylabel="y/h",
-                title="Interface orientation from the color-field gradient")
-    heatmap = heatmap!(axis, coordinate, coordinate, colorfield,
-                       colormap=:viridis, colorrange=(0.0, 1.0))
-    contour!(axis, coordinate, coordinate, colorfield,
-             levels=[0.1, 0.9], color=(:white, 0.8), linewidth=1.5)
-    contour!(axis, coordinate, coordinate, colorfield,
-             levels=[0.5], color=:white, linewidth=3)
-    scatter!(axis, particle_x, particle_y, color=(:black, 0.35), markersize=5)
-    arrows2d!(axis, interface_x, interface_y, normal_x, normal_y,
-              normalize=true, lengthscale=0.3, color=:black,
-              shaftwidth=3, tipwidth=14, tiplength=10)
-    xlims!(axis, extrema(coordinate))
-    ylims!(axis, extrema(coordinate))
-    Colorbar(fig[1, 2], heatmap, label="color field c")
-
-    CairoMakie.save("colorfield_surface_normals.png", fig)
-end
-```
-
-![Color-field level sets and interface-normal directions](colorfield_surface_normals.png)
-
-The particle phase has ``c \approx 1`` and the exterior has ``c \approx 0``. Consequently,
-``\nabla c`` and the displayed unit normals point toward increasing ``c``. The arrows are
-perpendicular to the color-field level sets; reversing the color convention reverses the arrows
-without changing the interface geometry.
+Normalization ensures that their magnitude does not bias curvature calculations. The Akinci
+model retains the unnormalized phase-local gradient required by its force formulation.
 
 #### Surface methods and activity
 
@@ -471,9 +267,15 @@ includes detection.
 
 `ColorfieldSurfaceDetection` computes activity only. `ColorfieldSurfaceNormal` uses the same
 colorfield accumulation and additionally filters and stores the gradient as a surface normal.
-Different `color_value`s detect interfaces between represented liquids. A constant nonzero
-color detects a free surface because its kernel support ends at the unrepresented exterior.
-Equal colors do not create an internal interface.
+Different `color_value`s detect interfaces between represented liquids. Any constant phase
+label, including zero, detects a free surface because its kernel support ends at the
+unrepresented exterior. Equal labels do not create an internal interface. Relabeling phases
+without changing phase membership does not change activity, normals, or surface-tension
+forces.
+
+Colorfield wall correction currently requires `BoundaryModelDummyParticles` with
+`reference_particle_spacing` set. Other boundary models are rejected during
+semidiscretization instead of being treated as free surfaces.
 
 `surface_activity` is available in particle VTK output and as a custom quantity for
 `SolutionSavingCallback` and `PostprocessCallback`. `surf_normal` is written only for

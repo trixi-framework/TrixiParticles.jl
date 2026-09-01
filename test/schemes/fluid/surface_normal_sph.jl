@@ -220,9 +220,6 @@ function compute_and_test_surface_values(system, semi, ode; NDIMS=2)
     TrixiParticles.compute_surface!(system, system.surface_method, v, u,
                                     v0_ode, u0_ode, semi, 0.0)
 
-    TrixiParticles.remove_invalid_normals!(system, system.surface_tension,
-                                           system.surface_method)
-
     # After computation, check that surface normals have been computed and are not NaN or Inf
     @test all(isfinite, system.cache.surface_normal)
     @test all(isfinite, system.cache.neighbor_count)
@@ -449,24 +446,162 @@ end
 
     detection_method = ColorfieldSurfaceDetection(interface_threshold=1.0e-6)
     normal_method = ColorfieldSurfaceNormal(interface_threshold=1.0e-6)
-    increasing_gradient, increasing_activity,
-    non_surface_neighbor = interface_geometry(0, 2, detection_method)
-    unit_gradient, _, _ = interface_geometry(0, 1, detection_method)
-    decreasing_gradient, decreasing_activity, _ = interface_geometry(2, 0,
-                                                                     detection_method)
+    reference_gradient, reference_activity,
+    non_surface_neighbor = interface_geometry(0, 1, detection_method)
+    scaled_gradient, scaled_activity, _ = interface_geometry(0, 2, detection_method)
+    shifted_gradient, shifted_activity, _ = interface_geometry(5, 6, detection_method)
+    negated_gradient, negated_activity, _ = interface_geometry(0, -1,
+                                                               detection_method)
+    permuted_gradient, permuted_activity, _ = interface_geometry(1, 0,
+                                                                 detection_method)
     equal_gradient, equal_activity, _ = interface_geometry(1, 1, detection_method)
     normal_gradient, normal_activity, _ = interface_geometry(0, 2, normal_method)
 
     @test isnothing(non_surface_neighbor.surface_method)
-    @test increasing_gradient[1] > 0
-    @test decreasing_gradient[1] < 0
-    @test isapprox(norm(increasing_gradient), 2norm(unit_gradient); rtol=1.0e-12)
+    @test norm(reference_gradient) > 100eps()
+    @test isapprox(scaled_gradient, reference_gradient; rtol=1.0e-12, atol=1.0e-12)
+    @test isapprox(shifted_gradient, reference_gradient; rtol=1.0e-12, atol=1.0e-12)
+    @test isapprox(negated_gradient, reference_gradient; rtol=1.0e-12, atol=1.0e-12)
+    @test isapprox(permuted_gradient, reference_gradient; rtol=1.0e-12, atol=1.0e-12)
     @test norm(equal_gradient) < 100eps()
-    @test increasing_activity == 1
-    @test decreasing_activity == 1
+    @test reference_activity == 1
+    @test scaled_activity == reference_activity
+    @test shifted_activity == reference_activity
+    @test negated_activity == reference_activity
+    @test permuted_activity == reference_activity
     @test equal_activity == 0
-    @test normal_activity == increasing_activity
-    @test normal_gradient == increasing_gradient
+    @test normal_activity == reference_activity
+    @test normal_gradient == reference_gradient
+
+    detached_coordinates = coordinates_a .+ [2.0, 0.0]
+    detached_ic_a = InitialCondition(; coordinates=coordinates_a,
+                                     density=fill(1000.0, size(coordinates_a, 2)),
+                                     particle_spacing)
+    detached_ic_b = InitialCondition(; coordinates=detached_coordinates,
+                                     density=fill(1000.0, size(detached_coordinates, 2)),
+                                     particle_spacing)
+    detached_a = WeaklyCompressibleSPHSystem(detached_ic_a; smoothing_kernel,
+                                             smoothing_length,
+                                             density_calculator=SummationDensity(),
+                                             state_equation,
+                                             surface_method=detection_method,
+                                             reference_particle_spacing=particle_spacing,
+                                             color_value=0)
+    detached_b = WeaklyCompressibleSPHSystem(detached_ic_b; smoothing_kernel,
+                                             smoothing_length,
+                                             density_calculator=SummationDensity(),
+                                             state_equation,
+                                             surface_method=detection_method,
+                                             reference_particle_spacing=particle_spacing,
+                                             color_value=1)
+    detached_semi = Semidiscretization(detached_a, detached_b)
+    detached_ode = semidiscretize(detached_semi, (0.0, 0.01))
+    TrixiParticles.update_systems_and_nhs(detached_ode.u0.x..., detached_semi, 0.0)
+    @test detached_a.cache.surface_activity == detached_b.cache.surface_activity
+    @test isapprox(detached_a.cache.surface_gradient,
+                   detached_b.cache.surface_gradient; rtol=1.0e-12, atol=1.0e-12)
+
+    function interface_force(color_a, color_b)
+        initial_condition_a = InitialCondition(; coordinates=coordinates_a,
+                                               density=fill(1000.0,
+                                                            size(coordinates_a, 2)),
+                                               particle_spacing)
+        initial_condition_b = InitialCondition(; coordinates=coordinates_b,
+                                               density=fill(1000.0,
+                                                            size(coordinates_b, 2)),
+                                               particle_spacing)
+        surface_tension = SurfaceTensionAkinci(surface_tension_coefficient=0.05)
+        method = ColorfieldSurfaceNormal(interface_threshold=1.0e-6)
+        system_a = WeaklyCompressibleSPHSystem(initial_condition_a; smoothing_kernel,
+                                               smoothing_length,
+                                               density_calculator=SummationDensity(),
+                                               state_equation, surface_tension,
+                                               surface_method=method,
+                                               reference_particle_spacing=particle_spacing,
+                                               color_value=color_a)
+        system_b = WeaklyCompressibleSPHSystem(initial_condition_b; smoothing_kernel,
+                                               smoothing_length,
+                                               density_calculator=SummationDensity(),
+                                               state_equation, surface_tension,
+                                               surface_method=method,
+                                               reference_particle_spacing=particle_spacing,
+                                               color_value=color_b)
+        semi = Semidiscretization(system_a, system_b)
+        ode = semidiscretize(semi, (0.0, 0.01))
+        v_ode, u_ode = ode.u0.x
+        TrixiParticles.update_systems_and_nhs(v_ode, u_ode, semi, 0.0)
+        dv_ode = zero(v_ode)
+        TrixiParticles.system_interaction!(dv_ode, v_ode, u_ode, semi)
+
+        return (; normal_a=copy(system_a.cache.surface_normal),
+                normal_b=copy(system_b.cache.surface_normal),
+                activity_a=copy(system_a.cache.surface_activity),
+                activity_b=copy(system_b.cache.surface_activity),
+                acceleration=Array(dv_ode))
+    end
+
+    reference_force = interface_force(0, 1)
+    for colors in ((0, 2), (5, 6), (0, -1), (1, 0))
+        transformed_force = interface_force(colors...)
+        @test isapprox(transformed_force.normal_a, reference_force.normal_a;
+                       rtol=1.0e-12, atol=1.0e-12)
+        @test isapprox(transformed_force.normal_b, reference_force.normal_b;
+                       rtol=1.0e-12, atol=1.0e-12)
+        @test transformed_force.activity_a == reference_force.activity_a
+        @test transformed_force.activity_b == reference_force.activity_b
+        @test isapprox(transformed_force.acceleration, reference_force.acceleration;
+                       rtol=1.0e-12, atol=1.0e-12)
+    end
+end
+
+@testset verbose=true "Surface Configuration Uses Enabled Interactions" begin
+    particle_spacing = 0.1
+    smoothing_length = 0.15
+    initial_condition = RectangularShape(particle_spacing, (5, 5), (0.0, 0.0),
+                                         density=1000.0)
+    smoothing_kernel = WendlandC2Kernel{2}()
+    state_equation = StateEquationCole(sound_speed=10.0, reference_density=1000.0,
+                                       exponent=1)
+
+    function normal_system()
+        return WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
+                                           smoothing_length,
+                                           density_calculator=SummationDensity(),
+                                           state_equation,
+                                           surface_tension=SurfaceTensionAkinci(),
+                                           reference_particle_spacing=particle_spacing)
+    end
+    function detection_system()
+        return WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
+                                           smoothing_length,
+                                           density_calculator=SummationDensity(),
+                                           state_equation,
+                                           surface_method=ColorfieldSurfaceDetection(),
+                                           reference_particle_spacing=particle_spacing)
+    end
+
+    @test_throws ArgumentError Semidiscretization(normal_system(), detection_system())
+    interaction_matrix = Bool[true false
+                              true true]
+    @test_nowarn Semidiscretization(normal_system(), detection_system();
+                                    interaction_matrix)
+
+    boundary_model = BoundaryModelMonaghanKajtar(10.0, 1.0, particle_spacing,
+                                                 initial_condition.mass)
+    boundary_system = WallBoundarySystem(initial_condition, boundary_model)
+    @test_throws ArgumentError Semidiscretization(detection_system(), boundary_system)
+
+    disabled_boundary = Bool[true false
+                             true true]
+    @test_nowarn Semidiscretization(detection_system(), boundary_system;
+                                    interaction_matrix=disabled_boundary)
+
+    dummy_model = BoundaryModelDummyParticles(initial_condition.density,
+                                              initial_condition.mass,
+                                              SummationDensity(), smoothing_kernel,
+                                              smoothing_length; state_equation)
+    dummy_boundary = WallBoundarySystem(initial_condition, dummy_model)
+    @test_throws ArgumentError Semidiscretization(detection_system(), dummy_boundary)
 end
 
 @testset verbose=true "Rigid Dummy Boundary Matches Wall Boundary" begin

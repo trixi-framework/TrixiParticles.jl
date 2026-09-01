@@ -206,24 +206,28 @@
             interface_state_equation = StateEquationCole(sound_speed=10.0,
                                                          reference_density=1000.0,
                                                          exponent=1)
-            system_a = WeaklyCompressibleSPHSystem(initial_condition_a;
-                                                   smoothing_kernel=interface_kernel,
-                                                   smoothing_length=0.15,
-                                                   density_calculator=SummationDensity(),
-                                                   state_equation=interface_state_equation,
-                                                   surface_method=ColorfieldSurfaceDetection(interface_threshold=1.0e-6),
-                                                   reference_particle_spacing=interface_spacing,
-                                                   color_value=1)
-            system_b = WeaklyCompressibleSPHSystem(initial_condition_b;
-                                                   smoothing_kernel=interface_kernel,
-                                                   smoothing_length=0.15,
-                                                   density_calculator=SummationDensity(),
-                                                   state_equation=interface_state_equation,
-                                                   color_value=2)
-            interface_semi = Semidiscretization(system_a, system_b)
-            interface_ode = semidiscretize(interface_semi, (0.0, 0.01))
-            TrixiParticles.update_systems_and_nhs(interface_ode.u0.x..., interface_semi,
-                                                  0.0)
+            function interface_systems(color_a, color_b)
+                system_a = WeaklyCompressibleSPHSystem(initial_condition_a;
+                                                       smoothing_kernel=interface_kernel,
+                                                       smoothing_length=0.15,
+                                                       density_calculator=SummationDensity(),
+                                                       state_equation=interface_state_equation,
+                                                       surface_method=ColorfieldSurfaceDetection(interface_threshold=1.0e-6),
+                                                       reference_particle_spacing=interface_spacing,
+                                                       color_value=color_a)
+                system_b = WeaklyCompressibleSPHSystem(initial_condition_b;
+                                                       smoothing_kernel=interface_kernel,
+                                                       smoothing_length=0.15,
+                                                       density_calculator=SummationDensity(),
+                                                       state_equation=interface_state_equation,
+                                                       color_value=color_b)
+                semi = Semidiscretization(system_a, system_b)
+                ode = semidiscretize(semi, (0.0, 0.01))
+                TrixiParticles.update_systems_and_nhs(ode.u0.x..., semi, 0.0)
+                return system_a, semi, ode
+            end
+
+            system_a, interface_semi, interface_ode = interface_systems(0, 1)
             interface_points = [-0.1 0.1; 0.0 0.0]
             uncut = interpolate_points(interface_points, interface_semi, system_a,
                                        interface_ode.u0.x...; cut_off_bnd=false)
@@ -234,6 +238,21 @@
             @test isfinite(cut.density[1])
             @test isnan(cut.density[2])
             @test isnan(cut.surface_activity[2])
+
+            transformed_system, transformed_semi,
+            transformed_ode = interface_systems(5, -3)
+            transformed_uncut = interpolate_points(interface_points, transformed_semi,
+                                                   transformed_system,
+                                                   transformed_ode.u0.x...;
+                                                   cut_off_bnd=false)
+            transformed_cut = interpolate_points(interface_points, transformed_semi,
+                                                 transformed_system,
+                                                 transformed_ode.u0.x...;
+                                                 cut_off_bnd=true)
+            @test isapprox(transformed_uncut.surface_activity, uncut.surface_activity;
+                           rtol=1.0e-12, atol=1.0e-12)
+            @test isfinite(transformed_cut.density[1])
+            @test isnan(transformed_cut.density[2])
         end
 
         # Some simple results

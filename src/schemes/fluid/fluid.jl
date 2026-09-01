@@ -312,17 +312,37 @@ function restart_v(system::AbstractFluidSystem, data)
     return velocity_total
 end
 
-function check_configuration(fluid_system::AbstractFluidSystem, systems, nhs)
-    if requires_surface_normal(fluid_system.surface_tension)
-        foreach_system(systems) do neighbor
-            if neighbor isa AbstractFluidSystem && !(neighbor isa ParticlePackingSystem) &&
+function check_surface_configuration(systems, interaction_matrix)
+    for system_index in eachindex(systems)
+        fluid_system = systems[system_index]
+        fluid_system isa AbstractFluidSystem || continue
+        fluid_system isa ParticlePackingSystem && continue
+
+        for neighbor_index in eachindex(systems)
+            is_enabled_interaction(interaction_matrix[system_index, neighbor_index]) ||
+                continue
+            neighbor = systems[neighbor_index]
+
+            if requires_surface_normal(fluid_system.surface_tension) &&
+               neighbor isa AbstractFluidSystem && !(neighbor isa ParticlePackingSystem) &&
                !computes_surface_normal(surface_method(neighbor))
                 throw(ArgumentError("all interacting fluid systems must use a surface method " *
                                     "that computes normals when a surface-tension model " *
                                     "requires interface normals"))
             end
+
+            if is_colorfield_surface_method(surface_method(fluid_system)) &&
+               (neighbor isa WallBoundarySystem || neighbor isa RigidBodySystem) &&
+               !contributes_boundary_colorfield(neighbor)
+                throw(ArgumentError("colorfield surface methods require interacting wall " *
+                                    "and rigid-body systems to use " *
+                                    "`BoundaryModelDummyParticles` with " *
+                                    "`reference_particle_spacing` set"))
+            end
         end
     end
+
+    return nothing
 end
 
 function system_data(system::AbstractFluidSystem, dv_ode, du_ode, v_ode, u_ode, semi)

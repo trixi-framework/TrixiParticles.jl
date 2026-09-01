@@ -34,7 +34,8 @@ See [Implicit Incompressible SPH](@ref iisph) for more details on the method.
 - `time_step`:                  Time step size used for the simulation
 - `surface_method`:             Optional surface detection or normal method.
 - `reference_particle_spacing`: Reference spacing required by colorfield surface methods.
-- `color_value`:                Scalar contributed to colorfield surface calculations.
+- `color_value`:                Integer phase identifier for colorfield surface calculations.
+                                Its numeric magnitude and sign have no physical meaning.
 """
 struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ARRAY2D,
                                        IC, K, V, PF, SM, C} <: AbstractFluidSystem{NDIMS}
