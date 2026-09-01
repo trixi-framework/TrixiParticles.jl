@@ -133,7 +133,7 @@
                                                         smoothing_kernel=kernel,
                                                         smoothing_length=1.0,
                                                         sound_speed=10.0,
-                                                        correction=GradientCorrection())
+                                                        gradient_correction=GradientCorrection())
         symmetric_system = EntropicallyDampedSPHSystem(initial_condition;
                                                        smoothing_kernel=kernel,
                                                        smoothing_length=1.0,

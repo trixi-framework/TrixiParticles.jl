@@ -124,18 +124,20 @@ fields exactly (see [Bonet, 1999](@cite Bonet1999)).
 struct MixedKernelGradientCorrection end
 
 @doc raw"""
-    CorrectionConfiguration(; density=nothing, gradient=nothing)
+    CorrectionConfiguration(; density=nothing, gradient=nothing, force=nothing)
 
-Configure density and gradient corrections independently. `density` can be `nothing` or
+Configure density, gradient, and force corrections independently. `density` can be `nothing` or
 [`ShepardKernelCorrection`](@ref). `gradient` can be `nothing`, [`KernelCorrection`](@ref),
 [`GradientCorrection`](@ref), [`BlendedGradientCorrection`](@ref), or
-[`MixedKernelGradientCorrection`](@ref).
+[`MixedKernelGradientCorrection`](@ref). `force` can be `nothing` or
+[`AkinciFreeSurfaceCorrection`](@ref).
 """
-struct CorrectionConfiguration{D, G}
+struct CorrectionConfiguration{D, G, F}
     density::D
     gradient::G
+    force::F
 
-    function CorrectionConfiguration(density::D, gradient::G) where {D, G}
+    function CorrectionConfiguration(density::D, gradient::G, force::F) where {D, G, F}
         if !(density === nothing || density isa ShepardKernelCorrection)
             throw(ArgumentError("`density` must be `nothing` or `ShepardKernelCorrection()`"))
         end
@@ -144,13 +146,12 @@ struct CorrectionConfiguration{D, G}
                    BlendedGradientCorrection, MixedKernelGradientCorrection})
             throw(ArgumentError("unsupported gradient correction `$(typeof(gradient))`"))
         end
-
-        return new{D, G}(density, gradient)
+        return new{D, G, F}(density, gradient, force)
     end
 end
 
-function CorrectionConfiguration(; density=nothing, gradient=nothing)
-    return CorrectionConfiguration(density, gradient)
+function CorrectionConfiguration(; density=nothing, gradient=nothing, force=nothing)
+    return CorrectionConfiguration(density, gradient, force)
 end
 
 correction_density(::Any) = nothing
@@ -164,22 +165,18 @@ correction_gradient(correction) = correction
 correction_gradient(correction::CorrectionConfiguration) = correction.gradient
 
 correction_force(correction) = correction
-correction_force(::CorrectionConfiguration) = nothing
+correction_force(correction::CorrectionConfiguration) = correction.force
 
-function resolve_correction_configuration(correction, density_correction,
-                                          gradient_correction)
-    if correction !== nothing &&
-       (density_correction !== nothing || gradient_correction !== nothing)
-        throw(ArgumentError("`correction` cannot be combined with `density_correction` or " *
-                            "`gradient_correction`"))
-    end
-
-    if density_correction === nothing && gradient_correction === nothing
-        return correction
+function resolve_correction_configuration(density_correction, gradient_correction,
+                                          force_correction)
+    if density_correction === nothing && gradient_correction === nothing &&
+       force_correction === nothing
+        return nothing
     end
 
     return CorrectionConfiguration(; density=density_correction,
-                                   gradient=gradient_correction)
+                                    gradient=gradient_correction,
+                                    force=force_correction)
 end
 
 function kernel_correction_coefficient(system::AbstractFluidSystem, particle)

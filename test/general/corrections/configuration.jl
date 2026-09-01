@@ -24,7 +24,7 @@
                                                                smoothing_length=0.2,
                                                                reference_density=1000.0,
                                                                time_step=0.01,
-                                                               correction=GradientCorrection())
+                                                               gradient_correction=GradientCorrection())
 
     n = 5
     spacing = 1.0 / n

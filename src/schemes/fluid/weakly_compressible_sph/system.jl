@@ -6,8 +6,8 @@
                                 pressure_acceleration=nothing,
                                 shifting_technique=nothing,
                                 buffer_size=nothing,
-                                correction=nothing, density_correction=nothing,
-                                gradient_correction=nothing, source_terms=nothing,
+                                 density_correction=nothing, gradient_correction=nothing,
+                                 force_correction=nothing, source_terms=nothing,
                                 surface_tension=nothing, surface_normal_method=nothing,
                                 reference_particle_spacing=0.0, color_value=1))
 
@@ -42,11 +42,11 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
                                 with this system. Default is no shifting.
 - `buffer_size`:                Number of buffer particles.
                                 This is needed when simulating with [`OpenBoundarySystem`](@ref).
-- `correction`:                 Legacy keyword for configuring one correction method. Cannot be
-                                combined with `density_correction` or `gradient_correction`.
 - `density_correction`:         Density correction method. Currently supports
-                                [`ShepardKernelCorrection`](@ref) with [`SummationDensity`](@ref).
+                                 [`ShepardKernelCorrection`](@ref) with [`SummationDensity`](@ref).
 - `gradient_correction`:        Gradient correction method. See [Corrections](@ref corrections).
+- `force_correction`:           Force correction method. Currently supports
+                                 [`AkinciFreeSurfaceCorrection`](@ref).
 - `source_terms`:               Additional source terms for this system. Has to be either `nothing`
                                 (by default), or a function of `(coords, velocity, density, pressure, t)`
                                 (which are the quantities of a single particle), returning a `Tuple`
@@ -101,8 +101,9 @@ function WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
                                      pressure_acceleration=nothing,
                                      shifting_technique=nothing,
                                      buffer_size=nothing,
-                                     correction=nothing, density_correction=nothing,
-                                     gradient_correction=nothing, source_terms=nothing,
+                                     density_correction=nothing,
+                                     gradient_correction=nothing,
+                                     force_correction=nothing, source_terms=nothing,
                                      surface_tension=nothing, surface_normal_method=nothing,
                                      reference_particle_spacing=0, color_value=1)
     buffer = isnothing(buffer_size) ? nothing :
@@ -118,8 +119,8 @@ function WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
     ELTYPE = eltype(initial_condition)
     n_particles = nparticles(initial_condition)
 
-    correction = resolve_correction_configuration(correction, density_correction,
-                                                  gradient_correction)
+    correction = resolve_correction_configuration(density_correction, gradient_correction,
+                                                  force_correction)
     density_correction_ = correction_density(correction)
     gradient_correction_ = correction_gradient(correction)
 

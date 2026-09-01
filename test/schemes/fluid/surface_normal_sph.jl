@@ -33,7 +33,6 @@ function create_boundary_system(coordinates, particle_spacing, state_equation, k
                                                  kernel,
                                                  smoothing_length;
                                                  state_equation,
-                                                 correction=nothing,
                                                  reference_particle_spacing=particle_spacing)
 
     boundary_system = WallBoundarySystem(wall, boundary_model, adhesion_coefficient=0.0)
@@ -51,7 +50,6 @@ function create_rigid_boundary_system(coordinates, particle_spacing, state_equat
                                               wall_system.initial_condition.mass,
                                               AdamiPressureExtrapolation(), kernel,
                                               smoothing_length; state_equation,
-                                              correction=nothing,
                                               reference_particle_spacing=particle_spacing)
 
     return RigidBodySystem(wall_system.initial_condition;

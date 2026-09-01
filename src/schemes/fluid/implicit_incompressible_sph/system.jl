@@ -5,8 +5,8 @@
                                     acceleration=ntuple(_ -> 0.0, ndims(smoothing_kernel)),
                                     omega=0.5, max_error=0.1, min_iterations=2,
                                     max_iterations=20, time_step,
-                                    correction=nothing, density_correction=nothing,
-                                    gradient_correction=nothing)
+                                     density_correction=nothing, gradient_correction=nothing,
+                                     force_correction=nothing)
 
 System for particles of a fluid.
 The system employs implicit incompressible SPH (IISPH), iteratively solving a linear system
@@ -32,10 +32,9 @@ See [Implicit Incompressible SPH](@ref iisph) for more details on the method.
 - `min_iterations = 2`:         Minimum number of iterations in the relaxed Jacobi scheme, independent from the termination condition
 - `max_iterations = 20`:        Maximum number of iterations in the relaxed Jacobi scheme, independent from the termination condition
 - `time_step`:                  Time step size used for the simulation
-- `correction`:                 Corrections are currently unsupported and passing a non-`nothing`
-                                value throws an error.
 - `density_correction`:         Currently unsupported.
 - `gradient_correction`:        Currently unsupported.
+- `force_correction`:           Currently unsupported.
 """
 struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ARRAY2D,
                                        IC, K, V, PF, C} <: AbstractFluidSystem{NDIMS}
@@ -78,13 +77,14 @@ function ImplicitIncompressibleSPHSystem(initial_condition; smoothing_kernel,
                                          omega=0.5, max_error=0.1, min_iterations=2,
                                          max_iterations=20, time_step,
                                          artificial_sound_speed=1000.0,
-                                         correction=nothing, density_correction=nothing,
-                                         gradient_correction=nothing)
+                                         density_correction=nothing,
+                                         gradient_correction=nothing,
+                                         force_correction=nothing)
     particle_refinement = nothing # TODO
     surface_tension = nothing # TODO
 
-    if correction !== nothing || density_correction !== nothing ||
-       gradient_correction !== nothing
+    if density_correction !== nothing || gradient_correction !== nothing ||
+       force_correction !== nothing
         throw(ArgumentError("corrections are not supported by `ImplicitIncompressibleSPHSystem`"))
     end
 

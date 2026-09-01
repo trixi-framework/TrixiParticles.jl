@@ -2,8 +2,8 @@
     BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                 density_calculator, smoothing_kernel,
                                 smoothing_length; viscosity=nothing,
-                                state_equation=nothing, correction=nothing,
-                                density_correction=nothing, gradient_correction=nothing,
+                                 state_equation=nothing, density_correction=nothing,
+                                 gradient_correction=nothing, force_correction=nothing,
                                 clip_negative_pressure=false,
                                 reference_particle_spacing=0.0)
 
@@ -21,10 +21,9 @@ Boundary model for [`WallBoundarySystem`](@ref).
 # Keywords
 - `state_equation`:             This should be the same as for the adjacent fluid system
                                 (see e.g. [`StateEquationCole`](@ref)).
-- `correction`:                 Legacy keyword for one correction method. Cannot be combined with
-                                `density_correction` or `gradient_correction`.
 - `density_correction`:         Density correction of the adjacent fluid system.
 - `gradient_correction`:        Gradient correction of the adjacent fluid system.
+- `force_correction`:           Force correction of the adjacent fluid system.
 - `viscosity`:                  Slip (default) or no-slip condition. See description below for further
                                 information.
 - `clip_negative_pressure=false`: Clip negative boundary pressures to avoid sticking
@@ -83,9 +82,10 @@ end
 function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                      density_calculator, smoothing_kernel,
                                      smoothing_length; viscosity=nothing,
-                                     state_equation=nothing, correction=nothing,
+                                     state_equation=nothing,
                                      density_correction=nothing,
                                      gradient_correction=nothing,
+                                     force_correction=nothing,
                                      clip_negative_pressure=false,
                                      reference_particle_spacing=0.0)
     pressure = initial_boundary_pressure(initial_density, density_calculator,
@@ -94,8 +94,8 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
     ELTYPE = eltype(smoothing_length)
     @assert length(initial_density) == length(hydrodynamic_mass)
     n_particles = length(initial_density)
-    correction = resolve_correction_configuration(correction, density_correction,
-                                                  gradient_correction)
+    correction = resolve_correction_configuration(density_correction, gradient_correction,
+                                                  force_correction)
     cache = (; create_cache_model(viscosity, n_particles, NDIMS)...,
              create_cache_model(initial_density, density_calculator, NDIMS)...,
              create_cache_model(correction, initial_density, NDIMS, n_particles)...)

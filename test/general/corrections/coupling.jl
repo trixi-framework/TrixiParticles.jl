@@ -1,6 +1,16 @@
 # A sentinel correction verifies that force corrections are routed independently.
 struct CustomForceCorrection end
 
+function correction_kwargs(correction)
+    correction isa ShepardKernelCorrection ?
+    (; density_correction=correction) :
+    correction isa Union{AkinciFreeSurfaceCorrection,
+                         CustomForceCorrection} ?
+    (; force_correction=correction) :
+    correction isa Nothing ? (;) :
+    (; gradient_correction=correction)
+end
+
 function TrixiParticles.free_surface_correction(::CustomForceCorrection,
                                                 particle_system, rho_a, rho_b)
     return 2, 3, 4
@@ -126,14 +136,15 @@ end
             fluid = WeaklyCompressibleSPHSystem(fluid_initial; smoothing_kernel=kernel,
                                                 smoothing_length,
                                                 density_calculator=SummationDensity(),
-                                                state_equation, correction)
+                                                state_equation,
+                                                correction_kwargs(correction)...)
         else
             fluid = EntropicallyDampedSPHSystem(fluid_initial;
                                                 smoothing_kernel=kernel,
                                                 smoothing_length,
                                                 sound_speed=10.0,
                                                 density_calculator=SummationDensity(),
-                                                correction,
+                                                correction_kwargs(correction)...,
                                                 average_pressure_reduction)
         end
 
@@ -146,7 +157,7 @@ end
                                                      AdamiPressureExtrapolation(),
                                                      kernel, smoothing_length;
                                                      state_equation,
-                                                     correction=boundary_correction)
+                                                     correction_kwargs(boundary_correction)...)
         if structure_kind == :rigid
             structure = RigidBodySystem(structure_initial; boundary_model,
                                         particle_spacing=spacing)
@@ -298,11 +309,11 @@ end
         system_a = EntropicallyDampedSPHSystem(initial_a; smoothing_kernel=kernel,
                                                smoothing_length=2spacing, sound_speed=10.0,
                                                density_calculator=SummationDensity(),
-                                               correction=correction_a)
+                                               correction_kwargs(correction_a)...)
         system_b = EntropicallyDampedSPHSystem(initial_b; smoothing_kernel=kernel,
                                                smoothing_length=2spacing, sound_speed=10.0,
                                                density_calculator=SummationDensity(),
-                                               correction=correction_b)
+                                               correction_kwargs(correction_b)...)
         systems = reverse_order ? (system_b, system_a) : (system_a, system_b)
         semi = Semidiscretization(systems...; neighborhood_search=nothing,
                                   parallelization_backend=SerialBackend())
@@ -360,7 +371,8 @@ end
                                              sound_speed=10.0,
                                              density_calculator=ContinuityDensity(),
                                              pressure_acceleration=nothing,
-                                             viscosity=ViscosityAdami(nu=0.01), correction)
+                                             viscosity=ViscosityAdami(nu=0.01),
+                                             force_correction=correction)
         semi = Semidiscretization(system; neighborhood_search=nothing,
                                   parallelization_backend=SerialBackend())
         ode = semidiscretize(semi, (0.0, 1.0); reset_threads=false)
