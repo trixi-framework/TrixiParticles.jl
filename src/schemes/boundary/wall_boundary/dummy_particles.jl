@@ -393,19 +393,60 @@ end
 
 @inline function update_pressure!(boundary_model::BoundaryModelDummyParticles,
                                   system, v, u, v_ode, u_ode, semi)
-    (; correction, density_calculator) = boundary_model
+    (; density_calculator) = boundary_model
 
     compute_pressure!(boundary_model, density_calculator, system, v, u, v_ode, u_ode, semi)
 
-    # These are only computed when using corrections
-    compute_correction_values!(system, correction, u, v_ode, u_ode, semi)
-    compute_gradient_correction_matrix!(correction, boundary_model, system, u, v_ode, u_ode,
-                                        semi)
-    # `kernel_correct_density!` only performed for `SummationDensity`
-    kernel_correct_density!(boundary_model, v, u, v_ode, u_ode, semi, correction,
+    return boundary_model
+end
+
+@inline function update_density_correction!(boundary_model::BoundaryModelDummyParticles,
+                                            system, v, u, v_ode, u_ode, semi)
+    (; correction, density_calculator) = boundary_model
+    density_correction = correction_density(correction)
+
+    compute_boundary_correction_values!(boundary_model, system, density_correction, u,
+                                        v_ode, u_ode, semi)
+    kernel_correct_density!(boundary_model, v, u, v_ode, u_ode, semi,
+                            density_correction,
                             density_calculator)
 
     return boundary_model
+end
+
+@inline function update_gradient_correction!(boundary_model::BoundaryModelDummyParticles,
+                                             system, v, u, v_ode, u_ode, semi)
+    gradient_correction = correction_gradient(boundary_model.correction)
+
+    compute_boundary_correction_values!(boundary_model, system, gradient_correction, u,
+                                        v_ode, u_ode, semi)
+    compute_gradient_correction_matrix!(gradient_correction, boundary_model, system, u,
+                                        v_ode, u_ode, semi)
+
+    return boundary_model
+end
+
+@inline function compute_boundary_correction_values!(boundary_model, system, correction, u,
+                                                     v_ode, u_ode, semi)
+    return boundary_model
+end
+
+function compute_boundary_correction_values!(boundary_model, system,
+                                             ::ShepardKernelCorrection, u,
+                                             v_ode, u_ode, semi)
+    return compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode,
+                                  semi,
+                                  boundary_model.cache.kernel_correction_coefficient)
+end
+
+function compute_boundary_correction_values!(boundary_model, system,
+                                             correction::Union{KernelCorrection,
+                                                               MixedKernelGradientCorrection},
+                                             u, v_ode, u_ode, semi)
+    return compute_correction_values!(system, correction, current_coordinates(u, system),
+                                      v_ode, u_ode, semi,
+                                      boundary_model.cache.kernel_correction_coefficient,
+                                      boundary_model.cache.dw_gamma)
 end
 
 function kernel_correct_density!(boundary_model, v, u, v_ode, u_ode, semi,
@@ -428,13 +469,13 @@ function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
                                                          MixedKernelGradientCorrection},
                                              boundary_model,
                                              system, u, v_ode, u_ode, semi)
-    (; cache, correction, smoothing_kernel) = boundary_model
+    (; cache, smoothing_kernel) = boundary_model
     (; correction_matrix) = cache
 
     system_coords = current_coordinates(u, system)
 
     compute_gradient_correction_matrix!(correction_matrix, system, system_coords,
-                                        v_ode, u_ode, semi, correction, smoothing_kernel)
+                                        v_ode, u_ode, semi, corr, smoothing_kernel)
 end
 
 function compute_density!(boundary_model, ::SummationDensity, system, v, u, v_ode, u_ode,
