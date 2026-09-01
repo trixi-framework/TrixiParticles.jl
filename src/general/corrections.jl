@@ -183,7 +183,8 @@ function compute_shepard_coeff!(system, system_coords, v_ode, u_ode, semi,
                                    semi) do particle, neighbor, pos_diff, distance
                 rho_b = current_density(v_neighbor_system, neighbor_system, neighbor)
                 m_b = hydrodynamic_mass(neighbor_system, neighbor)
-                W = smoothing_kernel(system, distance, particle)
+                W = kernel(hydrodynamic_smoothing_kernel(system), distance,
+                           hydrodynamic_smoothing_length(system, particle))
 
                 accumulate_shepard_values!(kernel_correction_coefficient,
                                            density_numerator, particle, m_b, rho_b, W)
@@ -277,7 +278,7 @@ function compute_correction_values!(system,
             # Since the coordinates are in the order of the smoothing length `h`, `distance^2` is in
             # the order of `h^2`, so we need to check `distance < sqrt(eps(h^2))`.
             # Note that `sqrt(eps(h^2)) != eps(h)`.
-            h = initial_smoothing_length(system)
+            h = hydrodynamic_smoothing_length(system, nothing)
             almostzero = sqrt(eps(h^2))
 
             # Loop over all pairs of particles and neighbors within the kernel cutoff
@@ -288,8 +289,9 @@ function compute_correction_values!(system,
                 volume = m_b / rho_b
 
                 # Use uncorrected kernel to compute correction coefficients
-                W = kernel(system_smoothing_kernel(system), distance,
-                           smoothing_length(system, particle))
+                smoothing_kernel = hydrodynamic_smoothing_kernel(system)
+                smoothing_length_ = hydrodynamic_smoothing_length(system, particle)
+                W = kernel(smoothing_kernel, distance, smoothing_length_)
 
                 kernel_correction_coefficient[particle] += volume * W
 
@@ -297,9 +299,8 @@ function compute_correction_values!(system,
                 if distance > almostzero
                     # Now that we know that `distance` is not zero, we can safely call the
                     # unsafe version of the kernel gradient to avoid redundant zero checks.
-                    grad_W = kernel_grad_unsafe(system_smoothing_kernel(system), pos_diff,
-                                                distance,
-                                                smoothing_length(system, particle))
+                    grad_W = kernel_grad_unsafe(smoothing_kernel, pos_diff, distance,
+                                                smoothing_length_)
                     tmp = volume * grad_W
                     for i in axes(dw_gamma, 1)
                         dw_gamma[i, particle] += tmp[i]
@@ -459,7 +460,7 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
 
                 # Now that we know that `distance` is not zero, we can safely call the unsafe
                 # version of the kernel gradient to avoid redundant zero checks.
-                smoothing_length_ = smoothing_length(system, particle)
+                smoothing_length_ = hydrodynamic_smoothing_length(system, particle)
                 grad_kernel = correction_matrix_kernel_grad_unsafe(correction,
                                                                    smoothing_kernel,
                                                                    pos_diff, distance,
@@ -523,20 +524,25 @@ function correction_matrix_inversion_step!(corr_matrix, system, semi)
         # full space, i.e., particle a and all neighbors lie on the same line (in 2D)
         # or plane (in 3D).
         minimum_relative_determinant = sqrt(eps(eltype(L)))
-        scale = maximum(abs, L)
+        entry_scale = maximum(abs, L)
 
-        if isfinite(scale) && !iszero(scale)
-            L_scaled = L / scale
+        if isfinite(entry_scale) && !iszero(entry_scale)
+            # Normalize by the Frobenius norm, which is invariant under rotations.
+            # Scaling by the largest entry first keeps the norm calculation finite.
+            L_entry_scaled = L / entry_scale
+            frobenius_scale = norm(L_entry_scaled)
+            L_scaled = L_entry_scaled / frobenius_scale
             relative_determinant = abs(det(L_scaled))
 
-            if isfinite(relative_determinant) &&
+            if isfinite(frobenius_scale) && !iszero(frobenius_scale) &&
+               isfinite(relative_determinant) &&
                relative_determinant >= minimum_relative_determinant
                 # Avoid rescaling roundoff when the direct determinant is representable.
                 raw_determinant = det(L)
                 if isfinite(raw_determinant) && !iszero(raw_determinant)
                     candidate = inv(L)
                 else
-                    candidate = inv(L_scaled) / scale
+                    candidate = inv(L_scaled) / frobenius_scale / entry_scale
                 end
                 L_inv = all(isfinite, candidate) ? candidate : one(L)
             else

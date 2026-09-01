@@ -139,6 +139,11 @@ end
     return skip_zero_distance(system_correction(system))
 end
 
+@inline function zero_distance_gradient_mode(system::AbstractSystem, neighbor_system)
+    return zero_distance_gradient_mode(system_correction(system),
+                                       hydrodynamic_correction(neighbor_system))
+end
+
 # Robust/safe version of the function below. In performance-critical code, manually check
 # the kernel support, call `skip_zero_distance` and then `smoothing_kernel_grad_unsafe`.
 @inline function smoothing_kernel_grad(system, pos_diff, distance, particle)
@@ -165,19 +170,22 @@ end
 # Hydrodynamic corrections of structure systems are stored in their boundary model and are
 # independent of corrections used by the structural scheme itself.
 @inline hydrodynamic_correction(system) = system_correction(system)
+@inline hydrodynamic_smoothing_length(system, particle) = smoothing_length(system, particle)
+@inline hydrodynamic_smoothing_kernel(system) = system_smoothing_kernel(system)
 
 @inline function hydrodynamic_smoothing_kernel_grad(system, pos_diff, distance, particle)
-    h = smoothing_length(system, particle)
+    h = hydrodynamic_smoothing_length(system, particle)
     correction = hydrodynamic_correction(system)
-    compact_support_ = compact_support(system_smoothing_kernel(system), h)
+    smoothing_kernel = hydrodynamic_smoothing_kernel(system)
+    compact_support_ = compact_support(smoothing_kernel, h)
 
     if distance >= compact_support_ ||
        (skip_zero_distance(correction) && distance^2 < eps(h^2))
         return zero(pos_diff)
     end
 
-    return corrected_kernel_grad_unsafe(system_smoothing_kernel(system), pos_diff,
-                                        distance, h, correction, system, particle)
+    return corrected_kernel_grad_unsafe(smoothing_kernel, pos_diff, distance, h,
+                                        correction, system, particle)
 end
 
 # System updates do nothing by default, but can be dispatched if needed

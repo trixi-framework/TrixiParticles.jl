@@ -392,6 +392,15 @@ end
     return correction_gradient(system.boundary_model.correction)
 end
 
+@inline function hydrodynamic_smoothing_length(system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles},
+                                               particle)
+    return smoothing_length(system.boundary_model, particle)
+end
+
+@inline function hydrodynamic_smoothing_kernel(system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles})
+    return system.boundary_model.smoothing_kernel
+end
+
 @inline function kernel_correction_coefficient(system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles},
                                                particle)
     return system.boundary_model.cache.kernel_correction_coefficient[particle]

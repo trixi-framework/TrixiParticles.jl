@@ -3,9 +3,11 @@
     linear_field(pos) = 2.0 + 3.0 * pos[1] - 2.0 * pos[2]
     exact_gradient = [3.0, -2.0]
 
+    # Blending is a convex combination of uncorrected and gradient-corrected kernels.
     @test_throws ArgumentError BlendedGradientCorrection(-0.1)
     @test_throws ArgumentError BlendedGradientCorrection(1.1)
 
+    # Both gradient variants must initialize finite matrices for WCSPH and EDAC.
     for correction in (GradientCorrection(), BlendedGradientCorrection(0.4)),
         edac in (false, true)
         setup = correction_setup(correction; edac, pressure_acceleration=nothing)
@@ -13,6 +15,7 @@
         @test all(isfinite, setup.system.cache.correction_matrix)
     end
 
+    # Gradient correction reproduces affine fields; blending interpolates its first moment.
     for perturbation in (false, true)
         raw_setup = update_correction!(correction_setup(nothing; perturbation))
         raw_moments = correction_moments(raw_setup; field=linear_field)
@@ -46,6 +49,7 @@
     mass32 = fill(10.0f0, 4)
     state_equation32 = StateEquationCole(; sound_speed=10.0f0,
                                          reference_density=1000.0f0, exponent=1)
+    # Every correction variant allocates boundary caches in the boundary scalar type.
     for correction in (GradientCorrection(), BlendedGradientCorrection(0.4f0),
          MixedKernelGradientCorrection())
         boundary = BoundaryModelDummyParticles(density32, mass32, SummationDensity(),
@@ -57,6 +61,7 @@
         end
     end
 
+    # Normalizing before inversion must handle correction matrices over a wide scale range.
     @testset "scale-independent inversion" begin
         cases = ((Float32, 2, 1.0f-30),
                  (Float32, 2, 1.0f20),
@@ -84,6 +89,36 @@
         @test inverse ≈ expected rtol = 10eps(Float32)
     end
 
+    @testset "rotation-invariant inversion threshold" begin
+        c2 = inv(sqrt(2.0f0))
+        rotation_2d = Float32[c2 -c2; c2 c2]
+
+        c3 = inv(sqrt(3.0f0))
+        rotation_3d = Float32[inv(sqrt(2.0f0)) inv(sqrt(6.0f0)) c3;
+                              -inv(sqrt(2.0f0)) inv(sqrt(6.0f0)) c3;
+                              0.0f0 -2inv(sqrt(6.0f0)) c3]
+
+        threshold = sqrt(eps(Float32))
+        for (NDIMS, rotation) in ((2, rotation_2d), (3, rotation_3d))
+            # A rigid rotation must not change whether a near-singular matrix is rejected.
+            rejected = Matrix{Float32}(I, NDIMS, NDIMS)
+            rejected[end, end] = threshold / 2
+            rejected_rotated = rotation * rejected * transpose(rotation)
+            @test invert_correction_matrix(rejected) == I
+            @test invert_correction_matrix(rejected_rotated) == I
+
+            # The inverse of an accepted matrix must transform covariantly.
+            accepted = Matrix{Float32}(I, NDIMS, NDIMS)
+            accepted[end, end] = 4threshold
+            accepted_rotated = rotation * accepted * transpose(rotation)
+            inverse = invert_correction_matrix(accepted)
+            inverse_rotated = invert_correction_matrix(accepted_rotated)
+            @test inverse != I
+            @test inverse_rotated ≈ rotation * inverse * transpose(rotation) rtol = 5e-5
+        end
+    end
+
+    # A 3D regular grid must yield an identity first-moment matrix.
     particle_spacing = 0.25
     particles = RectangularShape(particle_spacing, (4, 4, 4), (0.0, 0.0, 0.0);
                                  density=1000.0)
@@ -123,6 +158,7 @@
     end
     @test first_moment ≈ Matrix{Float64}(I, 3, 3) atol = 3e-12
 
+    # Singular and nearly singular neighbor configurations fall back to the identity matrix.
     for y_offset in (0.0, 1.0e-12)
         coordinates = [0.0 0.1 0.2; 0.0 y_offset 0.0]
         initial = InitialCondition(; coordinates, velocity=zeros(2, 3),
@@ -144,6 +180,7 @@
         end
     end
 
+    # Gradient correction restores the analytic density rate for this uniform flow.
     analytic_density_rate = -2000.0
     errors = Dict{Any, Float64}()
     for correction in (nothing, GradientCorrection(), BlendedGradientCorrection(0.4))
@@ -159,6 +196,7 @@
     @test errors[BlendedGradientCorrection(0.4)] < errors[nothing]
     @test errors[nothing] > 1.0
 
+    # Correction caches and the RHS survive restarts across all supported formulations.
     for correction in (GradientCorrection(), BlendedGradientCorrection(0.4)),
         edac in (false, true),
         density_calculator in (SummationDensity(), ContinuityDensity())
