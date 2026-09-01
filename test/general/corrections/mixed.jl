@@ -55,7 +55,7 @@
     boundary = BoundaryModelDummyParticles(density32, mass32, SummationDensity(),
                                            WendlandC6Kernel{2}(), 0.2f0;
                                            state_equation,
-                                           correction=MixedKernelGradientCorrection())
+                                           gradient_correction=MixedKernelGradientCorrection())
     @test eltype(boundary.cache.dw_gamma) == Float32
     @test eltype(boundary.cache.correction_matrix) == Float32
 end

@@ -1,8 +1,10 @@
 # Set up a single semidiscretized fluid system with the given correction.
 # Re-extract the system from the ODE, since `semidiscretize` replaces systems by
 # runtime copies.
-function correction_setup(correction=nothing; n=9, perturbation=false,
+function correction_setup(test_correction=nothing; n=9, perturbation=false,
                           density_calculator=ContinuityDensity(), edac=false,
+                          density_correction=nothing, gradient_correction=nothing,
+                          force_correction=nothing,
                           pressure_acceleration=:default,
                           velocity=(pos -> SVector(pos[1], pos[2])), buffer_size=nothing,
                           neighborhood_search=GridNeighborhoodSearch{2}())
@@ -13,16 +15,35 @@ function correction_setup(correction=nothing; n=9, perturbation=false,
                              density=1000.0, velocity,
                              coordinates_perturbation=perturbation ? 0.1 : nothing)
 
+    if test_correction !== nothing &&
+       (density_correction !== nothing || gradient_correction !== nothing ||
+        force_correction !== nothing)
+        throw(ArgumentError("a test correction cannot be combined with an explicit correction role"))
+    end
+    density_correction = isnothing(test_correction) ? density_correction :
+                         TrixiParticles.correction_density(test_correction)
+    gradient_correction = isnothing(test_correction) ? gradient_correction :
+                          TrixiParticles.correction_gradient(test_correction)
+    force_correction = isnothing(test_correction) ? force_correction :
+                       test_correction isa AkinciFreeSurfaceCorrection ? test_correction :
+                       nothing
+
     if edac
         if pressure_acceleration === :default
             system = EntropicallyDampedSPHSystem(fluid; smoothing_kernel,
                                                  smoothing_length, sound_speed=10.0,
-                                                 density_calculator, correction,
+                                                 density_calculator,
+                                                 density_correction,
+                                                 gradient_correction,
+                                                 force_correction,
                                                  buffer_size)
         else
             system = EntropicallyDampedSPHSystem(fluid; smoothing_kernel,
                                                  smoothing_length, sound_speed=10.0,
-                                                 density_calculator, correction,
+                                                 density_calculator,
+                                                 density_correction,
+                                                 gradient_correction,
+                                                 force_correction,
                                                  pressure_acceleration, buffer_size)
         end
     else
@@ -31,11 +52,17 @@ function correction_setup(correction=nothing; n=9, perturbation=false,
         if pressure_acceleration === :default
             system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
                                                  smoothing_length, density_calculator,
-                                                 state_equation, correction, buffer_size)
+                                                 state_equation,
+                                                 density_correction,
+                                                 gradient_correction, force_correction,
+                                                 buffer_size)
         else
             system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
                                                  smoothing_length, density_calculator,
-                                                 state_equation, correction,
+                                                 state_equation,
+                                                 density_correction,
+                                                 gradient_correction,
+                                                 force_correction,
                                                  pressure_acceleration, buffer_size)
         end
     end

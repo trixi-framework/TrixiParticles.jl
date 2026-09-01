@@ -114,11 +114,11 @@
         smoothing_length = 1.6particle_spacing
 
         # Verify conservation both with the raw kernel and with asymmetric corrected gradients.
-        for correction in (nothing, GradientCorrection())
+        for gradient_correction in (nothing, GradientCorrection())
             fluid = rectangular_patch(particle_spacing, (4, 3); pressure=1000.0, seed=7)
             system = EntropicallyDampedSPHSystem(fluid; smoothing_kernel,
                                                  smoothing_length, sound_speed=10.0,
-                                                 correction,
+                                                 gradient_correction,
                                                  average_pressure_reduction=true)
             semi = Semidiscretization(system; parallelization_backend=SerialBackend())
             ode = semidiscretize(semi, (0.0, 1.0); reset_threads=false)

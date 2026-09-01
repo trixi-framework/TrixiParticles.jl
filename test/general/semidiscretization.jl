@@ -312,8 +312,7 @@
                                                          structure_ic.mass,
                                                          SummationDensity(), kernel,
                                                          smoothing_length;
-                                                         state_equation,
-                                                         correction=nothing)
+                                                         state_equation)
             structure = TotalLagrangianSPHSystem(structure_ic;
                                                  smoothing_kernel=kernel,
                                                  smoothing_length,
@@ -348,7 +347,7 @@
                                                  particle_spacing=1.0)
             system = WeaklyCompressibleSPHSystem(initial_condition;
                                                  density_calculator=SummationDensity(),
-                                                 correction=ShepardKernelCorrection(),
+                                                 density_correction=ShepardKernelCorrection(),
                                                  state_equation,
                                                  smoothing_kernel=kernel,
                                                  smoothing_length)

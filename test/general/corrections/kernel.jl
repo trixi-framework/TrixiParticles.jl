@@ -24,7 +24,7 @@
     boundary = BoundaryModelDummyParticles(density32, mass32, SummationDensity(),
                                            WendlandC6Kernel{2}(), 0.2f0;
                                            state_equation,
-                                           correction=KernelCorrection())
+                                           gradient_correction=KernelCorrection())
     @test eltype(boundary.cache.dw_gamma) == Float32
 
     # Restarting preserves the correction state and its resulting RHS.

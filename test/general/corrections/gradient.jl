@@ -54,7 +54,8 @@
          MixedKernelGradientCorrection())
         boundary = BoundaryModelDummyParticles(density32, mass32, SummationDensity(),
                                                WendlandC6Kernel{2}(), 0.2f0;
-                                               state_equation=state_equation32, correction)
+                                               state_equation=state_equation32,
+                                               gradient_correction=correction)
         @test eltype(boundary.cache.correction_matrix) == Float32
         if hasproperty(boundary.cache, :dw_gamma)
             @test eltype(boundary.cache.dw_gamma) == Float32
@@ -129,7 +130,7 @@
                                          smoothing_length=2particle_spacing,
                                          density_calculator=ContinuityDensity(),
                                          state_equation,
-                                         correction=GradientCorrection())
+                                         gradient_correction=GradientCorrection())
     semi = Semidiscretization(system; parallelization_backend=SerialBackend())
     ode = semidiscretize(semi, (0.0, 1.0); reset_threads=false)
     v_ode = Array(ode.u0.x[1])
@@ -168,7 +169,7 @@
                                              smoothing_length=0.2,
                                              density_calculator=ContinuityDensity(),
                                              state_equation,
-                                             correction=GradientCorrection())
+                                             gradient_correction=GradientCorrection())
         semi = Semidiscretization(system; parallelization_backend=SerialBackend())
         ode = semidiscretize(semi, (0.0, 1.0); reset_threads=false)
         v_ode = Array(ode.u0.x[1])

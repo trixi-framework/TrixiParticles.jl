@@ -25,13 +25,13 @@
                                                           sound_speed=10.0,
                                                           pressure_acceleration=nothing,
                                                           density_calculator=ContinuityDensity(),
-                                                          correction=GradientCorrection())
+                                                          gradient_correction=GradientCorrection())
             shepard_system = EntropicallyDampedSPHSystem(shepard_initial;
                                                          smoothing_kernel,
                                                          smoothing_length,
                                                          sound_speed=10.0,
                                                          density_calculator=SummationDensity(),
-                                                         correction=ShepardKernelCorrection())
+                                                         density_correction=ShepardKernelCorrection())
         else
             state_equation = StateEquationCole(; sound_speed=10.0,
                                                reference_density=density, exponent=1)
@@ -40,13 +40,13 @@
                                                           smoothing_length,
                                                           state_equation,
                                                           density_calculator=ContinuityDensity(),
-                                                          correction=GradientCorrection())
+                                                          gradient_correction=GradientCorrection())
             shepard_system = WeaklyCompressibleSPHSystem(shepard_initial;
                                                          smoothing_kernel,
                                                          smoothing_length,
                                                          state_equation,
                                                          density_calculator=SummationDensity(),
-                                                         correction=ShepardKernelCorrection())
+                                                         density_correction=ShepardKernelCorrection())
         end
 
         # Vary the system order to check that correction staging is order-independent.
@@ -65,10 +65,12 @@
         # Recover the systems from the semidiscretization, since the order is swapped.
         gradient_system = only(system
                                for system in ode.p.semi.systems
-                               if system.correction isa GradientCorrection)
+                               if TrixiParticles.correction_gradient(system.correction) isa
+                                  GradientCorrection)
         shepard_system = only(system
                               for system in ode.p.semi.systems
-                              if system.correction isa ShepardKernelCorrection)
+                              if TrixiParticles.correction_density(system.correction) isa
+                                 ShepardKernelCorrection)
         GC.@preserve v_ode dv_ode begin
             v_gradient = TrixiParticles.wrap_v(v_ode, gradient_system, ode.p.semi)
             v_shepard = TrixiParticles.wrap_v(v_ode, shepard_system, ode.p.semi)
@@ -196,7 +198,7 @@ end
     boundary_model = BoundaryModelDummyParticles(particles.density, particles.mass,
                                                  SummationDensity(), smoothing_kernel,
                                                  2particle_spacing; state_equation,
-                                                 correction=ShepardKernelCorrection())
+                                                 density_correction=ShepardKernelCorrection())
     boundary = WallBoundarySystem(particles, boundary_model)
     semi = Semidiscretization(boundary; parallelization_backend=SerialBackend())
     ode = semidiscretize(semi, (0.0, 1.0); reset_threads=false)

@@ -68,7 +68,7 @@
                                          smoothing_length=1.5 * particle_spacing,
                                          boundary_density_calculator=ContinuityDensity(),
                                          fluid_density_calculator=ContinuityDensity(),
-                                         correction=nothing, use_reinit=true,
+                                         use_reinit=true,
                                          prefix="continuity_reinit", tspan, fluid_density,
                                          density_diffusion=nothing)
 
@@ -81,6 +81,12 @@
         local correction = correction_dict[correction_name]
         local smoothing_kernel = smoothing_kernel_dict[correction_name]
         local smoothing_length = smoothing_length_dict[correction_name]
+        correction_kwargs = correction isa ShepardKernelCorrection ?
+                            (; density_correction=correction) :
+                            correction isa AkinciFreeSurfaceCorrection ?
+                            (; force_correction=correction) :
+                            correction isa Nothing ? (;) :
+                            (; gradient_correction=correction)
 
         println("="^100)
         println("fluid/dam_break_2d.jl with ", correction_name)
@@ -91,7 +97,7 @@
                                          fluid_particle_spacing=particle_spacing,
                                          smoothing_length,
                                          boundary_density_calculator=SummationDensity(),
-                                         fluid_density_calculator, correction,
+                                         fluid_density_calculator, correction_kwargs...,
                                          use_reinit=false,
                                          clip_negative_pressure=(fluid_density_calculator isa
                                                                  SummationDensity),

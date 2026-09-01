@@ -48,6 +48,9 @@ end
     return 1, 1, 1
 end
 
+is_force_correction(::Any) = false
+is_force_correction(::AkinciFreeSurfaceCorrection) = true
+
 @doc raw"""
     ShepardKernelCorrection()
 
@@ -123,15 +126,64 @@ fields exactly (see [Bonet, 1999](@cite Bonet1999)).
 """
 struct MixedKernelGradientCorrection end
 
+@doc raw"""
+    CorrectionConfiguration(; density=nothing, gradient=nothing, force=nothing)
+
+Configure density, gradient, and force corrections independently. `density` can be `nothing` or
+[`ShepardKernelCorrection`](@ref). `gradient` can be `nothing`, [`KernelCorrection`](@ref),
+[`GradientCorrection`](@ref), [`BlendedGradientCorrection`](@ref), or
+[`MixedKernelGradientCorrection`](@ref). `force` can be `nothing` or
+[`AkinciFreeSurfaceCorrection`](@ref).
+"""
+struct CorrectionConfiguration{D, G, F}
+    density::D
+    gradient::G
+    force::F
+
+    function CorrectionConfiguration(density::D, gradient::G, force::F) where {D, G, F}
+        if !(density === nothing || density isa ShepardKernelCorrection)
+            throw(ArgumentError("`density` must be `nothing` or `ShepardKernelCorrection()`"))
+        end
+        if !(gradient === nothing ||
+             gradient isa Union{KernelCorrection, GradientCorrection,
+                   BlendedGradientCorrection, MixedKernelGradientCorrection})
+            throw(ArgumentError("unsupported gradient correction `$(typeof(gradient))`"))
+        end
+        if !(force === nothing || is_force_correction(force))
+            throw(ArgumentError("unsupported force correction `$(typeof(force))`"))
+        end
+        return new{D, G, F}(density, gradient, force)
+    end
+end
+
+function CorrectionConfiguration(; density=nothing, gradient=nothing, force=nothing)
+    return CorrectionConfiguration(density, gradient, force)
+end
+
 correction_density(::Any) = nothing
 correction_density(correction::ShepardKernelCorrection) = correction
+correction_density(correction::CorrectionConfiguration) = correction.density
 
 correction_gradient(::Nothing) = nothing
 correction_gradient(::ShepardKernelCorrection) = nothing
 correction_gradient(::AkinciFreeSurfaceCorrection) = nothing
 correction_gradient(correction) = correction
+correction_gradient(correction::CorrectionConfiguration) = correction.gradient
 
 correction_force(correction) = correction
+correction_force(correction::CorrectionConfiguration) = correction.force
+
+function resolve_correction_configuration(density_correction, gradient_correction,
+                                          force_correction)
+    if density_correction === nothing && gradient_correction === nothing &&
+       force_correction === nothing
+        return nothing
+    end
+
+    return CorrectionConfiguration(; density=density_correction,
+                                   gradient=gradient_correction,
+                                   force=force_correction)
+end
 
 function kernel_correction_coefficient(system::AbstractFluidSystem, particle)
     return system.cache.kernel_correction_coefficient[particle]
@@ -562,6 +614,14 @@ function correction_matrix_inversion_step!(corr_matrix, system, semi)
 end
 
 create_cache_correction(correction, density, NDIMS, nparticles) = (;)
+
+function create_cache_correction(correction::CorrectionConfiguration, density, NDIMS,
+                                 n_particles)
+    density_cache = create_cache_correction(correction.density, density, NDIMS, n_particles)
+    gradient_cache = create_cache_correction(correction.gradient, density, NDIMS,
+                                             n_particles)
+    return merge(density_cache, gradient_cache)
+end
 
 function create_cache_correction(::ShepardKernelCorrection, density, NDIMS, n_particles)
     return (; kernel_correction_coefficient=similar(density))

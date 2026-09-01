@@ -69,7 +69,7 @@ oil_system = WeaklyCompressibleSPHSystem(oil;
                                          viscosity=oil_viscosity,
                                          acceleration=(0.0, -gravity),
                                          surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.01),
-                                         correction=AkinciFreeSurfaceCorrection(oil_density),
+                                         force_correction=AkinciFreeSurfaceCorrection(oil_density),
                                          reference_particle_spacing=fluid_particle_spacing)
 
 # oil_system = WeaklyCompressibleSPHSystem(oil;

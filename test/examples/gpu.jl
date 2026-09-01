@@ -81,18 +81,24 @@ end
     # Build a fluid system of the given kind (`:wcsph` or `:edac`) with a correction.
     function correction_fluid(kind, initial_condition, smoothing_kernel,
                               smoothing_length, density_calculator, correction)
+        correction_kwargs = correction isa ShepardKernelCorrection ?
+                            (; density_correction=correction) :
+                            correction isa AkinciFreeSurfaceCorrection ?
+                            (; force_correction=correction) :
+                            correction isa Nothing ? (;) :
+                            (; gradient_correction=correction)
         if kind == :wcsph
             state_equation = StateEquationCole(; sound_speed=10.0f0,
                                                reference_density=1000.0f0, exponent=1)
             return WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
                                                smoothing_length, density_calculator,
-                                               state_equation, correction)
+                                               state_equation, correction_kwargs...)
         end
 
         return EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel,
                                            smoothing_length, sound_speed=10.0f0,
                                            pressure_acceleration=nothing,
-                                           density_calculator, correction)
+                                           density_calculator, correction_kwargs...)
     end
 
     # All correction caches present in the system must stay on the backend, keep
@@ -197,12 +203,13 @@ end
             WeaklyCompressibleSPHSystem(fluid_initial; smoothing_kernel=kernel,
                                         smoothing_length,
                                         density_calculator=SummationDensity(),
-                                        state_equation, correction=GradientCorrection())
+                                        state_equation,
+                                        gradient_correction=GradientCorrection())
         else
             EntropicallyDampedSPHSystem(fluid_initial; smoothing_kernel=kernel,
                                         smoothing_length, sound_speed=10.0f0,
                                         density_calculator=SummationDensity(),
-                                        correction=GradientCorrection())
+                                        gradient_correction=GradientCorrection())
         end
 
         structure_initial = RectangularShape(spacing, (4, 2), (0.0f0, -0.2f0);
@@ -216,7 +223,7 @@ end
                                                      AdamiPressureExtrapolation(), kernel,
                                                      smoothing_length;
                                                      state_equation,
-                                                     correction=GradientCorrection())
+                                                     gradient_correction=GradientCorrection())
         structure = if structure_kind == :rigid
             RigidBodySystem(structure_initial; boundary_model, particle_spacing=spacing)
         else
