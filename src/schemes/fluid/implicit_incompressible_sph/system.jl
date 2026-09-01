@@ -199,6 +199,8 @@ end
     return system.density
 end
 
+@inline system_state_equation(system::ImplicitIncompressibleSPHSystem) = nothing
+
 # TODO: What do we do with the sound speed? This is needed for the viscosity.
 @inline system_sound_speed(system::ImplicitIncompressibleSPHSystem) = system.artificial_sound_speed
 
@@ -497,7 +499,8 @@ function calculate_sum_d_ij_pj!(sum_d_ij_pj, system,
     (; time_step) = system
 
     system_coords = current_coordinates(u, system)
-    neighbor_coords = current_coordinates(u, neighbor_system)
+    u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
+    neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
     foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords, semi;
                            points=each_integrated_particle(system)) do particle, neighbor,
@@ -586,11 +589,13 @@ function pressure_update(system, pressure, reference_density, a_ii, sum_term, om
             pressure[particle] = zero(pressure[particle])
         end
         # Calculate the average density error for the termination condition
-        if (pressure[particle] != 0.0)
+        if pressure[particle] != 0.0
             new_density = a_ii[particle] * pressure[particle] + sum_term[particle] -
                           iisph_source_term(system, particle) +
                           reference_density
-            density_error[particle] = (new_density - reference_density)
+            density_error[particle] = abs(new_density - reference_density)
+        else
+            density_error[particle] = zero(eltype(density_error))
         end
     end
     relative_density_error = sum(density_error) / reference_density
@@ -748,9 +753,11 @@ end
 function check_configuration(system::ImplicitIncompressibleSPHSystem, systems, nhs)
     (; time_step, omega) = system
     foreach_system(systems) do neighbor
-        if neighbor isa WeaklyCompressibleSPHSystem
-            throw(ArgumentError("`ImplicitIncompressibleSPHSystem` cannot be used together with
-            `WeaklyCompressibleSPHSystem`"))
+        if neighbor isa WeaklyCompressibleSPHSystem ||
+           neighbor isa EntropicallyDampedSPHSystem
+            neighbor_name = neighbor |> typeof |> nameof
+            throw(ArgumentError("`ImplicitIncompressibleSPHSystem` cannot be used " *
+                                "together with `$neighbor_name`"))
         end
         if neighbor isa WallBoundarySystem
             if (neighbor.boundary_model isa BoundaryModelDummyParticles &&

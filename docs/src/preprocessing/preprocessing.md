@@ -31,9 +31,9 @@ triangle = [125.0 375.0 250.0 125.0;
             175.0 175.0 350.0 175.0]
 
 # Delete all edges but one
-edge1 = deleteat!(TrixiParticles.Polygon(triangle), [2, 3])
-edge2 = deleteat!(TrixiParticles.Polygon(triangle), [1, 3])
-edge3 = deleteat!(TrixiParticles.Polygon(triangle), [1, 2])
+edge1 = delete_faces(TrixiParticles.Polygon(triangle), [2, 3])
+edge2 = delete_faces(TrixiParticles.Polygon(triangle), [1, 3])
+edge3 = delete_faces(TrixiParticles.Polygon(triangle), [1, 2])
 
 algorithm = WindingNumberJacobson()
 
@@ -269,6 +269,15 @@ For example:
 0.0 1.0
 ```
 It is the user’s responsibility to ensure the points are ordered correctly.
+For 2D `.asc` and `.dxf` files, `load_geometry` appends the first point by default
+when it is not already repeated. This is only a convenience for complete, ordered
+boundaries that omit the final duplicate point; it does not repair missing
+segments, gaps, self-intersections, or incorrectly ordered points. Use
+`load_geometry(file; close_curve=false)` for intentional open curves. Operations
+that sample or classify a region, such as [`ComplexShape`](@ref), `intersect`,
+and `setdiff`, require closed geometries. Boundary packing with
+[`SignedDistanceField`](@ref) also requires a closed geometry, since it needs a
+well-defined outside region.
 This format is easy to generate and inspect manually.
 
 ## DXF Format (.dxf) – recommended
@@ -308,6 +317,11 @@ Modules = [TrixiParticles]
 Pages = [joinpath("preprocessing", "geometries", "triangle_mesh.jl")]
 ```
 
+```@docs
+TrixiParticles.is_closed_geometry
+delete_faces
+```
+
 
 # [Particle Packing](@id particle_packing)
 To obtain a body-fitted and isotropic particle distribution, an initial configuration (see [Sampling of Geometries](@ref sampling_of_geometries)) is first generated. This configuration is then packed using a [`ParticlePackingSystem`](@ref) following the steps introduced in [Neher2026](@cite).
@@ -325,7 +339,7 @@ The second step involves generating the SDF (see [`SignedDistanceField`](@ref)),
 The SDF is illustrated in Fig. 2, where the distances to the surface of the geometry are visualized as a color map.
 As shown, the SDF is computed only within a narrow band around the geometry’s surface, enabling  a face-based neighborhood search (NHS) to be used exclusively during this step.
 In the third step, the initial configuration of the boundary particles is generated (orange particles in Fig. 3).
-Boundary particles are created by copying the positions of SDF points located outside the geometry but within a predefined boundary thickness (see [`sample_boundary`](@ref)).
+Boundary particles are created by copying the positions of SDF points located outside the geometry, starting at the offset implied by `place_on_shell` and ending at a predefined boundary thickness (see [`sample_boundary`](@ref)).
 In the fourth step, the initial configuration of the interior particles (green particles in Fig. 4) is generated using the hierarchical winding number approach (see [Hierarchical Winding](@ref hierarchical_winding)).
 After steps **1** through **4**, the initial configuration of both interior and boundary particles is obtained, as illustrated in Fig. 5.
 The interface of the geometry surface is not well resolved with the initial particle configuration.
