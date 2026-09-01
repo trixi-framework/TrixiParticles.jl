@@ -15,8 +15,8 @@ Here, ``\Theta_i`` is the *signed* angle between ``\mathbf{c}_i - \mathbf{p}`` a
 In 3D, we refer to the solid angle of an *oriented* triangle with respect to ``\mathbf{p}``.
 
 We provide the following methods to calculate ``w(\mathbf{p})``:
-- [Hormann et al. (2001)](@cite Hormann2001) evaluate the winding number combined with an even-odd rule, but only for 2D polygons (see [WindingNumberHormann](@ref)).
-- Naive winding: [Jacobson et al. (2013)](@cite Jacobson2013) generalized the winding number so that the algorithm can be applied for both 2D and 3D geometries (see [WindingNumberJacobson](@ref)).
+- [Hormann et al. (2001)](@cite Hormann2001) evaluate the winding number combined with an even-odd rule, but only for 2D polygons (see [`WindingNumberHormann`](@ref)).
+- Naive winding: [Jacobson et al. (2013)](@cite Jacobson2013) generalized the winding number so that the algorithm can be applied for both 2D and 3D geometries (see [`WindingNumberJacobson`](@ref)).
 - Hierarchical winding: [Jacobson et al. (2013)](@cite Jacobson2013) also introduced a fast hierarchical evaluation of the winding number. For further information see the description below.
 
 ## [Hierarchical Winding](@id hierarchical_winding)
@@ -325,7 +325,7 @@ The second step involves generating the SDF (see [`SignedDistanceField`](@ref)),
 The SDF is illustrated in Fig. 2, where the distances to the surface of the geometry are visualized as a color map.
 As shown, the SDF is computed only within a narrow band around the geometry’s surface, enabling  a face-based neighborhood search (NHS) to be used exclusively during this step.
 In the third step, the initial configuration of the boundary particles is generated (orange particles in Fig. 3).
-Boundary particles are created by copying the positions of SDF points located outside the geometry but within a predefined boundary thickness (see [`sample_boundary`](@ref)).
+Boundary particles are created by copying the positions of SDF points located outside the geometry, starting at the offset implied by `place_on_shell` and ending at a predefined boundary thickness (see [`sample_boundary`](@ref)).
 In the fourth step, the initial configuration of the interior particles (green particles in Fig. 4) is generated using the hierarchical winding number approach (see [Hierarchical Winding](@ref hierarchical_winding)).
 After steps **1** through **4**, the initial configuration of both interior and boundary particles is obtained, as illustrated in Fig. 5.
 The interface of the geometry surface is not well resolved with the initial particle configuration.
