@@ -1,0 +1,136 @@
+{
+  "simulation_info": {
+    "julia_version": "1.12.7",
+    "solver_name": "TrixiParticles.jl",
+    "solver_version": "03f5848-dirty",
+    "technical_setup": {
+      "number_of_threads": 1,
+      "parallelization_backend": "PolyesterBackend"
+    },
+    "time_integrator": {
+      "abstol": 1.0e-6,
+      "adaptive": true,
+      "controller": "PIDController",
+      "final_time": 1.0,
+      "integrator_type": "RDPK3SpFSAL49",
+      "reltol": 0.0001,
+      "start_time": 0.0
+    }
+  },
+  "system_data": {
+    "step4_boundary_1": {
+      "adhesion_coefficient": 0.0,
+      "boundary_model": {
+        "density_calculator": "AdamiPressureExtrapolation",
+        "model": "BoundaryModelDummyParticles",
+        "smoothing_kernel": "WendlandC2Kernel",
+        "smoothing_length": 0.06,
+        "state_equation": {
+          "background_pressure": 0.0,
+          "exponent": 1.0,
+          "model": "StateEquationCole",
+          "reference_density": 1000.0
+        }
+      },
+      "particle_spacing": 0.04,
+      "system_type": "WallBoundarySystem"
+    },
+    "step4_fluid_1": {
+      "acceleration": [
+        0.0,
+        -9.81
+      ],
+      "density_calculator": "ContinuityDensity",
+      "density_diffusion": {
+        "delta": 0.1,
+        "model": "DensityDiffusionMolteniColagrossi"
+      },
+      "particle_spacing": 0.04,
+      "pressure_acceleration_formulation": "pressure_acceleration_continuity_density",
+      "smoothing_kernel": "WendlandC2Kernel",
+      "smoothing_length": 0.06,
+      "sound_speed": 100.0,
+      "state_equation": {
+        "background_pressure": 0.0,
+        "exponent": 1.0,
+        "model": "StateEquationCole",
+        "reference_density": 1000.0
+      },
+      "system_type": "WeaklyCompressibleSPHSystem",
+      "viscosity_model": {
+        "alpha": 0.02,
+        "beta": 0.0,
+        "epsilon": 0.01,
+        "model": "ArtificialViscosityMonaghan"
+      }
+    },
+    "step4_structure_1": {
+      "acceleration": [
+        0.0,
+        -9.81
+      ],
+      "adhesion_coefficient": 0.0,
+      "boundary_model": {
+        "density_calculator": "AdamiPressureExtrapolation",
+        "model": "BoundaryModelDummyParticles",
+        "smoothing_kernel": "WendlandC2Kernel",
+        "smoothing_length": 0.06,
+        "state_equation": {
+          "background_pressure": 0.0,
+          "exponent": 1.0,
+          "model": "StateEquationCole",
+          "reference_density": 1000.0
+        }
+      },
+      "color": 0,
+      "contact_model": {
+        "contact_distance": 0.08,
+        "kinetic_friction_coefficient": 0.4,
+        "model": "RigidContactModel",
+        "normal_damping": 150.0,
+        "normal_stiffness": 200000.0,
+        "penetration_slop": 0.0,
+        "static_friction_coefficient": 0.6,
+        "stick_velocity_tolerance": 1.0e-6,
+        "tangential_damping": 150.0,
+        "tangential_stiffness": 100000.0
+      },
+      "particle_spacing": 0.04,
+      "system_type": "RigidBodySystem"
+    },
+    "step4_structure_2": {
+      "acceleration": [
+        0.0,
+        -9.81
+      ],
+      "adhesion_coefficient": 0.0,
+      "boundary_model": {
+        "density_calculator": "AdamiPressureExtrapolation",
+        "model": "BoundaryModelDummyParticles",
+        "smoothing_kernel": "WendlandC2Kernel",
+        "smoothing_length": 0.06,
+        "state_equation": {
+          "background_pressure": 0.0,
+          "exponent": 1.0,
+          "model": "StateEquationCole",
+          "reference_density": 1000.0
+        }
+      },
+      "color": 0,
+      "contact_model": {
+        "contact_distance": 0.08,
+        "kinetic_friction_coefficient": 0.4,
+        "model": "RigidContactModel",
+        "normal_damping": 150.0,
+        "normal_stiffness": 200000.0,
+        "penetration_slop": 0.0,
+        "static_friction_coefficient": 0.6,
+        "stick_velocity_tolerance": 1.0e-6,
+        "tangential_damping": 150.0,
+        "tangential_stiffness": 100000.0
+      },
+      "particle_spacing": 0.04,
+      "system_type": "RigidBodySystem"
+    }
+  }
+}
