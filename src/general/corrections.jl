@@ -48,6 +48,9 @@ end
     return 1, 1, 1
 end
 
+is_force_correction(::Any) = false
+is_force_correction(::AkinciFreeSurfaceCorrection) = true
+
 @doc raw"""
     ShepardKernelCorrection()
 
@@ -146,6 +149,9 @@ struct CorrectionConfiguration{D, G, F}
                    BlendedGradientCorrection, MixedKernelGradientCorrection})
             throw(ArgumentError("unsupported gradient correction `$(typeof(gradient))`"))
         end
+        if !(force === nothing || is_force_correction(force))
+            throw(ArgumentError("unsupported force correction `$(typeof(force))`"))
+        end
         return new{D, G, F}(density, gradient, force)
     end
 end
@@ -175,8 +181,8 @@ function resolve_correction_configuration(density_correction, gradient_correctio
     end
 
     return CorrectionConfiguration(; density=density_correction,
-                                    gradient=gradient_correction,
-                                    force=force_correction)
+                                   gradient=gradient_correction,
+                                   force=force_correction)
 end
 
 function kernel_correction_coefficient(system::AbstractFluidSystem, particle)

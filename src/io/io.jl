@@ -306,12 +306,18 @@ function add_system_data!(system_data,
     system_data["correction_method"]["model"] = type2string(correction)
 end
 
+correction_metadata(correction) = Dict{String, Any}("model" => type2string(correction))
+
+function correction_metadata(correction::AkinciFreeSurfaceCorrection)
+    return Dict{String, Any}("model" => type2string(correction), "rho0" => correction.rho0)
+end
+
 function add_system_data!(system_data, correction::CorrectionConfiguration)
     system_data["correction_method"] = Dict{String, Any}()
     system_data["correction_method"]["model"] = type2string(correction)
-    system_data["correction_method"]["density"] = type2string(correction.density)
-    system_data["correction_method"]["gradient"] = type2string(correction.gradient)
-    system_data["correction_method"]["force"] = type2string(correction.force)
+    system_data["correction_method"]["density"] = correction_metadata(correction.density)
+    system_data["correction_method"]["gradient"] = correction_metadata(correction.gradient)
+    system_data["correction_method"]["force"] = correction_metadata(correction.force)
 end
 
 function add_system_data!(system_data,

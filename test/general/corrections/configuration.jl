@@ -17,8 +17,12 @@
                                                 density_correction=ShepardKernelCorrection())
     @test_throws ArgumentError CorrectionConfiguration(; density=GradientCorrection())
     @test_throws ArgumentError CorrectionConfiguration(; gradient=ShepardKernelCorrection())
+    @test_throws ArgumentError CorrectionConfiguration(; force=ShepardKernelCorrection())
+    @test_throws ArgumentError CorrectionConfiguration(; force=GradientCorrection())
 
     particles = RectangularShape(0.1, (2, 2), (0.0, 0.0); density=1000.0)
+    state_equation = StateEquationCole(; sound_speed=10.0,
+                                       reference_density=1000.0, exponent=1)
     @test_throws ArgumentError ImplicitIncompressibleSPHSystem(particles;
                                                                smoothing_kernel=WendlandC6Kernel{2}(),
                                                                smoothing_length=0.2,
@@ -26,12 +30,44 @@
                                                                time_step=0.01,
                                                                gradient_correction=GradientCorrection())
 
+    iisph = ImplicitIncompressibleSPHSystem(particles;
+                                            smoothing_kernel=WendlandC6Kernel{2}(),
+                                            smoothing_length=0.2,
+                                            reference_density=1000.0,
+                                            time_step=0.01)
+    for correction in (ShepardKernelCorrection(), GradientCorrection(),
+         AkinciFreeSurfaceCorrection(1000.0))
+        boundary_model = BoundaryModelDummyParticles(particles.density, particles.mass,
+                                                     SummationDensity(),
+                                                     WendlandC6Kernel{2}(), 0.2;
+                                                     state_equation,
+                                                     density_correction=correction isa
+                                                                        ShepardKernelCorrection ?
+                                                                        correction :
+                                                                        nothing,
+                                                     gradient_correction=correction isa
+                                                                         GradientCorrection ?
+                                                                         correction :
+                                                                         nothing,
+                                                     force_correction=correction isa
+                                                                      AkinciFreeSurfaceCorrection ?
+                                                                      correction : nothing)
+        boundary = WallBoundarySystem(particles, boundary_model)
+        @test_throws ArgumentError Semidiscretization(iisph, boundary;
+                                                      parallelization_backend=SerialBackend())
+    end
+
+    metadata = Dict{String, Any}()
+    TrixiParticles.add_system_data!(metadata,
+                                    CorrectionConfiguration(force=AkinciFreeSurfaceCorrection(1234.5)))
+    correction_metadata = metadata["correction_method"]
+    @test correction_metadata["force"]["model"] == "AkinciFreeSurfaceCorrection"
+    @test correction_metadata["force"]["rho0"] == 1234.5
+
     n = 5
     spacing = 1.0 / n
     kernel = WendlandC6Kernel{2}()
     boundary_particles = RectangularShape(spacing, (n, n), (0.0, 0.0); density=1000.0)
-    state_equation = StateEquationCole(; sound_speed=10.0,
-                                       reference_density=1000.0, exponent=1)
     boundary_model = BoundaryModelDummyParticles(boundary_particles.density,
                                                  boundary_particles.mass,
                                                  SummationDensity(), kernel, 2spacing;

@@ -16,6 +16,8 @@ function TrixiParticles.free_surface_correction(::CustomForceCorrection,
     return 2, 3, 4
 end
 
+TrixiParticles.is_force_correction(::CustomForceCorrection) = true
+
 @testset "Correction role routing" begin
     setup = correction_setup()
     correction = CustomForceCorrection()
