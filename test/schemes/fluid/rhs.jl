@@ -108,10 +108,12 @@
     end
 
     @testset "EDAC average-pressure momentum conservation" begin
+        # A perturbed patch gives nontrivial pair forces while uniform pressure isolates the offset.
         particle_spacing = 0.1
         smoothing_kernel = SchoenbergCubicSplineKernel{2}()
         smoothing_length = 1.6particle_spacing
 
+        # Verify conservation both with the raw kernel and with asymmetric corrected gradients.
         for correction in (nothing, GradientCorrection())
             fluid = rectangular_patch(particle_spacing, (4, 3); pressure=1000.0, seed=7)
             system = EntropicallyDampedSPHSystem(fluid; smoothing_kernel,

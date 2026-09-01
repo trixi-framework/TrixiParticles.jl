@@ -56,6 +56,61 @@ end
     return false
 end
 
+# Pressure formulations with asymmetric corrections use both endpoint gradients. Select the
+# zero-distance behavior once per system pair so common interaction loops keep their original
+# unsafe, branch-free gradient evaluation after the skip guard.
+struct SkipInteractionAtZeroDistance end
+struct EvaluateLocalGradientAtZeroDistance end
+struct ZeroLocalGradientAtZeroDistance end
+
+const NonzeroGradientAtZeroCorrection = Union{KernelCorrection,
+                                              MixedKernelGradientCorrection}
+
+@inline zero_distance_gradient_mode(correction,
+                                    neighbor_correction) = SkipInteractionAtZeroDistance()
+
+@inline function zero_distance_gradient_mode(::NonzeroGradientAtZeroCorrection,
+                                             neighbor_correction)
+    return EvaluateLocalGradientAtZeroDistance()
+end
+
+@inline function zero_distance_gradient_mode(correction,
+                                             ::NonzeroGradientAtZeroCorrection)
+    return ZeroLocalGradientAtZeroDistance()
+end
+
+@inline function zero_distance_gradient_mode(::NonzeroGradientAtZeroCorrection,
+                                             ::NonzeroGradientAtZeroCorrection)
+    return EvaluateLocalGradientAtZeroDistance()
+end
+
+@inline function skip_zero_distance(::SkipInteractionAtZeroDistance, distance, almostzero)
+    return distance < almostzero
+end
+
+@inline function skip_zero_distance(::Union{EvaluateLocalGradientAtZeroDistance,
+                                            ZeroLocalGradientAtZeroDistance},
+                                    distance, almostzero)
+    return false
+end
+
+@inline function local_smoothing_kernel_grad_unsafe(::Union{SkipInteractionAtZeroDistance,
+                                                            EvaluateLocalGradientAtZeroDistance},
+                                                    system, pos_diff, distance, particle,
+                                                    almostzero)
+    return smoothing_kernel_grad_unsafe(system, pos_diff, distance, particle)
+end
+
+@inline function local_smoothing_kernel_grad_unsafe(::ZeroLocalGradientAtZeroDistance,
+                                                    system, pos_diff, distance, particle,
+                                                    almostzero)
+    if distance < almostzero
+        return zero(pos_diff)
+    end
+
+    return smoothing_kernel_grad_unsafe(system, pos_diff, distance, particle)
+end
+
 @inline function corrected_kernel_grad_unsafe(kernel, pos_diff, distance, h, correction,
                                               system, particle)
     return kernel_grad_unsafe(kernel, pos_diff, distance, h)

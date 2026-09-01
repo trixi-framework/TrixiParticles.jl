@@ -210,12 +210,14 @@ Pages = [joinpath("schemes", "fluid", "viscosity.jl")]
 ## [Corrections](@id corrections)
 
 Gradient corrections generally make the two kernel gradients of a particle pair asymmetric.
-The corresponding eight-argument pressure formulations are therefore selected from the
-configured correction method, even when a particular pair happens to satisfy
+The corresponding eight-argument pressure formulations are therefore selected when either
+particle's hydrodynamic correction can produce an asymmetric gradient, even when a particular
+pair happens to satisfy
 ``\nabla W_b = -\nabla W_a``. In that symmetric case, the asymmetric formulation reduces to
 the standard symmetric formulation.
 
-The antisymmetric combination of corrected gradients preserves pairwise linear momentum.
+Both directed evaluations of a pair use the same two gradients with reversed roles. This
+antisymmetric combination preserves pairwise linear momentum.
 Since corrected gradients are generally not parallel to the particle separation, the resulting
 force is not necessarily central and does not in general preserve angular momentum. The usual
 linear- and angular-momentum guarantee applies to symmetric radial kernel gradients.
@@ -226,6 +228,11 @@ directed evaluations use identical reduced pair pressures, which is required for
 antisymmetric corrected-gradient formulation to preserve linear momentum. Interactions between
 schemes using different pressure formulations do not gain a conservation guarantee from this
 construction.
+
+For fluid-structure interaction, a `TotalLagrangianSPHSystem` keeps its structural smoothing
+kernel independent from the hydrodynamic kernel stored in its boundary model. Hydrodynamic
+correction caches and fluid pressure interactions use the boundary-model kernel and smoothing
+length.
 
 ```@autodocs
 Modules = [TrixiParticles]

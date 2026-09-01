@@ -13,6 +13,7 @@
     end
 
     @testset "Algebraic formulations and asymmetric conservation" begin
+        # Use unequal masses, densities, and non-opposite gradients to exercise every branch.
         m_a, m_b = 1.2, 0.8
         rho_a, rho_b = 1000.0, 980.0
         p_a, p_b = 2.0, 3.0
@@ -36,6 +37,7 @@
         @test tensile_instability_control(m_a, m_b, rho_a, rho_b, -p_a, p_b, W_a) ≈
               -m_b * (p_a + p_b) / (rho_a * rho_b) * W_a
 
+        # Each asymmetric pair formulation reduces to its symmetric form and conserves momentum.
         for pressure_formulation in (summation, continuity, interparticle)
             # Asymmetric formulations are selected based on the configured correction and
             # must reduce to the symmetric formulation when a pair has `W_b == -W_a`.
@@ -59,6 +61,7 @@
             @test m_a * acceleration_a + m_b * acceleration_b ≈ zero(W_a) atol = eps()
         end
 
+        # The asymmetric overload preserves Float32 inference and scalar type.
         result32 = @inferred interparticle(1.2f0, 0.8f0, 1000.0f0, 980.0f0,
                                            2.0f0, 3.0f0, SVector(0.2f0, -0.1f0),
                                            SVector(-0.13f0, 0.17f0))
@@ -119,5 +122,30 @@
                                                                                                           Float64,
                                                                                                           correction_dict_2[correction_name])
         end
+
+        # A locally symmetric custom formulation is insufficient if an enabled neighbor
+        # requires asymmetric pair gradients.
+        initial_condition = InitialCondition(; coordinates=zeros(2, 2),
+                                             velocity=zeros(2, 2),
+                                             mass=ones(2), density=fill(1000.0, 2))
+        kernel = SchoenbergCubicSplineKernel{2}()
+        asymmetric_system = EntropicallyDampedSPHSystem(initial_condition;
+                                                        smoothing_kernel=kernel,
+                                                        smoothing_length=1.0,
+                                                        sound_speed=10.0,
+                                                        correction=GradientCorrection())
+        symmetric_system = EntropicallyDampedSPHSystem(initial_condition;
+                                                       smoothing_kernel=kernel,
+                                                       smoothing_length=1.0,
+                                                       sound_speed=10.0,
+                                                       pressure_acceleration=p_fun_1)
+        error_str = "the pressure acceleration formulation of " *
+                    "`EntropicallyDampedSPHSystem` must provide " *
+                    "`m_a, m_b, rho_a, rho_b, p_a, p_b, W_a, W_b` when " *
+                    "interacting with an asymmetric gradient correction"
+        @test_throws ArgumentError(error_str) Semidiscretization(symmetric_system,
+                                                                 asymmetric_system)
+        @test_nowarn Semidiscretization(symmetric_system, asymmetric_system;
+                                        interaction_matrix=Bool[true false; false true])
     end
 end

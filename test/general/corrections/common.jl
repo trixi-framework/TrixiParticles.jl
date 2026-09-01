@@ -1,8 +1,12 @@
+# Set up a single semidiscretized fluid system with the given correction.
+# Re-extract the system from the ODE, since `semidiscretize` replaces systems by
+# runtime copies.
 function correction_setup(correction=nothing; n=9, perturbation=false,
                           density_calculator=ContinuityDensity(), edac=false,
                           density_correction=nothing, gradient_correction=nothing,
                           pressure_acceleration=:default,
-                          velocity=(pos -> SVector(pos[1], pos[2])))
+                          velocity=(pos -> SVector(pos[1], pos[2])), buffer_size=nothing,
+                          neighborhood_search=GridNeighborhoodSearch{2}())
     particle_spacing = 1.0 / n
     smoothing_length = 2.0 * particle_spacing
     smoothing_kernel = WendlandC6Kernel{2}()
@@ -16,14 +20,15 @@ function correction_setup(correction=nothing; n=9, perturbation=false,
                                                  smoothing_length, sound_speed=10.0,
                                                  density_calculator, correction,
                                                  density_correction,
-                                                 gradient_correction)
+                                                 gradient_correction,
+                                                 buffer_size)
         else
             system = EntropicallyDampedSPHSystem(fluid; smoothing_kernel,
                                                  smoothing_length, sound_speed=10.0,
                                                  density_calculator, correction,
                                                  density_correction,
                                                  gradient_correction,
-                                                 pressure_acceleration)
+                                                 pressure_acceleration, buffer_size)
         end
     else
         state_equation = StateEquationCole(; sound_speed=10.0,
@@ -33,18 +38,19 @@ function correction_setup(correction=nothing; n=9, perturbation=false,
                                                  smoothing_length, density_calculator,
                                                  state_equation, correction,
                                                  density_correction,
-                                                 gradient_correction)
+                                                 gradient_correction, buffer_size)
         else
             system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
                                                  smoothing_length, density_calculator,
                                                  state_equation, correction,
                                                  density_correction,
                                                  gradient_correction,
-                                                 pressure_acceleration)
+                                                 pressure_acceleration, buffer_size)
         end
     end
 
-    semi = Semidiscretization(system; parallelization_backend=SerialBackend())
+    semi = Semidiscretization(system; neighborhood_search,
+                              parallelization_backend=SerialBackend())
     ode = semidiscretize(semi, (0.0, 1.0); reset_threads=false)
     v_ode = Array(ode.u0.x[1])
     u_ode = Array(ode.u0.x[2])
@@ -54,6 +60,7 @@ function correction_setup(correction=nothing; n=9, perturbation=false,
     return (; system, semi, v_ode, u_ode, particle_spacing)
 end
 
+# Poison all correction caches with `NaN` to verify that the next update recomputes them.
 function fill_correction_cache!(system, value)
     for name in (:kernel_correction_coefficient, :dw_gamma, :correction_matrix)
         hasproperty(system.cache, name) || continue
@@ -62,6 +69,7 @@ function fill_correction_cache!(system, value)
     return system
 end
 
+# Recompute all correction caches by running a full `update_systems_and_nhs` pass.
 function update_correction!(setup)
     (; system, semi, v_ode, u_ode) = setup
     fill_correction_cache!(system, NaN)
@@ -69,6 +77,34 @@ function update_correction!(setup)
     return setup
 end
 
+struct CorrectionMatrixTestSystem{NDIMS, ELTYPE} <: TrixiParticles.AbstractSystem{NDIMS}
+    mass::Vector{ELTYPE}
+end
+
+function invert_scaled_correction_matrix(::Type{ELTYPE}, ::Val{NDIMS},
+                                         scale::ELTYPE) where {ELTYPE,
+                                                               NDIMS}
+    matrix = zeros(ELTYPE, NDIMS, NDIMS)
+    for i in 1:NDIMS
+        matrix[i, i] = scale
+    end
+
+    return invert_correction_matrix(matrix)
+end
+
+function invert_correction_matrix(matrix::AbstractMatrix{ELTYPE}) where {ELTYPE}
+    NDIMS = size(matrix, 1)
+    system = CorrectionMatrixTestSystem{NDIMS, ELTYPE}(ones(ELTYPE, 1))
+    correction_matrix = reshape(copy(matrix), NDIMS, NDIMS, 1)
+
+    TrixiParticles.correction_matrix_inversion_step!(correction_matrix, system,
+                                                     DummySemidiscretization())
+    return correction_matrix[:, :, 1]
+end
+
+# Recompute, in a naive loop, the zeroth and first gradient moments and the direct and
+# difference kernel-gradient interpolations of a scalar field. These reference values are
+# compared against the corrections computed by TrixiParticles.
 function correction_moments(setup; field=(pos -> 1.0))
     (; system, semi, v_ode, u_ode) = setup
     v = TrixiParticles.wrap_v(v_ode, system, semi)
@@ -114,6 +150,8 @@ function correction_moments(setup; field=(pos -> 1.0))
             difference_gradient)
 end
 
+# Find the particle closest to the lower-left corner, where the correction is
+# least accurate due to missing neighbors.
 function corner_particle(system)
     coordinates = TrixiParticles.initial_coordinates(system)
     return argmin(eachindex(axes(coordinates, 2))) do particle
@@ -121,6 +159,7 @@ function corner_particle(system)
     end
 end
 
+# Compare an uninterrupted RHS evaluation with one after serializing and restoring its state.
 function correction_restart_result(correction; edac, density_calculator)
     direct = correction_setup(correction; edac, density_calculator,
                               pressure_acceleration=nothing)
@@ -128,6 +167,7 @@ function correction_restart_result(correction; edac, density_calculator)
     v = TrixiParticles.wrap_v(v_ode, system, semi)
     u = TrixiParticles.wrap_u(u_ode, system, semi)
 
+    # Make both state vectors nonuniform so stale correction caches affect the RHS.
     for particle in TrixiParticles.eachparticle(system)
         v[1, particle] = 0.01particle
         v[2, particle] = -0.02particle
@@ -145,6 +185,7 @@ function correction_restart_result(correction; edac, density_calculator)
     TrixiParticles.kick!(dv_direct, v_ode, u_ode,
                          (; semi, split_integration_data=nothing), 0.0)
 
+    # Restart from copies to ensure the restart path, rather than shared state, restores caches.
     restarted = correction_setup(correction; edac, density_calculator,
                                  pressure_acceleration=nothing)
     mock_solution = (; u=[(; x=(copy(v_ode), copy(u_ode)))])

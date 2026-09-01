@@ -414,11 +414,39 @@ end
 function reinit_density!(vu_ode, semi)
     v_ode, u_ode = vu_ode.x
 
-    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
-        reinit_density!(system, v, u, v_ode, u_ode, semi)
-    end
+    reinit_density!(semi.systems, v_ode, u_ode, semi)
 
     return vu_ode
+end
+
+function reinit_density!(systems, v_ode, u_ode, semi)
+    coefficients = prepare_reinit_density!(systems, v_ode, u_ode, semi)
+    apply_reinit_density!(systems, coefficients, v_ode, u_ode, semi)
+
+    return systems
+end
+
+prepare_reinit_density!(::Tuple{}, v_ode, u_ode, semi) = ()
+
+function prepare_reinit_density!(systems, v_ode, u_ode, semi)
+    system = first(systems)
+    v = wrap_v(v_ode, system, semi)
+    u = wrap_u(u_ode, system, semi)
+    coefficient = prepare_reinit_density!(system, v, u, v_ode, u_ode, semi)
+
+    return (coefficient, prepare_reinit_density!(Base.tail(systems), v_ode, u_ode, semi)...)
+end
+
+apply_reinit_density!(::Tuple{}, ::Tuple{}, v_ode, u_ode, semi) = nothing
+
+function apply_reinit_density!(systems, coefficients, v_ode, u_ode, semi)
+    system = first(systems)
+    v = wrap_v(v_ode, system, semi)
+    u = wrap_u(u_ode, system, semi)
+    apply_reinit_density!(system, first(coefficients), v, u, v_ode, u_ode, semi)
+
+    return apply_reinit_density!(Base.tail(systems), Base.tail(coefficients), v_ode, u_ode,
+                                 semi)
 end
 
 function reinit_density!(system::WeaklyCompressibleSPHSystem, v, u,
@@ -430,18 +458,56 @@ end
 
 function reinit_density!(system::WeaklyCompressibleSPHSystem, ::ContinuityDensity, v, u,
                          v_ode, u_ode, semi)
-    # Use the independently evolved density to determine particle volumes before replacing it
-    # with the reinitialized summation density.
-    kernel_correction_coefficient = similar(v, size(v, 2))
+    coefficient = prepare_reinit_density!(system, v, u, v_ode, u_ode, semi)
+    apply_reinit_density!(system, coefficient, v, u, v_ode, u_ode, semi)
+
+    return system
+end
+
+prepare_reinit_density!(system, v, u, v_ode, u_ode, semi) = nothing
+
+function prepare_reinit_density!(system::WeaklyCompressibleSPHSystem, v, u,
+                                 v_ode, u_ode, semi)
+    return prepare_reinit_density!(system, system.density_calculator, v, u, v_ode, u_ode,
+                                   semi)
+end
+
+prepare_reinit_density!(system, density_calculator, v, u, v_ode, u_ode, semi) = nothing
+
+function prepare_reinit_density!(system::WeaklyCompressibleSPHSystem, ::ContinuityDensity,
+                                 v, u, v_ode, u_ode, semi)
+    # Compute all coefficients before any reinitialization overwrites continuity density.
+    coefficient = similar(v, size(v, 2))
     compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode, semi,
-                           kernel_correction_coefficient)
+                           coefficient)
+
+    return coefficient
+end
+
+apply_reinit_density!(system, coefficient, v, u, v_ode, u_ode, semi) = system
+
+function apply_reinit_density!(system::WeaklyCompressibleSPHSystem, coefficient, v, u,
+                               v_ode, u_ode, semi)
+    return apply_reinit_density!(system, system.density_calculator, coefficient, v, u,
+                                 v_ode,
+                                 u_ode, semi)
+end
+
+function apply_reinit_density!(system, density_calculator, coefficient, v, u, v_ode, u_ode,
+                               semi)
+    system
+end
+
+function apply_reinit_density!(system::WeaklyCompressibleSPHSystem, ::ContinuityDensity,
+                               coefficient, v, u, v_ode, u_ode, semi)
+    isnothing(coefficient) && return system
 
     # Compute density with `SummationDensity` and store the result in `v`,
     # overwriting the previous integrated density.
     summation_density!(system, semi, u, u_ode, v[end, :])
 
     @threaded semi for particle in eachparticle(system)
-        v[end, particle] /= kernel_correction_coefficient[particle]
+        v[end, particle] /= coefficient[particle]
     end
 
     compute_pressure!(system, v, semi)
