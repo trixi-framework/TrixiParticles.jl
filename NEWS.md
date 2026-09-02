@@ -12,6 +12,11 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   `MechanicalWorkCalculator`, which can be passed as a custom quantity to
   `PostprocessCallback` (#1228).
 
+### Features
+
+- Added option to update `DensityDiffusionAntuono` between time steps instead of updating
+  in every stage of the time integration scheme (#1301).
+
 ### Important Bugfixes
 
 - Fixed mathematical inconsistencies in the SPH documentation, including incorrect

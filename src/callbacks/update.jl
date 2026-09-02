@@ -111,8 +111,8 @@ function (update_callback!::UpdateCallback)(integrator)
         end
 
         foreach_system(semi) do system
-            particle_shifting_from_callback!(u_ode, shifting_technique(system), system,
-                                             v_ode, semi, integrator)
+            update_density_diffusion_from_callback!(system, density_diffusion(system),
+                                                    v_ode, u_ode, semi, integrator)
         end
 
         # If TLSPH is not integrated, the averaged velocity will be updated in the
@@ -121,6 +121,13 @@ function (update_callback!::UpdateCallback)(integrator)
             foreach_system(semi) do system
                 compute_averaged_velocity!(system, v_ode, semi, t)
             end
+        end
+
+        # Shifting must be the last step because it potentially updates the particle
+        # positions without updating the neighborhood search accordingly.
+        foreach_system(semi) do system
+            particle_shifting_from_callback!(u_ode, shifting_technique(system), system,
+                                             v_ode, semi, integrator)
         end
     end
 

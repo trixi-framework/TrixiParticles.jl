@@ -553,6 +553,25 @@
         @test count_rhs_allocations(sol) == 0
     end
 
+    @trixi_testset "fluid/vortex_street_2d.jl with callback-updated density diffusion" begin
+        density_diffusion = DensityDiffusionAntuono(; delta=0.1,
+                                                    update_everystage=false)
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "vortex_street_2d.jl");
+                                         tspan=(0.0, 0.015), density_diffusion,
+                                         saving_callback=nothing)
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol) == 0
+
+        # The final time t = 0.015 is right after activating inactive particles.
+        # The following test fails if the DD is not updated AFTER the open boundaries.
+        normalized_density_gradient = fluid_system.cache.density_diffusion_normalized_density_gradient
+        @test all(TrixiParticles.each_integrated_particle(fluid_system)) do particle
+            !iszero(sum(abs, @view(normalized_density_gradient[:, particle])))
+        end
+    end
+
     @trixi_testset "fluid/lid_driven_cavity_2d.jl (EDAC)" begin
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",
