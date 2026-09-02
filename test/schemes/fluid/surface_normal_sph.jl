@@ -316,7 +316,7 @@ end
                                                    smoothing_length=1.5 * particle_spacing,
                                                    density_calculator=SummationDensity(),
                                                    state_equation=system.state_equation,
-                                                   correction=GradientCorrection(),
+                                                   gradient_correction=GradientCorrection(),
                                                    surface_method=normal_method,
                                                    reference_particle_spacing=particle_spacing)
     corrected_semi = Semidiscretization(corrected_system)
