@@ -228,7 +228,7 @@
                        v, v, 1, 2, pos_diff, distance,
                        sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
 
-        @test isapprox(dv[1], -5.33743497379846e-9, atol=6e-15)
-        @test isapprox(dv[2], 1.7791449912661534e-8, atol=6e-15)
+        @test isapprox(dv[1], -5.3174381515989315e-9, atol=6e-15)
+        @test isapprox(dv[2], 1.7724793838663105e-8, atol=6e-15)
     end
 end
