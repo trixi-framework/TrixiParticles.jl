@@ -38,6 +38,7 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl");
               sol=nothing, fluid_particle_spacing, tspan,
               viscosity_fluid=ViscosityMorris(nu=nu_sim_water), smoothing_length, gravity,
               density_diffusion=nothing, sound_speed, prefix="",
+              surface_method=ColorfieldSurfaceNormal(),
               reference_particle_spacing=fluid_particle_spacing)
 
 # ==========================================================================================

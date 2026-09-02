@@ -173,6 +173,11 @@ end
 end
 
 @inline function compact_support(system::RigidBodySystem, neighbor::RigidBodySystem)
+    if system === neighbor && system.boundary_model isa BoundaryModelDummyParticles
+        (; smoothing_kernel, smoothing_length) = system.boundary_model
+        return compact_support(smoothing_kernel, smoothing_length)
+    end
+
     return compact_support(system.contact_model, system, neighbor.contact_model, neighbor)
 end
 

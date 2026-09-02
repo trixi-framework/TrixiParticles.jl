@@ -1,6 +1,6 @@
 # Create a platform below the fluid (at a distance `walldistance`)
 function create_boundary_system(coordinates, particle_spacing, state_equation, kernel,
-                                smoothing_length, NDIMS, walldistance)
+                                smoothing_length, NDIMS, walldistance; color_value=0)
     # Compute bounding box of fluid particles
     xmin = minimum(coordinates[1, :])
     xmax = maximum(coordinates[1, :])
@@ -36,16 +36,18 @@ function create_boundary_system(coordinates, particle_spacing, state_equation, k
                                                  correction=nothing,
                                                  reference_particle_spacing=particle_spacing)
 
-    boundary_system = WallBoundarySystem(wall, boundary_model, adhesion_coefficient=0.0)
+    boundary_system = WallBoundarySystem(wall, boundary_model; adhesion_coefficient=0.0,
+                                         color_value)
     return boundary_system
 end
 
 function create_rigid_boundary_system(coordinates, particle_spacing, state_equation, kernel,
-                                      smoothing_length, NDIMS, walldistance)
+                                      smoothing_length, NDIMS, walldistance; color_value=0)
     # Reuse the same particle layout as the wall-boundary helper so the rigid/body and wall
     # variants should generate identical colorfield data.
     wall_system = create_boundary_system(coordinates, particle_spacing, state_equation,
-                                         kernel, smoothing_length, NDIMS, walldistance)
+                                         kernel, smoothing_length, NDIMS, walldistance;
+                                         color_value)
 
     rigid_model = BoundaryModelDummyParticles(wall_system.initial_condition.density,
                                               wall_system.initial_condition.mass,
@@ -63,6 +65,7 @@ function create_fluid_system(coordinates, velocity, mass, density, particle_spac
                              surface_tension;
                              surface_method=ColorfieldSurfaceNormal(), color_value=1,
                              NDIMS=2, smoothing_length=1.0, wall=false, walldistance=0.0,
+                             boundary_color_value=0,
                              boundary_system_type=:wall,
                              smoothing_kernel=SchoenbergCubicSplineKernel{NDIMS}())
     tspan = (0.0, 0.01)
@@ -84,11 +87,11 @@ function create_fluid_system(coordinates, velocity, mass, density, particle_spac
         boundary_system = if boundary_system_type == :wall
             create_boundary_system(coordinates, particle_spacing, state_equation,
                                    smoothing_kernel, smoothing_length, NDIMS,
-                                   walldistance)
+                                   walldistance; color_value=boundary_color_value)
         elseif boundary_system_type == :rigid
             create_rigid_boundary_system(coordinates, particle_spacing, state_equation,
                                          smoothing_kernel, smoothing_length, NDIMS,
-                                         walldistance)
+                                         walldistance; color_value=boundary_color_value)
         else
             error("unsupported boundary_system_type: $boundary_system_type")
         end
@@ -501,6 +504,18 @@ end
     @test isapprox(detached_a.cache.surface_gradient,
                    detached_b.cache.surface_gradient; rtol=1.0e-12, atol=1.0e-12)
 
+    zero_only = WeaklyCompressibleSPHSystem(detached_ic_a; smoothing_kernel,
+                                            smoothing_length,
+                                            density_calculator=SummationDensity(),
+                                            state_equation,
+                                            surface_method=detection_method,
+                                            reference_particle_spacing=particle_spacing,
+                                            color_value=0)
+    zero_only_semi = Semidiscretization(zero_only)
+    zero_only_ode = semidiscretize(zero_only_semi, (0.0, 0.01))
+    TrixiParticles.update_systems_and_nhs(zero_only_ode.u0.x..., zero_only_semi, 0.0)
+    @test maximum(zero_only.cache.surface_activity) == 1
+
     function interface_force(color_a, color_b)
         initial_condition_a = InitialCondition(; coordinates=coordinates_a,
                                                density=fill(1000.0,
@@ -648,6 +663,30 @@ end
                    wall_system.cache.neighbor_count,
                    rtol=sqrt(eps()), atol=sqrt(eps()))
     @test isapprox(rigid_system.cache.surface_activity,
+                   wall_system.cache.surface_activity,
+                   rtol=sqrt(eps()), atol=sqrt(eps()))
+
+    shifted_wall_system, shifted_wall_boundary, shifted_wall_semi,
+    shifted_wall_ode = create_fluid_system(coordinates, velocity, mass, density,
+                                           particle_spacing,
+                                           SurfaceTensionMorris(surface_tension_coefficient=0.072);
+                                           NDIMS, smoothing_length, smoothing_kernel,
+                                           surface_method=ColorfieldSurfaceNormal(interface_threshold=0.1,
+                                                                                  ideal_density_threshold=0.9),
+                                           wall=true, walldistance=2.0,
+                                           boundary_color_value=-7)
+    compute_and_test_surface_values(shifted_wall_system, shifted_wall_semi,
+                                    shifted_wall_ode;
+                                    NDIMS)
+
+    @test maximum(wall_boundary.boundary_model.cache.initial_colorfield) > 0
+    @test isapprox(shifted_wall_boundary.boundary_model.cache.initial_colorfield,
+                   wall_boundary.boundary_model.cache.initial_colorfield,
+                   rtol=sqrt(eps()), atol=sqrt(eps()))
+    @test isapprox(shifted_wall_system.cache.surface_normal,
+                   wall_system.cache.surface_normal,
+                   rtol=sqrt(eps()), atol=sqrt(eps()))
+    @test isapprox(shifted_wall_system.cache.surface_activity,
                    wall_system.cache.surface_activity,
                    rtol=sqrt(eps()), atol=sqrt(eps()))
 end

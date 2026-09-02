@@ -300,7 +300,7 @@ function initialize_colorfield!(system, boundary_model, semi)
 end
 
 function initialize_colorfield!(system, ::BoundaryModelDummyParticles, semi)
-    (; cache) = system.boundary_model
+    (; smoothing_kernel, smoothing_length, cache) = system.boundary_model
 
     if haskey(cache, :initial_colorfield)
         set_zero!(cache.initial_colorfield)
@@ -310,6 +310,10 @@ function initialize_colorfield!(system, ::BoundaryModelDummyParticles, semi)
         foreach_point_neighbor(system, system, system_coords, system_coords, semi,
                                points=eachparticle(system)) do particle, neighbor,
                                                                pos_diff, distance
+            cache.initial_colorfield[particle] += system.initial_condition.mass[particle] /
+                                                  system.initial_condition.density[particle] *
+                                                  kernel(smoothing_kernel, distance,
+                                                         smoothing_length)
             cache.neighbor_count[particle] += 1
         end
     end
