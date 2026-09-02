@@ -131,7 +131,7 @@ function WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
     end
 
     surface_method = select_surface_method(surface_tension, surface_method,
-                                            surface_normal_method, ELTYPE)
+                                           surface_normal_method, ELTYPE)
     surface_method = check_surface_method_eltype(surface_method, ELTYPE)
 
     if is_colorfield_surface_method(surface_method) && reference_particle_spacing < eps()

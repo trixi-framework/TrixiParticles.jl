@@ -138,7 +138,6 @@ end
                                                                      ideal_density_threshold=0.01))
     @test isnothing(boundary)
     @test all(iszero, system.cache.surface_normal)
-
 end
 
 function compute_and_test_surface_values(system, semi, ode; NDIMS=2)
@@ -208,23 +207,23 @@ end
                                            reference_particle_spacing=0.1f0)
     @test system32.surface_method isa ColorfieldSurfaceDetection{Float32}
     @test_throws ArgumentError WeaklyCompressibleSPHSystem(shape32;
-                                                            smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
-                                                            smoothing_length=1.5f0 * 0.1f0,
-                                                            density_calculator=SummationDensity(),
-                                                            state_equation=StateEquationCole(sound_speed=10.0f0,
-                                                                                             reference_density=1000.0f0,
-                                                                                             exponent=1),
-                                                            surface_method=ColorfieldSurfaceDetection(),
-                                                            reference_particle_spacing=0.1f0)
+                                                           smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
+                                                           smoothing_length=1.5f0 * 0.1f0,
+                                                           density_calculator=SummationDensity(),
+                                                           state_equation=StateEquationCole(sound_speed=10.0f0,
+                                                                                            reference_density=1000.0f0,
+                                                                                            exponent=1),
+                                                           surface_method=ColorfieldSurfaceDetection(),
+                                                           reference_particle_spacing=0.1f0)
     default_normal32 = WeaklyCompressibleSPHSystem(shape32;
-                                                    smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
-                                                    smoothing_length=1.5f0 * 0.1f0,
-                                                    density_calculator=SummationDensity(),
-                                                    state_equation=StateEquationCole(sound_speed=10.0f0,
-                                                                                     reference_density=1000.0f0,
-                                                                                     exponent=1),
-                                                    surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.1f0),
-                                                    reference_particle_spacing=0.1f0)
+                                                   smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
+                                                   smoothing_length=1.5f0 * 0.1f0,
+                                                   density_calculator=SummationDensity(),
+                                                   state_equation=StateEquationCole(sound_speed=10.0f0,
+                                                                                    reference_density=1000.0f0,
+                                                                                    exponent=1),
+                                                   surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.1f0),
+                                                   reference_particle_spacing=0.1f0)
     @test default_normal32.surface_method isa ColorfieldSurfaceNormal{Float32}
 
     particle_spacing = 0.1
@@ -1159,7 +1158,7 @@ end
     normals_b = [TrixiParticles.surface_normal(system_b, p) for p in interface_b]
     @test all(n -> n[1] < -0.5, normals_a)
     @test all(n -> dot(n, TrixiParticles.surface_normal(system_a, interface[1])) < 0,
-               normals_b)
+              normals_b)
 
     # The curvature of a planar interface is zero and must decrease on refinement.
     @test maximum(abs.(system_a.cache.curvature[interface])) < 0.5

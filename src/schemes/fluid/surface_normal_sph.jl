@@ -101,8 +101,8 @@ function colorfield_surface_parameters(; boundary_contact_threshold=0.1,
                                              upper_bound=1,
                                              strict_upper_bound=true)
     interpolation_threshold = validate_surface_threshold(interpolation_threshold_,
-                                                          "interpolation_surface_threshold";
-                                                          upper_bound=1)
+                                                         "interpolation_surface_threshold";
+                                                         upper_bound=1)
     parameters = promote(boundary_threshold, normal_threshold, density_threshold,
                          taper_start, interpolation_threshold)
     return eltype(parameters) <: Integer ? float.(parameters) : parameters
@@ -117,13 +117,13 @@ function ColorfieldSurfaceNormal(; kwargs...)
 end
 
 function ColorfieldSurfaceNormal(boundary_contact_threshold, interface_threshold,
-                                  ideal_density_threshold)
+                                 ideal_density_threshold)
     ELTYPE = promote_type(typeof(boundary_contact_threshold), typeof(interface_threshold),
                           typeof(ideal_density_threshold))
     return ColorfieldSurfaceNormal(; boundary_contact_threshold, interface_threshold,
-                                    ideal_density_threshold,
-                                    interface_taper_start=convert(ELTYPE, 0.8),
-                                    interpolation_surface_threshold=convert(ELTYPE, 0.45))
+                                   ideal_density_threshold,
+                                   interface_taper_start=convert(ELTYPE, 0.8),
+                                   interpolation_surface_threshold=convert(ELTYPE, 0.45))
 end
 
 @inline computes_surface_normal(surface_method) = false
@@ -133,9 +133,9 @@ end
 @inline is_colorfield_surface_method(::ColorfieldSurfaceMethod) = true
 
 function check_surface_method_eltype(surface_method::Union{ColorfieldSurfaceDetection{METHOD_ELTYPE},
-                                                            ColorfieldSurfaceNormal{METHOD_ELTYPE}},
-                                      ::Type{SYSTEM_ELTYPE}) where {METHOD_ELTYPE,
-                                                                    SYSTEM_ELTYPE}
+                                                           ColorfieldSurfaceNormal{METHOD_ELTYPE}},
+                                     ::Type{SYSTEM_ELTYPE}) where {METHOD_ELTYPE,
+                                                                   SYSTEM_ELTYPE}
     METHOD_ELTYPE === SYSTEM_ELTYPE && return surface_method
     throw(ArgumentError("the element type of `$surface_method` must match the system element type `$SYSTEM_ELTYPE`"))
 end
@@ -149,7 +149,8 @@ end
     return ifelse(color_a == color_b, one(ELTYPE), zero(ELTYPE))
 end
 
-@inline function default_surface_method(surface_tension, surface_method, ::Type{ELTYPE}) where {ELTYPE}
+@inline function default_surface_method(surface_tension, surface_method,
+                                        ::Type{ELTYPE}) where {ELTYPE}
     if isnothing(surface_method) && requires_surface_normal(surface_tension)
         return ColorfieldSurfaceNormal(convert(ELTYPE, 0.1), convert(ELTYPE, 0.01),
                                        zero(ELTYPE), convert(ELTYPE, 0.8),

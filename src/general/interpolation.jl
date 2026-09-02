@@ -634,19 +634,21 @@ end
             foreach_point_neighbor(neighbor_system, ref_system,
                                    neighbor_coords, reference_coords, semi;
                                    points=eachparticle(neighbor_system)) do boundary_particle,
-                                                                        fluid_particle,
-                                                                        pos_diff, distance
+                                                                            fluid_particle,
+                                                                            pos_diff,
+                                                                            distance
                 volume_a = hydrodynamic_mass(ref_system, fluid_particle) /
                            current_density(reference_v, ref_system, fluid_particle)
-                boundary_colorfield[boundary_particle] +=
-                    volume_a * kernel(ref_smoothing_kernel, distance, smoothing_length)
+                boundary_colorfield[boundary_particle] += volume_a *
+                                                          kernel(ref_smoothing_kernel,
+                                                                 distance, smoothing_length)
             end
             maximum_boundary_colorfield = maximum(boundary_colorfield)
         end
 
         foreach_point_neighbor(point_coords, neighbor_coords, nhs;
                                parallelization_backend) do point, neighbor, pos_diff,
-                                                            distance
+                                                           distance
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
             volume_b = m_b / current_density(v, neighbor_system, neighbor)
             W_ab = kernel(ref_smoothing_kernel, distance, smoothing_length)
