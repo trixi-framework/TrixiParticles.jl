@@ -52,7 +52,8 @@ end
     ShepardKernelCorrection()
 
 Kernel correction, as explained by [Bonet (1999)](@cite Bonet1999), uses Shepard interpolation
-to obtain a 0-th order accurate result, which was first proposed by [Li et al. (1996)](@cite Li1996).
+to obtain a zeroth-order consistent result (exact reproduction of constants), which was first
+proposed by [Li et al. (1996)](@cite Li1996).
 
 The kernel correction coefficient is determined by
 ```math
@@ -61,7 +62,11 @@ c(x) = \sum_{b=1} V_b W_b(x),
 where ``V_b = m_b / \rho_b`` is the volume of particle ``b``.
 
 This correction is applied with [`SummationDensity`](@ref) to correct the density and leads
-to an improvement, especially at free surfaces.
+to an improvement, especially at free surfaces. With summation density, the current one-pass
+implementation uses the density available when each system is processed and therefore reduces
+the free-surface error without guaranteeing convergence for multiple interacting systems.
+[`DensityReinitializationCallback`](@ref) computes all simultaneously requested corrections
+from the independently evolved continuity density before replacing any density.
 
 !!! note
     - It is also referred to as "0th order correction".
@@ -73,7 +78,9 @@ struct ShepardKernelCorrection end
     KernelCorrection()
 
 Kernel correction, as explained by [Bonet (1999)](@cite Bonet1999), uses Shepard interpolation
-to obtain a 0-th order accurate result, which was first proposed by Li et al.
+to obtain a zeroth-order consistent kernel gradient (an exact zero gradient for constants
+when the correction coefficient is valid),
+which was first proposed by Li et al.
 This can be further extended to obtain a kernel corrected gradient as shown by [Basa et al. (2008)](@cite Basa2008).
 
 The kernel correction coefficient is determined by
@@ -88,6 +95,13 @@ The gradient of corrected kernel is determined by
 
 This correction can be applied with [`SummationDensity`](@ref) and
 [`ContinuityDensity`](@ref), which leads to an improvement, especially at free surfaces.
+
+When the kernel correction coefficient is non-finite or not larger than
+`sqrt(eps(T))` for the coefficient element type `T`, the correction is disabled
+for that particle by setting the coefficient to one and the gradient offset
+`γ` (`dw_gamma`) to zero. The corrected gradient then falls back to the
+uncorrected kernel gradient and zeroth-order gradient consistency is not
+retained for the degenerate particle.
 
 !!! note
     - This only works when the boundary model uses [`SummationDensity`](@ref) (yet).
@@ -107,6 +121,16 @@ which results in a 1st-order-accurate SPH method (see [Bonet, 1999](@cite Bonet1
 - Doubles the computational effort.
 """
 struct MixedKernelGradientCorrection end
+
+correction_density(::Any) = nothing
+correction_density(correction::ShepardKernelCorrection) = correction
+
+correction_gradient(::Nothing) = nothing
+correction_gradient(::ShepardKernelCorrection) = nothing
+correction_gradient(::AkinciFreeSurfaceCorrection) = nothing
+correction_gradient(correction) = correction
+
+correction_force(correction) = correction
 
 function kernel_correction_coefficient(system::AbstractFluidSystem, particle)
     return system.cache.kernel_correction_coefficient[particle]
@@ -166,7 +190,20 @@ function compute_shepard_coeff!(system, system_coords, v_ode, u_ode, semi,
         end
     end
 
+    sanitize_kernel_correction_coefficient!(kernel_correction_coefficient, system, semi)
+
     return kernel_correction_coefficient
+end
+
+function sanitize_kernel_correction_coefficient!(coefficient, system, semi)
+    @threaded semi for particle in eachindex(coefficient)
+        value = coefficient[particle]
+        if !isfinite(value) || value <= zero(value)
+            coefficient[particle] = one(value)
+        end
+    end
+
+    return coefficient
 end
 
 function dw_gamma(system::AbstractFluidSystem, particle)
@@ -255,9 +292,22 @@ function compute_correction_values!(system,
         end
     end
 
-    for particle in eachparticle(system), i in axes(dw_gamma, 1)
-        dw_gamma[i, particle] /= kernel_correction_coefficient[particle]
+    minimum_coefficient = sqrt(eps(eltype(kernel_correction_coefficient)))
+    @threaded semi for particle in eachparticle(system)
+        coefficient = kernel_correction_coefficient[particle]
+        if !isfinite(coefficient) || coefficient <= minimum_coefficient
+            kernel_correction_coefficient[particle] = one(coefficient)
+            for i in axes(dw_gamma, 1)
+                dw_gamma[i, particle] = zero(eltype(dw_gamma))
+            end
+        else
+            for i in axes(dw_gamma, 1)
+                dw_gamma[i, particle] /= coefficient
+            end
+        end
     end
+
+    return kernel_correction_coefficient
 end
 
 @doc raw"""
