@@ -551,6 +551,7 @@ end
 
     n_points = size(point_coords, 2)
     ELTYPE = eltype(point_coords)
+    NDIMS = ndims(ref_system)
     surface_method_ = surface_method(ref_system)
     detect_surface = is_colorfield_surface_method(surface_method_)
     computed_density = allocate(semi.parallelization_backend, ELTYPE, n_points)
@@ -559,7 +560,7 @@ end
     neighbor_count = allocate(semi.parallelization_backend, Int, n_points)
     surface_gradient = detect_surface ?
                        allocate(semi.parallelization_backend, ELTYPE,
-                                (ndims(ref_system), n_points)) : nothing
+                                (NDIMS, n_points)) : nothing
     surface_activity_ = detect_surface ?
                         allocate(semi.parallelization_backend, ELTYPE, n_points) : nothing
     reference_colorfield = detect_surface ?
@@ -567,6 +568,9 @@ end
                            nothing
     other_colorfield = detect_surface ?
                        allocate(semi.parallelization_backend, ELTYPE, n_points) : nothing
+    surface_neighbor_count = detect_surface ?
+                             allocate(semi.parallelization_backend, Int, n_points) :
+                             nothing
     # The wall velocity considers more neighbors, so we need to use
     # a different Shepard coefficient.
     shepard_coefficient_wall = allocate(semi.parallelization_backend, ELTYPE, n_points)
@@ -581,6 +585,7 @@ end
         set_zero!(surface_activity_)
         set_zero!(reference_colorfield)
         set_zero!(other_colorfield)
+        set_zero!(surface_neighbor_count)
     end
 
     cache = create_cache_interpolation(ref_system, n_points, semi)
@@ -591,6 +596,9 @@ end
                                       surface_method_.interpolation_surface_threshold :
                                       zero(ELTYPE)
     reference_color = detect_surface ? ref_system.cache.color : 0
+    support_radius = compact_support(ref_smoothing_kernel, smoothing_length)
+    reference_spacing = detect_surface ?
+                        ref_system.cache.reference_particle_spacing : zero(ELTYPE)
 
     # If we neither cut off at the boundary nor include the boundary wall velocity,
     # we only need to iterate over the reference system.
@@ -623,9 +631,10 @@ end
             if contributes_surface
                 grad_kernel = kernel_grad(ref_smoothing_kernel, pos_diff, distance,
                                           smoothing_length)
-                for i in 1:ndims(ref_system)
+                for i in 1:NDIMS
                     surface_gradient[i, point] += volume_b * phase_weight * grad_kernel[i]
                 end
+                surface_neighbor_count[point] += 1
 
                 if neighbor_system isa AbstractFluidSystem
                     if surface_color == reference_color
@@ -676,13 +685,19 @@ end
     @threaded parallelization_backend for point in axes(point_coords, 2)
         if detect_surface
             normal_norm = zero(ELTYPE)
-            for i in 1:ndims(ref_system)
+            for i in 1:NDIMS
                 normal_norm += surface_gradient[i, point]^2
             end
-            surface_activity_[point] = gradient_surface_activity(sqrt(normal_norm),
-                                                                 compact_support(ref_smoothing_kernel,
-                                                                                 smoothing_length),
-                                                                 surface_method_)
+            # Apply the same admissibility criteria as the particle-based detection,
+            # so sparse or under-resolved support is inactive in interpolated output, too.
+            if invalid_surface_support(surface_neighbor_count[point], NDIMS,
+                                       reference_spacing, support_radius, surface_method_)
+                surface_activity_[point] = zero(ELTYPE)
+            else
+                surface_activity_[point] = gradient_surface_activity(sqrt(normal_norm),
+                                                                     support_radius,
+                                                                     surface_method_)
+            end
         end
 
         outside_reference_phase = detect_surface &&

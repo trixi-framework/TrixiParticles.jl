@@ -266,6 +266,31 @@ end
     @test_throws ArgumentError ColorfieldSurfaceDetection(interface_threshold=-0.1)
     @test_throws ArgumentError ColorfieldSurfaceDetection(interface_threshold="invalid")
 
+    shape32 = RectangularShape(0.1f0, (3, 3), (0.0f0, 0.0f0), density=1000.0f0)
+    system32 = WeaklyCompressibleSPHSystem(shape32;
+                                           smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
+                                           smoothing_length=1.5f0 * 0.1f0,
+                                           density_calculator=SummationDensity(),
+                                           state_equation=StateEquationCole(sound_speed=10.0f0,
+                                                                            reference_density=1000.0f0,
+                                                                            exponent=1),
+                                           surface_method=ColorfieldSurfaceDetection(0.1f0,
+                                                                                     0.01f0,
+                                                                                     0.0f0,
+                                                                                     0.8f0,
+                                                                                     0.45f0),
+                                           reference_particle_spacing=0.1f0)
+    @test system32.surface_method isa ColorfieldSurfaceDetection{Float32}
+    @test_throws ArgumentError WeaklyCompressibleSPHSystem(shape32;
+                                                           smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
+                                                           smoothing_length=1.5f0 * 0.1f0,
+                                                           density_calculator=SummationDensity(),
+                                                           state_equation=StateEquationCole(sound_speed=10.0f0,
+                                                                                            reference_density=1000.0f0,
+                                                                                            exponent=1),
+                                                           surface_method=ColorfieldSurfaceDetection(),
+                                                           reference_particle_spacing=0.1f0)
+
     particle_spacing = 0.1
     coordinates = RectangularShape(particle_spacing, (21, 11), (0.0, 0.0),
                                    density=1000.0)
@@ -379,6 +404,24 @@ end
     TrixiParticles.add_system_data!(metadata, normal_method)
     @test metadata["surface_method"]["computes_surface_normal"]
     @test metadata["surface_method"]["interpolation_surface_threshold"] == 0.45
+
+    fluid_metadata = Dict{String, Any}()
+    TrixiParticles.add_system_data!(fluid_metadata, system)
+    @test fluid_metadata["color"] == 1
+    contributor = WeaklyCompressibleSPHSystem(coordinates;
+                                              smoothing_kernel,
+                                              smoothing_length=1.5 * particle_spacing,
+                                              density_calculator=SummationDensity(),
+                                              state_equation=system.state_equation,
+                                              reference_particle_spacing=particle_spacing,
+                                              color_value=2)
+    contributor_metadata = Dict{String, Any}()
+    TrixiParticles.add_system_data!(contributor_metadata, contributor)
+    @test contributor_metadata["color"] == 2
+    @test !haskey(contributor_metadata, "surface_method")
+    iisph_metadata = Dict{String, Any}()
+    TrixiParticles.add_system_data!(iisph_metadata, iisph_system)
+    @test iisph_metadata["color"] == 1
 
     mktempdir() do output_directory
         trixi2vtk(ode.u0, semi, 0.0; output_directory,
@@ -1000,4 +1043,207 @@ end
             @test isapprox(curvature[i], 0.0; atol=1e-2)
         end
     end
+end
+
+function morris_interface_system(coordinates, particle_spacing; color, smoothing_length,
+                                 surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.05),
+                                 smoothing_kernel=WendlandC2Kernel{2}())
+    initial_condition = InitialCondition(; coordinates,
+                                         density=fill(1000.0, size(coordinates, 2)),
+                                         particle_spacing)
+    return WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
+                                       smoothing_length,
+                                       density_calculator=SummationDensity(),
+                                       state_equation=StateEquationCole(sound_speed=10.0,
+                                                                        reference_density=1000.0,
+                                                                        exponent=1),
+                                       surface_tension,
+                                       surface_method=ColorfieldSurfaceNormal(),
+                                       reference_particle_spacing=particle_spacing,
+                                       color_value=color)
+end
+
+function update_only(systems...; smoothing_length)
+    semi = Semidiscretization(systems...)
+    ode = semidiscretize(semi, (0.0, 0.01))
+    TrixiParticles.update_systems_and_nhs(ode.u0.x..., semi, 0.0)
+    return semi, ode
+end
+
+function morris_surface_tension_acceleration(system, semi, ode)
+    v_ode, u_ode = ode.u0.x
+    v = TrixiParticles.wrap_v(v_ode, system, semi)
+    u = TrixiParticles.wrap_u(u_ode, system, semi)
+    system_coords = TrixiParticles.current_coordinates(u, system)
+    nhs = TrixiParticles.create_neighborhood_search(TrixiParticles.TrivialNeighborhoodSearch{ndims(system)}(),
+                                                    system, system)
+    acceleration = zeros(ndims(system), nparticles(system))
+    TrixiParticles.foreach_point_neighbor(system_coords, system_coords,
+                                          nhs) do particle, neighbor, pos_diff, distance
+        rho_a = TrixiParticles.current_density(v, system, particle)
+        rho_b = TrixiParticles.current_density(v, system, neighbor)
+        grad_kernel = TrixiParticles.smoothing_kernel_grad(system, pos_diff, distance,
+                                                           particle)
+        dv = TrixiParticles.add_dv_surface_tension(zero(pos_diff),
+                                                   system.surface_tension,
+                                                   system.surface_tension,
+                                                   system, system, particle, neighbor,
+                                                   pos_diff, distance, rho_a, rho_b,
+                                                   grad_kernel, 1)
+        acceleration[:, particle] .+= dv
+    end
+    return acceleration
+end
+
+@testset verbose=true "Morris Curvature Is Partition And Order Invariant" begin
+    particle_spacing = 0.1
+    smoothing_length = 0.15
+    y_coordinates = collect(-0.5:particle_spacing:0.5)
+    coordinates_left = hcat(([x, y] for x in -0.5:particle_spacing:-0.1
+                             for y in y_coordinates)...)
+    coordinates_middle = hcat(([x, y] for x in 0.0:particle_spacing:0.1
+                               for y in y_coordinates)...)
+    coordinates_right = hcat(([x, y] for x in 0.2:particle_spacing:0.5
+                              for y in y_coordinates)...)
+    coordinates_all = hcat(coordinates_left, coordinates_middle, coordinates_right)
+
+    function coordinate_key(system, particle)
+        return round.(Tuple(system.initial_condition.coordinates[:, particle]); digits=6)
+    end
+
+    reference = morris_interface_system(coordinates_all, particle_spacing; color=7,
+                                        smoothing_length)
+    _, reference_ode = update_only(reference; smoothing_length)
+    reference_curvature = Dict(coordinate_key(reference, i) => reference.cache.curvature[i]
+                               for i in axes(reference.initial_condition.coordinates, 2))
+
+    function partitioned_curvature(order)
+        left = morris_interface_system(coordinates_left, particle_spacing; color=7,
+                                       smoothing_length)
+        middle = morris_interface_system(coordinates_middle, particle_spacing; color=7,
+                                         smoothing_length)
+        right = morris_interface_system(coordinates_right, particle_spacing; color=7,
+                                        smoothing_length)
+        systems = order == :lmr ? (left, middle, right) : (right, middle, left)
+        semi, ode = update_only(systems...; smoothing_length)
+        return systems, semi, ode
+    end
+
+    systems_lmr, semi_lmr, ode_lmr = partitioned_curvature(:lmr)
+    systems_rml, semi_rml, ode_rml = partitioned_curvature(:rml)
+    left_lmr = systems_lmr[1]
+    left_rml = systems_rml[3]
+
+    particles = axes(left_lmr.initial_condition.coordinates, 2)
+    for target in (left_lmr, left_rml)
+        @test all(particles) do particle
+            key = coordinate_key(target, particle)
+            return isapprox(target.cache.curvature[particle], reference_curvature[key];
+                            atol=1.0e-12)
+        end
+    end
+
+    @test all(p -> isapprox(left_lmr.cache.curvature[p], left_rml.cache.curvature[p];
+                            atol=1.0e-12), particles)
+
+    dv_lmr = similar(ode_lmr.u0.x[1])
+    TrixiParticles.system_interaction!(dv_lmr, ode_lmr.u0.x..., semi_lmr)
+    dv_rml = similar(ode_rml.u0.x[1])
+    TrixiParticles.system_interaction!(dv_rml, ode_rml.u0.x..., semi_rml)
+    n_left = size(coordinates_left, 2)
+    n_right = size(coordinates_right, 2)
+    n_middle = size(coordinates_middle, 2)
+    n_total = n_left + n_middle + n_right
+    dv_lmr_left = reshape(dv_lmr, :, n_total)[:, 1:n_left]
+    dv_rml_left = reshape(dv_rml, :, n_total)[:, (n_right + n_middle + 1):end]
+    @test isapprox(dv_lmr_left, dv_rml_left; atol=1.0e-12)
+end
+
+@testset verbose=true "Planar Multicolor Morris Interface" begin
+    function planar_interface(spacing)
+        smoothing_length = 1.5 * spacing
+        y_coordinates = collect(-0.5:spacing:0.5)
+        coordinates_a = hcat(([x, y] for x in -0.5:spacing:(-spacing)
+                              for y in y_coordinates)...)
+        coordinates_b = hcat(([x, y] for x in 0.0:spacing:0.5
+                              for y in y_coordinates)...)
+        system_a = morris_interface_system(coordinates_a, spacing; color=0,
+                                           smoothing_length)
+        system_b = morris_interface_system(coordinates_b, spacing; color=1,
+                                           smoothing_length, surface_tension=nothing)
+        semi, ode = update_only(system_a, system_b; smoothing_length)
+        return system_a, system_b, semi, ode, smoothing_length, spacing
+    end
+
+    system_a, system_b, semi, ode, smoothing_length, spacing = planar_interface(0.1)
+    coords = system_a.initial_condition.coordinates
+    interface = [particle
+                 for particle in axes(coords, 2)
+                 if isapprox(coords[1, particle], -spacing; atol=spacing / 4) &&
+                    abs(coords[2, particle]) < 0.5 - 3 * spacing]
+    @test !isempty(interface)
+
+    normals_a = [TrixiParticles.surface_normal(system_a, p) for p in interface]
+    normals_b = [TrixiParticles.surface_normal(system_b, p) for p in interface]
+    @test all(n -> n[1] < -0.5, normals_a)
+    @test all(n -> dot(n, TrixiParticles.surface_normal(system_a, interface[1])) < 0,
+              normals_b)
+
+    # The curvature of a planar interface is zero. The colorfield divergence retains a
+    # small O(1/h) discretization artifact, far below the single-phase free-surface level.
+    @test maximum(abs.(system_a.cache.curvature[interface])) < 0.5
+
+    acceleration = morris_surface_tension_acceleration(system_a, semi, ode)
+    @test maximum(norm.(eachcol(acceleration[:, interface]))) < 1.0e-2
+
+    refined_a, _, _, refined_ode, _, refined_spacing = planar_interface(0.05)
+    refined_coords = refined_a.initial_condition.coordinates
+    refined_interface = [particle
+                         for particle in axes(refined_coords, 2)
+                         if isapprox(refined_coords[1, particle], -refined_spacing;
+                                     atol=refined_spacing / 4) &&
+                            abs(refined_coords[2, particle]) < 0.5 - 3 * refined_spacing]
+    @test !isempty(refined_interface)
+    @test maximum(abs.(refined_a.cache.curvature[refined_interface])) < 1.0
+end
+
+@testset verbose=true "Morris Curvature With Mixed Normal Representations" begin
+    particle_spacing = 0.1
+    smoothing_length = 0.15
+    y_coordinates = collect(-0.5:particle_spacing:0.5)
+    coordinates_a = hcat(([x, y] for x in -0.5:particle_spacing:-0.1
+                          for y in y_coordinates)...)
+    coordinates_b = hcat(([x, y] for x in 0.0:particle_spacing:0.5
+                          for y in y_coordinates)...)
+
+    system_a = morris_interface_system(coordinates_a, particle_spacing; color=0,
+                                       smoothing_length)
+    system_b_morris = morris_interface_system(coordinates_b, particle_spacing; color=0,
+                                              smoothing_length)
+    _, _ = update_only(system_a, system_b_morris; smoothing_length)
+    reference_curvature = copy(system_a.cache.curvature)
+
+    system_a_mixed = morris_interface_system(coordinates_a, particle_spacing; color=0,
+                                             smoothing_length)
+    system_b_akinci = morris_interface_system(coordinates_b, particle_spacing; color=0,
+                                              smoothing_length,
+                                              surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.05))
+    _, _ = update_only(system_a_mixed, system_b_akinci; smoothing_length)
+
+    @test maximum(abs.(system_b_akinci.cache.surface_normal)) > 1
+    @test isapprox(system_a_mixed.cache.curvature, reference_curvature; atol=1.0e-12)
+
+    scale = 2.0
+    system_a_scaled = morris_interface_system(coordinates_a .* scale,
+                                              scale * particle_spacing; color=0,
+                                              smoothing_length=scale * smoothing_length)
+    system_b_scaled = morris_interface_system(coordinates_b .* scale,
+                                              scale * particle_spacing; color=0,
+                                              smoothing_length=scale * smoothing_length,
+                                              surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.05))
+    _,
+    _ = update_only(system_a_scaled, system_b_scaled;
+                    smoothing_length=scale * smoothing_length)
+    @test isapprox(scale .* system_a_scaled.cache.curvature, reference_curvature;
+                   atol=1.0e-12)
 end

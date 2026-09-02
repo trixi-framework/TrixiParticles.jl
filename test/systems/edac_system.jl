@@ -244,4 +244,32 @@
                       nparticles(system))
         end
     end
+    @testset verbose=true "deprecated surface_normal_method" begin
+        shape = RectangularShape(0.123, (2, 3), (-1.0, 0.1), density=1.0)
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        smoothing_length = 0.362
+
+        system = @test_deprecated EntropicallyDampedSPHSystem(shape; smoothing_kernel,
+                                                              smoothing_length,
+                                                              sound_speed=10.0,
+                                                              surface_normal_method=ColorfieldSurfaceNormal(),
+                                                              reference_particle_spacing=0.123)
+        @test system.surface_method isa ColorfieldSurfaceNormal
+        @test @test_deprecated(TrixiParticles.surface_normal_method(system)) isa
+              ColorfieldSurfaceNormal
+
+        detection = EntropicallyDampedSPHSystem(shape; smoothing_kernel,
+                                                smoothing_length, sound_speed=10.0,
+                                                surface_method=ColorfieldSurfaceDetection(),
+                                                reference_particle_spacing=0.123)
+        @test @test_deprecated(TrixiParticles.surface_normal_method(detection)) === nothing
+
+        error_str = "`surface_method` and deprecated `surface_normal_method` cannot both be set"
+        @test_throws ArgumentError(error_str) EntropicallyDampedSPHSystem(shape;
+                                                                          smoothing_kernel,
+                                                                          smoothing_length,
+                                                                          sound_speed=10.0,
+                                                                          surface_method=ColorfieldSurfaceDetection(),
+                                                                          surface_normal_method=ColorfieldSurfaceNormal())
+    end
 end

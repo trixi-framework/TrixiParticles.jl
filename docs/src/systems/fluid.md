@@ -279,12 +279,18 @@ semidiscretization instead of being treated as free surfaces.
 
 `surface_activity` is available in particle VTK output and as a custom quantity for
 `SolutionSavingCallback` and `PostprocessCallback`. `surf_normal` is written only for
-normal-capable methods.
+normal-capable methods. The per-system `color_value` is always recorded in `meta.json`
+and written as `color` field data in particle VTK output, also for fluids without a
+surface method, since their phase label still enters other systems' colorfield detection.
+All per-particle VTK arrays, including `surface_activity` and `neighbor_count`, hold one
+value per active particle when a system buffer is used.
 
 Point and plane interpolation evaluate the same colorfield gradient. With `cut_off_bnd=true`,
 kernel-weighted color contributions also determine whether a point belongs to the reference
 phase. This prevents extrapolation through both free surfaces and interfaces with another
-liquid while retaining the existing solid-boundary cutoff.
+liquid while retaining the existing solid-boundary cutoff. Interpolated `surface_activity`
+applies the same minimum-support and `ideal_density_threshold` rejection criteria as the
+particle-based detection.
 
 #### Handling noise and errors in normal calculation
 
@@ -301,6 +307,30 @@ incomplete kernel support can produce small or poorly resolved normal estimates.
    exterior phase. It must remain zero for fully represented multiphase interfaces, where valid
    interface particles can have full support.
 4. Curvature calculations use a corrected formulation to reduce errors near interface fringes.
+
+#### Morris curvature with phase-local normals
+
+Because the stored normals are phase-local (they point into their own phase), the Morris curvature
+
+```math
+\kappa_a = \frac{\sum_b V_b (\hat{\bm{n}}_b - \hat{\bm{n}}_a) \cdot \nabla_a W_{ab}}
+                {\sum_b V_b W_{ab}}
+```
+
+is evaluated with consistently normalized, same-phase neighbors only: summing oppositely
+oriented normals across unlike `color_value`s would create spurious curvature at exactly
+planar interfaces, and neighboring systems may store unnormalized gradients (for example
+with Akinci surface tension). Both the numerator and the denominator are accumulated over
+all interacting systems before the division is performed once, so the result does not
+depend on system ordering or on how one physical phase is partitioned into systems. The
+same procedure also applies to interpolated surface activity: interpolation points are
+rejected by the identical minimum-support and `ideal_density_threshold` criteria used for
+particles, so sparse or under-resolved regions are inactive in interpolated output, too.
+
+A planar two-phase interface retains a small ``\mathcal{O}(1/h)`` discretization artifact
+from the one-sided colorfield divergence, the same mechanism present at single-phase free
+surfaces. Its magnitude stays far below the corresponding single-phase free-surface
+artifact.
 
 ```@autodocs
 Modules = [TrixiParticles]

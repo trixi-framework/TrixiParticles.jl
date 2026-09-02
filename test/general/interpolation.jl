@@ -1119,3 +1119,121 @@
         end
     end
 end;
+
+@testset verbose=true "Interpolated Surface Activity Validity" begin
+    function detection_system(coordinates, particle_spacing; ideal_density_threshold=0.0,
+                              color_value=1)
+        initial_condition = InitialCondition(; coordinates,
+                                             density=fill(1000.0, size(coordinates, 2)),
+                                             particle_spacing)
+        return WeaklyCompressibleSPHSystem(initial_condition;
+                                           smoothing_kernel=WendlandC2Kernel{2}(),
+                                           smoothing_length=1.5 * particle_spacing,
+                                           density_calculator=SummationDensity(),
+                                           state_equation=StateEquationCole(sound_speed=10.0,
+                                                                            reference_density=1000.0,
+                                                                            exponent=1),
+                                           surface_method=ColorfieldSurfaceDetection(;
+                                                                                     ideal_density_threshold),
+                                           reference_particle_spacing=particle_spacing,
+                                           color_value)
+    end
+
+    function setup(coordinates, particle_spacing; kwargs...)
+        system = detection_system(coordinates, particle_spacing; kwargs...)
+        semi = Semidiscretization(system)
+        ode = semidiscretize(semi, (0.0, 0.01))
+        TrixiParticles.update_systems_and_nhs(ode.u0.x..., semi, 0.0)
+        return system, semi, ode
+    end
+
+    @testset verbose=true "Sparse Support Is Inactive" begin
+        particle_spacing = 0.1
+        coordinates = particle_spacing .* [0.0 1.0 2.0; 0.0 0.0 0.0]
+        system, semi, ode = setup(coordinates, particle_spacing)
+        result = interpolate_points(reshape([particle_spacing, 0.0], 2, 1), semi, system,
+                                    ode.u0.x...; cut_off_bnd=false)
+        @test all(iszero, system.cache.surface_activity)
+        @test result.surface_activity[1] == 0
+        @test result.neighbor_count[1] > 0
+    end
+
+    @testset verbose=true "Dense Free Surface Matches Particle Activity" begin
+        particle_spacing = 0.2
+        shape = RectangularShape(particle_spacing, (10, 10), (0.0, 0.0), density=1000.0)
+        system, semi,
+        ode = setup(shape.coordinates, particle_spacing;
+                    ideal_density_threshold=0.9)
+        coords = shape.coordinates
+        interior = [particle
+                    for particle in axes(coords, 2)
+                    if isapprox(coords[1, particle], 0.9; atol=particle_spacing / 4) &&
+                       isapprox(coords[2, particle], 0.9; atol=particle_spacing / 4)][1]
+        top = [particle
+               for particle in axes(coords, 2)
+               if isapprox(coords[1, particle], 0.9; atol=particle_spacing / 4) &&
+                  isapprox(coords[2, particle], maximum(coords[2, :]);
+                           atol=particle_spacing / 4)][1]
+        point_coords = hcat(coords[:, interior], coords[:, top])
+        result = interpolate_points(point_coords, semi, system, ode.u0.x...;
+                                    cut_off_bnd=false)
+        @test system.cache.surface_activity[interior] == 0
+        @test result.surface_activity[1] == 0
+        @test result.surface_activity[2] == system.cache.surface_activity[top] == 1
+    end
+
+    @testset verbose=true "Ideal Density Threshold Matches Particle Activity" begin
+        particle_spacing = 0.1
+        y_coordinates = collect(-0.5:particle_spacing:0.5)
+        coordinates = hcat(([x, y] for x in -0.5:particle_spacing:0.5
+                            for y in y_coordinates)...)
+        system_threshold, semi_threshold,
+        ode_threshold = setup(coordinates,
+                              particle_spacing;
+                              ideal_density_threshold=0.9)
+        center = [particle
+                  for particle in axes(coordinates, 2)
+                  if isapprox(coordinates[1, particle], 0.0; atol=particle_spacing / 4) &&
+                     isapprox(coordinates[2, particle], 0.0; atol=particle_spacing / 4)][1]
+        result = interpolate_points(reshape(coordinates[:, center], 2, 1), semi_threshold,
+                                    system_threshold, ode_threshold.u0.x...;
+                                    cut_off_bnd=false)
+        @test system_threshold.cache.surface_activity[center] == 0
+        @test result.surface_activity[1] == 0
+        @test result.neighbor_count[1] > 0
+    end
+
+    @testset verbose=true "Multicolor Interface Matches Particle Activity" begin
+        particle_spacing = 0.1
+        y_coordinates = collect(-0.5:particle_spacing:0.5)
+        coordinates_a = hcat(([x, y] for x in -0.5:particle_spacing:-0.1
+                              for y in y_coordinates)...)
+        coordinates_b = hcat(([x, y] for x in 0.0:particle_spacing:0.5
+                              for y in y_coordinates)...)
+        system_a, semi, ode = setup(coordinates_a, particle_spacing; color_value=0)
+        ic_b = InitialCondition(; coordinates=coordinates_b,
+                                density=fill(1000.0, size(coordinates_b, 2)),
+                                particle_spacing)
+        system_b = WeaklyCompressibleSPHSystem(ic_b; smoothing_kernel=WendlandC2Kernel{2}(),
+                                               smoothing_length=1.5 * particle_spacing,
+                                               density_calculator=SummationDensity(),
+                                               state_equation=StateEquationCole(sound_speed=10.0,
+                                                                                reference_density=1000.0,
+                                                                                exponent=1),
+                                               reference_particle_spacing=particle_spacing,
+                                               color_value=1)
+        semi = Semidiscretization(system_a, system_b)
+        ode = semidiscretize(semi, (0.0, 0.01))
+        TrixiParticles.update_systems_and_nhs(ode.u0.x..., semi, 0.0)
+
+        interface = [particle
+                     for particle in axes(coordinates_a, 2)
+                     if isapprox(coordinates_a[1, particle], -particle_spacing;
+                                 atol=particle_spacing / 4) &&
+                        abs(coordinates_a[2, particle]) < 0.5 - 3 * particle_spacing][1]
+        result = interpolate_points(reshape(coordinates_a[:, interface], 2, 1), semi,
+                                    system_a, ode.u0.x...; cut_off_bnd=false)
+        @test system_a.cache.surface_activity[interface] == 1
+        @test result.surface_activity[1] == 1
+    end
+end;

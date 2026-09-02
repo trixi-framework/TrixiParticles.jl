@@ -135,6 +135,108 @@ end
     end
 end
 
+@testset verbose=true "Multicolor Morris Curvature $TRIXIPARTICLES_TEST_" begin
+    function multicolor_curvature(backend)
+        spacing = 0.1f0
+        smoothing_length = 0.3f0
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        state_equation = StateEquationCole(sound_speed=10.0f0,
+                                           reference_density=1000.0f0, exponent=1)
+
+        disk = SphereShape(spacing, 0.4f0, (0.8f0, 0.8f0), 1000.0f0)
+        box = RectangularShape(spacing, (16, 12), (0.0f0, 0.0f0), density=1000.0f0)
+        center = (0.8f0, 0.8f0)
+        mask = [norm(box.coordinates[:, i] .- center) > 0.4f0 + spacing
+                for i in axes(box.coordinates, 2)]
+        ring_coordinates = box.coordinates[:, mask]
+        ring = InitialCondition(; coordinates=ring_coordinates,
+                                density=fill(1000.0f0, size(ring_coordinates, 2)),
+                                particle_spacing=spacing)
+
+        disk_system = WeaklyCompressibleSPHSystem(disk; smoothing_kernel,
+                                                  smoothing_length,
+                                                  density_calculator=SummationDensity(),
+                                                  state_equation,
+                                                  surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.072f0),
+                                                  surface_method=ColorfieldSurfaceNormal(),
+                                                  reference_particle_spacing=spacing,
+                                                  color_value=0)
+        ring_system = WeaklyCompressibleSPHSystem(ring; smoothing_kernel,
+                                                  smoothing_length,
+                                                  density_calculator=SummationDensity(),
+                                                  state_equation,
+                                                  surface_method=ColorfieldSurfaceNormal(),
+                                                  reference_particle_spacing=spacing,
+                                                  color_value=1)
+
+        min_corner = minimum(box.coordinates, dims=2)
+        max_corner = maximum(box.coordinates, dims=2)
+        cell_list = FullGridCellList(; min_corner, max_corner)
+        neighborhood_search = GridNeighborhoodSearch{2}(; cell_list)
+        semi = Semidiscretization(disk_system, ring_system;
+                                  neighborhood_search,
+                                  parallelization_backend=backend)
+        ode = semidiscretize(semi, (0.0f0, 0.01f0))
+        runtime_semi = ode.p.semi
+        runtime_disk = runtime_semi.systems[1]
+        TrixiParticles.update_systems_and_nhs(ode.u0.x..., runtime_semi, 0.0f0)
+
+        return (; curvature=Array(runtime_disk.cache.curvature),
+                normal=Array(runtime_disk.cache.surface_normal),
+                activity=Array(runtime_disk.cache.surface_activity))
+    end
+
+    cpu = multicolor_curvature(SerialBackend())
+    gpu = multicolor_curvature(Main.parallelization_backend)
+
+    @test all(isfinite, cpu.curvature)
+    @test any(!iszero, cpu.curvature)
+    @test isapprox(gpu.curvature, cpu.curvature; rtol=1.0f-4, atol=1.0f-4)
+    @test isapprox(gpu.normal, cpu.normal; rtol=5.0f-5, atol=5.0f-6)
+    @test isapprox(gpu.activity, cpu.activity; rtol=5.0f-5, atol=5.0f-6)
+end
+
+@testset verbose=true "Interpolated Surface Validity $TRIXIPARTICLES_TEST_" begin
+    function sparse_surface_interpolation(backend)
+        spacing = 0.1f0
+        coordinates = spacing .* Float32[0.0 1.0 2.0; 0.0 0.0 0.0]
+        initial_condition = InitialCondition(; coordinates,
+                                             density=fill(1000.0f0, 3),
+                                             particle_spacing=spacing)
+        system = WeaklyCompressibleSPHSystem(initial_condition;
+                                             smoothing_kernel=WendlandC2Kernel{2}(),
+                                             smoothing_length=0.15f0,
+                                             density_calculator=SummationDensity(),
+                                             state_equation=StateEquationCole(sound_speed=10.0f0,
+                                                                              reference_density=1000.0f0,
+                                                                              exponent=1),
+                                             surface_method=ColorfieldSurfaceDetection(),
+                                             reference_particle_spacing=spacing)
+
+        min_corner = minimum(coordinates, dims=2)
+        max_corner = maximum(coordinates, dims=2)
+        cell_list = FullGridCellList(; min_corner, max_corner)
+        semi = Semidiscretization(system;
+                                  neighborhood_search=GridNeighborhoodSearch{2}(;
+                                                                                cell_list),
+                                  parallelization_backend=backend)
+        ode = semidiscretize(semi, (0.0f0, 0.01f0))
+        runtime_semi = ode.p.semi
+        runtime_system = first(runtime_semi.systems)
+        TrixiParticles.update_systems_and_nhs(ode.u0.x..., runtime_semi, 0.0f0)
+
+        result = interpolate_points(reshape([spacing, 0.0f0], 2, 1), runtime_semi,
+                                    runtime_system, ode.u0.x...; cut_off_bnd=false)
+        return Array(result.surface_activity)
+    end
+
+    cpu = sparse_surface_interpolation(SerialBackend())
+    gpu = sparse_surface_interpolation(Main.parallelization_backend)
+
+    @test cpu[1] == 0
+    @test gpu[1] == 0
+end
+
 @testset verbose=true "Examples $TRIXIPARTICLES_TEST_" begin
     @testset verbose=true "Fluid" begin
         @trixi_testset "fluid/dam_break_2d_gpu.jl Float64" begin

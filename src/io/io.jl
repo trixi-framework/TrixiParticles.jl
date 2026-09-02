@@ -90,6 +90,9 @@ function add_system_data!(system_data, system::AbstractFluidSystem)
     add_system_data!(system_data, system.viscosity)
     add_system_data!(system_data, system.correction)
     add_system_data!(system_data, system_state_equation(system))
+    if hasproperty(system.cache, :color)
+        system_data["color"] = system.cache.color
+    end
     if hasfield(typeof(system), :density_diffusion)
         add_system_data!(system_data, system.density_diffusion)
     end
@@ -109,6 +112,9 @@ function add_system_data!(system_data, system::ImplicitIncompressibleSPHSystem)
     add_system_data!(system_data, shifting_technique(system))
     add_system_data!(system_data, system.surface_method)
     add_system_data!(system_data, system.viscosity)
+    if hasproperty(system.cache, :color)
+        system_data["color"] = system.cache.color
+    end
 end
 
 function add_system_data!(system_data, system::TotalLagrangianSPHSystem)

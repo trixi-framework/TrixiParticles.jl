@@ -10,6 +10,24 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 - Renamed the fluid-system keyword `surface_normal_method` to `surface_method` and added
   detection-only surface methods. The old constructor keyword and accessor are deprecated.
+- The fluid `color_value` phase identifier is now always recorded in `meta.json` and written
+  as `color` field data in VTK output, also for fluids without a surface method.
+
+### Important Bugfixes
+
+- Fixed Morris surface-tension curvature to accumulate the SPH sum over all interacting
+  systems before normalizing, making the result independent of system ordering and of
+  same-phase partitioning into multiple systems.
+- Fixed spurious curvature for `SurfaceTensionMorris` at planar multicolor interfaces by
+  restricting the curvature divergence stencil to same-phase neighbors with consistently
+  normalized normals, which also makes mixing Morris and Akinci systems well-defined.
+- Fixed interpolated `surface_activity` to apply the same minimum-support and
+  `ideal_density_threshold` rejection criteria as particle-based surface detection.
+- Fixed fluid VTK output with system buffers: `surface_activity`, `neighbor_count`,
+  `curvature`, `surface_tension` and `surface_stress_tensor` now hold exactly one value
+  per active particle.
+- Fixed the `dam_break_oil_film_2d.jl` example to assign distinct phase colors to water
+  and oil, so their interface is actually detected.
 
 ## Version 0.5.4
 

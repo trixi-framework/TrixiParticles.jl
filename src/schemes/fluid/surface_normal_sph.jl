@@ -121,6 +121,17 @@ end
 @inline is_colorfield_surface_method(surface_method) = false
 @inline is_colorfield_surface_method(::ColorfieldSurfaceMethod) = true
 
+function check_surface_method_eltype(surface_method::Union{ColorfieldSurfaceDetection{METHOD_ELTYPE},
+                                                           ColorfieldSurfaceNormal{METHOD_ELTYPE}},
+                                     ::Type{SYSTEM_ELTYPE}) where {METHOD_ELTYPE,
+                                                                   SYSTEM_ELTYPE}
+    METHOD_ELTYPE === SYSTEM_ELTYPE && return surface_method
+    throw(ArgumentError("the element type of `$surface_method` must match the system element type `$SYSTEM_ELTYPE`"))
+end
+
+@inline check_surface_method_eltype(surface_method,
+                                    ::Type{ELTYPE}) where {ELTYPE} = surface_method
+
 @inline contributes_boundary_colorfield(system) = false
 
 @inline function colorfield_phase_weight(color_a, color_b, ::Type{ELTYPE}) where {ELTYPE}
@@ -307,17 +318,23 @@ function calc_surface!(system::AbstractFluidSystem,
                                   semi, surface_method)
 end
 
-function invalid_surface_particle(system, surface_method::ColorfieldSurfaceMethod,
-                                  particle, support_radius)
-    neighbor_count = system.cache.neighbor_count[particle]
-    minimum_neighbor_count = 2^ndims(system) + 1
+@inline function invalid_surface_support(neighbor_count, NDIMS, reference_particle_spacing,
+                                         support_radius,
+                                         surface_method::ColorfieldSurfaceMethod)
+    minimum_neighbor_count = 2^NDIMS + 1
     neighbor_count < minimum_neighbor_count && return true
 
     threshold = surface_method.ideal_density_threshold
     return threshold > 0 &&
-           threshold * ideal_neighbor_count(Val(ndims(system)),
-                                system.cache.reference_particle_spacing,
+           threshold * ideal_neighbor_count(Val(NDIMS), reference_particle_spacing,
                                 support_radius) < neighbor_count
+end
+
+function invalid_surface_particle(system, surface_method::ColorfieldSurfaceMethod,
+                                  particle, support_radius)
+    return invalid_surface_support(system.cache.neighbor_count[particle], ndims(system),
+                                   system.cache.reference_particle_spacing,
+                                   support_radius, surface_method)
 end
 
 function finalize_surface!(system::AbstractFluidSystem, surface_tension,
@@ -384,6 +401,12 @@ end
 @inline normalize_surface_normals(::SurfaceTensionMorris) = true
 @inline normalize_surface_normals(::SurfaceTensionMomentumMorris) = true
 
+@inline function normalized_surface_normal(system, particle)
+    normal = surface_normal(system, particle)
+    norm2 = dot(normal, normal)
+    return norm2 > eps(eltype(system)) ? normal / sqrt(norm2) : zero(normal)
+end
+
 function compute_surface!(system, surface_method, v, u, v_ode, u_ode, semi, t)
     return system
 end
@@ -423,21 +446,30 @@ function calc_curvature!(system::AbstractFluidSystem, neighbor_system::AbstractF
                          u_system, v, v_neighbor_system, u_neighbor_system, semi,
                          surface_method_::ColorfieldSurfaceNormal,
                          neighbor_surface_method::ColorfieldSurfaceNormal)
+    # Surface normals are phase-local (they point into their own phase), so a divergence
+    # stencil across unlike colors would subtract oppositely oriented normals and create
+    # spurious curvature at exactly planar interfaces.
+    system.cache.color == neighbor_system.cache.color || return system
+
     (; cache) = system
     (; curvature, correction_factor) = cache
 
     system_coords = current_coordinates(u_system, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-    set_zero!(correction_factor)
-
+    # `curvature` and `correction_factor` are zeroed once in `compute_curvature!` and
+    # normalized once after all neighboring systems have contributed, so the result is
+    # independent of system ordering and same-phase partitioning.
     foreach_point_neighbor(system, neighbor_system,
                            system_coords, neighbor_system_coords,
                            semi) do particle, neighbor, pos_diff, distance
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
         rho_b = current_density(v_neighbor_system, neighbor_system, neighbor)
-        n_a = surface_normal(system, particle)
-        n_b = surface_normal(neighbor_system, neighbor)
+        # Neighbor systems may store raw colorfield gradients (e.g. with Akinci surface
+        # tension), so normalize both normals locally to a consistent dimensionless
+        # representation before subtracting them.
+        n_a = normalized_surface_normal(system, particle)
+        n_b = normalized_surface_normal(neighbor_system, neighbor)
         v_b = m_b / rho_b
 
         if dot(n_a, n_a) > eps() && dot(n_b, n_b) > eps()
@@ -451,10 +483,6 @@ function calc_curvature!(system::AbstractFluidSystem, neighbor_system::AbstractF
         end
     end
 
-    for particle in each_integrated_particle(system)
-        curvature[particle] /= (correction_factor[particle] + eps())
-    end
-
     return system
 end
 
@@ -466,8 +494,10 @@ function compute_curvature!(system::AbstractFluidSystem,
                             surface_tension::SurfaceTensionMorris,
                             v, u, v_ode, u_ode, semi, t)
     (; cache) = system
+    (; curvature, correction_factor) = cache
 
-    set_zero!(cache.curvature)
+    set_zero!(curvature)
+    set_zero!(correction_factor)
 
     @trixi_timeit timer() "compute surface curvature" begin
         foreach_system_wrapped(semi, v_ode,
@@ -480,5 +510,17 @@ function compute_curvature!(system::AbstractFluidSystem,
                             surface_method(neighbor_system))
         end
     end
+
+    # Normalize once after all neighboring systems have contributed.
+    threshold = eps(eltype(system))
+    @threaded semi for particle in each_integrated_particle(system)
+        correction = correction_factor[particle]
+        if correction > threshold
+            curvature[particle] /= correction
+        else
+            curvature[particle] = zero(correction)
+        end
+    end
+
     return system
 end
