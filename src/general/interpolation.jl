@@ -23,11 +23,11 @@ See also: [`interpolate_plane_2d_vtk`](@ref), [`interpolate_plane_3d`](@ref),
 
 # Keywords
 - `smoothing_length=initial_smoothing_length(ref_system)`: The smoothing length used in the interpolation.
-- `cut_off_bnd=true`: Boolean to indicate if quantities should be set to `NaN` when the point
-                      is "closer" to the boundary than to the fluid in a kernel-weighted sense.
-                      Or, in more detail, when the boundary has more influence than the fluid
-                      on the density summation in this point, i.e., when the boundary particles
-                      add more kernel-weighted mass than the fluid particles.
+- `cut_off_bnd=true`: Boolean to indicate if quantities should be set to `NaN` outside the
+                      interpolated fluid domain. Boundaries are detected by comparing their
+                      kernel-weighted mass to that of the fluid. When `ref_system` uses
+                       a colorfield surface method, free and multiphase surfaces are detected
+                       from the same color contributions used for particle surface detection.
 - `clip_negative_pressure=false`: One common approach in SPH models is to clip negative pressure
                                   values, but this is unphysical. Instead we clip here during
                                   interpolation thus only impacting the local interpolated value.
@@ -41,7 +41,7 @@ See also: [`interpolate_plane_2d_vtk`](@ref), [`interpolate_plane_3d`](@ref),
 
 !!! note
     - The interpolation accuracy is subject to the density of particles and the chosen smoothing length.
-    - With `cut_off_bnd`, a density-based estimation of the surface is used, which is not as
+    - With `cut_off_bnd`, a kernel-based estimation of the surface is used, which is not as
       accurate as a real surface reconstruction.
 
 # Examples
@@ -115,11 +115,9 @@ See also: [`interpolate_plane_2d`](@ref), [`interpolate_plane_3d`](@ref),
 - `smoothing_length=initial_smoothing_length(ref_system)`: The smoothing length used in the interpolation.
 - `output_directory="out"`: Directory to save the VTI file.
 - `filename="plane"`:       Name of the VTI file.
-- `cut_off_bnd=true`: Boolean to indicate if quantities should be set to `NaN` when the point
-                      is "closer" to the boundary than to the fluid in a kernel-weighted sense.
-                      Or, in more detail, when the boundary has more influence than the fluid
-                      on the density summation in this point, i.e., when the boundary particles
-                      add more kernel-weighted mass than the fluid particles.
+- `cut_off_bnd=true`: Set quantities outside the interpolated fluid domain to `NaN`.
+                      Solid boundaries use kernel-weighted mass. A configured colorfield
+                      surface method additionally uses phase-color contributions.
 - `clip_negative_pressure=false`: One common approach in SPH models is to clip negative pressure
                                   values, but this is unphysical. Instead we clip here during
                                   interpolation thus only impacting the local interpolated value.
@@ -130,7 +128,7 @@ See also: [`interpolate_plane_2d`](@ref), [`interpolate_plane_3d`](@ref),
 
 !!! note
     - The interpolation accuracy is subject to the density of particles and the chosen smoothing length.
-    - With `cut_off_bnd`, a density-based estimation of the surface is used, which is not as
+    - With `cut_off_bnd`, a kernel-based estimation of the surface is used, which is not as
       accurate as a real surface reconstruction.
 
 # Examples
@@ -177,6 +175,10 @@ function interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_
         vtk["density"] = density
         vtk["velocity"] = velocity
         vtk["pressure"] = pressure
+        if hasproperty(results, :surface_activity)
+            vtk["surface_activity"] = reshape(results.surface_activity,
+                                              length(x_range), length(y_range))
+        end
     end
 end
 
@@ -250,11 +252,9 @@ See also: [`interpolate_plane_2d`](@ref), [`interpolate_plane_2d_vtk`](@ref),
 
 # Keywords
 - `smoothing_length=initial_smoothing_length(ref_system)`: The smoothing length used in the interpolation.
-- `cut_off_bnd=true`: Boolean to indicate if quantities should be set to `NaN` when the point
-                      is "closer" to the boundary than to the fluid in a kernel-weighted sense.
-                      Or, in more detail, when the boundary has more influence than the fluid
-                      on the density summation in this point, i.e., when the boundary particles
-                      add more kernel-weighted mass than the fluid particles.
+- `cut_off_bnd=true`: Set quantities outside the interpolated fluid domain to `NaN`.
+                      Solid boundaries use kernel-weighted mass. A configured colorfield
+                      surface method additionally uses phase-color contributions.
 - `clip_negative_pressure=false`: One common approach in SPH models is to clip negative pressure
                                   values, but this is unphysical. Instead we clip here during
                                   interpolation thus only impacting the local interpolated value.
@@ -268,7 +268,7 @@ See also: [`interpolate_plane_2d`](@ref), [`interpolate_plane_2d_vtk`](@ref),
 
 !!! note
     - The interpolation accuracy is subject to the density of particles and the chosen smoothing length.
-    - With `cut_off_bnd`, a density-based estimation of the surface is used which is not as
+    - With `cut_off_bnd`, a kernel-based estimation of the surface is used which is not as
       accurate as a real surface reconstruction.
 
 # Examples
@@ -346,11 +346,9 @@ See also: [`interpolate_points`](@ref), [`interpolate_plane_2d`](@ref),
 # Keywords
 - `endpoint=true`: A boolean to include (`true`) or exclude (`false`) the end point in the interpolation.
 - `smoothing_length=initial_smoothing_length(ref_system)`: The smoothing length used in the interpolation.
-- `cut_off_bnd=true`: Boolean to indicate if quantities should be set to `NaN` when the point
-                      is "closer" to the boundary than to the fluid in a kernel-weighted sense.
-                      Or, in more detail, when the boundary has more influence than the fluid
-                      on the density summation in this point, i.e., when the boundary particles
-                      add more kernel-weighted mass than the fluid particles.
+- `cut_off_bnd=true`: Set quantities outside the interpolated fluid domain to `NaN`.
+                      Solid boundaries use kernel-weighted mass. A configured colorfield
+                      surface method additionally uses phase-color contributions.
 - `clip_negative_pressure=false`: One common approach in SPH models is to clip negative pressure
                                   values, but this is unphysical. Instead we clip here during
                                   interpolation thus only impacting the local interpolated value.
@@ -366,7 +364,7 @@ See also: [`interpolate_points`](@ref), [`interpolate_plane_2d`](@ref),
     - This function is particularly useful for analyzing gradients or creating visualizations
       along a specified line in the SPH simulation domain.
     - The interpolation accuracy is subject to the density of particles and the chosen smoothing length.
-    - With `cut_off_bnd`, a density-based estimation of the surface is used which is not as
+    - With `cut_off_bnd`, a kernel-based estimation of the surface is used which is not as
       accurate as a real surface reconstruction.
 
 # Examples
@@ -431,11 +429,9 @@ See also: [`interpolate_line`](@ref), [`interpolate_plane_2d`](@ref),
 
 # Keywords
 - `smoothing_length=initial_smoothing_length(ref_system)`: The smoothing length used in the interpolation.
-- `cut_off_bnd=true`: Boolean to indicate if quantities should be set to `NaN` when the point
-                      is "closer" to the boundary than to the fluid in a kernel-weighted sense.
-                      Or, in more detail, when the boundary has more influence than the fluid
-                      on the density summation in this point, i.e., when the boundary particles
-                      add more kernel-weighted mass than the fluid particles.
+- `cut_off_bnd=true`: Set quantities outside the interpolated fluid domain to `NaN`.
+                      Solid boundaries use kernel-weighted mass. A configured colorfield
+                      surface method additionally uses phase-color contributions.
 - `clip_negative_pressure=false`: One common approach in SPH models is to clip negative pressure
                                   values, but this is unphysical. Instead we clip here during
                                   interpolation thus only impacting the local interpolated value.
@@ -463,7 +459,7 @@ results = interpolate_points(points, semi, ref_system, sol)
     - This function is particularly useful for analyzing gradients or creating visualizations
       along a specified line in the SPH simulation domain.
     - The interpolation accuracy is subject to the density of particles and the chosen smoothing length.
-    - With `cut_off_bnd`, a density-based estimation of the surface is used which is not as
+    - With `cut_off_bnd`, a kernel-based estimation of the surface is used which is not as
     accurate as a real surface reconstruction.
 """
 @inline function interpolate_points(point_coords, semi, ref_system, sol::ODESolution;
@@ -555,10 +551,26 @@ end
 
     n_points = size(point_coords, 2)
     ELTYPE = eltype(point_coords)
+    NDIMS = ndims(ref_system)
+    surface_method_ = surface_method(ref_system)
+    detect_surface = is_colorfield_surface_method(surface_method_)
     computed_density = allocate(semi.parallelization_backend, ELTYPE, n_points)
     other_density = allocate(semi.parallelization_backend, ELTYPE, n_points)
     shepard_coefficient = allocate(semi.parallelization_backend, ELTYPE, n_points)
     neighbor_count = allocate(semi.parallelization_backend, Int, n_points)
+    surface_gradient = detect_surface ?
+                       allocate(semi.parallelization_backend, ELTYPE,
+                                (NDIMS, n_points)) : nothing
+    surface_activity_ = detect_surface ?
+                        allocate(semi.parallelization_backend, ELTYPE, n_points) : nothing
+    reference_colorfield = detect_surface ?
+                           allocate(semi.parallelization_backend, ELTYPE, n_points) :
+                           nothing
+    other_colorfield = detect_surface ?
+                       allocate(semi.parallelization_backend, ELTYPE, n_points) : nothing
+    surface_neighbor_count = detect_surface ?
+                             allocate(semi.parallelization_backend, Int, n_points) :
+                             nothing
     # The wall velocity considers more neighbors, so we need to use
     # a different Shepard coefficient.
     shepard_coefficient_wall = allocate(semi.parallelization_backend, ELTYPE, n_points)
@@ -568,15 +580,32 @@ end
     set_zero!(other_density)
     set_zero!(shepard_coefficient)
     set_zero!(neighbor_count)
+    if detect_surface
+        set_zero!(surface_gradient)
+        set_zero!(surface_activity_)
+        set_zero!(reference_colorfield)
+        set_zero!(other_colorfield)
+        set_zero!(surface_neighbor_count)
+    end
 
     cache = create_cache_interpolation(ref_system, n_points, semi)
 
     ref_id = system_indices(ref_system, semi)
     ref_smoothing_kernel = ref_system.smoothing_kernel
+    interpolation_surface_threshold = detect_surface ?
+                                      surface_method_.interpolation_surface_threshold :
+                                      zero(ELTYPE)
+    reference_color = detect_surface ? ref_system.cache.color : 0
+    support_radius = compact_support(ref_smoothing_kernel, smoothing_length)
+    reference_spacing = detect_surface ?
+                        ref_system.cache.reference_particle_spacing : zero(ELTYPE)
+    reference_v = wrap_v(v_ode, ref_system, semi)
+    reference_coords = current_coordinates(wrap_u(u_ode, ref_system, semi), ref_system)
 
     # If we neither cut off at the boundary nor include the boundary wall velocity,
     # we only need to iterate over the reference system.
-    systems = (cut_off_bnd || include_wall_velocity) ? semi : (ref_system,)
+    systems = (cut_off_bnd || include_wall_velocity || detect_surface) ?
+              semi : (ref_system,)
 
     foreach_system(systems) do neighbor_system
         system_id = system_indices(neighbor_system, semi)
@@ -586,6 +615,36 @@ end
         u = wrap_u(u_ode, neighbor_system, semi)
 
         neighbor_coords = current_coordinates(u, neighbor_system)
+        contributes_surface = detect_surface &&
+                              has_system_interaction(ref_system, neighbor_system, semi) &&
+                              (contributes_to_colorfield(neighbor_system) ||
+                               contributes_boundary_colorfield(neighbor_system))
+        surface_color = contributes_to_colorfield(neighbor_system) ?
+                        neighbor_system.cache.color : reference_color
+        phase_weight = colorfield_phase_weight(reference_color, surface_color, ELTYPE)
+        contributes_boundary = detect_surface &&
+                               contributes_boundary_colorfield(neighbor_system)
+        boundary_colorfield = nothing
+        maximum_boundary_colorfield = zero(ELTYPE)
+
+        if contributes_boundary
+            # Match particle detection: boundary eligibility is determined by the
+            # reference fluid's dynamic colorfield, not by the interpolation point.
+            boundary_colorfield = copy(neighbor_system.boundary_model.cache.initial_colorfield)
+            foreach_point_neighbor(neighbor_system, ref_system,
+                                   neighbor_coords, reference_coords, semi;
+                                   points=eachparticle(neighbor_system)) do boundary_particle,
+                                                                            fluid_particle,
+                                                                            pos_diff,
+                                                                            distance
+                volume_a = hydrodynamic_mass(ref_system, fluid_particle) /
+                           current_density(reference_v, ref_system, fluid_particle)
+                boundary_colorfield[boundary_particle] += volume_a *
+                                                          kernel(ref_smoothing_kernel,
+                                                                 distance, smoothing_length)
+            end
+            maximum_boundary_colorfield = maximum(boundary_colorfield)
+        end
 
         foreach_point_neighbor(point_coords, neighbor_coords, nhs;
                                parallelization_backend) do point, neighbor, pos_diff,
@@ -593,6 +652,28 @@ end
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
             volume_b = m_b / current_density(v, neighbor_system, neighbor)
             W_ab = kernel(ref_smoothing_kernel, distance, smoothing_length)
+
+            boundary_eligible = !contributes_boundary ||
+                                (!iszero(maximum_boundary_colorfield) &&
+                                 boundary_colorfield[neighbor] /
+                                 maximum_boundary_colorfield >
+                                 surface_method_.boundary_contact_threshold)
+            if contributes_surface && boundary_eligible
+                grad_kernel = kernel_grad(ref_smoothing_kernel, pos_diff, distance,
+                                          smoothing_length)
+                for i in 1:NDIMS
+                    surface_gradient[i, point] += volume_b * phase_weight * grad_kernel[i]
+                end
+                surface_neighbor_count[point] += 1
+
+                if neighbor_system isa AbstractFluidSystem
+                    if surface_color == reference_color
+                        reference_colorfield[point] += volume_b * W_ab
+                    else
+                        other_colorfield[point] += volume_b * W_ab
+                    end
+                end
+            end
 
             if include_wall_velocity
                 # The wall velocity considers more neighbors, so we need to use
@@ -610,7 +691,10 @@ end
                 interpolate_system!(cache, v, neighbor_system,
                                     point, neighbor, volume_b, W_ab, clip_negative_pressure)
             else
-                other_density[point] += m_b * W_ab
+                if cut_off_bnd &&
+                   (!detect_surface || !(neighbor_system isa AbstractFluidSystem))
+                    other_density[point] += m_b * W_ab
+                end
 
                 if include_wall_velocity
                     velocity_neighbor_ = current_velocity(v, neighbor_system, neighbor)
@@ -622,17 +706,44 @@ end
                 end
             end
 
-            neighbor_count[point] += 1
+            if system_id == ref_id || cut_off_bnd || include_wall_velocity
+                neighbor_count[point] += 1
+            end
         end
     end
 
     @threaded parallelization_backend for point in axes(point_coords, 2)
+        if detect_surface
+            normal_norm = zero(ELTYPE)
+            for i in 1:NDIMS
+                normal_norm += surface_gradient[i, point]^2
+            end
+            # Apply the same admissibility criteria as the particle-based detection,
+            # so sparse or under-resolved support is inactive in interpolated output, too.
+            if invalid_surface_support(surface_neighbor_count[point], NDIMS,
+                                       reference_spacing, support_radius, surface_method_)
+                surface_activity_[point] = zero(ELTYPE)
+            else
+                surface_activity_[point] = gradient_surface_activity(sqrt(normal_norm),
+                                                                     support_radius,
+                                                                     surface_method_)
+            end
+        end
+
+        outside_reference_phase = detect_surface &&
+                                  (reference_colorfield[point] <
+                                   interpolation_surface_threshold ||
+                                   other_colorfield[point] > reference_colorfield[point])
         cut_off = computed_density[point] < eps() ||
-                  (cut_off_bnd && other_density[point] > computed_density[point])
+                  (cut_off_bnd && (other_density[point] > computed_density[point] ||
+                    outside_reference_phase))
         if cut_off
             # Return NaN values that can be filtered out in ParaView
             computed_density[point] = NaN
             neighbor_count[point] = 0
+            if detect_surface
+                surface_activity_[point] = NaN
+            end
 
             # We need to convert the `NamedTuple` to a `Tuple` for GPU compatibility
             foreach(Tuple(cache)) do field
@@ -658,7 +769,10 @@ end
         end
     end
 
-    return (; computed_density, point_coords, neighbor_count, cache...)
+    surface_detection_output = detect_surface ?
+                               (; surface_activity=surface_activity_) : (;)
+    return (; computed_density, point_coords, neighbor_count, surface_detection_output...,
+            cache...)
 end
 
 @inline function create_cache_interpolation(ref_system::AbstractFluidSystem, n_points, semi)

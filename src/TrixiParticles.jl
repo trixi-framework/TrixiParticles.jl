@@ -116,7 +116,9 @@ export interpolate_line, interpolate_points, interpolate_plane_3d, interpolate_p
        interpolate_plane_2d_vtk
 export SurfaceTensionAkinci, CohesionForceAkinci, SurfaceTensionMorris,
        SurfaceTensionMomentumMorris
-export ColorfieldSurfaceNormal
+export AbstractSurfaceMethod, AbstractSurfaceNormalMethod, ColorfieldSurfaceDetection,
+       ColorfieldSurfaceNormal, surface_method, computes_surface_normal, surface_activity,
+       surface_normal
 export SymplecticPositionVerlet
 export coordinates_eltype
 

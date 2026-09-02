@@ -7,7 +7,7 @@
                                 shifting_technique=nothing,
                                 buffer_size=nothing,
                                 correction=nothing, source_terms=nothing,
-                                surface_tension=nothing, surface_normal_method=nothing,
+                                surface_tension=nothing, surface_method=nothing,
                                 reference_particle_spacing=0.0, color_value=1))
 
 System for particles of a fluid.
@@ -53,14 +53,13 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
                                 The keyword argument `acceleration` should be used instead for
                                 gravity-like source terms.
 - `surface_tension`:            Surface tension model used for this SPH system. (default: no surface tension)
-- `surface_normal_method`:      The surface normal method to be used for this SPH system.
-                                (default: no surface normal method or `ColorfieldSurfaceNormal()` if a surface_tension model is used)
-- `reference_particle_spacing`: The reference particle spacing used for weighting values at the boundary,
-                                which currently is only needed when using surface tension.
-- `color_value`:                Integer label used for calculation of surface normals.
-                                Currently this is only used together with [`BoundaryModelDummyParticles`](@ref) and
-                                [`ColorfieldSurfaceNormal`](@ref): fluid-boundary normal evaluation
-                                reads the resulting boundary colorfield to detect wall contact.
+- `surface_method`:             Surface detection or normal method used by this system.
+                                Methods that compute normals always also compute surface
+                                activity. The default is `nothing`, or
+                                `ColorfieldSurfaceNormal()` when required by surface tension.
+- `reference_particle_spacing`: Reference spacing required by colorfield surface methods.
+- `color_value`:                Integer phase identifier for colorfield surface detection.
+                                Its numeric magnitude and sign have no physical meaning.
 """
 struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K, V, DD, COR,
                                    PF, SC, ST, B, SRFT, SRFN, PR,
@@ -79,7 +78,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K, 
     shifting_technique                :: SC
     source_terms                      :: ST
     surface_tension                   :: SRFT
-    surface_normal_method             :: SRFN
+    surface_method                    :: SRFN
     buffer                            :: B
     particle_refinement               :: PR # TODO
     cache                             :: C
@@ -97,7 +96,8 @@ function WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
                                      shifting_technique=nothing,
                                      buffer_size=nothing,
                                      correction=nothing, source_terms=nothing,
-                                     surface_tension=nothing, surface_normal_method=nothing,
+                                     surface_tension=nothing, surface_method=nothing,
+                                     surface_normal_method=nothing,
                                      reference_particle_spacing=0, color_value=1)
     buffer = isnothing(buffer_size) ? nothing :
              SystemBuffer(nparticles(initial_condition), buffer_size)
@@ -130,12 +130,12 @@ function WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
         throw(ArgumentError("`ShepardKernelCorrection` cannot be used with `ContinuityDensity`"))
     end
 
-    if surface_tension !== nothing && surface_normal_method === nothing
-        surface_normal_method = ColorfieldSurfaceNormal()
-    end
+    surface_method = select_surface_method(surface_tension, surface_method,
+                                           surface_normal_method, ELTYPE)
+    surface_method = check_surface_method_eltype(surface_method, ELTYPE)
 
-    if surface_normal_method !== nothing && reference_particle_spacing < eps()
-        throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using `ColorfieldSurfaceNormal` or a surface tension model"))
+    if is_colorfield_surface_method(surface_method) && reference_particle_spacing < eps()
+        throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using a colorfield surface method"))
     end
 
     pressure_acceleration = choose_pressure_acceleration_formulation(pressure_acceleration,
@@ -146,8 +146,7 @@ function WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
     cache = (; create_cache_density(initial_condition, density_calculator)...,
              create_cache_correction(correction, initial_condition.density, NDIMS,
                                      n_particles)...,
-             create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS,
-                                         n_particles)...,
+             create_cache_surface(surface_method, ELTYPE, NDIMS, n_particles)...,
              create_cache_surface_tension(surface_tension, ELTYPE, NDIMS,
                                           n_particles)...,
              create_cache_refinement(initial_condition, particle_refinement,
@@ -169,7 +168,7 @@ function WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
                                        smoothing_kernel, acceleration_, viscosity,
                                        density_diffusion, correction, pressure_acceleration,
                                        shifting_technique, source_terms, surface_tension,
-                                       surface_normal_method, buffer, particle_refinement,
+                                       surface_method, buffer, particle_refinement,
                                        cache)
 end
 
@@ -185,8 +184,8 @@ function Base.show(io::IO, system::WeaklyCompressibleSPHSystem)
     print(io, ", ", system.density_diffusion)
     print(io, ", ", system.shifting_technique)
     print(io, ", ", system.surface_tension)
-    print(io, ", ", system.surface_normal_method)
-    if system.surface_normal_method isa ColorfieldSurfaceNormal
+    print(io, ", ", system.surface_method)
+    if is_colorfield_surface_method(system.surface_method)
         print(io, ", ", system.cache.color)
     end
     print(io, ", ", system.acceleration)
@@ -217,8 +216,8 @@ function Base.show(io::IO, ::MIME"text/plain", system::WeaklyCompressibleSPHSyst
         summary_line(io, "density diffusion", system.density_diffusion)
         summary_line(io, "shifting technique", system.shifting_technique)
         summary_line(io, "surface tension", system.surface_tension)
-        summary_line(io, "surface normal method", system.surface_normal_method)
-        if system.surface_normal_method isa ColorfieldSurfaceNormal
+        summary_line(io, "surface method", system.surface_method)
+        if is_colorfield_surface_method(system.surface_method)
             summary_line(io, "color", system.cache.color)
         end
         summary_line(io, "acceleration", system.acceleration)
@@ -321,7 +320,7 @@ end
 end
 
 function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t)
-    (; density_calculator, correction, surface_normal_method, surface_tension) = system
+    (; density_calculator, correction, surface_method, surface_tension) = system
 
     compute_pressure!(system, v, semi)
 
@@ -332,8 +331,7 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_od
     kernel_correct_density!(system, v, u, v_ode, u_ode, semi, correction,
                             density_calculator)
 
-    # These are only computed when using surface tension
-    compute_surface_normal!(system, surface_normal_method, v, u, v_ode, u_ode, semi, t)
+    compute_surface!(system, surface_method, v, u, v_ode, u_ode, semi, t)
     compute_surface_delta_function!(system, surface_tension, semi)
     return system
 end
@@ -342,7 +340,7 @@ function update_final!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, 
                        kwargs...)
     (; surface_tension) = system
 
-    # Surface normal of neighbor and boundary needs to have been calculated already
+    # Surface-tension formulations using curvature or stress require previously computed normals.
     compute_curvature!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
     compute_stress_tensors!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
     update_shifting!(system, shifting_technique(system), v, u, v_ode, u_ode, semi)

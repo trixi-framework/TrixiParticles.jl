@@ -123,7 +123,7 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
 
     # Check e.g. that the boundary systems are using a state equation if EDAC is not used.
     # Other checks might be added here later.
-    check_configuration(systems, neighborhood_search)
+    check_configuration(systems, neighborhood_search, interaction_matrix)
 
     sizes_u = [u_nvariables(system) * n_integrated_particles(system)
                for system in systems]
@@ -939,39 +939,21 @@ end
 
 function check_configuration(systems,
                              nhs::Union{Nothing, AbstractNeighborhoodSearch})
+    n_systems = length(systems)
+    return check_configuration(systems, nhs, trues(n_systems, n_systems))
+end
+
+function check_configuration(systems,
+                             nhs::Union{Nothing, AbstractNeighborhoodSearch},
+                             interaction_matrix)
     foreach_system(systems) do system
         check_configuration(system, systems, nhs)
     end
 
-    check_system_color(systems)
+    check_surface_configuration(systems, interaction_matrix)
 end
 
 check_configuration(system::AbstractSystem, systems, nhs) = nothing
-
-function check_system_color(systems)
-    requires_color_check = any(systems) do system
-        system isa AbstractFluidSystem || return false
-        system isa ParticlePackingSystem && return false
-
-        return !isnothing(system.surface_tension) ||
-               system.surface_normal_method isa ColorfieldSurfaceNormal
-    end
-
-    if requires_color_check
-
-        # Systems that contribute to the colorfield/contact logic.
-        system_ids = findall(system -> (system isa AbstractFluidSystem &&
-                                        !(system isa ParticlePackingSystem)) ||
-                                       system isa WallBoundarySystem ||
-                                       system isa
-                                       RigidBodySystem{<:BoundaryModelDummyParticles},
-                             systems)
-
-        if length(system_ids) > 1 && sum(i -> systems[i].cache.color, system_ids) == 0
-            throw(ArgumentError("If `ColorfieldSurfaceNormal` or a surface tension model is used, at least one participating system must have a color different from 0."))
-        end
-    end
-end
 
 # After `adapt`, the system type information may change.
 # This means that systems linking to other systems still point to old systems.

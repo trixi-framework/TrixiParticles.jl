@@ -53,7 +53,7 @@ fluid_system = EntropicallyDampedSPHSystem(fluid; smoothing_kernel=fluid_smoothi
                                            density_calculator=ContinuityDensity(),
                                            reference_particle_spacing=particle_spacing,
                                            acceleration=zeros(length(fluid_size)),
-                                           surface_normal_method=ColorfieldSurfaceNormal(),
+                                           surface_method=ColorfieldSurfaceNormal(),
                                            surface_tension=SurfaceTensionMorris(surface_tension_coefficient=50 *
                                                                                                             0.0728))
 

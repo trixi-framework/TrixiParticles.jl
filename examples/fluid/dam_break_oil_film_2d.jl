@@ -38,6 +38,7 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl");
               sol=nothing, fluid_particle_spacing, tspan,
               viscosity_fluid=ViscosityMorris(nu=nu_sim_water), smoothing_length, gravity,
               density_diffusion=nothing, sound_speed, prefix="",
+              surface_method=ColorfieldSurfaceNormal(),
               reference_particle_spacing=fluid_particle_spacing)
 
 # ==========================================================================================
@@ -67,7 +68,8 @@ oil_system = WeaklyCompressibleSPHSystem(oil;
                                          acceleration=(0.0, -gravity),
                                          surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.01),
                                          correction=AkinciFreeSurfaceCorrection(oil_density),
-                                         reference_particle_spacing=fluid_particle_spacing)
+                                         reference_particle_spacing=fluid_particle_spacing,
+                                         color_value=2)
 
 # oil_system = WeaklyCompressibleSPHSystem(oil;
 #                                          smoothing_kernel, smoothing_length,
