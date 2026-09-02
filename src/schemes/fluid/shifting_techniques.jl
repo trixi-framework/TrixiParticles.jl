@@ -612,7 +612,8 @@ end
     # `pressure_acceleration` function.
     dv_particle += pressure_acceleration(system, neighbor_system, particle, neighbor,
                                          m_a, m_b, A_a, A_b, rho_a, rho_b,
-                                         pos_diff, distance, grad_kernel, correction)
+                                         pos_diff, distance, grad_kernel, correction;
+                                         use_surface_pressure=false)
 
     return dv_particle
 end
@@ -709,7 +710,8 @@ function update_shifting!(system, shifting::TransportVelocityAdami, v, u, v_ode,
                        pressure_acceleration(system, neighbor_system, particle, neighbor,
                                              m_a, m_b, 1, 1, rho_a, rho_b, pos_diff,
                                              distance, grad_kernel,
-                                             system_correction(system))
+                                             system_correction(system);
+                                             use_surface_pressure=false)
 
             # Write into the buffer
             for i in eachindex(delta_v_)

@@ -126,6 +126,7 @@ using OrdinaryDiffEqLowStorageRK
             solver_version = meta_data["simulation_info"]["solver_version"]
 
             @test solver_version == TrixiParticles.compute_git_hash()
+            @test meta_data["system_data"]["fluid_1"]["color"] == 1
             @test length(collect(eachmatch(r"DataSet", collection))) == 3
             @test all(file -> isfile(joinpath(tmp_dir, file)), filenames)
             @test occursin("timestep=\"0.0\"", collection)

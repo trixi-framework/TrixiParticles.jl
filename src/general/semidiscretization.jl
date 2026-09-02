@@ -123,7 +123,8 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
 
     # Check e.g. that the boundary systems are using a state equation if EDAC is not used.
     # Other checks might be added here later.
-    check_configuration(systems, neighborhood_search)
+    check_configuration(systems, neighborhood_search, interaction_matrix)
+    check_pressure_acceleration_configuration(systems, interaction_matrix)
 
     sizes_u = [u_nvariables(system) * n_integrated_particles(system)
                for system in systems]
@@ -666,7 +667,13 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
 
     update_implicit_sph!(semi, v_ode, u_ode, t)
 
-    # Perform correction and pressure calculation
+    # Correction moments can use densities from every interacting system, so density
+    # correction has to be a global phase.
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
+        update_density_correction!(system, v, u, v_ode, u_ode, semi, t)
+    end
+
+    # Fluid pressure must be available before boundary pressure interpolation.
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_pressure!(system, v, u, v_ode, u_ode, semi, t)
     end
@@ -675,6 +682,18 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
     # needs to be after `update_quantities!`.
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_boundary_interpolation!(system, v, u, v_ode, u_ode, semi, t)
+    end
+
+    # Boundary interpolation can update boundary density. Assemble all gradient corrections
+    # only after every interacting system exposes its final density.
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
+        update_gradient_correction!(system, v, u, v_ode, u_ode, semi, t)
+    end
+
+    # Surface quantities can depend on corrected gradients and must be complete for every
+    # system before curvature and stress are computed in `update_final!`.
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
+        update_surface_quantities!(system, v, u, v_ode, u_ode, semi, t)
     end
 
     # Final update step for all remaining systems
@@ -939,39 +958,21 @@ end
 
 function check_configuration(systems,
                              nhs::Union{Nothing, AbstractNeighborhoodSearch})
+    n_systems = length(systems)
+    return check_configuration(systems, nhs, trues(n_systems, n_systems))
+end
+
+function check_configuration(systems,
+                             nhs::Union{Nothing, AbstractNeighborhoodSearch},
+                             interaction_matrix)
     foreach_system(systems) do system
         check_configuration(system, systems, nhs)
     end
 
-    check_system_color(systems)
+    check_surface_configuration(systems, interaction_matrix)
 end
 
 check_configuration(system::AbstractSystem, systems, nhs) = nothing
-
-function check_system_color(systems)
-    requires_color_check = any(systems) do system
-        system isa AbstractFluidSystem || return false
-        system isa ParticlePackingSystem && return false
-
-        return !isnothing(system.surface_tension) ||
-               system.surface_normal_method isa ColorfieldSurfaceNormal
-    end
-
-    if requires_color_check
-
-        # Systems that contribute to the colorfield/contact logic.
-        system_ids = findall(system -> (system isa AbstractFluidSystem &&
-                                        !(system isa ParticlePackingSystem)) ||
-                                       system isa WallBoundarySystem ||
-                                       system isa
-                                       RigidBodySystem{<:BoundaryModelDummyParticles},
-                             systems)
-
-        if length(system_ids) > 1 && sum(i -> systems[i].cache.color, system_ids) == 0
-            throw(ArgumentError("If `ColorfieldSurfaceNormal` or a surface tension model is used, at least one participating system must have a color different from 0."))
-        end
-    end
-end
 
 # After `adapt`, the system type information may change.
 # This means that systems linking to other systems still point to old systems.

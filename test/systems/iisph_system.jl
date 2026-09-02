@@ -41,6 +41,7 @@
             min_iterations = min_iterations_[i]
             max_iterations = max_iterations_[i]
             time_step = time_steps_[i]
+            color_value = i
             TrixiParticles.ndims(::Val{:smoothing_kernel}) = i + 1
             smoothing_kernel2 = Val(:smoothing_kernel2)
             # The wrong dimension. 2 -> 3, 3 -> 2.
@@ -51,7 +52,7 @@
             system = ImplicitIncompressibleSPHSystem(initial_condition; smoothing_kernel,
                                                      smoothing_length, reference_density,
                                                      omega, max_error, min_iterations,
-                                                     max_iterations, time_step)
+                                                     max_iterations, time_step, color_value)
 
             # Constructor copies input fields, applies defaults, and respects the requested dimensionality
             @test system isa ImplicitIncompressibleSPHSystem{NDIMS}
@@ -67,6 +68,7 @@
             @test system.min_iterations == min_iterations
             @test system.max_iterations == max_iterations
             @test system.time_step == time_step
+            @test system.cache.color == color_value
             @test length(system.density) == size(coordinates, 2)
 
             # A too-short acceleration vector triggers dimension validation
@@ -488,5 +490,39 @@
             @test TrixiParticles.minimum_iisph_iterations(system_iters) == 3
             @test TrixiParticles.maximum_iisph_iterations(system_iters) == 7
         end
+    end
+
+    @testset verbose=true "deprecated surface_normal_method" begin
+        shape = RectangularShape(0.123, (2, 3), (-1.0, 0.1), density=1.0)
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        smoothing_length = 0.362
+
+        system = @test_deprecated ImplicitIncompressibleSPHSystem(shape;
+                                                                  smoothing_kernel,
+                                                                  smoothing_length,
+                                                                  reference_density=1000.0,
+                                                                  time_step=0.001,
+                                                                  surface_normal_method=ColorfieldSurfaceNormal(),
+                                                                  reference_particle_spacing=0.123)
+        @test system.surface_method isa ColorfieldSurfaceNormal
+        @test @test_deprecated(TrixiParticles.surface_normal_method(system)) isa
+              ColorfieldSurfaceNormal
+
+        detection = ImplicitIncompressibleSPHSystem(shape; smoothing_kernel,
+                                                    smoothing_length,
+                                                    reference_density=1000.0,
+                                                    time_step=0.001,
+                                                    surface_method=ColorfieldSurfaceDetection(),
+                                                    reference_particle_spacing=0.123)
+        @test @test_deprecated(TrixiParticles.surface_normal_method(detection)) === nothing
+
+        error_str = "`surface_method` and deprecated `surface_normal_method` cannot both be set"
+        @test_throws ArgumentError(error_str) ImplicitIncompressibleSPHSystem(shape;
+                                                                              smoothing_kernel,
+                                                                              smoothing_length,
+                                                                              reference_density=1000.0,
+                                                                              time_step=0.001,
+                                                                              surface_method=ColorfieldSurfaceDetection(),
+                                                                              surface_normal_method=ColorfieldSurfaceNormal())
     end
 end

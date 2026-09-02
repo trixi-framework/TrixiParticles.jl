@@ -209,6 +209,31 @@ Pages = [joinpath("schemes", "fluid", "viscosity.jl")]
 
 ## [Corrections](@id corrections)
 
+Gradient corrections generally make the two kernel gradients of a particle pair asymmetric.
+The corresponding eight-argument pressure formulations are therefore selected when either
+particle's hydrodynamic correction can produce an asymmetric gradient, even when a particular
+pair happens to satisfy
+``\nabla W_b = -\nabla W_a``. In that symmetric case, the asymmetric formulation reduces to
+the standard symmetric formulation.
+
+Both directed evaluations of a pair use the same two gradients with reversed roles. This
+antisymmetric combination preserves pairwise linear momentum.
+Since corrected gradients are generally not parallel to the particle separation, the resulting
+force is not necessarily central and does not in general preserve angular momentum. The usual
+linear- and angular-momentum guarantee applies to symmetric radial kernel gradients.
+
+When EDAC average-pressure reduction is enabled, two interacting EDAC particles use the
+arithmetic mean of their local pressure offsets. The shared pair offset ensures that both
+directed evaluations use identical reduced pair pressures, which is required for the
+antisymmetric corrected-gradient formulation to preserve linear momentum. Interactions between
+schemes using different pressure formulations do not gain a conservation guarantee from this
+construction.
+
+For fluid-structure interaction, a `TotalLagrangianSPHSystem` keeps its structural smoothing
+kernel independent from the hydrodynamic kernel stored in its boundary model. Hydrodynamic
+correction caches and fluid pressure interactions use the boundary-model kernel and smoothing
+length.
+
 ```@autodocs
 Modules = [TrixiParticles]
 Pages = [joinpath("general", "corrections.jl")]
@@ -216,52 +241,138 @@ Pages = [joinpath("general", "corrections.jl")]
 
 ---
 
-## [Surface Normals](@id surface_normal)
+## [Surface Detection And Normals](@id surface_normal)
 
 ### Overview of surface normal calculation in SPH
 
-Surface normals are essential for modeling surface tension as they provide the directionality
-of forces acting at the fluid interface. They are calculated based on the particle properties and
-their spatial distribution.
+Surface normals characterize the local orientation of an interface. In SPH, this geometric
+information can be used for interface detection and reconstruction, curvature estimation,
+interfacial boundary conditions, and interfacial force models. The computed normal field is also
+available for analysis and VTK output.
 
 #### Color field and gradient-based surface normals
 
-The surface normal at a particle is derived from the color field, a scalar field assigned to particles
-to distinguish between different fluid phases or between fluid and air. The color field gradients point
-towards the interface, and the normalized gradient defines the surface normal direction.
+The surface normal at a particle can be derived from a color field, a scalar marker used to
+distinguish phases or materials. Its gradient is perpendicular to the color-field level sets and
+therefore provides an interface-normal estimate; its orientation depends on the chosen color
+convention. For a free surface whose exterior phase is not represented by particles, truncation of
+the kernel support creates the corresponding discrete color-field gradient.
 
-In the literature, the unnormalized surface normal ``\bm{n}_a`` is commonly written as
+For phase ``a``, the unnormalized surface normal is computed from a phase-local indicator
+``\chi_a``:
 
 ```math
-\bm{n}_a = \sum_b m_b \frac{c_b}{\rho_b} \nabla_a W_{ab},
+\bm{n}_a = \sum_b m_b \frac{\chi_a(b)}{\rho_b} \nabla_a W_{ab},
 ```
 
 where:
 
-- ``c_b`` is the color field value for particle ``b``,
+- ``\chi_a(b)`` is one when particles ``a`` and ``b`` have the same `color_value` and
+  zero otherwise,
 - ``m_b`` is the mass of particle ``b``,
 - ``\rho_b`` is the density of particle ``b``,
 - ``\nabla_a W_{ab}`` is the gradient of the smoothing kernel ``W_{ab}`` with respect to particle ``a``.
 
-For single-fluid surface-normal calculations, ``c_b = 1`` for neighboring fluid particles.
+The numeric magnitude and sign of `color_value` therefore have no physical meaning. For a
+single fluid, ``\chi_a(b) = 1`` for neighboring fluid particles, including when the phase is
+labeled zero.
 
 #### Normalization of surface normals
 
-The calculated normals are normalized to unit vectors:
+The Morris surface-tension models normalize the calculated normals to unit vectors:
 
 ```math
 \hat{\bm{n}}_a = \frac{\bm{n}_a}{\Vert \bm{n}_a \Vert}.
 ```
 
-Normalization ensures that the magnitude of the normals does not bias the curvature calculations or the resulting surface tension forces.
+Normalization ensures that their magnitude does not bias curvature calculations. The Akinci
+model retains the unnormalized phase-local gradient required by its force formulation.
+
+#### Surface methods and activity
+
+Fluid systems configure interface geometry with the `surface_method` keyword. Every surface
+method computes a smooth `surface_activity`. Methods derived from
+`AbstractSurfaceNormalMethod` additionally provide a normal, so normal calculation always
+includes detection.
+
+`ColorfieldSurfaceDetection` computes activity only. `ColorfieldSurfaceNormal` uses the same
+colorfield accumulation and additionally filters and stores the gradient as a surface normal.
+Different `color_value`s detect interfaces between represented liquids. Any constant phase
+label, including zero, detects a free surface because its kernel support ends at the
+unrepresented exterior. Equal labels do not create an internal interface. Relabeling phases
+without changing phase membership does not change activity, normals, or surface-tension
+forces.
+
+Colorfield wall correction currently requires `BoundaryModelDummyParticles` with
+`reference_particle_spacing` set. Other boundary models are rejected during
+semidiscretization instead of being treated as free surfaces.
+
+`surface_activity` is available in particle VTK output and as a custom quantity for
+`SolutionSavingCallback` and `PostprocessCallback`. `surf_normal` is written only for
+normal-capable methods. The per-system `color_value` is always recorded in `meta.json`
+and written as `color` field data in particle VTK output, also for fluids without a
+surface method, since their phase label still enters other systems' colorfield detection.
+All per-particle VTK arrays, including `surface_activity` and `neighbor_count`, hold one
+value per active particle when a system buffer is used.
+
+Point and plane interpolation apply the same colorfield phase and boundary-contact eligibility
+rules as particle detection. With `cut_off_bnd=true`,
+kernel-weighted color contributions also determine whether a point belongs to the reference
+phase. This prevents extrapolation through both free surfaces and interfaces with another
+liquid while retaining the existing solid-boundary cutoff. Interpolated `surface_activity`
+applies the same minimum-support and `ideal_density_threshold` rejection criteria as the
+particle-based detection.
+
+#### Interface-aware pressure
+
+`SurfacePressureDifference()` can be passed as `surface_pressure` to WCSPH and EDAC systems.
+It blends the configured conservative pressure acceleration with the consistent difference
+operator
+
+```math
+-\frac{1}{\rho_a}\sum_b \frac{m_b}{\rho_b}
+  (p_b - p_a)\nabla_a W_{ab}
+```
+
+using the target particle's `surface_activity`. Only interactions within the same fluid
+system are blended. Boundary and cross-system interactions retain the conservative pressure
+formulation. The model is experimental, requires `GradientCorrection` or
+`MixedKernelGradientCorrection`, and is not supported by IISPH.
 
 #### Handling noise and errors in normal calculation
 
-In regions distant from the interface, the calculated normals may be small or inaccurate due to the
-smoothing kernel's support radius. To mitigate this:
+Away from an interface, the exact color-field gradient vanishes, but particle disorder and
+incomplete kernel support can produce small or poorly resolved normal estimates. The
+[`ColorfieldSurfaceNormal`](@ref) thresholds mitigate this as follows:
 
-1. Normals below a threshold are excluded from further calculations.
-2. Curvature calculations use a corrected formulation to reduce errors near interface fringes.
+1. Normals with insufficient particle support are discarded.
+2. `interface_threshold` rejects gradients for which the dimensionless magnitude
+   ``R\lVert n\rVert`` does not exceed the configured cutoff, where ``R`` is the kernel support
+   radius. This applies to standalone, Akinci, and Morris normals.
+3. `ideal_density_threshold` optionally suppresses particles whose neighbor count is close to
+   ideal full support. This heuristic is intended only for a free surface with an unrepresented
+   exterior phase. It must remain zero for fully represented multiphase interfaces, where valid
+   interface particles can have full support.
+4. Curvature calculations use a corrected formulation to reduce errors near interface fringes.
+
+#### Morris curvature with phase-local normals
+
+Because the stored normals are phase-local (they point into their own phase), the Morris curvature
+
+```math
+\kappa_a = \frac{\sum_b V_b (\hat{\bm{n}}_b - \hat{\bm{n}}_a) \cdot \nabla_a W_{ab}}
+                {\sum_b V_b W_{ab}}
+```
+
+is evaluated with consistently normalized normals. Normals from unlike `color_value`s are
+reoriented into the target phase before entering the divergence stencil, while neighboring
+systems may store unnormalized gradients (for example with Akinci surface tension). Both
+the numerator and denominator are accumulated over all interacting systems before division,
+so the result does not depend on system ordering or on how one physical phase is partitioned
+into systems. A planar two-phase interface therefore converges toward zero curvature under
+refinement. Interpolated surface activity uses the same boundary-contact, minimum-support,
+and `ideal_density_threshold` criteria as particles, so sparse or under-resolved regions are
+inactive in interpolated output, too.
 
 ```@autodocs
 Modules = [TrixiParticles]
@@ -296,6 +407,17 @@ In the following table some values are shown for reference. The values marked wi
 | **Water**       | 0.07288  [Lange](@cite Lange2005)               |
 | **Mercury**     | 0.486502 [Lange](@cite Lange2005)               |
 
+### Model configuration
+
+All surface tension coefficients must be finite and non-negative. A zero coefficient disables
+the fluid-fluid surface force. Wall adhesion is controlled independently by the boundary's
+`adhesion_coefficient`.
+
+`CohesionForceAkinci` only evaluates the pairwise cohesion and optional wall-adhesion forces.
+It does not require surface normals or `reference_particle_spacing`. The full
+`SurfaceTensionAkinci` model and both Morris models require a surface-normal method. When one
+of these models is selected without an explicit method, `ColorfieldSurfaceNormal()` is used.
+
 ### [Akinci-based intra-particle force surface tension and wall adhesion model](@id akinci_ipf)
 
 The [Akinci](@cite Akinci2013) model divides surface tension into distinct force components,
@@ -329,15 +451,18 @@ C(r)=\frac{32}{\pi h_c^9}
 \end{cases}
 ```
 
-#### Surface area minimization contribution
+#### Surface area minimization force
 
-The surface area minimization contribution models curvature reduction and acts on the
-difference in surface normals. TrixiParticles.jl uses the local smoothing length:
+The surface area minimization term models curvature reduction by using the difference between the
+raw color gradients. In the implementation it is evaluated in acceleration form as
+
 ```math
-\left.\frac{\mathrm{d}\bm{v}_a}{\mathrm{d} t}\right|_{ab}^{\text{curvature}}
-= -\sigma h (\bm{n}_a - \bm{n}_b),
+a_{a,\text{area}} = -\sigma h_a (n_a - n_b),
 ```
-where ``\bm{n}_a`` and ``\bm{n}_b`` are the surface normals of the interacting particles.
+
+where ``n_a`` and ``n_b`` are the unnormalized color gradients of the interacting particles and
+``h_a`` is the smoothing length of particle ``a``. The factor ``h_a`` makes the color-normal term
+dimensionless, consistent with the Akinci formulation.
 
 #### Wall adhesion contribution
 
@@ -358,6 +483,10 @@ A(r) = \frac{0.007}{h_c^{3.25}}
 0, & \text{otherwise.}
 \end{cases}
 ```
+
+The published adhesion kernel uses a three-dimensional normalization. In two-dimensional
+simulations, `adhesion_coefficient` is therefore an empirical numerical parameter and may need
+to be adjusted when changing the particle spacing or smoothing length.
 
 ---
 

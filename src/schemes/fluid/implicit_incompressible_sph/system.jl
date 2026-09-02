@@ -4,7 +4,11 @@
                                     viscosity=nothing,
                                     acceleration=ntuple(_ -> 0.0, ndims(smoothing_kernel)),
                                     omega=0.5, max_error=0.1, min_iterations=2,
-                                    max_iterations=20, time_step)
+                                    max_iterations=20, time_step,
+                                    density_correction=nothing, gradient_correction=nothing,
+                                    force_correction=nothing,
+                                    surface_method=nothing,
+                                    reference_particle_spacing=0.0, color_value=1)
 
 System for particles of a fluid.
 The system employs implicit incompressible SPH (IISPH), iteratively solving a linear system
@@ -30,9 +34,16 @@ See [Implicit Incompressible SPH](@ref iisph) for more details on the method.
 - `min_iterations = 2`:         Minimum number of iterations in the relaxed Jacobi scheme, independent from the termination condition
 - `max_iterations = 20`:        Maximum number of iterations in the relaxed Jacobi scheme, independent from the termination condition
 - `time_step`:                  Time step size used for the simulation
+- `density_correction`:         Currently unsupported.
+- `gradient_correction`:        Currently unsupported.
+- `force_correction`:           Currently unsupported.
+- `surface_method`:             Optional surface detection or normal method.
+- `reference_particle_spacing`: Reference spacing required by colorfield surface methods.
+- `color_value`:                Integer phase identifier for colorfield surface calculations.
+                                Its numeric magnitude and sign have no physical meaning.
 """
 struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ARRAY2D,
-                                       IC, K, V, PF, C} <: AbstractFluidSystem{NDIMS}
+                                       IC, K, V, PF, SM, C} <: AbstractFluidSystem{NDIMS}
     initial_condition                 :: IC
     mass                              :: ARRAY1D # Array{ELTYPE, 1}
     pressure                          :: ARRAY1D
@@ -42,7 +53,7 @@ struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ARRAY2D,
     acceleration                      :: SVector{NDIMS, ELTYPE}
     viscosity                         :: V
     pressure_acceleration_formulation :: PF
-    surface_normal_method             :: Nothing # TODO
+    surface_method                    :: SM
     surface_tension                   :: Nothing # TODO
     particle_refinement               :: Nothing # TODO
     density                           :: ARRAY1D
@@ -71,9 +82,20 @@ function ImplicitIncompressibleSPHSystem(initial_condition; smoothing_kernel,
                                                              ndims(smoothing_kernel)),
                                          omega=0.5, max_error=0.1, min_iterations=2,
                                          max_iterations=20, time_step,
-                                         artificial_sound_speed=1000.0)
+                                         artificial_sound_speed=1000.0,
+                                         density_correction=nothing,
+                                         gradient_correction=nothing,
+                                         force_correction=nothing,
+                                         surface_method=nothing,
+                                         surface_normal_method=nothing,
+                                         reference_particle_spacing=0.0, color_value=1)
     particle_refinement = nothing # TODO
     surface_tension = nothing # TODO
+
+    if density_correction !== nothing || gradient_correction !== nothing ||
+       force_correction !== nothing
+        throw(ArgumentError("corrections are not supported by `ImplicitIncompressibleSPHSystem`"))
+    end
 
     NDIMS = ndims(initial_condition)
     ELTYPE = eltype(initial_condition)
@@ -112,6 +134,13 @@ function ImplicitIncompressibleSPHSystem(initial_condition; smoothing_kernel,
         throw(ArgumentError("`time_step` must be a positive number"))
     end
 
+    surface_method = select_surface_method(surface_tension, surface_method,
+                                           surface_normal_method, ELTYPE)
+    surface_method = check_surface_method_eltype(surface_method, ELTYPE)
+    if is_colorfield_surface_method(surface_method) && reference_particle_spacing < eps()
+        throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using a colorfield surface method"))
+    end
+
     pressure_acceleration = pressure_acceleration_summation_density
 
     density = copy(initial_condition.density)
@@ -124,13 +153,19 @@ function ImplicitIncompressibleSPHSystem(initial_condition; smoothing_kernel,
     density_error = zeros(ELTYPE, n_particles)
 
     cache = (;
+             create_cache_surface(surface_method, ELTYPE, NDIMS, n_particles)...,
              create_cache_refinement(initial_condition, particle_refinement,
-                                     smoothing_length)...,)
+                                     smoothing_length)...,
+             color=Int(color_value))
+    if reference_particle_spacing > 0
+        cache = (; cache..., reference_particle_spacing)
+    end
 
     return ImplicitIncompressibleSPHSystem(initial_condition, mass, pressure,
                                            smoothing_kernel, smoothing_length,
                                            reference_density, acceleration_, viscosity,
-                                           pressure_acceleration, nothing, surface_tension,
+                                           pressure_acceleration, surface_method,
+                                           surface_tension,
                                            particle_refinement, density, predicted_density,
                                            advection_velocity, d_ii, a_ii, sum_d_ij_pj,
                                            sum_term, density_error, omega, max_error,
@@ -214,6 +249,12 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
 
     @trixi_timeit timer() "predict advection" predict_advection!(system, v, u, v_ode, u_ode,
                                                                  semi)
+end
+
+function update_pressure!(system::ImplicitIncompressibleSPHSystem, v, u, v_ode, u_ode,
+                          semi, t)
+    compute_surface!(system, system.surface_method, v, u, v_ode, u_ode, semi, t)
+    return system
 end
 
 function update_implicit_sph!(semi, v_ode, u_ode, t)
@@ -753,13 +794,17 @@ function check_configuration(system::ImplicitIncompressibleSPHSystem, systems, n
             `WeaklyCompressibleSPHSystem`"))
         end
         if neighbor isa WallBoundarySystem
-            if (neighbor.boundary_model isa BoundaryModelDummyParticles &&
-                neighbor.boundary_model.density_calculator isa PressureBoundaries)
-                time_step_boundary = neighbor.boundary_model.density_calculator.time_step
-                omega_boundary = neighbor.boundary_model.density_calculator.omega
-                if !(time_step==time_step_boundary && omega==omega_boundary)
-                    throw(ArgumentError("`PressureBoundaries` parameters have to be the same as the
-                    `ImplicitIncompressibleSPHSystem` parameters"))
+            if neighbor.boundary_model isa BoundaryModelDummyParticles
+                if neighbor.boundary_model.correction !== nothing
+                    throw(ArgumentError("`ImplicitIncompressibleSPHSystem` cannot be used with corrected dummy boundaries"))
+                end
+                if neighbor.boundary_model.density_calculator isa PressureBoundaries
+                    time_step_boundary = neighbor.boundary_model.density_calculator.time_step
+                    omega_boundary = neighbor.boundary_model.density_calculator.omega
+                    if !(time_step==time_step_boundary && omega==omega_boundary)
+                        throw(ArgumentError("`PressureBoundaries` parameters have to be the same as the
+                        `ImplicitIncompressibleSPHSystem` parameters"))
+                    end
                 end
             end
         end

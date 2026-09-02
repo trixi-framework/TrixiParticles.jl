@@ -329,11 +329,22 @@ function write2vtk!(vtk, v, u, t, system::AbstractFluidSystem)
     vtk["pressure"] = [current_pressure(v, system, particle)
                        for particle in eachparticle(system)]
 
-    if system.surface_normal_method !== nothing
-        vtk["surf_normal"] = [surface_normal(system, particle)
-                              for particle in eachparticle(system)]
-        vtk["neighbor_count"] = system.cache.neighbor_count
+    # The color is simulation input even for fluids without a surface method, since
+    # their color contributes to other systems' colorfield surface detection.
+    if hasproperty(system.cache, :color)
         vtk["color"] = system.cache.color
+    end
+
+    if system.surface_method !== nothing
+        vtk["surface_activity"] = [system.cache.surface_activity[particle]
+                                   for particle in eachparticle(system)]
+        vtk["neighbor_count"] = [system.cache.neighbor_count[particle]
+                                 for particle in eachparticle(system)]
+
+        if computes_surface_normal(system.surface_method)
+            vtk["surf_normal"] = [surface_normal(system, particle)
+                                  for particle in eachparticle(system)]
+        end
     end
 
     if system.surface_tension isa SurfaceTensionMorris ||
@@ -363,13 +374,16 @@ function write2vtk!(vtk, v, u, t, system::AbstractFluidSystem)
 
             surface_tension[1:ndims(system), particle] .+= dv_surface_tension
         end
-        vtk["surface_tension"] = surface_tension
+        active_particles = collect(eachparticle(system))
+        vtk["surface_tension"] = surface_tension[:, active_particles]
 
         if system.surface_tension isa SurfaceTensionMorris
-            vtk["curvature"] = system.cache.curvature
+            vtk["curvature"] = [system.cache.curvature[particle]
+                                for particle in eachparticle(system)]
         end
         if system.surface_tension isa SurfaceTensionMomentumMorris
-            vtk["surface_stress_tensor"] = system.cache.stress_tensor
+            vtk["surface_stress_tensor"] = system.cache.stress_tensor[:, :,
+                                                                      active_particles]
         end
     end
 

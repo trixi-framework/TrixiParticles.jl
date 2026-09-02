@@ -105,6 +105,12 @@
             AkinciFreeSurfaceCorrection(1000.0),
             KernelCorrection()
         ]
+        correction_kwargs(correction) = correction isa ShepardKernelCorrection ?
+                                        (; density_correction=correction) :
+                                        correction isa AkinciFreeSurfaceCorrection ?
+                                        (; force_correction=correction) :
+                                        correction isa Nothing ? (;) :
+                                        (; gradient_correction=correction)
 
         @testset "$(setup_names[i])" for i in eachindex(setups)
             setup = setups[i]
@@ -126,14 +132,14 @@
                                                                                       smoothing_length,
                                                                                       density_calculator,
                                                                                       state_equation,
-                                                                                      correction=corr)
+                                                                                      correction_kwargs(corr)...)
                     continue
                 end
                 system = WeaklyCompressibleSPHSystem(setup; smoothing_kernel,
                                                      smoothing_length,
                                                      density_calculator,
                                                      state_equation,
-                                                     correction=corr)
+                                                     correction_kwargs(corr)...)
 
                 @test system isa WeaklyCompressibleSPHSystem{NDIMS}
                 @test system.initial_condition == setup
@@ -198,7 +204,7 @@
                                              smoothing_length, density_calculator,
                                              state_equation, density_diffusion)
 
-        show_compact = "WeaklyCompressibleSPHSystem{2}(SummationDensity(), nothing, Val{:state_equation}(), Val{:smoothing_kernel}(), nothing, Val{:density_diffusion}(), nothing, nothing, nothing, [0.0, 0.0], nothing) with 2 particles"
+        show_compact = "WeaklyCompressibleSPHSystem{2}(SummationDensity(), nothing, Val{:state_equation}(), Val{:smoothing_kernel}(), nothing, Val{:density_diffusion}(), nothing, nothing, nothing, nothing, [0.0, 0.0], nothing) with 2 particles"
         @test repr(system) == show_compact
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -213,7 +219,8 @@
         │ density diffusion: ……………………………… Val{:density_diffusion}()                                        │
         │ shifting technique: …………………………… nothing                                                          │
         │ surface tension: …………………………………… nothing                                                          │
-        │ surface normal method: …………………… nothing                                                          │
+        │ surface method: ……………………………………… nothing                                                          │
+        │ surface pressure: ………………………………… nothing                                                          │
         │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
         │ source terms: …………………………………………… Nothing                                                          │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
@@ -326,5 +333,40 @@
 
         @test all(isfinite, v[end, :])
         @test all(iszero, v[end, inactive_particles])
+    end
+
+    @testset verbose=true "deprecated surface_normal_method" begin
+        shape = RectangularShape(0.123, (2, 3), (-1.0, 0.1), density=1.0)
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        smoothing_length = 0.362
+        state_equation = StateEquationCole(; sound_speed=10.0, reference_density=1000.0,
+                                           exponent=1)
+
+        system = @test_deprecated WeaklyCompressibleSPHSystem(shape; smoothing_kernel,
+                                                              smoothing_length,
+                                                              density_calculator=SummationDensity(),
+                                                              state_equation,
+                                                              surface_normal_method=ColorfieldSurfaceNormal(),
+                                                              reference_particle_spacing=0.123)
+        @test system.surface_method isa ColorfieldSurfaceNormal
+        @test @test_deprecated(TrixiParticles.surface_normal_method(system)) isa
+              ColorfieldSurfaceNormal
+
+        detection = WeaklyCompressibleSPHSystem(shape; smoothing_kernel,
+                                                smoothing_length,
+                                                density_calculator=SummationDensity(),
+                                                state_equation,
+                                                surface_method=ColorfieldSurfaceDetection(),
+                                                reference_particle_spacing=0.123)
+        @test @test_deprecated(TrixiParticles.surface_normal_method(detection)) === nothing
+
+        error_str = "`surface_method` and deprecated `surface_normal_method` cannot both be set"
+        @test_throws ArgumentError(error_str) WeaklyCompressibleSPHSystem(shape;
+                                                                          smoothing_kernel,
+                                                                          smoothing_length,
+                                                                          density_calculator=SummationDensity(),
+                                                                          state_equation,
+                                                                          surface_method=ColorfieldSurfaceDetection(),
+                                                                          surface_normal_method=ColorfieldSurfaceNormal())
     end
 end

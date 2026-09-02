@@ -74,7 +74,9 @@ sphere = WeaklyCompressibleSPHSystem(sphere2; smoothing_kernel=fluid_smoothing_k
                                      smoothing_length=fluid_smoothing_length,
                                      density_calculator=fluid_density_calculator,
                                      state_equation, viscosity, density_diffusion,
-                                     acceleration)
+                                     acceleration,
+                                     surface_method=ColorfieldSurfaceNormal(),
+                                     reference_particle_spacing=fluid_particle_spacing)
 
 # ==========================================================================================
 # ==== Boundary

@@ -14,10 +14,8 @@ The interaction between fluid and boundary particles is specified by the boundar
 - `prescribed_motion`: For moving boundaries, a [`PrescribedMotion`](@ref) can be passed.
 - `adhesion_coefficient`: Coefficient specifying the adhesion of a fluid to the surface.
    Note: currently it is assumed that all fluids have the same adhesion coefficient.
-- `color_value`: Integer label used for calculation of surface normals.
-   Currently this is only used together with [`BoundaryModelDummyParticles`](@ref) and
-   [`ColorfieldSurfaceNormal`](@ref): fluid-boundary normal evaluation
-   reads the resulting boundary colorfield to detect wall contact.
+- `color_value`: Integer phase tag stored in metadata and particle output. Boundary support
+   in colorfield surface calculations is label-independent.
 """
 struct WallBoundarySystem{BM, ELTYPE <: Real, NDIMS, IC, CO, M, IM,
                           CA} <: AbstractBoundarySystem{NDIMS}
@@ -50,7 +48,7 @@ function WallBoundarySystem(initial_condition, model; prescribed_motion=nothing,
     initialize_prescribed_motion!(prescribed_motion, initial_condition)
 
     cache = create_cache_boundary(prescribed_motion, initial_condition)
-    # Boundary color tag used for dummy-particle colorfield initialization/contact tests.
+    # Boundary phase tag used for metadata and output.
     cache = (cache..., color=Int(color_value))
 
     return WallBoundarySystem(initial_condition, coordinates, model, prescribed_motion,
@@ -218,6 +216,13 @@ function update_quantities!(system::WallBoundarySystem, v, u, v_ode, u_ode, semi
     return system
 end
 
+function update_density_correction!(system::WallBoundarySystem{<:BoundaryModelDummyParticles},
+                                    v, u, v_ode, u_ode, semi, t)
+    update_density_correction!(system.boundary_model, system, v, u, v_ode, u_ode, semi)
+
+    return system
+end
+
 # This update depends on the computed quantities of the fluid system and therefore
 # has to be in `update_boundary_interpolation!` after `update_quantities!`.
 function update_boundary_interpolation!(system::WallBoundarySystem, v, u, v_ode, u_ode,
@@ -227,6 +232,13 @@ function update_boundary_interpolation!(system::WallBoundarySystem, v, u, v_ode,
     # Note that `update_pressure!(::WallBoundarySystem, ...)` is empty,
     # so no pressure is updated in the previous update steps.
     update_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi)
+
+    return system
+end
+
+function update_gradient_correction!(system::WallBoundarySystem{<:BoundaryModelDummyParticles},
+                                     v, u, v_ode, u_ode, semi, t)
+    update_gradient_correction!(system.boundary_model, system, v, u, v_ode, u_ode, semi)
 
     return system
 end
@@ -302,21 +314,19 @@ function initialize_colorfield!(system, boundary_model, semi)
 end
 
 function initialize_colorfield!(system, ::BoundaryModelDummyParticles, semi)
-    system_coords = initial_coordinates(system)
     (; smoothing_kernel, smoothing_length, cache) = system.boundary_model
 
     if haskey(cache, :initial_colorfield)
         set_zero!(cache.initial_colorfield)
         set_zero!(cache.neighbor_count)
 
+        system_coords = initial_coordinates(system)
         foreach_point_neighbor(system, system, system_coords, system_coords, semi,
                                points=eachparticle(system)) do particle, neighbor,
                                                                pos_diff, distance
             cache.initial_colorfield[particle] += system.initial_condition.mass[particle] /
                                                   system.initial_condition.density[particle] *
-                                                  system.cache.color *
-                                                  kernel(smoothing_kernel,
-                                                         distance,
+                                                  kernel(smoothing_kernel, distance,
                                                          smoothing_length)
             cache.neighbor_count[particle] += 1
         end
@@ -324,12 +334,16 @@ function initialize_colorfield!(system, ::BoundaryModelDummyParticles, semi)
     return system
 end
 
+@inline function contributes_boundary_colorfield(system::WallBoundarySystem{<:BoundaryModelDummyParticles})
+    return haskey(system.boundary_model.cache, :initial_colorfield)
+end
+
 function system_smoothing_kernel(system::WallBoundarySystem{<:BoundaryModelDummyParticles})
     return system.boundary_model.smoothing_kernel
 end
 
 function system_correction(system::WallBoundarySystem{<:BoundaryModelDummyParticles})
-    return system.boundary_model.correction
+    return correction_gradient(system.boundary_model.correction)
 end
 
 @inline function density_calculator(system::WallBoundarySystem)

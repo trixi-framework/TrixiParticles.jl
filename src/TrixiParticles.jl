@@ -108,7 +108,8 @@ export VoxelSphere, RoundSphere, reset_wall!, extrude_geometry, load_geometry,
        sample_boundary, planar_geometry_to_face
 export SourceTermDamping
 export ShepardKernelCorrection, KernelCorrection, AkinciFreeSurfaceCorrection,
-       GradientCorrection, BlendedGradientCorrection, MixedKernelGradientCorrection
+       GradientCorrection, BlendedGradientCorrection, MixedKernelGradientCorrection,
+       CorrectionConfiguration
 export nparticles, eachparticle
 export available_data, kinetic_energy, total_mass, max_pressure, min_pressure, avg_pressure,
        max_density, min_density, avg_density
@@ -116,7 +117,10 @@ export interpolate_line, interpolate_points, interpolate_plane_3d, interpolate_p
        interpolate_plane_2d_vtk
 export SurfaceTensionAkinci, CohesionForceAkinci, SurfaceTensionMorris,
        SurfaceTensionMomentumMorris
-export ColorfieldSurfaceNormal
+export AbstractSurfaceMethod, AbstractSurfaceNormalMethod, ColorfieldSurfaceDetection,
+       ColorfieldSurfaceNormal, surface_method, computes_surface_normal, surface_activity,
+       surface_normal
+export AbstractSurfacePressure, SurfacePressureDifference
 export SymplecticPositionVerlet
 export coordinates_eltype
 

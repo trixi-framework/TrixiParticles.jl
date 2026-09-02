@@ -64,13 +64,20 @@ viscosity_fluid = ArtificialViscosityMonaghan(; alpha, beta=0.0)
 # by Antuono. This simulation is short enough to use the faster model.
 density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 # density_diffusion = DensityDiffusionAntuono(delta=0.1)
+surface_method = nothing
+surface_pressure = nothing
+reference_particle_spacing = isnothing(surface_method) ? 0 : fluid_particle_spacing
 
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid; smoothing_kernel, smoothing_length,
                                            density_calculator=fluid_density_calculator,
                                            state_equation, viscosity=viscosity_fluid,
                                            density_diffusion, acceleration=(0.0, -gravity),
-                                           correction=nothing, surface_tension=nothing,
-                                           reference_particle_spacing=0)
+                                           density_correction=nothing,
+                                           gradient_correction=nothing,
+                                           force_correction=nothing,
+                                           surface_tension=nothing,
+                                           surface_method, surface_pressure,
+                                           reference_particle_spacing)
 
 # ==========================================================================================
 # ==== Boundary
@@ -84,8 +91,10 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              boundary_density_calculator,
                                              smoothing_kernel, smoothing_length;
                                              state_equation,
-                                             correction=nothing,
-                                             reference_particle_spacing=0,
+                                             density_correction=nothing,
+                                             gradient_correction=nothing,
+                                             force_correction=nothing,
+                                             reference_particle_spacing,
                                              viscosity=viscosity_wall,
                                              clip_negative_pressure=true)
 
