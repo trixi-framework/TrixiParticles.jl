@@ -218,6 +218,21 @@ function update_quantities!(system::WallBoundarySystem, v, u, v_ode, u_ode, semi
     return system
 end
 
+function update_density_correction_values!(system::WallBoundarySystem{<:BoundaryModelDummyParticles},
+                                           v, u, v_ode, u_ode, semi, t)
+    update_density_correction_values!(system.boundary_model, system, v, u, v_ode, u_ode,
+                                      semi)
+
+    return system
+end
+
+function update_density_correction!(system::WallBoundarySystem{<:BoundaryModelDummyParticles},
+                                    v, u, v_ode, u_ode, semi, t)
+    update_density_correction!(system.boundary_model, system, v, u, v_ode, u_ode, semi)
+
+    return system
+end
+
 # This update depends on the computed quantities of the fluid system and therefore
 # has to be in `update_boundary_interpolation!` after `update_quantities!`.
 function update_boundary_interpolation!(system::WallBoundarySystem, v, u, v_ode, u_ode,
@@ -227,6 +242,13 @@ function update_boundary_interpolation!(system::WallBoundarySystem, v, u, v_ode,
     # Note that `update_pressure!(::WallBoundarySystem, ...)` is empty,
     # so no pressure is updated in the previous update steps.
     update_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi)
+
+    return system
+end
+
+function update_gradient_correction!(system::WallBoundarySystem{<:BoundaryModelDummyParticles},
+                                     v, u, v_ode, u_ode, semi, t)
+    update_gradient_correction!(system.boundary_model, system, v, u, v_ode, u_ode, semi)
 
     return system
 end
@@ -329,7 +351,7 @@ function system_smoothing_kernel(system::WallBoundarySystem{<:BoundaryModelDummy
 end
 
 function system_correction(system::WallBoundarySystem{<:BoundaryModelDummyParticles})
-    return system.boundary_model.correction
+    return correction_gradient(system.boundary_model.correction)
 end
 
 @inline function density_calculator(system::WallBoundarySystem)
