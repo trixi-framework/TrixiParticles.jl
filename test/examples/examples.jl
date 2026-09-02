@@ -12,13 +12,7 @@
                 r"\[ Info: To create the self-interaction neighborhood search.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
-            if VERSION < v"1.12"
-                # Older Julia versions produce allocations because `get_neighborhood_search`
-                # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol) < 200
-            else
-                @test count_rhs_allocations(sol) == 0
-            end
+            @test count_rhs_allocations(sol) == 0
         end
 
         @trixi_testset "structure/oscillating_beam_2d.jl with penalty force" begin
@@ -37,13 +31,7 @@
             sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false), dt=1.0,
                         save_everystep=false, callback=callbacks)
             @test sol.retcode == ReturnCode.Success
-            if VERSION < v"1.12"
-                # Older Julia versions produce allocations because `get_neighborhood_search`
-                # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol) < 200
-            else
-                @test count_rhs_allocations(sol) == 0
-            end
+            @test count_rhs_allocations(sol) == 0
         end
 
         @trixi_testset "structure/oscillating_beam_2d.jl with penalty force and viscosity" begin
@@ -56,13 +44,7 @@
                 r"\[ Info: To create the self-interaction neighborhood search.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
-            if VERSION < v"1.12"
-                # Older Julia versions produce allocations because `get_neighborhood_search`
-                # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol) < 200
-            else
-                @test count_rhs_allocations(sol) == 0
-            end
+            @test count_rhs_allocations(sol) == 0
         end
 
         @trixi_testset "structure/oscillating_beam_2d.jl with rotating clamp" begin
@@ -82,13 +64,7 @@
                 r"\[ Info: To create the self-interaction neighborhood search.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
-            if VERSION < v"1.12"
-                # Older Julia versions produce allocations because `get_neighborhood_search`
-                # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol) < 200
-            else
-                @test count_rhs_allocations(sol) == 0
-            end
+            @test count_rhs_allocations(sol) == 0
         end
 
         @trixi_testset "structure/oscillating_beam_2d.jl with MechanicalWorkCalculator" begin
@@ -182,6 +158,85 @@
             @test sol.retcode == ReturnCode.Success
             @test count_rhs_allocations(sol) == 0
         end
+
+        @trixi_testset "structure/sliding_rigid_squares_friction_2d.jl" begin
+            @trixi_test_nowarn trixi_include(@__MODULE__,
+                                             joinpath(examples_dir(), "structure",
+                                                      "sliding_rigid_squares_friction_2d.jl"),
+                                             tspan=(0.0, 0.3))
+            @test sol.retcode == ReturnCode.Success
+
+            # Compare center-of-mass motion rather than individual contact particles, whose
+            # velocities also contain the square's rigid rotation.
+            v_ode_initial, u_ode_initial = sol.u[begin].x
+            v_ode_final, u_ode_final = sol.u[end].x
+            v_frictional_initial = TrixiParticles.wrap_v(v_ode_initial,
+                                                         structure_system_frictional,
+                                                         semi)
+            u_frictional_initial = TrixiParticles.wrap_u(u_ode_initial,
+                                                         structure_system_frictional,
+                                                         semi)
+            v_frictionless = TrixiParticles.wrap_v(v_ode_final,
+                                                   structure_system_frictionless, semi)
+            u_frictionless = TrixiParticles.wrap_u(u_ode_final,
+                                                   structure_system_frictionless, semi)
+            v_frictional = TrixiParticles.wrap_v(v_ode_final,
+                                                 structure_system_frictional, semi)
+            u_frictional = TrixiParticles.wrap_u(u_ode_final,
+                                                 structure_system_frictional, semi)
+            frictionless_coords = TrixiParticles.current_coordinates(u_frictionless,
+                                                                     structure_system_frictionless)
+            frictionless_velocity = TrixiParticles.current_velocity(v_frictionless,
+                                                                    structure_system_frictionless)
+            frictional_initial_coords = TrixiParticles.current_coordinates(u_frictional_initial,
+                                                                           structure_system_frictional)
+            frictional_initial_velocity = TrixiParticles.current_velocity(v_frictional_initial,
+                                                                          structure_system_frictional)
+            frictional_coords = TrixiParticles.current_coordinates(u_frictional,
+                                                                   structure_system_frictional)
+            frictional_velocity = TrixiParticles.current_velocity(v_frictional,
+                                                                  structure_system_frictional)
+            frictionless_com,
+            frictionless_com_velocity = TrixiParticles.rigid_center_of_mass_kinematics(structure_system_frictionless,
+                                                                                       frictionless_coords,
+                                                                                       frictionless_velocity)
+            frictional_initial_com,
+            frictional_initial_com_velocity = TrixiParticles.rigid_center_of_mass_kinematics(structure_system_frictional,
+                                                                                             frictional_initial_coords,
+                                                                                             frictional_initial_velocity)
+            frictional_com,
+            frictional_com_velocity = TrixiParticles.rigid_center_of_mass_kinematics(structure_system_frictional,
+                                                                                     frictional_coords,
+                                                                                     frictional_velocity)
+            frictionless_rotation = TrixiParticles.rigid_rotational_kinematics(structure_system_frictionless,
+                                                                               frictionless_coords,
+                                                                               frictionless_velocity,
+                                                                               frictionless_com,
+                                                                               frictionless_com_velocity)
+            frictional_rotation = TrixiParticles.rigid_rotational_kinematics(structure_system_frictional,
+                                                                             frictional_coords,
+                                                                             frictional_velocity,
+                                                                             frictional_com,
+                                                                             frictional_com_velocity)
+
+            # A body sliding under kinetic Coulomb friction has deceleration `mu_k * gravity`.
+            expected_stopping_distance = frictional_initial_com_velocity[1]^2 /
+                                         (2 *
+                                          contact_model_frictional.kinetic_friction_coefficient *
+                                          gravity)
+
+            # Normal-only contact should preserve horizontal sliding without spinning up.
+            @test isapprox(frictionless_com_velocity[1],
+                           frictional_initial_com_velocity[1]; rtol=0.05)
+            @test abs(frictionless_rotation.angular_velocity) < 0.05
+
+            # Wall friction should stop the other square near the analytical stopping
+            # distance and exert a torque because it acts below the center of mass.
+            @test abs(frictional_com_velocity[1]) < 0.05
+            @test isapprox(frictional_com[1] - frictional_initial_com[1],
+                           expected_stopping_distance; rtol=0.05)
+            @test abs(frictional_rotation.angular_velocity) > 0.1
+        end
     end
 
     @testset verbose=true "FSI" begin
@@ -271,13 +326,7 @@
                 r"\[ Info: To create the self-interaction neighborhood search.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
-            if VERSION < v"1.12"
-                # Older Julia versions produce allocations because `get_neighborhood_search`
-                # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol) < 200
-            else
-                @test count_rhs_allocations(sol) == 0
-            end
+            @test count_rhs_allocations(sol) == 0
         end
 
         @trixi_testset "fsi/dam_break_plate_2d.jl" begin
@@ -290,13 +339,7 @@
                 r"\[ Info: To create the self-interaction neighborhood search.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
-            if VERSION < v"1.12"
-                # Older Julia versions produce allocations because `get_neighborhood_search`
-                # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol) < 200
-            else
-                @test count_rhs_allocations(sol) == 0
-            end
+            @test count_rhs_allocations(sol) == 0
         end
 
         @trixi_testset "fsi/dam_break_plate_2d.jl velocity averaging" begin
@@ -365,13 +408,7 @@
                 r"\[ Info: To create the self-interaction neighborhood search.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
-            if VERSION < v"1.12"
-                # Older Julia versions produce allocations because `get_neighborhood_search`
-                # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol) < 200
-            else
-                @test count_rhs_allocations(sol) == 0
-            end
+            @test count_rhs_allocations(sol) == 0
         end
 
         @trixi_testset "fsi/dam_break_plate_2d.jl split integration" begin
@@ -393,13 +430,7 @@
                 r"┌ Warning: Verbosity toggle: max_iters \n(?s:.*?)└ @ (?:SciMLBase|DiffEqBase).*\n"
             ]
             @test sol.retcode == ReturnCode.MaxIters
-            if VERSION < v"1.12"
-                # Older Julia versions produce allocations because `get_neighborhood_search`
-                # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol) < 200
-            else
-                @test count_rhs_allocations(sol) == 0
-            end
+            @test count_rhs_allocations(sol) == 0
 
             # Use split integration and verify that we need fewer than 400 iterations
             split_integration = SplitIntegrationCallback(CarpenterKennedy2N54(williamson_condition=false),
@@ -411,13 +442,7 @@
                                             save_everystep=false, callback=callbacks)
 
             @test sol2.retcode == ReturnCode.Success
-            if VERSION < v"1.12"
-                # Older Julia versions produce allocations because `get_neighborhood_search`
-                # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol2; split_integration) < 200
-            else
-                @test count_rhs_allocations(sol2; split_integration) == 0
-            end
+            @test count_rhs_allocations(sol2; split_integration) == 0
 
             # Use stage-level coupling and verify that it is not compatible with
             # the fluid time integration scheme `RDPK3SpFSAL49`.
@@ -441,13 +466,7 @@
                                             save_everystep=false, callback=callbacks)
 
             @test sol2.retcode == ReturnCode.Success
-            if VERSION < v"1.12"
-                # Older Julia versions produce allocations because `get_neighborhood_search`
-                # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol2; split_integration) < 200
-            else
-                @test count_rhs_allocations(sol2; split_integration) == 0
-            end
+            @test count_rhs_allocations(sol2; split_integration) == 0
 
             # Use split integration and verify that it is actually used for TLSPH
             # by using a time step that is too large and verifying that it is crashing.
@@ -471,13 +490,7 @@
                 r"\[ Info: To create the self-interaction neighborhood search.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
-            if VERSION < v"1.12"
-                # Older Julia versions produce allocations because `get_neighborhood_search`
-                # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol) < 200
-            else
-                @test count_rhs_allocations(sol) == 0
-            end
+            @test count_rhs_allocations(sol) == 0
         end
 
         @trixi_testset "fsi/falling_spheres_2d.jl" begin
@@ -488,15 +501,7 @@
                 r"\[ Info: To create the self-interaction neighborhood search.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
-            if VERSION > v"1.11"
-                # Newer Version than 1.11 produce more allocations
-                # todo: unclear where this is from
-                @test count_rhs_allocations(sol) < 1000
-            else
-                # Older Julia versions than 1.12 produce allocations because `get_neighborhood_search`
-                # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol) < 200
-            end
+            @test count_rhs_allocations(sol) == 0
         end
 
         @trixi_testset "fsi/falling_rigid_spheres_2d.jl" begin
@@ -505,13 +510,7 @@
                                                       "falling_rigid_spheres_2d.jl"),
                                              tspan=(0.0, 0.5))
             @test sol.retcode == ReturnCode.Success
-            if VERSION < v"1.12"
-                # Older Julia versions produce allocations because `get_neighborhood_search`
-                # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol) < 500
-            else
-                @test count_rhs_allocations(sol) == 0
-            end
+            @test count_rhs_allocations(sol) == 0
         end
 
         @trixi_testset "fsi/hydrostatic_water_column_2d.jl" begin
@@ -522,13 +521,7 @@
                 r"\[ Info: To create the self-interaction neighborhood search.*\n",
             ]
             @test sol.retcode == ReturnCode.Success
-            if VERSION < v"1.12"
-                # Older Julia versions produce allocations because `get_neighborhood_search`
-                # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol) < 500
-            else
-                @test count_rhs_allocations(sol) == 0
-            end
+            @test count_rhs_allocations(sol) == 0
         end
 
         @trixi_testset "fsi/falling_rotating_rigid_squares_2d.jl" begin
@@ -537,13 +530,7 @@
                                                       "falling_rotating_rigid_squares_2d.jl"),
                                              tspan=(0.0, 0.5))
             @test sol.retcode == ReturnCode.Success
-            if VERSION < v"1.12"
-                # Older Julia versions produce allocations because `get_neighborhood_search`
-                # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol) < 500
-            else
-                @test count_rhs_allocations(sol) == 0
-            end
+            @test count_rhs_allocations(sol) == 0
         end
 
         @trixi_testset "fsi/falling_rotating_rigid_squares_w_buoys_2d.jl" begin
@@ -554,10 +541,10 @@
                 r"WARNING: Method definition structure_boundary_model.*\n"
             ]
             @test sol.retcode == ReturnCode.Success
-            if VERSION < v"1.12"
-                # Older Julia versions produce allocations because `get_neighborhood_search`
-                # is not type-stable with TLSPH or rigid.
-                @test count_rhs_allocations(sol) < 2000
+            if v"1.11" <= VERSION < v"1.12"
+                # Julia 1.11 retains thread-count-dependent allocations in the
+                # heterogeneous rigid-body interaction dispatch. CI measures 3328 bytes.
+                @test count_rhs_allocations(sol) < 3400
             else
                 @test count_rhs_allocations(sol) == 0
             end
@@ -572,13 +559,7 @@
                 r"\[ Info: To create the self-interaction neighborhood search.*\n",
             ]
             @test sol.retcode == ReturnCode.Success
-            if VERSION < v"1.12"
-                # Older Julia versions produce allocations because `get_neighborhood_search`
-                # is not type-stable with TLSPH.
-                @test count_rhs_allocations(sol) < 500
-            else
-                @test count_rhs_allocations(sol) == 0
-            end
+            @test count_rhs_allocations(sol) == 0
         end
     end
 
@@ -651,11 +632,13 @@
         end
         @trixi_testset "preprocessing/packing_2d.jl validation" begin
             @trixi_test_nowarn trixi_include(@__MODULE__,
-                                             joinpath(examples_dir(), "preprocessing",
-                                                      "packing_2d.jl"),
-                                             particle_spacing=0.4)
-            expected_coordinates = [-0.540548 -0.189649 0.19137 0.542738 -0.63052 -0.196161 0.197719 0.631925 -0.630577 -0.19616 0.197787 0.632248 -0.540485 -0.189726 0.191038 0.540435;
-                                    -0.541127 -0.63133 -0.631244 -0.539296 -0.190402 -0.196943 -0.196917 -0.190013 0.190581 0.197074 0.19695 0.190685 0.541204 0.631451 0.6313 0.541311]
+                                              joinpath(examples_dir(), "preprocessing",
+                                                       "packing_2d.jl"),
+                                              particle_spacing=0.4)
+            # Regression fixture generated by `packing_2d.jl` with `particle_spacing=0.4`.
+            # Boundary samples start half a particle spacing from the surface for fluid placement.
+            expected_coordinates = [-0.540596 -0.195802 0.197776 0.543272 -0.650559 -0.197218 0.198803 0.652319 -0.650572 -0.197216 0.198886 0.652472 -0.540543 -0.195873 0.197309 0.540041;
+                                    -0.541103 -0.651354 -0.651519 -0.538783 -0.196582 -0.198022 -0.198004 -0.196281 0.196734 0.198155 0.198015 0.196951 0.541172 0.651521 0.651591 0.541729]
 
             @test isapprox(packed_ic.coordinates, expected_coordinates, atol=1e-5)
         end

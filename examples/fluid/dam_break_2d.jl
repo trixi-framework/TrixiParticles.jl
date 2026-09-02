@@ -68,9 +68,13 @@ density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid; smoothing_kernel, smoothing_length,
                                            density_calculator=fluid_density_calculator,
                                            state_equation, viscosity=viscosity_fluid,
-                                           density_diffusion, acceleration=(0.0, -gravity),
-                                           correction=nothing, surface_tension=nothing,
-                                           reference_particle_spacing=0)
+                                            density_diffusion, acceleration=(0.0, -gravity),
+                                            density_correction=nothing,
+                                            gradient_correction=nothing,
+                                            force_correction=nothing,
+                                            surface_tension=nothing,
+                                            surface_normal_method=nothing,
+                                            reference_particle_spacing=0)
 
 # ==========================================================================================
 # ==== Boundary
@@ -80,14 +84,10 @@ viscosity_wall = nothing
 # viscosity_wall = viscosity_fluid
 
 # Clip negative boundary pressure values to avoid sticking artifacts at the boundary.
-boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             boundary_density_calculator,
-                                             smoothing_kernel, smoothing_length;
-                                             state_equation,
-                                             correction=nothing,
-                                             reference_particle_spacing=0,
-                                             viscosity=viscosity_wall,
-                                             clip_negative_pressure=true)
+boundary_model = BoundaryModelDummyParticles(tank.boundary; fluid_system=fluid_system,
+                                              boundary_density_calculator,
+                                              viscosity=viscosity_wall,
+                                              clip_negative_pressure=true)
 
 boundary_system = WallBoundarySystem(tank.boundary, boundary_model,
                                      adhesion_coefficient=0.0)

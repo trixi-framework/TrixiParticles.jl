@@ -77,6 +77,333 @@ end
     end
 end
 
+@testset verbose=true "Correction lifecycle $TRIXIPARTICLES_TEST_" begin
+    # Build a fluid system of the given kind (`:wcsph` or `:edac`) with a correction.
+    function correction_fluid(kind, initial_condition, smoothing_kernel,
+                              smoothing_length, density_calculator, correction)
+        correction_kwargs = correction isa ShepardKernelCorrection ?
+                            (; density_correction=correction) :
+                            correction isa AkinciFreeSurfaceCorrection ?
+                            (; force_correction=correction) :
+                            correction isa Nothing ? (;) :
+                            (; gradient_correction=correction)
+        if kind == :wcsph
+            state_equation = StateEquationCole(; sound_speed=10.0f0,
+                                               reference_density=1000.0f0, exponent=1)
+            return WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
+                                               smoothing_length, density_calculator,
+                                               state_equation, correction_kwargs...)
+        end
+
+        return EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel,
+                                           smoothing_length, sound_speed=10.0f0,
+                                           pressure_acceleration=nothing,
+                                           density_calculator, correction_kwargs...)
+    end
+
+    # All correction caches present in the system must stay on the backend, keep
+    # `Float32` values, and remain finite.
+    function correction_cache_is_valid(system, backend)
+        return all((:kernel_correction_coefficient, :dw_gamma,
+                    :correction_matrix)) do name
+            hasproperty(system.cache, name) || return true
+            values = getproperty(system.cache, name)
+            return eltype(values) == Float32 && all(isfinite, Array(values)) &&
+                   TrixiParticles.KernelAbstractions.get_backend(values) == backend
+        end
+    end
+
+    function correction_rhs_is_valid(kind, correction, density_calculator, backend)
+        spacing = 0.1f0
+        initial_condition = RectangularShape(spacing, (4, 4), (0.0f0, 0.0f0);
+                                             density=1000.0f0,
+                                             velocity=pos -> SVector(pos[1], -pos[2]),
+                                             coordinates_eltype=Float32)
+        system = correction_fluid(kind, initial_condition, WendlandC6Kernel{2}(),
+                                  2spacing, density_calculator, correction)
+        semi = Semidiscretization(system; neighborhood_search=nothing,
+                                  parallelization_backend=backend)
+        ode = semidiscretize(semi, (0.0f0, 0.1f0); reset_threads=false)
+        v_ode, u_ode = ode.u0.x
+        dv_ode = similar(v_ode)
+        fill!(dv_ode, 0.0f0)
+        # Evaluate the RHS, which triggers the staged correction updates.
+        TrixiParticles.kick!(dv_ode, v_ode, u_ode, ode.p, 0.0f0)
+
+        return eltype(dv_ode) == Float32 && all(isfinite, Array(dv_ode)) &&
+               correction_cache_is_valid(first(ode.p.semi.systems), backend)
+    end
+
+    backend = Main.parallelization_backend
+    # Check the RHS evaluation with the Shepard correction for both system types.
+    for kind in (:wcsph, :edac)
+        @test correction_rhs_is_valid(kind, ShepardKernelCorrection(), SummationDensity(),
+                                      backend)
+        @test correction_rhs_is_valid(kind, KernelCorrection(), ContinuityDensity(),
+                                      backend)
+        @test correction_rhs_is_valid(kind, GradientCorrection(), ContinuityDensity(),
+                                      backend)
+        @test correction_rhs_is_valid(kind, BlendedGradientCorrection(0.4f0),
+                                      ContinuityDensity(), backend)
+        @test correction_rhs_is_valid(kind, MixedKernelGradientCorrection(),
+                                      ContinuityDensity(), backend)
+    end
+
+    # Mixed correction also requires kernel and gradient caches on a fluid-boundary pair.
+    function mixed_boundary_rhs_is_valid(backend)
+        spacing = 0.1f0
+        smoothing_kernel = WendlandC6Kernel{2}()
+        fluid_initial = RectangularShape(spacing, (4, 4), (0.0f0, 0.0f0);
+                                         density=1000.0f0,
+                                         coordinates_eltype=Float32)
+        correction = MixedKernelGradientCorrection()
+        fluid = correction_fluid(:wcsph, fluid_initial, smoothing_kernel, 2spacing,
+                                 ContinuityDensity(), correction)
+
+        boundary_initial = RectangularShape(spacing, (4, 1), (0.0f0, -spacing);
+                                            density=1000.0f0,
+                                            coordinates_eltype=Float32)
+        state_equation = StateEquationCole(; sound_speed=10.0f0,
+                                           reference_density=1000.0f0, exponent=1)
+        boundary_model = BoundaryModelDummyParticles(boundary_initial.density,
+                                                     boundary_initial.mass,
+                                                     SummationDensity(), smoothing_kernel,
+                                                     2spacing; state_equation, correction)
+        boundary = WallBoundarySystem(boundary_initial, boundary_model)
+        semi = Semidiscretization(fluid, boundary; neighborhood_search=nothing,
+                                  parallelization_backend=backend)
+        ode = semidiscretize(semi, (0.0f0, 0.1f0); reset_threads=false)
+        dv_ode = similar(ode.u0.x[1])
+        fill!(dv_ode, 0.0f0)
+        TrixiParticles.kick!(dv_ode, ode.u0.x[1], ode.u0.x[2], ode.p, 0.0f0)
+
+        boundary_cache = last(ode.p.semi.systems).boundary_model.cache
+        cache_is_valid = all((:kernel_correction_coefficient, :dw_gamma,
+                              :correction_matrix)) do name
+            values = getproperty(boundary_cache, name)
+            return eltype(values) == Float32 && all(isfinite, Array(values)) &&
+                   TrixiParticles.KernelAbstractions.get_backend(values) == backend
+        end
+        return all(isfinite, Array(dv_ode)) && cache_is_valid
+    end
+
+    @test mixed_boundary_rhs_is_valid(backend)
+
+    # Exercise the corrected fluid-structure reaction path on the selected backend.
+    function corrected_structure_rhs_is_valid(kind, structure_kind, backend)
+        spacing = 0.1f0
+        density = 1000.0f0
+        kernel = WendlandC6Kernel{2}()
+        smoothing_length = 2spacing
+        state_equation = StateEquationCole(; sound_speed=10.0f0,
+                                           reference_density=density, exponent=1)
+        fluid_initial = RectangularShape(spacing, (4, 3), (0.0f0, 0.0f0);
+                                         density, coordinates_eltype=Float32)
+        fluid = if kind == :wcsph
+            WeaklyCompressibleSPHSystem(fluid_initial; smoothing_kernel=kernel,
+                                        smoothing_length,
+                                        density_calculator=SummationDensity(),
+                                        state_equation,
+                                        gradient_correction=GradientCorrection())
+        else
+            EntropicallyDampedSPHSystem(fluid_initial; smoothing_kernel=kernel,
+                                        smoothing_length, sound_speed=10.0f0,
+                                        density_calculator=SummationDensity(),
+                                        gradient_correction=GradientCorrection())
+        end
+
+        structure_initial = RectangularShape(spacing, (4, 2), (0.0f0, -0.2f0);
+                                             density=1200.0f0,
+                                             coordinates_eltype=Float32)
+        hydrodynamic_mass = fill(density * spacing^2,
+                                 TrixiParticles.nparticles(structure_initial))
+        boundary_model = BoundaryModelDummyParticles(fill(density,
+                                                          TrixiParticles.nparticles(structure_initial)),
+                                                     hydrodynamic_mass,
+                                                     AdamiPressureExtrapolation(), kernel,
+                                                     smoothing_length;
+                                                     state_equation,
+                                                     gradient_correction=GradientCorrection())
+        structure = if structure_kind == :rigid
+            RigidBodySystem(structure_initial; boundary_model, particle_spacing=spacing)
+        else
+            TotalLagrangianSPHSystem(structure_initial; smoothing_kernel=kernel,
+                                     smoothing_length, young_modulus=0.0f0,
+                                     poisson_ratio=0.0f0, boundary_model)
+        end
+
+        semi = Semidiscretization(fluid, structure; neighborhood_search=nothing,
+                                  parallelization_backend=backend)
+        ode = semidiscretize(semi, (0.0f0, 0.1f0); reset_threads=false)
+        v_ode, u_ode = ode.u0.x
+        dv_ode = similar(v_ode)
+        fill!(dv_ode, 0.0f0)
+        TrixiParticles.kick!(dv_ode, v_ode, u_ode, ode.p, 0.0f0)
+
+        fluid = only(system
+                     for system in ode.p.semi.systems
+                     if system isa TrixiParticles.AbstractFluidSystem)
+        structure = only(system
+                         for system in ode.p.semi.systems
+                         if system isa Union{RigidBodySystem, TotalLagrangianSPHSystem})
+        dv_fluid = Array(TrixiParticles.wrap_v(dv_ode, fluid, ode.p.semi))
+        fluid_force = vec(sum(Array(fluid.mass)' .* view(dv_fluid, 1:2, :); dims=2))
+        structure_force = if structure isa RigidBodySystem
+            vec(sum(Array(structure.force_per_particle); dims=2))
+        else
+            dv_structure = Array(TrixiParticles.wrap_v(dv_ode, structure, ode.p.semi))
+            vec(sum(Array(structure.mass)' .* view(dv_structure, 1:2, :); dims=2))
+        end
+        force_scale = norm(fluid_force) + norm(structure_force)
+
+        return all(isfinite, Array(dv_ode)) && force_scale > eps(Float32) &&
+               norm(fluid_force + structure_force) / force_scale < 2e-4
+    end
+
+    for kind in (:wcsph, :edac), structure_kind in (:rigid, :tlsph)
+        @test corrected_structure_rhs_is_valid(kind, structure_kind, backend)
+    end
+
+    spacing = 0.1f0
+    initial_condition = RectangularShape(spacing, (2, 2), (0.0f0, 0.0f0);
+                                         density=1000.0f0,
+                                         coordinates_eltype=Float32)
+    system = correction_fluid(:wcsph, initial_condition, WendlandC6Kernel{2}(),
+                              2spacing, SummationDensity(), ShepardKernelCorrection())
+    semi = Semidiscretization(system; neighborhood_search=nothing,
+                              parallelization_backend=backend)
+    ode = semidiscretize(semi, (0.0f0, 0.1f0); reset_threads=false)
+    # The sanitizer must replace invalid coefficients by one on the GPU while
+    # preserving valid Float32 normalizers below `sqrt(eps(Float32))`.
+    coefficient = Adapt.adapt(backend, Float32[0.0, NaN, -1.0, 1.0f-4, 2.0])
+    TrixiParticles.sanitize_kernel_correction_coefficient!(coefficient,
+                                                           first(ode.p.semi.systems),
+                                                           ode.p.semi)
+    @test Array(coefficient) == Float32[1.0, 1.0, 1.0, 1.0f-4, 2.0]
+
+    # Kernel correction must fall back to coefficient one and zero offset for degenerate
+    # coefficients (zero, non-finite, or below `sqrt(eps(Float32))`) and remain on the GPU.
+    function kernel_correction_fallback_is_valid(kind, correction, density_calculator,
+                                                 backend; mass_value=0.0f0,
+                                                 expect_dv_finite=true)
+        spacing_ = 0.1f0
+        ic = RectangularShape(spacing_, (4, 4), (0.0f0, 0.0f0);
+                              density=1000.0f0, coordinates_eltype=Float32)
+        sys = correction_fluid(kind, ic, WendlandC6Kernel{2}(), 2spacing_,
+                               density_calculator, correction)
+        sys.mass .= mass_value
+        semi = Semidiscretization(sys; neighborhood_search=nothing,
+                                  parallelization_backend=backend)
+        ode = semidiscretize(semi, (0.0f0, 0.1f0); reset_threads=false)
+        v_ode, u_ode = ode.u0.x
+        sys_gpu = first(ode.p.semi.systems)
+        dv_ode = similar(v_ode)
+        fill!(dv_ode, 0.0f0)
+        TrixiParticles.kick!(dv_ode, v_ode, u_ode, ode.p, 0.0f0)
+        coeff = Array(sys_gpu.cache.kernel_correction_coefficient)
+        dw = Array(sys_gpu.cache.dw_gamma)
+        backend_ok = TrixiParticles.KernelAbstractions.get_backend(sys_gpu.cache.kernel_correction_coefficient) ==
+                     backend &&
+                     TrixiParticles.KernelAbstractions.get_backend(sys_gpu.cache.dw_gamma) ==
+                     backend
+        caches_ok = all(==(1.0f0), coeff) && all(iszero, dw) &&
+                    all(isfinite, coeff) && all(isfinite, dw) &&
+                    eltype(coeff) == Float32 && eltype(dw) == Float32 && backend_ok
+        dv_ok = !expect_dv_finite || all(isfinite, Array(dv_ode))
+        return caches_ok && dv_ok
+    end
+
+    for kind in (:wcsph, :edac),
+        correction in (KernelCorrection(), MixedKernelGradientCorrection()),
+        density_calculator in (ContinuityDensity(), SummationDensity())
+
+        # Zero mass => degenerate coefficient => fallback. Only WCSPH with
+        # ContinuityDensity keeps a finite density and finite RHS.
+        expect_finite = (kind === :wcsph && density_calculator isa ContinuityDensity)
+        @test kernel_correction_fallback_is_valid(kind, correction, density_calculator,
+                                                  backend; mass_value=0.0f0,
+                                                  expect_dv_finite=expect_finite)
+        # Tiny mass below `sqrt(eps(Float32))` threshold => fallback
+        # (only well-defined for ContinuityDensity, where density is independent of mass).
+        if density_calculator isa ContinuityDensity
+            @test kernel_correction_fallback_is_valid(kind, correction,
+                                                      density_calculator, backend;
+                                                      mass_value=1.0f-8,
+                                                      expect_dv_finite=expect_finite)
+        end
+        # Non-finite mass => fallback caches remain finite
+        @test kernel_correction_fallback_is_valid(kind, correction, density_calculator,
+                                                  backend; mass_value=Float32(NaN),
+                                                  expect_dv_finite=false)
+        @test kernel_correction_fallback_is_valid(kind, correction, density_calculator,
+                                                  backend; mass_value=Float32(Inf),
+                                                  expect_dv_finite=false)
+    end
+
+    # A collinear support has a singular gradient moment and must fall back to identity.
+    coordinates = Float32[0.0 0.1 0.2; 0.0 0.0 0.0]
+    collinear = InitialCondition(; coordinates, velocity=zeros(Float32, 2, 3),
+                                 density=fill(1000.0f0, 3), particle_spacing=spacing)
+    system = correction_fluid(:wcsph, collinear, WendlandC6Kernel{2}(), 2spacing,
+                              ContinuityDensity(), GradientCorrection())
+    semi = Semidiscretization(system; neighborhood_search=nothing,
+                              parallelization_backend=backend)
+    ode = semidiscretize(semi, (0.0f0, 0.1f0); reset_threads=false)
+    dv_ode = similar(ode.u0.x[1])
+    fill!(dv_ode, 0.0f0)
+    TrixiParticles.kick!(dv_ode, ode.u0.x[1], ode.u0.x[2], ode.p, 0.0f0)
+    matrix = Array(first(ode.p.semi.systems).cache.correction_matrix)
+    identity = Matrix{Float32}(I, 2, 2)
+    @test all(particle -> matrix[:, :, particle] == identity, axes(matrix, 3))
+
+    coordinates = Float32[0.0 0.1 0.2; 0.0 0.0 0.0]
+    collinear = InitialCondition(; coordinates, velocity=zeros(Float32, 2, 3),
+                                 density=fill(1000.0f0, 3), particle_spacing=spacing)
+    system = correction_fluid(:wcsph, collinear, WendlandC6Kernel{2}(), 2spacing,
+                              ContinuityDensity(), GradientCorrection())
+    semi = Semidiscretization(system; neighborhood_search=nothing,
+                              parallelization_backend=backend)
+    ode = semidiscretize(semi, (0.0f0, 0.1f0); reset_threads=false)
+    dv_ode = similar(ode.u0.x[1])
+    fill!(dv_ode, 0.0f0)
+    TrixiParticles.kick!(dv_ode, ode.u0.x[1], ode.u0.x[2], ode.p, 0.0f0)
+    matrix = Array(first(ode.p.semi.systems).cache.correction_matrix)
+    identity = Matrix{Float32}(I, 2, 2)
+    @test all(particle -> matrix[:, :, particle] == identity, axes(matrix, 3))
+
+    initial_condition = RectangularShape(spacing, (4, 4), (0.0f0, 0.0f0);
+                                         density=1000.0f0,
+                                         coordinates_eltype=Float32)
+    state_equation = StateEquationCole(; sound_speed=10.0f0,
+                                       reference_density=1000.0f0, exponent=1)
+    system = WeaklyCompressibleSPHSystem(initial_condition;
+                                         smoothing_kernel=WendlandC6Kernel{2}(),
+                                         smoothing_length=2spacing,
+                                         density_calculator=ContinuityDensity(),
+                                         state_equation)
+    semi = Semidiscretization(system; neighborhood_search=nothing,
+                              parallelization_backend=backend)
+    ode = semidiscretize(semi, (0.0f0, 0.1f0); reset_threads=false)
+    v_ode, u_ode = ode.u0.x
+    system = first(ode.p.semi.systems)
+    v = TrixiParticles.wrap_v(v_ode, system, ode.p.semi)
+    u = TrixiParticles.wrap_u(u_ode, system, ode.p.semi)
+    density = collect(range(800.0f0, 1200.0f0; length=size(v, 2)))
+    # Start from a non-constant continuity density, so that the reinitialization
+    # actually has to update values on the GPU.
+    v[end, :] .= Adapt.adapt(backend, density)
+    TrixiParticles.update_nhs!(ode.p.semi, u_ode)
+    TrixiParticles.reinit_density!(system, v, u, v_ode, u_ode, ode.p.semi)
+    @test all(isfinite, Array(v[end, :]))
+
+    # A constant field is the zeroth-order consistency invariant of the Shepard
+    # operator. This checks density and pressure values, not only finiteness.
+    v[end, :] .= 1000.0f0
+    TrixiParticles.reinit_density!(system, v, u, v_ode, u_ode, ode.p.semi)
+    @test Array(v[end, :])≈fill(1000.0f0, size(v, 2)) rtol=2e-5 atol=2e-5
+    @test maximum(abs, Array(system.pressure)) < 1.0f-2
+end
+
 @testset verbose=true "Examples $TRIXIPARTICLES_TEST_" begin
     @testset verbose=true "Fluid" begin
         @trixi_testset "fluid/dam_break_2d_gpu.jl Float64" begin

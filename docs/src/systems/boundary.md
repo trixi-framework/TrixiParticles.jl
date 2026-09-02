@@ -105,11 +105,11 @@ where the sum is over all fluid particles, ``\rho_f`` and ``p_f`` denote the den
 Identical to the pressure ``p_b`` calculated via [`AdamiPressureExtrapolation`](@ref),
 but with an added dynamic pressure term:
 ```math
-p_b = \frac{\sum_f (p_f + p_{f,\text{dyn}} + \rho_f (\bm{g} - \bm{a}_b) \cdot \bm{r}_{bf}) W(\Vert r_{bf} \Vert, h)}{\sum_f W(\Vert r_{bf} \Vert, h)},
+p_b = \frac{\sum_f (p_f + p_{f,\mathrm{dyn}} + \rho_f (\bm{g} - \bm{a}_b) \cdot \bm{r}_{bf}) W(\Vert r_{bf} \Vert, h)}{\sum_f W(\Vert r_{bf} \Vert, h)},
 ```
 with
 ```math
-p_{f,\text{dyn}} = \frac{1}{2} \, \text{factor} \, \rho_f
+p_{f,\mathrm{dyn}} = \frac{1}{2} \, \text{factor} \, \rho_f
 \left(
 \frac{(\bm{v}_b - \bm{v}_f) \cdot \bm{r}_{bf}}{\Vert \bm{r}_{bf} \Vert}
 \right)^2,
@@ -139,8 +139,8 @@ With [`SummationDensity`](@ref), this corresponds to modifying the pressure forc
 ```math
 \bm{F}_a^{p} = -m_a \sum_b m_b \left( \frac{p_a}{\rho_a^2} + \frac{p_b}{\rho_b^2} \right) \nabla_a W_{ab},
 ```
-to replace the unknown density $\rho_b$ if $b$ is a boundary particle by the reference density
-and the unknown pressure $p_b$ if $b$ is a boundary particle by the pressure $p_a$ of the
+to replace the unknown density ``\rho_b`` if ``b`` is a boundary particle by the reference density
+and the unknown pressure ``p_b`` if ``b`` is a boundary particle by the pressure ``p_a`` of the
 interacting fluid particle. The force therefore becomes
 ```math
 \bm{F}_a^{p} = -m_a \sum_f m_f \left( \frac{p_a}{\rho_a^2} + \frac{p_f}{\rho_f^2} \right) \nabla_a W_{af}

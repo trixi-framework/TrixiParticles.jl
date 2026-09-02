@@ -33,11 +33,14 @@ nu_sim_water = nu_ratio * nu_sim_oil
 
 oil_viscosity = ViscosityMorris(nu=nu_sim_oil)
 
+# The water system does not use a surface tension model, but needs a surface normal
+# method to participate in interface detection (see `check_configuration`).
 # TODO: broken if both systems use surface tension
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl");
               sol=nothing, fluid_particle_spacing, tspan,
               viscosity_fluid=ViscosityMorris(nu=nu_sim_water), smoothing_length, gravity,
               density_diffusion=nothing, sound_speed, prefix="",
+              surface_normal_method=ColorfieldSurfaceNormal(),
               reference_particle_spacing=fluid_particle_spacing)
 
 # ==========================================================================================
@@ -66,7 +69,7 @@ oil_system = WeaklyCompressibleSPHSystem(oil;
                                          viscosity=oil_viscosity,
                                          acceleration=(0.0, -gravity),
                                          surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.01),
-                                         correction=AkinciFreeSurfaceCorrection(oil_density),
+                                         force_correction=AkinciFreeSurfaceCorrection(oil_density),
                                          reference_particle_spacing=fluid_particle_spacing)
 
 # oil_system = WeaklyCompressibleSPHSystem(oil;

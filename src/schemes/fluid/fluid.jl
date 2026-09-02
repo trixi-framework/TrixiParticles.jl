@@ -233,10 +233,13 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::AbstractFluidSystem, sem
 
     if surface_tension isa SurfaceTensionMorris ||
        surface_tension isa SurfaceTensionMomentumMorris
-        v = wrap_v(v_ode, system, semi)
-        dt_surface_tension = sqrt(current_density(v, system, 1) * smoothing_length_^3 /
-                                  (2 * pi * surface_tension.surface_tension_coefficient))
-        dt = min(dt, dt_surface_tension)
+        coefficient = surface_tension.surface_tension_coefficient
+        if !iszero(coefficient)
+            v = wrap_v(v_ode, system, semi)
+            dt_surface_tension = sqrt(current_density(v, system, 1) * smoothing_length_^3 /
+                                      (2 * pi * coefficient))
+            dt = min(dt, dt_surface_tension)
+        end
     end
 
     return dt
@@ -315,11 +318,13 @@ function restart_v(system::AbstractFluidSystem, data)
 end
 
 function check_configuration(fluid_system::AbstractFluidSystem, systems, nhs)
-    if !(fluid_system isa ParticlePackingSystem) && !isnothing(fluid_system.surface_tension)
+    if !(fluid_system isa ParticlePackingSystem) &&
+       (!isnothing(fluid_system.surface_tension) ||
+        !isnothing(fluid_system.surface_normal_method))
         foreach_system(systems) do neighbor
-            if neighbor isa AbstractFluidSystem &&
-               isnothing(fluid_system.surface_tension) &&
-               isnothing(fluid_system.surface_normal_method)
+            if neighbor isa AbstractFluidSystem && !(neighbor isa ParticlePackingSystem) &&
+               isnothing(neighbor.surface_tension) &&
+               isnothing(neighbor.surface_normal_method)
                 throw(ArgumentError("either none or all fluid systems in a simulation need " *
                                     "to use a surface tension model or a surface normal method."))
             end
