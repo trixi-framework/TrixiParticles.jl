@@ -171,11 +171,23 @@ function update_quantities!(system, v, u, v_ode, u_ode, semi, t)
     return system
 end
 
+function update_density_correction!(system, v, u, v_ode, u_ode, semi, t)
+    return system
+end
+
 function update_pressure!(system, v, u, v_ode, u_ode, semi, t)
     return system
 end
 
 function update_boundary_interpolation!(system, v, u, v_ode, u_ode, semi, t)
+    return system
+end
+
+function update_gradient_correction!(system, v, u, v_ode, u_ode, semi, t)
+    return system
+end
+
+function update_surface_quantities!(system, v, u, v_ode, u_ode, semi, t)
     return system
 end
 
