@@ -57,12 +57,12 @@ include("general/mechanical_work_calculator.jl")
 include("general/neighborhood_search.jl")
 # `callbacks.jl` requires the system types to be defined
 include("callbacks/callbacks.jl")
+include("preprocessing/preprocessing.jl")
 
 # Note that `semidiscretization.jl` depends on the system types and has to be
 # included separately. `gpu.jl` in turn depends on the semidiscretization type.
 include("general/semidiscretization.jl")
 include("general/gpu.jl")
-include("preprocessing/preprocessing.jl")
 include("io/io.jl")
 include("general/restart.jl")
 include("visualization/recipes_plots.jl")
