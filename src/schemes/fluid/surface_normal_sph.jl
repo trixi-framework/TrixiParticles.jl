@@ -79,8 +79,8 @@ end
 function colorfield_surface_parameters(; boundary_contact_threshold=0.1,
                                        interface_threshold=0.01,
                                        ideal_density_threshold=0.0,
-                                       interface_taper_start=0.8,
-                                       interpolation_surface_threshold=0.45)
+                                       interface_taper_start=nothing,
+                                       interpolation_surface_threshold=nothing)
     boundary_threshold = validate_surface_threshold(boundary_contact_threshold,
                                                     "boundary_contact_threshold";
                                                     upper_bound=1)
@@ -89,13 +89,20 @@ function colorfield_surface_parameters(; boundary_contact_threshold=0.1,
     density_threshold = validate_surface_threshold(ideal_density_threshold,
                                                    "ideal_density_threshold";
                                                    upper_bound=1)
-    taper_start = validate_surface_threshold(interface_taper_start,
+    base_parameters = promote(boundary_threshold, normal_threshold, density_threshold)
+    BASE_ELTYPE = eltype(base_parameters) <: Integer ? Float64 : eltype(base_parameters)
+    taper_start_ = isnothing(interface_taper_start) ? convert(BASE_ELTYPE, 0.8) :
+                   interface_taper_start
+    interpolation_threshold_ = isnothing(interpolation_surface_threshold) ?
+                               convert(BASE_ELTYPE, 0.45) :
+                               interpolation_surface_threshold
+    taper_start = validate_surface_threshold(taper_start_,
                                              "interface_taper_start";
                                              upper_bound=1,
                                              strict_upper_bound=true)
-    interpolation_threshold = validate_surface_threshold(interpolation_surface_threshold,
-                                                         "interpolation_surface_threshold";
-                                                         upper_bound=1)
+    interpolation_threshold = validate_surface_threshold(interpolation_threshold_,
+                                                          "interpolation_surface_threshold";
+                                                          upper_bound=1)
     parameters = promote(boundary_threshold, normal_threshold, density_threshold,
                          taper_start, interpolation_threshold)
     return eltype(parameters) <: Integer ? float.(parameters) : parameters
@@ -374,6 +381,7 @@ function finalize_surface!(system::AbstractFluidSystem, surface_tension,
     support_radius = compact_support(system_smoothing_kernel(system),
                                      initial_smoothing_length(system))
     normal_condition2 = (surface_method.interface_threshold / support_radius)^2
+    reset_surface_delta!(system, surface_tension)
 
     @threaded semi for particle in each_integrated_particle(system)
         particle_gradient = extract_svector(gradient, system, particle)
@@ -388,6 +396,7 @@ function finalize_surface!(system::AbstractFluidSystem, surface_tension,
             end
         elseif norm2 > normal_condition2
             @inbounds system.cache.surface_activity[particle] = activity
+            store_surface_delta!(system, surface_tension, particle, gradient_norm)
             if normalize_surface_normals(surface_tension)
                 for i in 1:ndims(system)
                     @inbounds gradient[i, particle] = particle_gradient[i] / gradient_norm
@@ -407,6 +416,21 @@ end
 @inline normalize_surface_normals(surface_tension) = false
 @inline normalize_surface_normals(::SurfaceTensionMorris) = true
 @inline normalize_surface_normals(::SurfaceTensionMomentumMorris) = true
+
+@inline reset_surface_delta!(system, surface_tension) = system
+
+@inline function reset_surface_delta!(system, ::SurfaceTensionMomentumMorris)
+    set_zero!(system.cache.delta_s)
+    return system
+end
+
+@inline store_surface_delta!(system, surface_tension, particle, gradient_norm) = system
+
+@inline function store_surface_delta!(system, ::SurfaceTensionMomentumMorris, particle,
+                                      gradient_norm)
+    @inbounds system.cache.delta_s[particle] = gradient_norm
+    return system
+end
 
 @inline function normalized_surface_normal(system, particle)
     normal = surface_normal(system, particle)

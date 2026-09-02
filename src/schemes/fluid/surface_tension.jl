@@ -353,7 +353,7 @@ function compute_surface_delta_function!(system, surface_tension, semi)
 end
 
 # The raw color-gradient magnitude is stored before normalization in
-# `remove_invalid_normals!` (Eq. 6 in Morris 2000).
+# `finalize_surface!` (Eq. 6 in Morris 2000).
 function compute_surface_delta_function!(system, ::SurfaceTensionMomentumMorris, semi)
     return system
 end

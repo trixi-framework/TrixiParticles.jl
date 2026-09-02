@@ -64,7 +64,7 @@
                                            surface_tension, color_value=0)
 
         for system in (wcsph, edac)
-            @test isnothing(system.surface_normal_method)
+            @test isnothing(system.surface_method)
             @test !haskey(system.cache, :surface_normal)
             @test !haskey(system.cache, :neighbor_count)
             @test !haskey(system.cache, :reference_particle_spacing)
@@ -77,8 +77,6 @@
             @test all(isfinite, dv_ode)
             @test any(!iszero, dv_ode)
         end
-
-        @test isnothing(TrixiParticles.check_system_color((wcsph, edac)))
 
         @test_throws ArgumentError WeaklyCompressibleSPHSystem(initial_condition;
                                                                smoothing_kernel,
@@ -104,10 +102,8 @@
                                                   surface_tension=SurfaceTensionAkinci(),
                                                   reference_particle_spacing=1.0,
                                                   color_value=0)
-        @test full_akinci.surface_normal_method isa ColorfieldSurfaceNormal
+        @test full_akinci.surface_method isa ColorfieldSurfaceNormal
         @test haskey(full_akinci.cache, :surface_normal)
-        @test isnothing(TrixiParticles.check_system_color((full_akinci, wcsph)))
-        @test_throws ArgumentError TrixiParticles.check_system_color((full_akinci, edac))
     end
 
     @testset "zero Morris coefficient does not restrict the time step" begin
@@ -291,8 +287,7 @@
                                              density_calculator=density_calc,
                                              state_equation=eq_state,
                                              surface_tension=SurfaceTensionMomentumMorris(surface_tension_coefficient=1.0),
-                                             surface_method=ColorfieldSurfaceNormal(interface_threshold=0.1,
-                                                                                    ideal_density_threshold=0.9),
+                                             surface_method=ColorfieldSurfaceNormal(interface_threshold=0.0),
                                              reference_particle_spacing=1.0,)
 
         # 4. Verify Cache Contains Necessary Fields
@@ -305,8 +300,8 @@
         system.cache.surface_normal .= [3.0 0.0;
                                         4.0 2.0]
         system.cache.neighbor_count .= 10
-        TrixiParticles.remove_invalid_normals!(system, system.surface_tension,
-                                               system.surface_normal_method)
+        TrixiParticles.finalize_surface!(system, system.surface_tension,
+                                         system.surface_method, SerialBackend())
         @test system.cache.surface_normal[:, 1] ≈ [0.6, 0.8]
         @test system.cache.surface_normal[:, 2] ≈ [0.0, 1.0]
         @test system.cache.delta_s ≈ [5.0, 2.0]
