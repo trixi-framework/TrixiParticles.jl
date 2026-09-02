@@ -599,6 +599,8 @@ end
     support_radius = compact_support(ref_smoothing_kernel, smoothing_length)
     reference_spacing = detect_surface ?
                         ref_system.cache.reference_particle_spacing : zero(ELTYPE)
+    reference_v = wrap_v(v_ode, ref_system, semi)
+    reference_coords = current_coordinates(wrap_u(u_ode, ref_system, semi), ref_system)
 
     # If we neither cut off at the boundary nor include the boundary wall velocity,
     # we only need to iterate over the reference system.
@@ -620,15 +622,41 @@ end
         surface_color = contributes_to_colorfield(neighbor_system) ?
                         neighbor_system.cache.color : reference_color
         phase_weight = colorfield_phase_weight(reference_color, surface_color, ELTYPE)
+        contributes_boundary = detect_surface &&
+                               contributes_boundary_colorfield(neighbor_system)
+        boundary_colorfield = nothing
+        maximum_boundary_colorfield = zero(ELTYPE)
+
+        if contributes_boundary
+            # Match particle detection: boundary eligibility is determined by the
+            # reference fluid's dynamic colorfield, not by the interpolation point.
+            boundary_colorfield = copy(neighbor_system.boundary_model.cache.initial_colorfield)
+            foreach_point_neighbor(neighbor_system, ref_system,
+                                   neighbor_coords, reference_coords, semi;
+                                   points=eachparticle(neighbor_system)) do boundary_particle,
+                                                                        fluid_particle,
+                                                                        pos_diff, distance
+                volume_a = hydrodynamic_mass(ref_system, fluid_particle) /
+                           current_density(reference_v, ref_system, fluid_particle)
+                boundary_colorfield[boundary_particle] +=
+                    volume_a * kernel(ref_smoothing_kernel, distance, smoothing_length)
+            end
+            maximum_boundary_colorfield = maximum(boundary_colorfield)
+        end
 
         foreach_point_neighbor(point_coords, neighbor_coords, nhs;
                                parallelization_backend) do point, neighbor, pos_diff,
-                                                           distance
+                                                            distance
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
             volume_b = m_b / current_density(v, neighbor_system, neighbor)
             W_ab = kernel(ref_smoothing_kernel, distance, smoothing_length)
 
-            if contributes_surface
+            boundary_eligible = !contributes_boundary ||
+                                (!iszero(maximum_boundary_colorfield) &&
+                                 boundary_colorfield[neighbor] /
+                                 maximum_boundary_colorfield >
+                                 surface_method_.boundary_contact_threshold)
+            if contributes_surface && boundary_eligible
                 grad_kernel = kernel_grad(ref_smoothing_kernel, pos_diff, distance,
                                           smoothing_length)
                 for i in 1:NDIMS

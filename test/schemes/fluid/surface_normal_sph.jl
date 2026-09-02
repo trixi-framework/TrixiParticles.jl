@@ -282,14 +282,24 @@ end
                                            reference_particle_spacing=0.1f0)
     @test system32.surface_method isa ColorfieldSurfaceDetection{Float32}
     @test_throws ArgumentError WeaklyCompressibleSPHSystem(shape32;
-                                                           smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
-                                                           smoothing_length=1.5f0 * 0.1f0,
-                                                           density_calculator=SummationDensity(),
-                                                           state_equation=StateEquationCole(sound_speed=10.0f0,
-                                                                                            reference_density=1000.0f0,
-                                                                                            exponent=1),
-                                                           surface_method=ColorfieldSurfaceDetection(),
-                                                           reference_particle_spacing=0.1f0)
+                                                            smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
+                                                            smoothing_length=1.5f0 * 0.1f0,
+                                                            density_calculator=SummationDensity(),
+                                                            state_equation=StateEquationCole(sound_speed=10.0f0,
+                                                                                             reference_density=1000.0f0,
+                                                                                             exponent=1),
+                                                            surface_method=ColorfieldSurfaceDetection(),
+                                                            reference_particle_spacing=0.1f0)
+    default_normal32 = WeaklyCompressibleSPHSystem(shape32;
+                                                    smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
+                                                    smoothing_length=1.5f0 * 0.1f0,
+                                                    density_calculator=SummationDensity(),
+                                                    state_equation=StateEquationCole(sound_speed=10.0f0,
+                                                                                     reference_density=1000.0f0,
+                                                                                     exponent=1),
+                                                    surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.1f0),
+                                                    reference_particle_spacing=0.1f0)
+    @test default_normal32.surface_method isa ColorfieldSurfaceNormal{Float32}
 
     particle_spacing = 0.1
     coordinates = RectangularShape(particle_spacing, (21, 11), (0.0, 0.0),
@@ -734,6 +744,33 @@ end
                    rtol=sqrt(eps()), atol=sqrt(eps()))
 end
 
+@testset verbose=true "Interpolated Boundary Activity Matches Particles" begin
+    particle_spacing = 0.1
+    shape = RectangularShape(particle_spacing, (11, 11), (0.0, 0.0), density=1000.0)
+    system, _, semi,
+    ode = create_fluid_system(shape.coordinates, shape.velocity, shape.mass, shape.density,
+                              particle_spacing, nothing;
+                              smoothing_length=1.5 * particle_spacing,
+                              smoothing_kernel=WendlandC2Kernel{2}(),
+                              surface_method=ColorfieldSurfaceDetection(), wall=true,
+                              walldistance=particle_spacing)
+
+    coordinates = system.initial_condition.coordinates
+    minimum_y = minimum(coordinates[2, :])
+    wall_adjacent = [particle
+                     for particle in axes(coordinates, 2)
+                     if isapprox(coordinates[2, particle], minimum_y;
+                                 atol=particle_spacing / 4) &&
+                        2particle_spacing < coordinates[1, particle] <
+                        maximum(coordinates[1, :]) - 2particle_spacing]
+    @test !isempty(wall_adjacent)
+
+    result = interpolate_points(coordinates[:, wall_adjacent], semi, system, ode.u0.x...;
+                                cut_off_bnd=false)
+    @test isapprox(result.surface_activity, system.cache.surface_activity[wall_adjacent];
+                   rtol=1.0e-12, atol=1.0e-12)
+end
+
 @testset verbose=true "CSS/CSF: Sphere Surface Normals" begin
     # Define each variation as a tuple of parameters:
     # (NDIMS, smoothing_kernel, particle_spacing, smoothing_length_multiplier, radius, center, relative_curvature_error)
@@ -1147,8 +1184,10 @@ end
                             atol=1.0e-12), particles)
 
     dv_lmr = similar(ode_lmr.u0.x[1])
+    fill!(dv_lmr, zero(eltype(dv_lmr)))
     TrixiParticles.system_interaction!(dv_lmr, ode_lmr.u0.x..., semi_lmr)
     dv_rml = similar(ode_rml.u0.x[1])
+    fill!(dv_rml, zero(eltype(dv_rml)))
     TrixiParticles.system_interaction!(dv_rml, ode_rml.u0.x..., semi_rml)
     n_left = size(coordinates_left, 2)
     n_right = size(coordinates_right, 2)
@@ -1183,14 +1222,20 @@ end
                     abs(coords[2, particle]) < 0.5 - 3 * spacing]
     @test !isempty(interface)
 
+    coords_b = system_b.initial_condition.coordinates
+    interface_b = [particle
+                   for particle in axes(coords_b, 2)
+                   if isapprox(coords_b[1, particle], zero(spacing); atol=spacing / 4) &&
+                      abs(coords_b[2, particle]) < 0.5 - 3 * spacing]
+    @test !isempty(interface_b)
+
     normals_a = [TrixiParticles.surface_normal(system_a, p) for p in interface]
-    normals_b = [TrixiParticles.surface_normal(system_b, p) for p in interface]
+    normals_b = [TrixiParticles.surface_normal(system_b, p) for p in interface_b]
     @test all(n -> n[1] < -0.5, normals_a)
     @test all(n -> dot(n, TrixiParticles.surface_normal(system_a, interface[1])) < 0,
-              normals_b)
+               normals_b)
 
-    # The curvature of a planar interface is zero. The colorfield divergence retains a
-    # small O(1/h) discretization artifact, far below the single-phase free-surface level.
+    # The curvature of a planar interface is zero and must decrease on refinement.
     @test maximum(abs.(system_a.cache.curvature[interface])) < 0.5
 
     acceleration = morris_surface_tension_acceleration(system_a, semi, ode)
@@ -1204,7 +1249,8 @@ end
                                      atol=refined_spacing / 4) &&
                             abs(refined_coords[2, particle]) < 0.5 - 3 * refined_spacing]
     @test !isempty(refined_interface)
-    @test maximum(abs.(refined_a.cache.curvature[refined_interface])) < 1.0
+    @test maximum(abs.(refined_a.cache.curvature[refined_interface])) <
+          maximum(abs.(system_a.cache.curvature[interface]))
 end
 
 @testset verbose=true "Morris Curvature With Mixed Normal Representations" begin

@@ -110,9 +110,13 @@ function ColorfieldSurfaceNormal(; kwargs...)
 end
 
 function ColorfieldSurfaceNormal(boundary_contact_threshold, interface_threshold,
-                                 ideal_density_threshold)
+                                  ideal_density_threshold)
+    ELTYPE = promote_type(typeof(boundary_contact_threshold), typeof(interface_threshold),
+                          typeof(ideal_density_threshold))
     return ColorfieldSurfaceNormal(; boundary_contact_threshold, interface_threshold,
-                                   ideal_density_threshold)
+                                    ideal_density_threshold,
+                                    interface_taper_start=convert(ELTYPE, 0.8),
+                                    interpolation_surface_threshold=convert(ELTYPE, 0.45))
 end
 
 @inline computes_surface_normal(surface_method) = false
@@ -122,9 +126,9 @@ end
 @inline is_colorfield_surface_method(::ColorfieldSurfaceMethod) = true
 
 function check_surface_method_eltype(surface_method::Union{ColorfieldSurfaceDetection{METHOD_ELTYPE},
-                                                           ColorfieldSurfaceNormal{METHOD_ELTYPE}},
-                                     ::Type{SYSTEM_ELTYPE}) where {METHOD_ELTYPE,
-                                                                   SYSTEM_ELTYPE}
+                                                            ColorfieldSurfaceNormal{METHOD_ELTYPE}},
+                                      ::Type{SYSTEM_ELTYPE}) where {METHOD_ELTYPE,
+                                                                    SYSTEM_ELTYPE}
     METHOD_ELTYPE === SYSTEM_ELTYPE && return surface_method
     throw(ArgumentError("the element type of `$surface_method` must match the system element type `$SYSTEM_ELTYPE`"))
 end
@@ -138,15 +142,18 @@ end
     return ifelse(color_a == color_b, one(ELTYPE), zero(ELTYPE))
 end
 
-@inline function default_surface_method(surface_tension, surface_method)
+@inline function default_surface_method(surface_tension, surface_method, ::Type{ELTYPE}) where {ELTYPE}
     if isnothing(surface_method) && requires_surface_normal(surface_tension)
-        return ColorfieldSurfaceNormal()
+        return ColorfieldSurfaceNormal(convert(ELTYPE, 0.1), convert(ELTYPE, 0.01),
+                                       zero(ELTYPE), convert(ELTYPE, 0.8),
+                                       convert(ELTYPE, 0.45))
     end
 
     return surface_method
 end
 
-function select_surface_method(surface_tension, surface_method, surface_normal_method)
+function select_surface_method(surface_tension, surface_method, surface_normal_method,
+                               ELTYPE)
     if !isnothing(surface_method) && !isnothing(surface_normal_method)
         throw(ArgumentError("`surface_method` and deprecated `surface_normal_method` cannot both be set"))
     end
@@ -157,7 +164,7 @@ function select_surface_method(surface_tension, surface_method, surface_normal_m
         surface_method = surface_normal_method
     end
 
-    surface_method = default_surface_method(surface_tension, surface_method)
+    surface_method = default_surface_method(surface_tension, surface_method, ELTYPE)
     if !(surface_method isa Union{Nothing, AbstractSurfaceMethod})
         throw(ArgumentError("`surface_method` must be an `AbstractSurfaceMethod` or `nothing`"))
     end
@@ -404,7 +411,9 @@ end
 @inline function normalized_surface_normal(system, particle)
     normal = surface_normal(system, particle)
     norm2 = dot(normal, normal)
-    return norm2 > eps(eltype(system)) ? normal / sqrt(norm2) : zero(normal)
+    # Surface-method filtering already uses a dimensionless threshold. Applying machine
+    # epsilon to this dimensionful gradient would make normal validity depend on scale.
+    return iszero(norm2) ? zero(normal) : normal / sqrt(norm2)
 end
 
 function compute_surface!(system, surface_method, v, u, v_ode, u_ode, semi, t)
@@ -446,11 +455,6 @@ function calc_curvature!(system::AbstractFluidSystem, neighbor_system::AbstractF
                          u_system, v, v_neighbor_system, u_neighbor_system, semi,
                          surface_method_::ColorfieldSurfaceNormal,
                          neighbor_surface_method::ColorfieldSurfaceNormal)
-    # Surface normals are phase-local (they point into their own phase), so a divergence
-    # stencil across unlike colors would subtract oppositely oriented normals and create
-    # spurious curvature at exactly planar interfaces.
-    system.cache.color == neighbor_system.cache.color || return system
-
     (; cache) = system
     (; curvature, correction_factor) = cache
 
@@ -465,14 +469,14 @@ function calc_curvature!(system::AbstractFluidSystem, neighbor_system::AbstractF
                            semi) do particle, neighbor, pos_diff, distance
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
         rho_b = current_density(v_neighbor_system, neighbor_system, neighbor)
-        # Neighbor systems may store raw colorfield gradients (e.g. with Akinci surface
-        # tension), so normalize both normals locally to a consistent dimensionless
-        # representation before subtracting them.
+        # Normals are phase-local. Reorient unlike-phase normals into the target phase
+        # before taking their divergence, so a planar interface has a consistent stencil.
         n_a = normalized_surface_normal(system, particle)
         n_b = normalized_surface_normal(neighbor_system, neighbor)
+        system.cache.color == neighbor_system.cache.color || (n_b = -n_b)
         v_b = m_b / rho_b
 
-        if dot(n_a, n_a) > eps() && dot(n_b, n_b) > eps()
+        if !iszero(dot(n_a, n_a)) && !iszero(dot(n_b, n_b))
             w = smoothing_kernel(system, distance, particle)
             grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 

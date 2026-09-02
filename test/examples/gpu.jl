@@ -158,14 +158,16 @@ end
                                                   density_calculator=SummationDensity(),
                                                   state_equation,
                                                   surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.072f0),
-                                                  surface_method=ColorfieldSurfaceNormal(),
+                                                   surface_method=ColorfieldSurfaceNormal(0.1f0, 0.01f0,
+                                                                                        0.0f0, 0.8f0, 0.45f0),
                                                   reference_particle_spacing=spacing,
                                                   color_value=0)
         ring_system = WeaklyCompressibleSPHSystem(ring; smoothing_kernel,
                                                   smoothing_length,
                                                   density_calculator=SummationDensity(),
                                                   state_equation,
-                                                  surface_method=ColorfieldSurfaceNormal(),
+                                                   surface_method=ColorfieldSurfaceNormal(0.1f0, 0.01f0,
+                                                                                        0.0f0, 0.8f0, 0.45f0),
                                                   reference_particle_spacing=spacing,
                                                   color_value=1)
 

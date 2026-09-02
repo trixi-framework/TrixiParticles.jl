@@ -285,7 +285,8 @@ surface method, since their phase label still enters other systems' colorfield d
 All per-particle VTK arrays, including `surface_activity` and `neighbor_count`, hold one
 value per active particle when a system buffer is used.
 
-Point and plane interpolation evaluate the same colorfield gradient. With `cut_off_bnd=true`,
+Point and plane interpolation apply the same colorfield phase and boundary-contact eligibility
+rules as particle detection. With `cut_off_bnd=true`,
 kernel-weighted color contributions also determine whether a point belongs to the reference
 phase. This prevents extrapolation through both free surfaces and interfaces with another
 liquid while retaining the existing solid-boundary cutoff. Interpolated `surface_activity`
@@ -317,20 +318,15 @@ Because the stored normals are phase-local (they point into their own phase), th
                 {\sum_b V_b W_{ab}}
 ```
 
-is evaluated with consistently normalized, same-phase neighbors only: summing oppositely
-oriented normals across unlike `color_value`s would create spurious curvature at exactly
-planar interfaces, and neighboring systems may store unnormalized gradients (for example
-with Akinci surface tension). Both the numerator and the denominator are accumulated over
-all interacting systems before the division is performed once, so the result does not
-depend on system ordering or on how one physical phase is partitioned into systems. The
-same procedure also applies to interpolated surface activity: interpolation points are
-rejected by the identical minimum-support and `ideal_density_threshold` criteria used for
-particles, so sparse or under-resolved regions are inactive in interpolated output, too.
-
-A planar two-phase interface retains a small ``\mathcal{O}(1/h)`` discretization artifact
-from the one-sided colorfield divergence, the same mechanism present at single-phase free
-surfaces. Its magnitude stays far below the corresponding single-phase free-surface
-artifact.
+is evaluated with consistently normalized normals. Normals from unlike `color_value`s are
+reoriented into the target phase before entering the divergence stencil, while neighboring
+systems may store unnormalized gradients (for example with Akinci surface tension). Both
+the numerator and denominator are accumulated over all interacting systems before division,
+so the result does not depend on system ordering or on how one physical phase is partitioned
+into systems. A planar two-phase interface therefore converges toward zero curvature under
+refinement. Interpolated surface activity uses the same boundary-contact, minimum-support,
+and `ideal_density_threshold` criteria as particles, so sparse or under-resolved regions are
+inactive in interpolated output, too.
 
 ```@autodocs
 Modules = [TrixiParticles]
