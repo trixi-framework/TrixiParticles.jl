@@ -4,6 +4,31 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.6.0
+
+### API Changes
+
+- Renamed the fluid-system keyword `surface_normal_method` to `surface_method` and added
+  detection-only surface methods. The old constructor keyword and accessor are deprecated.
+- The fluid `color_value` phase identifier is now always recorded in `meta.json` and written
+  as `color` field data in VTK output, also for fluids without a surface method.
+
+### Important Bugfixes
+
+- Fixed Morris surface-tension curvature to accumulate the SPH sum over all interacting
+  systems before normalizing, making the result independent of system ordering and of
+  same-phase partitioning into multiple systems.
+- Fixed spurious curvature for `SurfaceTensionMorris` at planar multicolor interfaces by
+  restricting the curvature divergence stencil to same-phase neighbors with consistently
+  normalized normals, which also makes mixing Morris and Akinci systems well-defined.
+- Fixed interpolated `surface_activity` to apply the same minimum-support and
+  `ideal_density_threshold` rejection criteria as particle-based surface detection.
+- Fixed fluid VTK output with system buffers: `surface_activity`, `neighbor_count`,
+  `curvature`, `surface_tension` and `surface_stress_tensor` now hold exactly one value
+  per active particle.
+- Fixed the `dam_break_oil_film_2d.jl` example to assign distinct phase colors to water
+  and oil, so their interface is actually detected.
+
 ## Version 0.5.4
 
 ### API Changes
@@ -14,6 +39,11 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Important Bugfixes
 
+- Hardened surface tension model configuration by validating coefficients and surface-normal
+  thresholds, avoiding unnecessary normal allocation for `CohesionForceAkinci`, and stabilizing
+  Akinci cohesion and adhesion kernels across floating-point scales.
+- Added color-weighted fluid-fluid interface normals and consistently applied surface-normal
+  validity thresholds to standalone, Akinci, and Morris calculations.
 - Fixed mathematical inconsistencies in the SPH documentation, including incorrect
   formulas, inconsistent force-vs-acceleration notation, and wrong LaTeX text-mode
   commands (#1086).

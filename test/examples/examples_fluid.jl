@@ -330,6 +330,8 @@
         ]
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol) == 0
+        @test fluid_system.cache.color != oil_system.cache.color
+        @test any(>(0), oil_system.cache.surface_activity)
     end
 
     @trixi_testset "fluid/dam_break_2phase_2d.jl" begin

@@ -64,6 +64,7 @@ viscosity_fluid = ArtificialViscosityMonaghan(; alpha, beta=0.0)
 # by Antuono. This simulation is short enough to use the faster model.
 density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 # density_diffusion = DensityDiffusionAntuono(delta=0.1)
+surface_method = nothing
 
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid; smoothing_kernel, smoothing_length,
                                            density_calculator=fluid_density_calculator,
@@ -73,6 +74,7 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid; smoothing_kernel, smoothi
                                            gradient_correction=nothing,
                                            force_correction=nothing,
                                            surface_tension=nothing,
+                                           surface_method,
                                            reference_particle_spacing=0)
 
 # ==========================================================================================
