@@ -42,10 +42,12 @@ To add a rotational contribution to an existing initial condition, use
                       is assumed to be uniform. This is only needed when using
                       set operations on the `InitialCondition` or for automatic mass calculation.
 - `normals`:    Either `nothing` (default) if surface normal vectors are not used, or an
-                array where the $i$-th column holds the surface normal vector of particle $i$.
-                Note that automatic computation of normal vectors is currently not supported
-                for all shapes; it is only available when using [`RectangularTank`](@ref)
-                and [`SphereShape`](@ref).
+                 array where the $i$-th column holds the surface normal vector of particle $i$.
+                 Note that automatic computation of normal vectors is currently not supported
+                 for all shapes; it is only available when using [`RectangularTank`](@ref)
+                 and [`SphereShape`](@ref). [`RigidBodySystem`](@ref) wall contact uses these
+                 vectors when available to evaluate contact along the wall geometry instead
+                 of along the wall-particle separation.
 
 # Examples
 ```jldoctest; output = false

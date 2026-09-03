@@ -48,10 +48,12 @@ ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=20)
 saving_callback = SolutionSavingCallback(dt=0.02, output_directory="out", prefix="")
+stepsize_callback = StepsizeCallback(cfl=0.5)
 
-callbacks = CallbackSet(info_callback, saving_callback)
+callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
+# The stepsize callback also caps the step at the rigid-contact stability scale.
 sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-6,
             reltol=1e-4,
