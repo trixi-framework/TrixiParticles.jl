@@ -3,13 +3,9 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::TotalLagrangianSPHSystem,
                    neighbor_system::TotalLagrangianSPHSystem, semi;
-                   integrate_tlsph=semi.integrate_tlsph[],
                    eachparticle=each_integrated_particle(particle_system))
     # Different structures do not interact with each other (yet)
     particle_system === neighbor_system || return dv
-
-    # Skip interaction if TLSPH systems are integrated separately
-    integrate_tlsph || return dv
 
     interact_structure_structure!(dv, v_particle_system, particle_system, semi;
                                   eachparticle)
@@ -46,18 +42,20 @@ end
 
         # Accumulate the RHS contributions over all neighbors before writing to `dv`
         # to reduce the number of memory writes.
-        # Note that we need a `Ref` in order to be able to update these variables
-        # inside the closure in the `foreach_neighbor` loop.
-        dv_particle = Ref(zero(current_coords_a))
+        # Make sure that the returned name `dv_particle_` is not used inside the closure
+        # to avoid allocations.
+        dv_particle_ = @inbounds mapreduce_neighbor(+, system_coords, system_coords,
+                                                    neighborhood_search, backend, particle;
+                                                    init=zero(current_coords_a)) do particle,
+                                                                                    neighbor,
+                                                                                    initial_pos_diff,
+                                                                                    initial_distance
 
-        # Loop over all neighbors within the kernel cutoff
-        @inbounds foreach_neighbor(system_coords, system_coords,
-                                   neighborhood_search, backend,
-                                   particle) do particle, neighbor,
-                                                initial_pos_diff, initial_distance
             # Skip neighbors with the same position because the kernel gradient is zero.
             # Note that `return` only exits the closure, i.e., skips the current neighbor.
-            skip_zero_distance(system) && initial_distance < almostzero && return
+            if skip_zero_distance(system) && initial_distance < almostzero
+                return zero(initial_pos_diff)
+            end
 
             # Now that we know that `distance` is not zero, we can safely call the unsafe
             # version of the kernel gradient to avoid redundant zero checks.
@@ -79,20 +77,27 @@ end
             current_pos_diff = convert.(eltype(system), current_pos_diff_)
             current_distance = norm(current_pos_diff)
 
-            dv_particle[] += m_b * (pk1_rho2_a + pk1_rho2_b) * grad_kernel
+            dv_particle = m_b * (pk1_rho2_a + pk1_rho2_b) * grad_kernel
 
-            @inbounds dv_penalty_force!(dv_particle, penalty_force, particle, neighbor,
-                                        initial_pos_diff, initial_distance,
-                                        current_pos_diff, current_distance,
-                                        system, m_a, m_b, rho_a, rho_b, F_a, F_b)
+            dv_particle = @inbounds add_penalty_force(dv_particle, penalty_force,
+                                                      particle, neighbor,
+                                                      initial_pos_diff, initial_distance,
+                                                      current_pos_diff, current_distance,
+                                                      system, m_a, m_b, rho_a, rho_b,
+                                                      F_a, F_b)
 
-            @inbounds dv_viscosity_tlsph!(dv_particle, system, v_system, particle, neighbor,
-                                          current_pos_diff, current_distance,
-                                          m_a, m_b, rho_a, rho_b, F_a, grad_kernel)
+            dv_particle = @inbounds add_dv_viscosity_tlsph(dv_particle, system, v_system,
+                                                           particle, neighbor,
+                                                           current_pos_diff,
+                                                           current_distance,
+                                                           m_a, m_b, rho_a, rho_b, F_a,
+                                                           grad_kernel)
+
+            return dv_particle
         end
 
         for i in 1:ndims(system)
-            @inbounds dv[i, particle] += dv_particle[][i]
+            @inbounds dv[i, particle] += dv_particle_[i]
         end
 
         # TODO continuity equation for boundary model with `ContinuityDensity`?
@@ -106,11 +111,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::TotalLagrangianSPHSystem,
                    neighbor_system::AbstractFluidSystem, semi;
-                   integrate_tlsph=semi.integrate_tlsph[],
                    eachparticle=each_integrated_particle(particle_system))
-    # Skip interaction if TLSPH systems are integrated separately
-    integrate_tlsph || return dv
-
     return interact_structure_fluid!(dv, v_particle_system, u_particle_system,
                                      v_neighbor_system, u_neighbor_system,
                                      particle_system, neighbor_system, semi; eachparticle)
@@ -121,7 +122,6 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
                    particle_system::TotalLagrangianSPHSystem,
                    neighbor_system::Union{WallBoundarySystem, OpenBoundarySystem}, semi;
-                   integrate_tlsph=semi.integrate_tlsph[],
                    eachparticle=each_integrated_particle(particle_system))
     # TODO continuity equation?
     return dv

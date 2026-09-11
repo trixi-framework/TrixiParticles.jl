@@ -2,7 +2,8 @@
 # 2D Two-Phase Dam Break Simulation (Water and Air)
 #
 # This example simulates a 2D dam break with an air layer above the water.
-# It demonstrates how to set up a multi-fluid simulation in TrixiParticles.jl.
+# It demonstrates how to set up a multi-fluid simulation in TrixiParticles.jl and how
+# to deactivate selected ordered system-pair interactions.
 # ==========================================================================================
 
 using TrixiParticles
@@ -83,10 +84,54 @@ air_system_system = WeaklyCompressibleSPHSystem(air_system;
                                                 acceleration=(0.0, -gravity))
 
 # ==========================================================================================
+# ==== Setup phase-specific wall boundaries
+
+# Use two copies of the wall geometry with hydrodynamic properties matched to the adjacent
+# fluid phase. The interaction matrix below disables the cross-phase wall interactions.
+water_boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
+                                                   tank.boundary.mass,
+                                                   boundary_density_calculator,
+                                                   smoothing_kernel, smoothing_length;
+                                                   state_equation=state_equation,
+                                                   viscosity=viscosity_wall,
+                                                   clip_negative_pressure=true)
+
+water_boundary_system = WallBoundarySystem(tank.boundary, water_boundary_model;
+                                           adhesion_coefficient=0.0)
+
+air_boundary_density = fill(air_density, length(tank.boundary.density))
+air_boundary_mass = tank.boundary.mass .* (air_density / fluid_density)
+
+air_boundary_model = BoundaryModelDummyParticles(air_boundary_density, air_boundary_mass,
+                                                 boundary_density_calculator,
+                                                 smoothing_kernel, smoothing_length;
+                                                 state_equation=air_eos,
+                                                 viscosity=viscosity_wall,
+                                                 clip_negative_pressure=true)
+
+air_boundary_system = WallBoundarySystem(tank.boundary, air_boundary_model;
+                                         adhesion_coefficient=0.0)
+
+# Semidiscretization order:
+# 1: water fluid, 2: air fluid, 3: water wall, 4: air wall.
+# `false` skips ordered pairwise RHS dispatch and density summation. For wall systems, it
+# also skips boundary pressure extrapolation from disabled neighbors, keeping each wall
+# matched to its phase. It does not filter neighborhood-search updates.
+interaction_matrix = trues(4, 4)
+interaction_matrix[1, 4] = false # water fluid skips interaction with air wall
+interaction_matrix[4, 1] = false # air wall skips interaction with water fluid
+interaction_matrix[2, 3] = false # air fluid skips interaction with water wall
+interaction_matrix[3, 2] = false # water wall skips interaction with air fluid
+interaction_matrix[3, 4] = false # water wall skips interaction with air wall
+interaction_matrix[4, 3] = false # air wall skips interaction with water wall
+
+# ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(fluid_system, air_system_system, boundary_system,
+semi = Semidiscretization(fluid_system, air_system_system,
+                          water_boundary_system, air_boundary_system,
                           neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=nothing),
-                          parallelization_backend=PolyesterBackend())
+                          parallelization_backend=PolyesterBackend(),
+                          interaction_matrix=interaction_matrix)
 ode = semidiscretize(semi, tspan)
 
 sol = solve(ode, RDPK3SpFSAL35(),

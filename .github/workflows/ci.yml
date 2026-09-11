@@ -61,7 +61,7 @@ jobs:
 
     steps:
       - name: Check out project
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Julia
         uses: julia-actions/setup-julia@v3
@@ -95,7 +95,7 @@ jobs:
       - name: Upload unit coverage report to Codecov
         # Only run coverage in one Job (Ubuntu and latest Julia version)
         if: matrix.os == 'ubuntu-latest' && matrix.version == '1.11'
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           files: lcov.info
           fail_ci_if_error: true
@@ -122,7 +122,7 @@ jobs:
       - name: Upload total coverage report to Codecov
         # Only run coverage in one Job (Ubuntu and latest Julia version)
         if: matrix.os == 'ubuntu-latest' && matrix.version == '1.11'
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           files: lcov.info
           fail_ci_if_error: true

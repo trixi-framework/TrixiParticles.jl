@@ -1,23 +1,12 @@
-"""
-    DensityReinitializationCallback(; interval::Integer=0, dt=0.0)
-
-Callback to reinitialize the density field when using [`ContinuityDensity`](@ref) [Panizzo2007](@cite).
-
-# Keywords
-- `interval=0`:              Reinitialize the density every `interval` time steps.
-- `dt`:                      Reinitialize the density in regular intervals of `dt` in terms
-                             of integration time. This callback does not add extra time
-                             steps / `tstops`; instead, reinitialization is triggered at
-                             the first solver step after each `dt` interval has elapsed.
-- `reinit_initial_solution`: Reinitialize the initial solution (default=true)
-"""
 mutable struct DensityReinitializationCallback{I}
     interval::I
+    system_index::Int
     last_t::Float64
     reinit_initial_solution::Bool
 end
 
-function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:DensityReinitializationCallback})
+function Base.show(io::IO,
+                   cb::DiscreteCallback{<:Any, <:DensityReinitializationCallback})
     @nospecialize cb # reduce precompilation time
     callback = cb.affect!
     print(io, "DensityReinitializationCallback(interval=", callback.interval,
@@ -31,16 +20,41 @@ function Base.show(io::IO, ::MIME"text/plain",
         show(io, cb)
     else
         callback = cb.affect!
-        setup = [
-            "interval" => callback.interval,
-            "reinit_initial_solution" => callback.reinit_initial_solution
-        ]
+        setup = Pair{String, Any}["interval" => callback.interval,
+                                  "reinit_initial_solution" => callback.reinit_initial_solution]
         summary_box(io, "DensityReinitializationCallback", setup)
     end
 end
 
-function DensityReinitializationCallback(particle_system; interval::Integer=0, dt=0.0,
+"""
+    DensityReinitializationCallback(system, semi; interval::Integer=0, dt=0.0,
+                                    reinit_initial_solution=true)
+
+Callback to reinitialize the density field when using [`ContinuityDensity`](@ref) [Panizzo2007](@cite).
+
+Pass `system` and the [`Semidiscretization`](@ref) containing it. The callback stores
+the system index and uses the corresponding system from the integrator semidiscretization
+at runtime, which remains valid if [`semidiscretize`](@ref) replaces systems internally.
+
+# Keywords
+- `interval=0`: Reinitialize the density every `interval` time steps.
+- `dt`:         Reinitialize the density in regular intervals of `dt` in terms
+                of integration time. This callback does not add extra time
+                steps / `tstops`; instead, reinitialization is triggered at
+                the first solver step after each `dt` interval has elapsed.
+- `reinit_initial_solution`: Reinitialize the initial solution (default=true).
+"""
+function DensityReinitializationCallback(system, semi; interval::Integer=0, dt=0.0,
                                          reinit_initial_solution=true)
+    check_density_reinit_system(system)
+    system_index = system_indices(system, semi)
+
+    return density_reinitialization_callback(system_index, interval, dt,
+                                             reinit_initial_solution)
+end
+
+function density_reinitialization_callback(system_index, interval, dt,
+                                           reinit_initial_solution)
     if dt > 0 && interval > 0
         error("Setting both interval and dt is not supported!")
     end
@@ -49,13 +63,10 @@ function DensityReinitializationCallback(particle_system; interval::Integer=0, d
         interval = Float64(dt)
     end
 
-    if particle_system.density_calculator isa SummationDensity
-        throw(ArgumentError("density reinitialization doesn't provide any advantage for summation density"))
-    end
-
     last_t = -Inf
 
-    reinit_cb = DensityReinitializationCallback(interval, last_t, reinit_initial_solution)
+    reinit_cb = DensityReinitializationCallback(interval, system_index, last_t,
+                                                reinit_initial_solution)
 
     return DiscreteCallback(reinit_cb, reinit_cb, save_positions=(false, false),
                             initialize=(initialize_reinit_cb!))
@@ -66,10 +77,11 @@ function initialize_reinit_cb!(cb, u, t, integrator)
 end
 
 function initialize_reinit_cb!(cb::DensityReinitializationCallback, u, t, integrator)
-    # Reinitialize initial solution
+    semi = integrator.p.semi
+    check_density_reinit_system(current_reinit_system(cb.system_index, semi))
+
     if cb.reinit_initial_solution
         # Update systems to compute quantities like density and pressure.
-        semi = integrator.p.semi
         v_ode, u_ode = u.x
         update_systems_and_nhs(v_ode, u_ode, semi, t)
 
@@ -83,7 +95,8 @@ function initialize_reinit_cb!(cb::DensityReinitializationCallback, u, t, integr
 end
 
 # condition with interval
-function (reinit_callback::DensityReinitializationCallback{Int})(u, t, integrator)
+function (reinit_callback::DensityReinitializationCallback{<:Integer})(u, t,
+                                                                       integrator)
     (; interval) = reinit_callback
 
     return condition_integrator_interval(integrator, interval, save_final_solution=false)
@@ -101,9 +114,49 @@ function (reinit_callback::DensityReinitializationCallback)(integrator)
     vu_ode = integrator.u
     semi = integrator.p.semi
 
-    @trixi_timeit timer() "reinit density" reinit_density!(vu_ode, semi)
+    @trixi_timeit timer() "reinit density" reinitialize_density!(reinit_callback, vu_ode,
+                                                                 semi)
 
     reinit_callback.last_t = integrator.t
 
+    # Reinitializing density changes the ODE state and introduces a derivative discontinuity.
     derivative_discontinuity!(integrator, true)
+
+    return integrator
+end
+
+function reinitialize_density!(reinit_callback::DensityReinitializationCallback,
+                               vu_ode, semi)
+    v_ode, u_ode = vu_ode.x
+
+    particle_system = current_reinit_system(reinit_callback.system_index, semi)
+    check_density_reinit_system(particle_system)
+
+    v = wrap_v(v_ode, particle_system, semi)
+    u = wrap_u(u_ode, particle_system, semi)
+
+    reinit_density!(particle_system, v, u, v_ode, u_ode, semi)
+
+    return reinit_callback
+end
+
+function current_reinit_system(system_index, semi)
+    if !(1 <= system_index <= length(semi.systems))
+        throw(ArgumentError("system index $system_index is out of bounds for a " *
+                            "semidiscretization with $(length(semi.systems)) systems"))
+    end
+
+    return semi.systems[system_index]
+end
+
+function check_density_reinit_system(particle_system)
+    if !hasproperty(particle_system, :density_calculator)
+        throw(ArgumentError("density reinitialization requires a system with a density calculator"))
+    end
+
+    if particle_system.density_calculator isa SummationDensity
+        throw(ArgumentError("density reinitialization doesn't provide any advantage for summation density"))
+    end
+
+    return particle_system
 end

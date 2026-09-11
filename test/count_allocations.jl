@@ -11,10 +11,24 @@ TrixiParticles.extract_periodic_box(::NoUpdateNeighborhoodSearch) = nothing
 # Copy a `Semidiscretization`, but wrap the neighborhood searches with
 # `NoUpdateNeighborhoodSearch`.
 function copy_semi_with_no_update_nhs(semi)
-    neighborhood_searches = map(NoUpdateNeighborhoodSearch, semi.neighborhood_searches)
+    neighborhood_search_handler = no_update_nhs_handler(semi.neighborhood_search_handler)
 
     return Semidiscretization(semi.systems, semi.ranges_u, semi.ranges_v,
-                              neighborhood_searches, SerialBackend(), Ref(true), Ref(true))
+                              neighborhood_search_handler, semi.interaction_matrix,
+                              SerialBackend(), Ref(true),
+                              Ref(true))
+end
+
+function no_update_nhs_handler(handler::TrixiParticles.PairsNHSHandler)
+    return TrixiParticles.PairsNHSHandler(map(NoUpdateNeighborhoodSearch,
+                                              handler.neighborhood_searches))
+end
+
+function no_update_nhs_handler(handler::TrixiParticles.SharedNHSHandler)
+    return TrixiParticles.SharedNHSHandler(handler.search_radii,
+                                           map(searches -> map(NoUpdateNeighborhoodSearch,
+                                                               searches),
+                                               handler.neighborhood_searches))
 end
 
 # Forward `foreach_neighbor` to wrapped neighborhood search
@@ -24,6 +38,16 @@ end
                                                  search_radius=PointNeighbors.search_radius(neighborhood_search.nhs))
     PointNeighbors.foreach_neighbor(f, system_coords, neighbor_coords,
                                     neighborhood_search.nhs, particle; search_radius)
+end
+
+# Forward `mapreduce_neighbor` to wrapped neighborhood search
+@inline function PointNeighbors.mapreduce_neighbor(f, op, system_coords, neighbor_coords,
+                                                   neighborhood_search::NoUpdateNeighborhoodSearch,
+                                                   particle; init,
+                                                   search_radius=PointNeighbors.search_radius(neighborhood_search.nhs))
+    PointNeighbors.mapreduce_neighbor(f, op, system_coords, neighbor_coords,
+                                      neighborhood_search.nhs, particle;
+                                      init, search_radius)
 end
 
 # No update
@@ -72,7 +96,7 @@ function count_rhs_allocations(sol; split_integration=nothing)
     du_ode = similar(u_ode)
 
     # Wrap neighborhood searches to avoid counting allocations in the NHS update.
-    # Note that `p.split_integration_data.split_integrator.p.semi_large` is still the old
+    # Note that `p.split_integration_data.integrator.p.semi_large` is still the old
     # semidiscretization with the original NHS.
     # However, we call `kick!` twice with the same `t` below, so in the second call,
     # where the allocations are counted, the split integration does nothing because
