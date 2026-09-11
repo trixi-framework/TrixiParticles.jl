@@ -486,9 +486,8 @@ end
     for dim in 1:NDIMS
         span_dim = spanning_set[dim]
         # Checks whether the projection of the particle position
-        # falls within the range of the zone
+        # falls within the range of the zone.
         if !(0 <= dot(particle_position, span_dim) <= dot(span_dim, span_dim))
-
             # Particle is not in boundary zone
             return false
         end
@@ -499,10 +498,14 @@ end
 end
 
 function update_boundary_zone_indices!(system, u, boundary_zones, semi)
+    periodic_box = get_neighborhood_search(system.fluid_system, system, semi).periodic_box
+
     set_zero!(system.boundary_zone_indices)
 
     @threaded semi for particle in each_integrated_particle(system)
-        particle_coords = current_coords(u, system, particle)
+        particle_coords = PointNeighbors.periodic_coords(current_coords(u, system,
+                                                                        particle),
+                                                         periodic_box)
 
         for (zone_id, boundary_zone) in enumerate(boundary_zones)
             # Check if boundary particle is in the boundary zone

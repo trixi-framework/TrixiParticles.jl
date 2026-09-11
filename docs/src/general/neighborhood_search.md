@@ -1,13 +1,14 @@
 # Neighborhood Search
 
-The neighborhood search is the most essential component for performance.
+The neighborhood search is one of the most performance-critical components.
 We provide several implementations in the package
 [PointNeighbors.jl](https://github.com/trixi-framework/PointNeighbors.jl).
-See the docs of this package for an overview and a comparison of different implementations.
+See the PointNeighbors.jl documentation for an overview and a comparison of the
+different implementations.
 
 !!! note "Usage"
-    To run a simulation with a neighborhood search implementation, pass a template of the
-    neighborhood search to the constructor of the [`Semidiscretization`](@ref).
+    To run a simulation with a neighborhood search implementation, pass a neighborhood
+    search template to the constructor of the [`Semidiscretization`](@ref).
     A template is just an empty neighborhood search with search radius `0.0`.
     See [`copy_neighborhood_search`](@ref) and the examples below for more details.
     ```jldoctest semi_example; output=false, setup = :(using TrixiParticles; trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing); system1 = fluid_system; system2 = boundary_system)
@@ -26,6 +27,7 @@ See the docs of this package for an overview and a comparison of different imple
     │ coordinates eltype: …………………………… Float64                                                          │
     └──────────────────────────────────────────────────────────────────────────────────────────────────┘
     ```
+
     The keyword argument `periodic_box` in the neighborhood search constructors can be used
     to define a periodic domain. See the PointNeighbors.jl docs for more details.
     ```jldoctest semi_example; output = false
@@ -45,3 +47,33 @@ See the docs of this package for an overview and a comparison of different imple
     │ coordinates eltype: …………………………… Float64                                                          │
     └──────────────────────────────────────────────────────────────────────────────────────────────────┘
     ```
+
+## [Neighborhood Search Handlers](@id neighborhood_search_handlers)
+
+Neighborhood search handlers control how neighborhood searches for the interacting
+systems are stored and looked up. This only affects memory use and update cost
+by avoiding redundant neighborhood searches, not the underlying search algorithm.
+
+To choose a handler explicitly, pass the handler type to `Semidiscretization`.
+
+```jldoctest semi_example; output=false, setup = :(using TrixiParticles; trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing); system1 = fluid_system; system2 = boundary_system)
+semi = Semidiscretization(system1, system2,
+                          neighborhood_search_handler=PairsNHSHandler)
+
+# output
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ Semidiscretization                                                                               │
+│ ══════════════════                                                                               │
+│ #spatial dimensions: ………………………… 2                                                                │
+│ #systems: ……………………………………………………… 2                                                                │
+│ neighborhood search: ………………………… GridNeighborhoodSearch                                           │
+│ total #particles: ………………………………… 636                                                              │
+│ eltype: …………………………………………………………… Float64                                                          │
+│ coordinates eltype: …………………………… Float64                                                          │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("general", "neighborhood_search.jl")]
+```

@@ -9,7 +9,6 @@
 # `Adapt.@adapt_structure` automatically generates the `adapt` function for our custom types.
 Adapt.@adapt_structure InitialCondition
 Adapt.@adapt_structure WeaklyCompressibleSPHSystem
-Adapt.@adapt_structure DensityDiffusionAntuono
 Adapt.@adapt_structure EntropicallyDampedSPHSystem
 Adapt.@adapt_structure WallBoundarySystem
 Adapt.@adapt_structure BoundaryModelDummyParticles
@@ -23,6 +22,17 @@ Adapt.@adapt_structure DEMSystem
 Adapt.@adapt_structure BoundaryDEMSystem
 Adapt.@adapt_structure RCRWindkesselModel
 
+function adapt_neighborhood_search_handler(to, handler::PairsNHSHandler)
+    return PairsNHSHandler(Adapt.adapt.(Ref(to), handler.neighborhood_searches))
+end
+
+function adapt_neighborhood_search_handler(to, handler::SharedNHSHandler)
+    searches = map(handler.neighborhood_searches) do neighborhood_searches
+        Adapt.adapt.(Ref(to), neighborhood_searches)
+    end
+    return SharedNHSHandler(handler.search_radii, searches)
+end
+
 # This makes `@threaded semi for ...` use `semi.parallelization_backend` for parallelization
 @inline function PointNeighbors.parallel_foreach(f, iterator, semi::Semidiscretization)
     PointNeighbors.parallel_foreach(f, iterator, semi.parallelization_backend)
@@ -34,4 +44,56 @@ end
 
 function allocate(backend, ELTYPE, size)
     return Array{ELTYPE, length(size)}(undef, size)
+end
+
+function transfer2cpu(a::AbstractGPUArray)
+    return Adapt.adapt(Array, a)
+end
+
+function transfer2cpu(a)
+    return a
+end
+
+function transfer2cpu(v_, u_)
+    v = transfer2cpu(v_)
+    u = transfer2cpu(u_)
+
+    return v, u
+end
+
+function transfer2cpu(semi::Semidiscretization)
+    # First move all systems and neighborhood searches to the CPU
+    systems = Adapt.adapt(Array, semi.systems)
+    neighborhood_search_handler = adapt_neighborhood_search_handler(Array,
+                                                                    semi.neighborhood_search_handler)
+
+    semi_ = @set semi.systems = systems
+    semi__ = @set semi_.neighborhood_search_handler = neighborhood_search_handler
+
+    # Now, set the parallelization backend to `PolyesterBackend` to make sure that
+    # `@threaded` loops still work as expected with this semidiscretization.
+    return @set semi__.parallelization_backend = PolyesterBackend()
+end
+
+function transfer2cpu(v_::AbstractGPUArray, u_, semi_)
+    semi = transfer2cpu(semi_)
+    v, u = transfer2cpu(v_, u_)
+
+    return v, u, semi
+end
+
+function transfer2cpu(v_, u_, semi_)
+    return v_, u_, semi_
+end
+
+function transfer2cpu(v_::AbstractGPUArray, u_, system_, semi_)
+    v, u, semi = transfer2cpu(v_, u_, semi_)
+    system_index = system_indices(system_, semi_)
+    system = semi.systems[system_index]
+
+    return v, u, system, semi
+end
+
+function transfer2cpu(v_, u_, system_, semi_)
+    return v_, u_, system_, semi_
 end

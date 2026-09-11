@@ -255,13 +255,30 @@ end
 
 function restart_with!(system::WallBoundarySystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
                        v, u)
-    (; initial_density) = model.cache
+    (; initial_density) = system.boundary_model.cache
 
     for particle in eachparticle(system)
         initial_density[particle] = v[1, particle]
     end
 
     return system
+end
+
+function restart_u(system::WallBoundarySystem, data)
+    if n_integrated_particles(system) > 0
+        throw(ArgumentError("`WallBoundarySystem` does not support integrated particle coordinates"))
+    end
+
+    return zeros(eltype(system), u_nvariables(system), n_integrated_particles(system))
+end
+
+function restart_v(system::WallBoundarySystem, data)
+    v_ode = zeros(eltype(system), v_nvariables(system), n_integrated_particles(system))
+
+    write_density_and_pressure!(v_ode, system, density_calculator(system),
+                                data.pressure, data.density)
+
+    return v_ode
 end
 
 # To incorporate the effect at boundaries in the viscosity term of the RHS, the neighbor
@@ -313,6 +330,10 @@ end
 
 function system_correction(system::WallBoundarySystem{<:BoundaryModelDummyParticles})
     return system.boundary_model.correction
+end
+
+@inline function density_calculator(system::WallBoundarySystem)
+    return density_calculator(system.boundary_model)
 end
 
 function system_data(system::WallBoundarySystem, dv_ode, du_ode, v_ode, u_ode, semi)

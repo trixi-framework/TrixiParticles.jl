@@ -1,5 +1,4 @@
-struct FaceNeighborhoodSearch{NDIMS, CL, ELTYPE} <:
-       PointNeighbors.AbstractNeighborhoodSearch
+struct FaceNeighborhoodSearch{NDIMS, CL, ELTYPE} <: AbstractNeighborhoodSearch
     cell_list     :: CL
     neighbors     :: CL
     search_radius :: ELTYPE

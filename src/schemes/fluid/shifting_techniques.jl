@@ -5,7 +5,9 @@ abstract type AbstractShiftingTechnique end
 
 # WARNING: Be careful if defining this function for a specific system type.
 # The version for a specific system type will override this generic version.
-requires_update_callback(system) = requires_update_callback(shifting_technique(system))
+function requires_update_callback(system, semi)
+    return requires_update_callback(shifting_technique(system))
+end
 requires_update_callback(::Nothing) = false
 requires_update_callback(::AbstractShiftingTechnique) = false
 
@@ -41,10 +43,10 @@ function update_shifting!(system, shifting, v, u, v_ode, u_ode, semi)
 end
 
 # Additional term in the momentum equation due to the shifting technique
-@inline function dv_shifting!(dv_particle, shifting, system, neighbor_system,
-                              v_system, v_neighbor_system, particle, neighbor,
-                              m_a, m_b, rho_a, rho_b, v_a, v_b, pos_diff, distance,
-                              grad_kernel, correction)
+@inline function add_dv_shifting(dv_particle, shifting, system, neighbor_system,
+                                 v_system, v_neighbor_system, particle, neighbor,
+                                 m_a, m_b, rho_a, rho_b, v_a, v_b, pos_diff, distance,
+                                 grad_kernel, correction)
     return dv_particle
 end
 
@@ -325,24 +327,25 @@ See [`ParticleShiftingTechnique`](@ref).
 struct MomentumEquationTermSun2019 end
 
 # Additional term in the momentum equation due to the shifting technique
-@propagate_inbounds function dv_shifting!(dv_particle,
-                                          shifting::ParticleShiftingTechnique,
-                                          system, neighbor_system,
-                                          v_system, v_neighbor_system, particle, neighbor,
-                                          m_a, m_b, rho_a, rho_b, v_a, v_b, pos_diff,
-                                          distance, grad_kernel, correction)
-    return dv_shifting!(dv_particle, shifting.momentum_equation_term, system,
-                        neighbor_system, v_system, v_neighbor_system,
-                        particle, neighbor, m_a, m_b, rho_a, rho_b, v_a, v_b,
-                        pos_diff, distance, grad_kernel, correction)
+@propagate_inbounds function add_dv_shifting(dv_particle,
+                                             shifting::ParticleShiftingTechnique,
+                                             system, neighbor_system,
+                                             v_system, v_neighbor_system, particle,
+                                             neighbor,
+                                             m_a, m_b, rho_a, rho_b, v_a, v_b, pos_diff,
+                                             distance, grad_kernel, correction)
+    return add_dv_shifting(dv_particle, shifting.momentum_equation_term, system,
+                           neighbor_system, v_system, v_neighbor_system,
+                           particle, neighbor, m_a, m_b, rho_a, rho_b, v_a, v_b,
+                           pos_diff, distance, grad_kernel, correction)
 end
 
-@propagate_inbounds function dv_shifting!(dv_particle, ::MomentumEquationTermSun2019,
-                                          system, neighbor_system,
-                                          v_system, v_neighbor_system,
-                                          particle, neighbor, m_a, m_b, rho_a, rho_b,
-                                          v_a, v_b, pos_diff, distance,
-                                          grad_kernel, correction)
+@propagate_inbounds function add_dv_shifting(dv_particle, ::MomentumEquationTermSun2019,
+                                             system, neighbor_system,
+                                             v_system, v_neighbor_system,
+                                             particle, neighbor, m_a, m_b, rho_a, rho_b,
+                                             v_a, v_b, pos_diff, distance,
+                                             grad_kernel, correction)
     delta_v_a = delta_v(system, particle)
     delta_v_b = delta_v(neighbor_system, neighbor)
 
@@ -351,9 +354,9 @@ end
     # Since this is one of the most performance critical functions, using fast divisions
     # here gives a significant speedup on GPUs.
     # See the docs page "Development" for more details on `div_fast`.
-    dv_particle[] += div_fast(m_b, rho_b) *
-                     (tensor_product * grad_kernel +
-                      v_a * dot(delta_v_a - delta_v_b, grad_kernel))
+    dv_particle += div_fast(m_b, rho_b) *
+                   (tensor_product * grad_kernel +
+                    v_a * dot(delta_v_a - delta_v_b, grad_kernel))
 
     return dv_particle
 end
@@ -460,9 +463,12 @@ end
     Wdx = smoothing_kernel(system, dx, 1)
     h = smoothing_length(system, 1)
 
-    foreach_system(semi) do neighbor_system
-        u_neighbor = wrap_u(u_ode, neighbor_system, semi)
-        v_neighbor = wrap_v(v_ode, neighbor_system, semi)
+    foreach_system_wrapped(semi, v_ode,
+                           u_ode) do neighbor_system, v_neighbor, u_neighbor
+        if !has_system_interaction(system, neighbor_system, semi)
+            # No interaction between these systems.
+            return
+        end
 
         system_coords = current_coordinates(u, system)
         neighbor_coords = current_coordinates(u_neighbor, neighbor_system)
@@ -521,8 +527,8 @@ function particle_shifting_from_callback!(u_ode,
         apply_particle_shifting!(u_ode, shifting, system, semi, integrator.dt)
     end
 
-    # Tell OrdinaryDiffEq that `integrator.u` has been modified
-    u_modified!(integrator, true)
+    # Particle shifting updates the ODE state and introduces a derivative discontinuity.
+    derivative_discontinuity!(integrator, true)
 
     return u_ode
 end
@@ -583,11 +589,12 @@ struct TransportVelocityAdami{modify_continuity_equation, T <: Real} <:
     end
 end
 
-@propagate_inbounds function dv_shifting!(dv_particle, ::TransportVelocityAdami,
-                                          system, neighbor_system,
-                                          v_system, v_neighbor_system, particle, neighbor,
-                                          m_a, m_b, rho_a, rho_b, v_a, v_b, pos_diff,
-                                          distance, grad_kernel, correction)
+@propagate_inbounds function add_dv_shifting(dv_particle, ::TransportVelocityAdami,
+                                             system, neighbor_system,
+                                             v_system, v_neighbor_system, particle,
+                                             neighbor,
+                                             m_a, m_b, rho_a, rho_b, v_a, v_b, pos_diff,
+                                             distance, grad_kernel, correction)
     delta_v_a = delta_v(system, particle)
     delta_v_b = delta_v(neighbor_system, neighbor)
 
@@ -603,9 +610,9 @@ end
     #   m_b * (A_a + A_b) / (ρ_a * ρ_b) * ∇W_ab.
     # In order to obtain this, we pass `p_a = A_a` and `p_b = A_b` to the
     # `pressure_acceleration` function.
-    dv_particle[] += pressure_acceleration(system, neighbor_system, particle, neighbor,
-                                           m_a, m_b, A_a, A_b, rho_a, rho_b,
-                                           pos_diff, distance, grad_kernel, correction)
+    dv_particle += pressure_acceleration(system, neighbor_system, particle, neighbor,
+                                         m_a, m_b, A_a, A_b, rho_a, rho_b,
+                                         pos_diff, distance, grad_kernel, correction)
 
     return dv_particle
 end
@@ -637,9 +644,12 @@ function update_shifting!(system, shifting::TransportVelocityAdami, v, u, v_ode,
 
     set_zero!(delta_v)
 
-    foreach_system(semi) do neighbor_system
-        v_neighbor = wrap_v(v_ode, neighbor_system, semi)
-        u_neighbor = wrap_u(u_ode, neighbor_system, semi)
+    foreach_system_wrapped(semi, v_ode,
+                           u_ode) do neighbor_system, v_neighbor, u_neighbor
+        if !has_system_interaction(system, neighbor_system, semi)
+            # No interaction between these systems.
+            return
+        end
 
         system_coords = current_coordinates(u, system)
         neighbor_coords = current_coordinates(u_neighbor, neighbor_system)
