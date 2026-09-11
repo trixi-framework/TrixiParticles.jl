@@ -43,8 +43,8 @@ jobs:
       matrix:
         version:
           - '1.10'
-          - '1.11'
           - '1.12'
+          - '1.13'
         os:
           - ubuntu-latest
         include:
@@ -54,9 +54,9 @@ jobs:
             os: windows-latest
           - version: '1.10'
             os: macos-14
-          - version: '1.12'
+          - version: '1.13'
             os: windows-latest
-          - version: '1.12'
+          - version: '1.13'
             os: macos-14
 
     steps:
@@ -81,20 +81,20 @@ jobs:
         with:
           annotate: true
           # Only run coverage in one Job (Ubuntu and latest Julia version)
-          coverage: ${{ matrix.os == 'ubuntu-latest' && matrix.version == '1.11' }}
+          coverage: ${{ matrix.os == 'ubuntu-latest' && matrix.version == '1.12' }}
         env:
           TRIXIPARTICLES_TEST: unit
 
       - name: Process unit coverage results
         # Only run coverage in one Job (Ubuntu and latest Julia version)
-        if: matrix.os == 'ubuntu-latest' && matrix.version == '1.11'
+        if: matrix.os == 'ubuntu-latest' && matrix.version == '1.12'
         uses: julia-actions/julia-processcoverage@v1
         with:
           directories: src,test
 
       - name: Upload unit coverage report to Codecov
         # Only run coverage in one Job (Ubuntu and latest Julia version)
-        if: matrix.os == 'ubuntu-latest' && matrix.version == '1.11'
+        if: matrix.os == 'ubuntu-latest' && matrix.version == '1.12'
         uses: codecov/codecov-action@v7
         with:
           files: lcov.info
@@ -108,20 +108,20 @@ jobs:
         with:
           annotate: true
           # Only run coverage in one Job (Ubuntu and latest Julia version)
-          coverage: ${{ matrix.os == 'ubuntu-latest' && matrix.version == '1.11' }}
+          coverage: ${{ matrix.os == 'ubuntu-latest' && matrix.version == '1.12' }}
         env:
           TRIXIPARTICLES_TEST: examples
 
       - name: Process total coverage results
         # Only run coverage in one Job (Ubuntu and latest Julia version)
-        if: matrix.os == 'ubuntu-latest' && matrix.version == '1.11'
+        if: matrix.os == 'ubuntu-latest' && matrix.version == '1.12'
         uses: julia-actions/julia-processcoverage@v1
         with:
           directories: src,test
 
       - name: Upload total coverage report to Codecov
         # Only run coverage in one Job (Ubuntu and latest Julia version)
-        if: matrix.os == 'ubuntu-latest' && matrix.version == '1.11'
+        if: matrix.os == 'ubuntu-latest' && matrix.version == '1.12'
         uses: codecov/codecov-action@v7
         with:
           files: lcov.info
