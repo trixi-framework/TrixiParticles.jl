@@ -43,7 +43,8 @@ q_delta = DeltaSPHHeat()
 
 # Note that `interval` also controls the time step size for the integration of Q_δ,
 # not just the output frequency.
-extra_callback = PostprocessCallback(; filename, output_directory="out",
+output_directory = "out"
+extra_callback = PostprocessCallback(; filename, output_directory,
                                      interval=10, write_file_interval=500,
                                      kinetic_energy,
                                      potential_energy=potential_energy(omega),
@@ -60,4 +61,4 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "oscillating_drop_2
               compute_error=false,
               parallelization_backend=PolyesterBackend())
 
-println("Oscillating drop energy validation written to out/$filename.json")
+println("Oscillating drop energy validation written to $output_directory/$filename.json")
