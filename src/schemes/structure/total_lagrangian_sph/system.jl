@@ -145,10 +145,26 @@ function TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing
         poisson_ratio_sorted = poisson_ratio
     end
 
-    initial_coordinates = copy(initial_condition_sorted.coordinates)
-    current_coordinates = copy(initial_condition_sorted.coordinates)
-    mass = copy(initial_condition_sorted.mass)
-    material_density = copy(initial_condition_sorted.density)
+    initial_coordinates = similar(initial_condition_sorted.coordinates)
+    current_coordinates = similar(initial_condition_sorted.coordinates)
+    mass = similar(initial_condition_sorted.mass)
+    material_density = similar(initial_condition_sorted.density)
+
+    # Initialize the runtime arrays in parallel so that, on NUMA systems, the first-touch
+    # allocation policy places their memory close to the threads that will access it
+    # during the simulation.
+    # The semidiscretization backend is not available in the constructor yet, and using
+    # Polyester here is harmless for serial and GPU simulations.
+    # This makes the RHS significantly faster on large data center CPUs with multiple
+    # NUMA domains (see http://github.com/trixi-framework/TrixiParticles.jl/pull/1294).
+    parallelization_backend = PolyesterBackend()
+    copyto_threaded!(initial_coordinates, initial_condition_sorted.coordinates,
+                     parallelization_backend)
+    copyto_threaded!(current_coordinates, initial_condition_sorted.coordinates,
+                     parallelization_backend)
+    copyto_threaded!(mass, initial_condition_sorted.mass, parallelization_backend)
+    copyto_threaded!(material_density, initial_condition_sorted.density,
+                     parallelization_backend)
     correction_matrix = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
     pk1_rho2 = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
     deformation_grad = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
