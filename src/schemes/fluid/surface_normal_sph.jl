@@ -17,8 +17,22 @@ end
 
 function ColorfieldSurfaceNormal(; boundary_contact_threshold=0.1, interface_threshold=0.01,
                                  ideal_density_threshold=0.0)
-    return ColorfieldSurfaceNormal(boundary_contact_threshold, interface_threshold,
-                                   ideal_density_threshold)
+    thresholds = (boundary_contact_threshold, interface_threshold,
+                  ideal_density_threshold)
+    if !all(threshold -> threshold isa Real && isfinite(threshold), thresholds)
+        throw(ArgumentError("surface-normal thresholds must be finite real numbers"))
+    end
+
+    thresholds = promote(thresholds...)
+    return ColorfieldSurfaceNormal(thresholds...)
+end
+
+@inline function default_surface_normal_method(surface_tension, surface_normal_method)
+    if isnothing(surface_normal_method) && requires_surface_normal(surface_tension)
+        return ColorfieldSurfaceNormal()
+    end
+
+    return surface_normal_method
 end
 
 function create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS, nparticles)
@@ -237,8 +251,6 @@ function calc_curvature!(system::AbstractFluidSystem, neighbor_system::AbstractF
     system_coords = current_coordinates(u_system, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-    set_zero!(correction_factor)
-
     foreach_point_neighbor(system, neighbor_system,
                            system_coords, neighbor_system_coords,
                            semi) do particle, neighbor, pos_diff, distance
@@ -261,11 +273,6 @@ function calc_curvature!(system::AbstractFluidSystem, neighbor_system::AbstractF
         end
     end
 
-    # Eq. 23
-    for particle in each_integrated_particle(system)
-        curvature[particle] /= (correction_factor[particle] + eps())
-    end
-
     return system
 end
 
@@ -280,6 +287,7 @@ function compute_curvature!(system::AbstractFluidSystem,
 
     # Reset surface curvature
     set_zero!(cache.curvature)
+    set_zero!(cache.correction_factor)
 
     @trixi_timeit timer() "compute surface curvature" begin
         foreach_system_wrapped(semi, v_ode,
@@ -295,5 +303,9 @@ function compute_curvature!(system::AbstractFluidSystem,
                             surface_normal_method(neighbor_system))
         end
     end
+
+    # Eq. 23 in Morris 2000
+    cache.curvature ./= (cache.correction_factor .+ eps())
+
     return system
 end

@@ -57,10 +57,8 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid; smoothing_kernel, smoothi
 boundary_density_calculator = AdamiPressureExtrapolation()
 
 # Clip negative boundary pressure values to avoid sticking artifacts at the boundary.
-boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
+boundary_model = BoundaryModelDummyParticles(tank.boundary; fluid_system=fluid_system,
                                              boundary_density_calculator,
-                                             smoothing_kernel, smoothing_length;
-                                             state_equation,
                                              clip_negative_pressure=true)
 
 boundary_system = WallBoundarySystem(tank.boundary, boundary_model)

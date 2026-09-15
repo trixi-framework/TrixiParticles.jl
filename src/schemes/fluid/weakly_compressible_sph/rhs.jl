@@ -8,6 +8,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                    eachparticle=each_integrated_particle(particle_system),
                    kwargs...)
     (; density_calculator, correction) = particle_system
+    gradient_correction = correction_gradient(correction)
+    force_correction = correction_force(correction)
 
     sound_speed = system_sound_speed(particle_system)
 
@@ -26,6 +28,7 @@ function interact!(dv, v_particle_system, u_particle_system,
     # Note that `sqrt(eps(c^2)) != eps(c)`.
     compact_support_ = compact_support(particle_system, neighbor_system)
     almostzero = sqrt(eps(compact_support_^2))
+    zero_distance_mode = zero_distance_gradient_mode(particle_system, neighbor_system)
 
     @threaded semi for particle in eachparticle
         # We are looping over the particles of `particle_system`, so it is guaranteed
@@ -55,14 +58,13 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                         backend, particle;
                                                         init) do particle, neighbor,
                                                                  pos_diff, distance
-            # Skip neighbors with the same position because the kernel gradient is zero.
+            # Skip neighbors with the same position when both endpoint gradients are zero.
             # Note that `return` only exits the closure, i.e., skips the current neighbor.
-            skip_zero_distance(particle_system) && distance < almostzero && return init
+            skip_zero_distance(zero_distance_mode, distance, almostzero) && return init
 
-            # Now that we know that `distance` is not zero, we can safely call the unsafe
-            # version of the kernel gradient to avoid redundant zero checks.
-            grad_kernel = smoothing_kernel_grad_unsafe(particle_system, pos_diff,
-                                                       distance, particle)
+            grad_kernel = local_smoothing_kernel_grad_unsafe(zero_distance_mode,
+                                                             particle_system, pos_diff,
+                                                             distance, particle, almostzero)
 
             # `foreach_neighbor` makes sure that `neighbor` is in bounds of `neighbor_system`
             m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
@@ -80,7 +82,7 @@ function interact!(dv, v_particle_system, u_particle_system,
             # Determine correction factors.
             # This can usually be ignored, as these are all 1 when no correction is used.
             (viscosity_correction, pressure_correction,
-             surface_tension_correction) = free_surface_correction(correction,
+             surface_tension_correction) = free_surface_correction(force_correction,
                                                                    particle_system,
                                                                    rho_a, rho_b)
 
@@ -89,7 +91,7 @@ function interact!(dv, v_particle_system, u_particle_system,
             dv_pressure = pressure_acceleration(particle_system, neighbor_system,
                                                 particle, neighbor,
                                                 m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
-                                                distance, grad_kernel, correction)
+                                                distance, grad_kernel, gradient_correction)
             dv_particle = dv_pressure * pressure_correction
 
             # Propagate `@inbounds` to the viscosity function, which accesses particle data
@@ -108,7 +110,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                     v_particle_system, v_neighbor_system,
                                                     particle, neighbor, m_a, m_b, rho_a,
                                                     rho_b, v_a, v_b, pos_diff, distance,
-                                                    grad_kernel, correction)
+                                                    grad_kernel, gradient_correction)
 
             dv_particle = @inbounds add_dv_surface_tension(dv_particle,
                                                            surface_tension_a,

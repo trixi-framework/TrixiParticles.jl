@@ -9,4 +9,5 @@
     include("preprocessing/preprocessing.jl")
     include("io/write_vtk.jl")
     include("io/read_vtk.jl")
+    include("visualization/makie.jl")
 end;

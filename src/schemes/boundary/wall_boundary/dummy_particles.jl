@@ -2,7 +2,8 @@
     BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                 density_calculator, smoothing_kernel,
                                 smoothing_length; viscosity=nothing,
-                                state_equation=nothing, correction=nothing,
+                                 state_equation=nothing, density_correction=nothing,
+                                 gradient_correction=nothing, force_correction=nothing,
                                 clip_negative_pressure=false,
                                 reference_particle_spacing=0.0)
 
@@ -20,7 +21,9 @@ Boundary model for [`WallBoundarySystem`](@ref).
 # Keywords
 - `state_equation`:             This should be the same as for the adjacent fluid system
                                 (see e.g. [`StateEquationCole`](@ref)).
-- `correction`:                 Correction method of the adjacent fluid system (see [Corrections](@ref corrections)).
+- `density_correction`:         Density correction of the adjacent fluid system.
+- `gradient_correction`:        Gradient correction of the adjacent fluid system.
+- `force_correction`:           Force correction of the adjacent fluid system.
 - `viscosity`:                  Slip (default) or no-slip condition. See description below for further
                                 information.
 - `clip_negative_pressure=false`: Clip negative boundary pressures to avoid sticking
@@ -33,7 +36,7 @@ Boundary model for [`WallBoundarySystem`](@ref).
                                 in areas of low pressure, against which the particle
                                 shifting technique is fighting.
 - `reference_particle_spacing`: The reference particle spacing used for weighting values at the boundary,
-                                which currently is only needed when using surface tension.
+                                which is needed when using a surface-normal method.
 # Examples
 ```jldoctest; output = false, setup = :(densities = [1.0, 2.0, 3.0]; masses = [0.1, 0.2, 0.3]; smoothing_kernel = SchoenbergCubicSplineKernel{2}(); smoothing_length = 0.1)
 # Free-slip condition
@@ -76,10 +79,53 @@ struct BoundaryModelDummyParticles{DC, SE, CLIP, ELTYPE <: Real, VECTOR, K, V, C
     end
 end
 
+@doc raw"""
+    BoundaryModelDummyParticles(initial_condition;
+                                fluid_system::AbstractFluidSystem,
+                                initial_density=initial_condition.density,
+                                hydrodynamic_mass=initial_condition.mass,
+                                boundary_density_calculator=AdamiPressureExtrapolation(),
+                                smoothing_kernel=system_smoothing_kernel(fluid_system),
+                                smoothing_length=initial_smoothing_length(fluid_system),
+                                viscosity=nothing,
+                                state_equation=system_state_equation(fluid_system),
+                                correction=system_correction(fluid_system),
+                                clip_negative_pressure=false,
+                                reference_particle_spacing=default_reference_particle_spacing(fluid_system))
+
+High-level convenience constructor for dummy-particle wall models that infers the kernel,
+smoothing length, correction, and equation-of-state-related settings from the adjacent
+`fluid_system`.
+"""
+function BoundaryModelDummyParticles(initial_condition;
+                                     fluid_system::AbstractFluidSystem,
+                                     initial_density=initial_condition.density,
+                                     hydrodynamic_mass=initial_condition.mass,
+                                     boundary_density_calculator=AdamiPressureExtrapolation(),
+                                     smoothing_kernel=system_smoothing_kernel(fluid_system),
+                                     smoothing_length=initial_smoothing_length(fluid_system),
+                                     viscosity=nothing,
+                                     state_equation=system_state_equation(fluid_system),
+                                     correction=system_correction(fluid_system),
+                                     clip_negative_pressure=false,
+                                     reference_particle_spacing=default_reference_particle_spacing(fluid_system))
+    return BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
+                                       boundary_density_calculator, smoothing_kernel,
+                                       smoothing_length;
+                                       viscosity, state_equation, correction,
+                                       clip_negative_pressure,
+                                       reference_particle_spacing)
+end
+
+# The default constructor needs to be accessible for Adapt.jl to work with this struct.
+# See the comments in general/gpu.jl for more details.
 function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                      density_calculator, smoothing_kernel,
                                      smoothing_length; viscosity=nothing,
-                                     state_equation=nothing, correction=nothing,
+                                     state_equation=nothing,
+                                     density_correction=nothing,
+                                     gradient_correction=nothing,
+                                     force_correction=nothing,
                                      clip_negative_pressure=false,
                                      reference_particle_spacing=0.0)
     pressure = initial_boundary_pressure(initial_density, density_calculator,
@@ -88,7 +134,8 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
     ELTYPE = eltype(smoothing_length)
     @assert length(initial_density) == length(hydrodynamic_mass)
     n_particles = length(initial_density)
-
+    correction = resolve_correction_configuration(density_correction, gradient_correction,
+                                                  force_correction)
     cache = (; create_cache_model(viscosity, n_particles, NDIMS)...,
              create_cache_model(initial_density, density_calculator, NDIMS)...,
              create_cache_model(correction, initial_density, NDIMS, n_particles)...)
@@ -107,6 +154,15 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                        density_calculator, smoothing_kernel,
                                        smoothing_length, viscosity, correction, cache,
                                        clip_negative_pressure)
+end
+
+@inline function default_reference_particle_spacing(fluid_system)
+    if hasproperty(fluid_system, :cache) &&
+       hasproperty(fluid_system.cache, :reference_particle_spacing)
+        return fluid_system.cache.reference_particle_spacing
+    end
+
+    return zero(eltype(fluid_system))
 end
 
 @inline function Base.ndims(boundary_model::BoundaryModelDummyParticles)
@@ -232,24 +288,31 @@ struct PressureBoundaries{ELTYPE}
 end
 @inline create_cache_model(correction, density, NDIMS, nparticles) = (;)
 
+function create_cache_model(correction::CorrectionConfiguration, density, NDIMS,
+                            n_particles)
+    density_cache = create_cache_model(correction.density, density, NDIMS, n_particles)
+    gradient_cache = create_cache_model(correction.gradient, density, NDIMS, n_particles)
+    return merge(density_cache, gradient_cache)
+end
+
 function create_cache_model(::ShepardKernelCorrection, density, NDIMS, n_particles)
     return (; kernel_correction_coefficient=similar(density))
 end
 
 function create_cache_model(::KernelCorrection, density, NDIMS, n_particles)
-    dw_gamma = Array{Float64}(undef, NDIMS, n_particles)
+    dw_gamma = Array{eltype(density)}(undef, NDIMS, n_particles)
     return (; kernel_correction_coefficient=similar(density), dw_gamma)
 end
 
 function create_cache_model(::Union{GradientCorrection, BlendedGradientCorrection}, density,
                             NDIMS, n_particles)
-    correction_matrix = Array{Float64, 3}(undef, NDIMS, NDIMS, n_particles)
+    correction_matrix = Array{eltype(density), 3}(undef, NDIMS, NDIMS, n_particles)
     return (; correction_matrix)
 end
 
 function create_cache_model(::MixedKernelGradientCorrection, density, NDIMS, n_particles)
-    dw_gamma = Array{Float64}(undef, NDIMS, n_particles)
-    correction_matrix = Array{Float64, 3}(undef, NDIMS, NDIMS, n_particles)
+    dw_gamma = Array{eltype(density)}(undef, NDIMS, n_particles)
+    correction_matrix = Array{eltype(density), 3}(undef, NDIMS, NDIMS, n_particles)
     return (; kernel_correction_coefficient=similar(density), dw_gamma, correction_matrix)
 end
 
@@ -393,19 +456,69 @@ end
 
 @inline function update_pressure!(boundary_model::BoundaryModelDummyParticles,
                                   system, v, u, v_ode, u_ode, semi)
-    (; correction, density_calculator) = boundary_model
+    (; density_calculator) = boundary_model
 
     compute_pressure!(boundary_model, density_calculator, system, v, u, v_ode, u_ode, semi)
 
-    # These are only computed when using corrections
-    compute_correction_values!(system, correction, u, v_ode, u_ode, semi)
-    compute_gradient_correction_matrix!(correction, boundary_model, system, u, v_ode, u_ode,
-                                        semi)
-    # `kernel_correct_density!` only performed for `SummationDensity`
-    kernel_correct_density!(boundary_model, v, u, v_ode, u_ode, semi, correction,
+    return boundary_model
+end
+
+@inline function update_density_correction_values!(boundary_model::BoundaryModelDummyParticles,
+                                                   system, v, u, v_ode, u_ode, semi)
+    (; correction) = boundary_model
+    density_correction = correction_density(correction)
+
+    compute_boundary_correction_values!(boundary_model, system, density_correction, u,
+                                        v_ode, u_ode, semi)
+
+    return boundary_model
+end
+
+@inline function update_density_correction!(boundary_model::BoundaryModelDummyParticles,
+                                            system, v, u, v_ode, u_ode, semi)
+    (; correction, density_calculator) = boundary_model
+    density_correction = correction_density(correction)
+
+    kernel_correct_density!(boundary_model, v, u, v_ode, u_ode, semi,
+                            density_correction,
                             density_calculator)
 
     return boundary_model
+end
+
+@inline function update_gradient_correction!(boundary_model::BoundaryModelDummyParticles,
+                                             system, v, u, v_ode, u_ode, semi)
+    gradient_correction = correction_gradient(boundary_model.correction)
+
+    compute_boundary_correction_values!(boundary_model, system, gradient_correction, u,
+                                        v_ode, u_ode, semi)
+    compute_gradient_correction_matrix!(gradient_correction, boundary_model, system, u,
+                                        v_ode, u_ode, semi)
+
+    return boundary_model
+end
+
+@inline function compute_boundary_correction_values!(boundary_model, system, correction, u,
+                                                     v_ode, u_ode, semi)
+    return boundary_model
+end
+
+function compute_boundary_correction_values!(boundary_model, system,
+                                             ::ShepardKernelCorrection, u,
+                                             v_ode, u_ode, semi)
+    return compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode,
+                                  semi,
+                                  boundary_model.cache.kernel_correction_coefficient)
+end
+
+function compute_boundary_correction_values!(boundary_model, system,
+                                             correction::Union{KernelCorrection,
+                                                               MixedKernelGradientCorrection},
+                                             u, v_ode, u_ode, semi)
+    return compute_correction_values!(system, correction, current_coordinates(u, system),
+                                      v_ode, u_ode, semi,
+                                      boundary_model.cache.kernel_correction_coefficient,
+                                      boundary_model.cache.dw_gamma)
 end
 
 function kernel_correct_density!(boundary_model, v, u, v_ode, u_ode, semi,
@@ -428,13 +541,13 @@ function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
                                                          MixedKernelGradientCorrection},
                                              boundary_model,
                                              system, u, v_ode, u_ode, semi)
-    (; cache, correction, smoothing_kernel) = boundary_model
+    (; cache, smoothing_kernel) = boundary_model
     (; correction_matrix) = cache
 
     system_coords = current_coordinates(u, system)
 
     compute_gradient_correction_matrix!(correction_matrix, system, system_coords,
-                                        v_ode, u_ode, semi, correction, smoothing_kernel)
+                                        v_ode, u_ode, semi, corr, smoothing_kernel)
 end
 
 function compute_density!(boundary_model, ::SummationDensity, system, v, u, v_ode, u_ode,

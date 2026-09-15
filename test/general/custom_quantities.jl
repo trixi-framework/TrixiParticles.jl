@@ -208,6 +208,6 @@
         @test avg_density(fluid_system, dv_ode, du_ode, v_ode, u_ode, semi_active, t) ==
               20.0
         @test kinetic_energy(fluid_system, dv_ode, du_ode, v_ode, u_ode, semi_active, t) ==
-              52.5
+               52.5
     end
 end

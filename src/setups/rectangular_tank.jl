@@ -117,8 +117,25 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real, F, B}
             throw(ArgumentError("`fluid_density` needs to be positive and larger than $(eps())."))
         end
 
+        if any(<(0), fluid_size_)
+            throw(ArgumentError("`fluid_size` dimensions need to be non-negative"))
+        end
+
+        if !(n_layers isa Integer) || n_layers < 1
+            throw(ArgumentError("`n_layers` needs to be a positive integer"))
+        end
+        n_layers = Int(n_layers)
+
+        if spacing_ratio < eps()
+            throw(ArgumentError("`spacing_ratio` needs to be positive and larger than $(eps())."))
+        end
+
         if length(tank_size) != NDIMS
             throw(ArgumentError("`tank_size` must be of length $NDIMS for a $(NDIMS)D problem"))
+        end
+
+        if any(<(0), tank_size_)
+            throw(ArgumentError("`tank_size` dimensions need to be non-negative"))
         end
 
         # Fluid particle data
@@ -168,7 +185,7 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real, F, B}
         # Move the tank corner in the negative coordinate directions to the desired position
         boundary.coordinates .+= min_coordinates
 
-        if norm(fluid_size) > eps()
+        if all(>(0), n_particles_per_dim)
             if state_equation !== nothing
                 # Use hydrostatic pressure gradient and calculate density from inverse state
                 # equation, so don't pass fluid density.
@@ -205,8 +222,8 @@ function calculate_normals!(normals, boundary_coordinates, boundary_spacing,
     corner_indices, = boundary_indices
     offset = boundary_spacing / 2
 
-    # Check if a face exists and if there are 
-    # any particles associated with it. 
+    # Check if a face exists and if there are
+    # any particles associated with it.
     function face_has_particles(i)
         return faces[i] && !isempty(face_indices[i])
     end
@@ -305,8 +322,8 @@ function calculate_normals!(normals, boundary_coordinates, boundary_spacing,
         end
     end
 
-    # Check if a face exists and if there 
-    # are any particles associated with it. 
+    # Check if a face exists and if there
+    # are any particles associated with it.
     function face_has_particles(idxs, i)
         return faces[i] && !isempty(idxs[i])
     end
@@ -480,14 +497,20 @@ function check_tank_overlap(fluid_size::NTuple{2}, tank_size, particle_spacing,
     fluid_size_x, fluid_size_y = fluid_size
 
     if tank_size[1] < fluid_size[1] - 1e-5 * particle_spacing
-        n_particles_x -= 1
+        n_particles_x = max(0,
+                            floor(Int,
+                                  (tank_size[1] + 1e-5 * particle_spacing) /
+                                  particle_spacing))
         fluid_size_x = n_particles_x * particle_spacing
 
         @info "The fluid was overlapping.\n New fluid length in x-direction is set to $fluid_size_x."
     end
 
     if tank_size[2] < fluid_size[2] - 1e-5 * particle_spacing
-        n_particles_y -= 1
+        n_particles_y = max(0,
+                            floor(Int,
+                                  (tank_size[2] + 1e-5 * particle_spacing) /
+                                  particle_spacing))
         fluid_size_y = n_particles_y * particle_spacing
 
         @info "The fluid was overlapping.\n New fluid length in y-direction is set to $fluid_size_y."
@@ -502,21 +525,30 @@ function check_tank_overlap(fluid_size::NTuple{3}, tank_size, particle_spacing,
     fluid_size_x, fluid_size_y, fluid_size_z = fluid_size
 
     if tank_size[1] < fluid_size[1] - 1e-5 * particle_spacing
-        n_particles_x -= 1
+        n_particles_x = max(0,
+                            floor(Int,
+                                  (tank_size[1] + 1e-5 * particle_spacing) /
+                                  particle_spacing))
         fluid_size_x = n_particles_x * particle_spacing
 
         @info "The fluid was overlapping.\n New fluid length in x-direction is set to $fluid_size_x."
     end
 
     if tank_size[2] < fluid_size[2] - 1e-5 * particle_spacing
-        n_particles_y -= 1
+        n_particles_y = max(0,
+                            floor(Int,
+                                  (tank_size[2] + 1e-5 * particle_spacing) /
+                                  particle_spacing))
         fluid_size_y = n_particles_y * particle_spacing
 
         @info "The fluid was overlapping.\n New fluid length in y-direction is set to $fluid_size_y."
     end
 
     if tank_size[3] < fluid_size[3] - 1e-5 * particle_spacing
-        n_particles_z -= 1
+        n_particles_z = max(0,
+                            floor(Int,
+                                  (tank_size[3] + 1e-5 * particle_spacing) /
+                                  particle_spacing))
         fluid_size_z = n_particles_z * particle_spacing
 
         @info "The fluid was overlapping.\n New fluid length in z-direction is set to $fluid_size_z."
@@ -851,7 +883,7 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{3},
         end
     end
 
-    # z aligned edge (left-top) 
+    # z aligned edge (left-top)
     if faces[left] && faces[top]
         edge_1_4 = rectangular_shape_coords(particle_spacing,
                                             (n_layers, n_layers, n_particles_z),
@@ -1031,7 +1063,7 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{3},
         end
     end
 
-    # left top front 
+    # left top front
     if faces[left] && faces[top] && faces[front]
         corner_1_4_5 = rectangular_shape_coords(particle_spacing,
                                                 (n_layers, n_layers, n_layers),

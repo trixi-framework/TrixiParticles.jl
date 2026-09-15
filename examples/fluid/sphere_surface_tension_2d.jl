@@ -43,7 +43,7 @@ source_terms = SourceTermDamping(; damping_coefficient=0.5)
 #                                            state_equation, reference_particle_spacing=particle_spacing,
 #                                            viscosity=ArtificialViscosityMonaghan(; alpha, beta=0.0),
 #                                            surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.02),
-#                                            correction=AkinciFreeSurfaceCorrection(fluid_density),
+#                                            force_correction=AkinciFreeSurfaceCorrection(fluid_density),
 #                                            source_terms)
 
 # Alternatively can also be used with surface_tension=SurfaceTensionMomentumMorris(surface_tension_coefficient=1.0)

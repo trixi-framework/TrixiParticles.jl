@@ -14,6 +14,7 @@ struct WindingNumberHormann end
 # https://doi.org/10.1016/S0925-7721(01)00012-8
 function (point_in_poly::WindingNumberHormann)(geometry, points; store_winding_number=false)
     (; edge_vertices) = geometry
+    points = wrap_points(points, Val(ndims(geometry)))
 
     # We cannot use a `BitVector` here, as writing to a `BitVector` is not thread-safe
     inpoly = fill(false, length(points))

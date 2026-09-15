@@ -209,6 +209,31 @@ Pages = [joinpath("schemes", "fluid", "viscosity.jl")]
 
 ## [Corrections](@id corrections)
 
+Gradient corrections generally make the two kernel gradients of a particle pair asymmetric.
+The corresponding eight-argument pressure formulations are therefore selected when either
+particle's hydrodynamic correction can produce an asymmetric gradient, even when a particular
+pair happens to satisfy
+``\nabla W_b = -\nabla W_a``. In that symmetric case, the asymmetric formulation reduces to
+the standard symmetric formulation.
+
+Both directed evaluations of a pair use the same two gradients with reversed roles. This
+antisymmetric combination preserves pairwise linear momentum.
+Since corrected gradients are generally not parallel to the particle separation, the resulting
+force is not necessarily central and does not in general preserve angular momentum. The usual
+linear- and angular-momentum guarantee applies to symmetric radial kernel gradients.
+
+When EDAC average-pressure reduction is enabled, two interacting EDAC particles use the
+arithmetic mean of their local pressure offsets. The shared pair offset ensures that both
+directed evaluations use identical reduced pair pressures, which is required for the
+antisymmetric corrected-gradient formulation to preserve linear momentum. Interactions between
+schemes using different pressure formulations do not gain a conservation guarantee from this
+construction.
+
+For fluid-structure interaction, a `TotalLagrangianSPHSystem` keeps its structural smoothing
+kernel independent from the hydrodynamic kernel stored in its boundary model. Hydrodynamic
+correction caches and fluid pressure interactions use the boundary-model kernel and smoothing
+length.
+
 ```@autodocs
 Modules = [TrixiParticles]
 Pages = [joinpath("general", "corrections.jl")]
@@ -220,9 +245,9 @@ Pages = [joinpath("general", "corrections.jl")]
 
 ### Overview of surface normal calculation in SPH
 
-Surface normals are essential for modeling surface tension as they provide the directionality
-of forces acting at the fluid interface. They are calculated based on the particle properties and
-their spatial distribution.
+Surface normals provide the directionality of forces acting at the fluid interface. They are
+used by the full Akinci model and both Morris models, but not by the cohesion-only Akinci model.
+They are calculated based on the particle properties and their spatial distribution.
 
 #### Color field and gradient-based surface normals
 
@@ -296,6 +321,17 @@ In the following table some values are shown for reference. The values marked wi
 | **Water**       | 0.07288  [Lange](@cite Lange2005)               |
 | **Mercury**     | 0.486502 [Lange](@cite Lange2005)               |
 
+### Model configuration
+
+All surface tension coefficients must be finite and non-negative. A zero coefficient disables
+the fluid-fluid surface force. Wall adhesion is controlled independently by the boundary's
+`adhesion_coefficient`.
+
+`CohesionForceAkinci` only evaluates the pairwise cohesion and optional wall-adhesion forces.
+It does not require surface normals or `reference_particle_spacing`. The full
+`SurfaceTensionAkinci` model and both Morris models require a surface-normal method. When one
+of these models is selected without an explicit method, `ColorfieldSurfaceNormal()` is used.
+
 ### [Akinci-based intra-particle force surface tension and wall adhesion model](@id akinci_ipf)
 
 The [Akinci](@cite Akinci2013) model divides surface tension into distinct force components,
@@ -358,6 +394,10 @@ A(r) = \frac{0.007}{h_c^{3.25}}
 0, & \text{otherwise.}
 \end{cases}
 ```
+
+The published adhesion kernel uses a three-dimensional normalization. In two-dimensional
+simulations, `adhesion_coefficient` is therefore an empirical numerical parameter and may need
+to be adjusted when changing the particle spacing or smoothing length.
 
 ---
 

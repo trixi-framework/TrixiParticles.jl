@@ -32,7 +32,8 @@ end
 
 Callback to reinitialize the density field when using [`ContinuityDensity`](@ref) [Panizzo2007](@cite).
 
-Pass `system` and the [`Semidiscretization`](@ref) containing it. The callback stores
+Pass `system` and the [`Semidiscretization`](@ref TrixiParticles.Semidiscretization)
+containing it. The callback stores
 the system index and uses the corresponding system from the integrator semidiscretization
 at runtime, which remains valid if [`semidiscretize`](@ref) replaces systems internally.
 
@@ -80,13 +81,13 @@ function initialize_reinit_cb!(cb::DensityReinitializationCallback, u, t, integr
     semi = integrator.p.semi
     check_density_reinit_system(current_reinit_system(cb.system_index, semi))
 
-    if cb.reinit_initial_solution
+    if cb.reinit_initial_solution && cb.last_t != t
         # Update systems to compute quantities like density and pressure.
         v_ode, u_ode = u.x
         update_systems_and_nhs(v_ode, u_ode, semi, t)
 
-        # Apply the callback.
-        cb(integrator)
+        callbacks = simultaneous_reinit_callbacks(cb, integrator; initial=true)
+        apply_reinitialization!(callbacks, integrator)
     end
 
     cb.last_t = t
@@ -99,45 +100,95 @@ function (reinit_callback::DensityReinitializationCallback{<:Integer})(u, t,
                                                                        integrator)
     (; interval) = reinit_callback
 
-    return condition_integrator_interval(integrator, interval, save_final_solution=false)
+    return reinit_callback.last_t != t &&
+           condition_integrator_interval(integrator, interval, save_final_solution=false)
 end
 
 # condition with dt
 function (reinit_callback::DensityReinitializationCallback)(u, t, integrator)
     (; interval, last_t) = reinit_callback
 
-    return (t - last_t) > interval
+    return last_t != t && (t - last_t) > interval
 end
 
 # affect!
 function (reinit_callback::DensityReinitializationCallback)(integrator)
+    reinit_callback.last_t == integrator.t && return integrator
+
+    callbacks = simultaneous_reinit_callbacks(reinit_callback, integrator)
+    apply_reinitialization!(callbacks, integrator)
+
+    return integrator
+end
+
+function apply_reinitialization!(callbacks, integrator)
     vu_ode = integrator.u
     semi = integrator.p.semi
 
-    @trixi_timeit timer() "reinit density" reinitialize_density!(reinit_callback, vu_ode,
-                                                                 semi)
+    @trixi_timeit timer() "reinit density" begin
+        if length(callbacks) == 1
+            reinitialize_density!(only(callbacks), vu_ode, semi)
+        else
+            reinitialize_density!(callbacks, vu_ode, semi)
+        end
+    end
 
-    reinit_callback.last_t = integrator.t
+    foreach(callback -> callback.last_t = integrator.t, callbacks)
 
     # Reinitializing density changes the ODE state and introduces a derivative discontinuity.
     derivative_discontinuity!(integrator, true)
 
-    return integrator
+    return callbacks
+end
+
+function simultaneous_reinit_callbacks(reinit_callback, integrator; initial=false)
+    hasproperty(integrator, :opts) || return (reinit_callback,)
+    opts = integrator.opts
+    isnothing(opts) && return (reinit_callback,)
+    callback_set = opts.callback
+    isnothing(callback_set) && return (reinit_callback,)
+    callback_set isa CallbackSet || return (reinit_callback,)
+
+    callbacks = Any[]
+    for callback in callback_set.discrete_callbacks
+        affect! = callback.affect!
+        if affect! isa DensityReinitializationCallback &&
+           (affect! === reinit_callback ||
+            (initial ? affect!.reinit_initial_solution :
+             affect!(integrator.u, integrator.t,
+                     integrator)))
+            push!(callbacks, affect!)
+        end
+    end
+
+    return Tuple(callbacks)
 end
 
 function reinitialize_density!(reinit_callback::DensityReinitializationCallback,
                                vu_ode, semi)
     v_ode, u_ode = vu_ode.x
-
     particle_system = current_reinit_system(reinit_callback.system_index, semi)
     check_density_reinit_system(particle_system)
 
     v = wrap_v(v_ode, particle_system, semi)
     u = wrap_u(u_ode, particle_system, semi)
-
     reinit_density!(particle_system, v, u, v_ode, u_ode, semi)
 
     return reinit_callback
+end
+
+function reinitialize_density!(reinit_callbacks, vu_ode, semi)
+    v_ode, u_ode = vu_ode.x
+
+    systems = map(reinit_callbacks) do reinit_callback
+        particle_system = current_reinit_system(reinit_callback.system_index, semi)
+        check_density_reinit_system(particle_system)
+        particle_system
+    end
+
+    reinit_density!(Tuple(systems), v_ode, u_ode, semi)
+
+    return reinit_callbacks
 end
 
 function current_reinit_system(system_index, semi)

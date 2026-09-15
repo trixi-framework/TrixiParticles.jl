@@ -1,4 +1,5 @@
-# [Getting started](@id getting_started)
+# [Getting Started](@id getting_started)
+
 If you have not installed TrixiParticles.jl yet, please follow the instructions in [Installation](@ref installation).
 
 This page provides a short introduction. For a broader introduction, take a look at our [Tutorials](tutorial.md).
@@ -28,14 +29,14 @@ This will open a new window with a 2D visualization of the final solution:
 
 For more information about visualization, see [Visualization](visualization.md).
 
-## Running other Examples
+## Running Other Examples
 You can find more predefined examples under [Examples](examples.md).
 Run them from the Julia REPL by replacing `subfolder` and `example_name`:
 ```julia
 julia> trixi_include(joinpath(examples_dir(), "subfolder", "example_name.jl"))
 ```
 
-## Modifying an example
+## Modifying an Example
 You can pass keyword arguments to the function `trixi_include` to overwrite assignments in the file.
 
 With `trixi_include`, we can overwrite variables defined in the example file to run a different simulation without modifying the file itself.

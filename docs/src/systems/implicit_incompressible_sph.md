@@ -162,7 +162,7 @@ a_{ii} = \sum_j m_j ( d_{ii} - d_{ji}) \cdot \nabla W_{ij}.
 ```
 
 The remaining part of the equation represents the influence of the other pressure values ``p_j``.
-​Hence, the final relaxed Jacobi iteration takes the form:
+Hence, the final relaxed Jacobi iteration takes the form:
 
 ```math
 p_i^{l+1} = (1 - \omega) p_i^{l} + \omega \frac{1}{a_{ii}} \left( \rho_0 -\rho_i^{\text{adv}} - \sum_j m_j \left( \sum_k d_{ik} p_k^l - d_{jj} p_j^l - \sum_{k \neq i} d_{jk} p_k^l \right) \cdot \nabla W_{ij} \right).
@@ -289,7 +289,8 @@ but boundary particles still contribute through the ``p_i/\rho_i^2`` part of the
 acceleration. Therefore ``d_{ii}`` is
 
 ```math
-d_{ii} = -\Delta t^2 \sum_j \frac{m_j}{\rho_i^2} \nabla W_{ij}.
+d_{ii} = -\Delta t^2 \sum_f \frac{m_f}{\rho_i^2} \nabla W_{if}
+         - \Delta t^2 \sum_b \frac{m_b}{\rho_i^2} \nabla W_{ib}.
 ```
 
 The corresponding relaxed Jacobi iteration reads
@@ -343,7 +344,7 @@ Since the pressure force for boundary particles is zero (as mentioned before), a
 in this case ``i`` and ``b`` are both boundary particles, the PPE simplifies to
 
 ```math
-\Delta t^2 \sum_f m_f \left( -\frac{\bm{F}_f^p(t)}{m_f}\right) \cdot \nabla W_{if} = \rho_0 - \rho_i^{\text{adv}}.
+-\Delta t^2 \sum_f m_f \frac{\bm{F}_f^p(t)}{m_f} \cdot \nabla W_{if} = \rho_0 - \rho_i^{\text{adv}}.
 ```
 If we substitute the definition of the pressure force from above, we obtain
 
