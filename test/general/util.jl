@@ -14,6 +14,22 @@
     @test visited == [(1, 3), (2, 4)]
 end
 
+@testset verbose=true "copyto_threaded!" begin
+    backend = SerialBackend()
+
+    matrix = zeros(2, 3)
+    TrixiParticles.copyto_threaded!(matrix, reshape(1:6, 2, 3), backend)
+    @test matrix == reshape(1:6, 2, 3)
+    @test_throws DimensionMismatch TrixiParticles.copyto_threaded!(matrix, zeros(2, 2),
+                                                                   backend)
+
+    vector = zeros(3)
+    TrixiParticles.copyto_threaded!(vector, 1:3, backend)
+    @test vector == 1:3
+    @test_throws DimensionMismatch TrixiParticles.copyto_threaded!(vector, zeros(2),
+                                                                   backend)
+end
+
 @testset verbose=true "ThreadedBroadcastArray" begin
     A = TrixiParticles.ThreadedBroadcastArray(ones(3, 3))
     B = ones(3, 3)
