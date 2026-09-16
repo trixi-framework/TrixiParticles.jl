@@ -46,12 +46,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         v_b = @inbounds current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
         p_a = @inbounds current_pressure(v_particle_system, particle_system, particle)
-        p_b = @inbounds current_pressure(v_neighbor_system, neighbor_system, neighbor)
-
-        # For boundary systems with `AdamiPressureExtrapolation` and a `wetting_threshold`,
-        # suppress attraction of fluid particles to barely wetted boundary particles.
-        # This is the identity for all other systems.
-        p_b = @inbounds dry_boundary_pressure(neighbor_system, p_b, p_a, neighbor)
+        p_b = @inbounds neighbor_pressure(v_neighbor_system, neighbor_system, neighbor, p_a)
 
         # This technique by Basa et al. 2017 (10.1002/fld.1927) aims to reduce numerical
         # errors due to large pressures by subtracting the average pressure of neighboring

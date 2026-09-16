@@ -151,16 +151,17 @@ end
 
 @propagate_inbounds function neighbor_pressure(v_neighbor_system, neighbor_system,
                                                neighbor, p_a)
-    p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)
-
-    # For boundary systems with `AdamiPressureExtrapolation` and a `wetting_threshold`,
-    # suppress attraction of fluid particles to barely wetted boundary particles.
-    # This is the identity for all other systems.
-    return dry_boundary_pressure(neighbor_system, p_b, p_a, neighbor)
+    return neighbor_pressure(v_neighbor_system, neighbor_system,
+                             system_boundary_model(neighbor_system), neighbor, p_a)
 end
 
-@inline function neighbor_pressure(v_neighbor_system,
-                                   neighbor_system::WallBoundarySystem{<:BoundaryModelDummyParticles{PressureMirroring}},
+@propagate_inbounds function neighbor_pressure(v_neighbor_system, neighbor_system,
+                                               boundary_model, neighbor, p_a)
+    return current_pressure(v_neighbor_system, neighbor_system, neighbor)
+end
+
+@inline function neighbor_pressure(v_neighbor_system, neighbor_system,
+                                   boundary_model::BoundaryModelDummyParticles{PressureMirroring},
                                    neighbor, p_a)
     return p_a
 end

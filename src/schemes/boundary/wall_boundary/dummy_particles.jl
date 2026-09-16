@@ -118,7 +118,7 @@ end
 end
 
 @doc raw"""
-    AdamiPressureExtrapolation(; pressure_offset=0, wetting_threshold=0,
+    AdamiPressureExtrapolation(; pressure_offset=0, anti_sticking_threshold=0,
                                allow_loop_flipping=true)
 
 `density_calculator` for `BoundaryModelDummyParticles`.
@@ -126,7 +126,8 @@ end
 # Keywords
 - `pressure_offset=0`: Sometimes it is necessary to artificially increase the boundary pressure
                        to prevent penetration, which is possible by increasing this value.
-- `wetting_threshold=0`: Fluid particles in a thin film on a boundary surface usually have a
+- `anti_sticking_threshold=0`: Prevent sticking artifacts from fluid particles in a
+                       thin film on a boundary surface. These particles usually have a
                        strongly negative pressure, which pulls them onto the surface, where
                        they stick and slide around. This happens even with
                        `clip_negative_pressure=true`, because clipping only removes the
@@ -135,9 +136,9 @@ end
                        attractive part of the pressure force on boundary particles that are
                        barely covered by fluid. The measure of coverage is the fraction of
                        the kernel support of the boundary particle that is filled with
-                       fluid. The suppression is full below `wetting_threshold` and ramps
-                       linearly to zero at twice that value. It never turns the force into a
-                       repulsive one, and it does nothing where the fluid pressure is
+                       fluid. The suppression is full below `anti_sticking_threshold`
+                       and ramps linearly to zero at twice that value. It never turns the
+                       force into a repulsive one, and it does nothing where the fluid pressure is
                        positive, so it leaves hydrostatic pressure distributions untouched.
                        Note that the coverage fraction is only about `0.25` for a particle
                        in the first layer of a fully wetted flat wall (with a smoothing
@@ -160,15 +161,16 @@ end
                               different numbers of threads.
 """
 struct AdamiPressureExtrapolation{ELTYPE}
-    pressure_offset     :: ELTYPE
-    wetting_threshold   :: ELTYPE
-    allow_loop_flipping :: Bool
+    pressure_offset         :: ELTYPE
+    anti_sticking_threshold :: ELTYPE
+    allow_loop_flipping     :: Bool
 
-    function AdamiPressureExtrapolation(; pressure_offset=0, wetting_threshold=0,
+    function AdamiPressureExtrapolation(; pressure_offset=0, anti_sticking_threshold=0,
                                         allow_loop_flipping=true)
-        pressure_offset_, wetting_threshold_ = promote(pressure_offset, wetting_threshold)
+        pressure_offset_, anti_sticking_threshold_ = promote(pressure_offset,
+                                                             anti_sticking_threshold)
 
-        return new{typeof(pressure_offset_)}(pressure_offset_, wetting_threshold_,
+        return new{typeof(pressure_offset_)}(pressure_offset_, anti_sticking_threshold_,
                                              allow_loop_flipping)
     end
 end
@@ -621,38 +623,28 @@ end
     return cache.volume[particle] * hydrodynamic_mass[particle] / cache.density[particle]
 end
 
-# Boundary pressure to be used in the pressure acceleration between a fluid particle with
-# pressure `p_fluid` and the boundary particle `particle` with pressure `p_boundary`.
-@propagate_inbounds function dry_boundary_pressure(system, p_boundary, p_fluid, particle)
-    return dry_boundary_pressure_model(system_boundary_model(system), p_boundary, p_fluid,
-                                       particle)
-end
-
-# This is the identity for all boundary models but `AdamiPressureExtrapolation` with a
-# non-zero `wetting_threshold`, and for systems without a boundary model (`nothing`).
-@inline function dry_boundary_pressure_model(boundary_model, p_boundary, p_fluid, particle)
-    return p_boundary
-end
-
-@propagate_inbounds function dry_boundary_pressure_model(boundary_model::BoundaryModelDummyParticles{<:AdamiPressureExtrapolation},
-                                                         p_boundary, p_fluid, particle)
-    (; wetting_threshold) = boundary_model.density_calculator
+# Suppress attraction of fluid particles to barely wetted boundary particles.
+@propagate_inbounds function neighbor_pressure(v_neighbor_system, neighbor_system,
+                                               boundary_model::BoundaryModelDummyParticles{<:AdamiPressureExtrapolation},
+                                               neighbor, p_a)
+    p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)
+    (; anti_sticking_threshold) = boundary_model.density_calculator
 
     # This is the default and skips the branch below.
-    iszero(wetting_threshold) && return p_boundary
+    iszero(anti_sticking_threshold) && return p_b
 
-    wetted = wetted_fraction(boundary_model, particle)
-    wetted > 2 * wetting_threshold && return p_boundary
+    wetted = wetted_fraction(boundary_model, neighbor)
+    wetted > 2 * anti_sticking_threshold && return p_b
 
     # The boundary particle is barely covered by fluid. The extrapolated boundary pressure
     # is meaningless here, but the fluid particles in the thin film usually have a strongly
     # negative pressure, which pulls them onto the boundary surface, where they stick.
-    # Raise the boundary pressure to `-p_fluid` to cancel the attractive part of the
+    # Raise the boundary pressure to `-p_a` to cancel the attractive part of the
     # pressure force. To avoid a discontinuity in the force, this suppression is full below
-    # `wetting_threshold` and ramps linearly to zero at twice the threshold.
+    # `anti_sticking_threshold` and ramps linearly to zero at twice the threshold.
     # Note that this only ever removes attraction. Where the fluid pressure is positive,
-    # `-p_fluid * ...` is negative and the `max` below returns the extrapolated pressure.
-    return max(p_boundary, -p_fluid * min(2 - wetted / wetting_threshold, 1))
+    # `-p_a * ...` is negative and the `max` below returns the extrapolated pressure.
+    return max(p_b, -p_a * min(2 - wetted / anti_sticking_threshold, 1))
 end
 
 @inline function boundary_pressure_extrapolation!(parallel::Val{true}, boundary_model,

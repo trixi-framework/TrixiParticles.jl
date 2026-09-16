@@ -70,9 +70,7 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
 
         # This has to be identical to `neighbor_pressure` in the fluid-structure
         # interaction to obtain the same pair force (see the comment below).
-        p_a = dry_boundary_pressure(particle_system,
-                                    current_pressure(v_particle_system, particle_system,
-                                                     particle), p_b, particle)
+        p_a = neighbor_pressure(v_particle_system, particle_system, particle, p_b)
 
         # Particle and neighbor (and the corresponding systems and particle quantities) are
         # switched in the following two calls. This yields the exact same pair force as in the
