@@ -118,13 +118,33 @@ end
 end
 
 @doc raw"""
-    AdamiPressureExtrapolation(; pressure_offset=0, allow_loop_flipping=true)
+    AdamiPressureExtrapolation(; pressure_offset=0, wetting_threshold=0,
+                               allow_loop_flipping=true)
 
 `density_calculator` for `BoundaryModelDummyParticles`.
 
 # Keywords
 - `pressure_offset=0`: Sometimes it is necessary to artificially increase the boundary pressure
                        to prevent penetration, which is possible by increasing this value.
+- `wetting_threshold=0`: Fluid particles in a thin film on a boundary surface usually have a
+                       strongly negative pressure, which pulls them onto the surface, where
+                       they stick and slide around. This happens even with
+                       `clip_negative_pressure=true`, because clipping only removes the
+                       negative *boundary* pressure, not the negative *fluid* pressure.
+                       To avoid this, the boundary pressure is raised to cancel the
+                       attractive part of the pressure force on boundary particles that are
+                       barely covered by fluid. The measure of coverage is the fraction of
+                       the kernel support of the boundary particle that is filled with
+                       fluid. The suppression is full below `wetting_threshold` and ramps
+                       linearly to zero at twice that value. It never turns the force into a
+                       repulsive one, and it does nothing where the fluid pressure is
+                       positive, so it leaves hydrostatic pressure distributions untouched.
+                       Note that the coverage fraction is only about `0.25` for a particle
+                       in the first layer of a fully wetted flat wall (with a smoothing
+                       length of `1.5` times the particle spacing), and larger for thin
+                       structures that are wetted from multiple sides. A reasonable value is
+                       therefore `0.1`, where the suppression vanishes at `0.2`.
+                       The default `0` disables this entirely.
 - `allow_loop_flipping=true`: Allow to flip the loop order for the pressure extrapolation.
                               Disable to prevent error variations between simulations with
                               different numbers of threads.
@@ -141,10 +161,15 @@ end
 """
 struct AdamiPressureExtrapolation{ELTYPE}
     pressure_offset     :: ELTYPE
+    wetting_threshold   :: ELTYPE
     allow_loop_flipping :: Bool
 
-    function AdamiPressureExtrapolation(; pressure_offset=0, allow_loop_flipping=true)
-        return new{eltype(pressure_offset)}(pressure_offset, allow_loop_flipping)
+    function AdamiPressureExtrapolation(; pressure_offset=0, wetting_threshold=0,
+                                        allow_loop_flipping=true)
+        pressure_offset_, wetting_threshold_ = promote(pressure_offset, wetting_threshold)
+
+        return new{typeof(pressure_offset_)}(pressure_offset_, wetting_threshold_,
+                                             allow_loop_flipping)
     end
 end
 
@@ -581,6 +606,53 @@ end
                                                   neighbor_coords, v, v_neighbor_system,
                                                   semi)
     return boundary_model
+end
+
+# Fraction of the kernel support of a boundary particle that is covered by fluid particles.
+# Note that this is not normalized to one for a fully submerged particle, since the fluid
+# particles are at least one particle spacing away. With a smoothing length of 1.5 times the
+# particle spacing, a particle in the first layer of a fully wetted flat wall yields about
+# 0.25. The value approaches zero when only a thin film of fluid is left on the surface.
+@propagate_inbounds function wetted_fraction(boundary_model, particle)
+    (; cache, hydrodynamic_mass) = boundary_model
+
+    # `cache.volume` is the sum of the kernel weights of all fluid neighbors, so multiplying
+    # by the particle volume yields the (normalized) covered fraction of the support.
+    return cache.volume[particle] * hydrodynamic_mass[particle] / cache.density[particle]
+end
+
+# Boundary pressure to be used in the pressure acceleration between a fluid particle with
+# pressure `p_fluid` and the boundary particle `particle` with pressure `p_boundary`.
+@propagate_inbounds function dry_boundary_pressure(system, p_boundary, p_fluid, particle)
+    return dry_boundary_pressure_model(system_boundary_model(system), p_boundary, p_fluid,
+                                       particle)
+end
+
+# This is the identity for all boundary models but `AdamiPressureExtrapolation` with a
+# non-zero `wetting_threshold`, and for systems without a boundary model (`nothing`).
+@inline function dry_boundary_pressure_model(boundary_model, p_boundary, p_fluid, particle)
+    return p_boundary
+end
+
+@propagate_inbounds function dry_boundary_pressure_model(boundary_model::BoundaryModelDummyParticles{<:AdamiPressureExtrapolation},
+                                                         p_boundary, p_fluid, particle)
+    (; wetting_threshold) = boundary_model.density_calculator
+
+    # This is the default and skips the branch below.
+    iszero(wetting_threshold) && return p_boundary
+
+    wetted = wetted_fraction(boundary_model, particle)
+    wetted > 2 * wetting_threshold && return p_boundary
+
+    # The boundary particle is barely covered by fluid. The extrapolated boundary pressure
+    # is meaningless here, but the fluid particles in the thin film usually have a strongly
+    # negative pressure, which pulls them onto the boundary surface, where they stick.
+    # Raise the boundary pressure to `-p_fluid` to cancel the attractive part of the
+    # pressure force. To avoid a discontinuity in the force, this suppression is full below
+    # `wetting_threshold` and ramps linearly to zero at twice the threshold.
+    # Note that this only ever removes attraction. Where the fluid pressure is positive,
+    # `-p_fluid * ...` is negative and the `max` below returns the extrapolated pressure.
+    return max(p_boundary, -p_fluid * min(2 - wetted / wetting_threshold, 1))
 end
 
 @inline function boundary_pressure_extrapolation!(parallel::Val{true}, boundary_model,

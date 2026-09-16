@@ -166,6 +166,8 @@ end
     return current_density(v, system.boundary_model, system)
 end
 
+@inline system_boundary_model(system::WallBoundarySystem) = system.boundary_model
+
 @inline function current_pressure(v, system::WallBoundarySystem)
     return current_pressure(v, system.boundary_model, system)
 end
