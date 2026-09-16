@@ -142,6 +142,11 @@ end
                         in the first layer of a fully wetted flat wall. A reasonable value
                         is therefore `0.1`, where the suppression vanishes at `0.2`.
                         The default `0` disables this entirely.
+                        Disable this option when simulating closed systems without
+                        free surfaces to avoid artificially increased boundary
+                        pressures that cause larger gaps between fluid and boundary
+                        in areas of low pressure, against which the particle
+                        shifting technique is fighting.
 - `allow_loop_flipping=true`: Allow to flip the loop order for the pressure extrapolation.
                         Disable to prevent error variations between simulations with
                         different numbers of threads.
