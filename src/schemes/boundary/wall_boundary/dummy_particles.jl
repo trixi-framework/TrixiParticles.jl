@@ -125,40 +125,36 @@ end
 
 # Keywords
 - `pressure_offset=0`: Sometimes it is necessary to artificially increase the boundary pressure
-                       to prevent penetration, which is possible by increasing this value.
-- `anti_sticking_threshold=0`: Prevent sticking artifacts from fluid particles in a
-                       thin film on a boundary surface. These particles usually have a
-                       strongly negative pressure, which pulls them onto the surface, where
-                       they stick and slide around. This happens even with
-                       `clip_negative_pressure=true`, because clipping only removes the
-                       negative *boundary* pressure, not the negative *fluid* pressure.
-                       To avoid this, the boundary pressure is raised to cancel the
-                       attractive part of the pressure force on boundary particles that are
-                       barely covered by fluid. The measure of coverage is the fraction of
-                       the kernel support of the boundary particle that is filled with
-                       fluid. The suppression is full below `anti_sticking_threshold`
-                       and ramps linearly to zero at twice that value. It never turns the
-                       force into a repulsive one, and it does nothing where the fluid pressure is
-                       positive, so it leaves hydrostatic pressure distributions untouched.
-                       Note that the coverage fraction is only about `0.25` for a particle
-                       in the first layer of a fully wetted flat wall (with a smoothing
-                       length of `1.5` times the particle spacing), and larger for thin
-                       structures that are wetted from multiple sides. A reasonable value is
-                       therefore `0.1`, where the suppression vanishes at `0.2`.
-                       The default `0` disables this entirely.
+                        to prevent penetration, which is possible by increasing this value.
+- `anti_sticking_threshold=0`: Prevent sticking artifacts from isolated fluid particles
+                        sticking to a boundary. These particles usually have a strongly
+                        negative pressure, which pulls them onto the surface, where
+                        they stick and slide around. This happens even with
+                        `clip_negative_pressure=true`, because clipping only removes the
+                        negative *boundary* pressure, not the negative *fluid* pressure.
+                        To avoid this, the boundary pressure is raised to cancel the
+                        attractive pressure force on boundary particles that are barely
+                        covered by fluid. The measure of coverage is the fraction of
+                        the kernel support of the boundary particle that is filled with
+                        fluid. The suppression is full below `anti_sticking_threshold`
+                        and ramps linearly to zero at twice that value.
+                        Note that the coverage fraction is only about `0.25` for a particle
+                        in the first layer of a fully wetted flat wall. A reasonable value
+                        is therefore `0.1`, where the suppression vanishes at `0.2`.
+                        The default `0` disables this entirely.
 - `allow_loop_flipping=true`: Allow to flip the loop order for the pressure extrapolation.
-                              Disable to prevent error variations between simulations with
-                              different numbers of threads.
-                              Usually, the first (multithreaded) loop is over the boundary
-                              particles and the second loop over the fluid neighbors.
-                              When the number of boundary particles is larger than
-                              `ceil(0.5 * nthreads())` times the number of fluid particles,
-                              it is usually more efficient to flip the loop order and loop
-                              over the fluid particles first.
-                              The factor depends on the number of threads, as the flipped
-                              loop is not thread parallelizable.
-                              This can cause error variations between simulations with
-                              different numbers of threads.
+                        Disable to prevent error variations between simulations with
+                        different numbers of threads.
+                        Usually, the first (multithreaded) loop is over the boundary
+                        particles and the second loop over the fluid neighbors.
+                        When the number of boundary particles is larger than
+                        `ceil(0.5 * nthreads())` times the number of fluid particles,
+                        it is usually more efficient to flip the loop order and loop
+                        over the fluid particles first.
+                        The factor depends on the number of threads, as the flipped
+                        loop is not thread parallelizable.
+                        This can cause error variations between simulations with
+                        different numbers of threads.
 """
 struct AdamiPressureExtrapolation{ELTYPE}
     pressure_offset         :: ELTYPE
@@ -627,8 +623,9 @@ end
 @propagate_inbounds function neighbor_pressure(v_neighbor_system, neighbor_system,
                                                boundary_model::BoundaryModelDummyParticles{<:AdamiPressureExtrapolation},
                                                neighbor, p_a)
-    p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)
     (; anti_sticking_threshold) = boundary_model.density_calculator
+
+    p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)
 
     # This is the default and skips the branch below.
     iszero(anti_sticking_threshold) && return p_b
