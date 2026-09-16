@@ -161,7 +161,7 @@ end
                         This can cause error variations between simulations with
                         different numbers of threads.
 """
-struct AdamiPressureExtrapolation{ELTYPE}
+struct AdamiPressureExtrapolation{ELTYPE, ANTI_STICKING}
     pressure_offset         :: ELTYPE
     anti_sticking_threshold :: ELTYPE
     allow_loop_flipping     :: Bool
@@ -171,9 +171,15 @@ struct AdamiPressureExtrapolation{ELTYPE}
         pressure_offset_, anti_sticking_threshold_ = promote(pressure_offset,
                                                              anti_sticking_threshold)
 
-        return new{typeof(pressure_offset_)}(pressure_offset_, anti_sticking_threshold_,
-                                             allow_loop_flipping)
+        return new{typeof(pressure_offset_),
+                   !iszero(anti_sticking_threshold_)}(pressure_offset_,
+                                                      anti_sticking_threshold_,
+                                                      allow_loop_flipping)
     end
+end
+
+@inline function anti_sticking(::AdamiPressureExtrapolation{<:Any, ANTI_STICKING}) where {ANTI_STICKING}
+    return ANTI_STICKING
 end
 
 @doc raw"""
@@ -632,8 +638,8 @@ end
 
     p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)
 
-    # This is the default and skips the branch below.
-    iszero(anti_sticking_threshold) && return p_b
+    # This is determined statically and has therefore no overhead when disabled.
+    anti_sticking(boundary_model.density_calculator) || return p_b
 
     wetted = wetted_fraction(boundary_model, neighbor)
     wetted > 2 * anti_sticking_threshold && return p_b
