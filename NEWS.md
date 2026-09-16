@@ -18,6 +18,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   formulas, inconsistent force-vs-acceleration notation, and wrong LaTeX text-mode
   commands (#1086).
 - Fixed restarting with EDAC from solution objects (#1213) and from VTK files (#1297).
+- Fixed characteristic open boundaries to keep fallback values local to each boundary zone
+  and reject unsupported bidirectional zones (#1203).
 - Fixed the custom quantities `kinetic_energy`, `total_mass`, `max_pressure`, `min_pressure`,
   `avg_pressure`, `max_density`, `min_density` and `avg_density` to only take active particles
   into account (#1184).
@@ -35,6 +37,11 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   useful for monitoring progress in real-time on clusters or batch systems (#1246).
 - Added the number of split integration time steps to the `InfoCallback` output
   when a `SplitIntegrationCallback` is used (#1194).
+
+### Performance
+
+- Improved multithreaded TLSPH performance on NUMA systems by initializing runtime
+  arrays in parallel (#1294).
 
 ### Important Bugfixes
 
