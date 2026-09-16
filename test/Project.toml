@@ -19,7 +19,7 @@ TrixiTest = "0a316866-cbd0-4425-8bcb-08103b2c1f26"
 
 [compat]
 Aqua = "0.8"
-CSV = "0.10"
+CSV = "0.10, 1"
 CairoMakie = "0.15"
 DataFrames = "1.6"
 GLM = "1.9"
