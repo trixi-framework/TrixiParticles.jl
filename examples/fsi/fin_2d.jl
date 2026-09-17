@@ -4,6 +4,7 @@ using OrdinaryDiffEqSymplecticRK
 
 include("fin_2d/packing.jl")
 include("fin_2d/geometry.jl")
+include("fin_2d/fitted_movement.jl")
 
 function convert_ic(ic, T)
     return InitialCondition{ndims(ic)}(ic.coordinates, ic.velocity, ic.mass, ic.density,
@@ -143,59 +144,15 @@ structure = union(blade, foot_pocket)
 # handled by the `setdiff` calls above.
 @assert nparticles(structure) == nparticles(foot_pocket) + nparticles(blade)
 
-const FIN_MOTION_FREQUENCY = 1.06
-const FIN_MOTION_PERIOD_START = 1.0
-const FIN_MOTION_REFERENCE = SVector(center[1], center[2] + artificial_blade_thickness / 2)
-const FIN_TRANSLATION_X_COEFFICIENTS = (-15.966647499374929, 4.624497707564769, -3.477592596614892, -7.881846267683089, 12.091124429516563, -0.43060598134243605, 0.1588281500050652, 1.958732740588549, -2.938017855909788)
-const FIN_TRANSLATION_Y_COEFFICIENTS = (8.610136532786644, 28.255124555259673, 233.32024824975926, -0.7805090695376738, -0.11718123538573341, 10.291034757006896, -6.003727505223879, 0.9596100233938224, -0.30304878026988763)
-const FIN_ROTATION_COEFFICIENTS = (1.3914185815905384, -46.274578614001896, 11.98776832907679, 0.5813521816296674, -0.8794200942170521, 2.5313876788431604, 0.782063771238835, -0.6053338715186487, -0.15143761943243828)
-
-@inline function spectral_value(t, coefficients)
-    theta = 2pi * FIN_MOTION_FREQUENCY *
-            (t - FIN_MOTION_PERIOD_START)
-    value = coefficients[1]
-
-    @inbounds for harmonic in 1:((length(coefficients) - 1) ÷ 2)
-        sine, cosine = sincos(harmonic * theta)
-        value += coefficients[2harmonic] * cosine +
-                 coefficients[2harmonic + 1] * sine
-    end
-
-    return value
-end
-
-@inline function fitted_movement(x, t)
-    # Smooth startup matching the previous 0.5 s ramp.
-    tau = clamp(t / 0.5, 0, 1)
-    ramp = tau^3 * (10 + tau * (-15 + 6tau))
-
-    translation = 1e-3 * SVector(
-        spectral_value(t, FIN_TRANSLATION_X_COEFFICIENTS),
-        spectral_value(t, FIN_TRANSLATION_Y_COEFFICIENTS),
-    )
-
-    angle = deg2rad(spectral_value(t, FIN_ROTATION_COEFFICIENTS))
-
-    sine, cosine = sincos(angle)
-    relative_position = x - FIN_MOTION_REFERENCE
-    rotated_position = SVector(
-        cosine * relative_position[1] - sine * relative_position[2],
-        sine * relative_position[1] + cosine * relative_position[2],
-    )
-    target_position = FIN_MOTION_REFERENCE + rotated_position + translation
-
-    # Ramp the complete displacement, as done by `OscillatingMotion2D`.
-    return x + ramp * (target_position - x)
-end
+# Movement function (parameters chosen to match video)
+frequency = 1.06 # Hz
+amplitude = 0.24 # m
+rotation_deg = 22 # degrees
+rotation_phase_offset = 0.18 # periods
+rotation_center = center
+rotation_angle = rotation_deg * pi / 180
 
 if simulate_foot_pocket
-    # Movement function (parameters chosen to match video)
-    frequency = 1.06 # Hz
-    amplitude = 0.24 # m
-    rotation_deg = 22 # degrees
-    rotation_phase_offset = 0.18 # periods
-    rotation_center = center
-    rotation_angle = rotation_deg * pi / 180
     boundary_motion = OscillatingMotion2D(; frequency,
                                           translation_vector=SVector(0.0, amplitude),
                                           rotation_angle, rotation_center,
@@ -204,7 +161,18 @@ else
     structure = blade
     fluid = setdiff(tank.fluid, structure)
 
-    boundary_motion = PrescribedMotion(fitted_movement, Returns(true))
+    # Spectral fitting of the blade motion of a simulation with foot pocket at
+    # `artificial_blade_thickness = 2e-3`.
+    fin_motion_period_start = 1.0
+    fin_translation_x_coefficients = (-0.01596664749937493, 0.00462449770756477, -0.0034775925966148923, -0.007881846267683089, 0.012091124429516563, -0.00043060598134243605, 0.0001588281500050652, 0.001958732740588549, -0.0029380178559097877)
+    fin_translation_y_coefficients = (0.008610136532786644, 0.028255124555259675, 0.23332024824975928, -0.0007805090695376739, -0.00011718123538573341, 0.010291034757006896, -0.00600372750522388, 0.0009596100233938224, -0.00030304878026988764)
+    fin_rotation_coefficients = (0.024284835522184255, -0.8076437567872873, 0.20922602730868908, 0.01014650968308979, -0.015348776152286305, 0.04418104964022995, 0.013649587768681403, -0.010565069131844747, -0.0026430850704781943)
+
+    fitted_blade_movement = fitted_movement(frequency, fin_motion_period_start,
+                                            fin_translation_x_coefficients,
+                                            fin_translation_y_coefficients,
+                                            fin_rotation_coefficients, center)
+    boundary_motion = PrescribedMotion(fitted_blade_movement, Returns(true))
 end
 
 sound_speed = 60.0
@@ -367,11 +335,8 @@ calculator_cb = PostprocessCallback(; mechanical_work_calculator, thrust_calcula
                                     interval=efficiency_interval, write_file_interval=10,
                                     filename="$(solution_prefix)_efficiency")
 
-# Reconstruct the motion of the blade centerline at its attachment (`x = 0` in blade
-# coordinates) from the surrounding SPH particles. The displacement and deformation
-# gradient are interpolated in the initial configuration with volume-weighted kernel
-# values and Shepard normalization. The rotation is the rotational part of the
-# interpolated deformation gradient.
+# Reconstruct the motion of the blade centerline at its attachment
+# (`x = 0` in blade coordinates) from the surrounding SPH particles.
 blade_motion = TrixiParticles.tlsph_motion(semi.systems[4], semi, center)
 
 blade_motion_cb = PostprocessCallback(; blade_motion, dt=1 / 120,
