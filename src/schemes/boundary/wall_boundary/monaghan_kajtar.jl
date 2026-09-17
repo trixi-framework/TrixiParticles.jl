@@ -59,8 +59,8 @@ end
                                                               TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
                                        particle, neighbor, m_a, m_b, p_a, p_b, rho_a, rho_b,
                                        pos_diff, distance, grad_kernel, correction)
-    (; K, beta, boundary_particle_spacing, minimum_distance_ratio) =
-        neighbor_system.boundary_model
+    (; K, beta, boundary_particle_spacing,
+     minimum_distance_ratio) = neighbor_system.boundary_model
 
     # This is `distance - boundary_particle_spacing` in the paper. This factor makes
     # the force grow infinitely close to the boundary, with a singularity where
@@ -72,7 +72,7 @@ end
     # penetration when a reasonable `K` is used, but small enough to not cause instabilites
     # or super small time steps.
     distance_from_singularity = max(boundary_particle_spacing * minimum_distance_ratio,
-                                     distance - boundary_particle_spacing)
+                                    distance - boundary_particle_spacing)
 
     return K / beta^(ndims(particle_system) - 1) * pos_diff /
            (distance * distance_from_singularity) *

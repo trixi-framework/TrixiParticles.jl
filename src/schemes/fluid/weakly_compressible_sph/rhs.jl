@@ -153,11 +153,17 @@ end
 
 @propagate_inbounds function neighbor_pressure(v_neighbor_system, neighbor_system,
                                                neighbor, p_a)
+    return neighbor_pressure(v_neighbor_system, neighbor_system,
+                             system_boundary_model(neighbor_system), neighbor, p_a)
+end
+
+@propagate_inbounds function neighbor_pressure(v_neighbor_system, neighbor_system,
+                                               boundary_model, neighbor, p_a)
     return current_pressure(v_neighbor_system, neighbor_system, neighbor)
 end
 
-@inline function neighbor_pressure(v_neighbor_system,
-                                   neighbor_system::WallBoundarySystem{<:BoundaryModelDummyParticles{PressureMirroring}},
+@inline function neighbor_pressure(v_neighbor_system, neighbor_system,
+                                   boundary_model::BoundaryModelDummyParticles{PressureMirroring},
                                    neighbor, p_a)
     return p_a
 end

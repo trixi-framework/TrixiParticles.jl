@@ -179,34 +179,69 @@ end
 end
 
 @doc raw"""
-    AdamiPressureExtrapolation(; pressure_offset=0, allow_loop_flipping=true)
+    AdamiPressureExtrapolation(; pressure_offset=0, anti_sticking_threshold=0,
+                               allow_loop_flipping=true)
 
 `density_calculator` for `BoundaryModelDummyParticles`.
 
 # Keywords
 - `pressure_offset=0`: Sometimes it is necessary to artificially increase the boundary pressure
-                       to prevent penetration, which is possible by increasing this value.
+                        to prevent penetration, which is possible by increasing this value.
+- `anti_sticking_threshold=0`: Prevent sticking artifacts from isolated fluid particles
+                        sticking to a boundary. These particles usually have a strongly
+                        negative pressure, which pulls them onto the surface, where
+                        they stick and slide around. This happens even with
+                        `clip_negative_pressure=true`, because clipping only removes the
+                        negative *boundary* pressure, not the negative *fluid* pressure.
+                        To avoid this, the boundary pressure is raised to cancel the
+                        attractive pressure force on boundary particles that are barely
+                        covered by fluid. The measure of coverage is the fraction of
+                        the kernel support of the boundary particle that is filled with
+                        fluid. The suppression is full below `anti_sticking_threshold`
+                        and ramps linearly to zero at twice that value.
+                        Note that the coverage fraction is only about `0.25` for a particle
+                        in the first layer of a fully wetted flat wall. A reasonable value
+                        is therefore `0.1`, where the suppression vanishes at `0.2`.
+                        The default `0` disables this entirely.
+                        Disable this option when simulating closed systems without
+                        free surfaces to avoid artificially increased boundary
+                        pressures that cause larger gaps between fluid and boundary
+                        in areas of low pressure, against which the particle
+                        shifting technique is fighting.
 - `allow_loop_flipping=true`: Allow to flip the loop order for the pressure extrapolation.
-                              Disable to prevent error variations between simulations with
-                              different numbers of threads.
-                              Usually, the first (multithreaded) loop is over the boundary
-                              particles and the second loop over the fluid neighbors.
-                              When the number of boundary particles is larger than
-                              `ceil(0.5 * nthreads())` times the number of fluid particles,
-                              it is usually more efficient to flip the loop order and loop
-                              over the fluid particles first.
-                              The factor depends on the number of threads, as the flipped
-                              loop is not thread parallelizable.
-                              This can cause error variations between simulations with
-                              different numbers of threads.
+                        Disable to prevent error variations between simulations with
+                        different numbers of threads.
+                        Usually, the first (multithreaded) loop is over the boundary
+                        particles and the second loop over the fluid neighbors.
+                        When the number of boundary particles is larger than
+                        `ceil(0.5 * nthreads())` times the number of fluid particles,
+                        it is usually more efficient to flip the loop order and loop
+                        over the fluid particles first.
+                        The factor depends on the number of threads, as the flipped
+                        loop is not thread parallelizable.
+                        This can cause error variations between simulations with
+                        different numbers of threads.
 """
-struct AdamiPressureExtrapolation{ELTYPE}
-    pressure_offset     :: ELTYPE
-    allow_loop_flipping :: Bool
+struct AdamiPressureExtrapolation{ELTYPE, ANTI_STICKING}
+    pressure_offset         :: ELTYPE
+    anti_sticking_threshold :: ELTYPE
+    allow_loop_flipping     :: Bool
 
-    function AdamiPressureExtrapolation(; pressure_offset=0, allow_loop_flipping=true)
-        return new{eltype(pressure_offset)}(pressure_offset, allow_loop_flipping)
+    function AdamiPressureExtrapolation(; pressure_offset=0, anti_sticking_threshold=0,
+                                        allow_loop_flipping=true)
+        pressure_offset_,
+        anti_sticking_threshold_ = promote(pressure_offset,
+                                           anti_sticking_threshold)
+
+        return new{typeof(pressure_offset_),
+                   !iszero(anti_sticking_threshold_)}(pressure_offset_,
+                                                      anti_sticking_threshold_,
+                                                      allow_loop_flipping)
     end
+end
+
+@inline function anti_sticking(::AdamiPressureExtrapolation{<:Any, ANTI_STICKING}) where {ANTI_STICKING}
+    return ANTI_STICKING
 end
 
 @doc raw"""
@@ -699,6 +734,44 @@ end
                                                   neighbor_coords, v, v_neighbor_system,
                                                   semi)
     return boundary_model
+end
+
+# Fraction of the kernel support of a boundary particle that is covered by fluid particles.
+# Note that this is not normalized to one for a fully submerged particle, since the fluid
+# particles are at least one particle spacing away. With a smoothing length of 1.5 times the
+# particle spacing, a particle in the first layer of a fully wetted flat wall yields about
+# 0.25. The value approaches zero when only a thin film of fluid is left on the surface.
+@propagate_inbounds function wetted_fraction(boundary_model, particle)
+    (; cache, hydrodynamic_mass) = boundary_model
+
+    # `cache.volume` is the sum of the kernel weights of all fluid neighbors, so multiplying
+    # by the particle volume yields the (normalized) covered fraction of the support.
+    return cache.volume[particle] * hydrodynamic_mass[particle] / cache.density[particle]
+end
+
+# Suppress attraction of fluid particles to barely wetted boundary particles.
+@propagate_inbounds function neighbor_pressure(v_neighbor_system, neighbor_system,
+                                               boundary_model::BoundaryModelDummyParticles{<:AdamiPressureExtrapolation},
+                                               neighbor, p_a)
+    (; anti_sticking_threshold) = boundary_model.density_calculator
+
+    p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)
+
+    # This is determined statically and has therefore no overhead when disabled.
+    anti_sticking(boundary_model.density_calculator) || return p_b
+
+    wetted = wetted_fraction(boundary_model, neighbor)
+    wetted > 2 * anti_sticking_threshold && return p_b
+
+    # The boundary particle is barely covered by fluid. The extrapolated boundary pressure
+    # is meaningless here, but the fluid particles in the thin film usually have a strongly
+    # negative pressure, which pulls them onto the boundary surface, where they stick.
+    # Raise the boundary pressure to `-p_a` to cancel the attractive part of the
+    # pressure force. To avoid a discontinuity in the force, this suppression is full below
+    # `anti_sticking_threshold` and ramps linearly to zero at twice the threshold.
+    # Note that this only ever removes attraction. Where the fluid pressure is positive,
+    # `-p_a * ...` is negative and the `max` below returns the extrapolated pressure.
+    return max(p_b, -p_a * min(2 - wetted / anti_sticking_threshold, 1))
 end
 
 @inline function boundary_pressure_extrapolation!(parallel::Val{true}, boundary_model,

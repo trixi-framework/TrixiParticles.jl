@@ -243,6 +243,10 @@ end
 @inline system_correction(system) = nothing
 @inline system_correction_configuration(system) = nothing
 
+# Boundary model of systems that interact with fluids via dummy particles
+# (`WallBoundarySystem`, `TotalLagrangianSPHSystem`, `RigidBodySystem`), `nothing` otherwise
+@inline system_boundary_model(system) = nothing
+
 @inline particle_spacing(system, particle) = system.initial_condition.particle_spacing
 
 # Assuming a constant particle spacing one can calculate the number of neighbors within the

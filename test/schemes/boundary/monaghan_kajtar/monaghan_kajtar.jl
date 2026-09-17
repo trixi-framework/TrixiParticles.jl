@@ -73,7 +73,7 @@
         @test isapprox(dv[1, [2, 5, 8]], [-26.052449, -95.162888, -26.052449])
 
         structure_model = BoundaryModelMonaghanKajtar(K, 1.0, particle_spacing,
-                                                       fluid.mass)
+                                                      fluid.mass)
         structure_system = TotalLagrangianSPHSystem(fluid; smoothing_kernel,
                                                     smoothing_length,
                                                     young_modulus=1.0e6,
@@ -95,7 +95,7 @@
                                    structure_marker)
             data = vtk2trixi(joinpath(output_directory, "structure_1_current.vtu"))
             @test data.structure_marker == fill(Int32(7),
-                                                 TrixiParticles.nparticles(structure_system))
+                       TrixiParticles.nparticles(structure_system))
 
             boundary_data = vtk2trixi(joinpath(output_directory,
                                                "boundary_1_current.vtu");
