@@ -521,7 +521,6 @@ end
     return reshape(view(array, range), Int.(size))
 end
 
-
 function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization)
     (; systems) = semi
 
