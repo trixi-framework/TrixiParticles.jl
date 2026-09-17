@@ -47,7 +47,7 @@
                                                    density_calculator=ContinuityDensity(),
                                                    state_equation, smoothing_kernel,
                                                    smoothing_length,
-                                                   correction=KernelCorrection(),
+                                                   gradient_correction=KernelCorrection(),
                                                    reference_particle_spacing=0.1)
 
         boundary_model = BoundaryModelDummyParticles(boundary_ic;
@@ -65,16 +65,28 @@
         @test system.boundary_model.smoothing_length == smoothing_length
         @test system.boundary_model.viscosity == viscosity
         @test system.boundary_model.state_equation == state_equation
-        @test system.boundary_model.correction isa KernelCorrection
+        @test system.boundary_model.correction isa CorrectionConfiguration
+        @test TrixiParticles.correction_density(system.boundary_model.correction) ===
+              nothing
+        @test TrixiParticles.correction_gradient(system.boundary_model.correction) isa
+              KernelCorrection
+        @test TrixiParticles.correction_force(system.boundary_model.correction) === nothing
         @test system.boundary_model.cache.reference_particle_spacing == 0.1
         @test system.adhesion_coefficient == 0.3
         @test system.cache.color == 2
 
         edac_system = EntropicallyDampedSPHSystem(fluid_ic; smoothing_kernel,
-                                                  smoothing_length, sound_speed=15.0)
+                                                  smoothing_length, sound_speed=15.0,
+                                                  density_correction=ShepardKernelCorrection(),
+                                                  force_correction=AkinciFreeSurfaceCorrection(1000.0))
         edac_boundary_model = BoundaryModelDummyParticles(boundary_ic;
                                                           fluid_system=edac_system)
         @test edac_boundary_model.state_equation === nothing
+        @test TrixiParticles.correction_density(edac_boundary_model.correction) isa
+              ShepardKernelCorrection
+        @test TrixiParticles.correction_gradient(edac_boundary_model.correction) === nothing
+        @test TrixiParticles.correction_force(edac_boundary_model.correction) isa
+              AkinciFreeSurfaceCorrection
     end
 
     @testset verbose=true "Moving Boundaries" begin

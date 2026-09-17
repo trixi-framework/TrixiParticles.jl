@@ -270,6 +270,10 @@ function system_correction(system::EntropicallyDampedSPHSystem)
     correction_gradient(system.correction)
 end
 
+@inline function system_correction_configuration(system::EntropicallyDampedSPHSystem)
+    return system.correction
+end
+
 @inline function current_velocity(v, system::EntropicallyDampedSPHSystem)
     return view(v, 1:ndims(system), :)
 end

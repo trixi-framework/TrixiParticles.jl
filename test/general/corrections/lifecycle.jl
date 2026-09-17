@@ -126,7 +126,7 @@
                                                    smoothing_length,
                                                    sound_speed=10.0,
                                                    density_calculator=SummationDensity(),
-                                                   correction=ShepardKernelCorrection())
+                                                   density_correction=ShepardKernelCorrection())
             end
 
             state_equation = StateEquationCole(; sound_speed=10.0,
@@ -136,7 +136,7 @@
                                                smoothing_length,
                                                state_equation,
                                                density_calculator=SummationDensity(),
-                                               correction=ShepardKernelCorrection())
+                                               density_correction=ShepardKernelCorrection())
         end
 
         systems = reverse_order ? (make_system(initial_b), make_system(initial_a)) :
@@ -223,10 +223,13 @@ end
                                        reference_density=density, exponent=1)
 
     function structure_setup(correction)
+        density_correction = TrixiParticles.correction_density(correction)
+        gradient_correction = TrixiParticles.correction_gradient(correction)
         boundary_model = BoundaryModelDummyParticles(particles.density, particles.mass,
                                                      SummationDensity(), smoothing_kernel,
                                                      smoothing_length;
-                                                     state_equation, correction)
+                                                     state_equation, density_correction,
+                                                     gradient_correction)
         system = TotalLagrangianSPHSystem(particles; smoothing_kernel, smoothing_length,
                                           young_modulus=1.0e6, poisson_ratio=0.3,
                                           boundary_model)
@@ -265,7 +268,7 @@ end
                                             smoothing_kernel, smoothing_length,
                                             state_equation,
                                             density_calculator=SummationDensity(),
-                                            correction=ShepardKernelCorrection())
+                                            density_correction=ShepardKernelCorrection())
 
         structure_particles = RectangularShape(particle_spacing, (3, 2), (0.0, -0.15);
                                                density=1200.0)
@@ -278,7 +281,7 @@ end
                                                      SummationDensity(), smoothing_kernel,
                                                      smoothing_length;
                                                      state_equation,
-                                                     correction=ShepardKernelCorrection())
+                                                     density_correction=ShepardKernelCorrection())
         structure = TotalLagrangianSPHSystem(structure_particles;
                                              smoothing_kernel, smoothing_length,
                                              young_modulus=1.0e6, poisson_ratio=0.3,
@@ -342,16 +345,20 @@ end
                                                particle) ≈ raw_gradient
     @test hydrodynamic_gradient ≈ correction_matrix * raw_gradient
 
-    # Rigid-body correction caches are not implemented. Reject both density and gradient
-    # corrections at construction instead of allowing a later crash or stale normalization.
-    error_message = "corrections in `BoundaryModelDummyParticles` are not supported " *
-                    "for `RigidBodySystem`"
+    # Rigid bodies use the same hydrodynamic boundary correction caches. Ensure that both
+    # correction roles survive construction independently.
     for correction in (ShepardKernelCorrection(), GradientCorrection())
+        density_correction = TrixiParticles.correction_density(correction)
+        gradient_correction = TrixiParticles.correction_gradient(correction)
         boundary_model = BoundaryModelDummyParticles(particles.density, particles.mass,
                                                      SummationDensity(), smoothing_kernel,
                                                      smoothing_length;
-                                                     state_equation, correction)
-        @test_throws ArgumentError(error_message) RigidBodySystem(particles;
-                                                                  boundary_model)
+                                                     state_equation, density_correction,
+                                                     gradient_correction)
+        rigid = RigidBodySystem(particles; boundary_model)
+        @test TrixiParticles.correction_density(rigid.boundary_model.correction) ===
+              density_correction
+        @test TrixiParticles.correction_gradient(rigid.boundary_model.correction) ===
+              gradient_correction
     end
 end

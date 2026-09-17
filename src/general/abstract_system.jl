@@ -241,6 +241,7 @@ end
 
 @inline system_smoothing_kernel(system) = system.smoothing_kernel
 @inline system_correction(system) = nothing
+@inline system_correction_configuration(system) = nothing
 
 @inline particle_spacing(system, particle) = system.initial_condition.particle_spacing
 
