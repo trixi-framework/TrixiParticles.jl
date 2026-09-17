@@ -187,7 +187,7 @@ function Base.show(io::IO, system::WeaklyCompressibleSPHSystem)
     print(io, ", ", system.surface_tension)
     print(io, ", ", system.surface_normal_method)
     if system.surface_normal_method isa ColorfieldSurfaceNormal
-        print(io, ", ", system.color)
+        print(io, ", ", system.cache.color)
     end
     print(io, ", ", system.acceleration)
     print(io, ", ", system.source_terms)
@@ -390,6 +390,13 @@ end
 
 function reinit_density!(system::WeaklyCompressibleSPHSystem, v, u,
                          v_ode, u_ode, semi)
+    (; density_calculator) = system
+
+    reinit_density!(system, density_calculator, v, u, v_ode, u_ode, semi)
+end
+
+function reinit_density!(system::WeaklyCompressibleSPHSystem, ::ContinuityDensity, v, u,
+                         v_ode, u_ode, semi)
     # Compute density with `SummationDensity` and store the result in `v`,
     # overwriting the previous integrated density.
     summation_density!(system, semi, u, u_ode, v[end, :])
@@ -398,10 +405,17 @@ function reinit_density!(system::WeaklyCompressibleSPHSystem, v, u,
     kernel_correction_coefficient = zeros(size(v[end, :]))
     compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode, semi,
                            kernel_correction_coefficient)
-    v[end, :] ./= kernel_correction_coefficient
+    @threaded semi for particle in eachparticle(system)
+        v[end, particle] /= kernel_correction_coefficient[particle]
+    end
 
     compute_pressure!(system, v, semi)
 
+    return system
+end
+
+function reinit_density!(system::WeaklyCompressibleSPHSystem, ::SummationDensity, v, u,
+                         v_ode, u_ode, semi)
     return system
 end
 

@@ -89,8 +89,7 @@ boundary_density_calculator = AdamiPressureExtrapolation()
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              boundary_density_calculator,
                                              fluid_smoothing_kernel, fluid_smoothing_length;
-                                             state_equation,
-                                             clip_negative_pressure=true)
+                                             state_equation, clip_negative_pressure=true)
 
 boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
 
@@ -102,13 +101,10 @@ function structure_boundary_model(shape)
     hydrodynamic_masses = hydrodynamic_densities *
                           structure_particle_spacing^ndims(fluid_system)
 
-    return BoundaryModelDummyParticles(hydrodynamic_densities,
-                                       hydrodynamic_masses,
-                                       boundary_density_calculator,
-                                       fluid_smoothing_kernel,
+    return BoundaryModelDummyParticles(hydrodynamic_densities, hydrodynamic_masses,
+                                       boundary_density_calculator, fluid_smoothing_kernel,
                                        fluid_smoothing_length;
-                                       state_equation,
-                                       clip_negative_pressure=true)
+                                       state_equation, clip_negative_pressure=true)
 end
 
 boundary_model_structure_1 = structure_boundary_model(square1)
@@ -117,12 +113,10 @@ boundary_model_structure_2 = structure_boundary_model(square2)
 # Use a less dissipative wall contact for the denser square so its rebound is more visible.
 contact_model_1 = RigidContactModel(; normal_stiffness=2.0e5,
                                     normal_damping=200.0,
-                                    contact_distance=2.0 *
-                                                     structure_particle_spacing)
+                                    contact_distance=2.0 * structure_particle_spacing)
 contact_model_2 = RigidContactModel(; normal_stiffness=2.0e5,
                                     normal_damping=80.0,
-                                    contact_distance=2.0 *
-                                                     structure_particle_spacing)
+                                    contact_distance=2.0 * structure_particle_spacing)
 
 structure_system_1 = RigidBodySystem(square1;
                                      boundary_model=boundary_model_structure_1,
@@ -145,9 +139,7 @@ semi = Semidiscretization(fluid_system, boundary_system,
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=50)
-saving_callback = SolutionSavingCallback(dt=0.01,
-                                         output_directory="out",
-                                         prefix="")
+saving_callback = SolutionSavingCallback(dt=0.01, output_directory="out", prefix="")
 
 callbacks = CallbackSet(info_callback, saving_callback)
 

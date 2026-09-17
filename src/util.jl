@@ -4,20 +4,24 @@
     return Base.FastMath.div_fast(x, y)
 end
 
-# Same as `foreach`, but it is unrolled by the compiler for small input tuples
+# Same as `foreach`, but it is unrolled by the compiler for small input tuples.
+# Additional arguments are passed unchanged to `func` for every element.
+# Note that this might allocate for 3 or more `args` in Julia 1.10.
 @inline function foreach_noalloc(func, collection)
     element = first(collection)
     remaining_collection = Base.tail(collection)
 
     @inline func(element)
 
-    # Process remaining collection
-    foreach_noalloc(func, remaining_collection)
+    # Process remaining collection.
+    return foreach_noalloc(func, remaining_collection)
 end
 
 @inline foreach_noalloc(func, collection::Tuple{}) = nothing
 
-@inline function foreach_noalloc(func, collection1, collection2)
+# Iterate over two collections of equal length (like `zip`) and call
+# `func((element1, element2))` for each pair.
+@inline function foreach_noalloc_zip(func, collection1, collection2)
     element1 = first(collection1)
     remaining_collection1 = Base.tail(collection1)
     element2 = first(collection2)
@@ -26,10 +30,10 @@ end
     @inline func((element1, element2))
 
     # Process remaining collection
-    foreach_noalloc(func, remaining_collection1, remaining_collection2)
+    foreach_noalloc_zip(func, remaining_collection1, remaining_collection2)
 end
 
-@inline foreach_noalloc(func, collection1::Tuple{}, collection2::Tuple{}) = nothing
+@inline foreach_noalloc_zip(func, collection1::Tuple{}, collection2::Tuple{}) = nothing
 
 @inline cross_product(a, b) = cross(a, b)
 
@@ -296,4 +300,28 @@ function Base.similar(::Broadcast.Broadcasted{ThreadedBroadcastStyle{P}},
                       ::Type{T}, dims) where {T, P}
     # TODO we only have the type `P` here and just assume that we can do `P()`
     return ThreadedBroadcastArray(similar(Array{T}, dims), parallelization_backend=P())
+end
+
+# Like `copyto!`, but parallelize over particles to use the same memory access pattern
+# as the particle loops in the right-hand side.
+@inline function copyto_threaded!(dest::Matrix, src, parallelization_backend)
+    if axes(dest) != axes(src)
+        throw(DimensionMismatch("source and destination must have the same axes"))
+    end
+
+    @threaded parallelization_backend for particle in axes(dest, 2)
+        for dimension in axes(dest, 1)
+            @inbounds dest[dimension, particle] = src[dimension, particle]
+        end
+    end
+
+    return dest
+end
+
+@inline function copyto_threaded!(dest::Vector, src, parallelization_backend)
+    @threaded parallelization_backend for particle in eachindex(dest, src)
+        @inbounds dest[particle] = src[particle]
+    end
+
+    return dest
 end

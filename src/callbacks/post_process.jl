@@ -122,16 +122,26 @@ function initialize_postprocess_callback!(cb, u, t, integrator)
 end
 
 function initialize_postprocess_callback!(cb::PostprocessCallback, u, t, integrator)
-    semi = integrator.p
+    semi = integrator.p.semi
     set_callbacks_used!(semi, integrator)
 
     cb.git_hash[] = compute_git_hash()
+
+    empty!(cb.data)
+    empty!(cb.times)
+
+    for quantity in values(cb.func)
+        reset_custom_quantity!(quantity)
+    end
 
     # Apply the callback
     cb(integrator)
 
     return cb
 end
+
+# Internal hook for custom quantities that require resetting their state between solves.
+reset_custom_quantity!(quantity) = quantity
 
 # `condition` with interval
 function (pp::PostprocessCallback)(u, t, integrator)
@@ -149,7 +159,7 @@ function (pp::PostprocessCallback)(integrator)
             dv_ode, du_ode = dvdu_ode.x
         end
 
-        semi = integrator.p
+        semi = integrator.p.semi
         t = integrator.t
         v_ode, u_ode = integrator.u.x
         filenames = system_names(semi.systems)
@@ -195,8 +205,8 @@ function (pp::PostprocessCallback)(integrator)
             write_postprocess_callback(pp, integrator)
         end
 
-        # Tell OrdinaryDiffEq that `u` has not been modified
-        u_modified!(integrator, false)
+        # This callback only processes results and does not change the result of the right-hand side.
+        derivative_discontinuity!(integrator, false)
     end
 end
 
