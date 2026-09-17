@@ -374,6 +374,8 @@ end
                             particle, v_particle)
 end
 
+@inline system_boundary_model(system::TotalLagrangianSPHSystem) = system.boundary_model
+
 # In fluid-structure interaction, use the "hydrodynamic pressure" of the structure particles
 # corresponding to the chosen boundary model.
 @propagate_inbounds function current_pressure(v, system::TotalLagrangianSPHSystem)
