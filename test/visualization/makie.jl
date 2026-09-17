@@ -65,9 +65,10 @@ using CairoMakie
     ode_3d_2 = semidiscretize(semi_3d_2, (0.0, 0.01))
     v_ode_3d_2, u_ode_3d_2 = ode_3d_2.u0.x
 
-    _, _, plot_object = plot(v_ode_3d_2, u_ode_3d_2, semi_3d_2;
-                             system_colors=[:blue, :orange],
-                             marker_size_scales=[0.8, 0.5])
+    _, _,
+    plot_object = plot(v_ode_3d_2, u_ode_3d_2, semi_3d_2;
+                       system_colors=[:blue, :orange],
+                       marker_size_scales=[0.8, 0.5])
     @test length(plot_object.plots) == 1
     meshscatter = only(plot_object.plots)
     @test length(meshscatter[1][]) ==

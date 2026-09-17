@@ -388,8 +388,8 @@ end
 function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
                                                          BlendedGradientCorrection,
                                                          MixedKernelGradientCorrection},
-                                              system::EntropicallyDampedSPHSystem, u,
-                                              v_ode, u_ode, semi)
+                                             system::EntropicallyDampedSPHSystem, u,
+                                             v_ode, u_ode, semi)
     (; cache, smoothing_kernel) = system
     (; correction_matrix) = cache
 
