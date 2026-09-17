@@ -350,8 +350,6 @@ callbacks = CallbackSet(info_callback, saving_callback,
 
 dt_fluid = 1.25e-4
 sol = solve(ode,
-            # RDPK3SpFSAL35(),
             CarpenterKennedy2N54(williamson_condition=false),
             dt=dt_fluid, # This is overwritten by the stepsize callback
-            # reltol=1e-5, abstol=1e-7,
             save_everystep=false, callback=callbacks, maxiters=10^8);
