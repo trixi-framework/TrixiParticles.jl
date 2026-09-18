@@ -74,16 +74,16 @@ struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C, AV,
     particle_refinement            :: PR
     buffer                         :: Nothing
     cache                          :: C
+    fixed_system                   :: Bool
 
     # This constructor is necessary for Adapt.jl to work with this struct.
     # See the comments in general/gpu.jl for more details.
-    function ParticlePackingSystem(initial_condition, mass, density, particle_spacing,
-                                   smoothing_kernel, smoothing_length_interpolation,
-                                   background_pressure, place_on_shell,
-                                   signed_distance_field,
-                                   is_boundary, shift_length, neighborhood_search,
-                                   signed_distances, particle_refinement, buffer,
-                                   fixed_system, cache, advection_velocity)
+    function ParticlePackingSystem(initial_condition, advection_velocity, mass, density,
+                                   particle_spacing, smoothing_kernel,
+                                   smoothing_length_interpolation, background_pressure,
+                                   place_on_shell, signed_distance_field, is_boundary,
+                                   shift_length, neighborhood_search, signed_distances,
+                                   particle_refinement, buffer, cache, fixed_system)
         return new{typeof(signed_distance_field), fixed_system, ndims(smoothing_kernel),
                    eltype(density), typeof(particle_refinement), typeof(cache),
                    typeof(advection_velocity), typeof(initial_condition), typeof(mass),
@@ -96,7 +96,7 @@ struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C, AV,
                                              signed_distance_field, is_boundary,
                                              shift_length, neighborhood_search,
                                              signed_distances, particle_refinement,
-                                             buffer, cache)
+                                             buffer, cache, fixed_system)
     end
 end
 
@@ -159,12 +159,13 @@ function ParticlePackingSystem(shape::InitialCondition;
 
     advection_velocity = copy(shape.velocity)
 
-    return ParticlePackingSystem(shape, mass, density, shape.particle_spacing,
+    return ParticlePackingSystem(shape, advection_velocity, mass, density,
+                                 shape.particle_spacing,
                                  smoothing_kernel, smoothing_length_interpolation,
                                  background_pressure, place_on_shell, signed_distance_field,
                                  is_boundary, shift_length, nhs,
                                  fill(zero(ELTYPE), nparticles(shape)), particle_refinement,
-                                 nothing, fixed_system, cache, advection_velocity)
+                                 nothing, cache, fixed_system)
 end
 
 function Base.show(io::IO, system::ParticlePackingSystem)
@@ -239,23 +240,20 @@ end
 write_v0!(v0, system::ParticlePackingSystem) = (v0 .= zero(eltype(system)))
 
 # Zero for fixed systems
-function kinetic_energy(system::ParticlePackingSystem{<:Any, true}, v_ode, u_ode, semi, t)
+function kinetic_energy(system::ParticlePackingSystem{<:Any, true},
+                        dv_ode, du_ode, v_ode, u_ode, semi, t)
     return zero(eltype(system))
 end
 
-function kinetic_energy(system::ParticlePackingSystem, v_ode, u_ode, semi, t)
-    (; initial_condition, is_boundary) = system
-
-    v = wrap_v(v_ode, system, semi)
+function kinetic_energy(system::ParticlePackingSystem,
+                        dv_ode, du_ode, v_ode, u_ode, semi, t)
+    (; initial_condition, advection_velocity, is_boundary) = system
 
     # Exclude boundary packing system
     is_boundary && return zero(eltype(system))
 
-    # If `each_integrated_particle` is empty (no integrated particles), return zero
-    return sum(each_integrated_particle(system), init=zero(eltype(system))) do particle
-        velocity = advection_velocity(v, system, particle)
-        return initial_condition.mass[particle] * dot(velocity, velocity) / 2
-    end
+    squared_velocity = sum(abs2, advection_velocity; dims=1)
+    return mapreduce(*,+,squared_velocity,initial_condition.mass) / 2
 end
 
 @inline source_terms(system::ParticlePackingSystem) = nothing

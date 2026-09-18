@@ -178,7 +178,7 @@ end
     # Artificial density diffusion should only be applied to systems representing a fluid
     # with the same physical properties i.e. density and viscosity.
     # TODO: shouldn't be applied to particles on the interface (depends on PR #539)
-    if particle_system === neighbor_system
+    if particle_system == neighbor_system
         drho_particle = add_density_diffusion(drho_particle,
                                               density_diffusion(particle_system),
                                               particle_system, particle, neighbor,
