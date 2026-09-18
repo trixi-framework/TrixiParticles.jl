@@ -233,10 +233,13 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::AbstractFluidSystem, sem
 
     if surface_tension isa SurfaceTensionMorris ||
        surface_tension isa SurfaceTensionMomentumMorris
-        v = wrap_v(v_ode, system, semi)
-        dt_surface_tension = sqrt(current_density(v, system, 1) * smoothing_length_^3 /
-                                  (2 * pi * surface_tension.surface_tension_coefficient))
-        dt = min(dt, dt_surface_tension)
+        coefficient = surface_tension.surface_tension_coefficient
+        if !iszero(coefficient)
+            v = wrap_v(v_ode, system, semi)
+            dt_surface_tension = sqrt(current_density(v, system, 1) * smoothing_length_^3 /
+                                      (2 * pi * coefficient))
+            dt = min(dt, dt_surface_tension)
+        end
     end
 
     return dt
