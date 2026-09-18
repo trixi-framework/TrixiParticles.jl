@@ -29,8 +29,43 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "structure", "oscillating_be
               n_particles_y=n_particles_beam_y, sol=nothing, tspan,
               penalty_force=PenaltyForceGanzenmueller(alpha=0.01))
 
-pp_callback = PostprocessCallback(; deflection_x, deflection_y, dt=0.01,
-                                  output_directory="out",
+# The reference data tracks the position of the particle in the middle of the tip
+# of the beam, so we track the same quantity here for the comparison below.
+middle_particle_id = Int(n_particles_per_dimension[1] * (n_particles_per_dimension[2] + 1) /
+                         2)
+
+# Make these constants because global variables in the functions below are slow
+const STARTPOSITION_X = beam.coordinates[1, middle_particle_id]
+const STARTPOSITION_Y = beam.coordinates[2, middle_particle_id]
+
+function deflection_x(system, data, t)
+    return data.coordinates[1, middle_particle_id] - STARTPOSITION_X
+end
+
+function deflection_y(system, data, t)
+    return data.coordinates[2, middle_particle_id] - STARTPOSITION_Y
+end
+
+# Additionally track the deflection with a `StructureMotionCalculator`, which reconstructs
+# the motion around the center of the tip by an SPH interpolation over the surrounding
+# particles. This is less sensitive to the resolution than tracking a single particle,
+# but it cannot be compared to the reference data, which uses the particle position.
+tip_position = (clamp_radius + elastic_beam.length, elastic_beam.thickness / 2)
+
+# Note that `Semidiscretization` creates a deep copy of the structure system,
+# which means we have to extract the new system from `semi`.
+structure_system_new = semi.systems[1]
+
+deflection_x_interpolated = StructureMotionCalculator(structure_system_new, semi,
+                                                      tip_position,
+                                                      quantity=motion -> motion.displacement[1])
+deflection_y_interpolated = StructureMotionCalculator(structure_system_new, semi,
+                                                      tip_position,
+                                                      quantity=motion -> motion.displacement[2])
+
+pp_callback = PostprocessCallback(; deflection_x, deflection_y,
+                                  deflection_x_interpolated, deflection_y_interpolated,
+                                  dt=0.01, output_directory="out",
                                   filename="validation_run_oscillating_beam_2d_$n_particles_beam_y",
                                   write_csv=false, write_file_interval=0)
 info_callback = InfoCallback(interval=2500)
