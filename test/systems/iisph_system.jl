@@ -459,6 +459,47 @@
             @test isapprox(system_pressure.density_error, [-3.0, 0.0])
         end
 
+        @testset "Cross-system pressure sums use neighbor coordinates" begin
+            smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+            smoothing_length = 0.5
+            time_step = 0.5
+
+            coordinates_a = reshape([0.0, 0.0], 2, 1)
+            ic_a = InitialCondition(; coordinates=coordinates_a,
+                                    velocity=zeros(2, 1),
+                                    mass=[1.0],
+                                    density=[1000.0],
+                                    pressure=[1.0])
+            system = ImplicitIncompressibleSPHSystem(ic_a;
+                                                     smoothing_kernel,
+                                                     smoothing_length,
+                                                     reference_density=1000.0,
+                                                     time_step)
+
+            coordinates_b = [0.1 0.2
+                             0.0 0.0]
+            ic_b = InitialCondition(; coordinates=coordinates_b,
+                                    velocity=zeros(2, 2),
+                                    mass=[1.0, 1.0],
+                                    density=[1000.0, 1000.0],
+                                    pressure=[1.0, 2.0])
+            neighbor_system = ImplicitIncompressibleSPHSystem(ic_b;
+                                                              smoothing_kernel,
+                                                              smoothing_length,
+                                                              reference_density=1000.0,
+                                                              time_step)
+
+            semi = Semidiscretization(system, neighbor_system)
+            TrixiParticles.initialize_neighborhood_searches!(semi)
+            u_ode = vcat(vec(coordinates_a), vec(coordinates_b))
+            u = TrixiParticles.wrap_u(u_ode, system, semi)
+
+            @test_nowarn TrixiParticles.calculate_sum_d_ij_pj!(system.sum_d_ij_pj,
+                                                               system, neighbor_system,
+                                                               u, u_ode, semi)
+            @test !iszero(system.sum_d_ij_pj[1, 1])
+        end
+
         @testset "Source term and iteration limits" begin
             mass = [1.0, 1.0]
             density = [1000.0, 950.0]
