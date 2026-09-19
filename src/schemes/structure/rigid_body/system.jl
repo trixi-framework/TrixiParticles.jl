@@ -247,6 +247,8 @@ end
     return current_density(v, system.boundary_model, system)
 end
 
+@inline system_boundary_model(system::RigidBodySystem) = system.boundary_model
+
 # In fluid-structure interaction, use the hydrodynamic pressure corresponding to the
 # configured boundary model.
 @inline function current_pressure(v, system::RigidBodySystem)
