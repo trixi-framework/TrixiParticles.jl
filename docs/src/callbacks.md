@@ -24,3 +24,13 @@ The `MechanicalWorkCalculator` is a special custom quantity to be used with the
 Modules = [TrixiParticles]
 Pages = ["general/mechanical_work_calculator.jl"]
 ```
+
+# Structure Motion Calculator
+
+The `StructureMotionCalculator` is a special custom quantity to be used with the
+ [`PostprocessCallback`](@ref).
+
+```@autodocs
+Modules = [TrixiParticles]
+Pages = ["general/structure_motion_calculator.jl"]
+```
