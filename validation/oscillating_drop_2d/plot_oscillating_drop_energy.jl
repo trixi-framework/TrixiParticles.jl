@@ -29,7 +29,7 @@ p = plot(; size=(900, 500),
            ylims=(-0.018, 0.005),
            framestyle=:box,
            legend=:bottomleft,
-           palette=palette([:red, :purple, :blue, :green]),
+           palette=palette(:Set1_4)[[1, 4, 2, 3]],
            dpi=200)
 
 plot!(p, [0], [-1]; linewidth=2,
