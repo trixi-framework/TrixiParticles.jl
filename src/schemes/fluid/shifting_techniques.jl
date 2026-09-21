@@ -643,7 +643,7 @@ function update_shifting!(system, shifting::TransportVelocityAdami, v, u, v_ode,
 end
 
 function update_shifting_inner!(system, shifting::TransportVelocityAdami,
-                                 v, u, v_ode, u_ode, semi)
+                                v, u, v_ode, u_ode, semi)
     (; delta_v) = system.cache
     (; background_pressure) = shifting
 
