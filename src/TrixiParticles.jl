@@ -53,6 +53,8 @@ include("setups/setups.jl")
 include("schemes/schemes.jl")
 # `mechanical_work_calculator.jl` requires `TotalLagrangianSPHSystem` to be defined.
 include("general/mechanical_work_calculator.jl")
+# `structure_motion_calculator.jl` requires `TotalLagrangianSPHSystem` to be defined.
+include("general/structure_motion_calculator.jl")
 # `neighborhood_search.jl` requires the system types to be defined
 include("general/neighborhood_search.jl")
 # `callbacks.jl` requires the system types to be defined
@@ -80,7 +82,7 @@ export BoundaryZone, InFlow, OutFlow, BidirectionalFlow
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
        PostprocessCallback, StepsizeCallback, UpdateCallback, SteadyStateReachedCallback,
        SplitIntegrationCallback, MechanicalWorkCalculator, calculated_mechanical_work,
-       SortingCallback
+       StructureMotionCalculator, SortingCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller, TransportVelocityAdami, ParticleShiftingTechnique,
        ParticleShiftingTechniqueSun2017, ConsistentShiftingSun2019,

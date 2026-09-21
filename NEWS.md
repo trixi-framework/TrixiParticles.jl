@@ -12,6 +12,12 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   `MechanicalWorkCalculator`, which can be passed as a custom quantity to
   `PostprocessCallback` (#1228).
 
+### Features
+
+- Added `StructureMotionCalculator`, a custom quantity for the `PostprocessCallback`
+  that reconstructs displacement, deformation gradient and rotation
+  of a `TotalLagrangianSPHSystem` around a point in the initial configuration (#1318).
+
 ### Important Bugfixes
 
 - Fixed mathematical inconsistencies in the SPH documentation, including incorrect
