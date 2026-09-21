@@ -301,15 +301,13 @@ info_callback = InfoCallback(interval=100)
 solution_prefix = ""
 saving_callback = SolutionSavingCallback(dt=1/120; prefix=solution_prefix)
 
-split_cfl = 1.5
-# SSPRK104 CFL = 2.5, 15k RHS evaluations
-# CarpenterKennedy2N54 CFL = 1.6, 11k RHS evaluations
-# RK4 CFL = 1.2, 12k RHS evaluations
-# VerletLeapfrog CFL = 0.5, 6.75k RHS evaluations
-# VelocityVerlet CFL = 0.5, 6.75k RHS evaluations
-# DPRKN4 CFL = 1.7, 9k RHS evaluations
+split_cfl = 0.8
+# CarpenterKennedy2N54 CFL = 2.1, 23M RHS evaluations
+# RK4 CFL = 1.8, 21.6M RHS evaluations
+# VerletLeapfrog CFL = 0.8, 11.85M RHS evaluations
+# VelocityVerlet CFL = 0.7, ~11.8M RHS evaluations
 
-split_integration = SplitIntegrationCallback(CarpenterKennedy2N54(williamson_condition=false),
+split_integration = SplitIntegrationCallback(VerletLeapfrog(),
                                              adaptive=false,
                                              stage_coupling=true,
                                              dt=1e-5, # This is overwritten by the stepsize callback
