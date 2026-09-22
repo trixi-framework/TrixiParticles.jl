@@ -55,6 +55,7 @@ of the boundary particle ``b``.
 
 ```@docs
     BoundaryModelDummyParticles
+    BoundaryStateWallRiemann
 ```
 
 
