@@ -1,5 +1,7 @@
 mutable struct InfoCallback
     start_time::Float64
+    last_performance_print_time::Float64
+    ncalls_at_last_print::Int
     interval::Int
     flush::Bool
 end
@@ -45,7 +47,7 @@ directly, the current timer values are shown.
                  allowing you to monitor progress in real-time.
 """
 function InfoCallback(; interval=0, reset_threads=true, flush=false)
-    info_callback = InfoCallback(0.0, interval, flush)
+    info_callback = InfoCallback(0.0, 0.0, 0, interval, flush)
 
     function initialize(cb, u, t, integrator)
         initialize_info_callback(cb, u, t, integrator;
@@ -77,6 +79,17 @@ function (info_callback::InfoCallback)(integrator)
                               integrator.stats.naccept, integrator.dt, t,
                               sim_time_percentage), 71) *
                 @sprintf("│ run time: %.4e s", runtime_absolute))
+
+        if condition_integrator_interval(integrator, 1 * info_callback.interval)
+            runtime_since_last_print = (time_ns() - info_callback.last_performance_print_time)
+            info_callback.last_performance_print_time = time_ns()
+            n_calls = integrator.stats.nf - info_callback.ncalls_at_last_print
+            info_callback.ncalls_at_last_print = integrator.stats.nf
+            pid = runtime_since_last_print / n_calls / sum(nparticles.(integrator.p.semi.systems))
+            println("─"^100)
+            println(@sprintf("time/particle/rhs: %.4e ns", pid))
+            println("─"^100)
+        end
     end
 
     if info_callback.flush
@@ -159,6 +172,8 @@ function initialize_info_callback(discrete_callback, u, t, integrator;
 
     # Save current time as start_time
     info_callback.start_time = time_ns()
+    info_callback.last_performance_print_time = time_ns()
+    info_callback.ncalls_at_last_print = 0
 
     if info_callback.flush
         flush(stdout)
