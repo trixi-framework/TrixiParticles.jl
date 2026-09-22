@@ -233,6 +233,9 @@ function compute_shepard_coeff!(system, system_coords, v_ode, u_ode, semi,
             # Loop over all pairs of particles and neighbors within the kernel cutoff
             foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
                                    semi) do particle, neighbor, pos_diff, distance
+                is_hydrodynamic_particle(system, particle) || return
+                is_hydrodynamic_particle(neighbor_system, neighbor) || return
+
                 rho_b = current_density(v_neighbor_system, neighbor_system, neighbor)
                 m_b = hydrodynamic_mass(neighbor_system, neighbor)
                 W = kernel(hydrodynamic_smoothing_kernel(system), distance,
@@ -336,6 +339,9 @@ function compute_correction_values!(system,
             # Loop over all pairs of particles and neighbors within the kernel cutoff
             foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
                                    semi) do particle, neighbor, pos_diff, distance
+                is_hydrodynamic_particle(system, particle) || return
+                is_hydrodynamic_particle(neighbor_system, neighbor) || return
+
                 rho_b = current_density(v_neighbor_system, neighbor_system, neighbor)
                 m_b = hydrodynamic_mass(neighbor_system, neighbor)
                 volume = m_b / rho_b
@@ -506,6 +512,9 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
 
             foreach_point_neighbor(system, neighbor_system, coordinates, neighbor_coords,
                                    semi) do particle, neighbor, pos_diff, distance
+                is_hydrodynamic_particle(system, particle) || return
+                is_hydrodynamic_particle(neighbor_system, neighbor) || return
+
                 # Skip neighbors with the same position if the kernel gradient is zero.
                 # Note that `return` only exits the closure, i.e., skips the current neighbor.
                 skip_zero_distance(correction) && distance < almostzero && return

@@ -453,6 +453,8 @@ function update_average_pressure!(system, ::Val{true}, v_ode, u_ode, semi)
                                                                                neighbor,
                                                                                pos_diff,
                                                                                distance
+                is_hydrodynamic_particle(neighbor_system, neighbor) || return
+
                 pressure_average[particle] += current_pressure(v_neighbor_system,
                                                                neighbor_system, neighbor)
                 neighbor_counter[particle] += 1

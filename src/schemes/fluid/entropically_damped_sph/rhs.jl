@@ -30,6 +30,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                                                 neighbor,
                                                                                 pos_diff,
                                                                                 distance
+        is_hydrodynamic_particle(neighbor_system, neighbor) || return
+
         # Skip neighbors with the same position when both endpoint gradients are zero.
         # Note that `return` only exits the closure, i.e., skips the current neighbor.
         skip_zero_distance(zero_distance_mode, distance, almostzero) && return

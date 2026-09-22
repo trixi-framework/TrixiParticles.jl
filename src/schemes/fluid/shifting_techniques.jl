@@ -479,6 +479,8 @@ end
                                                                            neighbor,
                                                                            pos_diff,
                                                                            distance
+            is_hydrodynamic_particle(neighbor_system, neighbor) || return
+
             m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
             rho_a = @inbounds current_density(v, system, particle)
             rho_b = @inbounds current_density(v_neighbor, neighbor_system, neighbor)
@@ -660,6 +662,8 @@ function update_shifting!(system, shifting::TransportVelocityAdami, v, u, v_ode,
                                                                            neighbor,
                                                                            pos_diff,
                                                                            distance
+            is_hydrodynamic_particle(neighbor_system, neighbor) || return
+
             m_a = @inbounds hydrodynamic_mass(system, particle)
             m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
 

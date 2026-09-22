@@ -7,7 +7,8 @@
                              penalty_force=nothing, viscosity=nothing,
                              source_terms=nothing, boundary_model=nothing,
                              self_interaction_nhs=:default,
-                             velocity_averaging=nothing)
+                             velocity_averaging=nothing,
+                             hydrodynamic_boundary_particles=nothing)
 
 System for particles of an elastic structure.
 
@@ -59,6 +60,10 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
 - `velocity_averaging`: Velocity averaging technique to be applied on the velocity field
                     to obtain an averaged velocity to be used in fluid-structure interaction.
                     See [the docs](@ref velocity_averaging) for details.
+- `hydrodynamic_boundary_particles=nothing`: Particle indices used for fluid-structure
+                    interaction. By default, all structure particles interact with fluids.
+                    Particles omitted from this collection remain part of the TLSPH
+                    discretization but do not interact hydrodynamically.
 
 !!! note
     To define `clamped_particles` conveniently, place the clamped block first and combine
@@ -75,7 +80,7 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
 """
 struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, ARRAY3D,
                                 YM, PR, LL, LM, K, PF, V, ST, M, IM, NHS, VA,
-                                C} <: AbstractStructureSystem{NDIMS}
+                                HB, C} <: AbstractStructureSystem{NDIMS}
     initial_condition   :: IC
     initial_coordinates :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
     # `current_coordinates` contains `u` plus coordinates of the fixed particles
@@ -101,6 +106,7 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
     clamped_particles_moving :: IM
     self_interaction_nhs     :: NHS
     velocity_averaging       :: VA
+    hydrodynamic_boundary    :: HB
     cache                    :: C
 end
 
@@ -112,10 +118,26 @@ function TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing
                                   penalty_force=nothing, viscosity=nothing,
                                   source_terms=nothing, boundary_model=nothing,
                                   self_interaction_nhs=:default,
-                                  velocity_averaging=nothing)
+                                  velocity_averaging=nothing,
+                                  hydrodynamic_boundary_particles=nothing)
     NDIMS = ndims(initial_condition)
     ELTYPE = eltype(initial_condition)
     n_particles = nparticles(initial_condition)
+
+    hydrodynamic_boundary = fill(true, n_particles)
+    if !isnothing(hydrodynamic_boundary_particles)
+        allunique(hydrodynamic_boundary_particles) ||
+            throw(ArgumentError("`hydrodynamic_boundary_particles` contains duplicate particle indices"))
+        invalid_particle = findfirst(i -> i < 1 || i > n_particles,
+                                     hydrodynamic_boundary_particles)
+        if !isnothing(invalid_particle)
+            throw(BoundsError(initial_condition,
+                              hydrodynamic_boundary_particles[invalid_particle]))
+        end
+
+        hydrodynamic_boundary .= false
+        hydrodynamic_boundary[hydrodynamic_boundary_particles] .= true
+    end
 
     if ndims(smoothing_kernel) != NDIMS
         throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
@@ -138,6 +160,7 @@ function TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing
         move_particles_to_end!(initial_condition_sorted, clamped_particles)
         move_particles_to_end!(young_modulus_sorted, clamped_particles)
         move_particles_to_end!(poisson_ratio_sorted, clamped_particles)
+        move_particles_to_end!(hydrodynamic_boundary, clamped_particles)
     else
         n_clamped_particles = 0
         initial_condition_sorted = initial_condition
@@ -183,7 +206,8 @@ function TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing
                                     smoothing_length, acceleration_, boundary_model,
                                     penalty_force, viscosity, source_terms,
                                     clamped_particles_motion, ismoving,
-                                    self_interaction_nhs, velocity_averaging, cache)
+                                    self_interaction_nhs, velocity_averaging,
+                                    hydrodynamic_boundary, cache)
 end
 
 # Initialize self-interaction neighborhood search if not provided by the user
@@ -246,7 +270,7 @@ function initialize_self_interaction_nhs(system::TotalLagrangianSPHSystem,
                                     system.clamped_particles_motion,
                                     system.clamped_particles_moving,
                                     self_interaction_nhs, system.velocity_averaging,
-                                    system.cache)
+                                    system.hydrodynamic_boundary, system.cache)
 end
 
 extract_periodic_box(::Nothing) = nothing
@@ -307,6 +331,11 @@ end
 end
 
 @inline initial_coordinates(system::TotalLagrangianSPHSystem) = system.initial_coordinates
+
+@propagate_inbounds function is_hydrodynamic_particle(system::TotalLagrangianSPHSystem,
+                                                      particle)
+    return system.hydrodynamic_boundary[particle]
+end
 
 @inline function current_coordinates(u, system::TotalLagrangianSPHSystem)
     return system.current_coordinates
@@ -956,6 +985,8 @@ function Base.show(io::IO, ::MIME"text/plain", system::TotalLagrangianSPHSystem)
         summary_header(io, "TotalLagrangianSPHSystem{$(ndims(system))}")
         summary_line(io, "total #particles", nparticles(system))
         summary_line(io, "#clamped particles", n_clamped_particles)
+        summary_line(io, "#hydrodynamic particles",
+                     count(system.hydrodynamic_boundary))
         summary_line(io, "Young's modulus", display_param(system.young_modulus))
         summary_line(io, "Poisson ratio", display_param(system.poisson_ratio))
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
@@ -978,6 +1009,10 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
                                 "$(nparticles(system)) particles."))
         end
     end
+
+    length(system.hydrodynamic_boundary) == nparticles(system) ||
+        throw(ArgumentError("`hydrodynamic_boundary_particles` must match the number of " *
+                            "particles in the `TotalLagrangianSPHSystem`."))
 
     if system.self_interaction_nhs.periodic_box != extract_periodic_box(nhs)
         throw(ArgumentError("The `periodic_box` of the `TotalLagrangianSPHSystem`'s " *

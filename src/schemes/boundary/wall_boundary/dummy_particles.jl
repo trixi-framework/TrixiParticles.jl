@@ -606,8 +606,12 @@ end
 function compute_pressure!(boundary_model, ::Union{SummationDensity, ContinuityDensity},
                            system, v, u, v_ode, u_ode, semi)
     @threaded semi for particle in eachparticle(system)
-        @inbounds apply_state_equation!(boundary_model,
-                                        current_density(v, system, particle), particle)
+        if is_hydrodynamic_particle(system, particle)
+            @inbounds apply_state_equation!(boundary_model,
+                                            current_density(v, system, particle), particle)
+        else
+            @inbounds boundary_model.pressure[particle] = 0
+        end
     end
 
     return boundary_model
@@ -784,6 +788,8 @@ end
     foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords, semi;
                            points=eachparticle(system)) do particle, neighbor,
                                                            pos_diff, distance
+        is_hydrodynamic_particle(system, particle) || return
+
         @inbounds boundary_pressure_inner!(boundary_model, density_calculator, system,
                                            neighbor_system, v, v_neighbor_system,
                                            particle, neighbor, pos_diff, distance,
@@ -811,6 +817,8 @@ end
                            points=each_integrated_particle(neighbor_system),
                            parallelization_backend=SerialBackend()) do neighbor, particle,
                                                                        pos_diff, distance
+        is_hydrodynamic_particle(system, particle) || return
+
         # Since neighbor and particle are switched
         pos_diff = -pos_diff
         @inbounds boundary_pressure_inner!(boundary_model, density_calculator, system,

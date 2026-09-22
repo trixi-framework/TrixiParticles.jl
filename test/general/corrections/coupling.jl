@@ -121,7 +121,8 @@ end
                             boundary_correction=correction, reverse_order=false,
                             average_pressure_reduction=false,
                             structural_smoothing_kernel=nothing,
-                            structural_smoothing_length=nothing)
+                            structural_smoothing_length=nothing,
+                            hydrodynamic_boundary_particles=nothing)
         spacing = 0.1
         density = 1000.0
         kernel = WendlandC6Kernel{2}()
@@ -173,7 +174,8 @@ end
                                                  smoothing_length=structural_smoothing_length,
                                                  young_modulus=0.0,
                                                  poisson_ratio=0.0,
-                                                 boundary_model)
+                                                 boundary_model,
+                                                 hydrodynamic_boundary_particles)
         end
 
         # Reversing this order must not affect corrections or the coupled RHS.
@@ -237,6 +239,38 @@ end
         @test result.finite
         @test result.force_scale > eps()
         @test result.relative_residual < 2e-13
+    end
+
+    # A TLSPH hydrodynamic subset must be applied consistently to forces and every
+    # correction moment while preserving the legacy all-particle default.
+    for kind in (:wcsph, :edac)
+        default_result = coupled_result(kind, :tlsph, GradientCorrection())
+        full_result = coupled_result(kind, :tlsph, GradientCorrection();
+                                     hydrodynamic_boundary_particles=1:8)
+        subset_result = coupled_result(kind, :tlsph, GradientCorrection();
+                                       average_pressure_reduction=kind === :edac,
+                                       hydrodynamic_boundary_particles=[1, 3, 5, 7])
+        empty_result = coupled_result(kind, :tlsph, GradientCorrection();
+                                      hydrodynamic_boundary_particles=Int[])
+
+        @test full_result.fluid_rhs ≈ default_result.fluid_rhs
+        @test full_result.fluid_correction ≈ default_result.fluid_correction
+        @test full_result.structure_correction ≈ default_result.structure_correction
+
+        @test subset_result.finite
+        @test subset_result.force_scale > eps()
+        @test subset_result.relative_residual < 2e-13
+        @test count(subset_result.structure.hydrodynamic_boundary) == 4
+        for particle in (2, 4, 6, 8)
+            @test subset_result.structure_correction[:, :, particle] ≈ [1.0 0.0; 0.0 1.0]
+        end
+
+        @test empty_result.finite
+        @test empty_result.structure_force ≈ zeros(2)
+        @test !any(empty_result.structure.hydrodynamic_boundary)
+        for particle in eachparticle(empty_result.structure)
+            @test empty_result.structure_correction[:, :, particle] ≈ [1.0 0.0; 0.0 1.0]
+        end
     end
 
     # Global system ordering must not alter EDAC fluid-structure results.

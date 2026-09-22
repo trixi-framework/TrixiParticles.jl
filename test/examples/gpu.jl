@@ -190,7 +190,8 @@ end
     @test mixed_boundary_rhs_is_valid(backend)
 
     # Exercise the corrected fluid-structure reaction path on the selected backend.
-    function corrected_structure_rhs_is_valid(kind, structure_kind, backend)
+    function corrected_structure_rhs(kind, structure_kind, backend;
+                                     hydrodynamic_boundary_particles=nothing)
         spacing = 0.1f0
         density = 1000.0f0
         kernel = WendlandC6Kernel{2}()
@@ -198,7 +199,8 @@ end
         state_equation = StateEquationCole(; sound_speed=10.0f0,
                                            reference_density=density, exponent=1)
         fluid_initial = RectangularShape(spacing, (4, 3), (0.0f0, 0.0f0);
-                                         density, coordinates_eltype=Float32)
+                                         density, pressure=pos -> pos[1] + 1.0f0,
+                                         coordinates_eltype=Float32)
         fluid = if kind == :wcsph
             WeaklyCompressibleSPHSystem(fluid_initial; smoothing_kernel=kernel,
                                         smoothing_length,
@@ -229,7 +231,8 @@ end
         else
             TotalLagrangianSPHSystem(structure_initial; smoothing_kernel=kernel,
                                      smoothing_length, young_modulus=0.0f0,
-                                     poisson_ratio=0.0f0, boundary_model)
+                                     poisson_ratio=0.0f0, boundary_model,
+                                     hydrodynamic_boundary_particles)
         end
 
         semi = Semidiscretization(fluid, structure; neighborhood_search=nothing,
@@ -255,13 +258,37 @@ end
             vec(sum(Array(structure.mass)' .* view(dv_structure, 1:2, :); dims=2))
         end
         force_scale = norm(fluid_force) + norm(structure_force)
+        valid = all(isfinite, Array(dv_ode)) && force_scale > eps(Float32) &&
+                norm(fluid_force + structure_force) / force_scale < 2e-4
 
-        return all(isfinite, Array(dv_ode)) && force_scale > eps(Float32) &&
-               norm(fluid_force + structure_force) / force_scale < 2e-4
+        return (; valid, dv_fluid,
+                dv_structure=structure isa TotalLagrangianSPHSystem ?
+                             Array(TrixiParticles.wrap_v(dv_ode, structure,
+                                                         ode.p.semi)) : nothing,
+                hydrodynamic_boundary=structure isa TotalLagrangianSPHSystem ?
+                                      Array(structure.hydrodynamic_boundary) : nothing)
     end
 
     for kind in (:wcsph, :edac), structure_kind in (:rigid, :tlsph)
-        @test corrected_structure_rhs_is_valid(kind, structure_kind, backend)
+        @test corrected_structure_rhs(kind, structure_kind, backend).valid
+    end
+
+    # A nontrivial TLSPH hydrodynamic subset must produce the same coupled RHS on CPU and GPU.
+    for kind in (:wcsph, :edac)
+        subset = [1, 3, 5, 7]
+        cpu_result = corrected_structure_rhs(kind, :tlsph, SerialBackend();
+                                             hydrodynamic_boundary_particles=subset)
+        gpu_result = corrected_structure_rhs(kind, :tlsph, backend;
+                                             hydrodynamic_boundary_particles=subset)
+
+        @test all(isfinite, cpu_result.dv_fluid)
+        @test all(isfinite, gpu_result.dv_fluid)
+        @test norm(cpu_result.dv_fluid) > eps(Float32)
+        @test cpu_result.hydrodynamic_boundary ==
+              [true, false, true, false, true, false, true, false]
+        @test gpu_result.hydrodynamic_boundary == cpu_result.hydrodynamic_boundary
+        @test gpu_result.dv_fluid≈cpu_result.dv_fluid rtol=2e-4 atol=2e-5
+        @test gpu_result.dv_structure≈cpu_result.dv_structure rtol=2e-4 atol=2e-5
     end
 
     spacing = 0.1f0
