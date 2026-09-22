@@ -54,6 +54,7 @@ function set_callbacks_used!(semi, integrator)
     update_callback_used = any(cb -> cb isa UpdateCB,
                                integrator.opts.callback.discrete_callbacks)
     semi.update_callback_used[] = update_callback_used
+    update_callback_used && validate_rigid_contact_update_callbacks!(semi, integrator)
 
     integrate_tlsph = !any(cb -> cb isa DiscreteCallback{<:Any, <:SplitIntegrationCallback},
                            integrator.opts.callback.discrete_callbacks)

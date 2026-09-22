@@ -6,6 +6,66 @@ function finalize_interaction!(particle_system::RigidBodySystem,
     return particle_system
 end
 
+# A custom source may vary over the body, but independently applying those accelerations to
+# particles would introduce deformation. Reduce source accelerations to a force and torque,
+# then distribute the equivalent rigid translational and rotational acceleration.
+function add_source_terms!(dv, v, u, system::RigidBodySystem, semi, t, integrate_tlsph)
+    if !iszero(system.acceleration)
+        @threaded semi for particle in each_integrated_particle(system)
+            add_acceleration!(dv, system, particle)
+        end
+    end
+
+    source_terms = system.source_terms
+    isnothing(source_terms) && return dv
+
+    NDIMS = ndims(system)
+    ELTYPE = eltype(system)
+    source_force = zero(SVector{NDIMS, ELTYPE})
+    source_torque = zero(system.resultant_torque[])
+
+    # Evaluate each particle source at the current state and reduce its equivalent force and
+    # moment about the current center of mass. Rigid systems do not carry a pressure field.
+    for particle in each_integrated_particle(system)
+        coordinates = current_coords(u, system, particle)
+        velocity = current_velocity(v, system, particle)
+        density = system.material_density[particle]
+        pressure = zero(ELTYPE)
+        source_acceleration = SVector{NDIMS, ELTYPE}(source_terms(coordinates, velocity,
+                                                                  density, pressure, t))
+        particle_force = system.mass[particle] * source_acceleration
+        relative_position = extract_svector(system.relative_coordinates, system, particle)
+
+        source_force += particle_force
+        source_torque += cross_product(relative_position, particle_force)
+    end
+
+    translational_acceleration = source_force / system.total_mass
+    angular_acceleration = system.inverse_inertia[] * source_torque
+
+    # Pair interactions have already populated the diagnostics, so custom-source resultants
+    # are additive. Uniform `system.acceleration` is prescribed kinematics and is excluded.
+    system.resultant_force[] += source_force
+    system.resultant_torque[] += source_torque
+    system.angular_acceleration_force[] += angular_acceleration
+
+    # Apply a_com + alpha x r to each particle instead of the original source acceleration.
+    # The common rigid acceleration preserves all relative particle distances.
+    @threaded semi for particle in each_integrated_particle(system)
+        relative_position = @inbounds extract_svector(system.relative_coordinates,
+                                                      system, particle)
+        rotational_acceleration = cross_product(angular_acceleration, relative_position)
+
+        for dim in 1:NDIMS
+            @inbounds dv[dim,
+                         particle] += translational_acceleration[dim] +
+                                      rotational_acceleration[dim]
+        end
+    end
+
+    return dv
+end
+
 # Rigid-body kinematics depend only on the current rigid state, so apply them once
 # after all pairwise interactions instead of revisiting them for every rigid-rigid pair.
 function apply_kinematic_acceleration!(dv, particle_system::RigidBodySystem, semi)
@@ -105,9 +165,14 @@ function interact!(dv, v_particle_system, u_particle_system,
     set_zero!(particle_system.cache.contact_manifold_penetration_sum)
     set_zero!(particle_system.cache.contact_manifold_normal_sum)
     set_zero!(particle_system.cache.contact_manifold_wall_velocity_sum)
+    set_zero!(particle_system.cache.contact_manifold_wall_position_sum)
+    set_zero!(particle_system.cache.contact_manifold_history_id)
 
     NDIMS = ndims(particle_system)
     ELTYPE = eltype(particle_system)
+    zero_tangential = zero(SVector{NDIMS, ELTYPE})
+    contact_map = particle_system.cache.contact_tangential_displacement
+    neighbor_system_index = system_indices(neighbor_system, semi)
     set_zero!(particle_system.cache.contact_count_per_particle)
     set_zero!(particle_system.cache.max_contact_penetration_per_particle)
     contact_count_per_particle = particle_system.cache.contact_count_per_particle
@@ -125,9 +190,15 @@ function interact!(dv, v_particle_system, u_particle_system,
         # Building manifolds mutates shared cache entries for the current rigid particle and can
         # merge a new wall sample into an existing manifold. Keep this pass serial so manifold
         # assignment stays deterministic and free of synchronization overhead.
-        accumulate_wall_contact_pair!(particle_system, v_neighbor_system, neighbor_system,
+        accumulate_wall_contact_pair!(particle_system, v_neighbor_system,
+                                      u_neighbor_system, neighbor_system,
                                       particle, neighbor, pos_diff, distance, contact_model)
     end
+
+    # Resolve transient slots against accepted-step IDs without updating descriptors. RHS
+    # evaluations include rejected and intermediate stages and must not mutate history.
+    match_wall_contact_manifolds!(particle_system, neighbor_system_index, contact_model;
+                                  update_descriptors=false)
 
     # Apply one force contribution per manifold using the averaged normal, penetration, and
     # wall velocity stored in the cache.
@@ -165,15 +236,28 @@ function interact!(dv, v_particle_system, u_particle_system,
 
                         relative_velocity = v_particle - v_boundary
                         normal_velocity = dot(relative_velocity, normal)
-
-                        elastic_force = contact_model.normal_stiffness *
-                                        penetration_effective
-                        damping_force = -contact_model.normal_damping * normal_velocity
-                        normal_force_magnitude = max(elastic_force + damping_force,
-                                                     zero(ELTYPE))
+                        tangential_velocity = relative_velocity - normal_velocity * normal
+                        normal_force_magnitude = normal_friction_reference_force(contact_model,
+                                                                                 penetration_effective,
+                                                                                 normal_velocity)
 
                         if normal_force_magnitude > 0
-                            interaction_force = normal_force_magnitude * normal
+                            contact_id = particle_system.cache.contact_manifold_history_id[manifold_index,
+                                                                                           particle]
+                            tangential_displacement = isnothing(contact_map) ||
+                                                      contact_id == 0 ?
+                                                      zero_tangential :
+                                                      get(contact_map,
+                                                          wall_contact_key(neighbor_system_index,
+                                                                           particle,
+                                                                           contact_id),
+                                                          zero_tangential)
+                            tangential_force = tangential_contact_force(contact_model,
+                                                                        tangential_displacement,
+                                                                        tangential_velocity,
+                                                                        normal_force_magnitude)
+                            interaction_force = normal_force_magnitude * normal +
+                                                tangential_force
 
                             for dim in eachindex(interaction_force)
                                 particle_system.force_per_particle[dim,
@@ -209,17 +293,22 @@ end
 # `contact_distance`.
 @inline function accumulate_wall_contact_pair!(particle_system::RigidBodySystem,
                                                v_neighbor_system,
+                                               u_neighbor_system,
                                                neighbor_system::WallBoundarySystem,
                                                particle, neighbor, pos_diff, distance,
                                                contact_model::RigidContactModel)
     ELTYPE = eltype(particle_system)
     distance <= eps(ELTYPE) && return particle_system
 
-    penetration = contact_model.contact_distance - distance
-    penetration <= 0 && return particle_system
+    normal,
+    normal_distance = rigid_wall_contact_geometry(neighbor_system, neighbor,
+                                                  pos_diff, distance)
+    penetration = contact_model.contact_distance - normal_distance
+    penetration_effective = penetration - contact_model.penetration_slop
+    penetration_effective <= 0 && return particle_system
 
-    normal = pos_diff / distance
     wall_velocity = current_velocity(v_neighbor_system, neighbor_system, neighbor)
+    wall_position = current_coords(u_neighbor_system, neighbor_system, neighbor)
     density = convert(ELTYPE, neighbor_system.initial_condition.density[neighbor])
     density <= eps(ELTYPE) && return particle_system
 
@@ -240,9 +329,30 @@ end
                                                       normal,
                                                       normal_merge_cos)
     accumulate_contact_manifold_sums!(particle_system.cache, particle, manifold_index,
-                                      contact_weight, normal, wall_velocity, penetration)
+                                      contact_weight, normal, wall_velocity, wall_position,
+                                      penetration_effective)
 
     return particle_system
+end
+
+# Return the unit contact normal and separation used by the penalty law. `pos_diff` points
+# from the wall particle to the rigid particle. Since `InitialCondition` does not prescribe
+# normal orientation, flip the geometry normal toward the rigid particle before projecting
+# the separation onto it. Walls without usable normals retain radial particle-pair contact.
+@inline function rigid_wall_contact_geometry(wall_system::WallBoundarySystem, wall_particle,
+                                             pos_diff, radial_distance)
+    boundary_normals = wall_system.cache.boundary_normals
+    isnothing(boundary_normals) && return pos_diff / radial_distance, radial_distance
+
+    wall_normal = extract_svector(boundary_normals, wall_system, wall_particle)
+    normal_norm = norm(wall_normal)
+    normal_norm <= eps(eltype(wall_system)) &&
+        return pos_diff / radial_distance, radial_distance
+
+    normal = wall_normal / normal_norm
+    dot(normal, pos_diff) < 0 && (normal = -normal)
+
+    return normal, dot(pos_diff, normal)
 end
 
 # Assign a wall-contact sample to an existing manifold or open a new manifold slot.
@@ -308,7 +418,8 @@ end
 # later divides by `weight_sum` once to recover the effective manifold normal, wall velocity,
 # and penetration for that rigid particle / manifold pair.
 function accumulate_contact_manifold_sums!(cache, particle, manifold_index, contact_weight,
-                                           normal, wall_velocity, penetration_effective)
+                                           normal, wall_velocity, wall_position,
+                                           penetration_effective)
     # Store weighted sums so the final interaction step can recover one averaged contact
     # state per manifold instead of reacting to every wall particle individually. The summed
     # data describes one effective contact patch: averaged normal, wall velocity, and
@@ -324,6 +435,9 @@ function accumulate_contact_manifold_sums!(cache, particle, manifold_index, cont
         cache.contact_manifold_wall_velocity_sum[dim, manifold_index,
                                                  particle] += contact_weight *
                                                               wall_velocity[dim]
+        cache.contact_manifold_wall_position_sum[dim, manifold_index,
+                                                 particle] += contact_weight *
+                                                              wall_position[dim]
     end
 
     return cache
@@ -351,10 +465,10 @@ function interact!(dv, v_particle_system, u_particle_system,
     set_zero!(particle_system.cache.max_contact_penetration_per_particle)
     contact_count_per_particle = particle_system.cache.contact_count_per_particle
     max_contact_penetration_per_particle = particle_system.cache.max_contact_penetration_per_particle
-    pair_normal_stiffness = (contact_model.normal_stiffness +
-                             neighbor_contact_model.normal_stiffness) / 2
-    pair_normal_damping = (contact_model.normal_damping +
-                           neighbor_contact_model.normal_damping) / 2
+    pair_parameters = rigid_contact_pair_parameters(contact_model, neighbor_contact_model)
+    zero_tangential = zero(SVector{ndims(particle_system), ELTYPE})
+    contact_map = particle_system.cache.contact_tangential_displacement
+    neighbor_system_index = system_indices(neighbor_system, semi)
 
     foreach_point_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
                            semi;
@@ -368,9 +482,9 @@ function interact!(dv, v_particle_system, u_particle_system,
         # the regular parallel backend.
         distance <= eps(ELTYPE) && return dv
 
-        penetration = max(contact_model.contact_distance,
-                          neighbor_contact_model.contact_distance) - distance
-        penetration <= 0 && return dv
+        penetration = pair_parameters.contact_distance - distance
+        penetration_effective = penetration - pair_parameters.penetration_slop
+        penetration_effective <= 0 && return dv
 
         normal = pos_diff / distance
         particle_velocity = current_velocity(v_particle_system, particle_system, particle)
@@ -378,12 +492,22 @@ function interact!(dv, v_particle_system, u_particle_system,
         relative_velocity = particle_velocity - neighbor_velocity
         normal_velocity = dot(relative_velocity, normal)
 
-        elastic_force = pair_normal_stiffness * penetration
-        damping_force = -pair_normal_damping * normal_velocity
+        elastic_force = pair_parameters.normal_stiffness * penetration_effective
+        damping_force = -pair_parameters.normal_damping * normal_velocity
         normal_force_magnitude = max(elastic_force + damping_force, zero(ELTYPE))
         normal_force_magnitude <= 0 && return dv
 
-        interaction_force = normal_force_magnitude * normal
+        tangential_velocity = relative_velocity - normal_velocity * normal
+        contact_key = rigid_rigid_contact_key(neighbor_system_index, particle, neighbor)
+        # History belongs to this ordered particle pair. The reverse interaction pass stores
+        # the negated displacement under its own key and therefore produces the reaction force.
+        tangential_displacement = isnothing(contact_map) ? zero_tangential :
+                                  get(contact_map, contact_key, zero_tangential)
+        tangential_force = tangential_contact_force(pair_parameters,
+                                                    tangential_displacement,
+                                                    tangential_velocity,
+                                                    normal_force_magnitude)
+        interaction_force = normal_force_magnitude * normal + tangential_force
 
         for dim in 1:ndims(particle_system)
             particle_system.force_per_particle[dim, particle] += interaction_force[dim]
@@ -393,7 +517,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         # This makes these per-particle reductions race-free under the regular backends.
         contact_count_per_particle[particle] += 1
         max_contact_penetration_per_particle[particle] = max(max_contact_penetration_per_particle[particle],
-                                                             penetration)
+                                                             penetration_effective)
     end
 
     particle_system.cache.contact_count[] += sum(contact_count_per_particle)

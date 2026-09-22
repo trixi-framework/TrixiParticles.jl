@@ -293,6 +293,16 @@ u0: ([...], [...]) *this line is ignored by filter*
 function semidiscretize(semi, tspan; reset_threads=true, restart_with=nothing)
     (; systems) = semi
 
+    # Tangential contact uses CPU dictionaries for accepted-step history and persistent wall
+    # descriptors. Reject it before adapting state arrays so GPU runs cannot fail later in an
+    # RHS kernel with an opaque host-container error.
+    if semi.parallelization_backend isa KernelAbstractions.GPU &&
+       any(system -> system isa RigidBodySystem &&
+                     !isnothing(system.contact_model) &&
+                     has_tangential_contact(system.contact_model), systems)
+        throw(ArgumentError("rigid contact friction is not supported on GPU backends"))
+    end
+
     if restart_with isa String
         restart_with = (restart_with,)
     elseif !isnothing(restart_with) && !(restart_with isa NTuple{<:Any, String})

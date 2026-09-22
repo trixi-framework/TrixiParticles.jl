@@ -20,13 +20,20 @@ torque and applied consistently to all rigid particles.
 # Keywords
 - `boundary_model`: Boundary model for fluid-structure interaction
                     (see [Boundary Models](@ref boundary_models)).
-- `contact_model`: Optional rigid contact model.
-                   If specified, rigid-wall and rigid-rigid collisions are enabled.
+- `contact_model`: Optional [`RigidContactModel`](@ref). If specified, rigid-wall and
+                   rigid-rigid collisions are enabled. Tangential spring history requires
+                   `UpdateCallback(interval=1)` and is currently CPU-only.
 - `acceleration`: Global acceleration vector applied to all rigid particles.
 - `particle_spacing`: Reference particle spacing used for time-step estimation.
-- `max_manifolds`: Maximum number of wall-contact manifolds cached per rigid particle.
+- `max_manifolds`: Maximum number of transient wall-contact manifolds assembled per rigid
+                   particle. Persistent friction history is matched by geometry rather than
+                   by these manifold slots.
 - `source_terms`: Optional source terms of the form
-                  `(coords, velocity, density, pressure, t) -> source`.
+                  `(coords, velocity, density, pressure, t) -> source`. Particle source
+                  accelerations are mass-weighted and reduced to one rigid resultant force
+                  and torque, so spatially varying sources cannot deform the body. The
+                  callback receives material density and zero pressure; its resultants are
+                  included in the rigid-body force and torque diagnostics.
 - `adhesion_coefficient`: Wall-adhesion strength used by Akinci-type surface tension
                           models when fluids interact with this rigid body. This is
                           only evaluated for fluid-structure interaction with
@@ -119,7 +126,8 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
         inverse_inertia = Ref(zero(SMatrix{3, 3, ELTYPE, 9}))
     end
 
-    cache = (; contact_count=Ref(0),
+    cache = (; create_cache_contact_history(contact_model_, Val(NDIMS), ELTYPE)...,
+             contact_count=Ref(0),
              max_contact_penetration=Ref(zero(ELTYPE)),
              create_cache_contact_manifold(contact_model_, Val(NDIMS), ELTYPE,
                                            nparticles(initial_condition),
@@ -150,12 +158,21 @@ function create_cache_contact_manifold(::Nothing, ::Val{NDIMS}, ELTYPE,
     return (;)
 end
 
+function create_cache_contact_history(contact_model, ::Val{NDIMS},
+                                      ::Type{ELTYPE}) where {NDIMS, ELTYPE}
+    return (; contact_tangential_displacement=nothing,
+            wall_contact_descriptors=nothing,
+            next_wall_contact_id=nothing)
+end
+
 # Allocate per-particle scratch arrays for rigid contact.
 #
 # The manifold cache shape is `[dimension, manifold, particle]` for vector-valued sums and
 # `[manifold, particle]` for scalar sums. It is rebuilt for each rigid-wall system pair in
 # the RHS and therefore acts purely as transient manifold assembly storage. The per-particle
 # diagnostic scratch is reused for both rigid-wall and rigid-rigid contact reductions.
+# `contact_manifold_history_id` temporarily links each assembled slot to accepted-step state;
+# the slot index itself is never used as a persistent identity.
 function create_cache_contact_manifold(contact_model, ::Val{NDIMS}, ELTYPE,
                                        n_particles, max_manifolds) where {NDIMS}
     return (; contact_count_per_particle=zeros(Int, n_particles),
@@ -165,7 +182,10 @@ function create_cache_contact_manifold(contact_model, ::Val{NDIMS}, ELTYPE,
             contact_manifold_penetration_sum=zeros(ELTYPE, max_manifolds, n_particles),
             contact_manifold_normal_sum=zeros(ELTYPE, NDIMS, max_manifolds, n_particles),
             contact_manifold_wall_velocity_sum=zeros(ELTYPE, NDIMS, max_manifolds,
-                                                     n_particles))
+                                                     n_particles),
+            contact_manifold_wall_position_sum=zeros(ELTYPE, NDIMS, max_manifolds,
+                                                     n_particles),
+            contact_manifold_history_id=zeros(Int, max_manifolds, n_particles))
 end
 
 function rigid_center_of_mass_kinematics(system::RigidBodySystem, coordinates, velocity)
@@ -271,6 +291,7 @@ end
 end
 
 function initialize!(system::RigidBodySystem, semi)
+    reset_contact_history!(system)
     initialize_colorfield!(system, system.boundary_model, semi)
     return system
 end
@@ -348,6 +369,14 @@ function write_v0!(v0, ::BoundaryModelDummyParticles{ContinuityDensity},
 end
 
 function restart_with!(system::RigidBodySystem, v, u)
+    contact_map = system.cache.contact_tangential_displacement
+    if !isnothing(contact_map) && !isempty(contact_map)
+        # Restart files contain coordinates and velocities, but not the path-dependent
+        # tangential spring state. Make the resulting loss of static-friction memory visible.
+        @warn "tangential rigid-contact history is cleared when restarting"
+    end
+    reset_contact_history!(system)
+
     indices_u = CartesianIndices(system.initial_condition.coordinates)
     copyto!(system.initial_condition.coordinates, indices_u, u, indices_u)
 
@@ -381,6 +410,21 @@ function reset_interaction_caches!(system::RigidBodySystem)
     set_zero!(system.force_per_particle)
     system.cache.contact_count[] = 0
     system.cache.max_contact_penetration[] = zero(eltype(system))
+
+    return system
+end
+
+function reset_contact_history!(system::RigidBodySystem)
+    # Clear all accepted-step state together. Resetting the ID counter is safe only here,
+    # after no descriptor or displacement key can still refer to an old contact.
+    contact_map = system.cache.contact_tangential_displacement
+    isnothing(contact_map) || empty!(contact_map)
+
+    descriptor_map = system.cache.wall_contact_descriptors
+    isnothing(descriptor_map) || empty!(descriptor_map)
+
+    next_contact_id = system.cache.next_wall_contact_id
+    isnothing(next_contact_id) || (next_contact_id[] = 1)
 
     return system
 end
