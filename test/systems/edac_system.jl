@@ -229,9 +229,12 @@
                        MixedKernelGradientCorrection())
 
         @testset "$(typeof(correction))" for correction in corrections
+            density_correction = TrixiParticles.correction_density(correction)
+            gradient_correction = TrixiParticles.correction_gradient(correction)
             system = EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel,
                                                  smoothing_length, sound_speed=10.0,
-                                                 correction, pressure_acceleration=nothing)
+                                                 density_correction, gradient_correction,
+                                                 pressure_acceleration=nothing)
             semi = Semidiscretization(system)
 
             TrixiParticles.initialize_neighborhood_searches!(semi)
@@ -242,9 +245,6 @@
             TrixiParticles.write_v0!(v0, system)
             v_ode = vec(v0)
 
-            v = TrixiParticles.wrap_v(v_ode, system, semi)
-            u = TrixiParticles.wrap_u(u_ode, system, semi)
-
             for cache_key in (:kernel_correction_coefficient, :dw_gamma,
                               :correction_matrix)
                 hasproperty(system.cache, cache_key) || continue
@@ -252,8 +252,7 @@
                 fill!(getproperty(system.cache, cache_key), NaN)
             end
 
-            TrixiParticles.update_quantities!(system, v, u, v_ode, u_ode, semi, 0.0)
-            TrixiParticles.update_pressure!(system, v, u, v_ode, u_ode, semi, 0.0)
+            TrixiParticles.update_systems_and_nhs(v_ode, u_ode, semi, 0.0)
 
             for cache_key in (:kernel_correction_coefficient, :dw_gamma,
                               :correction_matrix)
