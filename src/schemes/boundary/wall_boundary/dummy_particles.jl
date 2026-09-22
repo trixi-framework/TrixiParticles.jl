@@ -98,12 +98,14 @@ end
                                 viscosity=nothing,
                                 boundary_state=nothing,
                                 state_equation=system_state_equation(fluid_system),
-                                correction=system_correction(fluid_system),
+                                density_correction=correction_density(system_correction_configuration(fluid_system)),
+                                gradient_correction=correction_gradient(system_correction_configuration(fluid_system)),
+                                force_correction=correction_force(system_correction_configuration(fluid_system)),
                                 clip_negative_pressure=false,
                                 reference_particle_spacing=default_reference_particle_spacing(fluid_system))
 
 High-level convenience constructor for dummy-particle wall models that infers the kernel,
-smoothing length, correction, and equation-of-state-related settings from the adjacent
+smoothing length, corrections, and equation-of-state-related settings from the adjacent
 `fluid_system`.
 """
 function BoundaryModelDummyParticles(initial_condition;
@@ -116,14 +118,17 @@ function BoundaryModelDummyParticles(initial_condition;
                                      viscosity=nothing,
                                      boundary_state=nothing,
                                      state_equation=system_state_equation(fluid_system),
-                                     correction=system_correction(fluid_system),
+                                     density_correction=correction_density(system_correction_configuration(fluid_system)),
+                                     gradient_correction=correction_gradient(system_correction_configuration(fluid_system)),
+                                     force_correction=correction_force(system_correction_configuration(fluid_system)),
                                      clip_negative_pressure=false,
                                      reference_particle_spacing=default_reference_particle_spacing(fluid_system))
     return BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                        boundary_density_calculator, smoothing_kernel,
                                        smoothing_length;
                                        viscosity, boundary_state, state_equation,
-                                       correction,
+                                       density_correction, gradient_correction,
+                                       force_correction,
                                        clip_negative_pressure,
                                        reference_particle_spacing)
 end
