@@ -145,6 +145,86 @@ end
     return zero(SVector{ndims(system), eltype(system)})
 end
 
+@propagate_inbounds function boundary_state_normal(system::WallBoundarySystem, particle,
+                                                   pos_diff, distance)
+    return wall_boundary_state_normal(system, system.prescribed_motion, particle,
+                                      pos_diff, distance)
+end
+
+@propagate_inbounds function boundary_state_contact_geometry(system::WallBoundarySystem,
+                                                             particle, pos_diff, distance)
+    return wall_boundary_state_contact_geometry(system, system.prescribed_motion, particle,
+                                                pos_diff, distance)
+end
+
+@inline function wall_boundary_state_contact_geometry(system, prescribed_motion, particle,
+                                                      pos_diff, distance)
+    normal = wall_boundary_state_normal(system, prescribed_motion, particle,
+                                        pos_diff, distance)
+    return normal, zero(distance), zero(distance), false
+end
+
+@propagate_inbounds function wall_boundary_state_contact_geometry(system, ::Nothing,
+                                                                  particle, pos_diff,
+                                                                  distance)
+    return static_wall_boundary_state_contact_geometry(system.initial_condition.normals,
+                                                       system, particle, pos_diff,
+                                                       distance)
+end
+
+@inline function static_wall_boundary_state_contact_geometry(::Nothing, system, particle,
+                                                             pos_diff, distance)
+    normal = pos_diff / distance
+    return normal, zero(distance), zero(distance), false
+end
+
+@propagate_inbounds function static_wall_boundary_state_contact_geometry(reference_normals,
+                                                                         system, particle,
+                                                                         pos_diff, distance)
+    reference_normal = extract_svector(reference_normals, system, particle)
+    normal_norm2 = dot(reference_normal, reference_normal)
+    if !(normal_norm2 > eps(normal_norm2))
+        normal = pos_diff / distance
+        return normal, zero(distance), zero(distance), false
+    end
+
+    normal_offset = sqrt(normal_norm2)
+    normal = dot(reference_normal, pos_diff) < 0 ?
+             -reference_normal / normal_offset : reference_normal / normal_offset
+    surface_distance = dot(pos_diff, normal) - normal_offset
+    boundary_spacing = system.initial_condition.particle_spacing
+
+    return normal, surface_distance, boundary_spacing, boundary_spacing > 0
+end
+
+@inline function wall_boundary_state_normal(system, prescribed_motion, particle,
+                                            pos_diff, distance)
+    return pos_diff / distance
+end
+
+@propagate_inbounds function wall_boundary_state_normal(system, ::Nothing, particle,
+                                                        pos_diff, distance)
+    return static_wall_boundary_state_normal(system.initial_condition.normals, system,
+                                             particle, pos_diff, distance)
+end
+
+@inline function static_wall_boundary_state_normal(::Nothing, system, particle,
+                                                   pos_diff, distance)
+    return pos_diff / distance
+end
+
+@propagate_inbounds function static_wall_boundary_state_normal(reference_normals, system,
+                                                               particle, pos_diff, distance)
+    normal = extract_svector(reference_normals, system, particle)
+    normal_norm2 = dot(normal, normal)
+    normal_norm2 > eps(normal_norm2) || return pos_diff / distance
+    normal /= sqrt(normal_norm2)
+
+    # Initial-condition normals can point to either side of a wall. Orient the geometric
+    # normal from the boundary towards the interacting fluid particle.
+    return dot(normal, pos_diff) < 0 ? -normal : normal
+end
+
 @propagate_inbounds function viscous_velocity(v, system::WallBoundarySystem,
                                               particle, v_particle)
     return viscous_velocity(v, system.boundary_model.viscosity, system,

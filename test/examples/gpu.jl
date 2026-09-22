@@ -191,15 +191,19 @@ end
 
     # Exercise the corrected fluid-structure reaction path on the selected backend.
     function corrected_structure_rhs(kind, structure_kind, backend;
-                                     hydrodynamic_boundary_particles=nothing)
+                                     hydrodynamic_boundary_particles=nothing,
+                                     boundary_state=nothing)
         spacing = 0.1f0
         density = 1000.0f0
         kernel = WendlandC6Kernel{2}()
         smoothing_length = 2spacing
         state_equation = StateEquationCole(; sound_speed=10.0f0,
                                            reference_density=density, exponent=1)
+        velocity = isnothing(boundary_state) ? SVector(0.0f0, 0.0f0) :
+                   SVector(0.0f0, -1.0f0)
         fluid_initial = RectangularShape(spacing, (4, 3), (0.0f0, 0.0f0);
                                          density, pressure=pos -> pos[1] + 1.0f0,
+                                         velocity,
                                          coordinates_eltype=Float32)
         fluid = if kind == :wcsph
             WeaklyCompressibleSPHSystem(fluid_initial; smoothing_kernel=kernel,
@@ -225,6 +229,7 @@ end
                                                      AdamiPressureExtrapolation(), kernel,
                                                      smoothing_length;
                                                      state_equation,
+                                                     boundary_state,
                                                      gradient_correction=GradientCorrection())
         structure = if structure_kind == :rigid
             RigidBodySystem(structure_initial; boundary_model, particle_spacing=spacing)
@@ -277,9 +282,11 @@ end
     for kind in (:wcsph, :edac)
         subset = [1, 3, 5, 7]
         cpu_result = corrected_structure_rhs(kind, :tlsph, SerialBackend();
-                                             hydrodynamic_boundary_particles=subset)
+                                             hydrodynamic_boundary_particles=subset,
+                                             boundary_state=BoundaryStateWallRiemann())
         gpu_result = corrected_structure_rhs(kind, :tlsph, backend;
-                                             hydrodynamic_boundary_particles=subset)
+                                             hydrodynamic_boundary_particles=subset,
+                                             boundary_state=BoundaryStateWallRiemann())
 
         @test all(isfinite, cpu_result.dv_fluid)
         @test all(isfinite, gpu_result.dv_fluid)

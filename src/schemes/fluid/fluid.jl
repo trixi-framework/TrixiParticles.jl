@@ -115,6 +115,19 @@ end
 
 @inline acceleration_source(system::AbstractFluidSystem) = system.acceleration
 
+@inline function apply_wall_boundary_state(p_boundary, v_boundary, boundary_model,
+                                           fluid_system, boundary_system,
+                                           fluid_particle, boundary_particle,
+                                           p_fluid, rho_fluid, v_fluid, pos_diff,
+                                           distance, sound_speed)
+    return p_boundary, v_boundary
+end
+
+@inline function boundary_state_normal(boundary_system, boundary_particle, pos_diff,
+                                       distance)
+    return pos_diff / distance
+end
+
 function update_positions!(system::AbstractFluidSystem, v, u, v_ode, u_ode, semi, t)
     nhs = get_neighborhood_search(system, semi)
 

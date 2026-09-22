@@ -2,6 +2,7 @@
     BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                 density_calculator, smoothing_kernel,
                                 smoothing_length; viscosity=nothing,
+                                 boundary_state=nothing,
                                  state_equation=nothing, density_correction=nothing,
                                  gradient_correction=nothing, force_correction=nothing,
                                 clip_negative_pressure=false,
@@ -26,6 +27,9 @@ Boundary model for [`WallBoundarySystem`](@ref).
 - `force_correction`:           Force correction of the adjacent fluid system.
 - `viscosity`:                  Slip (default) or no-slip condition. See description below for further
                                 information.
+- `boundary_state`:             Optional pairwise wall state. Use
+                                [`BoundaryStateWallRiemann`](@ref) for an impermeable,
+                                free-slip acoustic wall state.
 - `clip_negative_pressure=false`: Clip negative boundary pressures to avoid sticking
                                 artifacts from attractive fluid-boundary forces at free
                                 surfaces. Note that this is not a correct formulation
@@ -52,7 +56,7 @@ boundary_model = BoundaryModelDummyParticles(densities, masses, AdamiPressureExt
 BoundaryModelDummyParticles(AdamiPressureExtrapolation, ViscosityAdami)
 ```
 """
-struct BoundaryModelDummyParticles{DC, SE, CLIP, ELTYPE <: Real, VECTOR, K, V, COR, C}
+struct BoundaryModelDummyParticles{DC, SE, CLIP, ELTYPE <: Real, VECTOR, K, V, BS, COR, C}
     pressure           :: VECTOR # Vector{ELTYPE}
     hydrodynamic_mass  :: VECTOR # Vector{ELTYPE}
     state_equation     :: SE
@@ -60,6 +64,7 @@ struct BoundaryModelDummyParticles{DC, SE, CLIP, ELTYPE <: Real, VECTOR, K, V, C
     smoothing_kernel   :: K
     smoothing_length   :: ELTYPE
     viscosity          :: V
+    boundary_state     :: BS
     correction         :: COR
     cache              :: C
     # Store this both as field and type parameter to avoid annoying hand-written
@@ -68,14 +73,17 @@ struct BoundaryModelDummyParticles{DC, SE, CLIP, ELTYPE <: Real, VECTOR, K, V, C
 
     function BoundaryModelDummyParticles(pressure, hydrodynamic_mass, state_equation,
                                          density_calculator, smoothing_kernel,
-                                         smoothing_length, viscosity, correction,
+                                         smoothing_length, viscosity, boundary_state,
+                                         correction,
                                          cache, clip_negative_pressure)
         return new{typeof(density_calculator), typeof(state_equation),
                    clip_negative_pressure, eltype(pressure), typeof(pressure),
-                   typeof(smoothing_kernel), typeof(viscosity), typeof(correction),
+                   typeof(smoothing_kernel), typeof(viscosity), typeof(boundary_state),
+                   typeof(correction),
                    typeof(cache)}(pressure, hydrodynamic_mass, state_equation,
                                   density_calculator, smoothing_kernel, smoothing_length,
-                                  viscosity, correction, cache, clip_negative_pressure)
+                                  viscosity, boundary_state, correction, cache,
+                                  clip_negative_pressure)
     end
 end
 
@@ -88,6 +96,7 @@ end
                                 smoothing_kernel=system_smoothing_kernel(fluid_system),
                                 smoothing_length=initial_smoothing_length(fluid_system),
                                 viscosity=nothing,
+                                boundary_state=nothing,
                                 state_equation=system_state_equation(fluid_system),
                                 correction=system_correction(fluid_system),
                                 clip_negative_pressure=false,
@@ -105,6 +114,7 @@ function BoundaryModelDummyParticles(initial_condition;
                                      smoothing_kernel=system_smoothing_kernel(fluid_system),
                                      smoothing_length=initial_smoothing_length(fluid_system),
                                      viscosity=nothing,
+                                     boundary_state=nothing,
                                      state_equation=system_state_equation(fluid_system),
                                      correction=system_correction(fluid_system),
                                      clip_negative_pressure=false,
@@ -112,7 +122,8 @@ function BoundaryModelDummyParticles(initial_condition;
     return BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                        boundary_density_calculator, smoothing_kernel,
                                        smoothing_length;
-                                       viscosity, state_equation, correction,
+                                       viscosity, boundary_state, state_equation,
+                                       correction,
                                        clip_negative_pressure,
                                        reference_particle_spacing)
 end
@@ -122,6 +133,7 @@ end
 function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                      density_calculator, smoothing_kernel,
                                      smoothing_length; viscosity=nothing,
+                                     boundary_state=nothing,
                                      state_equation=nothing,
                                      density_correction=nothing,
                                      gradient_correction=nothing,
@@ -152,8 +164,122 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
 
     return BoundaryModelDummyParticles(pressure, hydrodynamic_mass, state_equation,
                                        density_calculator, smoothing_kernel,
-                                       smoothing_length, viscosity, correction, cache,
-                                       clip_negative_pressure)
+                                       smoothing_length, viscosity, boundary_state,
+                                       correction, cache, clip_negative_pressure)
+end
+
+@doc raw"""
+    BoundaryStateWallRiemann(; contact_distance_ratio=nothing)
+
+Pairwise, free-slip wall state based on the linearized acoustic Riemann problem. The ghost
+velocity mirrors the fluid velocity about the physical wall velocity in the wall-normal
+direction. For approaching fluid, the boundary pressure receives the corresponding acoustic
+impedance contribution. Receding fluid receives no tensile pressure correction, allowing it
+to separate from the wall.
+
+Static [`WallBoundarySystem`](@ref)s use reference surface normals when available, oriented
+towards the interacting fluid particle. Other systems use the boundary-to-fluid pair
+direction by default. A [`TotalLagrangianSPHSystem`](@ref) can instead provide reference
+surface normals, which are mapped to the deformed configuration.
+
+Set `contact_distance_ratio` to a nonnegative value to use the Riemann state as a
+unilateral contact condition. In this mode, the extrapolated pressure first cancels any
+attractive fluid-wall pressure. Acoustic pressure and velocity reflection are then applied
+only to approaching particles within `contact_distance_ratio` boundary-particle spacings
+of the physical wall. Locating that surface requires reference normals whose magnitudes
+encode the boundary-particle offset from the surface, as generated by
+[`RectangularTank`](@ref). Systems without this geometry fall back to the standard Riemann
+state.
+"""
+struct BoundaryStateWallRiemann{CONTACT_DISTANCE_RATIO}
+    contact_distance_ratio::CONTACT_DISTANCE_RATIO
+end
+
+function BoundaryStateWallRiemann(; contact_distance_ratio=nothing)
+    if !isnothing(contact_distance_ratio)
+        isfinite(contact_distance_ratio) && contact_distance_ratio >= 0 ||
+            throw(ArgumentError("`contact_distance_ratio` must be finite and nonnegative"))
+    end
+
+    return BoundaryStateWallRiemann(contact_distance_ratio)
+end
+
+@propagate_inbounds function apply_wall_boundary_state(p_boundary, v_boundary,
+                                                       boundary_model::BoundaryModelDummyParticles,
+                                                       fluid_system, boundary_system,
+                                                       fluid_particle, boundary_particle,
+                                                       p_fluid, rho_fluid, v_fluid,
+                                                       pos_diff, distance, sound_speed)
+    return apply_wall_boundary_state(p_boundary, v_boundary,
+                                     boundary_model.boundary_state,
+                                     fluid_system, boundary_system,
+                                     fluid_particle, boundary_particle,
+                                     p_fluid, rho_fluid, v_fluid, pos_diff,
+                                     distance, sound_speed)
+end
+
+@inline function apply_wall_boundary_state(p_boundary, v_boundary, ::Nothing,
+                                           fluid_system, boundary_system,
+                                           fluid_particle, boundary_particle,
+                                           p_fluid, rho_fluid, v_fluid, pos_diff,
+                                           distance, sound_speed)
+    return p_boundary, v_boundary
+end
+
+@propagate_inbounds function apply_wall_boundary_state(p_boundary, v_boundary,
+                                                       ::BoundaryStateWallRiemann{Nothing},
+                                                       fluid_system, boundary_system,
+                                                       fluid_particle, boundary_particle,
+                                                       p_fluid, rho_fluid, v_fluid,
+                                                       pos_diff, distance, sound_speed)
+    normal = boundary_state_normal(boundary_system, boundary_particle, pos_diff, distance)
+    relative_normal_velocity = dot(v_fluid - v_boundary, normal)
+
+    # Mirroring creates two acoustic states whose average normal velocity is the wall
+    # velocity. The factor two in the pressure state is the matching reflected-wave jump.
+    approaching_velocity = min(relative_normal_velocity, zero(relative_normal_velocity))
+    p_boundary -= 2 * rho_fluid * sound_speed * approaching_velocity
+    v_boundary = v_fluid - 2 * relative_normal_velocity * normal
+
+    return p_boundary, v_boundary
+end
+
+@propagate_inbounds function apply_wall_boundary_state(p_boundary, v_boundary,
+                                                       boundary_state::BoundaryStateWallRiemann,
+                                                       fluid_system, boundary_system,
+                                                       fluid_particle, boundary_particle,
+                                                       p_fluid, rho_fluid, v_fluid,
+                                                       pos_diff, distance, sound_speed)
+    normal, surface_distance, boundary_spacing,
+    has_surface_geometry = boundary_state_contact_geometry(boundary_system,
+                                                           boundary_particle,
+                                                           pos_diff, distance)
+    relative_normal_velocity = dot(v_fluid - v_boundary, normal)
+
+    if !has_surface_geometry
+        approaching_velocity = min(relative_normal_velocity,
+                                   zero(relative_normal_velocity))
+        p_boundary -= 2 * rho_fluid * sound_speed * approaching_velocity
+        v_boundary = v_fluid - 2 * relative_normal_velocity * normal
+        return p_boundary, v_boundary
+    end
+
+    # A non-adhesive wall must not pull an under-pressurized fluid particle into the solid.
+    p_boundary = max(p_boundary, -p_fluid)
+    contact_distance = boundary_state.contact_distance_ratio * boundary_spacing
+    approaching = relative_normal_velocity < zero(relative_normal_velocity)
+    (!approaching || surface_distance > contact_distance) && return p_boundary, v_boundary
+
+    p_boundary -= 2 * rho_fluid * sound_speed * relative_normal_velocity
+    v_boundary = v_fluid - 2 * relative_normal_velocity * normal
+
+    return p_boundary, v_boundary
+end
+
+@inline function boundary_state_contact_geometry(boundary_system, boundary_particle,
+                                                 pos_diff, distance)
+    normal = boundary_state_normal(boundary_system, boundary_particle, pos_diff, distance)
+    return normal, zero(distance), zero(distance), false
 end
 
 @inline function default_reference_particle_spacing(fluid_system)

@@ -51,6 +51,13 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         p_a = @inbounds current_pressure(v_particle_system, particle_system, particle)
         p_b = @inbounds neighbor_pressure(v_neighbor_system, neighbor_system, neighbor, p_a)
+        p_b,
+        v_b = @inbounds apply_wall_boundary_state(p_b, v_b,
+                                                  system_boundary_model(neighbor_system),
+                                                  particle_system,
+                                                  neighbor_system, particle, neighbor, p_a,
+                                                  rho_a, v_a, pos_diff,
+                                                  distance, sound_speed)
 
         # This technique by Basa et al. 2017 (10.1002/fld.1927) aims to reduce numerical
         # errors due to large pressures by subtracting the average pressure of neighboring
@@ -110,8 +117,6 @@ function interact!(dv, v_particle_system, u_particle_system,
             @inbounds dv[i, particle] += dv_particle[i]
         end
 
-        v_a = current_velocity(v_particle_system, particle_system, particle)
-        v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
         v_diff = v_a - v_b
 
         pressure_evolution!(dv, particle_system, neighbor_system, v_diff, grad_kernel,

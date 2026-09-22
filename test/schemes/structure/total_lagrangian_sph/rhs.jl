@@ -279,4 +279,88 @@
                                 density * pos_diff)
         @test boundary_model.pressure[1] ≈ expected_pressure
     end
+
+    @testset "Surface-only wall Riemann coupling" begin
+        spacing = 0.1
+        fluid_density = 1000.0
+        structure_density = 1200.0
+        smoothing_kernel = WendlandC2Kernel{2}()
+        smoothing_length = spacing
+        source_acceleration = SVector(0.25, -0.5)
+        state_equation = StateEquationCole(; sound_speed=10.0,
+                                           reference_density=fluid_density,
+                                           exponent=7.0)
+
+        @testset "$fluid_kind" for fluid_kind in (:wcsph, :edac)
+            fluid_initial = InitialCondition(; coordinates=reshape([0.0, spacing], 2, 1),
+                                             velocity=reshape([0.0, -1.0], 2, 1),
+                                             density=fluid_density,
+                                             particle_spacing=spacing)
+            fluid = if fluid_kind === :wcsph
+                WeaklyCompressibleSPHSystem(fluid_initial; smoothing_kernel,
+                                            smoothing_length,
+                                            density_calculator=ContinuityDensity(),
+                                            state_equation)
+            else
+                EntropicallyDampedSPHSystem(fluid_initial; smoothing_kernel,
+                                            smoothing_length,
+                                            density_calculator=ContinuityDensity(),
+                                            sound_speed=10.0)
+            end
+
+            structure_coordinates = [0.0 0.05
+                                     0.0 0.0]
+            structure_normals = [0.0 0.0
+                                 1.0 0.0]
+            structure_initial = InitialCondition(; coordinates=structure_coordinates,
+                                                 density=structure_density,
+                                                 particle_spacing=spacing,
+                                                 normals=structure_normals)
+            hydrodynamic_mass = fill(fluid_density * spacing^2, 2)
+            boundary_model = BoundaryModelDummyParticles(fill(fluid_density, 2),
+                                                         hydrodynamic_mass,
+                                                         AdamiPressureExtrapolation(),
+                                                         smoothing_kernel, smoothing_length;
+                                                         state_equation,
+                                                         boundary_state=BoundaryStateWallRiemann())
+            source_terms = (coords, velocity, density, pressure, t) -> source_acceleration
+            structure = TotalLagrangianSPHSystem(structure_initial; smoothing_kernel,
+                                                 smoothing_length,
+                                                 young_modulus=0.0, poisson_ratio=0.0,
+                                                 boundary_model, source_terms,
+                                                 hydrodynamic_boundary_particles=[1])
+
+            semi = Semidiscretization(fluid, structure; neighborhood_search=nothing,
+                                      parallelization_backend=SerialBackend())
+            ode = semidiscretize(semi, (0.0, 0.01); reset_threads=false)
+            fluid, structure = ode.p.semi.systems
+            v_ode, u_ode = ode.u0.x
+            dv_ode = zero(v_ode)
+            TrixiParticles.kick!(dv_ode, v_ode, u_ode, ode.p, 0.0)
+
+            dv_fluid = TrixiParticles.wrap_v(dv_ode, fluid, ode.p.semi)
+            dv_structure = TrixiParticles.wrap_v(dv_ode, structure, ode.p.semi)
+            fluid_force = fluid.mass[1] * dv_fluid[1:2, 1]
+            structure_force = sum(eachparticle(structure)) do particle
+                structure.mass[particle] *
+                (dv_structure[1:2, particle] - source_acceleration)
+            end
+
+            @test dv_fluid[2, 1] > 0
+            @test dv_fluid[end, 1] > 0
+            @test dv_structure[:, 2] ≈ source_acceleration
+            @test fluid_force≈-structure_force rtol=5e-13 atol=5e-13
+            @test TrixiParticles.current_acceleration(structure, 1) ≈
+                  dv_structure[:, 1]
+            @test TrixiParticles.current_acceleration(structure, 2) ≈
+                  source_acceleration
+            @test TrixiParticles.is_hydrodynamic_particle(structure, 1)
+            @test !TrixiParticles.is_hydrodynamic_particle(structure, 2)
+
+            structure.deformation_grad[:, :, 1] .= [1.0 0.0; 1.0 1.0]
+            normal = TrixiParticles.boundary_state_normal(structure, 1,
+                                                          SVector(0.0, 1.0), 1.0)
+            @test normal ≈ normalize(SVector(-1.0, 1.0))
+        end
+    end
 end;

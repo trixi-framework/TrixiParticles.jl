@@ -94,7 +94,8 @@ export ArtificialViscosityMonaghan, ViscosityAdami, ViscosityMorris, ViscosityAd
 export DensityDiffusionMolteniColagrossi, DensityDiffusionFerrari, DensityDiffusionAntuono
 export tensile_instability_control
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
-       PressureMirroring, PressureZeroing, BoundaryModelCharacteristicsLastiwka,
+       BoundaryStateWallRiemann, PressureMirroring, PressureZeroing,
+       BoundaryModelCharacteristicsLastiwka,
        BoundaryModelMirroringTafuni, BoundaryModelDynamicalPressureZhang,
        BernoulliPressureExtrapolation, PressureBoundaries
 export FirstOrderMirroring, ZerothOrderMirroring, SimpleMirroring

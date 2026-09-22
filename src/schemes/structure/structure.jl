@@ -70,13 +70,20 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
         p_fluid = current_pressure(v_neighbor_system, neighbor_system, neighbor)
         p_boundary = neighbor_pressure(v_particle_system, particle_system, particle,
                                        p_fluid)
+        fluid_pos_diff = -pos_diff
+        p_boundary,
+        v_boundary_state = apply_wall_boundary_state(p_boundary, v_a,
+                                                     system_boundary_model(particle_system),
+                                                     neighbor_system,
+                                                     particle_system, neighbor, particle,
+                                                     p_fluid, rho_b, v_b,
+                                                     fluid_pos_diff, distance, sound_speed)
         p_avg = pair_pressure_offset(neighbor_system, particle_system, neighbor, particle)
 
         # Reconstruct the fluid-oriented pair exactly as in the fluid-structure interaction.
         # Corrected gradients are generally not odd, so evaluating the fluid gradient at the
         # reversed displacement would not yield the reaction force. Instead, compute the fluid
         # acceleration with the same orientation and apply its exact negative to the structure.
-        fluid_pos_diff = -pos_diff
         fluid_grad_kernel = local_smoothing_kernel_grad_unsafe(zero_distance_mode,
                                                                neighbor_system,
                                                                fluid_pos_diff,
@@ -97,7 +104,8 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
                                        v_neighbor_system, v_particle_system,
                                        neighbor, particle, pos_diff, distance,
                                        sound_speed, m_b, m_a, rho_b, rho_a,
-                                       v_b, v_a, grad_kernel, viscosity_correction)
+                                       v_b, v_boundary_state, grad_kernel,
+                                       viscosity_correction)
 
         dv_particle = add_dv_adhesion(dv_particle, surface_tension,
                                       neighbor_system, particle_system,
