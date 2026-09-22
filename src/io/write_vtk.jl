@@ -508,6 +508,22 @@ function write2vtk!(vtk, v, u, t, system::WallBoundarySystem)
     write2vtk!(vtk, v, u, t, system.boundary_model, system)
 end
 
+function write2vtk!(vtk, v, u, t,
+                    system::WallBoundarySystem{BM, ELTYPE, NDIMS, IC, CO, M, IM,
+                                               CA}) where {BM, ELTYPE <: Real, NDIMS, IC,
+                                                           CO,
+                                                           M <: BoundaryAttachment, IM, CA}
+    vtk["velocity"] = [current_velocity(v, system, particle)
+                       for particle in eachparticle(system)]
+    vtk["acceleration"] = [current_acceleration(system, particle)
+                           for particle in eachparticle(system)]
+    vtk["normal"] = system.cache.normals
+    vtk["reaction_force"] = system.cache.reaction_force
+    vtk["parent_system_index"] = fill(parent_system_index(system.prescribed_motion),
+                                      nparticles(system))
+    write2vtk!(vtk, v, u, t, system.boundary_model, system)
+end
+
 function write2vtk!(vtk, v, u, t, model::Nothing, system)
     return vtk
 end

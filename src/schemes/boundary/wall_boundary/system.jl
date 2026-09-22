@@ -1,4 +1,103 @@
 """
+    BoundaryAttachment(parent_system_index, parent_particles, parent_weights,
+                       n_parent_particles)
+
+Attach a [`WallBoundarySystem`](@ref) to a preceding
+[`TotalLagrangianSPHSystem`](@ref) in the same semidiscretization.
+
+Each column of `parent_particles` lists the structural particles supporting one boundary
+particle, with matching interpolation weights in `parent_weights`. Zero weights are ignored.
+The nonzero weights in every column must be nonnegative and sum to one. This affine mapping
+is used for boundary positions, velocities, and accelerations. Pair forces are transferred
+back with the transpose mapping, which preserves resultant force and moment.
+
+Pass the resulting attachment as the `prescribed_motion` keyword of `WallBoundarySystem`.
+The parent system must appear before the attached wall system and must disable direct
+hydrodynamic coupling by using `hydrodynamic_boundary_particles=Int[]`.
+"""
+struct BoundaryAttachment{PARENT_SYSTEM_INDEX, PI, PW, GP, GW}
+    parent_particles          :: PI
+    parent_weights            :: PW
+    ghost_particles_by_parent :: GP
+    ghost_weights_by_parent   :: GW
+end
+
+@inline function parent_system_index(::BoundaryAttachment{PARENT_SYSTEM_INDEX}) where {PARENT_SYSTEM_INDEX}
+    return PARENT_SYSTEM_INDEX
+end
+
+function BoundaryAttachment(parent_system_index, parent_particles, parent_weights,
+                            n_parent_particles)
+    parent_system_index isa Integer ||
+        throw(ArgumentError("`parent_system_index` must be an integer"))
+    parent_system_index > 0 ||
+        throw(ArgumentError("`parent_system_index` must be positive"))
+    n_parent_particles isa Integer ||
+        throw(ArgumentError("`n_parent_particles` must be an integer"))
+    n_parent_particles > 0 ||
+        throw(ArgumentError("`n_parent_particles` must be positive"))
+    size(parent_particles) == size(parent_weights) ||
+        throw(ArgumentError("`parent_particles` and `parent_weights` must have the same size"))
+    size(parent_particles, 2) > 0 ||
+        throw(ArgumentError("an attachment requires at least one boundary particle"))
+
+    parent_particles_ = Int.(parent_particles)
+    parent_weights_ = float.(parent_weights)
+    counts = zeros(Int, n_parent_particles)
+
+    for ghost in axes(parent_particles_, 2)
+        weight_sum = zero(eltype(parent_weights_))
+        for support in axes(parent_particles_, 1)
+            weight = parent_weights_[support, ghost]
+            isfinite(weight) || throw(ArgumentError("attachment weights must be finite"))
+            weight >= zero(weight) ||
+                throw(ArgumentError("attachment weights must be nonnegative"))
+            iszero(weight) && continue
+
+            parent = parent_particles_[support, ghost]
+            1 <= parent <= n_parent_particles ||
+                throw(BoundsError(parent_particles_, (support, ghost)))
+            counts[parent] += 1
+            weight_sum += weight
+        end
+
+        isapprox(weight_sum, one(weight_sum); rtol=sqrt(eps(weight_sum)),
+                 atol=sqrt(eps(weight_sum))) ||
+            throw(ArgumentError("attachment weights for boundary particle $ghost must sum to one"))
+    end
+
+    max_ghosts_per_parent = maximum(counts; init=0)
+    ghost_particles_by_parent = zeros(Int, max_ghosts_per_parent, n_parent_particles)
+    ghost_weights_by_parent = zeros(eltype(parent_weights_), max_ghosts_per_parent,
+                                    n_parent_particles)
+    next_slot = ones(Int, n_parent_particles)
+
+    for ghost in axes(parent_particles_, 2), support in axes(parent_particles_, 1)
+        weight = parent_weights_[support, ghost]
+        iszero(weight) && continue
+
+        parent = parent_particles_[support, ghost]
+        slot = next_slot[parent]
+        ghost_particles_by_parent[slot, parent] = ghost
+        ghost_weights_by_parent[slot, parent] = weight
+        next_slot[parent] += 1
+    end
+
+    return BoundaryAttachment{parent_system_index, typeof(parent_particles_),
+                              typeof(parent_weights_), typeof(ghost_particles_by_parent),
+                              typeof(ghost_weights_by_parent)}(parent_particles_,
+                                                               parent_weights_,
+                                                               ghost_particles_by_parent,
+                                                               ghost_weights_by_parent)
+end
+
+@inline function initialize_prescribed_motion!(attachment::BoundaryAttachment,
+                                               initial_condition,
+                                               n_clamped_particles=nparticles(initial_condition))
+    return attachment
+end
+
+"""
     WallBoundarySystem(initial_condition, boundary_model;
                        prescribed_motion=nothing, adhesion_coefficient=0.0,
                        color_value=0)
@@ -58,6 +157,17 @@ function WallBoundarySystem(initial_condition, model; prescribed_motion=nothing,
 end
 
 create_cache_boundary(::Nothing, initial_condition) = (;)
+
+function create_cache_boundary(::BoundaryAttachment, initial_condition)
+    isnothing(initial_condition.normals) &&
+        throw(ArgumentError("an attached boundary requires reference normals"))
+
+    return (; initial_coordinates=copy(initial_condition.coordinates),
+            velocity=zero(initial_condition.velocity),
+            acceleration=zero(initial_condition.velocity),
+            normals=copy(initial_condition.normals),
+            reaction_force=zero(initial_condition.velocity))
+end
 
 function create_cache_boundary(prescribed_motion::PrescribedMotion, initial_condition)
     initial_coordinates = copy(initial_condition.coordinates)
@@ -122,6 +232,10 @@ end
     return zero(SVector{ndims(system), eltype(system)})
 end
 
+@inline function current_velocity(v, system, ::BoundaryAttachment, particle)
+    return extract_svector(system.cache.velocity, system, particle)
+end
+
 @inline function current_velocity(v, system::WallBoundarySystem)
     error("`current_velocity(v, system)` is not implemented for `WallBoundarySystem`")
 end
@@ -143,6 +257,11 @@ end
 
 @inline function current_acceleration(system::WallBoundarySystem, ::Nothing, particle)
     return zero(SVector{ndims(system), eltype(system)})
+end
+
+@inline function current_acceleration(system::WallBoundarySystem,
+                                      ::BoundaryAttachment, particle)
+    return extract_svector(system.cache.acceleration, system, particle)
 end
 
 @propagate_inbounds function boundary_state_normal(system::WallBoundarySystem, particle,
@@ -225,6 +344,14 @@ end
     return dot(normal, pos_diff) < 0 ? -normal : normal
 end
 
+@propagate_inbounds function wall_boundary_state_normal(system, ::BoundaryAttachment,
+                                                        particle, pos_diff, distance)
+    normal = extract_svector(system.cache.normals, system, particle)
+    normal_norm2 = dot(normal, normal)
+    normal_norm2 > eps(normal_norm2) || return pos_diff / distance
+    return normal
+end
+
 @propagate_inbounds function viscous_velocity(v, system::WallBoundarySystem,
                                               particle, v_particle)
     return viscous_velocity(v, system.boundary_model.viscosity, system,
@@ -273,7 +400,16 @@ end
 function update_positions!(system::WallBoundarySystem, v, u, v_ode, u_ode, semi, t)
     (; prescribed_motion) = system
 
-    apply_prescribed_motion!(system, prescribed_motion, semi, t)
+    update_boundary_positions!(system, prescribed_motion, v_ode, u_ode, semi, t)
+end
+
+@inline function update_boundary_positions!(system, ::Nothing, v_ode, u_ode, semi, t)
+    return system
+end
+
+@inline function update_boundary_positions!(system, prescribed_motion::PrescribedMotion,
+                                            v_ode, u_ode, semi, t)
+    return apply_prescribed_motion!(system, prescribed_motion, semi, t)
 end
 
 function apply_prescribed_motion!(system::WallBoundarySystem,
@@ -295,8 +431,34 @@ end
 function update_quantities!(system::WallBoundarySystem, v, u, v_ode, u_ode, semi, t)
     (; boundary_model) = system
 
+    update_boundary_normals!(system, system.prescribed_motion, semi)
     update_density!(boundary_model, system, v, u, v_ode, u_ode, semi)
 
+    return system
+end
+
+@inline update_boundary_normals!(system, prescribed_motion, semi) = system
+
+function reset_interaction_caches!(system::WallBoundarySystem)
+    reset_boundary_interaction_cache!(system, system.prescribed_motion)
+    return system
+end
+
+@inline reset_boundary_interaction_cache!(system, prescribed_motion) = system
+
+function reset_boundary_interaction_cache!(system, ::BoundaryAttachment)
+    set_zero!(system.cache.reaction_force)
+    return system
+end
+
+function finalize_interaction!(system::WallBoundarySystem, dv, v, u,
+                               dv_ode, v_ode, u_ode, semi)
+    return finalize_boundary_interaction!(system, system.prescribed_motion,
+                                          dv_ode, v_ode, u_ode, semi)
+end
+
+@inline function finalize_boundary_interaction!(system, prescribed_motion,
+                                                dv_ode, v_ode, u_ode, semi)
     return system
 end
 
@@ -468,6 +630,12 @@ function Base.show(io::IO, system::WallBoundarySystem)
     print(io, ") with ", nparticles(system), " particles")
 end
 
+@inline movement_name(::Nothing) = "nothing"
+@inline movement_name(motion::PrescribedMotion) = string(motion.movement_function)
+@inline function movement_name(attachment::BoundaryAttachment)
+    return "attached to system $(parent_system_index(attachment))"
+end
+
 function Base.show(io::IO, ::MIME"text/plain", system::WallBoundarySystem)
     @nospecialize system # reduce precompilation time
 
@@ -477,9 +645,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::WallBoundarySystem)
         summary_header(io, "WallBoundarySystem{$(ndims(system))}")
         summary_line(io, "#particles", nparticles(system))
         summary_line(io, "boundary model", system.boundary_model)
-        summary_line(io, "movement function",
-                     isnothing(system.prescribed_motion) ? "nothing" :
-                     string(system.prescribed_motion.movement_function))
+        summary_line(io, "movement function", movement_name(system.prescribed_motion))
         summary_line(io, "adhesion coefficient", system.adhesion_coefficient)
         summary_line(io, "color", system.cache.color)
         summary_footer(io)
@@ -504,4 +670,8 @@ function check_configuration(system::WallBoundarySystem, systems, nhs)
                                 "setting a `state_equation` for all boundary models"))
         end
     end
+
+    check_boundary_attachment(system, system.prescribed_motion, systems)
 end
+
+@inline check_boundary_attachment(system, prescribed_motion, systems) = system

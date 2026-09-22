@@ -17,6 +17,186 @@ end
     end
 end
 
+@propagate_inbounds function accumulate_structure_fluid_pair!(dv, dv_fs,
+                                                              particle_system::WallBoundarySystem,
+                                                              particle, m_b)
+    reaction_force = particle_system.cache.reaction_force
+    for dim in eachindex(dv_fs)
+        reaction_force[dim, particle] += dv_fs[dim] * m_b
+    end
+end
+
+function interact!(dv, v_particle_system, u_particle_system,
+                   v_neighbor_system, u_neighbor_system,
+                   particle_system::WallBoundarySystem{BM, ELTYPE, NDIMS, IC, CO, M, IM,
+                                                       CA},
+                   neighbor_system::AbstractFluidSystem,
+                   semi) where {DC <: AdamiPressureExtrapolation,
+                                BM <: BoundaryModelDummyParticles{DC}, ELTYPE, NDIMS, IC,
+                                CO, M <: BoundaryAttachment, IM, CA}
+    return interact_structure_fluid!(dv, v_particle_system, u_particle_system,
+                                     v_neighbor_system, u_neighbor_system,
+                                     particle_system, neighbor_system, semi;
+                                     eachparticle=eachparticle(particle_system))
+end
+
+@inline function add_continuity_equation(drho_particle,
+                                         particle_system::WallBoundarySystem,
+                                         neighbor_system::AbstractFluidSystem,
+                                         particle, neighbor, pos_diff, distance,
+                                         m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+    return drho_particle
+end
+
+@inline function attachment_parent(attachment::BoundaryAttachment, semi)
+    return semi.systems[parent_system_index(attachment)]
+end
+
+function update_boundary_positions!(system, attachment::BoundaryAttachment,
+                                    v_ode, u_ode, semi, t)
+    parent = attachment_parent(attachment, semi)
+    v_parent = wrap_v(v_ode, parent, semi)
+    (; parent_particles, parent_weights) = attachment
+    (; coordinates, cache) = system
+    (; velocity, acceleration) = cache
+
+    @threaded semi for ghost in eachparticle(system)
+        ghost_coordinates = zero(extract_svector(coordinates, system, ghost))
+        ghost_velocity = zero(extract_svector(velocity, system, ghost))
+        ghost_acceleration = zero(extract_svector(acceleration, system, ghost))
+
+        for support in axes(parent_particles, 1)
+            weight = @inbounds parent_weights[support, ghost]
+            iszero(weight) && continue
+            parent_particle = @inbounds parent_particles[support, ghost]
+
+            ghost_coordinates += weight * current_coords(parent, parent_particle)
+            ghost_velocity += weight * current_velocity(v_parent, parent, parent_particle)
+            ghost_acceleration += weight * current_acceleration(parent, parent_particle)
+        end
+
+        for dim in 1:ndims(system)
+            @inbounds coordinates[dim, ghost] = ghost_coordinates[dim]
+            @inbounds velocity[dim, ghost] = ghost_velocity[dim]
+            @inbounds acceleration[dim, ghost] = ghost_acceleration[dim]
+        end
+    end
+
+    return system
+end
+
+function update_boundary_normals!(system, attachment::BoundaryAttachment, semi)
+    parent = attachment_parent(attachment, semi)
+    (; parent_particles, parent_weights) = attachment
+    reference_normals = system.initial_condition.normals
+    current_normals = system.cache.normals
+
+    @threaded semi for ghost in eachparticle(system)
+        deformation_gradient_ = zero(deformation_gradient(parent, 1))
+        for support in axes(parent_particles, 1)
+            weight = @inbounds parent_weights[support, ghost]
+            iszero(weight) && continue
+            parent_particle = @inbounds parent_particles[support, ghost]
+            deformation_gradient_ += weight * deformation_gradient(parent, parent_particle)
+        end
+
+        reference_normal = extract_svector(reference_normals, system, ghost)
+        determinant = det(deformation_gradient_)
+        valid_deformation = isfinite(determinant) &&
+                            abs(determinant) > sqrt(eps(one(determinant)))
+        current_normal = valid_deformation ?
+                         inv(deformation_gradient_)' * reference_normal : reference_normal
+        current_norm2 = dot(current_normal, current_normal)
+        if !(isfinite(current_norm2) && current_norm2 > eps(current_norm2))
+            current_normal = reference_normal
+            current_norm2 = dot(current_normal, current_normal)
+        end
+        current_normal /= sqrt(current_norm2)
+
+        for dim in 1:ndims(system)
+            @inbounds current_normals[dim, ghost] = current_normal[dim]
+        end
+    end
+
+    return system
+end
+
+function finalize_boundary_interaction!(system, attachment::BoundaryAttachment,
+                                        dv_ode, v_ode, u_ode, semi)
+    parent = attachment_parent(attachment, semi)
+    dv_parent = wrap_v(dv_ode, parent, semi)
+    reaction_force = system.cache.reaction_force
+    (; ghost_particles_by_parent, ghost_weights_by_parent) = attachment
+
+    @threaded semi for parent_particle in each_integrated_particle(parent)
+        force = zero(extract_svector(dv_parent, parent, parent_particle))
+        for slot in axes(ghost_particles_by_parent, 1)
+            ghost = @inbounds ghost_particles_by_parent[slot, parent_particle]
+            iszero(ghost) && continue
+            weight = @inbounds ghost_weights_by_parent[slot, parent_particle]
+            force += weight * extract_svector(reaction_force, system, ghost)
+        end
+
+        for dim in 1:ndims(parent)
+            @inbounds dv_parent[dim,
+                                parent_particle] += force[dim] /
+                                                    parent.mass[parent_particle]
+        end
+    end
+
+    update_fsi_acceleration!(parent, dv_parent, semi)
+    return system
+end
+
+function check_boundary_attachment(system, attachment::BoundaryAttachment, systems)
+    parent_index = parent_system_index(attachment)
+    parent_index <= length(systems) ||
+        throw(ArgumentError("attached boundary parent system index $parent_index is out of bounds"))
+    parent = systems[parent_index]
+    parent isa TotalLagrangianSPHSystem ||
+        throw(ArgumentError("an attached boundary parent must be a `TotalLagrangianSPHSystem`"))
+    ndims(parent) == ndims(system) ||
+        throw(ArgumentError("an attached boundary and its parent must have the same number of dimensions"))
+
+    system_index = findfirst(candidate -> candidate === system, systems)
+    parent_index < system_index ||
+        throw(ArgumentError("the parent `TotalLagrangianSPHSystem` must precede its attached boundary"))
+    system.boundary_model isa BoundaryModelDummyParticles{<:AdamiPressureExtrapolation} ||
+        throw(ArgumentError("an attached boundary currently requires `AdamiPressureExtrapolation`"))
+    any(parent.hydrodynamic_boundary) &&
+        throw(ArgumentError("the attached parent must use `hydrodynamic_boundary_particles=Int[]` " *
+                            "to avoid duplicate fluid coupling"))
+
+    size(attachment.parent_particles, 2) == nparticles(system) ||
+        throw(ArgumentError("the attachment map must have one column per boundary particle"))
+    size(attachment.ghost_particles_by_parent, 2) == nparticles(parent) ||
+        throw(ArgumentError("the attachment reverse map must have one column per parent particle"))
+
+    for ghost in eachparticle(system)
+        reference_normal = extract_svector(system.initial_condition.normals, system, ghost)
+        normal_norm2 = dot(reference_normal, reference_normal)
+        isfinite(normal_norm2) && normal_norm2 > eps(normal_norm2) ||
+            throw(ArgumentError("attached boundary particle $ghost requires a finite, nonzero reference normal"))
+
+        for dim in 1:ndims(system)
+            mapped_coordinate = zero(eltype(system))
+            for support in axes(attachment.parent_particles, 1)
+                weight = attachment.parent_weights[support, ghost]
+                iszero(weight) && continue
+                parent_particle = attachment.parent_particles[support, ghost]
+                mapped_coordinate += weight *
+                                     parent.initial_coordinates[dim, parent_particle]
+            end
+            coordinate = system.initial_condition.coordinates[dim, ghost]
+            isapprox(mapped_coordinate, coordinate; rtol=sqrt(eps(eltype(system))),
+                     atol=sqrt(eps(eltype(system)))) ||
+                throw(ArgumentError("attached boundary particle $ghost does not match its parent map"))
+        end
+    end
+
+    return system
+end
+
 function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
                                    v_neighbor_system, u_neighbor_system,
                                    particle_system,
