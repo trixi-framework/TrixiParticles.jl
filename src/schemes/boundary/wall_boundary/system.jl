@@ -45,6 +45,7 @@ end
 function WallBoundarySystem(initial_condition, model; prescribed_motion=nothing,
                             adhesion_coefficient=0.0, color_value=0)
     coordinates = copy(initial_condition.coordinates)
+    initialize_marrone!(model, initial_condition)
 
     ismoving = Ref(!isnothing(prescribed_motion))
     initialize_prescribed_motion!(prescribed_motion, initial_condition)
@@ -201,6 +202,8 @@ function apply_prescribed_motion!(system::WallBoundarySystem,
 
     @trixi_timeit timer() "apply prescribed motion" begin
         prescribed_motion(coordinates, velocity, acceleration, ismoving, system, semi, t)
+        update_marrone_interpolation_coordinates!(system, system.boundary_model,
+                                                  prescribed_motion, t, semi)
     end
 
     return system
@@ -310,8 +313,9 @@ function initialize_colorfield!(system, ::BoundaryModelDummyParticles, semi)
         set_zero!(cache.neighbor_count)
 
         foreach_point_neighbor(system, system, system_coords, system_coords, semi,
-                               points=eachparticle(system)) do particle, neighbor,
-                                                               pos_diff, distance
+                               points=eachparticle(system)
+                               ) do particle, neighbor,
+                                    pos_diff, distance
             cache.initial_colorfield[particle] += system.initial_condition.mass[particle] /
                                                   system.initial_condition.density[particle] *
                                                   system.cache.color *
@@ -399,5 +403,12 @@ function check_configuration(system::WallBoundarySystem, systems, nhs)
             throw(ArgumentError("`WeaklyCompressibleSPHSystem` cannot be used without " *
                                 "setting a `state_equation` for all boundary models"))
         end
+    end
+
+    if boundary_model isa BoundaryModelDummyParticles{MarronePressureExtrapolation} &&
+       first(PointNeighbors.requires_update(nhs))
+        throw(ArgumentError("`MarronePressureExtrapolation` requires a neighborhood " *
+                            "search supporting queries at arbitrary points, such as " *
+                            "`GridNeighborhoodSearch` or `TrivialNeighborhoodSearch`."))
     end
 end

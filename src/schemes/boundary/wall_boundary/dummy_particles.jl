@@ -185,6 +185,29 @@ struct BernoulliPressureExtrapolation{ELTYPE}
 end
 
 @doc raw"""
+    MarronePressureExtrapolation()
+
+Density calculator for [`BoundaryModelDummyParticles`](@ref) implementing the fixed ghost
+particle boundary condition by Marrone et al. The pressure at the point mirrored across
+the wall is extrapolated from the fluid with a first-order moving least-squares
+interpolant. A hydrostatic correction then transfers this pressure to the boundary
+particle.
+
+The mirrored points are constructed from the boundary initial condition as
+`coordinates - 2 * normals`. Thus, every boundary particle requires a nonzero normal
+pointing from the wall surface towards the boundary particle, whose length is the
+particle's distance from the surface. [`RectangularTank`](@ref) and
+other geometries using this convention can provide these normals. With
+[`PrescribedMotion`](@ref), the mirrored points follow the same motion as the boundary.
+
+If the local MLS moment matrix is singular, the method falls back to zeroth-order
+Shepard interpolation. This calculator requires a neighborhood search that supports
+queries at arbitrary points, such as [`GridNeighborhoodSearch`](@ref) or
+[`TrivialNeighborhoodSearch`](@ref).
+"""
+struct MarronePressureExtrapolation end
+
+@doc raw"""
     PressureMirroring()
 
 `density_calculator` for `BoundaryModelDummyParticles`.
@@ -296,6 +319,21 @@ function create_cache_model(initial_density::AbstractVector,
     return (; density, volume)
 end
 
+function create_cache_model(initial_density::AbstractVector,
+                            ::MarronePressureExtrapolation, NDIMS)
+    ELTYPE = eltype(initial_density)
+    n_particles = length(initial_density)
+    n_basis = NDIMS + 1
+
+    return (; density=copy(initial_density),
+            volume=zeros(ELTYPE, n_particles),
+            interpolation_coordinates=zeros(ELTYPE, NDIMS, n_particles),
+            initial_interpolation_coordinates=zeros(ELTYPE, NDIMS, n_particles),
+            moment_matrix=zeros(ELTYPE, n_basis, n_basis, n_particles),
+            pressure_rhs=zeros(ELTYPE, n_basis, n_particles),
+            velocity_rhs=zeros(ELTYPE, n_basis, NDIMS, n_particles))
+end
+
 @inline create_cache_model(viscosity::Nothing, n_particles, n_dims) = (;)
 
 function create_cache_model(viscosity, n_particles, n_dims)
@@ -355,7 +393,7 @@ end
                                  ::Union{SummationDensity, AdamiPressureExtrapolation,
                                          PressureMirroring, PressureZeroing,
                                          BernoulliPressureExtrapolation,
-                                         PressureBoundaries},
+                                         MarronePressureExtrapolation, PressureBoundaries},
                                  model::BoundaryModelDummyParticles)
     # When using `SummationDensity`, the density is stored in the cache
     return model.cache.density
@@ -383,6 +421,7 @@ end
 function compute_density!(boundary_model,
                           ::Union{ContinuityDensity, AdamiPressureExtrapolation,
                                   BernoulliPressureExtrapolation,
+                                  MarronePressureExtrapolation,
                                   PressureMirroring, PressureZeroing},
                           system, v, u, v_ode, u_ode, semi)
     # No density update for `ContinuityDensity`, `PressureMirroring` and `PressureZeroing`.
@@ -535,8 +574,7 @@ function compute_pressure!(boundary_model,
         end
     end
 
-    @trixi_timeit timer() "inverse state equation" @threaded semi for particle in
-                                                                      eachparticle(system)
+    @trixi_timeit timer() "inverse state equation" @threaded semi for particle in eachparticle(system)
         compute_adami_density!(boundary_model, system, v, particle)
     end
 end
@@ -596,8 +634,9 @@ end
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords, semi;
-                           points=eachparticle(system)) do particle, neighbor,
-                                                           pos_diff, distance
+                           points=eachparticle(system)
+                           ) do particle, neighbor,
+                                pos_diff, distance
         @inbounds boundary_pressure_inner!(boundary_model, density_calculator, system,
                                            neighbor_system, v, v_neighbor_system,
                                            particle, neighbor, pos_diff, distance,
@@ -623,8 +662,9 @@ end
     # This needs to be serial to avoid race conditions when writing into `system`
     foreach_point_neighbor(neighbor_system, system, neighbor_coords, system_coords, semi;
                            points=each_integrated_particle(neighbor_system),
-                           parallelization_backend=SerialBackend()) do neighbor, particle,
-                                                                       pos_diff, distance
+                           parallelization_backend=SerialBackend()
+                           ) do neighbor, particle,
+                                pos_diff, distance
         # Since neighbor and particle are switched
         pos_diff = -pos_diff
         @inbounds boundary_pressure_inner!(boundary_model, density_calculator, system,
