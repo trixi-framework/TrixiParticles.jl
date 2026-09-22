@@ -2,7 +2,8 @@
     SolutionSavingCallback(; interval::Integer=0, dt=0.0, save_times=Float64[],
                            save_initial_solution=true, save_final_solution=true,
                            output_directory="out", append_timestamp=false, prefix="",
-                           verbose=false, overwrite=false, max_coordinates=2^15,
+                           verbose=false, overwrite=false, compress=true,
+                           parallel_compression=false, max_coordinates=2^15,
                            custom_quantities...)
 
 
@@ -46,6 +47,10 @@ specific system, return `nothing`.
                                 provides a rolling checkpoint at each save interval.
                                 If `false` (default), files are not overwritten and an
                                 iteration postfix is appended for each interval.
+- `compress=true`:              Compress VTK data with zlib. This can also be a compression
+                                 level between `0` (disabled) and `9` (maximum compression).
+- `parallel_compression=false`: Compress supported VTK data arrays in parallel using Julia
+                                 threads. This only applies when compression is enabled.
 - `output_directory="out"`:     Directory to save the VTK files.
 - `append_timestamp=false`:     Append current timestamp to the output directory.
 - `prefix=""`:                  Prefix added to the filename.
@@ -83,7 +88,7 @@ saving_callback = SolutionSavingCallback(dt=0.1, my_custom_quantity=kinetic_ener
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-mutable struct SolutionSavingCallback{I, CQ}
+mutable struct SolutionSavingCallback{I, CQ, C}
     interval               :: I
     save_times             :: Vector{Float64}
     save_initial_solution  :: Bool
@@ -92,6 +97,8 @@ mutable struct SolutionSavingCallback{I, CQ}
     output_directory       :: String
     prefix                 :: String
     overwrite              :: Bool
+    compress               :: C
+    parallel_compression   :: Bool
     max_coordinates        :: Float64
     custom_quantities      :: CQ
     collection_initialized :: Bool
@@ -103,7 +110,8 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
                                 save_times=Float64[],
                                 save_initial_solution=true, save_final_solution=true,
                                 output_directory="out", append_timestamp=false,
-                                prefix="", verbose=false, overwrite=false,
+                                prefix="", verbose=false, overwrite=false, compress=true,
+                                parallel_compression=false,
                                 max_coordinates=Float64(2^15),
                                 custom_quantities...)
     save_times = sort!(collect(Float64.(save_times)))
@@ -124,6 +132,7 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
     solution_callback = SolutionSavingCallback(interval, save_times,
                                                save_initial_solution, save_final_solution,
                                                verbose, output_directory, prefix, overwrite,
+                                               compress, parallel_compression,
                                                max_coordinates, custom_quantities,
                                                false, -1, Ref("UnknownVersion"))
 
@@ -216,7 +225,7 @@ end
 # `affect!`
 function (solution_callback::SolutionSavingCallback)(integrator)
     (; interval, output_directory, custom_quantities, git_hash, verbose, overwrite,
-     prefix, max_coordinates) = solution_callback
+     prefix, compress, parallel_compression, max_coordinates) = solution_callback
 
     @trixi_timeit timer() "save solution" begin
         @trixi_timeit timer() "update dvdu" begin
@@ -247,7 +256,8 @@ function (solution_callback::SolutionSavingCallback)(integrator)
                    iter, overwrite,
                    append_collection=solution_callback.collection_initialized,
                    output_directory, prefix,
-                   git_hash=git_hash[], max_coordinates, custom_quantities...)
+                   git_hash=git_hash[], compress, parallel_compression, max_coordinates,
+                   custom_quantities...)
 
         solution_callback.collection_initialized = true
         solution_callback.latest_saved_iter = iter
