@@ -47,15 +47,16 @@ end
 
 # Real blade thickness profile along the flexible blade:
 # x = 0 is the attachment to the foot pocket, x = 1 is the blade tip.
-function real_thickness(x_normalized)
+function real_thickness(x_relative)
     real_thickness_at_attachment = 1.2e-3
     real_thickness_at_tip = 0.7e-3
+    taper_length = 0.522
 
     # `p = 1` is a linear profile.
     p = 1
 
     # Clamp to use constant material properties for the clamped part of the blade.
-    x_clamped = clamp(x_normalized, 0.0, 1.0)
+    x_clamped = clamp(x_relative / taper_length, 0.0, 1.0)
     return real_thickness_at_tip +
            (1 - x_clamped)^p * (real_thickness_at_attachment - real_thickness_at_tip)
 end

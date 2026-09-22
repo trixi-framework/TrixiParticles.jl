@@ -67,7 +67,7 @@ end
 function artificial_material_properties(x)
     x_relative = x - center[1]
 
-    real_blade_thickness = real_thickness(x_relative / blade_length)
+    real_blade_thickness = real_thickness(x_relative)
     real_width = blade_width(x_relative, max_blade_width)
     real_flexural_rigidity = real_modulus * real_width * real_blade_thickness^3 / 12
 
