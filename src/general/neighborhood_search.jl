@@ -750,6 +750,14 @@ function update_nhs!(neighborhood_search,
     return neighborhood_search
 end
 
+# Repulsive wall systems do not update TLSPH systems; both only interact with the fluid.
+function update_nhs!(neighborhood_search,
+                     system::WallBoundarySystem{<:BoundaryModelMonaghanKajtar},
+                     neighbor::TotalLagrangianSPHSystem,
+                     u_system, u_neighbor, semi)
+    return neighborhood_search
+end
+
 # -- Wall / wall interactions
 function update_nhs!(neighborhood_search,
                      system::WallBoundarySystem{<:BoundaryModelDummyParticles},

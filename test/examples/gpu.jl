@@ -168,7 +168,8 @@ end
         boundary_model = BoundaryModelDummyParticles(boundary_initial.density,
                                                      boundary_initial.mass,
                                                      SummationDensity(), smoothing_kernel,
-                                                     2spacing; state_equation, correction)
+                                                     2spacing; state_equation,
+                                                     gradient_correction=correction)
         boundary = WallBoundarySystem(boundary_initial, boundary_model)
         semi = Semidiscretization(fluid, boundary; neighborhood_search=nothing,
                                   parallelization_backend=backend)
