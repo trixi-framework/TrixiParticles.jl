@@ -1,6 +1,6 @@
 @doc raw"""
     BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing, mass;
-                                viscosity=nothing)
+                                viscosity=nothing, minimum_distance_ratio=0.01)
 
 Boundary model for [`WallBoundarySystem`](@ref).
 
@@ -12,12 +12,15 @@ Boundary model for [`WallBoundarySystem`](@ref).
 
 # Keywords
 - `viscosity`:  Free-slip (default) or no-slip condition. See description above for further
-                information.
+                 information.
+- `minimum_distance_ratio`: Lower bound for the distance from the force singularity,
+                            relative to the boundary particle spacing (default: 0.01).
 """
 struct BoundaryModelMonaghanKajtar{ELTYPE <: Real, VECTOR, V}
     K                         :: ELTYPE
     beta                      :: ELTYPE
     boundary_particle_spacing :: ELTYPE
+    minimum_distance_ratio    :: ELTYPE
     hydrodynamic_mass         :: VECTOR # Vector{ELTYPE}
     viscosity                 :: V
 end
@@ -25,10 +28,14 @@ end
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
 function BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing, mass;
-                                     viscosity=nothing)
+                                     viscosity=nothing, minimum_distance_ratio=0.01)
+    minimum_distance_ratio_ = convert(typeof(K), minimum_distance_ratio)
+    0 < minimum_distance_ratio_ <= 1 ||
+        throw(ArgumentError("`minimum_distance_ratio` must be in (0, 1]"))
+
     return BoundaryModelMonaghanKajtar(K, convert(typeof(K), beta),
                                        boundary_particle_spacing,
-                                       mass, viscosity)
+                                       minimum_distance_ratio_, mass, viscosity)
 end
 
 function Base.show(io::IO, model::BoundaryModelMonaghanKajtar)
@@ -52,7 +59,8 @@ end
                                                               TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
                                        particle, neighbor, m_a, m_b, p_a, p_b, rho_a, rho_b,
                                        pos_diff, distance, grad_kernel, correction)
-    (; K, beta, boundary_particle_spacing) = neighbor_system.boundary_model
+    (; K, beta, boundary_particle_spacing,
+     minimum_distance_ratio) = neighbor_system.boundary_model
 
     # This is `distance - boundary_particle_spacing` in the paper. This factor makes
     # the force grow infinitely close to the boundary, with a singularity where
@@ -63,7 +71,7 @@ end
     # In order to avoid this, we clip the force at a "large" value, large enough to prevent
     # penetration when a reasonable `K` is used, but small enough to not cause instabilites
     # or super small time steps.
-    distance_from_singularity = max(boundary_particle_spacing / 100,
+    distance_from_singularity = max(boundary_particle_spacing * minimum_distance_ratio,
                                     distance - boundary_particle_spacing)
 
     return K / beta^(ndims(particle_system) - 1) * pos_diff /
