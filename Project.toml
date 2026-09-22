@@ -46,7 +46,7 @@ TrixiParticlesOrdinaryDiffEqSymplecticRKExt = ["OrdinaryDiffEqSymplecticRK", "Or
 [compat]
 Accessors = "0.1.43"
 Adapt = "4"
-CSV = "0.10, 1"
+CSV = "1"
 CUDA = "6"
 DataFrames = "1.6"
 Dates = "1"
