@@ -295,6 +295,12 @@ function Base.union(initial_condition::InitialCondition, initial_conditions...)
     mass = vcat(initial_condition.mass, ic.mass[valid_particles])
     density = vcat(initial_condition.density, ic.density[valid_particles])
     pressure = vcat(initial_condition.pressure, ic.pressure[valid_particles])
+    normals = isnothing(initial_condition.normals) ? nothing :
+              hcat(initial_condition.normals, ic.coordinates[:, valid_particles])
+
+    normals = if !isnothing(initial_condition.normals) && !isnothing(ic.normals)
+        hcat(initial_condition.normals, ic.normals[:, valid_particles])
+    end
 
     normals = if !isnothing(initial_condition.normals) && !isnothing(ic.normals)
         hcat(initial_condition.normals, ic.normals[:, valid_particles])
