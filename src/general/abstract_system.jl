@@ -245,6 +245,7 @@ end
 
 @inline system_smoothing_kernel(system) = system.smoothing_kernel
 @inline system_correction(system) = nothing
+@inline system_correction_configuration(system) = nothing
 
 # Boundary model of systems that interact with fluids via dummy particles
 # (`WallBoundarySystem`, `TotalLagrangianSPHSystem`, `RigidBodySystem`), `nothing` otherwise
