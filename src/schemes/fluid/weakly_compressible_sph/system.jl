@@ -259,6 +259,10 @@ function system_correction(system::WeaklyCompressibleSPHSystem)
     correction_gradient(system.correction)
 end
 
+@inline function system_correction_configuration(system::WeaklyCompressibleSPHSystem)
+    return system.correction
+end
+
 @propagate_inbounds function current_velocity(v, system::WeaklyCompressibleSPHSystem)
     return current_velocity(v, system.density_calculator, system)
 end
