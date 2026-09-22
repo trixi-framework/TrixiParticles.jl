@@ -202,4 +202,81 @@
             end
         end
     end
+
+    @testset "Acceleration for boundary pressure extrapolation" begin
+        density = 1000.0
+        smoothing_kernel = WendlandC2Kernel{2}()
+        smoothing_length = 0.2
+        state_equation = StateEquationCole(; sound_speed=10.0,
+                                           reference_density=density,
+                                           exponent=7.0)
+        initial_condition = InitialCondition(; coordinates=zeros(2, 1),
+                                             density, mass=1.0,
+                                             particle_spacing=0.1)
+        boundary_model = BoundaryModelDummyParticles(initial_condition.density,
+                                                     initial_condition.mass,
+                                                     AdamiPressureExtrapolation(),
+                                                     smoothing_kernel,
+                                                     smoothing_length;
+                                                     state_equation)
+        constant_acceleration = SVector(0.5, -1.0)
+        source_acceleration = SVector(0.25, -0.5)
+        source_terms = (coords, velocity, density, pressure, t) -> source_acceleration
+        structure = TotalLagrangianSPHSystem(initial_condition; smoothing_kernel,
+                                             smoothing_length,
+                                             young_modulus=1.0,
+                                             poisson_ratio=0.25,
+                                             acceleration=constant_acceleration,
+                                             source_terms, boundary_model)
+
+        @test TrixiParticles.current_acceleration(structure, 1) ≈ constant_acceleration
+
+        interaction_acceleration = reshape([1.0, -2.0], 2, 1)
+        v = zeros(2, 1)
+        u = zeros(2, 1)
+        semi = DummySemidiscretization()
+        TrixiParticles.finalize_interaction!(structure, interaction_acceleration,
+                                             v, u, nothing, nothing, nothing, semi)
+        @test TrixiParticles.current_acceleration(structure, 1) ≈
+              interaction_acceleration[:, 1]
+
+        TrixiParticles.add_source_terms!(interaction_acceleration, v, u, structure,
+                                         semi, 0.0, true)
+        expected_acceleration = SVector(1.0, -2.0) + constant_acceleration +
+                                source_acceleration
+        @test TrixiParticles.current_acceleration(structure, 1) ≈ expected_acceleration
+
+        fluid_acceleration = SVector(-0.25, 0.75)
+        fluid_initial_condition = InitialCondition(; coordinates=reshape([0.2, -0.1],
+                                                                         2, 1),
+                                                   density, mass=1.0,
+                                                   particle_spacing=0.1)
+        fluid = WeaklyCompressibleSPHSystem(fluid_initial_condition; smoothing_kernel,
+                                            smoothing_length,
+                                            density_calculator=SummationDensity(),
+                                            state_equation,
+                                            acceleration=fluid_acceleration)
+        fluid.cache.density .= density
+        fluid.pressure .= 25.0
+        v_fluid = zeros(2, 1)
+        pos_diff = SVector(0.2, -0.1)
+        distance = norm(pos_diff)
+
+        TrixiParticles.set_zero!(boundary_model.pressure)
+        TrixiParticles.reset_cache!(boundary_model.cache, boundary_model.viscosity)
+        TrixiParticles.boundary_pressure_inner!(boundary_model,
+                                                boundary_model.density_calculator,
+                                                structure, fluid, v, v_fluid,
+                                                1, 1, pos_diff, distance,
+                                                boundary_model.viscosity,
+                                                boundary_model.cache,
+                                                boundary_model.pressure,
+                                                boundary_model.density_calculator.pressure_offset)
+        TrixiParticles.compute_adami_density!(boundary_model, structure, v, 1)
+
+        expected_pressure = fluid.pressure[1] +
+                            dot(fluid_acceleration - expected_acceleration,
+                                density * pos_diff)
+        @test boundary_model.pressure[1] ≈ expected_pressure
+    end
 end;

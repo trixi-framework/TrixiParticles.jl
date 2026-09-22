@@ -762,6 +762,9 @@ function add_source_terms!(dv, v, u, system::TotalLagrangianSPHSystem,
                            semi, t, integrate_tlsph)
     if integrate_tlsph
         add_source_terms_inner!(dv, v, u, system, semi, t)
+        # Boundary pressure extrapolation in the next explicit stage uses the complete
+        # wall acceleration, including constant and user-defined source terms.
+        update_fsi_acceleration!(system, dv, semi)
     end
 
     return dv
