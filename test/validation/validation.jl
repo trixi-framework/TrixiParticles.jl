@@ -135,4 +135,32 @@
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol) == 0
     end
+
+    @trixi_testset "vortex_street_2d" begin
+        # Use a very coarse resolution and a short `tspan` to keep the runtime low.
+        # At this resolution, the force coefficients are too noisy to extract a meaningful
+        # shedding frequency, but the velocity sensor in the wake of the cylinder still
+        # yields a clean oscillation, so we only validate the Strouhal number from `v_y`.
+        # Use `SerialUpdate()` to obtain consistent results when using multiple threads.
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(validation_dir(), "vortex_street_2d",
+                                                  "validation_vortex_street_2d.jl"),
+                                         resolution_factor=0.2, tspan=(0.0, 5.0),
+                                         update_strategy=SerialUpdate())
+        @test sol.retcode == ReturnCode.Success
+
+        # The vortex shedding is fully developed after about `t = 1.5`, which leaves about
+        # six shedding cycles to analyze.
+        # Not using `@trixi_test_nowarn` here because the plot script logs the computed
+        # quantities with `@info`.
+        trixi_include(@__MODULE__,
+                      joinpath(validation_dir(), "vortex_street_2d",
+                               "plot_vortex_street_reference_2d.jl"),
+                      directory="out", resolution_factor=0.2, t_start=2.0)
+
+        # For this coarse resolution and short analysis time, even small differences
+        # in the floating point results between platforms can shift the shedding frequency.
+        # Use a large tolerance to avoid cross-platform CI failures.
+        @test isapprox(strouhal_number, 0.2, atol=0.04)
+    end
 end
