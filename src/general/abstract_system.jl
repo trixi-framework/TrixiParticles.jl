@@ -44,6 +44,10 @@ end
 @inline each_active_particle(system) = each_active_particle(system, buffer(system))
 @inline each_active_particle(system, ::Nothing) = Base.OneTo(nparticles(system))
 
+# Particles participating in hydrodynamic interactions. This differs from
+# `each_active_particle` only for structures with a surface-only boundary model.
+@inline is_hydrodynamic_particle(system, particle) = true
+
 @inline function set_zero!(du)
     du .= zero(eltype(du))
 

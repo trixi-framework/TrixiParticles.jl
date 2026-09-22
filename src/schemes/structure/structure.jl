@@ -40,6 +40,8 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
     foreach_point_neighbor(particle_system, neighbor_system,
                            system_coords, neighbor_coords, semi;
                            points=eachparticle) do particle, neighbor, pos_diff, distance
+        is_hydrodynamic_particle(particle_system, particle) || return
+
         # Skip neighbors with the same position when both endpoint gradients are zero.
         # Note that `return` only exits the closure, i.e., skips the current neighbor.
         skip_zero_distance(zero_distance_mode, distance, almostzero) && return

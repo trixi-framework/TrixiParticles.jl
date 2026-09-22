@@ -43,6 +43,54 @@
             @test TrixiParticles.initial_smoothing_length(system) == smoothing_length
             @test system.acceleration == [0.0 for _ in 1:NDIMS]
             @test system.boundary_model == boundary_model
+            @test system.hydrodynamic_boundary == [true, true]
+            @test all(particle -> TrixiParticles.is_hydrodynamic_particle(system,
+                                                                          particle),
+                      eachparticle(system))
+        end
+
+        @testset "Hydrodynamic particle selection" begin
+            coordinates = [1.0 2.0 3.0 4.0
+                           0.0 0.0 0.0 0.0]
+            initial_condition = InitialCondition(; coordinates, mass=1.0, density=1000.0)
+            smoothing_kernel = WendlandC2Kernel{2}()
+            kwargs = (; smoothing_kernel, smoothing_length=0.2,
+                      young_modulus=2.5, poisson_ratio=0.25)
+
+            default_system = TotalLagrangianSPHSystem(initial_condition; kwargs...)
+            full_system = TotalLagrangianSPHSystem(initial_condition; kwargs...,
+                                                   hydrodynamic_boundary_particles=1:4)
+            empty_system = TotalLagrangianSPHSystem(initial_condition; kwargs...,
+                                                    hydrodynamic_boundary_particles=Int[])
+            subset_system = TotalLagrangianSPHSystem(initial_condition; kwargs...,
+                                                     hydrodynamic_boundary_particles=[2, 4])
+
+            @test default_system.hydrodynamic_boundary == fill(true, 4)
+            @test full_system.hydrodynamic_boundary == fill(true, 4)
+            @test empty_system.hydrodynamic_boundary == fill(false, 4)
+            @test subset_system.hydrodynamic_boundary == [false, true, false, true]
+
+            adapted_system = TrixiParticles.Adapt.adapt(Array, subset_system)
+            @test adapted_system.hydrodynamic_boundary == [false, true, false, true]
+
+            reordered_system = TotalLagrangianSPHSystem(initial_condition; kwargs...,
+                                                        clamped_particles=[2, 4],
+                                                        hydrodynamic_boundary_particles=[1,
+                                                            2,
+                                                            4])
+            @test reordered_system.initial_coordinates[1, :] == [1.0, 3.0, 2.0, 4.0]
+            @test reordered_system.hydrodynamic_boundary == [true, false, true, true]
+            @test TrixiParticles.n_integrated_particles(reordered_system) == 2
+
+            @test_throws ArgumentError TotalLagrangianSPHSystem(initial_condition;
+                                                                kwargs...,
+                                                                hydrodynamic_boundary_particles=[
+                                                                    1,
+                                                                    1])
+            @test_throws BoundsError TotalLagrangianSPHSystem(initial_condition; kwargs...,
+                                                              hydrodynamic_boundary_particles=[0])
+            @test_throws BoundsError TotalLagrangianSPHSystem(initial_condition; kwargs...,
+                                                              hydrodynamic_boundary_particles=[5])
         end
     end
 
@@ -76,6 +124,7 @@
         │ ═══════════════════════════                                                                      │
         │ total #particles: ………………………………… 2                                                                │
         │ #clamped particles: …………………………… 0                                                                │
+        │ #hydrodynamic particles: ……………… 2                                                                │
         │ Young's modulus: …………………………………… 2.5                                                              │
         │ Poisson ratio: ………………………………………… 0.25                                                             │
         │ smoothing kernel: ………………………………… Val                                                              │
@@ -98,6 +147,7 @@
         │ ═══════════════════════════                                                                      │
         │ total #particles: ………………………………… 2                                                                │
         │ #clamped particles: …………………………… 0                                                                │
+        │ #hydrodynamic particles: ……………… 2                                                                │
         │ Young's modulus: …………………………………… min = 1.2, max = 3.4                                             │
         │ Poisson ratio: ………………………………………… min = 0.2, max = 0.4                                             │
         │ smoothing kernel: ………………………………… Val                                                              │
