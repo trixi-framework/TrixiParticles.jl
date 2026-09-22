@@ -134,6 +134,27 @@ using OrdinaryDiffEqLowStorageRK
         end
     end
 
+    @testset verbose=true "forwards VTK compression options" begin
+        mktempdir() do tmp_dir
+            uncompressed_directory = joinpath(tmp_dir, "uncompressed")
+            uncompressed_callback = SolutionSavingCallback(output_directory=uncompressed_directory,
+                                                           compress=false)
+            run_solution_saving_test(uncompressed_callback)
+
+            parallel_directory = joinpath(tmp_dir, "parallel")
+            parallel_callback = SolutionSavingCallback(output_directory=parallel_directory,
+                                                       parallel_compression=true)
+            run_solution_saving_test(parallel_callback)
+
+            uncompressed_vtk = TrixiParticles.ReadVTK.VTKFile(joinpath(uncompressed_directory,
+                                                                       "fluid_1_0.vtu"))
+            parallel_vtk = TrixiParticles.ReadVTK.VTKFile(joinpath(parallel_directory,
+                                                                   "fluid_1_0.vtu"))
+            @test !TrixiParticles.ReadVTK.is_compressed(uncompressed_vtk)
+            @test TrixiParticles.ReadVTK.is_compressed(parallel_vtk)
+        end
+    end
+
     @testset verbose=true "save_times respects requested initial time" begin
         mktempdir() do tmp_dir
             callback = SolutionSavingCallback(save_times=[0.0, 0.003],

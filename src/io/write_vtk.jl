@@ -10,9 +10,11 @@ end
 
 """
     trixi2vtk(vu_ode, semi, t; iter=nothing, overwrite=isnothing(iter),
-              output_directory="out", prefix="", max_coordinates=Inf, custom_quantities...)
+              output_directory="out", prefix="", compress=true,
+              parallel_compression=false, max_coordinates=Inf, custom_quantities...)
     trixi2vtk(dvdu_ode, vu_ode, semi, t; iter=nothing, overwrite=isnothing(iter),
-              output_directory="out", prefix="", max_coordinates=Inf, custom_quantities...)
+              output_directory="out", prefix="", compress=true,
+              parallel_compression=false, max_coordinates=Inf, custom_quantities...)
 
 Convert Trixi simulation data to VTK format.
 The VTK output includes `solver_version` metadata with the current solver version.
@@ -38,6 +40,10 @@ The VTK output includes `solver_version` metadata with the current solver versio
                             single VTK file without a PVD collection.
 - `output_directory="out"`: Output directory path.
 - `prefix=""`:              Prefix for output files.
+- `compress=true`:          Compress VTK data with zlib. This can also be a compression
+                             level between `0` (disabled) and `9` (maximum compression).
+- `parallel_compression=false`: Compress supported VTK data arrays in parallel using Julia
+                             threads. This only applies when compression is enabled.
 - `max_coordinates=Inf`:    The coordinates of particles will be clipped if their absolute
                             values exceed this threshold.
 - `custom_quantities...`:   Additional custom quantities to include in the VTK output.
@@ -65,7 +71,8 @@ trixi2vtk(sol.u[end], semi, 0.0, iter=1, my_custom_quantity=kinetic_energy)
 ```
 """
 function trixi2vtk(vu_ode, semi, t; iter=nothing, overwrite=isnothing(iter),
-                   output_directory="out", prefix="", max_coordinates=Inf,
+                   output_directory="out", prefix="", compress=true,
+                   parallel_compression=false, max_coordinates=Inf,
                    custom_quantities...)
 
     # `dvdu_ode` is not necessary in most cases. Since it is usually not available to the
@@ -73,15 +80,18 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, overwrite=isnothing(iter),
     # Note that custom quantities using the fluid acceleration will not work and return NaN acceleration.
     return _trixi2vtk(fill!(similar(vu_ode), NaN), vu_ode, semi, t; iter, overwrite,
                       append_collection=_default_append_collection(iter), output_directory,
-                      prefix, max_coordinates, custom_quantities...)
+                      prefix, compress, parallel_compression, max_coordinates,
+                      custom_quantities...)
 end
 
 function trixi2vtk(dvdu_ode, vu_ode, semi, t; iter=nothing, overwrite=isnothing(iter),
-                   output_directory="out", prefix="", max_coordinates=Inf,
+                   output_directory="out", prefix="", compress=true,
+                   parallel_compression=false, max_coordinates=Inf,
                    custom_quantities...)
     return _trixi2vtk(dvdu_ode, vu_ode, semi, t; iter, overwrite,
                       append_collection=_default_append_collection(iter), output_directory,
-                      prefix, max_coordinates, custom_quantities...)
+                      prefix, compress, parallel_compression, max_coordinates,
+                      custom_quantities...)
 end
 
 _default_append_collection(iter) = !isnothing(iter) && iter > 0
@@ -89,7 +99,8 @@ _default_append_collection(iter) = !isnothing(iter) && iter > 0
 function _trixi2vtk(dvdu_ode, vu_ode, semi, t; iter=nothing, overwrite=isnothing(iter),
                     append_collection=_default_append_collection(iter),
                     output_directory="out", prefix="", git_hash=compute_git_hash(),
-                    max_coordinates=Inf, custom_quantities...)
+                    compress=true, parallel_compression=false, max_coordinates=Inf,
+                    custom_quantities...)
     (; systems) = semi
 
     # Update quantities that are stored in the systems. These quantities (e.g. pressure)
@@ -109,6 +120,7 @@ function _trixi2vtk(dvdu_ode, vu_ode, semi, t; iter=nothing, overwrite=isnothing
         _trixi2vtk(system, dvdu_ode, vu_ode, semi, t, periodic_box;
                    system_name=filenames[system_index], output_directory, iter,
                    overwrite, append_collection, prefix, git_hash, max_coordinates,
+                   compress, parallel_compression,
                    custom_quantities...)
     end
 end
@@ -117,12 +129,14 @@ end
 function trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
                    output_directory="out", prefix="", iter=nothing,
                    overwrite=isnothing(iter),
-                   system_name=vtkname(system_), max_coordinates=Inf,
+                   system_name=vtkname(system_), compress=true,
+                   parallel_compression=false, max_coordinates=Inf,
                    custom_quantities...)
     return _trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
                       output_directory, prefix, iter, overwrite,
                       append_collection=_default_append_collection(iter), system_name,
-                      max_coordinates, custom_quantities...)
+                      compress, parallel_compression, max_coordinates,
+                      custom_quantities...)
 end
 
 function _trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
@@ -130,7 +144,8 @@ function _trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
                     overwrite=isnothing(iter),
                     append_collection=_default_append_collection(iter),
                     system_name=vtkname(system_), max_coordinates=Inf,
-                    git_hash=compute_git_hash(), custom_quantities...)
+                    git_hash=compute_git_hash(), compress=true,
+                    parallel_compression=false, custom_quantities...)
     mkpath(output_directory)
 
     # Skip empty systems
@@ -175,7 +190,8 @@ function _trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
         end
     end
 
-    @trixi_timeit timer() "write to vtk" vtk_grid(file, points, cells) do vtk
+    @trixi_timeit timer() "write to vtk" vtk_grid(file, points, cells; compress,
+                                                  parallel_compression) do vtk
         # Dispatches based on the different system types e.g. AbstractFluidSystem
         write2vtk!(vtk, v, u, t, system)
 
@@ -233,7 +249,8 @@ end
 
 """
     trixi2vtk(coordinates; output_directory="out", prefix="", filename="coordinates",
-              particle_spacing=-ones(size(coordinates, 2)), custom_quantities...)
+              particle_spacing=-ones(size(coordinates, 2)), compress=true,
+              parallel_compression=false, custom_quantities...)
 
 Convert coordinate data to VTK format.
 
@@ -245,13 +262,18 @@ Convert coordinate data to VTK format.
 - `prefix=""`:              Prefix for the output file.
 - `filename="coordinates"`: Name of the output file.
 - `particle_spacing`:       Particle spacing values to include in the VTK output.
+- `compress=true`:          Compress VTK data with zlib. This can also be a compression
+                             level between `0` (disabled) and `9` (maximum compression).
+- `parallel_compression=false`: Compress supported VTK data arrays in parallel using Julia
+                             threads. This only applies when compression is enabled.
 - `custom_quantities...`:   Additional custom quantities to include in the VTK output.
 
 # Returns
 - `file::AbstractString`: Path to the generated VTK file.
 """
 function trixi2vtk(coordinates; output_directory="out", prefix="", filename="coordinates",
-                   particle_spacing=(-ones(size(coordinates, 2))), custom_quantities...)
+                   particle_spacing=(-ones(size(coordinates, 2))), compress=true,
+                   parallel_compression=false, custom_quantities...)
     mkpath(output_directory)
     file = prefix === "" ? joinpath(output_directory, filename) :
            joinpath(output_directory, "$(prefix)_$filename")
@@ -259,7 +281,7 @@ function trixi2vtk(coordinates; output_directory="out", prefix="", filename="coo
     points = coordinates
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
 
-    vtk_grid(file, points, cells) do vtk
+    vtk_grid(file, points, cells; compress, parallel_compression) do vtk
         # Store particle index.
         vtk["index"] = [i for i in axes(coordinates, 2)]
         vtk["ndims"] = size(coordinates, 1)
@@ -278,7 +300,8 @@ end
 
 """
     trixi2vtk(initial_condition::InitialCondition; output_directory="out",
-              prefix="", filename="initial_condition", custom_quantities...)
+              prefix="", filename="initial_condition", compress=true,
+              parallel_compression=false, custom_quantities...)
 
 Convert [`InitialCondition`](@ref) data to VTK format.
 
@@ -289,16 +312,22 @@ Convert [`InitialCondition`](@ref) data to VTK format.
 - `output_directory="out"`: Output directory path.
 - `prefix=""`:              Prefix for the output file.
 - `filename="initial_condition"`: Name of the output file.
+- `compress=true`:          Compress VTK data with zlib. This can also be a compression
+                             level between `0` (disabled) and `9` (maximum compression).
+- `parallel_compression=false`: Compress supported VTK data arrays in parallel using Julia
+                             threads. This only applies when compression is enabled.
 - `custom_quantities...`:   Additional custom quantities to include in the VTK output.
 
 # Returns
 - `file::AbstractString`: Path to the generated VTK file.
 """
 function trixi2vtk(initial_condition::InitialCondition; output_directory="out",
-                   prefix="", filename="initial_condition", custom_quantities...)
+                   prefix="", filename="initial_condition", compress=true,
+                   parallel_compression=false, custom_quantities...)
     (; coordinates, velocity, density, mass, pressure) = initial_condition
 
-    return trixi2vtk(coordinates; output_directory, prefix, filename, density,
+    return trixi2vtk(coordinates; output_directory, prefix, filename, density, compress,
+                     parallel_compression,
                      initial_velocity=velocity, mass,
                      particle_spacing=(initial_condition.particle_spacing .*
                                        ones(nparticles(initial_condition))), pressure,
