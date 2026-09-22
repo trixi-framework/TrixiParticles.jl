@@ -574,7 +574,8 @@ function compute_pressure!(boundary_model,
         end
     end
 
-    @trixi_timeit timer() "inverse state equation" @threaded semi for particle in eachparticle(system)
+    @trixi_timeit timer() "inverse state equation" @threaded semi for particle in
+                                                                      eachparticle(system)
         compute_adami_density!(boundary_model, system, v, particle)
     end
 end
@@ -634,9 +635,8 @@ end
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords, semi;
-                           points=eachparticle(system)
-                           ) do particle, neighbor,
-                                pos_diff, distance
+                           points=eachparticle(system)) do particle, neighbor,
+                                                           pos_diff, distance
         @inbounds boundary_pressure_inner!(boundary_model, density_calculator, system,
                                            neighbor_system, v, v_neighbor_system,
                                            particle, neighbor, pos_diff, distance,
@@ -662,9 +662,8 @@ end
     # This needs to be serial to avoid race conditions when writing into `system`
     foreach_point_neighbor(neighbor_system, system, neighbor_coords, system_coords, semi;
                            points=each_integrated_particle(neighbor_system),
-                           parallelization_backend=SerialBackend()
-                           ) do neighbor, particle,
-                                pos_diff, distance
+                           parallelization_backend=SerialBackend()) do neighbor, particle,
+                                                                       pos_diff, distance
         # Since neighbor and particle are switched
         pos_diff = -pos_diff
         @inbounds boundary_pressure_inner!(boundary_model, density_calculator, system,

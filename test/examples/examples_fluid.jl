@@ -159,6 +159,7 @@
 
         dam_break_tests = Dict(
             "default" => (),
+            "with MarronePressureExtrapolation" => (boundary_density_calculator=MarronePressureExtrapolation(),),
             "with SummationDensity" => (fluid_density_calculator=SummationDensity(),
                                         clip_negative_pressure=true),
             "with DensityDiffusionMolteniColagrossi" => (density_diffusion=DensityDiffusionMolteniColagrossi(delta=0.1),),

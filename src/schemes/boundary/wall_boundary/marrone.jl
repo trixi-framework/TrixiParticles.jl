@@ -79,7 +79,8 @@ function compute_pressure!(model, ::MarronePressureExtrapolation,
         end
     end
 
-    @trixi_timeit timer() "inverse state equation" @threaded semi for particle in eachparticle(system)
+    @trixi_timeit timer() "inverse state equation" @threaded semi for particle in
+                                                                      eachparticle(system)
         finalize_marrone!(model, system, v, particle)
     end
 
@@ -92,9 +93,8 @@ function accumulate_marrone!(model, system, neighbor_system, system_coordinates,
 
     foreach_point_neighbor(system, neighbor_system, interpolation_coordinates,
                            neighbor_coordinates, semi;
-                           points=eachparticle(system)
-                           ) do particle, neighbor,
-                                pos_diff, distance
+                           points=eachparticle(system)) do particle, neighbor,
+                                                           pos_diff, distance
         @inbounds accumulate_marrone_pair!(model, system, neighbor_system,
                                            system_coordinates, v_neighbor_system,
                                            particle, neighbor, pos_diff, distance)
@@ -136,8 +136,8 @@ end
             cache.moment_matrix[i, j, particle] += weight * basis[i] * basis[j]
         end
         for dimension in 1:NDIMS
-            cache.velocity_rhs[i, dimension, particle] += weight * basis[i] *
-                                                          velocity[dimension]
+            velocity_contribution = weight * basis[i] * velocity[dimension]
+            cache.velocity_rhs[i, dimension, particle] += velocity_contribution
         end
     end
 
