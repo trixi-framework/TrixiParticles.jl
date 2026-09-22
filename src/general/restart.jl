@@ -37,7 +37,8 @@ end
 # Compute a new `tspan` based on the restart files
 function time_span(tspan, restart_with::Tuple{Vararg{String}})
     # Read restart times from all files
-    restart_times = [vtk2trixi(file).time for file in restart_with]
+    restart_times = [vtk2trixi(file; create_initial_condition=false).time
+                     for file in restart_with]
     t_restart = convert(eltype(tspan), first(restart_times))
 
     # Check if all restart files have the same time
