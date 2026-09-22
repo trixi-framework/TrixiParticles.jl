@@ -91,35 +91,35 @@ blade = RectangularShape(particle_spacing, n_particles_per_dimension,
                          (-length_clamp, -artificial_blade_thickness / 2),
                          density=1000.0, place_on_shell=true)
 
-# Make sure that the kernel support of fluid particles at a boundary is always fully sampled
-boundary_layers = 3
-
 # Make sure that the kernel support of fluid particles at an open boundary is always
-# fully sampled.
-# Note: Due to the dynamics at the inlets and outlets of open boundaries,
-# it is recommended to use `open_boundary_layers > boundary_layers`
+# fully sampled. Due to the dynamics at the inlets and outlets of open boundaries,
+# a generous number of layers is recommended here.
 open_boundary_layers = 10
+
+# The channel is periodic in y and has an inflow and an outflow in x, so there are no
+# solid wall boundaries at all and the tanks below are sampled without faces.
+no_faces = (false, false, false, false)
 
 fluid_density = 1000.0
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
-                       n_layers=boundary_layers,
-                       faces=(false, false, true, true), velocity=initial_velocity)
+                       faces=no_faces, velocity=initial_velocity)
 
-open_boundary_size = (fluid_particle_spacing * open_boundary_layers, tank_size[2])
+# `RectangularTank` rounds the requested size to a multiple of the particle spacing.
+# Everything that has to line up with the fluid (the periodic box and the open boundary
+# faces) must use this rounded height, not the requested `tank_size[2]`.
+channel_height = tank.n_particles_per_dimension[2] * fluid_particle_spacing
+
+open_boundary_size = (fluid_particle_spacing * open_boundary_layers, channel_height)
 
 min_coords_inlet = (-open_boundary_layers * fluid_particle_spacing, 0.0)
 inlet = RectangularTank(fluid_particle_spacing, open_boundary_size, open_boundary_size,
-                        fluid_density, n_layers=boundary_layers,
-                        min_coordinates=min_coords_inlet,
-                        velocity=initial_velocity,
-                        faces=(false, false, true, true))
+                        fluid_density, min_coordinates=min_coords_inlet,
+                        velocity=initial_velocity, faces=no_faces)
 
 min_coords_outlet = (tank.fluid_size[1], 0.0)
 outlet = RectangularTank(fluid_particle_spacing, open_boundary_size, open_boundary_size,
-                         fluid_density, n_layers=boundary_layers,
-                         min_coordinates=min_coords_outlet,
-                         velocity=initial_velocity,
-                         faces=(false, false, true, true))
+                         fluid_density, min_coordinates=min_coords_outlet,
+                         velocity=initial_velocity, faces=no_faces)
 
 
 NDIMS = ndims(tank.fluid)
@@ -229,25 +229,28 @@ fluid_system = WeaklyCompressibleSPHSystem(fluid; density_calculator=fluid_densi
                                            buffer_size=n_buffer_particles)
 
 # ==========================================================================================
-# ==== Open Boundaries
+# ==== Open Boundaries and Periodicity
+# There are no solid walls: the channel is always periodic in y. The fluid rows sit half a
+# particle spacing from y = 0 and y = `channel_height`, so the distance across the periodic
+# boundary is exactly one particle spacing. This flag additionally switches the x-direction
+# from inflow/outflow to a periodic boundary.
 periodic = false
-if periodic
-    min_corner = minimum(tank.boundary.coordinates, dims=2) .- fluid_particle_spacing / 2
-    max_corner = maximum(tank.boundary.coordinates, dims=2) .+ fluid_particle_spacing / 2
-    min_corner = convert.(typeof(fluid_particle_spacing), min_corner)
-    max_corner = convert.(typeof(fluid_particle_spacing), max_corner)
-    periodic_box = PeriodicBox(; min_corner, max_corner)
-    open_boundary_system = nothing
-    wall = tank.boundary
-else
-    periodic_box = nothing
 
+if periodic
+    open_boundary_system = nothing
+
+    # Periodic in x-direction as well, so the box spans the fluid exactly.
+    channel_length = tank.n_particles_per_dimension[1] * fluid_particle_spacing
+
+    min_corner = (0.0, 0.0)
+    max_corner = (channel_length, channel_height)
+else
     open_boundary_model = BoundaryModelDynamicalPressureZhang()
     reference_velocity_in = SVector(1.0, 0.0)
     reference_pressure_in = 0.0
     reference_density_in = nothing
     boundary_type_in = InFlow()
-    face_in = ([0.0, 0.0], [0.0, tank_size[2]])
+    face_in = ([0.0, 0.0], [0.0, channel_height])
     flow_direction = [1.0, 0.0]
     inflow = BoundaryZone(; boundary_face=face_in, face_normal=flow_direction,
                           open_boundary_layers, density=fluid_density, particle_spacing,
@@ -260,7 +263,7 @@ else
     reference_pressure_out = nothing
     reference_density_out = nothing
     boundary_type_out = OutFlow()
-    face_out = ([min_coords_outlet[1], 0.0], [min_coords_outlet[1], tank_size[2]])
+    face_out = ([min_coords_outlet[1], 0.0], [min_coords_outlet[1], channel_height])
     outflow = BoundaryZone(; boundary_face=face_out, face_normal=(-flow_direction),
                            open_boundary_layers, density=fluid_density, particle_spacing,
                            reference_density=reference_density_out,
@@ -272,20 +275,16 @@ else
                                               boundary_model=open_boundary_model,
                                               buffer_size=n_buffer_particles)
 
-    wall = union(tank.boundary, inlet.boundary, outlet.boundary)
-    min_corner = minimum(wall.coordinates, dims=2) .- 5 * fluid_particle_spacing
-    max_corner = maximum(wall.coordinates, dims=2) .+ 5 * fluid_particle_spacing
+    # `PeriodicBox` is periodic in every dimension, so periodicity in y alone is obtained
+    # by padding the box in x beyond the particles of the inflow and outflow. The x-wrap
+    # then never brings two particles within the search radius of each other.
+    x_padding = 10 * fluid_particle_spacing
+
+    min_corner = (min_coords_inlet[1] - x_padding, 0.0)
+    max_corner = (min_coords_outlet[1] + open_boundary_size[1] + x_padding, channel_height)
 end
 
-# ==========================================================================================
-# ==== Boundary
-boundary_density_calculator = AdamiPressureExtrapolation()
-boundary_model = BoundaryModelDummyParticles(wall.density, wall.mass,
-                                             state_equation=state_equation,
-                                             boundary_density_calculator,
-                                             smoothing_kernel, smoothing_length_fluid)
-
-boundary_system = WallBoundarySystem(wall, boundary_model)
+periodic_box = PeriodicBox(; min_corner, max_corner)
 
 # ==========================================================================================
 # ==== Simulation
@@ -293,21 +292,15 @@ cell_list = FullGridCellList(; min_corner, max_corner)
 neighborhood_search = GridNeighborhoodSearch{2}(; periodic_box, cell_list,
                                                 update_strategy=ParallelUpdate())
 
-semi = Semidiscretization(fluid_system, boundary_system, open_boundary_system,
-                          structure_system; neighborhood_search,
-                          parallelization_backend)
+semi = Semidiscretization(fluid_system, open_boundary_system, structure_system;
+                          neighborhood_search, parallelization_backend)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
 solution_prefix = ""
 saving_callback = SolutionSavingCallback(dt=1/120; prefix=solution_prefix)
 
-split_cfl = 2.1
-# CarpenterKennedy2N54 CFL = 2.1, 23M RHS evaluations
-# RK4 CFL = 1.8, 21.6M RHS evaluations
-# VerletLeapfrog fails non-deterministically even at CFL = 0.5
-# VelocityVerlet fails non-deterministically even at CFL = 0.5
-
+split_cfl = 1.9
 split_integration = SplitIntegrationCallback(CarpenterKennedy2N54(williamson_condition=false),
                                              adaptive=false,
                                              stage_coupling=true,
@@ -328,15 +321,15 @@ pp_cb = PostprocessCallback(; total_volume, interval=100,
                             filename="$(solution_prefix)_total_volume", write_file_interval=50)
 
 efficiency_interval = 100
-mechanical_work_calculator = MechanicalWorkCalculator(semi.systems[4], semi)
-thrust_calculator = ThrustCalculator(semi.systems[4], semi, direction=SVector(1.0, 0.0))
+mechanical_work_calculator = MechanicalWorkCalculator(semi.systems[end], semi)
+thrust_calculator = ThrustCalculator(semi.systems[end], semi, direction=SVector(1.0, 0.0))
 calculator_cb = PostprocessCallback(; mechanical_work_calculator, thrust_calculator,
                                     interval=efficiency_interval, write_file_interval=10,
                                     filename="$(solution_prefix)_efficiency")
 
 # Reconstruct the motion of the blade centerline at its attachment
 # (`x = 0` in blade coordinates) from the surrounding SPH particles.
-blade_motion = TrixiParticles.tlsph_motion(semi.systems[4], semi, center)
+blade_motion = TrixiParticles.tlsph_motion(semi.systems[end], semi, center)
 
 blade_motion_cb = PostprocessCallback(; blade_motion, dt=1 / 120,
                                       write_file_interval=10,
