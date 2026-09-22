@@ -1,6 +1,6 @@
 # Visualization
 
-## Export VTK files
+## Export VTK Files
 You can export particle data as VTK files by using the [`SolutionSavingCallback`](@ref).
 All [predefined examples](examples.md) already use this callback to export VTK files to the `out`
 directory relative to the current working directory.
@@ -18,6 +18,7 @@ Follow these steps to view the exported VTK files in ParaView:
 5. Hold the left mouse button to move the solution around.
 
 You will now see the following:
+
 ![image](https://github.com/user-attachments/assets/383d323a-3020-4232-9dc3-682b0afe8653)
 
 It is useful to make the dot size dependent on the actual particle size.
@@ -28,9 +29,10 @@ Then, in the Properties panel (bottom left), adjust the following settings:
 3. Activate "Scale by Array" and select "`particle_spacing`" in "Gaussian Scale Array".
 4. Deactivate "Use Scale Function".
 5. Set the "Gaussian Radius" to "`0.5`".
+
 ![image](https://github.com/user-attachments/assets/194d9a09-5937-4ee4-b229-07078afe3ff0)
 
-#### Visualization with Macro
+#### Visualization with a Macro
 To simplify visualization of particle data in ParaView, you can use a macro.
 It reduces the manual steps from the previous section to a single click.
 Install the macro as follows.
@@ -43,7 +45,6 @@ Install the macro as follows.
 5. **Select the dataset** in the Pipeline Browser.
 6. Click on the macro name in the **Macros** menu (or toolbar, if pinned) to run it.
 7. The Point Gaussian representation with `particle_spacing` scaling will be applied automatically.
-
 
 ---
 
@@ -78,11 +79,12 @@ sourceDisplay.UseScaleFunction = 0
 sourceDisplay.GaussianRadius = 0.5
 ```
 
-#### Show results
+#### Show Results
 To view the result variables, first make sure that "fluid_1.pvd" is highlighted in the
 "Pipeline Browser", then select a variable in the variable-selection combo box
 (see the image below). For example, choose "density". To view the time evolution,
 press the play button (also shown below).
+
 ![image](https://github.com/user-attachments/assets/10dcf7eb-5808-4d4d-9db8-4beb25b5e51a)
 
 ## API
