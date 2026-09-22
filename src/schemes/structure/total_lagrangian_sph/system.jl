@@ -164,7 +164,13 @@ function TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing
     initialize_prescribed_motion!(clamped_particles_motion, initial_condition_sorted,
                                   n_clamped_particles)
 
-    cache = (; create_cache_tlsph(clamped_particles_motion, initial_condition_sorted)...,
+    fsi_acceleration = zero(initial_condition_sorted.velocity)
+    for particle in Base.OneTo(n_integrated_particles)
+        fsi_acceleration[:, particle] .= acceleration_
+    end
+
+    cache = (; fsi_acceleration,
+             create_cache_tlsph(clamped_particles_motion, initial_condition_sorted)...,
              create_cache_tlsph(velocity_averaging, initial_condition_sorted)...,
              create_cache_tlsph_boundary(boundary_model, initial_condition_sorted)...)
 
@@ -328,6 +334,10 @@ end
 
 @propagate_inbounds function current_acceleration(system::TotalLagrangianSPHSystem,
                                                   clamped_particles_motion, particle)
+    if particle <= system.n_integrated_particles
+        return extract_svector(system.cache.fsi_acceleration, system, particle)
+    end
+
     return zero(SVector{ndims(system), eltype(system)})
 end
 
@@ -336,8 +346,11 @@ end
 # above to avoid access to the undefined field `cache.acceleration`.
 @propagate_inbounds function current_acceleration(system::TotalLagrangianSPHSystem,
                                                   ::PrescribedMotion, particle)
-    if particle <= system.n_integrated_particles || !system.clamped_particles_moving[]
-        # TODO Return `dv` of solid particles
+    if particle <= system.n_integrated_particles
+        return extract_svector(system.cache.fsi_acceleration, system, particle)
+    end
+
+    if !system.clamped_particles_moving[]
         return zero(SVector{ndims(system), eltype(system)})
     end
 
@@ -520,6 +533,26 @@ end
 function update_quantities!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
     # Precompute PK1 stress tensor
     @trixi_timeit timer() "stress tensor" compute_pk1_corrected!(system, semi)
+
+    return system
+end
+
+function finalize_interaction!(system::TotalLagrangianSPHSystem, dv, v, u,
+                               dv_ode, v_ode, u_ode, semi)
+    semi.integrate_tlsph[] || return system
+
+    update_fsi_acceleration!(system, dv, semi)
+
+    return system
+end
+
+function update_fsi_acceleration!(system::TotalLagrangianSPHSystem, dv, semi)
+    (; fsi_acceleration) = system.cache
+    @threaded semi for particle in each_integrated_particle(system)
+        for dim in 1:ndims(system)
+            @inbounds fsi_acceleration[dim, particle] = dv[dim, particle]
+        end
+    end
 
     return system
 end
