@@ -463,6 +463,31 @@ end
 @propagate_inbounds function deformation_gradient(system, particle)
     extract_smatrix(system.deformation_grad, system, particle)
 end
+
+@propagate_inbounds function boundary_state_normal(system::TotalLagrangianSPHSystem,
+                                                   particle, pos_diff, distance)
+    return boundary_state_normal(system.initial_condition.normals, system, particle,
+                                 pos_diff, distance)
+end
+
+@inline function boundary_state_normal(::Nothing, system, particle, pos_diff, distance)
+    return pos_diff / distance
+end
+
+@propagate_inbounds function boundary_state_normal(reference_normals, system, particle,
+                                                   pos_diff, distance)
+    reference_normal = extract_svector(reference_normals, system, particle)
+    reference_norm2 = dot(reference_normal, reference_normal)
+    reference_norm2 > eps(reference_norm2) || return pos_diff / distance
+
+    # Nanson's formula maps a reference surface normal to the current configuration.
+    current_normal = inv(deformation_gradient(system, particle))' * reference_normal
+    current_norm2 = dot(current_normal, current_normal)
+    current_norm2 > eps(current_norm2) || return pos_diff / distance
+
+    return current_normal / sqrt(current_norm2)
+end
+
 @propagate_inbounds function pk1_rho2(system, particle)
     extract_smatrix(system.pk1_rho2, system, particle)
 end

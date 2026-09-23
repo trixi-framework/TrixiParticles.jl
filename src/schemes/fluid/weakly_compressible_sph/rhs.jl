@@ -80,6 +80,13 @@ function interact!(dv, v_particle_system, u_particle_system,
             # this will return `p_b = p_a`, which is the pressure of the fluid particle.
             p_b = @inbounds neighbor_pressure(v_neighbor_system, neighbor_system,
                                               neighbor, p_a)
+            p_b,
+            v_b = @inbounds apply_wall_boundary_state(p_b, v_b,
+                                                      system_boundary_model(neighbor_system),
+                                                      particle_system,
+                                                      neighbor_system, particle, neighbor,
+                                                      p_a, rho_a, v_a, pos_diff,
+                                                      distance, sound_speed)
 
             # Determine correction factors.
             # This can usually be ignored, as these are all 1 when no correction is used.

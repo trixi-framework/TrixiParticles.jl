@@ -10,6 +10,168 @@
         @test repr(boundary_model) == expected_repr
     end
 
+    @testset "Wall Riemann State" begin
+        density = 1000.0
+        sound_speed = 10.0
+        state_equation = StateEquationCole(; sound_speed, reference_density=density,
+                                           exponent=7.0)
+        boundary_model = BoundaryModelDummyParticles([density], [1.0],
+                                                     AdamiPressureExtrapolation(),
+                                                     WendlandC2Kernel{2}(), 1.0;
+                                                     state_equation,
+                                                     boundary_state=BoundaryStateWallRiemann())
+
+        wall_velocity = SVector(0.0, 0.0)
+        normal = SVector(1.0, 0.0)
+        fluid_velocity = SVector(-1.0, 2.0)
+        pressure,
+        ghost_velocity = TrixiParticles.apply_wall_boundary_state(0.0, wall_velocity,
+                                                                  boundary_model, nothing,
+                                                                  nothing, 1, 1,
+                                                                  0.0, density,
+                                                                  fluid_velocity, normal,
+                                                                  1.0, sound_speed)
+
+        @test pressure == 20_000.0
+        @test ghost_velocity == SVector(1.0, 2.0)
+
+        pressure_receding,
+        ghost_velocity_receding = TrixiParticles.apply_wall_boundary_state(0.0,
+                                                                           wall_velocity,
+                                                                           boundary_model,
+                                                                           nothing, nothing,
+                                                                           1, 1,
+                                                                           0.0, density,
+                                                                           SVector(1.0,
+                                                                                   2.0),
+                                                                           normal, 1.0,
+                                                                           sound_speed)
+        @test iszero(pressure_receding)
+        @test ghost_velocity_receding == SVector(-1.0, 2.0)
+
+        boundary = InitialCondition(; coordinates=[0.0; 0.0;;], density,
+                                    particle_spacing=1.0,
+                                    normals=[-2.0; 0.0;;])
+        boundary_system = WallBoundarySystem(boundary, boundary_model)
+        pair_direction = SVector(1.0, 1.0)
+        distance = sqrt(2.0)
+
+        # Use the geometric wall normal instead of interpreting tangential motion along an
+        # oblique particle pair as motion into the wall.
+        @test TrixiParticles.boundary_state_normal(boundary_system, 1,
+                                                   pair_direction, distance) ==
+              SVector(1.0, 0.0)
+
+        pair_normal = pair_direction / distance
+        fallback_boundary = InitialCondition(; coordinates=[0.0; 0.0;;], density,
+                                             particle_spacing=1.0)
+        fallback_boundary_system = WallBoundarySystem(fallback_boundary, boundary_model)
+        @test TrixiParticles.boundary_state_normal(fallback_boundary_system, 1,
+                                                   pair_direction, distance) == pair_normal
+        @test TrixiParticles.boundary_state_contact_geometry(fallback_boundary_system, 1,
+                                                             pair_direction, distance) ==
+              (pair_normal, 0.0, 0.0, false)
+
+        zero_normal_boundary = InitialCondition(; coordinates=[0.0; 0.0;;], density,
+                                                particle_spacing=1.0,
+                                                normals=zeros(2, 1))
+        zero_normal_system = WallBoundarySystem(zero_normal_boundary, boundary_model)
+        @test TrixiParticles.boundary_state_normal(zero_normal_system, 1,
+                                                   pair_direction, distance) == pair_normal
+        @test TrixiParticles.boundary_state_contact_geometry(zero_normal_system, 1,
+                                                             pair_direction, distance) ==
+              (pair_normal, 0.0, 0.0, false)
+
+        prescribed_motion = PrescribedMotion((x, t) -> x, t -> true)
+        moving_boundary_system = WallBoundarySystem(boundary, boundary_model;
+                                                    prescribed_motion)
+        @test TrixiParticles.boundary_state_normal(moving_boundary_system, 1,
+                                                   pair_direction, distance) == pair_normal
+        @test TrixiParticles.boundary_state_contact_geometry(moving_boundary_system, 1,
+                                                             pair_direction, distance) ==
+              (pair_normal, 0.0, 0.0, false)
+
+        tangential_velocity = SVector(0.0, -1.0)
+        pressure_tangential,
+        ghost_velocity_tangential = TrixiParticles.apply_wall_boundary_state(0.0,
+                                                                             wall_velocity,
+                                                                             boundary_model,
+                                                                             nothing,
+                                                                             boundary_system,
+                                                                             1, 1,
+                                                                             0.0, density,
+                                                                             tangential_velocity,
+                                                                             pair_direction,
+                                                                             distance,
+                                                                             sound_speed)
+        @test iszero(pressure_tangential)
+        @test ghost_velocity_tangential == tangential_velocity
+
+        contact_state = BoundaryStateWallRiemann(contact_distance_ratio=0.5)
+        contact_boundary_model = BoundaryModelDummyParticles([density], [1.0],
+                                                             AdamiPressureExtrapolation(),
+                                                             WendlandC2Kernel{2}(), 1.0;
+                                                             state_equation,
+                                                             boundary_state=contact_state)
+        contact_boundary = InitialCondition(; coordinates=[0.0; 0.0;;], density,
+                                            particle_spacing=1.0,
+                                            normals=[-0.5; 0.0;;])
+        contact_boundary_system = WallBoundarySystem(contact_boundary,
+                                                     contact_boundary_model)
+
+        # Outside the contact layer, only cancel an attractive pressure pair.
+        pressure_outside,
+        velocity_outside = TrixiParticles.apply_wall_boundary_state(0.0, wall_velocity,
+                                                                    contact_boundary_model,
+                                                                    nothing,
+                                                                    contact_boundary_system,
+                                                                    1, 1, -10.0, density,
+                                                                    fluid_velocity,
+                                                                    SVector(1.25, 0.0),
+                                                                    1.25, sound_speed)
+        @test pressure_outside == 10.0
+        @test velocity_outside == wall_velocity
+
+        # Inside the contact layer, reflect only approaching normal motion.
+        pressure_contact,
+        velocity_contact = TrixiParticles.apply_wall_boundary_state(0.0, wall_velocity,
+                                                                    contact_boundary_model,
+                                                                    nothing,
+                                                                    contact_boundary_system,
+                                                                    1, 1, 0.0, density,
+                                                                    fluid_velocity,
+                                                                    SVector(0.75, 0.0),
+                                                                    0.75, sound_speed)
+        @test pressure_contact == 20_000.0
+        @test velocity_contact == SVector(1.0, 2.0)
+
+        pressure_separating,
+        velocity_separating = TrixiParticles.apply_wall_boundary_state(0.0, wall_velocity,
+                                                                       contact_boundary_model,
+                                                                       nothing,
+                                                                       contact_boundary_system,
+                                                                       1, 1, 0.0, density,
+                                                                       SVector(1.0, 2.0),
+                                                                       SVector(0.75, 0.0),
+                                                                       0.75, sound_speed)
+        @test iszero(pressure_separating)
+        @test velocity_separating == wall_velocity
+
+        pressure_fallback,
+        velocity_fallback = TrixiParticles.apply_wall_boundary_state(0.0, wall_velocity,
+                                                                     contact_boundary_model,
+                                                                     nothing, nothing, 1, 1,
+                                                                     -10.0, density,
+                                                                     fluid_velocity, normal,
+                                                                     1.0, sound_speed)
+        @test pressure_fallback == 20_000.0
+        @test velocity_fallback == SVector(1.0, 2.0)
+
+        @test_throws ArgumentError BoundaryStateWallRiemann(contact_distance_ratio=-0.1)
+        @test_throws ArgumentError BoundaryStateWallRiemann(contact_distance_ratio=Inf)
+        @test_throws ArgumentError BoundaryStateWallRiemann(contact_distance_ratio=NaN)
+    end
+
     @testset "Pressure clipping" begin
         state_equation = StateEquationCole(sound_speed=10.0,
                                            reference_density=1000.0,
