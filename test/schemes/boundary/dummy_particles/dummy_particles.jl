@@ -61,6 +61,36 @@
         @test TrixiParticles.boundary_state_normal(boundary_system, 1,
                                                    pair_direction, distance) ==
               SVector(1.0, 0.0)
+
+        pair_normal = pair_direction / distance
+        fallback_boundary = InitialCondition(; coordinates=[0.0; 0.0;;], density,
+                                             particle_spacing=1.0)
+        fallback_boundary_system = WallBoundarySystem(fallback_boundary, boundary_model)
+        @test TrixiParticles.boundary_state_normal(fallback_boundary_system, 1,
+                                                   pair_direction, distance) == pair_normal
+        @test TrixiParticles.boundary_state_contact_geometry(fallback_boundary_system, 1,
+                                                             pair_direction, distance) ==
+              (pair_normal, 0.0, 0.0, false)
+
+        zero_normal_boundary = InitialCondition(; coordinates=[0.0; 0.0;;], density,
+                                                particle_spacing=1.0,
+                                                normals=zeros(2, 1))
+        zero_normal_system = WallBoundarySystem(zero_normal_boundary, boundary_model)
+        @test TrixiParticles.boundary_state_normal(zero_normal_system, 1,
+                                                   pair_direction, distance) == pair_normal
+        @test TrixiParticles.boundary_state_contact_geometry(zero_normal_system, 1,
+                                                             pair_direction, distance) ==
+              (pair_normal, 0.0, 0.0, false)
+
+        prescribed_motion = PrescribedMotion((x, t) -> x, t -> true)
+        moving_boundary_system = WallBoundarySystem(boundary, boundary_model;
+                                                    prescribed_motion)
+        @test TrixiParticles.boundary_state_normal(moving_boundary_system, 1,
+                                                   pair_direction, distance) == pair_normal
+        @test TrixiParticles.boundary_state_contact_geometry(moving_boundary_system, 1,
+                                                             pair_direction, distance) ==
+              (pair_normal, 0.0, 0.0, false)
+
         tangential_velocity = SVector(0.0, -1.0)
         pressure_tangential,
         ghost_velocity_tangential = TrixiParticles.apply_wall_boundary_state(0.0,
