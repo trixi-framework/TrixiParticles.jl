@@ -217,12 +217,12 @@ ode_step3 = semidiscretize(semi_step3, tspan)</code></pre><pre><code class="lang
 │ #threads: ……………………………………………………… 1                                                                │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 
-#timesteps:    100 │ Δt: 2.0000e-03 │ sim. time: 1.9000e-01 (19.000%)  │ run time: 5.1108e+00 s
-#timesteps:    200 │ Δt: 1.8553e-03 │ sim. time: 3.5796e-01 (35.796%)  │ run time: 6.4149e+00 s
-#timesteps:    300 │ Δt: 1.3901e-03 │ sim. time: 4.8836e-01 (48.836%)  │ run time: 7.8178e+00 s
-#timesteps:    400 │ Δt: 2.0000e-03 │ sim. time: 6.5364e-01 (65.364%)  │ run time: 9.3414e+00 s
-#timesteps:    500 │ Δt: 1.2373e-03 │ sim. time: 8.2512e-01 (82.512%)  │ run time: 1.0998e+01 s
-#timesteps:    600 │ Δt: 2.0000e-03 │ sim. time: 9.6956e-01 (96.956%)  │ run time: 1.2722e+01 s
+#timesteps:    100 │ Δt: 2.0000e-03 │ sim. time: 1.9000e-01 (19.000%)  │ run time: 7.6257e+00 s
+#timesteps:    200 │ Δt: 1.8553e-03 │ sim. time: 3.5796e-01 (35.796%)  │ run time: 8.9053e+00 s
+#timesteps:    300 │ Δt: 1.3901e-03 │ sim. time: 4.8836e-01 (48.836%)  │ run time: 1.0261e+01 s
+#timesteps:    400 │ Δt: 2.0000e-03 │ sim. time: 6.5364e-01 (65.364%)  │ run time: 1.1722e+01 s
+#timesteps:    500 │ Δt: 1.2373e-03 │ sim. time: 8.2512e-01 (82.512%)  │ run time: 1.3313e+01 s
+#timesteps:    600 │ Δt: 2.0000e-03 │ sim. time: 9.6956e-01 (96.956%)  │ run time: 1.5000e+01 s
 ────────────────────────────────────────────────────────────────────────────────────────────────────
 Trixi simulation finished.
   Final time:                            1.0
@@ -232,47 +232,47 @@ Trixi simulation finished.
 <span class="sgr1">──────────────────────────────────────────────────────────────────────────────────────────</span>
 <span class="sgr1">           TrixiParticles.jl            </span>         Time                    Allocations
                                         ───────────────────────   ────────────────────────
-           Tot / % measured:                 13.0s /  79.7%           1.22GiB /  95.1%
+           Tot / % measured:                 15.3s /  65.2%           1.34GiB /  86.7%
 
 Section                         ncalls     time    %tot     avg     alloc    %tot      avg
 ──────────────────────────────────────────────────────────────────────────────────────────
-kick!                            5.70k    8.15s   78.4%  1.43ms   94.6MiB    7.9%  17.0KiB
-  system interaction             5.70k    7.19s   69.2%  1.26ms   23.6MiB    2.0%  4.24KiB
-    fluid1-fluid1                5.70k    5.16s   49.6%   904μs     0.00B    0.0%    0.00B
-    fluid1-boundary2             5.70k    640ms    6.2%   112μs     0.00B    0.0%    0.00B
-    fluid1-structure3            5.70k    494ms    4.8%  86.6μs     0.00B    0.0%    0.00B
-    fluid1-structure4            5.70k    463ms    4.5%  81.2μs     0.00B    0.0%    0.00B
-    structure3-fluid1            5.70k    108ms    1.0%  18.9μs     0.00B    0.0%    0.00B
-    structure4-fluid1            5.70k   85.3ms    0.8%  15.0μs     0.00B    0.0%    0.00B
-    ~system interaction~         5.70k   70.2ms    0.7%  12.3μs   23.6MiB    2.0%  4.24KiB
-    structure3-structure4        5.70k   55.8ms    0.5%  9.79μs     0.00B    0.0%    0.00B
-    structure3-boundary2         5.70k   49.8ms    0.5%  8.74μs     0.00B    0.0%    0.00B
-    structure4-structure3        5.70k   33.5ms    0.3%  5.88μs     0.00B    0.0%    0.00B
-    structure4-boundary2         5.70k   33.3ms    0.3%  5.83μs     0.00B    0.0%    0.00B
-    structure3-structure3        5.70k   1.06ms    0.0%   186ns     0.00B    0.0%    0.00B
-    structure4-structure4        5.70k    877μs    0.0%   154ns     0.00B    0.0%    0.00B
-    boundary2-boundary2          5.70k    202μs    0.0%  35.4ns     0.00B    0.0%    0.00B
-    boundary2-structure3         5.70k    172μs    0.0%  30.1ns     0.00B    0.0%    0.00B
-    boundary2-fluid1             5.70k    171μs    0.0%  29.9ns     0.00B    0.0%    0.00B
-    boundary2-structure4         5.70k    167μs    0.0%  29.3ns     0.00B    0.0%    0.00B
-  update systems and nhs         5.70k    942ms    9.1%   165μs   71.0MiB    6.0%  12.8KiB
-    compute boundary pressure    17.1k    563ms    5.4%  32.9μs     0.00B    0.0%    0.00B
-    update nhs                   5.70k    269ms    2.6%  47.1μs   71.0MiB    6.0%  12.8KiB
-    ~update systems and nhs~     5.70k   60.2ms    0.6%  10.6μs   1.55KiB    0.0%    0.28B
-    inverse state equation       17.1k   49.9ms    0.5%  2.92μs     0.00B    0.0%    0.00B
-    update density diffusion     5.70k    168μs    0.0%  29.5ns     0.00B    0.0%    0.00B
-  ~kick!~                        5.70k   7.26ms    0.1%  1.27μs   1.55KiB    0.0%    0.28B
-  source terms                   17.1k   4.06ms    0.0%   238ns     0.00B    0.0%    0.00B
-  reset ∂v/∂t                    5.70k   2.66ms    0.0%   467ns     0.00B    0.0%    0.00B
-save solution                       50    2.11s   20.3%  42.2ms   1.06GiB   91.2%  21.7MiB
-  write to vtk                     200    1.05s   10.1%  5.24ms   1.03GiB   88.7%  5.29MiB
-  ~save solution~                   50    982ms    9.4%  19.6ms   25.0MiB    2.1%   513KiB
-  update dvdu                       50   71.6ms    0.7%  1.43ms   3.54MiB    0.3%  72.6KiB
-  update systems                    50   8.32ms    0.1%   166μs    653KiB    0.1%  13.1KiB
-update callback                    619    127ms    1.2%   205μs   10.4MiB    0.9%  17.3KiB
-  update systems and nhs           619    104ms    1.0%   168μs   7.91MiB    0.7%  13.1KiB
-  ~update callback~                619   22.8ms    0.2%  36.9μs   2.54MiB    0.2%  4.20KiB
-drift!                           5.70k   8.08ms    0.1%  1.42μs     0.00B    0.0%    0.00B
+kick!                            5.70k    7.88s   79.1%  1.38ms   94.6MiB    7.9%  17.0KiB
+  system interaction             5.70k    6.87s   68.9%  1.21ms   23.6MiB    2.0%  4.24KiB
+    fluid1-fluid1                5.70k    4.81s   48.2%   844μs     0.00B    0.0%    0.00B
+    fluid1-boundary2             5.70k    680ms    6.8%   119μs     0.00B    0.0%    0.00B
+    fluid1-structure3            5.70k    492ms    4.9%  86.3μs     0.00B    0.0%    0.00B
+    fluid1-structure4            5.70k    458ms    4.6%  80.3μs     0.00B    0.0%    0.00B
+    structure3-fluid1            5.70k    111ms    1.1%  19.4μs     0.00B    0.0%    0.00B
+    structure4-fluid1            5.70k   86.0ms    0.9%  15.1μs     0.00B    0.0%    0.00B
+    ~system interaction~         5.70k   66.8ms    0.7%  11.7μs   23.6MiB    2.0%  4.24KiB
+    structure3-structure4        5.70k   58.3ms    0.6%  10.2μs     0.00B    0.0%    0.00B
+    structure3-boundary2         5.70k   45.7ms    0.5%  8.02μs     0.00B    0.0%    0.00B
+    structure4-structure3        5.70k   33.9ms    0.3%  5.95μs     0.00B    0.0%    0.00B
+    structure4-boundary2         5.70k   30.0ms    0.3%  5.26μs     0.00B    0.0%    0.00B
+    structure3-structure3        5.70k    989μs    0.0%   173ns     0.00B    0.0%    0.00B
+    structure4-structure4        5.70k    843μs    0.0%   148ns     0.00B    0.0%    0.00B
+    boundary2-fluid1             5.70k    188μs    0.0%  32.9ns     0.00B    0.0%    0.00B
+    boundary2-structure3         5.70k    185μs    0.0%  32.5ns     0.00B    0.0%    0.00B
+    boundary2-boundary2          5.70k    182μs    0.0%  32.0ns     0.00B    0.0%    0.00B
+    boundary2-structure4         5.70k    181μs    0.0%  31.7ns     0.00B    0.0%    0.00B
+  update systems and nhs         5.70k    992ms   10.0%   174μs   71.0MiB    6.0%  12.8KiB
+    compute boundary pressure    17.1k    597ms    6.0%  34.9μs     0.00B    0.0%    0.00B
+    update nhs                   5.70k    308ms    3.1%  54.0μs   71.0MiB    6.0%  12.8KiB
+    ~update systems and nhs~     5.70k   50.1ms    0.5%  8.78μs   1.55KiB    0.0%    0.28B
+    inverse state equation       17.1k   37.0ms    0.4%  2.16μs     0.00B    0.0%    0.00B
+    update density diffusion     5.70k    167μs    0.0%  29.3ns     0.00B    0.0%    0.00B
+  source terms                   17.1k   9.49ms    0.1%   555ns     0.00B    0.0%    0.00B
+  ~kick!~                        5.70k   6.20ms    0.1%  1.09μs   1.55KiB    0.0%    0.28B
+  reset ∂v/∂t                    5.70k   2.86ms    0.0%   502ns     0.00B    0.0%    0.00B
+save solution                       50    1.94s   19.5%  38.8ms   1.06GiB   91.2%  21.7MiB
+  write to vtk                     200    1.03s   10.3%  5.15ms   1.03GiB   88.7%  5.29MiB
+  ~save solution~                   50    835ms    8.4%  16.7ms   25.1MiB    2.1%   513KiB
+  update dvdu                       50   69.6ms    0.7%  1.39ms   3.54MiB    0.3%  72.6KiB
+  update systems                    50   8.70ms    0.1%   174μs    653KiB    0.1%  13.1KiB
+update callback                    619    137ms    1.4%   221μs   10.4MiB    0.9%  17.3KiB
+  update systems and nhs           619    115ms    1.2%   186μs   7.91MiB    0.7%  13.1KiB
+  ~update callback~                619   21.8ms    0.2%  35.2μs   2.54MiB    0.2%  4.20KiB
+drift!                           5.70k   9.63ms    0.1%  1.69μs     0.00B    0.0%    0.00B
 <span class="sgr1">──────────────────────────────────────────────────────────────────────────────────────────</span></code></pre><p>The plot now shows the full simulation. The squares collide with the tank bottom and each other.</p><pre><code class="language-julia hljs">plot(sol_step3)</code></pre><p><img src="../tut_rigid_body_fsi_step3.png" alt="Step 3"/></p><h2 id="Step-4:-Different-geometry"><a class="docs-heading-anchor" href="#Step-4:-Different-geometry">Step 4: Different geometry</a><a id="Step-4:-Different-geometry-1"></a><a class="docs-heading-anchor-permalink" href="#Step-4:-Different-geometry" title="Permalink"></a></h2><p>The same setup can be used with different geometries. Here, we replace the squares with circles.</p><pre><code class="language-julia hljs">circle1_radius = 0.2
 circle2_radius = 0.15
 
@@ -399,12 +399,12 @@ ode_step4 = semidiscretize(semi_step4, tspan)</code></pre><pre><code class="lang
 │ #threads: ……………………………………………………… 1                                                                │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 
-#timesteps:    100 │ Δt: 2.0000e-03 │ sim. time: 1.9000e-01 (19.000%)  │ run time: 4.9122e+00 s
-#timesteps:    200 │ Δt: 2.0000e-03 │ sim. time: 3.9000e-01 (39.000%)  │ run time: 6.3438e+00 s
-#timesteps:    300 │ Δt: 2.0000e-03 │ sim. time: 5.9000e-01 (59.000%)  │ run time: 7.8914e+00 s
-#timesteps:    400 │ Δt: 2.0000e-03 │ sim. time: 7.3169e-01 (73.169%)  │ run time: 9.4641e+00 s
-#timesteps:    500 │ Δt: 6.0847e-04 │ sim. time: 8.4176e-01 (84.176%)  │ run time: 1.1102e+01 s
-#timesteps:    600 │ Δt: 1.8165e-03 │ sim. time: 9.7536e-01 (97.536%)  │ run time: 1.2685e+01 s
+#timesteps:    100 │ Δt: 2.0000e-03 │ sim. time: 1.9000e-01 (19.000%)  │ run time: 7.0826e+00 s
+#timesteps:    200 │ Δt: 2.0000e-03 │ sim. time: 3.9000e-01 (39.000%)  │ run time: 8.4857e+00 s
+#timesteps:    300 │ Δt: 2.0000e-03 │ sim. time: 5.9000e-01 (59.000%)  │ run time: 1.0003e+01 s
+#timesteps:    400 │ Δt: 2.0000e-03 │ sim. time: 7.3169e-01 (73.169%)  │ run time: 1.1562e+01 s
+#timesteps:    500 │ Δt: 6.0847e-04 │ sim. time: 8.4176e-01 (84.176%)  │ run time: 1.3189e+01 s
+#timesteps:    600 │ Δt: 1.8165e-03 │ sim. time: 9.7536e-01 (97.536%)  │ run time: 1.4740e+01 s
 ────────────────────────────────────────────────────────────────────────────────────────────────────
 Trixi simulation finished.
   Final time:                            1.0
@@ -414,47 +414,47 @@ Trixi simulation finished.
 <span class="sgr1">──────────────────────────────────────────────────────────────────────────────────────────</span>
 <span class="sgr1">           TrixiParticles.jl            </span>         Time                    Allocations
                                         ───────────────────────   ────────────────────────
-           Tot / % measured:                 12.9s /  79.5%           1.21GiB /  95.6%
+           Tot / % measured:                 15.0s /  67.3%           1.29GiB /  89.6%
 
 Section                         ncalls     time    %tot     avg     alloc    %tot      avg
 ──────────────────────────────────────────────────────────────────────────────────────────
-kick!                            5.59k    8.27s   80.5%  1.48ms   88.9MiB    7.5%  16.3KiB
-  system interaction             5.59k    7.31s   71.1%  1.31ms   23.1MiB    2.0%  4.24KiB
-    fluid1-fluid1                5.59k    5.37s   52.2%   961μs     0.00B    0.0%    0.00B
-    fluid1-boundary2             5.59k    629ms    6.1%   113μs     0.00B    0.0%    0.00B
-    fluid1-structure4            5.59k    509ms    4.9%  91.0μs     0.00B    0.0%    0.00B
-    fluid1-structure3            5.59k    438ms    4.3%  78.4μs     0.00B    0.0%    0.00B
-    structure3-fluid1            5.59k   95.6ms    0.9%  17.1μs     0.00B    0.0%    0.00B
-    structure4-fluid1            5.59k   72.5ms    0.7%  13.0μs     0.00B    0.0%    0.00B
-    ~system interaction~         5.59k   68.7ms    0.7%  12.3μs   23.1MiB    2.0%  4.24KiB
-    structure3-boundary2         5.59k   38.7ms    0.4%  6.93μs     0.00B    0.0%    0.00B
-    structure3-structure4        5.59k   37.0ms    0.4%  6.63μs     0.00B    0.0%    0.00B
-    structure4-structure3        5.59k   24.9ms    0.2%  4.45μs     0.00B    0.0%    0.00B
-    structure4-boundary2         5.59k   23.1ms    0.2%  4.13μs     0.00B    0.0%    0.00B
-    structure3-structure3        5.59k   1.13ms    0.0%   203ns     0.00B    0.0%    0.00B
-    structure4-structure4        5.59k    796μs    0.0%   142ns     0.00B    0.0%    0.00B
-    boundary2-fluid1             5.59k    173μs    0.0%  30.9ns     0.00B    0.0%    0.00B
-    boundary2-boundary2          5.59k    170μs    0.0%  30.4ns     0.00B    0.0%    0.00B
-    boundary2-structure3         5.59k    166μs    0.0%  29.7ns     0.00B    0.0%    0.00B
-    boundary2-structure4         5.59k    164μs    0.0%  29.4ns     0.00B    0.0%    0.00B
-  update systems and nhs         5.59k    952ms    9.3%   170μs   65.8MiB    5.6%  12.1KiB
-    compute boundary pressure    16.8k    596ms    5.8%  35.5μs     0.00B    0.0%    0.00B
-    update nhs                   5.59k    255ms    2.5%  45.6μs   65.8MiB    5.6%  12.1KiB
-    ~update systems and nhs~     5.59k   56.0ms    0.5%  10.0μs   1.55KiB    0.0%    0.28B
-    inverse state equation       16.8k   44.8ms    0.4%  2.67μs     0.00B    0.0%    0.00B
-    update density diffusion     5.59k    167μs    0.0%  29.9ns     0.00B    0.0%    0.00B
-  ~kick!~                        5.59k   7.13ms    0.1%  1.28μs   1.55KiB    0.0%    0.28B
-  source terms                   16.8k   3.70ms    0.0%   221ns     0.00B    0.0%    0.00B
-  reset ∂v/∂t                    5.59k   2.41ms    0.0%   432ns     0.00B    0.0%    0.00B
-save solution                       50    1.88s   18.2%  37.5ms   1.06GiB   91.6%  21.6MiB
-  ~save solution~                   50    1.01s    9.8%  20.2ms   24.5MiB    2.1%   502KiB
-  write to vtk                     200    784ms    7.6%  3.92ms   1.03GiB   89.2%  5.27MiB
-  update dvdu                       50   73.8ms    0.7%  1.48ms   3.44MiB    0.3%  70.5KiB
-  update systems                    50   8.44ms    0.1%   169μs    618KiB    0.1%  12.4KiB
-update callback                    616    124ms    1.2%   202μs   9.92MiB    0.8%  16.5KiB
-  update systems and nhs           616    107ms    1.0%   173μs   7.46MiB    0.6%  12.4KiB
-  ~update callback~                616   17.7ms    0.2%  28.8μs   2.47MiB    0.2%  4.10KiB
-drift!                           5.59k   8.15ms    0.1%  1.46μs     0.00B    0.0%    0.00B
+kick!                            5.59k    8.15s   80.8%  1.46ms   88.9MiB    7.5%  16.3KiB
+  system interaction             5.59k    7.13s   70.7%  1.28ms   23.1MiB    2.0%  4.24KiB
+    fluid1-fluid1                5.59k    5.12s   50.7%   916μs     0.00B    0.0%    0.00B
+    fluid1-boundary2             5.59k    670ms    6.6%   120μs     0.00B    0.0%    0.00B
+    fluid1-structure4            5.59k    536ms    5.3%  95.9μs     0.00B    0.0%    0.00B
+    fluid1-structure3            5.59k    436ms    4.3%  78.0μs     0.00B    0.0%    0.00B
+    structure3-fluid1            5.59k    102ms    1.0%  18.2μs     0.00B    0.0%    0.00B
+    structure4-fluid1            5.59k   76.1ms    0.8%  13.6μs     0.00B    0.0%    0.00B
+    ~system interaction~         5.59k   67.6ms    0.7%  12.1μs   23.1MiB    2.0%  4.24KiB
+    structure3-structure4        5.59k   40.8ms    0.4%  7.30μs     0.00B    0.0%    0.00B
+    structure3-boundary2         5.59k   33.7ms    0.3%  6.03μs     0.00B    0.0%    0.00B
+    structure4-structure3        5.59k   27.8ms    0.3%  4.97μs     0.00B    0.0%    0.00B
+    structure4-boundary2         5.59k   21.2ms    0.2%  3.79μs     0.00B    0.0%    0.00B
+    structure3-structure3        5.59k    971μs    0.0%   174ns     0.00B    0.0%    0.00B
+    structure4-structure4        5.59k    779μs    0.0%   139ns     0.00B    0.0%    0.00B
+    boundary2-fluid1             5.59k    183μs    0.0%  32.8ns     0.00B    0.0%    0.00B
+    boundary2-boundary2          5.59k    177μs    0.0%  31.7ns     0.00B    0.0%    0.00B
+    boundary2-structure3         5.59k    175μs    0.0%  31.4ns     0.00B    0.0%    0.00B
+    boundary2-structure4         5.59k    173μs    0.0%  31.0ns     0.00B    0.0%    0.00B
+  update systems and nhs         5.59k    1.00s    9.9%   180μs   65.8MiB    5.6%  12.1KiB
+    compute boundary pressure    16.8k    636ms    6.3%  38.0μs     0.00B    0.0%    0.00B
+    update nhs                   5.59k    285ms    2.8%  51.0μs   65.8MiB    5.6%  12.1KiB
+    ~update systems and nhs~     5.59k   48.5ms    0.5%  8.68μs   1.55KiB    0.0%    0.28B
+    inverse state equation       16.8k   33.5ms    0.3%  2.00μs     0.00B    0.0%    0.00B
+    update density diffusion     5.59k    171μs    0.0%  30.6ns     0.00B    0.0%    0.00B
+  source terms                   16.8k   9.36ms    0.1%   558ns     0.00B    0.0%    0.00B
+  ~kick!~                        5.59k   6.32ms    0.1%  1.13μs   1.55KiB    0.0%    0.28B
+  reset ∂v/∂t                    5.59k   2.77ms    0.0%   496ns     0.00B    0.0%    0.00B
+save solution                       50    1.79s   17.8%  35.9ms   1.06GiB   91.6%  21.6MiB
+  ~save solution~                   50    860ms    8.5%  17.2ms   24.5MiB    2.1%   502KiB
+  write to vtk                     200    853ms    8.5%  4.27ms   1.03GiB   89.2%  5.27MiB
+  update dvdu                       50   72.7ms    0.7%  1.45ms   3.44MiB    0.3%  70.5KiB
+  update systems                    50   8.80ms    0.1%   176μs    618KiB    0.1%  12.4KiB
+update callback                    616    129ms    1.3%   210μs   9.92MiB    0.8%  16.5KiB
+  update systems and nhs           616    112ms    1.1%   183μs   7.46MiB    0.6%  12.4KiB
+  ~update callback~                616   16.7ms    0.2%  27.1μs   2.47MiB    0.2%  4.10KiB
+drift!                           5.59k   9.77ms    0.1%  1.75μs     0.00B    0.0%    0.00B
 <span class="sgr1">──────────────────────────────────────────────────────────────────────────────────────────</span></code></pre><p>And here is the final plot with circles instead of squares.</p><pre><code class="language-julia hljs">plot(sol_step4)</code></pre><p><img src="../tut_rigid_body_fsi_step4.png" alt="Step 4"/></p><h2 id="Next-steps"><a class="docs-heading-anchor" href="#Next-steps">Next steps</a><a id="Next-steps-1"></a><a class="docs-heading-anchor-permalink" href="#Next-steps" title="Permalink"></a></h2><p>A natural extension is to add a layer of small rigid spheres on top of the initial water column. If we choose a density of <code>500.0</code>, the spheres are lighter than the surrounding fluid and should mostly float while interacting with the waves and the falling squares. The example file <a href="https://github.com/trixi-framework/TrixiParticles.jl/blob/main/examples/fsi/falling_rotating_rigid_squares_2d.jl"><code>examples/fsi/falling_rotating_rigid_squares_2d.jl</code></a> contains the same idea as a commented-out block.</p><p>One possible implementation is:</p><pre><code class="language-julia hljs">small_sphere_radius = 0.08
 small_sphere_density = 500.0
 small_sphere_y = initial_fluid_size[2] + small_sphere_radius
@@ -518,4 +518,4 @@ mermaid.initialize({
     startOnLoad: true,
     theme: "neutral"
 });
-</script></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../tut_custom_kernel/">« Modifying or extending components of TrixiParticles.jl within a simulation file</a><a class="docs-footer-nextpage" href="../tut_2d_geometry/">Setting up a 2D simulation from geometry files »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.19.0 on <span class="colophon-date" title="Tuesday 22 September 2026 23:31">Tuesday 22 September 2026</span>. Using Julia version 1.13.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+</script></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../tut_custom_kernel/">« Modifying or extending components of TrixiParticles.jl within a simulation file</a><a class="docs-footer-nextpage" href="../tut_2d_geometry/">Setting up a 2D simulation from geometry files »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.19.0 on <span class="colophon-date" title="Wednesday 23 September 2026 09:44">Wednesday 23 September 2026</span>. Using Julia version 1.13.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
