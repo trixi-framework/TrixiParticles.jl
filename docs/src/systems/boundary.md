@@ -2,6 +2,7 @@
 
 ```@docs
     WallBoundarySystem
+    BoundaryAttachment
 ```
 
 ```@docs

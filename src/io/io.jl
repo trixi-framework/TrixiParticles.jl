@@ -373,6 +373,14 @@ function add_system_data!(system_data, motion::PrescribedMotion)
     system_data["prescribed_motion"]["movement_function"] = type2string(motion.movement_function)
 end
 
+function add_system_data!(system_data, attachment::BoundaryAttachment)
+    system_data["prescribed_motion"] = Dict{String, Any}()
+    system_data["prescribed_motion"]["model"] = type2string(attachment)
+    system_data["prescribed_motion"]["parent_system_index"] = parent_system_index(attachment)
+    system_data["prescribed_motion"]["maximum_parent_particles"] = size(attachment.parent_particles,
+                                                                        1)
+end
+
 function add_system_data!(system_data, penalty_force::PenaltyForceGanzenmueller)
     system_data["penalty_force"] = Dict{String, Any}()
     system_data["penalty_force"]["model"] = type2string(penalty_force)

@@ -366,4 +366,172 @@
                   SVector(0.0, 1.0)
         end
     end
+
+    @testset "Attached wall Riemann coupling" begin
+        structure_spacing = 0.1
+        boundary_spacing = structure_spacing / 2
+        fluid_density = 1000.0
+        smoothing_kernel = WendlandC2Kernel{2}()
+        smoothing_length = structure_spacing
+        state_equation = StateEquationCole(; sound_speed=10.0,
+                                           reference_density=fluid_density,
+                                           exponent=7.0)
+
+        fluid_initial = InitialCondition(; coordinates=reshape([0.02, 0.05], 2, 1),
+                                         velocity=reshape([0.0, -1.0], 2, 1),
+                                         density=fluid_density,
+                                         particle_spacing=boundary_spacing)
+        fluid = WeaklyCompressibleSPHSystem(fluid_initial; smoothing_kernel,
+                                            smoothing_length,
+                                            density_calculator=ContinuityDensity(),
+                                            state_equation)
+
+        structure_initial = InitialCondition(;
+                                             coordinates=[-0.05 0.05 -0.05 0.05
+                                                          0.0 0.0 -0.1 -0.1],
+                                             density=1200.0,
+                                             particle_spacing=structure_spacing)
+        structure_boundary_model = BoundaryModelDummyParticles(fill(fluid_density, 4),
+                                                               fill(fluid_density *
+                                                                    structure_spacing^2, 4),
+                                                               AdamiPressureExtrapolation(),
+                                                               smoothing_kernel,
+                                                               smoothing_length;
+                                                               state_equation)
+        structure = TotalLagrangianSPHSystem(structure_initial; smoothing_kernel,
+                                             smoothing_length=sqrt(2) * structure_spacing,
+                                             young_modulus=0.0, poisson_ratio=0.0,
+                                             boundary_model=structure_boundary_model,
+                                             hydrodynamic_boundary_particles=Int[])
+
+        parent_particles = [1 1 2
+                            0 2 0]
+        parent_weights = [1.0 0.5 1.0
+                          0.0 0.5 0.0]
+        attachment = BoundaryAttachment(2, parent_particles, parent_weights, 4)
+        adapted_attachment = TrixiParticles.Adapt.adapt(Array, attachment)
+        @test TrixiParticles.parent_system_index(adapted_attachment) == 2
+        @test adapted_attachment.parent_particles == attachment.parent_particles
+        @test adapted_attachment.parent_weights == attachment.parent_weights
+        @test adapted_attachment.ghost_particles_by_parent ==
+              attachment.ghost_particles_by_parent
+        @test adapted_attachment.ghost_weights_by_parent ==
+              attachment.ghost_weights_by_parent
+
+        boundary_mass = fill(fluid_density * boundary_spacing * structure_spacing, 3)
+        boundary_initial = InitialCondition(; coordinates=[-0.05 0.0 0.05
+                                                           0.0 0.0 0.0],
+                                            density=fluid_density, mass=boundary_mass,
+                                            particle_spacing=boundary_spacing,
+                                            normals=[0.0 0.0 0.0
+                                                     1.0 1.0 1.0])
+        boundary_model = BoundaryModelDummyParticles(boundary_initial.density,
+                                                     boundary_mass,
+                                                     AdamiPressureExtrapolation(),
+                                                     smoothing_kernel, smoothing_length;
+                                                     state_equation,
+                                                     boundary_state=BoundaryStateWallRiemann())
+        boundary = WallBoundarySystem(boundary_initial, boundary_model;
+                                      prescribed_motion=attachment)
+        metadata = Dict{String, Any}()
+        TrixiParticles.add_system_data!(metadata, boundary)
+        @test metadata["prescribed_motion"]["model"] == "BoundaryAttachment"
+        @test metadata["prescribed_motion"]["parent_system_index"] == 2
+        @test metadata["prescribed_motion"]["maximum_parent_particles"] == 2
+
+        semi = Semidiscretization(fluid, structure, boundary;
+                                  neighborhood_search=nothing,
+                                  parallelization_backend=TrixiParticles.KernelAbstractions.CPU())
+        ode = semidiscretize(semi, (0.0, 0.01); reset_threads=false)
+        fluid, structure, boundary = ode.p.semi.systems
+        v_ode, u_ode = ode.u0.x
+        dv_ode = zero(v_ode)
+        TrixiParticles.kick!(dv_ode, v_ode, u_ode, ode.p, 0.0)
+
+        dv_fluid = TrixiParticles.wrap_v(dv_ode, fluid, ode.p.semi)
+        dv_structure = TrixiParticles.wrap_v(dv_ode, structure, ode.p.semi)
+        fluid_force = fluid.mass[1] * dv_fluid[1:2, 1]
+        structure_force = vec(sum(structure.mass' .* dv_structure[1:2, :]; dims=2))
+        fluid_torque = fluid.mass[1] *
+                       (fluid_initial.coordinates[1, 1] * dv_fluid[2, 1] -
+                        fluid_initial.coordinates[2, 1] * dv_fluid[1, 1])
+        structure_torque = sum(eachparticle(structure)) do particle
+            structure.mass[particle] *
+            (structure.current_coordinates[1, particle] * dv_structure[2, particle] -
+             structure.current_coordinates[2, particle] * dv_structure[1, particle])
+        end
+
+        @test norm(fluid_force) > eps()
+        @test fluid_force≈-structure_force rtol=5e-13 atol=5e-13
+        @test fluid_torque≈-structure_torque rtol=5e-13 atol=5e-13
+        @test vec(sum(boundary.cache.reaction_force; dims=2)) ≈ structure_force
+        @test TrixiParticles.current_acceleration(structure, 1) ≈
+              dv_structure[:, 1]
+
+        fill!(boundary.cache.reaction_force, 1)
+        TrixiParticles.reset_interaction_caches!(boundary)
+        @test all(iszero, boundary.cache.reaction_force)
+
+        transform = [1.2 0.3; 0.1 0.9]
+        translation = SVector(0.2, -0.1)
+        velocity_gradient = [0.4 -0.2; 0.3 0.1]
+        velocity_offset = SVector(-0.1, 0.2)
+        v_structure = TrixiParticles.wrap_v(v_ode, structure, ode.p.semi)
+        u_structure = TrixiParticles.wrap_u(u_ode, structure, ode.p.semi)
+        for particle in eachparticle(structure)
+            reference_position = SVector(structure.initial_coordinates[:, particle]...)
+            u_structure[:, particle] .= transform * reference_position + translation
+            v_structure[:,
+                        particle] .= velocity_gradient * reference_position +
+                                     velocity_offset
+            structure.deformation_grad[:, :, particle] .= transform
+        end
+        TrixiParticles.update_positions!(structure, v_structure, u_structure,
+                                         v_ode, u_ode, ode.p.semi, 0.0)
+        TrixiParticles.update_positions!(boundary,
+                                         TrixiParticles.wrap_v(v_ode, boundary,
+                                                               ode.p.semi),
+                                         TrixiParticles.wrap_u(u_ode, boundary,
+                                                               ode.p.semi),
+                                         v_ode, u_ode, ode.p.semi, 0.0)
+        TrixiParticles.update_boundary_normals!(boundary,
+                                                boundary.prescribed_motion,
+                                                ode.p.semi)
+
+        expected_middle_position = transform * SVector(0.0, 0.0) + translation
+        expected_middle_velocity = velocity_offset
+        expected_normal = normalize(inv(transform)' * SVector(0.0, 1.0))
+        @test boundary.coordinates[:, 2] ≈ expected_middle_position
+        @test boundary.cache.velocity[:, 2] ≈ expected_middle_velocity
+        @test boundary.cache.normals[:, 2] ≈ expected_normal
+
+        structure.deformation_grad[:, :, 1] .= 0
+        TrixiParticles.update_boundary_normals!(boundary,
+                                                boundary.prescribed_motion,
+                                                ode.p.semi)
+        @test boundary.cache.normals[:, 1] ≈ SVector(0.0, 1.0)
+
+        @test_throws ArgumentError BoundaryAttachment(2.0, parent_particles,
+                                                      parent_weights, 4)
+        @test_throws ArgumentError BoundaryAttachment(0, parent_particles,
+                                                      parent_weights, 4)
+        @test_throws ArgumentError BoundaryAttachment(2, parent_particles,
+                                                      0.9parent_weights, 4)
+        @test_throws ArgumentError BoundaryAttachment(2, parent_particles,
+                                                      -parent_weights, 4)
+        @test_throws BoundsError BoundaryAttachment(2, parent_particles .+ 4,
+                                                    parent_weights, 4)
+
+        zero_normal_initial = InitialCondition(; coordinates=boundary_initial.coordinates,
+                                               density=fluid_density, mass=boundary_mass,
+                                               particle_spacing=boundary_spacing,
+                                               normals=zeros(2, 3))
+        zero_normal_boundary = WallBoundarySystem(zero_normal_initial, boundary_model;
+                                                  prescribed_motion=attachment)
+        @test_throws ArgumentError TrixiParticles.check_boundary_attachment(zero_normal_boundary,
+                                                                            attachment,
+                                                                            (fluid,
+                                                                             structure,
+                                                                             zero_normal_boundary))
+    end
 end;

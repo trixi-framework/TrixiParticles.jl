@@ -60,6 +60,32 @@
             @test !("ignored" in keys(field_data))
         end
 
+        @testset verbose=true "Attached Boundary Fields" begin
+            boundary_coordinates = [0.0 1.0; 0.0 0.0]
+            boundary_normals = [0.0 0.0; 1.0 1.0]
+            boundary_initial_condition = InitialCondition(;
+                                                          coordinates=boundary_coordinates,
+                                                          density=1000.0,
+                                                          particle_spacing=0.1,
+                                                          normals=boundary_normals)
+            attachment = BoundaryAttachment(1, reshape([1, 2], 1, :), ones(1, 2), 2)
+            boundary_system = WallBoundarySystem(boundary_initial_condition, nothing;
+                                                 prescribed_motion=attachment)
+            boundary_system.cache.velocity .= [1.0 2.0; 3.0 4.0]
+            boundary_system.cache.acceleration .= [5.0 6.0; 7.0 8.0]
+            boundary_system.cache.reaction_force .= [9.0 10.0; 11.0 12.0]
+
+            vtk = Dict{String, Any}()
+            TrixiParticles.write2vtk!(vtk, zeros(1, 2), boundary_coordinates, 0.0,
+                                      boundary_system)
+
+            @test stack(vtk["velocity"]) == boundary_system.cache.velocity
+            @test stack(vtk["acceleration"]) == boundary_system.cache.acceleration
+            @test vtk["normal"] == boundary_normals
+            @test vtk["reaction_force"] == boundary_system.cache.reaction_force
+            @test vtk["parent_system_index"] == [1, 1]
+        end
+
         @testset verbose=true "VTK Compression Options" begin
             coordinate_data = [0.0 1.0 2.0; 0.0 1.0 2.0]
             compressed_file = trixi2vtk(coordinate_data; output_directory=tmp_dir,

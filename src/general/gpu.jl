@@ -22,6 +22,21 @@ Adapt.@adapt_structure DEMSystem
 Adapt.@adapt_structure BoundaryDEMSystem
 Adapt.@adapt_structure RCRWindkesselModel
 
+function Adapt.adapt_structure(to,
+                               attachment::BoundaryAttachment{PARENT_SYSTEM_INDEX}) where {PARENT_SYSTEM_INDEX}
+    parent_particles = Adapt.adapt(to, attachment.parent_particles)
+    parent_weights = Adapt.adapt(to, attachment.parent_weights)
+    ghost_particles_by_parent = Adapt.adapt(to, attachment.ghost_particles_by_parent)
+    ghost_weights_by_parent = Adapt.adapt(to, attachment.ghost_weights_by_parent)
+
+    return BoundaryAttachment{PARENT_SYSTEM_INDEX, typeof(parent_particles),
+                              typeof(parent_weights), typeof(ghost_particles_by_parent),
+                              typeof(ghost_weights_by_parent)}(parent_particles,
+                                                               parent_weights,
+                                                               ghost_particles_by_parent,
+                                                               ghost_weights_by_parent)
+end
+
 function adapt_neighborhood_search_handler(to, handler::PairsNHSHandler)
     return PairsNHSHandler(Adapt.adapt.(Ref(to), handler.neighborhood_searches))
 end
