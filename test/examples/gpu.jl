@@ -1159,6 +1159,40 @@ end
             @test isfile(joinpath("out", "plane_0.0.vti"))
             @test isfile(joinpath("out", "plane_0.05.vti"))
         end
+
+        if TRIXIPARTICLES_TEST_ == "cuda"
+            @trixi_testset "fsi/wave_through_flexible_structures_3d_v38_gpu.jl" begin
+                @trixi_test_nowarn trixi_include(@__MODULE__,
+                                                 joinpath(examples_dir(), "fsi",
+                                                          "wave_through_flexible_structures_3d_v38_gpu.jl");
+                                                 particle_spacing=0.1f0,
+                                                 tank_size=(1.2f0, 1.0f0, 1.0f0),
+                                                 blade_centers=((0.55f0, 0.5f0),),
+                                                 tspan=(0.0f0, 2.0f-6),
+                                                 output_directory=mktempdir(),
+                                                 callbacks=nothing,
+                                                 parallelization_backend=Main.parallelization_backend) [
+                    r"\[ Info: To create the self-interaction neighborhood search.*\n",
+                    r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
+                ]
+
+                runtime_systems = ode.p.semi.systems
+                structure = runtime_systems[3]
+                attached_boundary = runtime_systems[4]
+                attachment = attached_boundary.prescribed_motion
+
+                @test sol.retcode == ReturnCode.Success
+                @test all(isfinite, Array(sol.u[end].x[1]))
+                @test length(runtime_systems) == 4
+                @test TrixiParticles.parent_system_index(attachment) == 3
+                @test TrixiParticles.KernelAbstractions.get_backend(attachment.parent_particles) ==
+                      Main.parallelization_backend
+                @test nparticles(attached_boundary) > nparticles(structure)
+                @test all(isfinite, Array(structure.initial_condition.normals))
+                @test all(isfinite, Array(attached_boundary.cache.normals))
+                @test all(isfinite, Array(attached_boundary.cache.reaction_force))
+            end
+        end
     end
 
     @testset verbose=true "DEM" begin
