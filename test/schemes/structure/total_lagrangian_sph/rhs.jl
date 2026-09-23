@@ -361,6 +361,9 @@
             normal = TrixiParticles.boundary_state_normal(structure, 1,
                                                           SVector(0.0, 1.0), 1.0)
             @test normal ≈ normalize(SVector(-1.0, 1.0))
+            @test TrixiParticles.boundary_state_normal(nothing, structure, 1,
+                                                       SVector(0.0, 2.0), 2.0) ==
+                  SVector(0.0, 1.0)
         end
     end
 end;
