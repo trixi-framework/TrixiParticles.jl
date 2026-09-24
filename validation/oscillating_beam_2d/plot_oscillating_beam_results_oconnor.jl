@@ -45,14 +45,14 @@ p = plot(; xlabel="Time (s)", ylabel="Tip Y-Deflection (m)",
 # Legend entries of the reference data. The legend is filled row-wise with two columns,
 # so these are interleaved with the resolutions to end up in the right column.
 function plot_oconnor_legend!(p)
-    scatter!(p, [NaN], [NaN]; label="O'Connor and Rogers, 2021",
+    scatter!(p, [NaN], [NaN]; label="O'Connor and Rogers (2021)",
              markershape=:circle, markersize=4, markercolor=:white,
              markerstrokecolor=:black, markerstrokewidth=2.5)
 end
 
 function plot_turek!(p)
     plot!(p, ref_turek.time, ref_turek.Uy; color=:black, linestyle=:dot, linewidth=2.5,
-          label="Turek & Hron, 2006")
+          label="Turek & Hron (2006)")
 end
 
 function plot_empty_legend!(p)
