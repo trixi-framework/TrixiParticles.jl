@@ -20,7 +20,7 @@ deflection_limits = (-0.135, -0.105)
 
 # Load the Turek and Hron reference data
 ref_turek = CSV.read(joinpath(validation_dir(), "oscillating_beam_2d",
-                     "reference_turek.csv"), DataFrame)
+                              "reference_turek.csv"), DataFrame)
 
 # Load the O'Connor and Rogers reference data. Column `resN` contains the results for
 # `t_s / dp = N`.
