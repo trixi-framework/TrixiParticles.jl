@@ -10,8 +10,6 @@ using DataFrames
 using JSON
 using TrixiParticles
 
-elastic_plate = (length=0.35, thickness=0.02)
-
 # Number of particles over the plate thickness. Note that `t_s / dp = resolution - 1`.
 resolutions = (5, 9, 17, 33, 65)
 colors = palette(:Set1_5)[[1, 5, 4, 3, 2]]
