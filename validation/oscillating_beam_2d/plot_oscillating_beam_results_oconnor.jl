@@ -41,7 +41,7 @@ function load_tip_deflection_y(file_name)
     return Float64.(data["time"]), Float64.(data["values"])
 end
 
-p = plot(; xlabel="Time (s)", ylabel="Tip Y-Deflection (m)",
+p = plot(; xlabel="Time [s]", ylabel="Tip Y-Deflection [m]",
          xlims=time_limits, ylims=deflection_limits,
          xticks=0.35:0.05:0.55, yticks=-0.13:0.005:-0.11,
          framestyle=:box, legend=:top, legend_columns=2, dpi=400,
@@ -50,7 +50,8 @@ p = plot(; xlabel="Time (s)", ylabel="Tip Y-Deflection (m)",
 # Legend entries of the reference data. The legend is filled row-wise with two columns,
 # so these are interleaved with the resolutions to end up in the right column.
 function plot_oconnor_legend!(p)
-    scatter!(p, [NaN], [NaN]; label="O'Connor and Rogers (2021)",
+    # Don't use NaN, as this messes up the legend with PGFPlotsX.
+    scatter!(p, [0], [0]; label="O'Connor and Rogers (2021)",
              markershape=:circle, markersize=4, markercolor=:white,
              markerstrokecolor=:black, markerstrokewidth=2.5)
 end
@@ -62,7 +63,8 @@ function plot_turek!(p)
 end
 
 function plot_empty_legend!(p)
-    plot!(p, [NaN], [NaN]; label=" ", linealpha=0)
+    # Don't use NaN, as this messes up the legend with PGFPlotsX.
+    plot!(p, [0], [0]; label=" ", linealpha=0)
 end
 
 right_column = (plot_oconnor_legend!, plot_turek!,
