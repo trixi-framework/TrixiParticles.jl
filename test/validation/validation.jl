@@ -45,6 +45,16 @@
         @test length(ax1.scene.plots) >= 6
     end
 
+    # Separate testset because Plots.jl and CairoMakie.jl both export `plot`
+    @trixi_testset "oscillating_beam_2d O'Connor" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(validation_dir(), "oscillating_beam_2d",
+                                                  "plot_oscillating_beam_results_oconnor.jl"))
+        # Verify number of plots: for each resolution, one line, one scatter series
+        # and one legend entry of the right column.
+        @test p.n == 3 * length(resolutions)
+    end
+
     @trixi_testset "dam_break_2d" begin
         # Use `SerialUpdate()` to obtain consistent results when using multiple
         # threads and a shorter tspan to speed up CI tests.
