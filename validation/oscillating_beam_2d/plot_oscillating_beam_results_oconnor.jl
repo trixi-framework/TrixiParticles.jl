@@ -18,6 +18,11 @@ colors = palette(:Set1_5)[[1, 5, 4, 3, 2]]
 time_limits = (0.35, 0.55)
 deflection_limits = (-0.135, -0.105)
 
+function restrict_to_time_limits(times, values)
+    mask = (first(time_limits) .<= times) .& (times .<= last(time_limits))
+    return times[mask], values[mask]
+end
+
 # Load the Turek and Hron reference data
 ref_turek = CSV.read(joinpath(validation_dir(), "oscillating_beam_2d",
                               "reference_turek.csv"), DataFrame)
@@ -51,7 +56,8 @@ function plot_oconnor_legend!(p)
 end
 
 function plot_turek!(p)
-    plot!(p, ref_turek.time, ref_turek.Uy; color=:black, linestyle=:dot, linewidth=2.5,
+    times, deflection = restrict_to_time_limits(ref_turek.time, ref_turek.Uy)
+    plot!(p, times, deflection; color=:black, linestyle=:dot, linewidth=2.5,
           label="Turek & Hron (2006)")
 end
 
@@ -66,6 +72,7 @@ for (resolution, color, plot_right_column!) in zip(resolutions, colors, right_co
     file_name = joinpath(validation_dir(), "oscillating_beam_2d",
                          "validation_reference_$resolution.json")
     times, deflection = load_tip_deflection_y(file_name)
+    times, deflection = restrict_to_time_limits(times, deflection)
 
     ratio = resolution - 1
     plot!(p, times, deflection; color, linewidth=2.5, label=latexstring("t_s/dp = $ratio"))
