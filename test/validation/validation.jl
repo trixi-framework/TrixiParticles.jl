@@ -104,8 +104,14 @@
         ]
 
         # We compare the relative error to the analytical solution
-        @test isapprox(errors[:edac][2], 0.0, atol=0.033)
-        @test isapprox(errors[:wcsph][2], 0.0, atol=0.045)
+        @test isapprox(errors[:edac][2], 0.0, atol=0.031)
+        if VERSION < v"1.11"
+            # Julia 1.10 CI tests produce larger errors non-deterministically
+            # for unknown reasons.
+            @test isapprox(errors[:wcsph][2], 0.0, atol=0.045)
+        else
+            @test isapprox(errors[:wcsph][2], 0.0, atol=0.042)
+        end
     end
     @trixi_testset "TGV_2D" begin
         @trixi_test_nowarn trixi_include(@__MODULE__,
