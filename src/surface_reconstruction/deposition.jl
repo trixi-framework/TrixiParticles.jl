@@ -1,4 +1,4 @@
-# Indexed particle volumes and trilinear volume-CIC deposition.
+# Indexed particle volumes and bilinear/trilinear CIC deposition.
 function reference_particle_masses(state, particle_spacing)
     length(unique(state.index)) == length(state.index) ||
         throw(ArgumentError("reference fluid state contains duplicate particle IDs"))
@@ -13,6 +13,32 @@ function reference_particle_masses(state, particle_spacing)
         masses[state.index[index]] = state.density[index] * spacing_cubed
     end
     return masses
+end
+
+# Keep each deposition kernel's arithmetic and boundary handling: planar accumulation
+# uses area/spacing², while the 3D kernel multiplies by the inverse cell volume and can
+# deposit a partial stencil when called directly. The public pipeline excludes partial
+# stencils in both dimensions before calling these kernels.
+function deposit_volume_cic!(field::AbstractMatrix, points, areas, origin, spacing;
+                             backend=PolyesterBackend(), support=nothing)
+    fill!(field, 0)
+    inverse_spacing = inv(spacing)
+    for particle in axes(points, 2)
+        coordinate = (SVector{2, Float64}(points[:, particle]) - origin) * inverse_spacing
+        lower = floor.(Int, coordinate)
+        fraction = coordinate - lower
+        all((0 .<= lower) .& (lower .< SVector(size(field)) .- 1)) ||
+            throw(ArgumentError("particle stencil is outside the deposition grid"))
+        for y_offset in 0:1, x_offset in 0:1
+            weight_x = x_offset == 0 ? 1 - fraction[1] : fraction[1]
+            weight_y = y_offset == 0 ? 1 - fraction[2] : fraction[2]
+            field[lower[1] + x_offset + 1,
+                  lower[2] + y_offset + 1] += Float32(areas[particle] / spacing^2 *
+                                                      weight_x * weight_y)
+        end
+    end
+    return (; deposited_volume=sum(Float64, field) * spacing^2,
+            particle_volume=sum(areas))
 end
 
 function particle_volumes(state, masses, particle_spacing)
@@ -31,21 +57,21 @@ function particle_volumes(state, masses, particle_spacing)
     return volumes
 end
 
-# Voxel ranges that `deposit_volume_cic!` can write to: the trilinear stencils of all
+# Voxel ranges that `deposit_volume_cic!` can write to: the CIC stencils of all
 # particles, with the same index arithmetic, clamped to the grid
-function deposition_support(points, origin, spacing, dimensions)
-    size(points, 2) == 0 && return (1:0, 1:0, 1:0)
+function deposition_support(points, origin, spacing, dimensions::NTuple{N, Int}) where {N}
+    size(points, 2) == 0 && return ntuple(_ -> 1:0, Val(N))
     inverse_spacing = inv(spacing)
-    lower = MVector(typemax(Int), typemax(Int), typemax(Int))
-    upper = MVector(typemin(Int), typemin(Int), typemin(Int))
-    @inbounds for particle in axes(points, 2), axis in 1:3
+    lower = MVector{N, Int}(ntuple(_ -> typemax(Int), Val(N)))
+    upper = MVector{N, Int}(ntuple(_ -> typemin(Int), Val(N)))
+    @inbounds for particle in axes(points, 2), axis in 1:N
         cell = floor(Int, (points[axis, particle] - origin[axis]) * inverse_spacing)
         lower[axis] = min(lower[axis], cell)
         upper[axis] = max(upper[axis], cell)
     end
     # 0-based stencil cells `cell` and `cell + 1` are the 1-based voxels `cell + 1:cell + 2`
     return ntuple(axis -> max(lower[axis] + 1, 1):min(upper[axis] + 2, dimensions[axis]),
-                  3)
+                  Val(N))
 end
 
 # With `support` (see `deposition_support`), `field` must be zero on entry, and the

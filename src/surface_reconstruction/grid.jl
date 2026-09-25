@@ -2,8 +2,8 @@
 """
     ReconstructionGrid(origin, spacing, dimensions)
 
-Uniform voxel grid for the reconstruction. `origin` is the lower corner of voxel
-`(1, 1, 1)` and `spacing` the voxel size. See [`reconstruction_grid`](@ref) for
+Uniform grid for 2D or 3D reconstruction. `origin` is the first grid node and `spacing`
+the distance between nodes. See [`reconstruction_grid`](@ref) for
 construction from particle bounds or a fixed tank.
 """
 struct ReconstructionGrid{NDIMS}
@@ -24,7 +24,7 @@ end
 Derive the reconstruction grid and the clipping domain from particle bounds. With
 `min_corner`/`max_corner` (e.g. resolved from `tank_size`), the grid is pinned to
 `[min - padding, max + padding]` and the domain is the given box with `open_faces`
-(`(-x, +x, -y, +y, -z, +z)` order). Without corners, the grid adapts to the particle
+(`(-x, +x, -y, +y[, -z, +z])` order). Without corners, the grid adapts to the particle
 bounds with the same padding, and the domain is the padded grid box itself, so the
 reconstruction is translation-invariant and effectively unconstrained. Returns the grid
 and the [`ReconstructionDomain`](@ref).
@@ -32,15 +32,24 @@ and the [`ReconstructionDomain`](@ref).
 function reconstruction_grid(points, voxel_size, nominal_padding; min_corner=nothing,
                              max_corner=nothing,
                              open_faces=ntuple(_ -> false, 2size(points, 1)))
-    size(points, 1) == 2 &&
-        return reconstruction_grid_2d(points, voxel_size, nominal_padding;
-                                      min_corner, max_corner, open_faces)
+    # Keep the two supported dimensions visible to inference at this entry point;
+    # the common implementation specializes its tuples and static vectors on N.
+    if size(points, 1) == 2
+        return reconstruction_grid(points, voxel_size, nominal_padding, Val(2);
+                                   min_corner, max_corner, open_faces)
+    end
+    return reconstruction_grid(points, voxel_size, nominal_padding, Val(3);
+                               min_corner, max_corner, open_faces)
+end
+
+function reconstruction_grid(points, voxel_size, nominal_padding, ::Val{N};
+                             min_corner, max_corner, open_faces) where {N}
     padding = nominal_padding + voxel_size / 2
     if min_corner !== nothing
-        lower = SVector{3, Float64}(min_corner)
-        upper_corner = SVector{3, Float64}(max_corner)
-        origin = lower - SVector{3, Float64}(padding, padding, padding)
-        upper = upper_corner + SVector{3, Float64}(padding, padding, padding)
+        lower = SVector{N, Float64}(min_corner)
+        upper_corner = SVector{N, Float64}(max_corner)
+        origin = lower .- padding
+        upper = upper_corner .+ padding
         domain = ReconstructionDomain(lower, upper_corner; open_faces=open_faces)
         if any(open_faces) && size(points, 2) > 0
             origin,
@@ -48,14 +57,12 @@ function reconstruction_grid(points, voxel_size, nominal_padding; min_corner=not
                                            voxel_size, open_faces)
         end
     else
-        minimums = SVector{3, Float64}(minimum(view(points, 1, :)),
-                                       minimum(view(points, 2, :)),
-                                       minimum(view(points, 3, :)))
-        maximums = SVector{3, Float64}(maximum(view(points, 1, :)),
-                                       maximum(view(points, 2, :)),
-                                       maximum(view(points, 3, :)))
-        origin = minimums - SVector{3, Float64}(padding, padding, padding)
-        upper = maximums + SVector{3, Float64}(padding, padding, padding)
+        minimums = SVector{N, Float64}(ntuple(axis -> minimum(view(points, axis, :)),
+                                              Val(N)))
+        maximums = SVector{N, Float64}(ntuple(axis -> maximum(view(points, axis, :)),
+                                              Val(N)))
+        origin = minimums .- padding
+        upper = maximums .+ padding
         # Without explicit corners, only clip the surface at the padded grid box itself
         # (closed on all faces), which keeps the reconstruction translation-invariant.
         domain = ReconstructionDomain(origin, upper)
@@ -103,16 +110,16 @@ mutable struct ReconstructionWorkspace2D
     spacing::Float64
 end
 
-# Particles whose trilinear (CIC) stencil does not fit in the grid cannot be deposited.
+# Particles whose bilinear/trilinear CIC stencil does not fit cannot be deposited.
 # Excluding them from both the deposit and the volume-correction target keeps the two
 # consistent; silently dropping stencil weights would let the correction inflate the
 # remaining surface to absorb volume that is not on the grid. The index arithmetic
 # mirrors `deposit_volume_cic!` exactly.
-function exclude_outside_grid(points, volumes, grid::ReconstructionGrid)
+function exclude_outside_grid(points, volumes, grid::ReconstructionGrid{N}) where {N}
     (; origin, spacing, dimensions) = grid
     inverse_spacing = inv(spacing)
     inside = trues(size(points, 2))
-    for particle in axes(points, 2), axis in 1:3
+    for particle in axes(points, 2), axis in 1:N
         lower = floor(Int, (points[axis, particle] - origin[axis]) * inverse_spacing)
         if !(0 <= lower <= dimensions[axis] - 2)
             inside[particle] = false
@@ -131,11 +138,58 @@ end
 # min/max stencil cells of the retained particles. The per-particle index arithmetic is
 # unchanged, and `min`/`max` over integers are exact and order-independent, so the mask,
 # the filtered data, and the support ranges are identical to the two separate passes.
-function exclude_and_support(points, volumes, grid::ReconstructionGrid)
+@inline stencil_fits(::Tuple{}, ::Tuple{}) = true
+@inline function stencil_fits(cell::Tuple, dimensions::Tuple)
+    return 0 <= first(cell) <= first(dimensions) - 2 &&
+           stencil_fits(Base.tail(cell), Base.tail(dimensions))
+end
+
+function exclude_and_support(points, volumes, grid::ReconstructionGrid{N}) where {N}
+    inside = trues(size(points, 2))
+    lower, upper = particle_stencil_bounds!(inside, points, grid)
+    # 0-based stencil cells `cell` and `cell + 1` are the 1-based voxels `cell + 1:cell + 2`.
+    # Map the final tuples as arguments; capturing reassigned loop accumulators in a
+    # closure would box them and cause per-particle allocations.
+    support = lower[1] == typemax(Int) ? ntuple(_ -> 1:0, Val(N)) :
+              map((low, high) -> (low + 1):(high + 2), lower, upper)
+
+    excluded_count = count(!, inside)
+    excluded_count == 0 && return points, volumes, 0, 0.0, support
+
+    excluded_volume = sum(volumes[.!inside])
+    return points[:, inside], volumes[inside], excluded_count, excluded_volume, support
+end
+
+# `inside` starts filled with true. Only the numerical scan is specialized below;
+# mask filtering, excluded measure, and support construction are shared.
+@inline function particle_stencil_bounds!(inside, points,
+                                          grid::ReconstructionGrid{N}) where {N}
+    (; origin, spacing, dimensions) = grid
+    inverse_spacing = inv(spacing)
+    lower = ntuple(_ -> typemax(Int), Val(N))
+    upper = ntuple(_ -> typemin(Int), Val(N))
+    @inbounds for particle in axes(points, 2)
+        # The caller checks the coordinate dimension. Mark indexing inside the closure
+        # too: the outer @inbounds does not propagate through both ntuple and its lambda.
+        cell = ntuple(axis -> @inbounds(floor(Int,
+                                              (points[axis, particle] - origin[axis]) *
+                                              inverse_spacing)), Val(N))
+        if stencil_fits(cell, dimensions)
+            lower = map(min, lower, cell)
+            upper = map(max, upper, cell)
+        else
+            inside[particle] = false
+        end
+    end
+    return lower, upper
+end
+
+# The scalar 3D scan benchmarks faster than the tuple scan at production scale. Keep
+# its register/branch layout while sharing the surrounding logic with planar inputs.
+@inline function particle_stencil_bounds!(inside, points, grid::ReconstructionGrid{3})
     (; origin, spacing, dimensions) = grid
     inverse_spacing = inv(spacing)
     nx, ny, nz = dimensions
-    inside = trues(size(points, 2))
     lower_x, lower_y, lower_z = typemax(Int), typemax(Int), typemax(Int)
     upper_x, upper_y, upper_z = typemin(Int), typemin(Int), typemin(Int)
     @inbounds for particle in axes(points, 2)
@@ -153,17 +207,7 @@ function exclude_and_support(points, volumes, grid::ReconstructionGrid)
             inside[particle] = false
         end
     end
-    # 0-based stencil cells `cell` and `cell + 1` are the 1-based voxels `cell + 1:cell + 2`
-    support = lower_x == typemax(Int) ? (1:0, 1:0, 1:0) :
-              (max(lower_x + 1, 1):min(upper_x + 2, nx),
-               max(lower_y + 1, 1):min(upper_y + 2, ny),
-               max(lower_z + 1, 1):min(upper_z + 2, nz))
-
-    excluded_count = count(!, inside)
-    excluded_count == 0 && return points, volumes, 0, 0.0, support
-
-    excluded_volume = sum(volumes[.!inside])
-    return points[:, inside], volumes[inside], excluded_count, excluded_volume, support
+    return (lower_x, lower_y, lower_z), (upper_x, upper_y, upper_z)
 end
 
 mutable struct ReconstructionWorkspace
@@ -210,13 +254,15 @@ function ReconstructionWorkspace(dimensions, origin, spacing;
                                    NTuple{3, UnitRange{Int}}[])
 end
 
-full_region(dimensions) = ntuple(axis -> 1:dimensions[axis], 3)
+function full_region(dimensions::NTuple{N, Int}) where {N}
+    ntuple(axis -> 1:dimensions[axis], Val(N))
+end
 
 # `region` grown by `layers` voxels in every direction, clamped to the grid
-function expand_region(region, layers, dimensions)
+function expand_region(region, layers, dimensions::NTuple{N, Int}) where {N}
     return ntuple(axis -> max(first(region[axis]) - layers,
                               1):min(last(region[axis]) + layers,
-                                     dimensions[axis]), 3)
+                                     dimensions[axis]), Val(N))
 end
 
 # Deterministic parallel reductions over a 3D field. Partial results per slab of constant
@@ -347,4 +393,16 @@ function record_field_moments!(history, stage, field, origin, spacing)
               "centroid" => collect(moments.centroid)
           ))
     return history
+end
+
+# Preserve the per-dimension summation/normalization order for diagnostic moments.
+function scalar_field_moments(field::AbstractMatrix, origin, spacing)
+    total, moment = 0.0, SVector(0.0, 0.0)
+    for j in axes(field, 2), i in axes(field, 1)
+        value = Float64(field[i, j])
+        total += value
+        moment += value * (origin + spacing * SVector(i - 1, j - 1))
+    end
+    return (; integral=total * spacing^2, first_moment=moment * spacing^2,
+            centroid=total > 0 ? moment / total : SVector(NaN, NaN))
 end

@@ -6,6 +6,33 @@ function gaussian_kernel(sigma_voxels)
     return Float32.(weights)
 end
 
+# The planar pass keeps contiguous x traversal and its original accumulation order.
+# The 3D passes below use separate slab/axis traversals and restricted support regions.
+function gaussian_filter!(field::AbstractMatrix, temporary, scratch, kernel;
+                          backend=PolyesterBackend(), support=nothing, zeroed=false)
+    radius = length(kernel) ÷ 2
+    nx, ny = size(field)
+    @threaded backend for j in 1:ny
+        for i in 1:nx
+            value = 0.0f0
+            for offset in max(-radius, 1 - i):min(radius, nx - i)
+                value = muladd(kernel[offset + radius + 1], field[i + offset, j], value)
+            end
+            temporary[i, j] = value
+        end
+    end
+    @threaded backend for j in 1:ny
+        for i in 1:nx
+            value = 0.0f0
+            for offset in max(-radius, 1 - j):min(radius, ny - j)
+                value = muladd(kernel[offset + radius + 1], temporary[i, j + offset], value)
+            end
+            field[i, j] = value
+        end
+    end
+    return field
+end
+
 function convolve_x!(output, input, kernel, backend;
                      region=(axes(input, 1), axes(input, 2), axes(input, 3)),
                      zeroed=false)

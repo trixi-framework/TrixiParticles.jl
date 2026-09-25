@@ -241,37 +241,10 @@ function boundary_surface_mesh(boundary::BoundaryMesh{2})
 end
 
 function lattice_contour_topology(reference)
-    all(isfinite, reference) || throw(ArgumentError("reference coordinates must be finite"))
-    grid_axes = ntuple(axis -> sort!(unique(round.(reference[axis, :]; digits=10))), 2)
-    nx, ny = length.(grid_axes)
-    nx >= 2 && ny >= 2 && nx * ny == size(reference, 2) ||
-        throw(ArgumentError("reference coordinates must form a complete 2D lattice"))
-    lookup = zeros(Int32, nx, ny)
-    for index in axes(reference, 2)
-        i,
-        j = ntuple(axis -> searchsortedfirst(grid_axes[axis],
-                                             round(reference[axis, index]; digits=10)), 2)
-        iszero(lookup[i, j]) ||
-            throw(ArgumentError("reference lattice has duplicate coordinates"))
-        lookup[i, j] = index
-    end
+    lookup = lattice_coordinate_lookup(reference, Val(2))
+    nx, ny = size(lookup)
     loop = vcat(lookup[:, 1], lookup[nx, 2:end], reverse(lookup[1:(nx - 1), ny]),
                 reverse(lookup[1, 2:(ny - 1)]))
     return BoundaryTopology([ContourSegment(loop[i], loop[mod1(i + 1, length(loop))])
                              for i in eachindex(loop)])
-end
-
-function enclosed_particles_2d(points, boundaries; backend=PolyesterBackend())
-    enclosed = zeros(UInt8, size(points, 2))
-    @threaded backend for index in axes(points, 2)
-        point = SVector{2, Float64}(points[1, index], points[2, index])
-        for boundary in boundaries
-            if all(boundary.lower .<= point) && all(point .<= boundary.upper) &&
-               signed_distance(boundary.bvh, point) < -1.0e-10
-                enclosed[index] = 1
-                break
-            end
-        end
-    end
-    return enclosed
 end

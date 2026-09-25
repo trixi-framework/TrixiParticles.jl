@@ -504,6 +504,28 @@
             # All particles outside the grid
             fused = check_fused(outside)
             @test fused[3] == 3 && isempty(fused[1])
+
+            # Dimension-generic helpers must be inferred: a captured, reassigned tuple
+            # once introduced per-particle boxing. Binary-exact coordinates also test
+            # the last valid stencil versus the first excluded one in Float32/Float64.
+            for dimension in (2, 3), scalar_type in (Float32, Float64)
+                grid_nd = TrixiParticles.ReconstructionGrid(SVector(ntuple(_ -> -0.25,
+                                                                           dimension)),
+                                                            0.125,
+                                                            ntuple(_ -> 12, dimension))
+                coords = fill(scalar_type(-0.1875), dimension, 5)
+                coords[1, :] .= scalar_type.(-0.25 .+ 0.125 .* [-1, 0, 4.5, 10, 11])
+                measures = collect(1.0:5.0)
+                fused_nd = @inferred TrixiParticles.exclude_and_support(coords, measures,
+                                                                        grid_nd)
+                separate = TrixiParticles.exclude_outside_grid(coords, measures, grid_nd)
+                @test fused_nd[1:4] == separate
+                @test fused_nd[1] == coords[:, 2:4]
+                @test fused_nd[4] == 6.0
+                @test fused_nd[5] ==
+                      TrixiParticles.deposition_support(separate[1], grid_nd.origin,
+                                                        grid_nd.spacing, grid_nd.dimensions)
+            end
         end
 
         @testset "parallel field reductions are deterministic" begin

@@ -35,14 +35,16 @@ end
 
 # Signed distance to the domain walls (positive inside). Open faces contribute `Inf`;
 # `min`/`max` are exact, so open faces never change the result bitwise.
-@inline function domain_distance(domain::ReconstructionDomain, x, y, z)
+@inline function domain_distance(domain::ReconstructionDomain{N},
+                                 coordinates::Vararg{Any, N}) where {N}
     (; min_corner, max_corner, open_faces) = domain
-    return min(open_faces[1] ? Inf : x - min_corner[1],
-               open_faces[2] ? Inf : max_corner[1] - x,
-               open_faces[3] ? Inf : y - min_corner[2],
-               open_faces[4] ? Inf : max_corner[2] - y,
-               open_faces[5] ? Inf : z - min_corner[3],
-               open_faces[6] ? Inf : max_corner[3] - z)
+    distances = ntuple(Val(2N)) do face
+        axis = (face + 1) ÷ 2
+        return open_faces[face] ? Inf :
+               isodd(face) ? coordinates[axis] - min_corner[axis] :
+               max_corner[axis] - coordinates[axis]
+    end
+    return min(distances...)
 end
 
 # Every value depends only on its grid index, so computing a `region` gives bitwise the
@@ -65,26 +67,41 @@ function domain_constraint!(constraint, origin, spacing, domain::ReconstructionD
     return constraint
 end
 
+function domain_constraint!(constraint::AbstractMatrix, origin, spacing,
+                            domain::ReconstructionDomain{2}, distance_scale;
+                            backend=PolyesterBackend(), region=axes(constraint))
+    @threaded backend for j in region[2]
+        y = origin[2] + (j - 1) * spacing
+        for i in region[1]
+            x = origin[1] + (i - 1) * spacing
+            constraint[i, j] = Float32(domain_distance(domain, x, y) / distance_scale)
+        end
+    end
+    return constraint
+end
+
 # Largest violation of the domain walls by a point (0 when inside).
 @inline function domain_violation(domain::ReconstructionDomain, point)
     return max(zero(eltype(point)), -domain_distance(domain, point...))
 end
 
 # 0-based lower and upper grid indices of the voxels sampled for a boundary
-function boundary_constraint_box(boundary, origin, spacing, clearance, dimensions)
+function boundary_constraint_box(boundary, origin, spacing, clearance,
+                                 dimensions::NTuple{N, Int}) where {N}
     margin = clearance + 2spacing
     lower = floor.(Int, (boundary.lower .- margin .- origin) ./ spacing)
     upper = ceil.(Int, (boundary.upper .+ margin .- origin) ./ spacing)
-    return max.(lower, 0), min.(upper, SVector{3, Int}(dimensions) .- 1)
+    return max.(lower, 0), min.(upper, SVector{N, Int}(dimensions) .- 1)
 end
 
 # Grid regions (1-based ranges) that `add_boundary_constraints!` modifies
-function boundary_constraint_regions(boundaries, origin, spacing, clearance, dimensions)
+function boundary_constraint_regions(boundaries, origin, spacing, clearance,
+                                     dimensions::NTuple{N, Int}) where {N}
     return map(boundaries) do boundary
         lower,
         upper = boundary_constraint_box(boundary, origin, spacing, clearance,
                                         dimensions)
-        return ntuple(axis -> (lower[axis] + 1):(upper[axis] + 1), 3)
+        return ntuple(axis -> (lower[axis] + 1):(upper[axis] + 1), Val(N))
     end
 end
 
@@ -116,4 +133,26 @@ function add_boundary_constraints!(constraint, boundaries, origin, spacing, clea
         end
     end
     return sampled_points
+end
+
+function add_boundary_constraints!(constraint::AbstractMatrix, boundaries, origin, spacing,
+                                   clearance, distance_scale; backend=PolyesterBackend())
+    samples = 0
+    for boundary in boundaries
+        lower,
+        upper = boundary_constraint_box(boundary, origin, spacing, clearance,
+                                        size(constraint))
+        lower, upper = lower .+ 1, upper .+ 1
+        any(upper .< lower) && continue
+        samples += prod(upper - lower .+ 1)
+        @threaded backend for j in lower[2]:upper[2]
+            for i in lower[1]:upper[1]
+                point = origin + spacing * SVector(i - 1, j - 1)
+                value = Float32((signed_distance(boundary.bvh, point) - clearance) /
+                                distance_scale)
+                constraint[i, j] = min(constraint[i, j], value)
+            end
+        end
+    end
+    return samples
 end

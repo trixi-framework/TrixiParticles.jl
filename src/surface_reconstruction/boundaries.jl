@@ -31,26 +31,8 @@ segments in 2D. Combine with current coordinates via
 function lattice_surface_topology(reference)
     ndims(reference) == 2 && size(reference, 1) == 2 &&
         return lattice_contour_topology(reference)
-    ndims(reference) == 2 && size(reference, 1) == 3 && all(isfinite, reference) ||
-        throw(ArgumentError("reference coordinates must be a finite 3×n matrix"))
-    grid_axes = ntuple(axis -> sort!(unique(round.(reference[axis, :]; digits=10))), 3)
-    dimensions = length.(grid_axes)
-    all(>=(2), dimensions) ||
-        throw(ArgumentError("a closed lattice surface needs at least two points per axis"))
-    prod(dimensions) == size(reference, 2) ||
-        throw(ArgumentError("reference coordinates do not form a complete lattice"))
-    axis_lookup = ntuple(axis -> Dict(value => Int32(index)
-                                      for (index, value) in enumerate(grid_axes[axis])), 3)
-    lookup = zeros(Int32, dimensions...)
-    for point_index in axes(reference, 2)
-        lattice_index = ntuple(axis -> axis_lookup[axis][round(reference[axis, point_index];
-                                                               digits=10)], 3)
-        iszero(lookup[lattice_index...]) ||
-            throw(ArgumentError("reference lattice contains duplicate coordinates"))
-        lookup[lattice_index...] = Int32(point_index)
-    end
-
-    nx, ny, nz = dimensions
+    lookup = lattice_coordinate_lookup(reference, Val(3))
+    nx, ny, nz = size(lookup)
     faces = Face[]
     sizehint!(faces, 4 * ((nx - 1) * (ny - 1) + (nx - 1) * (nz - 1) +
                           (ny - 1) * (nz - 1)))
@@ -67,6 +49,32 @@ function lattice_surface_topology(reference)
                   (x + 1, y + 1, z), (x, y + 1, z), z == 1)
     end
     return BoundaryTopology(faces)
+end
+
+# Complete-lattice validation and coordinate indexing are the same in 2D and 3D;
+# only the perimeter/surface connectivity built from this lookup is dimension-specific.
+function lattice_coordinate_lookup(reference, ::Val{N}) where {N}
+    ndims(reference) == 2 && size(reference, 1) == N && all(isfinite, reference) ||
+        throw(ArgumentError("reference coordinates must be a finite $N×n matrix"))
+    grid_axes = ntuple(axis -> sort!(unique(round.(reference[axis, :]; digits=10))), Val(N))
+    dimensions = length.(grid_axes)
+    all(>=(2), dimensions) ||
+        throw(ArgumentError("a closed lattice surface needs at least two points per axis"))
+    prod(dimensions) == size(reference, 2) ||
+        throw(ArgumentError("reference coordinates do not form a complete lattice"))
+    axis_lookup = ntuple(axis -> Dict(value => Int32(index)
+                                      for (index, value) in enumerate(grid_axes[axis])),
+                         Val(N))
+    lookup = zeros(Int32, dimensions...)
+    for point_index in axes(reference, 2)
+        lattice_index = ntuple(axis -> axis_lookup[axis][round(reference[axis, point_index];
+                                                               digits=10)], Val(N))
+        iszero(lookup[lattice_index...]) ||
+            throw(ArgumentError("reference lattice contains duplicate coordinates"))
+        lookup[lattice_index...] = Int32(point_index)
+    end
+
+    return lookup
 end
 
 struct BoundaryMesh{NDIMS, BVH}
@@ -94,8 +102,10 @@ configuration combined with current coordinates — or any
 [`TrixiParticles.TriangleMesh`](@ref), e.g. from [`load_geometry`](@ref). Vertices keep
 their input ordering, so results stay bitwise reproducible for a given input. The surface
 must be non-self-intersecting and
-oriented out of the solid (into cavities for cavity shells). Open edges and inconsistent
-edge orientations are rejected; geometric self-intersections are not detected.
+oriented out of the solid (into cavities for cavity shells). In 3D, open edges and
+inconsistent edge orientations are rejected, but geometric intersections are not tested.
+In 2D, loops must be closed with no crossing nonadjacent segments; their orientation is
+normalized from nesting.
 """
 function BoundaryMesh(points, topology::BoundaryTopology{3})
     lower = SVector{3, Float64}(minimum(@view(points[1, :])), minimum(@view(points[2, :])),
@@ -117,18 +127,16 @@ function BoundaryMesh(geometry::TriangleMesh{3})
                                           for ids in geometry.face_vertices_ids]))
 end
 
-@inline function point_in_bounds(point, lower, upper)
-    return lower[1] <= point[1] <= upper[1] &&
-           lower[2] <= point[2] <= upper[2] &&
-           lower[3] <= point[3] <= upper[3]
+@inline function point_in_bounds(point, lower::SVector{N}, upper::SVector{N}) where {N}
+    return all(ntuple(axis -> lower[axis] <= point[axis] <= upper[axis], Val(N)))
 end
 
 """
     enclosed_particles(points, boundaries; backend=PolyesterBackend())
 
 Indices of `points` (as a `UInt8` mask) strictly inside any closed boundary mesh, e.g.
-to exclude fluid particles covered by a wall or structure before reconstruction. Distances come
-from each boundary's exact BVH; the axis-aligned bounds reject outside points cheaply.
+to exclude fluid particles covered by a wall or structure before reconstruction. The
+boundary's signed-distance representation is queried only inside its axis-aligned bounds.
 """
 function enclosed_particles(points, boundaries; backend=PolyesterBackend())
     ndims(points) == 2 && size(points, 1) in (2, 3) ||
@@ -136,10 +144,16 @@ function enclosed_particles(points, boundaries; backend=PolyesterBackend())
     all(boundary -> boundary isa BoundaryMesh && ndims(boundary) == size(points, 1),
         boundaries) ||
         throw(ArgumentError("boundary and particle dimensions must match"))
-    size(points, 1) == 2 && return enclosed_particles_2d(points, boundaries; backend)
+    if size(points, 1) == 2
+        return enclosed_particles(points, boundaries, Val(2); backend)
+    end
+    return enclosed_particles(points, boundaries, Val(3); backend)
+end
+
+function enclosed_particles(points, boundaries, ::Val{N}; backend) where {N}
     enclosed = zeros(UInt8, size(points, 2))
     @threaded backend for index in axes(points, 2)
-        point = point3(points, index)
+        point = SVector{N, Float64}(ntuple(axis -> points[axis, index], Val(N)))
         for boundary in boundaries
             if point_in_bounds(point, boundary.lower, boundary.upper) &&
                signed_distance(boundary.bvh, point) < -1.0e-10
