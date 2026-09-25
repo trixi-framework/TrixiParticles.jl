@@ -1,18 +1,25 @@
 # Surface meshes: cleanup, liquid-domain analysis, and geometry statistics.
 """
-    SurfaceMesh{ELTYPE, INTTYPE}
+    SurfaceMesh{ELTYPE, INTTYPE, NDIMS}
 
-Triangulated free surface with `vertices` positions and 1-based triangle `faces`.
-The reconstruction pipeline produces `SurfaceMesh{Float32, Int32}`; the parameters keep
-the container generic for converted or downsampled meshes. See also [`TriangleMesh`](@ref).
+Free surface with `vertices` positions and 1-based `faces`: triangles in 3D and line
+segments in 2D. 3D reconstruction produces Float32 vertices; planar contours retain
+Float64 coordinates to resolve near-node intersections. Indices are Int32.
+The first two type parameters retain their element/index-type meaning.
 """
-struct SurfaceMesh{ELTYPE, INTTYPE}
-    vertices::Vector{SVector{3, ELTYPE}}
-    faces::Vector{SVector{3, INTTYPE}}
+struct SurfaceMesh{ELTYPE, INTTYPE, NDIMS}
+    vertices::Vector{SVector{NDIMS, ELTYPE}}
+    faces::Vector{SVector{NDIMS, INTTYPE}}
+end
+
+# Retain the two-parameter construction spelling while inferring geometric dimension.
+function SurfaceMesh{T, I}(vertices::AbstractVector{<:SVector{N}},
+                           faces::AbstractVector{<:SVector{N}}) where {T, I, N}
+    return SurfaceMesh{T, I, N}(vertices, faces)
 end
 
 Base.eltype(::SurfaceMesh{ELTYPE}) where {ELTYPE} = ELTYPE
-Base.ndims(::SurfaceMesh) = 3
+Base.ndims(::SurfaceMesh{T, I, N}) where {T, I, N} = N
 
 function surface_mesh(mc)
     vertices = Vector{SVector{3, Float32}}(mc.vertices)
@@ -39,7 +46,7 @@ function combine_surface_meshes(meshes)
         offset = eltype(index_type)(length(vertices))
         append!(vertices, mesh.vertices)
         append!(faces,
-                (index_type(face[1] + offset, face[2] + offset, face[3] + offset)
+                (face .+ offset
                  for face in mesh.faces))
     end
     return SurfaceMesh(vertices, faces)
@@ -55,7 +62,7 @@ reconstructed free surface or to constrain a later frame by an earlier one. Vert
 positions convert exactly from `Float32`; face normals are recomputed from the cleaned
 triangles.
 """
-function TriangleMesh(mesh::SurfaceMesh)
+function TriangleMesh(mesh::SurfaceMesh{T, I, 3}) where {T, I}
     vertices = [SVector{3, Float64}(vertex) for vertex in mesh.vertices]
     parent, reverse_winding = reflected_component_winding(mesh)
     flags = vertex_reverse_flags(parent, reverse_winding, length(mesh.vertices))

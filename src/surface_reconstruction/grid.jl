@@ -6,10 +6,15 @@ Uniform voxel grid for the reconstruction. `origin` is the lower corner of voxel
 `(1, 1, 1)` and `spacing` the voxel size. See [`reconstruction_grid`](@ref) for
 construction from particle bounds or a fixed tank.
 """
-struct ReconstructionGrid
-    origin::SVector{3, Float64}
+struct ReconstructionGrid{NDIMS}
+    origin::SVector{NDIMS, Float64}
     spacing::Float64
-    dimensions::Dims{3}
+    dimensions::Dims{NDIMS}
+end
+
+function ReconstructionGrid(origin::AbstractVector, spacing::Real,
+                            dimensions::NTuple{N, Int}) where {N}
+    return ReconstructionGrid{N}(SVector{N, Float64}(origin), Float64(spacing), dimensions)
 end
 
 """
@@ -26,7 +31,10 @@ and the [`ReconstructionDomain`](@ref).
 """
 function reconstruction_grid(points, voxel_size, nominal_padding; min_corner=nothing,
                              max_corner=nothing,
-                             open_faces=(false, false, false, false, false, false))
+                             open_faces=ntuple(_ -> false, 2size(points, 1)))
+    size(points, 1) == 2 &&
+        return reconstruction_grid_2d(points, voxel_size, nominal_padding;
+                                      min_corner, max_corner, open_faces)
     padding = nominal_padding + voxel_size / 2
     if min_corner !== nothing
         lower = SVector{3, Float64}(min_corner)
@@ -64,7 +72,7 @@ end
 # to bound memory for runaway particles; the caller excludes particles beyond the cap.
 function extend_over_open_faces(points, origin, upper, padding, voxel_size, open_faces)
     extent = upper - origin
-    for axis in 1:3
+    for axis in eachindex(origin)
         coordinates = view(points, axis, :)
         if open_faces[2axis - 1]
             needed = origin[axis] - (minimum(coordinates) - padding)
@@ -81,6 +89,18 @@ function extend_over_open_faces(points, origin, upper, padding, voxel_size, open
         end
     end
     return origin, upper
+end
+
+# Planar reconstruction needs no marching-cubes buffers. Full 2D field passes are small
+# and keep workspace reuse independent of the previous frame's occupied region.
+mutable struct ReconstructionWorkspace2D
+    field::Matrix{Float32}
+    temporary::Matrix{Float32}
+    scratch::Matrix{Float32}
+    constraint::Matrix{Float32}
+    backend::PointNeighbors.AbstractThreadingBackend
+    origin::SVector{2, Float64}
+    spacing::Float64
 end
 
 # Particles whose trilinear (CIC) stencil does not fit in the grid cannot be deposited.
@@ -261,6 +281,12 @@ function ReconstructionWorkspace(grid::ReconstructionGrid;
                                  backend=PolyesterBackend())
     return ReconstructionWorkspace(grid.dimensions, grid.origin, grid.spacing;
                                    backend=backend)
+end
+
+function ReconstructionWorkspace(grid::ReconstructionGrid{2}; backend=PolyesterBackend())
+    field = zeros(Float32, grid.dimensions)
+    return ReconstructionWorkspace2D(field, similar(field), similar(field), similar(field),
+                                     backend, grid.origin, grid.spacing)
 end
 
 @inline function trilinear_field_value(field, point, origin, spacing)

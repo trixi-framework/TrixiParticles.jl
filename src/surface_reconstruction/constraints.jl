@@ -10,25 +10,27 @@ production tank convention is `(false, false, false, true, false, false)` — on
 `+y` face open, so the free surface may rise above the tank. Use all `false` for a
 closed box, e.g. the padded grid itself.
 """
-struct ReconstructionDomain
-    min_corner::SVector{3, Float64}
-    max_corner::SVector{3, Float64}
-    open_faces::NTuple{6, Bool}
+struct ReconstructionDomain{NDIMS, NFACES}
+    min_corner::SVector{NDIMS, Float64}
+    max_corner::SVector{NDIMS, Float64}
+    open_faces::NTuple{NFACES, Bool}
 end
 
 function ReconstructionDomain(min_corner, max_corner;
-                              open_faces=(false, false, false, false, false, false))
-    length(open_faces) == 6 ||
-        throw(ArgumentError("`open_faces` needs one flag per face (-x, +x, -y, +y, -z, +z)"))
-    return ReconstructionDomain(SVector{3, Float64}(min_corner),
-                                SVector{3, Float64}(max_corner),
-                                NTuple{6, Bool}(open_faces))
+                              open_faces=ntuple(_ -> false, 2length(min_corner)))
+    n = length(min_corner)
+    n in (2, 3) && length(max_corner) == n && length(open_faces) == 2n ||
+        throw(ArgumentError("domain corners and face flags must describe a 2D or 3D box"))
+    return ReconstructionDomain(SVector{n, Float64}(min_corner),
+                                SVector{n, Float64}(max_corner),
+                                NTuple{2n, Bool}(open_faces))
 end
 
 # Production tank: lower corner at the world origin, open at the top.
 function tank_domain(tank_size)
-    return ReconstructionDomain(zero(SVector{3, Float64}), SVector{3, Float64}(tank_size);
-                                open_faces=(false, false, false, true, false, false))
+    n = length(tank_size)
+    return ReconstructionDomain(zero(SVector{n, Float64}), SVector{n, Float64}(tank_size);
+                                open_faces=ntuple(face -> face == 4, 2n))
 end
 
 # Signed distance to the domain walls (positive inside). Open faces contribute `Inf`;
@@ -65,7 +67,7 @@ end
 
 # Largest violation of the domain walls by a point (0 when inside).
 @inline function domain_violation(domain::ReconstructionDomain, point)
-    return max(zero(eltype(point)), -domain_distance(domain, point[1], point[2], point[3]))
+    return max(zero(eltype(point)), -domain_distance(domain, point...))
 end
 
 # 0-based lower and upper grid indices of the voxels sampled for a boundary

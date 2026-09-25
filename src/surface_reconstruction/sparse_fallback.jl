@@ -7,7 +7,7 @@ function particle_components(points, radius)
     sizes = ones(Int32, particle_count)
     # Dense coordinates for the neighborhood search; avoid copies when possible.
     coordinates = points isa Matrix{Float64} ? points : Matrix{Float64}(points)
-    search = GridNeighborhoodSearch{3}(; search_radius=radius)
+    search = GridNeighborhoodSearch{size(points, 1)}(; search_radius=radius)
     PointNeighbors.initialize!(search, coordinates, coordinates)
     # Serial: concurrent union-find updates would race. Connectivity partitions are
     # order-independent, so the result matches a cell-list traversal exactly.

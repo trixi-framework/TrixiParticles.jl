@@ -1,10 +1,11 @@
-# Public API for 3D free-surface reconstruction.
+# Public API for 2D and 3D free-surface reconstruction.
 #
 # The included files provide the numerical kernel: trilinear volume-CIC
 # deposition, a separable Gaussian filter, implicit tank and boundary level-set
 # constraints, safeguarded isovalue volume correction, marching-cubes contouring, and
-# topology-preserving mesh cleanup. This is the validated production configuration;
-# research field methods and correction modes are intentionally not part of the package.
+# topology-preserving mesh cleanup in 3D. The planar path uses bilinear deposition,
+# marching squares, and nested-loop area correction. Research field methods and
+# correction modes are intentionally not part of the package.
 # The wrappers below expose the kernel as a reusable, stateful
 # `SurfaceReconstruction` object that owns the reconstruction grid and workspace, supports
 # warm-started repeated invocations, and integrates with live simulations through
@@ -18,15 +19,20 @@ include("constraints.jl")
 include("mesh.jl")
 include("io.jl")
 include("grid.jl")
+include("mesh_2d.jl")
 include("contouring.jl")
 include("pipeline.jl")
+include("pipeline_2d.jl")
 
-# Reconstruction vertices are Float32 and faces are Int32. Writers and TriangleMesh
-# conversion orient shells by nesting; the raw contour retains marching-cubes ordering.
+# 3D vertices are Float32, planar vertices Float64, and indices Int32. Writers and
+# TriangleMesh conversion orient shells by nesting; 3D contours retain MC ordering.
 
 # Liquid analysis of the last returned mesh, paired with that mesh object (or `nothing`)
 const LastMeshAnalysis = Union{Nothing,
-                               Tuple{SurfaceMesh{Float32, Int32}, MeshLiquidAnalysis}}
+                               Tuple{SurfaceMesh{Float32, Int32, 3}, MeshLiquidAnalysis},
+                               Tuple{SurfaceMesh{Float64, Int32, 2}, ContourAnalysis}}
+
+const SurfaceWorkspace = Union{Nothing, ReconstructionWorkspace, ReconstructionWorkspace2D}
 
 """
     SurfaceReconstructionCache
@@ -36,7 +42,7 @@ workspace and the previous effective isovalue for warm starts. Configuration its
 immutable; only the cache is mutated by [`reconstruct_surface!`](@ref).
 """
 struct SurfaceReconstructionCache
-    workspace::Ref{Union{Nothing, ReconstructionWorkspace}}
+    workspace::Ref{SurfaceWorkspace}
     previous_isovalue::Ref{Float64}
     # Liquid analysis of the mesh returned by the last `reconstruct_surface!`, paired
     # with that mesh object (or `nothing` when the final mesh differs from the analyzed
@@ -53,8 +59,8 @@ Typed summary of a reconstructed surface. All lengths, areas, and volumes are in
 simulation units. Fields:
 
 - `effective_isovalue`: Contour level after the volume correction.
-- `volume`: Volume enclosed by the reconstructed surface.
-- `surface_area`: Area of the reconstructed surface.
+- `volume`: Enclosed volume in 3D, enclosed liquid area in 2D.
+- `surface_area`: Surface area in 3D, contour perimeter in 2D.
 - `particle_volume`: Total particle volume Σᵢ mᵢ/ρᵢ targeted by the
   volume correction.
 - `n_connected_regions`, `n_cavity_regions`: Number of liquid regions and of enclosed
@@ -67,6 +73,10 @@ simulation units. Fields:
 - `details`: The complete record (per-stage `timings` in seconds, correction evaluations,
   shell volumes, sparse-fallback records), also returned by [`statistics_dict`](@ref)
   for JSON export. `stats["key"]` works for every field and every key of the record.
+
+In 2D, `stats["area"]`, `stats["particle_area"]`, and `stats["perimeter"]` are explicit
+aliases. The `volume` fields retain the SPH convention of particle measure in the
+simulation dimension; no artificial thickness is introduced.
 """
 struct SurfaceReconstructionStatistics
     effective_isovalue::Float64
@@ -141,8 +151,8 @@ function Base.show(io::IO, ::MIME"text/plain", stats::SurfaceReconstructionStati
     else
         setup = [
             "effective isovalue" => stats.effective_isovalue,
-            "volume" => stats.volume,
-            "surface area" => stats.surface_area,
+            (length(stats.grid_dimensions) == 2 ? "area" : "volume") => stats.volume,
+            (length(stats.grid_dimensions) == 2 ? "perimeter" : "surface area") => stats.surface_area,
             "connected regions" => stats.n_connected_regions,
             "cavity regions" => stats.n_cavity_regions,
             "boundary edges" => stats.n_boundary_edges,
@@ -157,32 +167,59 @@ end
 """
     SurfaceReconstruction
 
-Immutable configuration for 3D free-surface reconstruction from SPH particles.
+Immutable configuration for 2D or 3D free-surface reconstruction from SPH particles.
 Mutable invocation state (reusable workspace, warm-start isovalue) lives in
 [`SurfaceReconstructionCache`](@ref). See the [`SurfaceReconstruction`](@ref)
 constructor for keyword documentation.
 """
-struct SurfaceReconstruction
+struct SurfaceReconstruction{NDIMS, NFACES}
     options::SurfaceReconstructionOptions
     particle_spacing::Float64
     voxel_size::Float64
     sigma_voxels::Float64
-    min_corner::Union{Nothing, SVector{3, Float64}}
-    max_corner::Union{Nothing, SVector{3, Float64}}
-    open_faces::NTuple{6, Bool}
+    min_corner::Union{Nothing, SVector{NDIMS, Float64}}
+    max_corner::Union{Nothing, SVector{NDIMS, Float64}}
+    open_faces::NTuple{NFACES, Bool}
     boundary_clearance::Float64
     grid_padding::Float64
     parallelization_backend::Union{Nothing, PointNeighbors.AbstractThreadingBackend}
     cache::SurfaceReconstructionCache
+
+    function SurfaceReconstruction{N, F}(options, particle_spacing, voxel_size,
+                                         sigma_voxels,
+                                         min_corner, max_corner, open_faces,
+                                         boundary_clearance,
+                                         grid_padding, parallelization_backend,
+                                         cache) where {N, F}
+        N in (2, 3) && F == 2N || throw(ArgumentError("invalid reconstruction dimension"))
+        return new{N, F}(options, particle_spacing, voxel_size, sigma_voxels,
+                         min_corner, max_corner, open_faces, boundary_clearance,
+                         grid_padding, parallelization_backend, cache)
+    end
 end
+
+# Derive the dimension from the face flags even for adaptive grids, whose two corners
+# are `nothing`. This also supplies the constructor used by Accessors for cache updates.
+function SurfaceReconstruction(options, particle_spacing, voxel_size, sigma_voxels,
+                               min_corner, max_corner, open_faces::NTuple{F, Bool},
+                               boundary_clearance, grid_padding, parallelization_backend,
+                               cache) where {F}
+    return SurfaceReconstruction{F ÷ 2, F}(options, particle_spacing, voxel_size,
+                                           sigma_voxels,
+                                           min_corner, max_corner, open_faces,
+                                           boundary_clearance,
+                                           grid_padding, parallelization_backend, cache)
+end
+
+Base.ndims(::SurfaceReconstruction{N}) where {N} = N
 
 """
     SurfaceReconstruction(; particle_spacing, kwargs...)
 
-Reusable configuration and state for 3D free-surface reconstruction from SPH particles.
+Reusable configuration and state for 2D or 3D free-surface reconstruction from SPH particles.
 
-The reconstruction deposits per-particle volumes `V_i = m_i / rho_i` with trilinear
-cloud-in-cell interpolation, filters the field with a separable Gaussian, intersects it
+The reconstruction deposits per-particle measures `V_i = m_i / rho_i` with bilinear (2D)
+or trilinear (3D) cloud-in-cell interpolation, filters the field with a separable Gaussian, intersects it
 with the tank interior and boundary signed-distance fields, and corrects the isovalue per
 frame until the enclosed mesh volume matches the retained particle volume within the
 configured tolerance (or throws an error if correction fails).
@@ -196,14 +233,18 @@ rebuilt whenever the grid dimensions change.
 
 # Keywords
 - `particle_spacing`:            Particle spacing of the fluid discretization (required).
+- `ndims=nothing`:               Dimension, 2 or 3. Inferred from `tank_size` or domain
+                                 corners when supplied; otherwise defaults to 3. Use
+                                 `ndims=2` for an adaptive planar reconstruction. One-shot
+                                 particle/system entry points infer the dimension from input.
 - `voxel_size=nothing`:          Reconstruction grid spacing
                                  (default: `particle_spacing / 2`, the production setting).
 - `gaussian_sigma=nothing`:    Gaussian smoothing width in length units
                                  (default: `0.9 * particle_spacing`, the production setting).
 - `gaussian_sigma_voxels=nothing`: Gaussian smoothing width in voxels. Mutually exclusive
                                  with `gaussian_sigma`.
-- `tank_size=nothing`:           Size `(x, y, z)` of the fluid domain, equivalent to
-                                 `min_corner=(0, 0, 0)`, `max_corner=tank_size` with only
+- `tank_size=nothing`:           Size `(x, y)` or `(x, y, z)` of the fluid domain, equivalent to
+                                 a zero `min_corner`, `max_corner=tank_size` with only
                                  the `+y` face open (the production tank convention).
                                  Used to pin the reconstruction grid and to constrain
                                  the reconstructed surface to the tank interior. Cannot
@@ -214,13 +255,13 @@ rebuilt whenever the grid dimensions change.
                                  unconstrained.
 - `max_corner=nothing`:          Upper interior corner of the clipping domain (requires
                                  `min_corner`).
-- `open_faces=nothing`:          Six flags selecting domain faces that are not walls, in
-                                 `(-x, +x, -y, +y, -z, +z)` order. Defaults to all
+- `open_faces=nothing`:          Four (2D) or six (3D) flags selecting faces that are not
+                                 walls, in `(-x, +x, -y, +y[, -z, +z])` order. Defaults to all
                                  closed; only valid with `min_corner`/`max_corner`.
 - `boundary_clearance=0.0`:         Extra clearance kept between the reconstructed surface
                                  and boundary meshes.
 - `isovalue=0.5`:                Base contour level of the volume fraction field.
-- `volume_tolerance_percent=0.1`: Relative volume tolerance of the isovalue correction.
+- `volume_tolerance_percent=0.1`: Relative volume (3D) or area (2D) tolerance of correction.
 - `volume_max_iterations=8`:     Maximum isovalue-correction iterations.
 - `minimum_isovalue=0.1`:        Lower correction bracket.
 - `maximum_isovalue=0.9`:        Upper correction bracket.
@@ -230,7 +271,8 @@ rebuilt whenever the grid dimensions change.
                                  constraint removes their volume from the surface, so
                                  they must not count toward the volume-correction target
                                  either. `true` keeps them.
-- `sparse_component_fallback=false`: Add volume-equivalent sphere meshes for compact
+- `sparse_component_fallback=false`: Add volume-equivalent spheres (3D) or area-equivalent
+                                 polygonal circles (2D) for compact
                                  source components that the primary level set does not
                                  resolve.
 - `record_field_moments=false`:  Record intermediate field integrals in the returned stats.
@@ -267,7 +309,7 @@ reconstruction = SurfaceReconstruction(particle_spacing=0.05; tank_size=(1.0, 0.
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-function SurfaceReconstruction(; particle_spacing,
+function SurfaceReconstruction(; particle_spacing, ndims=nothing,
                                voxel_size=nothing,
                                gaussian_sigma=nothing,
                                gaussian_sigma_voxels=nothing,
@@ -285,6 +327,11 @@ function SurfaceReconstruction(; particle_spacing,
                                sparse_component_fallback::Bool=false,
                                keep_enclosed_fluid::Bool=false,
                                parallelization_backend=nothing)
+    dimension = something(ndims,
+                          tank_size !== nothing ? length(tank_size) :
+                          min_corner !== nothing ? length(min_corner) : 3)
+    dimension isa Integer && dimension in (2, 3) ||
+        throw(ArgumentError("surface reconstruction supports integer dimensions 2 and 3"))
     (isfinite(particle_spacing) && particle_spacing > 0) ||
         throw(ArgumentError("`particle_spacing` must be finite and positive"))
 
@@ -304,33 +351,37 @@ function SurfaceReconstruction(; particle_spacing,
         (min_corner === nothing && max_corner === nothing &&
          open_faces === nothing) ||
             throw(ArgumentError("`tank_size` cannot be combined with `min_corner`, `max_corner` or `open_faces`"))
-        tank_size_ = SVector{3, Float64}(Float64.(tank_size)...)
+        length(tank_size) == dimension ||
+            throw(ArgumentError("tank dimensions do not match `ndims`"))
+        tank_size_ = SVector{dimension, Float64}(Float64.(tank_size)...)
         all(isfinite, tank_size_) && all(tank_size_ .> 0) ||
             throw(ArgumentError("`tank_size` must be finite and positive"))
-        min_corner_ = zero(SVector{3, Float64})
+        min_corner_ = zero(SVector{dimension, Float64})
         max_corner_ = tank_size_
         # Production tank convention: only the +y face is open.
-        open_faces_ = (false, false, false, true, false, false)
+        open_faces_ = ntuple(face -> face == 4, 2dimension)
     elseif min_corner === nothing && max_corner === nothing
         open_faces !== nothing &&
             throw(ArgumentError("`open_faces` requires `min_corner` and `max_corner`"))
         min_corner_ = max_corner_ = nothing
-        open_faces_ = (false, false, false, false, false, false)
+        open_faces_ = ntuple(_ -> false, 2dimension)
     else
         (min_corner !== nothing && max_corner !== nothing) ||
             throw(ArgumentError("`min_corner` and `max_corner` must be given together"))
-        min_corner_ = SVector{3, Float64}(Float64.(min_corner)...)
-        max_corner_ = SVector{3, Float64}(Float64.(max_corner)...)
+        length(min_corner) == length(max_corner) == dimension ||
+            throw(ArgumentError("domain dimensions do not match `ndims`"))
+        min_corner_ = SVector{dimension, Float64}(Float64.(min_corner)...)
+        max_corner_ = SVector{dimension, Float64}(Float64.(max_corner)...)
         all(isfinite, min_corner_) && all(isfinite, max_corner_) ||
             throw(ArgumentError("`min_corner`/`max_corner` must be finite"))
         all(min_corner_ .< max_corner_) ||
             throw(ArgumentError("`min_corner` must be strictly below `max_corner`"))
         if open_faces === nothing
-            open_faces_ = (false, false, false, false, false, false)
+            open_faces_ = ntuple(_ -> false, 2dimension)
         else
-            length(open_faces) == 6 ||
-                throw(ArgumentError("`open_faces` needs one flag per face (-x, +x, -y, +y, -z, +z)"))
-            open_faces_ = NTuple{6, Bool}(open_faces)
+            length(open_faces) == 2dimension ||
+                throw(ArgumentError("`open_faces` needs $(2dimension) face flags"))
+            open_faces_ = NTuple{2dimension, Bool}(open_faces)
         end
     end
 
@@ -361,15 +412,17 @@ function SurfaceReconstruction(; particle_spacing,
         parallelization_backend isa PointNeighbors.AbstractThreadingBackend ||
         throw(ArgumentError("`parallelization_backend` must be `nothing` or a CPU threading backend"))
 
-    return SurfaceReconstruction(options, Float64(particle_spacing), Float64(voxel_size_),
-                                 Float64(sigma_voxels), min_corner_, max_corner_,
-                                 open_faces_,
-                                 Float64(boundary_clearance), Float64(padding),
-                                 parallelization_backend,
-                                 SurfaceReconstructionCache(Ref{Union{Nothing,
-                                                                      ReconstructionWorkspace}}(nothing),
-                                                            Ref(Float64(isovalue)),
-                                                            Ref{LastMeshAnalysis}(nothing)))
+    return SurfaceReconstruction{dimension, 2dimension}(options, Float64(particle_spacing),
+                                                        Float64(voxel_size_),
+                                                        Float64(sigma_voxels), min_corner_,
+                                                        max_corner_,
+                                                        open_faces_,
+                                                        Float64(boundary_clearance),
+                                                        Float64(padding),
+                                                        parallelization_backend,
+                                                        SurfaceReconstructionCache(Ref{SurfaceWorkspace}(nothing),
+                                                                                   Ref(Float64(isovalue)),
+                                                                                   Ref{LastMeshAnalysis}(nothing)))
 end
 
 function Base.show(io::IO, reconstruction::SurfaceReconstruction)
@@ -386,7 +439,7 @@ function Base.show(io::IO, ::MIME"text/plain", reconstruction::SurfaceReconstruc
         show(io, reconstruction)
     else
         (; options, min_corner, max_corner, open_faces) = reconstruction
-        face_names = ("-x", "+x", "-y", "+y", "-z", "+z")
+        face_names = ("-x", "+x", "-y", "+y", "-z", "+z")[1:length(open_faces)]
         open_list = join(face_names[collect(open_faces)], ", ")
         setup = Pair{String, Any}["particle spacing" => reconstruction.particle_spacing,
                                   "voxel size" => reconstruction.voxel_size,
@@ -433,9 +486,9 @@ end
     reconstruct_surface!(reconstruction, points, volumes, boundaries=[];
                          initial_isovalue=nothing, parallelization_backend=nothing)
 
-Reconstruct a closed free surface from `points` (3×n matrix), `volumes` (per-particle
-volumes), and optional `boundaries` (boundary meshes built with
-`BoundaryMesh`), reusing the workspace and warm-start state
+Reconstruct a closed free surface from `points` (2×n or 3×n matrix), `volumes`
+(per-particle areas in 2D or volumes in 3D), and optional `boundaries` built with
+`BoundaryMesh`, reusing the workspace and warm-start state
 of `reconstruction`. Returns the reconstructed `SurfaceMesh` and a
 [`SurfaceReconstructionStatistics`](@ref).
 
@@ -453,8 +506,8 @@ function reconstruct_surface!(reconstruction::SurfaceReconstruction, points, vol
                                               parallelization_backend,
                                               default_backend(points)))
 
-    ndims(points) == 2 && size(points, 1) == 3 ||
-        throw(ArgumentError("`points` must be a 3×n matrix of particle coordinates"))
+    ndims(points) == 2 && size(points, 1) == ndims(reconstruction) ||
+        throw(ArgumentError("`points` must be a $(ndims(reconstruction))×n matrix of particle coordinates"))
     length(volumes) == size(points, 2) ||
         throw(DimensionMismatch("`volumes` length does not match the particle count"))
     isempty(volumes) && throw(ArgumentError("surface reconstruction needs particles"))
@@ -477,6 +530,9 @@ function reconstruct_surface!(reconstruction::SurfaceReconstruction, points, vol
     # Fluid inside boundaries is clipped away by the boundary constraint; exclude it from
     # the volume-correction target as well (production behavior), unless requested not to.
     boundaries = collect(boundaries)
+    all(boundary -> boundary isa BoundaryMesh && ndims(boundary) == ndims(reconstruction),
+        boundaries) ||
+        throw(ArgumentError("boundary dimensions must match the reconstruction"))
     enclosed_count, enclosed_volume = 0, 0.0
     if !options.keep_enclosed_fluid && !isempty(boundaries)
         enclosed = enclosed_particles(points, boundaries; backend)
@@ -552,8 +608,10 @@ One-shot allocation of a fresh [`SurfaceReconstruction`](@ref) followed by
 create the `SurfaceReconstruction` once and call `reconstruct_surface!` to reuse its
 workspace.
 """
-function reconstruct_surface(points, volumes, boundaries=(); kwargs...)
-    reconstruction = SurfaceReconstruction(; kwargs...)
+function reconstruct_surface(points, volumes, boundaries=(); ndims=size(points, 1),
+                             kwargs...)
+    reconstruction = SurfaceReconstruction(; ndims=something(ndims, size(points, 1)),
+                                           kwargs...)
 
     return reconstruct_surface!(reconstruction, points, volumes, boundaries)
 end
@@ -588,8 +646,8 @@ end
 """
     active_surface_points(system, u)
 
-Current coordinates of all active particles of a system as a 3×n matrix, avoiding a
-copy when the coordinates already have that layout. Inactive buffer particles are
+Current coordinates of all active particles as a matrix with one row per dimension,
+avoiding a copy when the coordinates already have that layout. Inactive buffer particles are
 excluded.
 """
 function active_surface_points(system, u)
@@ -611,9 +669,9 @@ from the final state of a solve (the [`reconstruct_surface(semi, sol)`](@ref) me
 this automatically).
 """
 function reconstruct_surface(system::AbstractFluidSystem, v_ode, u_ode, semi;
-                             particle_spacing=nothing, kwargs...)
-    ndims(system) == 3 ||
-        throw(ArgumentError("surface reconstruction requires a 3D fluid system"))
+                             particle_spacing=nothing, ndims=Base.ndims(system), kwargs...)
+    ndims == Base.ndims(system) && ndims in (2, 3) ||
+        throw(ArgumentError("reconstruction dimensions must match the 2D or 3D fluid system"))
 
     # Work on CPU copies (a no-op on the CPU) so offline reconstruction also works
     # directly with GPU state.
@@ -629,7 +687,7 @@ function reconstruct_surface(system::AbstractFluidSystem, v_ode, u_ode, semi;
     u = wrap_u(u_ode, system, semi)
     points = active_surface_points(system, u)
     volumes = particle_volumes(system, v)
-    reconstruction = SurfaceReconstruction(; particle_spacing=spacing, kwargs...)
+    reconstruction = SurfaceReconstruction(; particle_spacing=spacing, ndims, kwargs...)
 
     return reconstruct_surface!(reconstruction, points, volumes;
                                 parallelization_backend=semi.parallelization_backend)
@@ -683,6 +741,7 @@ spacing defaults to the initial condition's spacing (which must be positive).
 """
 function reconstruct_surface(initial_condition::InitialCondition;
                              particle_spacing=initial_condition.particle_spacing,
+                             ndims=size(initial_condition.coordinates, 1),
                              kwargs...)
     (isfinite(particle_spacing) && particle_spacing > 0) ||
         throw(ArgumentError("`particle_spacing` must be finite and positive; " *
@@ -691,7 +750,7 @@ function reconstruct_surface(initial_condition::InitialCondition;
     volumes = Vector{Float64}(initial_condition.mass) ./
               Vector{Float64}(initial_condition.density)
     reconstruction = SurfaceReconstruction(; particle_spacing=Float64(particle_spacing),
-                                           kwargs...)
+                                           ndims, kwargs...)
 
     return reconstruct_surface!(reconstruction, points, volumes)
 end

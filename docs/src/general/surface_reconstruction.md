@@ -1,15 +1,16 @@
 # [Surface Reconstruction](@id surface_reconstruction)
 
-For three-dimensional simulations, a continuous free surface can be reconstructed from
+For two- and three-dimensional simulations, a continuous free surface can be reconstructed from
 the fluid particles with [`SurfaceReconstruction`](@ref), either directly from particle
 snapshots, systems, solutions, or initial conditions with [`reconstruct_surface`](@ref),
 or during a simulation with [`SurfaceReconstructionCallback`](@ref), which shares the
 same engine. See the [postprocessing example](@ref examples) for usage
-(`examples/postprocessing/surface_reconstruction_3d.jl`).
+(`examples/postprocessing/surface_reconstruction_2d.jl` and
+`examples/postprocessing/surface_reconstruction_3d.jl`).
 
-This page documents the reconstruction algorithm and its configuration. The pipeline
-below is the configuration validated and used in production; only these settings are
-part of the package.
+This page documents the reconstruction algorithm and its configuration. Both dimensions
+use particle-measure deposition, Gaussian smoothing, and isovalue correction; planar
+contours use area and the production 3D surface pipeline uses volume.
 
 ```@eval
 using CairoMakie
@@ -128,6 +129,70 @@ The same sinusoidal particle snapshot (spacing ``h=0.07`` m) and its volume-corr
 surface. The vertical axis is enlarged for clarity in this shallow tank. The wave is
 an illustration, not a simulated result.
 
+## Planar contours (2D)
+
+In 2D, particle ``m_i/\rho_i`` is **area**. The same API deposits it with bilinear CIC,
+filters in two directions, and extracts **line segments** using marching squares. A
+bilinear asymptotic decider resolves alternating-sign saddle cells; products are
+evaluated in `Float64` without an absolute ambiguity tolerance. An exactly zero saddle
+determinant is a topological tie and uses a fixed pairing. The correction targets liquid
+area. Samples exactly at the contour level use a small positive perturbation relative to
+their neighbors to avoid coincident edge vertices. The loop analysis computes liquid
+area, with nested holes subtracted and islands added. Outer loops are counterclockwise,
+hole loops clockwise, and normals point out of liquid in the simulation plane.
+
+```julia
+fluid = RectangularShape(0.05, (16, 8), (0.0, 0.0); density=1000.0)
+contour, stats = reconstruct_surface(fluid; tank_size=(1.2, 0.8))
+stats["area"], stats["perimeter"]
+
+# For repeated adaptive frames, select the dimension explicitly.
+reconstruction = SurfaceReconstruction(; particle_spacing=0.05, ndims=2)
+contour, stats = reconstruct_surface!(reconstruction, fluid.coordinates,
+                                      fluid.mass ./ fluid.density)
+trixi2vtk(contour; output_directory="out", filename="contour")
+```
+
+One-shot calls infer dimension from particle arrays, systems, or initial conditions.
+For a reusable `SurfaceReconstruction`, `tank_size` or domain corners infer dimension;
+without either, use `ndims=2` (the compatibility default is 3). Planar `open_faces` uses
+`(-x, +x, -y, +y)` order. A two-component `tank_size` opens the `+y` face.
+
+```@eval
+using CairoMakie
+using TrixiParticles
+
+fluid = RectangularShape(0.05, (16, 8), (0.0, 0.0); density=1000.0)
+contour, stats = reconstruct_surface(fluid; tank_size=(1.2, 0.8))
+figure = Figure(; size=(760, 400), fontsize=17)
+ax = Axis(figure[1, 1]; xlabel="x (m)", ylabel="y (m)", aspect=DataAspect(),
+          title="Area-corrected planar contour")
+scatter!(ax, fluid.coordinates[1, :], fluid.coordinates[2, :];
+         color=:steelblue, markersize=6, label="Particles")
+segments = [Point2f(contour.vertices[index]...) for edge in contour.faces for index in edge]
+linesegments!(ax, segments; color=:darkorange, linewidth=3, label="Reconstructed contour")
+Legend(figure[2, 1], ax; orientation=:horizontal, framevisible=false)
+save("surface_reconstruction_2d.png", figure; px_per_unit=1.5)
+nothing
+```
+
+![Planar particles and their closed area-corrected contour](surface_reconstruction_2d.png)
+
+Planar meshes use `SurfaceMesh{Float64, Int32, 2}` with two-index `faces`. Float64
+coordinates retain intersections close to grid nodes. Closed `Polygon{2}` geometries
+can be converted with `BoundaryMesh(polygon)`; complete 2D particle lattices can be
+tracked through `lattice_surface_topology` just like their 3D counterparts. Polygon
+boundaries and combined fallback contours are checked for nonadjacent segment crossings.
+No thickness or filled triangulation is added to line output.
+
+The existing `volume_tolerance_percent` controls relative **area** error in 2D.
+The typed statistics fields `volume`, `particle_volume`, and `surface_area` denote the
+dimension's particle measure and boundary measure; explicit 2D aliases are
+`stats["area"]`, `stats["particle_area"]`, and `stats["perimeter"]`. The callback writes
+`area`, `particle_area`, `relative_area_error`, `perimeter`, and `n_segments` time series.
+As in 3D, topology transitions can prevent the correction from meeting a prescribed
+tolerance, in which case reconstruction raises an error.
+
 ## Pipeline
 
 1. **Particle volumes.** Each fluid particle contributes its volume ``V_i = m_i / \rho_i``
@@ -178,7 +243,8 @@ the effective isovalue, volumes, component counts, and per-stage timings for aud
 
 - one VTK PolyData file per fluid system (`surface_fluid_1_<iter>.vtp`) with per-vertex
   normals, collected in a ParaView time series (`surface_fluid_1.pvd`); `formats=(:vtp, :ply)`
-  adds PLY files for Blender;
+  adds PLY files. In 2D, these contain VTK line cells or PLY edge elements in the `z=0`
+  plane, with in-plane normals;
 - optionally SPH quantities interpolated onto the surface vertices
   (`interpolated_quantities=(:velocity, :pressure, :density)`), e.g. to color the surface
   by velocity. The interpolation uses [`interpolate_points`](@ref) with Shepard
@@ -207,6 +273,9 @@ this reason. The current fallback requires a resolvable primary liquid region an
 compact unresolved components of at most 64 particles. It rejects intersecting fallback
 spheres and spheres that cross sampled solid constraints; it is not a general
 reconstruction method for an entirely unresolved spray.
+In 2D the same option uses area-equivalent regular polygons approximating circles;
+their polygonal area, rather than ``\pi r^2``, matches the particle target. The fallback
+requires compact components and rejects circles that could cross solid constraints.
 
 ## Determinism
 
@@ -248,8 +317,8 @@ reconstruction guarantee does not imply bitwise reproducibility of the entire si
   tests: low-amplitude closed fields can produce nonmanifold edges. Switching the
   default needs a corrected, validated implementation and a new volume-correction and
   performance assessment.
-- Mesh vertices use `Float32` world coordinates. Very large offsets relative to grid
-  spacing can lose geometric resolution. Cleanup uses fixed absolute length (`1e-6`),
+- 3D mesh vertices use `Float32` world coordinates. Very large offsets relative to grid
+  spacing can lose geometric resolution. The 3D cleanup uses fixed absolute length (`1e-6`),
   area (`1e-14`), and near-zero-volume (`eps(Float64)`) thresholds in simulation units;
   arbitrary rescaling is not guaranteed to preserve the mesh. Choose units and grid
   spacing that resolve the features of interest.

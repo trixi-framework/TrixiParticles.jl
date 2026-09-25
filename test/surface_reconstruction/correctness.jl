@@ -328,6 +328,8 @@
         @test_throws ArgumentError TP.build_triangle_bvh(points, [TP.Face(1, 2, 100)])
         @test_throws ArgumentError TP.build_triangle_bvh(points, mesh.faces; leaf_size=0)
         boundary = BoundaryMesh(points, lattice_surface_topology(points))
+        @test BoundaryMesh(Float32.(points), lattice_surface_topology(points)).points ==
+              points
         # A surface topology may refer to only the boundary vertices of a point set.
         # An unused interior point must not change signed distances.
         with_unused = hcat(points, reshape([0.5, 0.5, 0.5], 3, 1))

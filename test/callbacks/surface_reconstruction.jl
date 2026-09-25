@@ -443,7 +443,7 @@
         @test TrixiParticles.cpu_threading_backend(SerialBackend()) isa SerialBackend
     end
 
-    @testset "non-3D systems are rejected" begin
+    @testset "configuration and fluid dimensions must match" begin
         tank_2d = RectangularTank(0.05, (0.25, 0.25), (0.5, 0.6), 1000.0;
                                   n_layers=3, acceleration=(0.0, -9.81))
         state_equation_2d = StateEquationCole(; sound_speed=10.0,

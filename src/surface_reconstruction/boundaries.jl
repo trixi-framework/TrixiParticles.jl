@@ -3,12 +3,12 @@
 """
     BoundaryTopology
 
-Triangle connectivity of a closed boundary surface, independent of vertex positions.
+Triangle (3D) or line-segment (2D) connectivity of a closed boundary, independent of positions.
 Built once by [`lattice_surface_topology`](@ref) from a reference configuration and
 reused with the current coordinates of a moving boundary in [`BoundaryMesh`](@ref).
 """
-struct BoundaryTopology
-    faces::Vector{Face}
+struct BoundaryTopology{NDIMS}
+    faces::Vector{SVector{NDIMS, Int32}}
 end
 
 function add_quad!(faces, lookup, a, b, c, d, reverse)
@@ -22,12 +22,15 @@ end
 """
     lattice_surface_topology(reference)
 
-Closed triangle surface of a complete 3D particle lattice (e.g. the initial
+Closed surface of a complete 2D or 3D particle lattice (e.g. the initial
 configuration of a `TotalLagrangianSPHSystem`): one quad per lattice cell on the surface,
-split into two triangles with outward winding. Combine with current coordinates via
+split into two triangles with outward winding in 3D, or counterclockwise perimeter
+segments in 2D. Combine with current coordinates via
 [`BoundaryMesh`](@ref) to track a moving boundary.
 """
 function lattice_surface_topology(reference)
+    ndims(reference) == 2 && size(reference, 1) == 2 &&
+        return lattice_contour_topology(reference)
     ndims(reference) == 2 && size(reference, 1) == 3 && all(isfinite, reference) ||
         throw(ArgumentError("reference coordinates must be a finite 3×n matrix"))
     grid_axes = ntuple(axis -> sort!(unique(round.(reference[axis, :]; digits=10))), 3)
@@ -66,21 +69,26 @@ function lattice_surface_topology(reference)
     return BoundaryTopology(faces)
 end
 
-struct BoundaryMesh
+struct BoundaryMesh{NDIMS, BVH}
     points::Matrix{Float64}
-    faces::Vector{Face}
-    bvh::TriangleBvh
-    lower::SVector{3, Float64}
-    upper::SVector{3, Float64}
+    faces::Vector{SVector{NDIMS, Int32}}
+    bvh::BVH
+    lower::SVector{NDIMS, Float64}
+    upper::SVector{NDIMS, Float64}
 end
+
+Base.ndims(::BoundaryMesh{N}) where {N} = N
 
 """
     BoundaryMesh(points, topology)
     BoundaryMesh(geometry::TriangleMesh{3})
+    BoundaryMesh(geometry::Polygon{2})
+    BoundaryMesh(contour::SurfaceMesh{<:Any, <:Any, 2})
 
 Closed surface of a fluid boundary — a wall or a structure — with a
-signed-distance BVH, used to clip the reconstructed free surface and for inside/outside
-queries. Either pass particle coordinates (3×n matrix) with a
+signed-distance representation (triangle BVH in 3D, closed segments in 2D), used to clip
+the reconstructed free surface and for inside/outside queries. Pass particle coordinates
+(2×n or 3×n matrix) with a
 [`BoundaryTopology`](@ref) — typically [`lattice_surface_topology`](@ref) of the initial
 configuration combined with current coordinates — or any
 [`TrixiParticles.TriangleMesh`](@ref), e.g. from [`load_geometry`](@ref). Vertices keep
@@ -89,12 +97,13 @@ must be non-self-intersecting and
 oriented out of the solid (into cavities for cavity shells). Open edges and inconsistent
 edge orientations are rejected; geometric self-intersections are not detected.
 """
-function BoundaryMesh(points, topology::BoundaryTopology)
+function BoundaryMesh(points, topology::BoundaryTopology{3})
     lower = SVector{3, Float64}(minimum(@view(points[1, :])), minimum(@view(points[2, :])),
                                 minimum(@view(points[3, :])))
     upper = SVector{3, Float64}(maximum(@view(points[1, :])), maximum(@view(points[2, :])),
                                 maximum(@view(points[3, :])))
-    return BoundaryMesh(points, topology.faces,
+    coordinates = points isa Matrix{Float64} ? points : Matrix{Float64}(points)
+    return BoundaryMesh(coordinates, topology.faces,
                         build_triangle_bvh(points, topology.faces), lower, upper)
 end
 
@@ -122,6 +131,12 @@ to exclude fluid particles covered by a wall or structure before reconstruction.
 from each boundary's exact BVH; the axis-aligned bounds reject outside points cheaply.
 """
 function enclosed_particles(points, boundaries; backend=PolyesterBackend())
+    ndims(points) == 2 && size(points, 1) in (2, 3) ||
+        throw(ArgumentError("particle coordinates must be a 2×n or 3×n matrix"))
+    all(boundary -> boundary isa BoundaryMesh && ndims(boundary) == size(points, 1),
+        boundaries) ||
+        throw(ArgumentError("boundary and particle dimensions must match"))
+    size(points, 1) == 2 && return enclosed_particles_2d(points, boundaries; backend)
     enclosed = zeros(UInt8, size(points, 2))
     @threaded backend for index in axes(points, 2)
         point = point3(points, index)

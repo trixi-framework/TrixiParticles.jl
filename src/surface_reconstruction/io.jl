@@ -45,6 +45,7 @@ Write a `SurfaceMesh` as a binary little-endian PLY file with per-vertex normals
 nesting-aware face winding, in simulation coordinates. Outer-shell normals point out of
 the liquid, and cavity normals into the cavity. `analysis` optionally supplies the
 `mesh_liquid_analysis` of the current mesh; it is invalid after changing vertices or faces.
+Planar contours are written as PLY `edge` elements in the z=0 plane.
 """
 function write_ply(mesh, path; analysis=nothing)
     Base.ENDIAN_BOM == 0x04030201 ||
@@ -92,6 +93,61 @@ function write_ply(mesh, path; analysis=nothing)
     return path
 end
 
+# PLY edge elements preserve a 2D contour as lines in the z=0 plane. No artificial
+# thickness or triangulated interior is introduced.
+function write_ply(mesh::SurfaceMesh{T, I, 2}, path; analysis=nothing) where {T, I}
+    Base.ENDIAN_BOM == 0x04030201 ||
+        error("binary PLY writer requires a little-endian host")
+    normals, analysis = surface_vertex_normals(mesh; analysis)
+    vertices = zeros(Float32, 6, length(mesh.vertices))
+    for index in eachindex(mesh.vertices)
+        vertices[1:2, index] .= mesh.vertices[index]
+        vertices[4:5, index] .= normals[index]
+    end
+    edges = Matrix{Int32}(undef, 2, length(mesh.faces))
+    for (index, edge) in enumerate(analysis.oriented_faces)
+        edges[:, index] .= edge .- 1
+    end
+    open(path, "w") do io
+        print(io, "ply\nformat binary_little_endian 1.0\n",
+              "comment Julia area-CIC surface reconstruction\n",
+              "element vertex $(length(mesh.vertices))\n",
+              "property float x\nproperty float y\nproperty float z\n",
+              "property float nx\nproperty float ny\nproperty float nz\n",
+              "element edge $(length(mesh.faces))\n",
+              "property int vertex1\nproperty int vertex2\nend_header\n")
+        write(io, vertices)
+        write(io, edges)
+    end
+    return path
+end
+
+function surface_vtk_data(mesh::SurfaceMesh{T, I, 3}, analysis) where {T, I}
+    points = Matrix{T}(undef, 3, length(mesh.vertices))
+    for (index, vertex) in enumerate(mesh.vertices)
+        points[:, index] = vertex
+    end
+    normals, parent, reverse_winding = surface_vertex_normals(mesh; analysis)
+    reverse_flag = vertex_reverse_flags(parent, reverse_winding, length(mesh.vertices))
+    cells = [MeshCell(PolyData.Polys(),
+                      reverse_flag[face[1]] ?
+                      (face[1], face[3], face[2]) : (face[1], face[2], face[3]))
+             for face in mesh.faces]
+    return points, cells, [normal[index] for index in 1:3, normal in normals]
+end
+
+function surface_vtk_data(mesh::SurfaceMesh{T, I, 2}, analysis) where {T, I}
+    points = zeros(T, 3, length(mesh.vertices))
+    normal_data = zeros(Float64, 3, length(mesh.vertices))
+    normals, analysis = surface_vertex_normals(mesh; analysis)
+    for index in eachindex(mesh.vertices)
+        points[1:2, index] .= mesh.vertices[index]
+        normal_data[1:2, index] .= normals[index]
+    end
+    cells = [MeshCell(PolyData.Lines(), Tuple(edge)) for edge in analysis.oriented_faces]
+    return points, cells, normal_data
+end
+
 """
     trixi2vtk(mesh::SurfaceMesh; output_directory="out", prefix="", filename="surface",
               iter=nothing, overwrite=isnothing(iter),
@@ -107,6 +163,7 @@ values (vectors, or matrices with one column per vertex) written as additional V
 data, e.g. SPH quantities interpolated onto the surface. `analysis` optionally supplies
 the `mesh_liquid_analysis` of the current mesh contents; mutating vertices or faces
 invalidates it.
+In 2D, faces become VTK line cells in the z=0 plane, with in-plane outward normals.
 `compress` selects the zlib level (`0`–`9` or booleans); level 1 compresses almost as
 well as level 6 (`true`) at a fifth of the cost.
 """
@@ -138,23 +195,13 @@ function trixi2vtk(mesh::SurfaceMesh; output_directory="out", prefix="",
 
     # Same element type as the vertices (usually `Float32`): an exact round-trip that
     # halves the point payload compared to `Float64`
-    points = Matrix{eltype(eltype(mesh.vertices))}(undef, 3, length(mesh.vertices))
-    for (index, vertex) in enumerate(mesh.vertices)
-        points[:, index] = vertex
-    end
-    # Triangles are polygon cells in a PolyData dataset (VTK `.vtp`)
-    normals, parent, reverse_winding = surface_vertex_normals(mesh; analysis)
-    reverse_flag = vertex_reverse_flags(parent, reverse_winding, length(mesh.vertices))
-    cells = [MeshCell(PolyData.Polys(),
-                      reverse_flag[face[1]] ?
-                      (face[1], face[3], face[2]) : (face[1], face[2], face[3]))
-             for face in mesh.faces]
+    points, cells, normals = surface_vtk_data(mesh, analysis)
 
     @trixi_timeit timer() "write to vtk" vtk_grid(VTKPolyData(), file, points, cells;
                                                   compress) do vtk
-        vtk["Normals"] = [normal[index] for index in 1:3, normal in normals]
+        vtk["Normals"] = normals
         vtk["time"] = t
-        vtk["ndims"] = 3
+        vtk["ndims"] = ndims(mesh)
 
         if point_data !== nothing
             for (name, values) in point_data

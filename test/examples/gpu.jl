@@ -28,6 +28,7 @@ else
 end
 
 include(joinpath(@__DIR__, "..", "surface_reconstruction", "gpu_correctness.jl"))
+include(joinpath(@__DIR__, "..", "surface_reconstruction", "gpu_planar.jl"))
 
 @testset verbose=true "div_fast $TRIXIPARTICLES_TEST_" begin
     @testset verbose=true "CPU Float64" begin

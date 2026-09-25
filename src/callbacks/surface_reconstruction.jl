@@ -8,8 +8,8 @@
                                   overwrite=false, compress=1, write_statistics=true,
                                   write_boundaries=false, interpolated_quantities=())
 
-Callback to reconstruct closed 3D free surfaces from the live fluid state during a
-simulation, using the shared [`SurfaceReconstruction`](@ref) engine. Use at most one of
+Callback to reconstruct closed planar contours (2D) or triangle surfaces (3D) from the
+live fluid state using the shared [`SurfaceReconstruction`](@ref) engine. Use at most one of
 `interval`, `dt`, and `save_times`: pass `interval` to reconstruct every `interval`
 accepted time steps, `dt` to reconstruct in intervals of `dt` in terms of integration
 time by adding additional `tstops` (note that this may change the solution), or
@@ -19,7 +19,7 @@ Each fluid system is reconstructed separately. The callback writes to `output_di
 - `<prefix>_<system>_<iter>.vtp`: the surface as VTK PolyData with per-vertex `Normals`,
   collected per system in a `<prefix>_<system>.pvd` time series (e.g.
   `surface_fluid_1.pvd`), optionally with interpolated SPH quantities as point data.
-  `formats` additionally accepts `:ply` for Blender-oriented output.
+  `formats` additionally accepts `:ply`. Planar output uses VTK lines or PLY edges at z=0.
 - `<prefix>_statistics.csv` / `.json`: per-event time series of every fluid system's
   reconstruction statistics (volume, particle volume, relative volume error, effective
   isovalue, region and topology-defect counts, correction evaluations, run time), in the
@@ -43,6 +43,8 @@ programmatic access (``cb.affect!.latest_meshes`` for the returned `DiscreteCall
                     uses the simulation's CPU threading backend (GPU simulations use
                     `PolyesterBackend()` on the CPU copies). Its `particle_spacing`
                     should match the fluid systems'; a mismatch warns at construction.
+                    Its dimension must match the selected systems. Set `ndims=2` for an
+                    adaptive planar contour, or supply a two-component `tank_size`.
 - `semi`:           The [`Semidiscretization`](@ref TrixiParticles.Semidiscretization).
                     System indices are resolved immediately.
 
@@ -57,7 +59,8 @@ programmatic access (``cb.affect!.latest_meshes`` for the returned `DiscreteCall
                              particles form complete lattices — the surface topology is
                              built once from the initial configuration and tracked
                              through the current coordinates — or static geometries
-                             ([`TrixiParticles.TriangleMesh`](@ref), e.g. from
+                             ([`TrixiParticles.TriangleMesh`](@ref) in 3D or `Polygon{2}`
+                             in 2D, e.g. from
                              [`load_geometry`](@ref), or a [`BoundaryMesh`](@ref)). Can
                              be a single entry or a collection.
 - `interval=0`:                Reconstruct every `interval` accepted time steps;
@@ -106,7 +109,7 @@ reconstruction = SurfaceReconstruction(particle_spacing=0.05; tank_size=(0.5, 0.
 surface_callback = SurfaceReconstructionCallback(reconstruction, semi, interval=100)
 ```
 """
-mutable struct SurfaceReconstructionCallback{I, F}
+mutable struct SurfaceReconstructionCallback{I, F, R}
     interval::I
     save_times::Vector{Float64}
     save_initial_surface::Bool
@@ -116,8 +119,8 @@ mutable struct SurfaceReconstructionCallback{I, F}
     formats::F
     fluid_indices::Vector{Int}
     boundary_indices::Vector{Int}
-    reconstruction::SurfaceReconstruction
-    reconstructions::Vector{SurfaceReconstruction}
+    reconstruction::R
+    reconstructions::Vector{R}
     output_directory::String
     prefix::String
     verbose::Bool
@@ -184,6 +187,11 @@ function SurfaceReconstructionCallback(reconstruction::SurfaceReconstruction, se
 
     fluid_indices = resolve_fluid_indices(fluid_systems, semi)
     boundary_indices, static_boundaries = resolve_boundaries(boundaries, semi)
+    all(index -> ndims(semi.systems[index]) == ndims(reconstruction), fluid_indices) ||
+        throw(ArgumentError("fluid dimensions must match the reconstruction; use `ndims=2` for planar contours"))
+    all(index -> ndims(semi.systems[index]) == ndims(reconstruction), boundary_indices) &&
+    all(boundary -> ndims(boundary) == ndims(reconstruction), static_boundaries) ||
+        throw(ArgumentError("boundary dimensions must match the reconstruction"))
 
     # The grid, the Gaussian width, and the deposited volumes all scale with the
     # particle spacing; warn when the reconstruction was configured inconsistently.
@@ -257,8 +265,8 @@ function resolve_fluid_indices(fluid_systems, semi)
     for system_index in indices
         systems[system_index] isa AbstractFluidSystem ||
             throw(ArgumentError("system $system_index is not a fluid system"))
-        ndims(systems[system_index]) == 3 ||
-            throw(ArgumentError("surface reconstruction requires a 3D fluid system"))
+        ndims(systems[system_index]) in (2, 3) ||
+            throw(ArgumentError("surface reconstruction requires a 2D or 3D fluid system"))
     end
 
     return indices
@@ -268,7 +276,8 @@ end
 # (`TriangleMesh`, e.g. from `load_geometry`, or a prebuilt `BoundaryMesh`).
 function resolve_boundaries(boundaries, semi)
     systems = semi.systems
-    single_specification = Union{Integer, AbstractSystem, TriangleMesh, BoundaryMesh}
+    single_specification = Union{Integer, AbstractSystem, TriangleMesh, Polygon,
+                                 BoundaryMesh}
     specifications = boundaries === nothing ? () :
                      boundaries isa single_specification ? (boundaries,) : boundaries
 
@@ -281,13 +290,15 @@ function resolve_boundaries(boundaries, semi)
             ndims(specification) == 3 ||
                 throw(ArgumentError("surface reconstruction requires 3D boundary geometries"))
             push!(static_boundaries, BoundaryMesh(specification))
+        elseif specification isa Polygon{2}
+            push!(static_boundaries, BoundaryMesh(specification))
         else
             system_index = system_index_spec(specification, semi)
             system = systems[system_index]
             system isa Union{AbstractBoundarySystem, AbstractStructureSystem} ||
                 throw(ArgumentError("system $system_index is not a boundary or structure system"))
-            ndims(system) == 3 ||
-                throw(ArgumentError("surface reconstruction requires 3D boundary and structure systems"))
+            ndims(system) in (2, 3) ||
+                throw(ArgumentError("surface reconstruction requires 2D or 3D boundary and structure systems"))
             push!(indices, system_index)
         end
     end
@@ -494,7 +505,8 @@ function (surface_callback::SurfaceReconstructionCallback)(integrator)
             if !isempty(interpolated_quantities) && !isempty(mesh.vertices)
                 # SPH interpolation from fluid neighbors only (`cut_off_bnd=false`), so
                 # vertices touching walls keep fluid values
-                vertex_coordinates = Matrix{Float64}(undef, 3, length(mesh.vertices))
+                vertex_coordinates = Matrix{Float64}(undef, ndims(mesh),
+                                                     length(mesh.vertices))
                 for (index, vertex) in enumerate(mesh.vertices)
                     vertex_coordinates[:, index] = vertex
                 end
@@ -544,6 +556,22 @@ const SURFACE_STATISTICS_QUANTITIES = ("effective_isovalue", "volume", "particle
                                        "n_excluded_particles", "n_enclosed_particles",
                                        "reconstruction_time")
 
+const PLANAR_SURFACE_STATISTICS_QUANTITIES = ("effective_isovalue", "area", "particle_area",
+                                              "relative_area_error", "perimeter",
+                                              "n_vertices", "n_segments",
+                                              "n_connected_regions",
+                                              "n_cavity_regions",
+                                              "n_correction_evaluations",
+                                              "n_excluded_particles",
+                                              "n_enclosed_particles",
+                                              "reconstruction_time")
+
+function surface_statistics_quantities(callback)
+    ndims(callback.reconstruction) == 2 ?
+    PLANAR_SURFACE_STATISTICS_QUANTITIES :
+    SURFACE_STATISTICS_QUANTITIES
+end
+
 function write_surface_files(surface_callback, mesh, system_name, iter, t;
                              point_data=nothing, analysis=nothing)
     (; output_directory, prefix, formats, overwrite, compress) = surface_callback
@@ -572,21 +600,28 @@ function surface_statistics_values(mesh, stats)
     reconstruction_time = timings isa AbstractDict ? get(timings, "total", NaN) : NaN
     relative_volume_error = (stats.volume - stats.particle_volume) / stats.particle_volume
 
-    return Dict("effective_isovalue" => stats.effective_isovalue,
-                "volume" => stats.volume,
-                "particle_volume" => stats.particle_volume,
-                "relative_volume_error" => relative_volume_error,
-                "surface_area" => stats.surface_area,
-                "n_vertices" => length(mesh.vertices),
-                "n_faces" => length(mesh.faces),
-                "n_connected_regions" => stats.n_connected_regions,
-                "n_cavity_regions" => stats.n_cavity_regions,
-                "n_boundary_edges" => stats.n_boundary_edges,
-                "n_nonmanifold_edges" => stats.n_nonmanifold_edges,
-                "n_correction_evaluations" => stats.n_correction_evaluations,
-                "n_excluded_particles" => get(details, "n_excluded_particles", 0),
-                "n_enclosed_particles" => get(details, "n_enclosed_particles", 0),
-                "reconstruction_time" => reconstruction_time)
+    values = Dict("effective_isovalue" => stats.effective_isovalue,
+                  "volume" => stats.volume,
+                  "particle_volume" => stats.particle_volume,
+                  "relative_volume_error" => relative_volume_error,
+                  "surface_area" => stats.surface_area,
+                  "n_vertices" => length(mesh.vertices),
+                  "n_faces" => length(mesh.faces),
+                  "n_connected_regions" => stats.n_connected_regions,
+                  "n_cavity_regions" => stats.n_cavity_regions,
+                  "n_boundary_edges" => stats.n_boundary_edges,
+                  "n_nonmanifold_edges" => stats.n_nonmanifold_edges,
+                  "n_correction_evaluations" => stats.n_correction_evaluations,
+                  "n_excluded_particles" => get(details, "n_excluded_particles", 0),
+                  "n_enclosed_particles" => get(details, "n_enclosed_particles", 0),
+                  "reconstruction_time" => reconstruction_time)
+    if ndims(mesh) == 2
+        merge!(values,
+               Dict("area" => stats.volume, "particle_area" => stats.particle_volume,
+                    "relative_area_error" => relative_volume_error,
+                    "perimeter" => stats.surface_area, "n_segments" => length(mesh.faces)))
+    end
+    return values
 end
 
 # Append one event to the statistics time series. Skipped systems (no active particles)
@@ -599,7 +634,7 @@ function record_surface_statistics!(surface_callback, t, names)
         mesh = latest_meshes[position]
         stats = latest_statistics[position]
         values = stats === nothing ? nothing : surface_statistics_values(mesh, stats)
-        for quantity in SURFACE_STATISTICS_QUANTITIES
+        for quantity in surface_statistics_quantities(surface_callback)
             series = get!(statistics_data, quantity * "_" * names[fluid_index],
                           fill(NaN, length(surface_callback.statistics_times) - 1))
             push!(series, values === nothing ? NaN : Float64(values[quantity]))
@@ -619,7 +654,7 @@ function write_surface_statistics(surface_callback, integrator)
     for (key, values) in statistics_data
         # Keys are `<quantity>_<system name>`, e.g. `volume_fluid_1`
         quantity = first(filter(quantity -> startswith(key, quantity * "_"),
-                                SURFACE_STATISTICS_QUANTITIES))
+                                surface_statistics_quantities(surface_callback)))
         system_name = key[(length(quantity) + 2):end]
         data[key] = create_series_dict(values, statistics_times, system_name)
     end
@@ -662,7 +697,8 @@ function reconstruction_configuration(surface_callback, semi)
     names = system_names(semi.systems)
     face_names = ("-x", "+x", "-y", "+y", "-z", "+z")
 
-    configuration = Dict{String, Any}("particle_spacing" => reconstruction.particle_spacing,
+    configuration = Dict{String, Any}("ndims" => ndims(reconstruction),
+                                      "particle_spacing" => reconstruction.particle_spacing,
                                       "voxel_size" => reconstruction.voxel_size,
                                       "gaussian_sigma_voxels" => reconstruction.sigma_voxels,
                                       "grid_padding" => reconstruction.grid_padding,
@@ -692,7 +728,7 @@ function reconstruction_configuration(surface_callback, semi)
         configuration["domain"] = Dict("min_corner" => collect(min_corner),
                                        "max_corner" => collect(max_corner),
                                        "open_faces" => [face_names[face]
-                                                        for face in 1:6
+                                                        for face in eachindex(open_faces)
                                                         if open_faces[face]])
     end
 
