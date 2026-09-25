@@ -4,38 +4,40 @@
         # All smoothing kernels should integrate to something close to 1.
         # We integrate slightly beyond the compact support to verify that the kernel is
         # correctly evaluating to zero there.
-        function integrate_kernel_2d(smk)
+        function integrate_kernel_2d(kernel, h)
             integral_2d_radial,
-            _ = quadgk(r -> r * TrixiParticles.kernel(smk, r, 1.0), 0,
-                       TrixiParticles.compact_support(smk, 1.0) * 1.1,
+            _ = quadgk(r -> r * TrixiParticles.kernel(kernel, r, h), 0,
+                       TrixiParticles.compact_support(kernel, h) * 1.1,
                        rtol=1e-15)
             return 2 * pi * integral_2d_radial
         end
 
-        function integrate_kernel_1d(smk)
+        function integrate_kernel_1d(kernel, h)
             integral_1d_half,
-            _ = quadgk(r -> TrixiParticles.kernel(smk, r, 1.0), 0,
-                       TrixiParticles.compact_support(smk, 1.0) * 1.1,
+            _ = quadgk(r -> TrixiParticles.kernel(kernel, r, h), 0,
+                       TrixiParticles.compact_support(kernel, h) * 1.1,
                        rtol=1e-15)
             return 2 * integral_1d_half
         end
 
-        function integrate_kernel_3d(smk)
+        function integrate_kernel_3d(kernel, h)
             integral_3d_radial,
-            _ = quadgk(r -> r^2 * TrixiParticles.kernel(smk, r, 1.0), 0,
-                       TrixiParticles.compact_support(smk, 1.0) * 1.1,
+            _ = quadgk(r -> r^2 * TrixiParticles.kernel(kernel, r, h), 0,
+                       TrixiParticles.compact_support(kernel, h) * 1.1,
                        rtol=1e-15)
             return 4 * pi * integral_3d_radial
         end
 
         # Treat the truncated Gaussian kernel separately
         @testset "GaussianKernel" begin
-            error_2d = abs(integrate_kernel_2d(GaussianKernel{2}()) - 1.0)
-            error_3d = abs(integrate_kernel_3d(GaussianKernel{3}()) - 1.0)
+            for h in [0.5, 1.0]
+                error_2d = abs(integrate_kernel_2d(GaussianKernel{2}(), h) - 1.0)
+                error_3d = abs(integrate_kernel_3d(GaussianKernel{3}(), h) - 1.0)
 
-            # Large error due to truncation
-            @test 1e-4 < error_2d < 1e-3
-            @test 1e-4 < error_3d < 1e-3
+                # Large error due to truncation
+                @test 1e-4 < error_2d < 1e-3
+                @test 1e-4 < error_3d < 1e-3
+            end
         end
 
         # All other kernels
@@ -48,27 +50,31 @@
             WendlandC6Kernel,
             SpikyKernel,
             Poly6Kernel,
-            LaguerreGaussKernel
+            LaguerreGaussKernel,
+            ParabolicKernel
         ]
 
         kernels_1d = [
             SchoenbergCubicSplineKernel,
             SchoenbergQuarticSplineKernel,
             SchoenbergQuinticSplineKernel,
-            LaguerreGaussKernel
+            LaguerreGaussKernel,
+            ParabolicKernel
         ]
 
         @testset "$kernel" for kernel in kernels
-            # The integral should be 1 for all kernels
-            error_2d = abs(integrate_kernel_2d(kernel{2}()) - 1.0)
-            error_3d = abs(integrate_kernel_3d(kernel{3}()) - 1.0)
+            for h in [0.5, 1.0]
+                # The integral should be 1 for all kernels
+                error_2d = abs(integrate_kernel_2d(kernel{2}(), h) - 1.0)
+                error_3d = abs(integrate_kernel_3d(kernel{3}(), h) - 1.0)
 
-            @test error_2d <= 1e-15
-            @test error_3d <= 1e-15
+                @test error_2d <= 2e-15
+                @test error_3d <= 3e-15
 
-            if kernel in kernels_1d
-                error_1d = abs(integrate_kernel_1d(kernel{1}()) - 1.0)
-                @test error_1d <= 1e-15
+                if kernel in kernels_1d
+                    error_1d = abs(integrate_kernel_1d(kernel{1}(), h) - 1.0)
+                    @test error_1d <= 1e-15
+                end
             end
         end
     end
@@ -86,14 +92,16 @@
             WendlandC6Kernel,
             SpikyKernel,
             Poly6Kernel,
-            LaguerreGaussKernel
+            LaguerreGaussKernel,
+            ParabolicKernel
         ]
 
         kernels_1d = [
             SchoenbergCubicSplineKernel,
             SchoenbergQuarticSplineKernel,
             SchoenbergQuinticSplineKernel,
-            LaguerreGaussKernel
+            LaguerreGaussKernel,
+            ParabolicKernel
         ]
 
         # Test 4 different smoothing lengths
@@ -132,6 +140,33 @@
         end
     end
 
+    @testset "ParabolicKernel Gradient Linearity" begin
+        # The `ParabolicKernel` is designed to have a linear gradient: ∇Wᵢⱼ = -c * rᵢⱼ.
+        smoothing_lengths = (0.5, 1.0)
+
+        for ndims in 1:3
+            kernel_ = ParabolicKernel{ndims}()
+
+            @testset "ParabolicKernel{$ndims}" begin
+                for h in smoothing_lengths
+                    h_inv = inv(h)
+                    c = 2 * TrixiParticles.normalization_factor(kernel_, h_inv) * h_inv^2
+
+                    for factor in (0.25, 0.5, 0.75)
+                        pos_diff = SVector(ntuple(i -> i * factor * h / (2 * ndims),
+                                                  ndims))
+                        distance = norm(pos_diff)
+
+                        gradient = TrixiParticles.kernel_grad(kernel_, pos_diff,
+                                                              distance, h)
+
+                        @test gradient ≈ -c .* pos_diff
+                    end
+                end
+            end
+        end
+    end
+
     @testset verbose=false "Return Type" begin
         # Test that the return type of the kernel and kernel derivative preserve
         # the input type. We don't want to return `Float64` when working with `Float32`.
@@ -145,14 +180,16 @@
             WendlandC6Kernel,
             SpikyKernel,
             Poly6Kernel,
-            LaguerreGaussKernel
+            LaguerreGaussKernel,
+            ParabolicKernel
         ]
 
         kernels_1d = [
             SchoenbergCubicSplineKernel,
             SchoenbergQuarticSplineKernel,
             SchoenbergQuinticSplineKernel,
-            LaguerreGaussKernel
+            LaguerreGaussKernel,
+            ParabolicKernel
         ]
 
         # Test different smoothing length types

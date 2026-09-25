@@ -1,81 +1,122 @@
 include("../validation_util.jl")
 
-# Activate for interactive plot
+# Activate for interactive plots
 # using GLMakie
 using CairoMakie
 using CSV
 using DataFrames
 using JSON
 using Glob
-using Printf
 using TrixiParticles
 
-elastic_plate = (length=0.35, thickness=0.02)
+const RESOLUTIONS = (5, 9, 17, 33, 65)
+const COLORS = ("#ff0000", "#f5a000", "#800080", "#3caf75")
+const TIME_LIMITS = (0.35, 0.55)
+const DEFLECTION_LIMITS = (-0.235, -0.105)
 
-# Load the reference simulation data
-ref = CSV.read(joinpath(validation_dir(), "oscillating_beam_2d/reference_turek.csv"),
-               DataFrame)
-
-# Get the list of JSON files
-reference_files = glob("validation_reference_*.json",
-                       joinpath(validation_dir(), "oscillating_beam_2d"))
-simulation_files = glob("validation_run_oscillating_beam_2d_*.json", "out")
-merged_files = vcat(reference_files, simulation_files)
-input_files = sort(merged_files, by=extract_number_from_filename)
-
-# Regular expressions for matching keys
-key_pattern_x = r"deflection_x_structure_\d+"
-key_pattern_y = r"deflection_y_structure_\d+"
-
-# Setup for Makie plotting
-fig = Figure(size=(1200, 800))
-ax1 = Axis(fig, title="X-Axis Displacement", xlabel="Time [s]", ylabel="X Displacement")
-ax2 = Axis(fig, title="Y-Axis Displacement", xlabel="Time [s]", ylabel="Y Displacement")
-fig[1, 1] = ax1
-fig[2, 1] = ax2
-
-for file_name in input_files
-    println("Loading the input file: $file_name")
+function load_tip_deflection(file_name)
     json_data = JSON.parsefile(file_name)
+    data = json_data["deflection_y_structure_1"]
 
-    resolution = parse(Int, split(split(file_name, "_")[end], ".")[1])
-    particle_spacing_ = elastic_plate.thickness / (resolution - 1)
-
-    matching_keys_x = sort(collect(filter(key -> occursin(key_pattern_x, key),
-                                          keys(json_data))))
-    matching_keys_y = sort(collect(filter(key -> occursin(key_pattern_y, key),
-                                          keys(json_data))))
-
-    if isempty(matching_keys_x)
-        error("No matching keys found in: $file_name")
-    end
-
-    label_prefix = occursin("reference", file_name) ? "Reference" : ""
-
-    for (matching_keys, ax) in ((matching_keys_x, ax1), (matching_keys_y, ax2))
-        for key in matching_keys
-            data = json_data[key]
-            times = Float64.(data["time"])
-            displacements = Float64.(data["values"])
-
-            mse_results = occursin(key_pattern_x, key) ?
-                          interpolated_mse(ref.time, ref.Ux, data["time"], displacements) :
-                          interpolated_mse(ref.time, ref.Uy, data["time"], displacements)
-
-            label = "$label_prefix dp = $(@sprintf("%.8f", particle_spacing_)) mse=$(@sprintf("%.8f", mse_results))"
-            lines!(ax, times, displacements; label)
-        end
-    end
+    return Float64.(data["time"]), Float64.(data["values"])
 end
 
-# Plot reference data
-lines!(ax1, ref.time, ref.Ux, color=:black, linestyle=:dash,
-       label="Turek and Hron 2006")
-lines!(ax2, ref.time, ref.Uy, color=:black, linestyle=:dash,
-       label="Turek and Hron 2006")
+function file_for_resolution(files, resolution)
+    index = findfirst(file -> extract_number_from_filename(file) == resolution, files)
+    return isnothing(index) ? nothing : files[index]
+end
 
-legend_ax1 = Legend(fig[1, 2], ax1)
-legend_ax2 = Legend(fig[2, 2], ax2)
+reference_directory = joinpath(validation_dir(), "oscillating_beam_2d")
+reference_files = glob("validation_reference_*.json", reference_directory)
+simulation_files = glob("validation_run_oscillating_beam_2d_*.json", "out")
+turek = CSV.read(joinpath(reference_directory, "reference_turek.csv"), DataFrame)
 
-# save("validation_osc_beam.png", fig)
+set_theme!(Theme(fontsize=28, fonts=(; regular="TeX Gyre Termes")))
+
+fig = Figure(size=(1080, 760), figure_padding=(20, 25, 15, 15))
+ax = Axis(fig[1, 1];
+          xlabel="Time (s)",
+          ylabel="Tip Y - Deflection (m)",
+          limits=(TIME_LIMITS, DEFLECTION_LIMITS),
+          xticks=0.35:0.05:0.55,
+          yticks=-0.13:0.01:-0.11,
+          xlabelsize=34,
+          ylabelsize=34,
+          xticklabelsize=30,
+          yticklabelsize=30,
+          spinewidth=2.5,
+          xtickwidth=2.5,
+          ytickwidth=2.5,
+          xticksize=10,
+          yticksize=10)
+
+line_plots = []
+marker_plots = []
+
+for (resolution, color) in zip(RESOLUTIONS, COLORS)
+    reference_file = file_for_resolution(reference_files, resolution)
+    isnothing(reference_file) &&
+        error("Reference data for resolution $resolution not found")
+
+    reference_time, reference_deflection = load_tip_deflection(reference_file)
+    marker_plot = scatter!(ax, reference_time, reference_deflection;
+                           color=:transparent,
+                           strokecolor=color,
+                           strokewidth=3,
+                           marker=:circle,
+                           markersize=15)
+    push!(marker_plots, marker_plot)
+
+    simulation_file = file_for_resolution(simulation_files, resolution)
+    if isnothing(simulation_file)
+        @warn "Simulation data for resolution $resolution not found; plotting the reference data as the solid curve"
+        simulation_time = reference_time
+        simulation_deflection = reference_deflection
+    else
+        simulation_time, simulation_deflection = load_tip_deflection(simulation_file)
+    end
+
+    line_plot = lines!(ax, simulation_time, simulation_deflection;
+                       color, linewidth=4)
+    push!(line_plots, line_plot)
+end
+
+turek_plot = lines!(ax, turek.time, turek.Uy;
+                    color=:black, linestyle=:dash, linewidth=3)
+
+# Four empty entries make the two reference labels occupy the first two rows
+# of the right legend column.
+empty_entry = LineElement(color=:transparent)
+legend_elements = [line_plots...,
+                   MarkerElement(marker=:circle, color=:transparent,
+                                 strokecolor=:black, strokewidth=3,
+                                 markersize=15),
+                   turek_plot,
+                   empty_entry,
+                   empty_entry]
+legend_labels = [L"t_s/dp = 8",
+                 L"t_s/dp = 16",
+                 L"t_s/dp = 32",
+                 L"t_s/dp = 64",
+                 "O'Connor and Rogers, 2021",
+                 "Turek & Hron, 2007",
+                 "",
+                 ""]
+
+Legend(fig[1, 1], legend_elements, legend_labels;
+       nbanks=2,
+       tellwidth=false,
+       tellheight=false,
+       halign=:center,
+       valign=:top,
+       margin=(20, 20, 8, 8),
+       padding=(8, 8, 5, 5),
+       patchsize=(35, 20),
+       rowgap=1,
+       colgap=16,
+       framevisible=true,
+       framewidth=1,
+       backgroundcolor=:white)
+
+# save("validation_oscillating_beam_2d.png", fig, px_per_unit=2)
 fig

@@ -202,4 +202,179 @@
             end
         end
     end
+
+    @testset verbose=true "Bond-Associated Quadrature" begin
+        coordinate_range = 0.1:0.1:0.5
+        coordinates = hcat(collect.(Iterators.product(coordinate_range,
+                                                      coordinate_range))...)
+        n_particles = size(coordinates, 2)
+        mass = fill(10.0, n_particles)
+        density = fill(1000.0, n_particles)
+        young_modulus = collect(range(2.0, 3.0, length=n_particles))
+        poisson_ratio = fill(0.25, n_particles)
+        initial_condition = InitialCondition(; coordinates, mass, density)
+        system = TotalLagrangianSPHSystem(initial_condition;
+                                          smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
+                                          smoothing_length=0.12, young_modulus,
+                                          poisson_ratio,
+                                          model=BondAssociatedTLSPHModel())
+        semi = Semidiscretization(system, parallelization_backend=SerialBackend())
+        system = semi.systems[1]
+        ode = semidiscretize(semi, (0.0, 1.0))
+        v_ode = copy(ode.u0.x[1])
+        u_ode = copy(ode.u0.x[2])
+        u = TrixiParticles.wrap_u(u_ode, system, semi)
+
+        for particle in axes(u, 2)
+            x, y = coordinates[:, particle]
+            u[:, particle] .= (1.05 * x + 0.1 * y + 0.03 * x * y,
+                               -0.04 * x + 0.95 * y + 0.02 * x^2)
+        end
+
+        dv_ode = zero(v_ode)
+        TrixiParticles.kick!(dv_ode, v_ode, u_ode, ode.p, 0.0)
+        dv = TrixiParticles.wrap_v(dv_ode, system, semi)
+
+        # Reconstruct the C1 reproducing-kernel quantities from Peridynamics.jl directly.
+        volumes = system.mass ./ system.material_density
+        weights = zeros(n_particles, n_particles)
+        gradient_weights = zeros(2, n_particles, n_particles)
+        weighted_volume_reference = zeros(n_particles)
+        moment_matrices = zeros(2, 2, n_particles)
+        system_coords = TrixiParticles.initial_coordinates(system)
+        neighborhood_search = TrixiParticles.get_neighborhood_search(system, semi)
+
+        for particle in TrixiParticles.eachparticle(system)
+            TrixiParticles.foreach_neighbor(system_coords, system_coords,
+                                            neighborhood_search, SerialBackend(),
+                                            particle) do _, neighbor, initial_pos_diff,
+                                                         initial_distance
+                initial_distance < sqrt(eps(system.smoothing_length^2)) && return
+
+                grad_kernel = TrixiParticles.smoothing_kernel_grad_unsafe(system,
+                                                                          initial_pos_diff,
+                                                                          initial_distance,
+                                                                          particle)
+                initial_bond = -initial_pos_diff
+                weight = -dot(grad_kernel, initial_pos_diff) / initial_distance^2
+                weights[neighbor, particle] = weight
+                weighted_volume_reference[particle] += weight * volumes[neighbor]
+                moment_matrices[:, :, particle] .+= weight * volumes[neighbor] *
+                                                    initial_bond * initial_bond'
+            end
+
+            moment_matrix_inv = inv(moment_matrices[:, :, particle])
+            for neighbor in TrixiParticles.eachparticle(system)
+                initial_bond = coordinates[:, neighbor] - coordinates[:, particle]
+                gradient_weights[:, neighbor, particle] .= weights[neighbor, particle] *
+                                                           volumes[neighbor] *
+                                                           moment_matrix_inv * initial_bond
+            end
+        end
+
+        deformation_gradients = zeros(2, 2, n_particles)
+        for particle in TrixiParticles.eachparticle(system)
+            deformation_gradients[:, :, particle] .= Matrix{Float64}(I, 2, 2)
+            for neighbor in TrixiParticles.eachparticle(system)
+                initial_bond = coordinates[:, neighbor] - coordinates[:, particle]
+                current_bond = u[:, neighbor] - u[:, particle]
+                displacement_bond = current_bond - initial_bond
+                deformation_gradients[:, :, particle] .+=
+                    displacement_bond * gradient_weights[:, neighbor, particle]'
+            end
+        end
+
+        stress_integrals = zeros(2, 2, n_particles)
+        bond_stresses = zeros(2, 2, n_particles, n_particles)
+        for particle in TrixiParticles.eachparticle(system)
+            for neighbor in TrixiParticles.eachparticle(system)
+                weight = weights[neighbor, particle]
+                iszero(weight) && continue
+
+                initial_bond = coordinates[:, neighbor] - coordinates[:, particle]
+                current_bond = u[:, neighbor] - u[:, particle]
+                initial_distance = norm(initial_bond)
+                F_average = (deformation_gradients[:, :, particle] +
+                             deformation_gradients[:, :, neighbor]) / 2
+                F_bond = F_average +
+                         (current_bond - F_average * initial_bond) *
+                         (initial_bond' / initial_distance^2)
+                P_bond = TrixiParticles.pk1_stress_tensor(F_bond, system, particle)
+                bond_stresses[:, :, neighbor, particle] .= P_bond
+                transverse_projection = I -
+                                        initial_bond * initial_bond' / initial_distance^2
+                quadrature_weight = weight *
+                                    (1 / (2 * weighted_volume_reference[particle]) +
+                                     1 / (2 * weighted_volume_reference[neighbor])) *
+                                    volumes[neighbor]
+                stress_integrals[:, :, particle] .+=
+                    quadrature_weight * P_bond * transverse_projection
+            end
+        end
+
+        @test system.cache.weighted_volume ≈ weighted_volume_reference
+        for particle in TrixiParticles.eachparticle(system)
+            @test TrixiParticles.deformation_gradient(system, particle) ≈
+                  deformation_gradients[:, :, particle]
+            @test TrixiParticles.bond_associated_stress_integral(system, particle) ≈
+                  stress_integrals[:, :, particle]
+        end
+
+        # Evaluate the directed-bond force updates from Peridynamics.jl directly.
+        force_density = zeros(size(dv))
+        for particle in TrixiParticles.eachparticle(system)
+            for neighbor in TrixiParticles.eachparticle(system)
+                weight = weights[neighbor, particle]
+                iszero(weight) && continue
+
+                initial_bond = coordinates[:, neighbor] - coordinates[:, particle]
+                initial_distance = norm(initial_bond)
+                force_state = weight /
+                              (weighted_volume_reference[particle] * initial_distance^2) *
+                              (bond_stresses[:, :, neighbor, particle] * initial_bond) +
+                              stress_integrals[:, :, particle] *
+                              gradient_weights[:, neighbor, particle] / volumes[neighbor]
+
+                force_density[:, particle] += force_state * volumes[neighbor]
+                force_density[:, neighbor] -= force_state * volumes[particle]
+            end
+        end
+
+        dv_reference = force_density ./ reshape(system.material_density, 1, :)
+        @test dv ≈ dv_reference rtol=2e-13 atol=2e-13
+        @test vec(sum(dv .* reshape(system.mass, 1, :), dims=2)) ≈ zeros(2) atol=1e-13
+
+        gpu_system = TotalLagrangianSPHSystem(initial_condition;
+                                              smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
+                                              smoothing_length=0.12, young_modulus,
+                                              poisson_ratio,
+                                              model=BondAssociatedTLSPHModel())
+        gpu_backend = TrixiParticles.KernelAbstractions.CPU()
+        gpu_semi = Semidiscretization(gpu_system; parallelization_backend=gpu_backend)
+        gpu_ode = semidiscretize(gpu_semi, (0.0, 1.0))
+        gpu_v_ode = gpu_ode.u0.x[1]
+        gpu_u = zeros(size(coordinates))
+        for particle in axes(gpu_u, 2)
+            x, y = coordinates[:, particle]
+            gpu_u[:, particle] .= (1.05 * x + 0.1 * y + 0.03 * x * y,
+                                   -0.04 * x + 0.95 * y + 0.02 * x^2)
+        end
+        gpu_u_ode = vec(gpu_u)
+        gpu_dv_ode = zero(gpu_v_ode)
+        TrixiParticles.kick!(gpu_dv_ode, gpu_v_ode, gpu_u_ode, gpu_ode.p, 0.0)
+        gpu_dv = TrixiParticles.wrap_v(gpu_dv_ode, gpu_semi.systems[1], gpu_semi)
+        @test gpu_dv ≈ dv_reference rtol=2e-13 atol=2e-13
+
+        # A uniform deformation must be reproduced exactly in the interior.
+        affine_map = [1.1 0.2; -0.1 0.9]
+        for particle in axes(u, 2)
+            u[:, particle] .= affine_map * coordinates[:, particle]
+        end
+        TrixiParticles.update_tlsph_positions!(system, u, semi)
+        TrixiParticles.compute_stress!(system, system.model, semi)
+        @test TrixiParticles.deformation_gradient(system, 13) ≈ affine_map
+        P = TrixiParticles.pk1_stress_tensor(affine_map, system, 13)
+        sigma = TrixiParticles.cauchy_stress(system)[:, :, 13]
+        @test sigma ≈ P * affine_map' / det(affine_map)
+    end
 end;
