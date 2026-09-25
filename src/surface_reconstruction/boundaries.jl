@@ -106,6 +106,10 @@ oriented out of the solid (into cavities for cavity shells). In 3D, open edges a
 inconsistent edge orientations are rejected, but geometric intersections are not tested.
 In 2D, loops must be closed with no crossing nonadjacent segments; their orientation is
 normalized from nesting.
+
+Lattice topologies join the outermost particle *centers*. They do not automatically
+offset the mesh to a physical surface lying outside those centers; see the
+`boundary_clearance` option of [`SurfaceReconstruction`](@ref).
 """
 function BoundaryMesh(points, topology::BoundaryTopology{3})
     lower = SVector{3, Float64}(minimum(@view(points[1, :])), minimum(@view(points[2, :])),

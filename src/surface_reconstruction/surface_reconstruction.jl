@@ -258,8 +258,14 @@ rebuilt whenever the grid dimensions change.
 - `open_faces=nothing`:          Four (2D) or six (3D) flags selecting faces that are not
                                  walls, in `(-x, +x, -y, +y[, -z, +z])` order. Defaults to all
                                  closed; only valid with `min_corner`/`max_corner`.
-- `boundary_clearance=0.0`:         Extra clearance kept between the reconstructed surface
-                                 and boundary meshes.
+ - `boundary_clearance=0.0`:      Extra clearance from the boundary mesh, not necessarily
+                                 from the physical wall. A lattice-derived mesh passes
+                                 through the outer particle centers; for a uniform
+                                 rectangular lattice these lie about half a particle
+                                 spacing inside its physical surface. Specify a suitable
+                                 clearance (often `particle_spacing/2`) if the latter is
+                                 the intended clipping surface. Meshes already describing
+                                 the physical wall need no such offset.
 - `isovalue=0.5`:                Base contour level of the volume fraction field.
 - `volume_tolerance_percent=0.1`: Relative volume (3D) or area (2D) tolerance of correction.
 - `volume_max_iterations=8`:     Maximum isovalue-correction iterations.

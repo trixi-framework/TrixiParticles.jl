@@ -141,6 +141,12 @@ their neighbors to avoid coincident edge vertices. The loop analysis computes li
 area, with nested holes subtracted and islands added. Outer loops are counterclockwise,
 hole loops clockwise, and normals point out of liquid in the simulation plane.
 
+At an exact saddle tie, either connection is a valid perturbation of the degenerate
+bilinear zero set; the fixed pairing is a convention, not a uniquely correct topology.
+Exact-zero nodes are perturbed only while extracting a contour: an evaluation with **no
+strictly positive nodes** is treated as empty. This avoids inventing area from an
+all-zero plateau, while fields with positive nodes may still contain zero-node contours.
+
 ```julia
 fluid = RectangularShape(0.05, (16, 8), (0.0, 0.0); density=1000.0)
 contour, stats = reconstruct_surface(fluid; tank_size=(1.2, 0.8))
@@ -190,10 +196,17 @@ The typed statistics fields `volume`, `particle_volume`, and `surface_area` deno
 dimension's particle measure and boundary measure; explicit 2D aliases are
 `stats["area"]`, `stats["particle_area"]`, and `stats["perimeter"]`. The callback writes
 `area`, `particle_area`, `relative_area_error`, `perimeter`, and `n_segments` time series.
+The current `cavity_volume` statistic denotes **gross** odd-depth hole area in 2D,
+including liquid islands inside those holes. In 3D it denotes
+**net** void volume after subtracting directly enclosed islands. This difference does
+not affect the reconstructed liquid area/volume or its correction target. For net 2D
+void area, subtract the areas of even-depth shells at depth two or greater from
+`cavity_volume`, using `shell_volumes` and `shell_nesting_depths`.
+
 As in 3D, topology transitions can prevent the correction from meeting a prescribed
 tolerance, in which case reconstruction raises an error.
 
-## Pipeline
+## 3D pipeline
 
 1. **Particle volumes.** Each fluid particle contributes its volume ``V_i = m_i / \rho_i``
    from the constant particle mass and the current density. Inactive buffer particles
@@ -236,6 +249,21 @@ boundary edges, nonmanifold edges, and degenerate triangles. These edge checks a
 a proof of global manifoldness or absence of self-intersections. The returned
 [`SurfaceReconstructionStatistics`](@ref) records
 the effective isovalue, volumes, component counts, and per-stage timings for auditing.
+
+## Boundary placement and clearance
+
+`BoundaryMesh` formed from `lattice_surface_topology` connects the **outermost particle
+centers**, not a separately specified physical wall. For a uniform rectangular shape
+whose centers begin half a particle spacing inside the physical face, the mesh lies
+about ``h/2`` inside that face. For example, with ``h=0.05`` m, a physical face at
+``x=0.25`` m has its lattice boundary at ``x=0.275`` m. The default
+`boundary_clearance=0` clips at the lattice mesh; it does not infer this offset.
+
+If the intended surface is the physical wall, set a clearance appropriate to the
+boundary discretization (often ``h/2`` for that rectangular lattice), or pass geometry
+that represents the physical wall directly. The tank-size constraint itself is placed
+at the specified tank coordinates. This choice changes where volume is redistributed
+by area/volume correction, so it should be recorded with the reconstruction settings.
 
 ## Callback output
 
