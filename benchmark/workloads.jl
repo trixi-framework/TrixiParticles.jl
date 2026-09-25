@@ -114,11 +114,11 @@ function wave_tank_particles(spacing)
     # free surface with a mean height of 0.18 m
     n_x, n_z = floor(Int, 2.0 / spacing), floor(Int, 1.0 / spacing)
     points = SVector{3, Float64}[]
-    for iz in 0:(n_z - 1), ix in 0:(n_x - 1)
-        x, z = (ix + 0.5) * spacing, (iz + 0.5) * spacing
+    for z_index in 0:(n_z - 1), x_index in 0:(n_x - 1)
+        x, z = (x_index + 0.5) * spacing, (z_index + 0.5) * spacing
         height = 0.18 + 0.05 * sin(2pi * x / 1.0)
-        for iy in 0:floor(Int, height / spacing)
-            push!(points, SVector(x, (iy + 0.5) * spacing, z))
+        for y_index in 0:floor(Int, height / spacing)
+            push!(points, SVector(x, (y_index + 0.5) * spacing, z))
         end
     end
     return Matrix(reduce(hcat, points)), fill(spacing^3, length(points))
