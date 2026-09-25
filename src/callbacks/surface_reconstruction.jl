@@ -384,25 +384,6 @@ function (surface_callback::SurfaceReconstructionCallback)(u, t, integrator)
                                          save_final_solution=save_final_surface)
 end
 
-# Transfer GPU state vectors and systems to the CPU for surface reconstruction, without
-# the neighborhood-search handler. Adapting the handler's GPU cell lists dominates the
-# transfer cost, and nothing below uses it (interpolation is the only consumer of
-# `semi_cpu`'s neighborhood searches). The returned `semi_cpu` therefore still
-# references the GPU handler and must only be used for coordinates, densities, names,
-# and the CPU threading backend — never for neighborhood searches. On the CPU this is
-# the identity, like `transfer2cpu`.
-function transfer_surface_data(v_ode::AbstractGPUArray, u_ode, semi)
-    v_ode_cpu, u_ode_cpu = transfer2cpu(v_ode, u_ode)
-    systems_cpu = Adapt.adapt(Array, semi.systems)
-    semi_cpu = @set semi.systems = systems_cpu
-    semi_cpu = @set semi_cpu.parallelization_backend = PolyesterBackend()
-    return v_ode_cpu, u_ode_cpu, semi_cpu
-end
-
-function transfer_surface_data(v_ode, u_ode, semi)
-    return v_ode, u_ode, semi
-end
-
 # `affect!`
 function (surface_callback::SurfaceReconstructionCallback)(integrator)
     (; output_directory, verbose, fluid_indices, boundary_indices, boundary_topologies,
@@ -422,7 +403,8 @@ function (surface_callback::SurfaceReconstructionCallback)(integrator)
         # Without interpolation, skip the neighborhood-search handler: adapting its GPU
         # cell lists dominates the transfer cost and nothing below uses it.
         if isempty(interpolated_quantities)
-            v_ode_cpu, u_ode_cpu, semi_cpu = transfer_surface_data(v_ode, u_ode, semi)
+            v_ode_cpu, u_ode_cpu, semi_cpu = transfer2cpu_system_state(v_ode, u_ode,
+                                                                       semi)
         else
             cached_handler = surface_callback.cpu_nhs_handler[]
             if isnothing(cached_handler)
@@ -430,8 +412,9 @@ function (surface_callback::SurfaceReconstructionCallback)(integrator)
                 v_ode_cpu, u_ode_cpu, semi_cpu = transfer2cpu(v_ode, u_ode, semi)
                 surface_callback.cpu_nhs_handler[] = semi_cpu.neighborhood_search_handler
             else
-                v_ode_cpu, u_ode_cpu, semi_cpu = transfer_surface_data(v_ode, u_ode,
-                                                                       semi)
+                v_ode_cpu, u_ode_cpu,
+                semi_cpu = transfer2cpu_system_state(v_ode, u_ode,
+                                                     semi)
                 semi_cpu = @set semi_cpu.neighborhood_search_handler = cached_handler
                 # `interpolate_points` refreshes the handler below with `update_nhs!`
             end

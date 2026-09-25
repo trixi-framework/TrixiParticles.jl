@@ -61,6 +61,24 @@ function transfer2cpu(v_, u_)
     return v, u
 end
 
+# Transfer state vectors and systems for output/postprocessing that do not require
+# neighborhood searches. GPU searches must not survive in a CPU semidiscretization:
+# replace the handler with `nothing` so a mistaken search fails rather than launching
+# a kernel with incompatible CPU/GPU arrays. Callers needing interpolation can attach
+# a separately transferred/cached CPU handler using `@set` before searching.
+function transfer2cpu_system_state(v_::AbstractGPUArray, u_, semi_::Semidiscretization)
+    v, u = transfer2cpu(v_, u_)
+    systems = Adapt.adapt(Array, semi_.systems)
+    semi = @set semi_.systems = systems
+    semi = @set semi.neighborhood_search_handler = nothing
+    semi = @set semi.parallelization_backend = PolyesterBackend()
+    return v, u, semi
+end
+
+# On the CPU the state and semidiscretization are already compatible. Retain the
+# original handler so other CPU postprocessors do not lose working searches.
+transfer2cpu_system_state(v, u, semi::Semidiscretization) = (v, u, semi)
+
 function transfer2cpu(semi::Semidiscretization)
     # First move all systems and neighborhood searches to the CPU
     systems = Adapt.adapt(Array, semi.systems)

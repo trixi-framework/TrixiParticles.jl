@@ -90,18 +90,6 @@
     end
 
     @testset "Julia volume-CIC surface reconstruction" begin
-        @testset "particle volumes follow persistent IDs" begin
-            reference = (index=Int64[3, 1, 2],
-                         density=[1200.0, 1000.0, 1100.0],
-                         particle_spacing=fill(0.1, 3))
-            masses = TrixiParticles.reference_particle_masses(reference, 0.1)
-            current = (index=Int64[2, 3, 1],
-                       density=fill(1000.0, 3),
-                       particle_spacing=fill(0.1, 3))
-            @test TrixiParticles.particle_volumes(current, masses, 0.1) ≈
-                  [0.0011, 0.0012, 0.001]
-        end
-
         @testset "CIC preserves volume and first moment" begin
             points = [1.2 3.7; 1.4 2.3; 1.6 3.1]
             volumes = [0.35, 0.65]

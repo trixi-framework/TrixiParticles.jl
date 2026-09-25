@@ -42,8 +42,9 @@
         TP.update_systems_and_nhs(v_device, u_device, device_semi, 0.0f0)
         v_full, u_full, full_cpu = TP.transfer2cpu(v_device, u_device, device_semi)
         v_cached, u_cached,
-        cached_cpu = TP.transfer_surface_data(v_device, u_device,
-                                              device_semi)
+        cached_cpu = TP.transfer2cpu_system_state(v_device, u_device,
+                                                  device_semi)
+        @test isnothing(cached_cpu.neighborhood_search_handler)
         cached_cpu = TrixiParticles.@set cached_cpu.neighborhood_search_handler = cached_handler
         @test cached_handler !== full_cpu.neighborhood_search_handler
         @test v_full == v_cached && u_full == u_cached

@@ -171,44 +171,9 @@ end
 
 # Closest-point regions follow Christer Ericson's Real-Time Collision Detection.
 @inline function closest_point_and_pseudonormal(point, triangle)
-    a, b, c = triangle.a, triangle.b, triangle.c
-    ab = b - a
-    ac = c - a
-    ap = point - a
-    d1 = dot(ab, ap)
-    d2 = dot(ac, ap)
-    d1 <= 0 && d2 <= 0 && return a, triangle.vertex_normals[1]
-
-    bp = point - b
-    d3 = dot(ab, bp)
-    d4 = dot(ac, bp)
-    d3 >= 0 && d4 <= d3 && return b, triangle.vertex_normals[2]
-
-    vc = d1 * d4 - d3 * d2
-    if vc <= 0 && d1 >= 0 && d3 <= 0
-        return a + (d1 / (d1 - d3)) * ab, triangle.edge_normals[1]
-    end
-
-    cp = point - c
-    d5 = dot(ab, cp)
-    d6 = dot(ac, cp)
-    d6 >= 0 && d5 <= d6 && return c, triangle.vertex_normals[3]
-
-    vb = d5 * d2 - d1 * d6
-    if vb <= 0 && d2 >= 0 && d6 <= 0
-        return a + (d2 / (d2 - d6)) * ac, triangle.edge_normals[3]
-    end
-
-    va = d3 * d6 - d5 * d4
-    if va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0
-        return b + ((d4 - d3) / ((d4 - d3) + (d5 - d6))) * (c - b),
-               triangle.edge_normals[2]
-    end
-
-    denominator = inv(va + vb + vc)
-    v = vb * denominator
-    w = vc * denominator
-    return a + v * ab + w * ac, triangle.normal
+    return triangle_closest_point_and_normal(point, triangle.a, triangle.b, triangle.c,
+                                             triangle.vertex_normals, triangle.edge_normals,
+                                             triangle.normal, Val(true))
 end
 
 """
@@ -290,6 +255,7 @@ function build_triangle_bvh(geometry::TriangleMesh{3}; leaf_size=8)
     for (index, vertex) in enumerate(geometry.vertices)
         points[:, index] = vertex
     end
-    faces = [Face(ids...) for ids in geometry.face_vertices_ids]
+    # The geometry layer must not depend on the reconstruction-specific `Face` alias.
+    faces = [SVector{3, Int32}(ids...) for ids in geometry.face_vertices_ids]
     return build_triangle_bvh(points, faces; leaf_size=leaf_size)
 end

@@ -1,19 +1,4 @@
-# Indexed particle volumes and bilinear/trilinear CIC deposition.
-function reference_particle_masses(state, particle_spacing)
-    length(unique(state.index)) == length(state.index) ||
-        throw(ArgumentError("reference fluid state contains duplicate particle IDs"))
-    all(isfinite, state.density) && all(>(0), state.density) ||
-        throw(ArgumentError("reference fluid state contains invalid densities"))
-    all(value -> isapprox(value, particle_spacing; rtol=0, atol=1.0e-12),
-        state.particle_spacing) ||
-        throw(ArgumentError("reference particle spacing does not match"))
-    masses = Dict{Int64, Float64}()
-    spacing_cubed = particle_spacing^3
-    for index in eachindex(state.index)
-        masses[state.index[index]] = state.density[index] * spacing_cubed
-    end
-    return masses
-end
+# Bilinear/trilinear cloud-in-cell (CIC) deposition of particle measures.
 
 # Keep each deposition kernel's arithmetic and boundary handling: planar accumulation
 # uses area/spacing², while the 3D kernel multiplies by the inverse cell volume and can
@@ -39,22 +24,6 @@ function deposit_volume_cic!(field::AbstractMatrix, points, areas, origin, spaci
     end
     return (; deposited_volume=sum(Float64, field) * spacing^2,
             particle_volume=sum(areas))
-end
-
-function particle_volumes(state, masses, particle_spacing)
-    all(isfinite, state.density) && all(>(0), state.density) ||
-        throw(ArgumentError("fluid state contains invalid densities"))
-    all(value -> isapprox(value, particle_spacing; rtol=0, atol=1.0e-12),
-        state.particle_spacing) ||
-        throw(ArgumentError("particle spacing changed within fluid sequence"))
-    volumes = Vector{Float64}(undef, length(state.index))
-    @inbounds for index in eachindex(state.index)
-        mass = get(masses, state.index[index], NaN)
-        isfinite(mass) ||
-            throw(ArgumentError("fluid particle ID does not match the reference state"))
-        volumes[index] = mass / state.density[index]
-    end
-    return volumes
 end
 
 # Voxel ranges that `deposit_volume_cic!` can write to: the CIC stencils of all

@@ -1,3 +1,4 @@
+include("geometry_primitives.jl")
 include("polygon.jl")
 include("triangle_mesh.jl")
 include("triangle_bvh.jl")

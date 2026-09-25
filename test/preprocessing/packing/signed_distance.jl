@@ -156,4 +156,41 @@
         @test signed_distance_field.positions == [point]
         @test signed_distance_field.distances == [0.0]
     end
+
+    @testset "shared 3D triangle closest-point regions" begin
+        # Packing and the reconstruction BVH store faces/normals differently. The
+        # shared projection must select the same feature in all seven Voronoi regions
+        # without losing the sign and squared distance used by particle packing.
+        points = reduce(hcat,
+                        vec([SVector{3, Float64}(x, y, z)
+                             for x in (0.0, 1.0), y in (0.0, 1.0),
+                                 z in (0.0, 1.0)]))
+        surface = SurfaceMesh(SVector{3, Float32}.(eachcol(points)),
+                              lattice_surface_topology(points).faces)
+        geometry = TrixiParticles.TriangleMesh(surface)
+        triangle = first(TrixiParticles.build_triangle_bvh(geometry).triangles)
+        index = findfirst(face -> Set(face) == Set((triangle.a, triangle.b, triangle.c)),
+                          geometry.face_vertices)
+        @test !isnothing(index)
+        a, b, c = triangle.a, triangle.b, triangle.c
+        ab, ac = b - a, c - a
+        samples = (a - 0.2ab - 0.2ac,
+                   b + 0.2ab - 0.2ac,
+                   c - 0.2ab + 0.2ac,
+                   a + 0.5ab - 0.2ac,
+                   a - 0.2ab + 0.5ac,
+                   b + 0.3(c - b) + 0.2(ab + ac),
+                   a + 0.3ab + 0.3ac)
+        for sample in samples
+            query = sample + 0.15triangle.normal
+            closest, normal = TrixiParticles.closest_point_and_pseudonormal(query,
+                                                                            triangle)
+            side, squared_distance,
+            packing_normal = TrixiParticles.signed_point_face_distance(query, geometry,
+                                                                       index)
+            @test squared_distance ≈ sum(abs2, query - closest) atol=1.0e-14
+            @test packing_normal ≈ normal atol=1.0e-12
+            @test side == signbit(dot(query - closest, normal))
+        end
+    end
 end

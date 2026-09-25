@@ -258,7 +258,7 @@ function volume(mesh::TriangleMesh)
         # Formula for the volume of a tetrahedron:
         # V = (1/6) * |a · (b × c)|, where a, b, and c are vectors defining the tetrahedron.
         # Reference: https://en.wikipedia.org/wiki/Tetrahedron#Volume
-        return dot(vertices[1], cross(vertices[2], vertices[3])) / 6
+        return oriented_tetrahedron_volume(vertices[1], vertices[2], vertices[3])
     end
 
     return volume

@@ -315,10 +315,7 @@ function shell_winding_number(mesh, shell::MeshShell, point::SVector{3, Float64}
         minimum((a_norm, b_norm, c_norm)) > eps(Float64) ||
             error("surface shells touch or intersect at a containment probe")
         numerator = dot(a, cross(b, c))
-        denominator = a_norm * b_norm * c_norm +
-                      dot(a, b) * c_norm + dot(b, c) * a_norm +
-                      dot(c, a) * b_norm
-        solid_angle += 2atan(numerator, denominator)
+        solid_angle += triangle_solid_angle(a, b, c, a_norm, b_norm, c_norm, numerator)
     end
     return solid_angle / (4pi)
 end
@@ -397,9 +394,9 @@ function mesh_liquid_analysis(mesh; zero_volume_face_indices=nothing,
             component = component_by_root[parent[face[1]]]
             reference = references[component]
             volume_partials[component,
-                            bucket] += dot(a - reference,
-                                           cross(b - reference,
-                                                 c - reference)) / 6
+                            bucket] += oriented_tetrahedron_volume(a - reference,
+                                                                   b - reference,
+                                                                   c - reference)
             triangle_lower = min.(a, min.(b, c))
             triangle_upper = max.(a, max.(b, c))
             lower_partials[component,
@@ -660,10 +657,6 @@ function collapse_degenerate_triangles(mesh; area_tolerance=1.0e-14,
             maximum_edge_length=maximum_edge_length)
 end
 
-function mesh_component_volumes(mesh)
-    return mesh_liquid_analysis(mesh).liquid_component_volumes
-end
-
 # Numbers of undirected edges used by exactly one face (boundary edges) and by more than
 # two faces (nonmanifold edges). Edges are grouped by their smaller vertex in compressed
 # rows; the rows are short (about three edges per vertex), so duplicates are counted
@@ -804,7 +797,7 @@ function mesh_signed_volume(mesh)
         a = SVector{3, Float64}(mesh.vertices[face[1]]) - reference
         b = SVector{3, Float64}(mesh.vertices[face[2]]) - reference
         c = SVector{3, Float64}(mesh.vertices[face[3]]) - reference
-        volume += dot(a, cross(b, c)) / 6
+        volume += oriented_tetrahedron_volume(a, b, c)
     end
     return volume
 end
@@ -821,8 +814,9 @@ function mesh_volume_centroid(mesh)
             a = SVector{3, Float64}(mesh.vertices[face[1]])
             b = SVector{3, Float64}(mesh.vertices[face[2]])
             c = SVector{3, Float64}(mesh.vertices[face[3]])
-            signed_tetrahedron_volume = dot(a - reference,
-                                            cross(b - reference, c - reference)) / 6
+            signed_tetrahedron_volume = oriented_tetrahedron_volume(a - reference,
+                                                                    b - reference,
+                                                                    c - reference)
             signed_moment += signed_tetrahedron_volume *
                              (reference + a + b + c) / 4
         end

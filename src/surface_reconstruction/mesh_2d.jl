@@ -9,15 +9,13 @@ struct ContourAnalysis
     oriented_faces::Vector{ContourSegment}
 end
 
-@inline contour_cross(a, b) = a[1] * b[2] - a[2] * b[1]
-
 function contour_signed_area(vertices, loop)
     reference = SVector{2, Float64}(vertices[first(loop)])
     area = 0.0
     for index in eachindex(loop)
         a = SVector{2, Float64}(vertices[loop[index]]) - reference
         b = SVector{2, Float64}(vertices[loop[mod1(index + 1, length(loop))]]) - reference
-        area += contour_cross(a, b) / 2
+        area += planar_cross(a, b) / 2
     end
     return area
 end
@@ -41,8 +39,8 @@ end
     d = SVector{2, Float64}(a), SVector{2, Float64}(b),
         SVector{2, Float64}(c), SVector{2, Float64}(d)
     any(max.(min.(a, b), min.(c, d)) .> min.(max.(a, b), max.(c, d))) && return false
-    ab_c, ab_d = contour_cross(b - a, c - a), contour_cross(b - a, d - a)
-    cd_a, cd_b = contour_cross(d - c, a - c), contour_cross(d - c, b - c)
+    ab_c, ab_d = planar_cross(b - a, c - a), planar_cross(b - a, d - a)
+    cd_a, cd_b = planar_cross(d - c, a - c), planar_cross(d - c, b - c)
     return ((ab_c <= 0 <= ab_d) || (ab_d <= 0 <= ab_c)) &&
            ((cd_a <= 0 <= cd_b) || (cd_b <= 0 <= cd_a))
 end

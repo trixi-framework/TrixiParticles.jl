@@ -179,19 +179,7 @@ function trixi2vtk(mesh::SurfaceMesh; output_directory="out", prefix="",
 
     file_ = joinpath(output_directory,
                      add_underscore_to_optional_prefix(prefix) * filename)
-    collection_file = file_
-    has_collection = overwrite || !isnothing(iter)
-    if overwrite
-        file = file_ * "_current"
-        # Keep a PVD entry for the current file so opening the collection still works.
-        pvd = paraview_collection(collection_file; append=false)
-    elseif isnothing(iter)
-        file = file_
-    else
-        file = file_ * add_underscore_to_optional_postfix(iter)
-
-        pvd = paraview_collection(collection_file; append=append_collection)
-    end
+    file, pvd = vtk_output_file_and_collection(file_, iter, overwrite, append_collection)
 
     # Same element type as the vertices (usually `Float32`): an exact round-trip that
     # halves the point payload compared to `Float64`
@@ -209,13 +197,13 @@ function trixi2vtk(mesh::SurfaceMesh; output_directory="out", prefix="",
             end
         end
 
-        if has_collection
+        if !isnothing(pvd)
             # Add to collection
             pvd[t] = vtk
         end
     end
 
-    has_collection && vtk_save(pvd)
+    isnothing(pvd) || vtk_save(pvd)
 
     return file
 end
