@@ -5,15 +5,17 @@
 # The medium case has enough faces to exercise fixed-bucket parallel mesh reductions.
 # Run twice with different thread counts and compare the output:
 #
-#   JULIA_NUM_THREADS=1 julia --project=benchmark benchmark/determinism.jl > det1.txt
-#   JULIA_NUM_THREADS=4 julia --project=benchmark benchmark/determinism.jl > det4.txt
+#   JULIA_NUM_THREADS=1 julia --project=benchmark/surface_reconstruction \
+#       benchmark/surface_reconstruction/determinism.jl > det1.txt
+#   JULIA_NUM_THREADS=4 julia --project=benchmark/surface_reconstruction \
+#       benchmark/surface_reconstruction/determinism.jl > det4.txt
 #   diff <(grep -v "^threads=" det1.txt) <(grep -v "^threads=" det4.txt) && echo DETERMINISTIC
 #
 # Grid writes are disjoint and reduction buckets have fixed bounds, so the results must
 # agree bitwise across thread counts on the same platform.
 using Pkg
 
-Pkg.develop(path=dirname(dirname(Base.active_project())))
+Pkg.develop(path=normpath(joinpath(@__DIR__, "..", "..")))
 Pkg.instantiate()
 
 include(joinpath(@__DIR__, "workloads.jl"))

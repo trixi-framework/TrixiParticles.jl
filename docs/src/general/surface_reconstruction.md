@@ -11,6 +11,123 @@ This page documents the reconstruction algorithm and its configuration. The pipe
 below is the configuration validated and used in production; only these settings are
 part of the package.
 
+```@eval
+using CairoMakie
+using LinearAlgebra: cross, dot, normalize
+using TrixiParticles
+
+const GB = CairoMakie.GeometryBasics
+
+# Both figures use the same deterministic wave-shaped particle snapshot. The first
+# panel displays the actual particles; the mesh, grid fields, and contour all come
+# from `reconstruct_surface!`, rather than from an independently drawn outline.
+function wave_particles(spacing)
+    positions = SVector{3, Float64}[]
+    for z_index in 0:(floor(Int, 1.0 / spacing) - 1),
+        x_index in 0:(floor(Int, 2.0 / spacing) - 1)
+        x = (x_index + 0.5) * spacing
+        z = (z_index + 0.5) * spacing
+        height = 0.3 + 0.1 * sin(2pi * x)
+        for y_index in 0:floor(Int, height / spacing)
+            push!(positions, SVector(x, (y_index + 0.5) * spacing, z))
+        end
+    end
+    return reduce(hcat, positions), fill(spacing^3, length(positions))
+end
+
+function plot_coordinates(vertex)
+    # Axis3's vertical coordinate is z; simulation gravity points along -y.
+    return GB.Point3f(vertex[1], vertex[3], vertex[2])
+end
+
+function plot_surface(mesh)
+    # Duplicate face vertices so each triangle can have its own color from its
+    # physical normal, without adding a smoothing artifact to the illustration.
+    positions = GB.Point3f[]
+    faces = GB.TriangleFace{Int32}[]
+    colors = RGBf[]
+    light = normalize(SVector(0.4f0, 0.3f0, 0.85f0))
+    for face in mesh.faces
+        a, b, c = (plot_coordinates(mesh.vertices[index]) for index in face)
+        normal = normalize(cross(b - a, c - a))
+        shade = 0.45f0 + 0.5f0 * abs(dot(normal, light))
+        color = RGBf(0.03f0, 0.25f0 + 0.32f0 * shade, 0.48f0 + 0.37f0 * shade)
+        start = length(positions)
+        append!(positions, (a, b, c))
+        push!(faces, GB.TriangleFace(start + 1, start + 2, start + 3))
+        append!(colors, (color, color, color))
+    end
+    return positions, faces, colors
+end
+
+function main()
+    spacing = 0.07
+    points, volumes = wave_particles(spacing)
+    rec = SurfaceReconstruction(; particle_spacing=spacing, tank_size=(2.0, 0.65, 1.0))
+    surface, stats = reconstruct_surface!(rec, points, volumes)
+    workspace = rec.cache.workspace[]
+    @assert stats.n_boundary_edges == 0
+
+    # Identical cameras show the input particles and reconstructed mesh side by side.
+    figure = Figure(; size=(1200, 510), fontsize=17, backgroundcolor=:white)
+    camera = (; elevation=0.36, azimuth=1.2, aspect=(2, 1, 0.85))
+    ax_particles = Axis3(figure[1, 1]; title="Fluid particles",
+                         xlabel="x (m)", ylabel="z (m)", zlabel="height (m)", camera...)
+    ax_surface = Axis3(figure[1, 2]; title="Volume-corrected surface",
+                       xlabel="x (m)", ylabel="z (m)", zlabel="height (m)", camera...)
+    scatter!(ax_particles, [plot_coordinates(view(points, :, p))
+                            for p in axes(points, 2)];
+             color=(:steelblue, 0.67), markersize=2.6)
+    vertices, faces, colors = plot_surface(surface)
+    mesh!(ax_surface, vertices, faces; color=colors, shading=false)
+    for ax in (ax_particles, ax_surface)
+        limits!(ax, (0, 2), (0, 1), (0, 0.55))
+    end
+    colgap!(figure.layout, 50)
+    save("surface_reconstruction_wave.png", figure; px_per_unit=1.5)
+
+    # The same z cross-section of the particles, raw CIC grid, and filtered grid.
+    # The white contour is the corrected isovalue subject to the actual tank constraint.
+    field = workspace.field
+    raw = zeros(Float32, size(field))
+    TrixiParticles.deposit_volume_cic!(raw, points, volumes, workspace.origin,
+                                        rec.voxel_size)
+    z_index = round(Int, (0.5 - workspace.origin[3]) / rec.voxel_size) + 1
+    x_nodes = [workspace.origin[1] + (i - 1) * rec.voxel_size
+               for i in axes(field, 1)]
+    y_nodes = [workspace.origin[2] + (j - 1) * rec.voxel_size
+               for j in axes(field, 2)]
+    scalar = min.(field[:, :, z_index] .- Float32(stats.effective_isovalue),
+                  workspace.constraint[:, :, z_index])
+    cross_section = Figure(; size=(1300, 390), fontsize=17, backgroundcolor=:white)
+    panels = [Axis(cross_section[1, column];
+                   title=title, xlabel="x (m)", ylabel="height (m)",
+                   limits=((0, 2), (0, 0.58)))
+              for (column, title) in enumerate(("Particles", "CIC deposition",
+                                                 "Filtered field + contour"))]
+    indices = [p for p in axes(points, 2) if abs(points[3, p] - 0.5) < spacing / 2]
+    scatter!(panels[1], points[1, indices], points[2, indices];
+             color=:steelblue, markersize=5)
+    for (ax, data) in ((panels[2], raw[:, :, z_index]),
+                       (panels[3], field[:, :, z_index]))
+        heatmap!(ax, x_nodes, y_nodes, data; colormap=:viridis,
+                 colorrange=(0, 1.1))
+    end
+    contour!(panels[3], x_nodes, y_nodes, scalar; levels=[0], color=:white,
+             linewidth=3)
+    save("surface_reconstruction_pipeline.png", cross_section; px_per_unit=1.5)
+    return nothing
+end
+
+main()
+```
+
+![Wave-shaped fluid particles beside their reconstructed triangle surface](surface_reconstruction_wave.png)
+
+The same sinusoidal particle snapshot (spacing ``h=0.07`` m) and its volume-corrected
+surface. The vertical axis is enlarged for clarity in this shallow tank. The wave is
+an illustration, not a simulated result.
+
 ## Pipeline
 
 1. **Particle volumes.** Each fluid particle contributes its volume ``V_i = m_i / \rho_i``
@@ -43,6 +160,11 @@ part of the package.
    and cavity regions. [`write_ply`](@ref), [`trixi2vtk`](@ref), and
    `TriangleMesh` conversion orient outer shells outward and cavities inward in the
    simulation coordinate system. The raw `SurfaceMesh` retains contour ordering.
+
+![Cross-section from particles through CIC deposition and filtering to the constrained contour](surface_reconstruction_pipeline.png)
+
+At the same cross-section, CIC deposits particle volume on grid nodes, Gaussian filtering
+smooths the field, and the white line is the final constraint-clipped, corrected contour.
 
 Before returning, the pipeline checks the final mesh's volume tolerance and rejects
 boundary edges, nonmanifold edges, and degenerate triangles. These edge checks are not

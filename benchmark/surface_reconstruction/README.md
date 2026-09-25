@@ -34,7 +34,8 @@ fixed, so the reported results are still reproducible.
 ## Run locally
 
 ```bash
-julia --project=benchmark benchmark/run_benchmarks.jl \
+julia --project=benchmark/surface_reconstruction \
+    benchmark/surface_reconstruction/run_benchmarks.jl \
     --workloads=block_small,block_1e4 --repeats=3 --output=results.json
 ```
 
@@ -43,16 +44,19 @@ beyond `--tolerance` relative time or 5% allocation growth). Workstation-specifi
 baselines are ignored by git; the runner warns when thread counts differ.
 
 ```bash
-julia --project=benchmark benchmark/run_benchmarks.jl \
-    --output=benchmark/baselines/dev-workstation-julia1.11.json
-julia --project=benchmark benchmark/run_benchmarks.jl \
-    --baseline=benchmark/baselines/dev-workstation-julia1.11.json
+julia --project=benchmark/surface_reconstruction \
+    benchmark/surface_reconstruction/run_benchmarks.jl \
+    --output=benchmark/surface_reconstruction/baselines/dev-workstation-julia1.11.json
+julia --project=benchmark/surface_reconstruction \
+    benchmark/surface_reconstruction/run_benchmarks.jl \
+    --baseline=benchmark/surface_reconstruction/baselines/dev-workstation-julia1.11.json
 ```
 
 Production-scale timing:
 
 ```bash
-julia --project=benchmark --threads=auto benchmark/run_benchmarks.jl --workloads=wave_tank
+julia --project=benchmark/surface_reconstruction --threads=auto \
+    benchmark/surface_reconstruction/run_benchmarks.jl --workloads=wave_tank
 ```
 
 For cross-thread scaling, set `JULIA_NUM_THREADS` (bitwise-identical meshes are required
@@ -60,14 +64,17 @@ at 1 and N threads; see the determinism guard in the test suite).
 
 ## Determinism check
 
-`benchmark/determinism.jl` prints SHA-256 mesh checksums and selected statistics for a
-reference block and two wave tanks. The larger case also exercises fixed-bucket mesh
-reductions. The output must agree byte-for-byte across thread counts on the same platform
+`benchmark/surface_reconstruction/determinism.jl` prints SHA-256 mesh checksums and
+selected statistics for a reference block and two wave tanks. The larger case also
+exercises fixed-bucket mesh reductions. The output must agree byte-for-byte across
+thread counts on the same platform
 (required by pipelines that hash outputs for auditing). A local baseline is a developer
 regression reference for its machine, not a portable CI threshold.
 
 ```bash
-JULIA_NUM_THREADS=1 julia --project=benchmark benchmark/determinism.jl > det1.txt
-JULIA_NUM_THREADS=4 julia --project=benchmark benchmark/determinism.jl > det4.txt
+JULIA_NUM_THREADS=1 julia --project=benchmark/surface_reconstruction \
+    benchmark/surface_reconstruction/determinism.jl > det1.txt
+JULIA_NUM_THREADS=4 julia --project=benchmark/surface_reconstruction \
+    benchmark/surface_reconstruction/determinism.jl > det4.txt
 diff <(grep -v "^threads=" det1.txt) <(grep -v "^threads=" det4.txt) && echo DETERMINISTIC
 ```

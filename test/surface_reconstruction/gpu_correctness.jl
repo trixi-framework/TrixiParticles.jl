@@ -1,4 +1,7 @@
 @trixi_testset "surface reconstruction GPU cache correctness" begin
+    # Compare a fresh CPU transfer to the callback's cached-neighbor-search path after
+    # moving Float32 particles across cell boundaries and back. Merely comparing the
+    # initial state would not detect a stale CPU neighborhood-search handler.
     using OrdinaryDiffEqLowStorageRK
     TP = TrixiParticles
     backend = Main.parallelization_backend
@@ -24,6 +27,8 @@
     initial_u = Array(u_device)
     state = reshape(collect(Float32, 1:length(v_device)), size(v_device))
     v_device .= TP.Adapt.adapt(backend, state .* 0.0001f0)
+    # The GPU simulation updates its caches before the CPU adaptation performed by a
+    # reconstruction event; use the same ordering here.
     TP.update_systems_and_nhs(v_device, u_device, device_semi, 0.0f0)
     _, _, first_cpu = TP.transfer2cpu(v_device, u_device, device_semi)
     cached_handler = first_cpu.neighborhood_search_handler

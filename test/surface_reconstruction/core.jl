@@ -1,4 +1,7 @@
 @trixi_testset "surface reconstruction core" begin
+    # Synthetic fields isolate the numerical stages from SPH time integration. Tests
+    # here compare separate algorithms or exercise degenerate topology, not the recorded
+    # reconstruction values checked in `reference_values.jl`.
     using MarchingCubes: MarchingCubes
     using Random: Random, randperm
     using LinearAlgebra: norm, cross, dot

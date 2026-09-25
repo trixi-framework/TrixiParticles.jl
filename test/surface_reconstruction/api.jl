@@ -1,6 +1,8 @@
 @trixi_testset "SurfaceReconstruction" begin
     using LinearAlgebra: norm, cross
 
+    # The same lattice is used for constructor, cache, and output tests. Changing its
+    # extent can affect both the adaptive grid and which box faces clip the contour.
     particle_spacing = 0.1
     # `vec` makes `reduce(hcat, ...)` return a `Matrix` instead of a slow-to-compile `SMatrix`
     points = reduce(hcat,
@@ -9,6 +11,8 @@
     volumes = fill(particle_spacing^3, size(points, 2))
 
     @testset "workspace reuse and warm start" begin
+        # A second frame with the same grid reuses buffers and remembers the selected
+        # isovalue; the fresh/moving-grid cases below exercise cache invalidation.
         reconstruction = SurfaceReconstruction(; particle_spacing=particle_spacing)
         @test reconstruction.cache.workspace[] === nothing
         mesh_first, _ = reconstruct_surface!(reconstruction, points, volumes)
@@ -269,6 +273,8 @@
     end
 
     @testset "surface mesh interface" begin
+        # SurfaceMesh is also the interchange type for concatenating independent
+        # fluids and for VTK/PLY output; it must expose its vertex/index types.
         mesh, _ = reconstruct_surface(points, volumes;
                                       particle_spacing=particle_spacing)
         @test mesh isa SurfaceMesh{Float32, Int32}
@@ -306,6 +312,8 @@
     end
 
     @testset "statistics" begin
+        # Typed access and dictionary access are both public, and field names are
+        # consumed by metadata/CSV output rather than just by these direct tests.
         mesh,
         stats = reconstruct_surface(points, volumes;
                                     particle_spacing=particle_spacing)
@@ -492,6 +500,8 @@
     end
 
     @testset "Float32 systems" begin
+        # GPU simulations commonly store Float32 states; this CPU path checks that the
+        # public system entry accepts that precision before testing device transfer.
         spacing_32 = 0.05f0
         tank_32 = RectangularTank(spacing_32, (0.25f0, 0.25f0, 0.25f0),
                                   (0.5f0, 0.6f0, 0.5f0), 1000.0f0; n_layers=3)

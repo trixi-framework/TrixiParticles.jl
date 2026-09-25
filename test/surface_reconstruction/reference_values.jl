@@ -1,8 +1,8 @@
 @trixi_testset "surface reconstruction reference values" begin
     # Recorded results for the production configuration: volume-CIC deposition,
     # particle-volume correction, voxel size h/2, and Gaussian sigma 0.9h.
-    # The tight tolerances allow cross-platform roundoff; benchmark/determinism.jl
-    # separately checks bitwise agreement across thread counts on one platform.
+    # Tight tolerances allow cross-platform roundoff. The benchmark's
+    # `surface_reconstruction/determinism.jl` script checks bitwise agreement across threads.
     #
     # Provenance: fixed-tank values were recorded from the production implementation on
     # 2026-09-23. Adaptive values were recorded after correcting an origin-clipping bug:

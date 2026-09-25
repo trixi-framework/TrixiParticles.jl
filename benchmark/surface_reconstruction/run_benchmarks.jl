@@ -2,9 +2,11 @@
 # Run surface reconstruction benchmarks and optionally compare against a baseline.
 #
 # Usage:
-#   julia --project=benchmark benchmark/run_benchmarks.jl \
+#   julia --project=benchmark/surface_reconstruction \
+#       benchmark/surface_reconstruction/run_benchmarks.jl \
 #       [--workloads=block_small,block_1e4] [--repeats=3] \
-#       [--output=results.json] [--baseline=benchmark/baselines/<file>.json] \
+#       [--output=results.json] \
+#       [--baseline=benchmark/surface_reconstruction/baselines/<file>.json] \
 #       [--tolerance=0.10]
 #
 # Without `--workloads`, all workloads except the opt-in `wave_tank` are run.
@@ -12,7 +14,7 @@
 # (minimum) or 5% relative allocation growth.
 using Pkg
 
-Pkg.develop(path=dirname(dirname(Base.active_project())))
+Pkg.develop(path=normpath(joinpath(@__DIR__, "..", "..")))
 Pkg.instantiate()
 
 include(joinpath(@__DIR__, "workloads.jl"))

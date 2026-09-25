@@ -1,4 +1,7 @@
 @trixi_testset "surface reconstruction correctness" begin
+    # Analytic fields, independent mesh integrals, and library comparisons complement
+    # the recorded reference values. These catch agreement with the wrong algorithm
+    # that comparing two reconstruction entry points alone could miss.
     using MarchingCubes: MarchingCubes
     using Random: MersenneTwister, rand, randperm
     TP = TrixiParticles

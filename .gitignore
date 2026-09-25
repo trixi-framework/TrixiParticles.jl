@@ -2,7 +2,7 @@
 .DS_Store
 Manifest.toml
 # Machine-specific reconstruction benchmark results (local regression references)
-benchmark/baselines/*.json
+benchmark/surface_reconstruction/baselines/*.json
 out
 out_*
 docs/build

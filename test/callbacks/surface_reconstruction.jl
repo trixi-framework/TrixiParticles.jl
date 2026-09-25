@@ -1,6 +1,8 @@
 @trixi_testset "SurfaceReconstructionCallback" begin
     using OrdinaryDiffEqLowStorageRK
 
+    # Drive real short ODE solves rather than invoking `affect!` on a mock integrator:
+    # neighborhood-search and density caches must describe each saved frame.
     function make_test_semi(; particle_spacing=0.05, tank_size=(0.5, 0.6, 0.5),
                             fluid_size=(0.25, 0.25, 0.25),
                             parallelization_backend=PolyesterBackend())
@@ -82,6 +84,8 @@
     end
 
     @testset "interval output" begin
+        # Initial, tenth accepted step, and final events must each update the time
+        # collection and the callback's latest mesh/statistics aliases.
         semi, _, _ = make_test_semi()
         output_directory = mktempdir()
         reconstruction = SurfaceReconstruction(; particle_spacing=0.05,
