@@ -34,6 +34,11 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 - Added an optional Makie recipe for rendering two- and three-dimensional particle systems
   with `plot`, `plot!`, `trixi2makie`, and `trixi2makie!`.
+- Added 3D water-surface reconstruction from fluid particles with `SurfaceReconstruction`,
+  `reconstruct_surface`, `reconstruct_surface!`, and `SurfaceReconstructionCallback`,
+  producing closed, volume-corrected triangle meshes. The callback writes VTK PolyData
+  time series (PLY optional); meshes can be reconstructed offline from particle data,
+  systems, solutions, and initial conditions.
 
 ## Version 0.5.3
 

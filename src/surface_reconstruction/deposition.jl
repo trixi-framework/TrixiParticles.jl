@@ -1,0 +1,93 @@
+# Indexed particle volumes and trilinear volume-CIC deposition.
+function reference_particle_masses(state, particle_spacing)
+    length(unique(state.index)) == length(state.index) ||
+        throw(ArgumentError("reference fluid state contains duplicate particle IDs"))
+    all(isfinite, state.density) && all(>(0), state.density) ||
+        throw(ArgumentError("reference fluid state contains invalid densities"))
+    all(value -> isapprox(value, particle_spacing; rtol=0, atol=1.0e-12),
+        state.particle_spacing) ||
+        throw(ArgumentError("reference particle spacing does not match"))
+    masses = Dict{Int64, Float64}()
+    spacing_cubed = particle_spacing^3
+    for index in eachindex(state.index)
+        masses[state.index[index]] = state.density[index] * spacing_cubed
+    end
+    return masses
+end
+
+function particle_volumes(state, masses, particle_spacing)
+    all(isfinite, state.density) && all(>(0), state.density) ||
+        throw(ArgumentError("fluid state contains invalid densities"))
+    all(value -> isapprox(value, particle_spacing; rtol=0, atol=1.0e-12),
+        state.particle_spacing) ||
+        throw(ArgumentError("particle spacing changed within fluid sequence"))
+    volumes = Vector{Float64}(undef, length(state.index))
+    @inbounds for index in eachindex(state.index)
+        mass = get(masses, state.index[index], NaN)
+        isfinite(mass) ||
+            throw(ArgumentError("fluid particle ID does not match the reference state"))
+        volumes[index] = mass / state.density[index]
+    end
+    return volumes
+end
+
+# Voxel ranges that `deposit_volume_cic!` can write to: the trilinear stencils of all
+# particles, with the same index arithmetic, clamped to the grid
+function deposition_support(points, origin, spacing, dimensions)
+    size(points, 2) == 0 && return (1:0, 1:0, 1:0)
+    inverse_spacing = inv(spacing)
+    lower = MVector(typemax(Int), typemax(Int), typemax(Int))
+    upper = MVector(typemin(Int), typemin(Int), typemin(Int))
+    @inbounds for particle in axes(points, 2), axis in 1:3
+        cell = floor(Int, (points[axis, particle] - origin[axis]) * inverse_spacing)
+        lower[axis] = min(lower[axis], cell)
+        upper[axis] = max(upper[axis], cell)
+    end
+    # 0-based stencil cells `cell` and `cell + 1` are the 1-based voxels `cell + 1:cell + 2`
+    return ntuple(axis -> max(lower[axis] + 1, 1):min(upper[axis] + 2, dimensions[axis]),
+                  3)
+end
+
+# With `support` (see `deposition_support`), `field` must be zero on entry, and the
+# deposited volume is summed over `support` only. Otherwise, `field` is zeroed first.
+function deposit_volume_cic!(field, points, volumes, origin, spacing;
+                             backend=PolyesterBackend(), support=nothing)
+    isnothing(support) && parallel_fill!(field, 0; backend)
+    nx, ny, nz = size(field)
+    inverse_spacing = inv(spacing)
+    inverse_cell_volume = inv(spacing^3)
+    @inbounds for particle in axes(points, 2)
+        cx = (points[1, particle] - origin[1]) * inverse_spacing
+        cy = (points[2, particle] - origin[2]) * inverse_spacing
+        cz = (points[3, particle] - origin[3]) * inverse_spacing
+        lower_x = floor(Int, cx)
+        lower_y = floor(Int, cy)
+        lower_z = floor(Int, cz)
+        fx = cx - lower_x
+        fy = cy - lower_y
+        fz = cz - lower_z
+        scaled_volume = volumes[particle] * inverse_cell_volume
+        for z_offset in 0:1
+            grid_z = lower_z + z_offset
+            0 <= grid_z < nz || continue
+            wz = z_offset == 0 ? 1 - fz : fz
+            for y_offset in 0:1
+                grid_y = lower_y + y_offset
+                0 <= grid_y < ny || continue
+                wy = y_offset == 0 ? 1 - fy : fy
+                for x_offset in 0:1
+                    grid_x = lower_x + x_offset
+                    0 <= grid_x < nx || continue
+                    wx = x_offset == 0 ? 1 - fx : fx
+                    field[grid_x + 1, grid_y + 1,
+                          grid_z + 1] += Float32(scaled_volume * wx * wy * wz)
+                end
+            end
+        end
+    end
+    field_sum, _,
+    _ = field_sum_extrema(field; backend,
+                          region=something(support, axes(field)))
+    return (deposited_volume=field_sum * spacing^3,
+            particle_volume=sum(volumes))
+end

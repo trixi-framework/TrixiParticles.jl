@@ -1,4 +1,12 @@
-# This is the data format returned by `load(file)` when used with `.stl` files
+"""
+    TriangleMesh
+
+Closed triangle surface geometry in 3D, as returned by [`load_geometry`](@ref) for `.stl`
+files. Stores unique vertices, per-face vertex and edge indices, and angle-weighted
+vertex, edge, and face normals for signed-distance and inside/outside queries
+(see [`SignedDistanceField`](@ref) and [`WindingNumberJacobson`](@ref)). Reconstructed
+free surfaces convert to this type via `TriangleMesh(mesh::SurfaceMesh)`.
+"""
 struct TriangleMesh{NDIMS, ELTYPE}
     vertices          :: Vector{SVector{NDIMS, ELTYPE}}
     face_vertices     :: Vector{NTuple{3, SVector{NDIMS, ELTYPE}}}
