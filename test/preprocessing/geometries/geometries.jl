@@ -109,6 +109,21 @@
         @test !TrixiParticles.is_closed_geometry(invalid_contour)
         @test_throws ArgumentError TrixiParticles.require_closed_geometry(invalid_contour,
                                                                           "setdiff")
+        # Coincident coordinates with distinct IDs do not close a contour: indexed
+        # connectivity, not coordinate equality, decides.
+        duplicate_closed = SurfaceMesh([SVector(1.0, 1.0), SVector(2.0, 1.0),
+                                           SVector(2.0, 2.0), SVector(1.0, 2.0),
+                                           SVector(1.0, 1.0)],
+                                       [SVector{2, Int32}(i, i + 1) for i in 1:4])
+        @test !TrixiParticles.is_closed_geometry(duplicate_closed)
+        @test_throws ArgumentError TrixiParticles.require_closed_geometry(duplicate_closed,
+                                                                          "setdiff")
+        float_contour = SurfaceMesh(contour.vertices,
+                                    [SVector(2.0, 1.0), SVector(3.0, 2.0),
+                                        SVector(4.0, 3.0), SVector(1.0, 4.0)])
+        @test !TrixiParticles.is_closed_geometry(float_contour)
+        @test_throws ArgumentError TrixiParticles.require_closed_geometry(float_contour,
+                                                                          "setdiff")
 
         shape = RectangularShape(0.5, (2, 2), (1.0, 1.0), density=1.0)
         @test_throws ArgumentError intersect(shape, open_polygon)

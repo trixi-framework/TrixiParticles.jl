@@ -524,4 +524,83 @@
         semi_other, _, _ = make_test_semi(fluid_size=(0.2, 0.25, 0.25))
         @test_throws ArgumentError reconstruct_surface(semi_other, sol; tank_size)
     end
+
+    @testset "buffered historical frames are rejected" begin
+        # Saved solutions do not store per-frame particle activity. After a particle
+        # leaves during the solve, the initial frame must not be reconstructed with
+        # the final frame's smaller active set.
+        h = 0.05
+        coordinates = reduce(hcat,
+                             vec([SVector((i - 0.5) * h, (j - 0.5) * h)
+                                  for i in 1:7, j in 1:7]))
+        initial_condition = InitialCondition(; coordinates,
+                                             velocity=zeros(2, size(coordinates, 2)),
+                                             density=1000.0, particle_spacing=h)
+        fluid = WeaklyCompressibleSPHSystem(initial_condition; buffer_size=1,
+                                            smoothing_kernel=WendlandC2Kernel{2}(),
+                                            smoothing_length=1.5h,
+                                            density_calculator=SummationDensity(),
+                                            state_equation=StateEquationCole(;
+                                                                             sound_speed=10.0,
+                                                                             reference_density=1000.0,
+                                                                             exponent=7))
+        semi = Semidiscretization(fluid;
+                                  neighborhood_search=TrixiParticles.GridNeighborhoodSearch{2}(;
+                                                                                               update_strategy=TrixiParticles.SerialUpdate()))
+        ode = semidiscretize(semi, (0.0, 0.002))
+        function deactivate_last!(integrator)
+            system = integrator.p.semi.systems[1]
+            v, u = integrator.u.x
+            TrixiParticles.deactivate_particle!(system, 49,
+                                                TrixiParticles.wrap_v(v, system,
+                                                                      integrator.p.semi),
+                                                TrixiParticles.wrap_u(u, system,
+                                                                      integrator.p.semi))
+            TrixiParticles.update_system_buffer!(system.buffer)
+            return nothing
+        end
+        removal = DiscreteCallback((u, t, integrator) -> integrator.stats.naccept == 1,
+                                   deactivate_last!; save_positions=(false, false))
+        sol = solve(ode, RDPK3SpFSAL35(); dt=0.001, adaptive=false,
+                    save_everystep=true, callback=removal)
+        @test length(TrixiParticles.each_active_particle(fluid)) == 48
+        @test_throws ArgumentError reconstruct_surface(semi, sol; frame=1,
+                                                       tank_size=(0.5, 0.5))
+        _,
+        stats_last = reconstruct_surface(semi, sol; frame=lastindex(sol.u),
+                                         tank_size=(0.5, 0.5))
+        @test stats_last["particles_within_grid"] == 48
+    end
+
+    @testset "raw summation densities refresh on request" begin
+        # Non-FSAL integrators need not leave density caches at the final state.
+        # Opt-in refresh recomputes them for the given vectors.
+        h = 0.05
+        coordinates = reduce(hcat,
+                             vec([SVector((i - 0.5) * h, (j - 0.5) * h)
+                                  for i in 1:7, j in 1:7]))
+        velocity = -20.0 .* (coordinates .- 0.175)
+        initial_condition = InitialCondition(; coordinates, velocity,
+                                             density=1000.0, particle_spacing=h)
+        fluid = WeaklyCompressibleSPHSystem(initial_condition;
+                                            smoothing_kernel=WendlandC2Kernel{2}(),
+                                            smoothing_length=1.5h,
+                                            density_calculator=SummationDensity(),
+                                            state_equation=StateEquationCole(;
+                                                                             sound_speed=10.0,
+                                                                             reference_density=1000.0,
+                                                                             exponent=7))
+        semi = Semidiscretization(fluid)
+        sol = solve(semidiscretize(semi, (0.0, 0.002)), CarpenterKennedy2N54();
+                    dt=0.001, adaptive=false, save_everystep=false)
+        v, u = sol.u[end].x
+        _, stale_stats = reconstruct_surface(fluid, v, u, semi)
+        _, fresh_stats = reconstruct_surface(fluid, v, u, semi; refresh_caches=true)
+        @test stale_stats["particle_volume"] != fresh_stats["particle_volume"]
+        TrixiParticles.update_systems_and_nhs(v, u, semi, sol.t[end])
+        manual_volumes = TrixiParticles.particle_volumes(fluid,
+                                                         TrixiParticles.wrap_v(v, fluid,
+                                                                               semi))
+        @test fresh_stats["particle_volume"] ≈ sum(manual_volumes) rtol=1.0e-12
+    end
 end

@@ -139,11 +139,12 @@ function contour_analysis(mesh::SurfaceMesh{T, I, 2}; check_intersections=true) 
     return ContourAnalysis(loops, depths, signed_areas, region_areas, oriented_faces)
 end
 
-# Reuse the polygon closure criterion for reconstructed line segments. The stronger
-# `contour_analysis` check additionally rejects crossings and invalid nesting.
+# Indexed analogue of the polygon closure criterion: count incident edges per vertex ID,
+# like `contour_analysis` does, so coincident coordinates with distinct IDs do not pass.
+# Only call this with faces accepted by `valid_face_indices`.
 function surface_mesh_vertex_degrees(mesh::SurfaceMesh{T, I, 2}) where {T, I}
-    segments = ((mesh.vertices[edge[1]], mesh.vertices[edge[2]]) for edge in mesh.faces)
-    return edge_vertex_degrees(segments)
+    indexed = [(edge[1], edge[2]) for edge in mesh.faces]
+    return edge_vertex_degrees(indexed)
 end
 
 function is_closed_geometry(mesh::SurfaceMesh{T, I, 2}) where {T, I}

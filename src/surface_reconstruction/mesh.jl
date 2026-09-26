@@ -714,7 +714,9 @@ end
 
 # Same edge-incidence definition of "closed" as `TriangleMesh` in preprocessing.
 # This does not assert consistent orientation, vertex manifoldness, or embeddedness.
-@inline valid_face_indices(face, n_vertices) = all(index -> 1 <= index <= n_vertices, face)
+@inline function valid_face_indices(face, n_vertices)
+    return all(index -> index isa Integer && 1 <= index <= n_vertices, face)
+end
 
 function is_closed_geometry(mesh::SurfaceMesh{T, I, 3}) where {T, I}
     isempty(mesh.faces) && return false

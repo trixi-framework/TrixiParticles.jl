@@ -669,13 +669,16 @@ One-shot reconstruction of the free surface of a fluid `system` from live ODE ve
 e.g. `sol.u[end].x`. Only active particles contribute. The particle spacing defaults to
 the system's spacing; all other `kwargs` are forwarded to [`SurfaceReconstruction`](@ref).
 
-For `SummationDensity`, the density cache belongs to the last right-hand-side evaluation.
-Call `update_systems_and_nhs(v_ode, u_ode, semi, t)` first when the vectors do not come
-from the final state of a solve (the [`reconstruct_surface(semi, sol)`](@ref) method does
-this automatically).
+For `SummationDensity`, the density cache must describe the given vectors. Refresh it
+with `update_systems_and_nhs(v_ode, u_ode, semi, t)` first — including for final states
+of non-FSAL integrators, whose caches need not match — or pass `refresh_caches=true`
+to recompute it here (only supported with fully active particles). Density calculators
+that store density in the state need no refresh. The [`reconstruct_surface(semi, sol)`](@ref)
+method refreshes automatically.
 """
 function reconstruct_surface(system::AbstractFluidSystem, v_ode, u_ode, semi;
-                             particle_spacing=nothing, ndims=Base.ndims(system), kwargs...)
+                             particle_spacing=nothing, ndims=Base.ndims(system),
+                             refresh_caches::Bool=false, kwargs...)
     ndims == Base.ndims(system) && ndims in (2, 3) ||
         throw(ArgumentError("reconstruction dimensions must match the 2D or 3D fluid system"))
 
@@ -691,6 +694,10 @@ function reconstruct_surface(system::AbstractFluidSystem, v_ode, u_ode, semi;
                         Float64(system.initial_condition.particle_spacing))
     v = wrap_v(v_ode, system, semi)
     u = wrap_u(u_ode, system, semi)
+    if refresh_caches && density_calculator(system) isa SummationDensity
+        update_nhs!(semi, u_ode)
+        compute_density!(system, u, u_ode, semi, density_calculator(system))
+    end
     points = active_surface_points(system, u)
     volumes = particle_volumes(system, v)
     reconstruction = SurfaceReconstruction(; particle_spacing=spacing, ndims, kwargs...)
@@ -709,6 +716,11 @@ forwarded to [`reconstruct_surface`](@ref) for systems.
 The particle data is taken from the semidiscretization the solution was computed with
 (`sol.prob.p.semi`). On the CPU, this is `semi` itself; for GPU simulations,
 `semidiscretize` works on a device copy, while `semi` only identifies the systems.
+
+Saved solutions do not store per-frame particle activity, so historical frames of
+systems with particle buffers (inflow/outflow, deactivation) cannot be reconstructed
+reliably. Only `frame=lastindex(sol.u)` is supported there; systems without buffers
+support any saved frame.
 """
 function reconstruct_surface(semi, sol::ODESolution; system=nothing,
                              frame=lastindex(sol.u), kwargs...)
@@ -729,6 +741,14 @@ function reconstruct_surface(semi, sol::ODESolution; system=nothing,
     solution_semi = sol.prob.p.semi
     map(nparticles, solution_semi.systems) == map(nparticles, systems) ||
         throw(ArgumentError("`sol` was not computed with `semi`"))
+    if frame isa Integer && frame != lastindex(sol.u) &&
+       any(system -> buffer(system) isa SystemBuffer, solution_semi.systems)
+        throw(ArgumentError("historical frames of systems with particle buffers cannot " *
+                            "be reconstructed reliably because saved solutions do not " *
+                            "store per-frame particle activity; use " *
+                            "`frame=lastindex(sol.u)` or reconstruct from explicit " *
+                            "points and volumes"))
+    end
 
     # Refresh system caches (e.g. the `SummationDensity` cache) to the frame's state;
     # they otherwise hold the values of the last right-hand-side evaluation.
