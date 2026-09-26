@@ -239,8 +239,9 @@ function write_postprocess_callback(pp::PostprocessCallback, integrator)
     filename_json = pp.filename * time_stamp * ".json"
     filename_csv = pp.filename * time_stamp * ".csv"
 
-    json_path = joinpath(abspath(pp.output_directory), filename_json)
-    csv_path = joinpath(abspath(pp.output_directory), filename_csv)
+    json_path = pp.write_json ? joinpath(abspath(pp.output_directory), filename_json) :
+                nothing
+    csv_path = pp.write_csv ? joinpath(abspath(pp.output_directory), filename_csv) : nothing
     write_time_series_files(json_path, csv_path, data;
                             save_json=pp.write_json, save_csv=pp.write_csv)
 end
@@ -271,7 +272,8 @@ end
 
 # Identical JSON indentation/NaN handling and CSV layout for all postprocessing
 # time series; callbacks retain control over paths and which formats are written.
-function write_time_series_files(json_path, csv_path, data; save_json=true, save_csv=true)
+@inline function write_time_series_files(json_path, csv_path, data; save_json=true,
+                                         save_csv=true)
     if save_json
         open(json_path, "w") do file
             JSON.json(file, data; pretty=4, allownan=true)

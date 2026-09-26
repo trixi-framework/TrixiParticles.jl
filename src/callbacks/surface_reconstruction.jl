@@ -158,8 +158,7 @@ function SurfaceReconstructionCallback(reconstruction::SurfaceReconstruction, se
                                        write_boundaries=false,
                                        interpolated_quantities=())
     interval = validate_save_schedule(interval, dt, save_times,
-                                      "setting `interval`, `dt` and `save_times` simultaneously is not supported. " *
-                                      "Use either `interval`, `dt` or `save_times`.")
+                                      "setting `interval`, `dt` and `save_times` simultaneously is not supported. Use either `interval`, `dt` or `save_times`.")
 
     save_times = sort!(collect(Float64.(save_times)))
     all(format -> format in (:vtp, :ply), formats) ||

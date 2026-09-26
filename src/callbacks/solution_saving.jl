@@ -109,8 +109,7 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
     save_times = sort!(collect(Float64.(save_times)))
 
     interval = validate_save_schedule(interval, dt, save_times,
-                                      "Setting multiple save times for the same solution " *
-                                      "callback is not possible. Use either `dt`, `interval` or `save_times`.")
+                                      "Setting multiple save times for the same solution callback is not possible. Use either `dt`, `interval` or `save_times`.")
 
     if append_timestamp
         output_directory *= string("_", Dates.format(now(), "YY-mm-ddTHHMMSS"))

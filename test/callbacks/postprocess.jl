@@ -12,7 +12,8 @@
             @test isfile(json_path) && !isfile(csv_path)
             @test TrixiParticles.JSON.parsefile(json_path)["measure_fluid_1"]["values"] ==
                   [1.0, 2.0]
-            TrixiParticles.write_time_series_files(json_path, csv_path, data;
+            # Disabled formats need no path, so callback writers can skip constructing it.
+            TrixiParticles.write_time_series_files(nothing, csv_path, data;
                                                    save_json=false)
             @test isfile(csv_path)
             @test occursin("measure_fluid_1", first(readlines(csv_path)))
