@@ -574,7 +574,8 @@
 
     @testset "raw summation densities refresh on request" begin
         # Non-FSAL integrators need not leave density caches at the final state.
-        # Opt-in refresh recomputes them for the given vectors.
+        # Opt-in refresh performs the complete update at the state time: a
+        # density-only recompute would silently drop Shepard density correction.
         h = 0.05
         coordinates = reduce(hcat,
                              vec([SVector((i - 0.5) * h, (j - 0.5) * h)
@@ -586,6 +587,7 @@
                                             smoothing_kernel=WendlandC2Kernel{2}(),
                                             smoothing_length=1.5h,
                                             density_calculator=SummationDensity(),
+                                            density_correction=TrixiParticles.ShepardKernelCorrection(),
                                             state_equation=StateEquationCole(;
                                                                              sound_speed=10.0,
                                                                              reference_density=1000.0,
@@ -594,13 +596,51 @@
         sol = solve(semidiscretize(semi, (0.0, 0.002)), CarpenterKennedy2N54();
                     dt=0.001, adaptive=false, save_everystep=false)
         v, u = sol.u[end].x
+        @test_throws ArgumentError reconstruct_surface(fluid, v, u, semi;
+                                                       refresh_caches=true)
         _, stale_stats = reconstruct_surface(fluid, v, u, semi)
-        _, fresh_stats = reconstruct_surface(fluid, v, u, semi; refresh_caches=true)
+        _,
+        fresh_stats = reconstruct_surface(fluid, v, u, semi; refresh_caches=true,
+                                          t=sol.t[end])
         @test stale_stats["particle_volume"] != fresh_stats["particle_volume"]
         TrixiParticles.update_systems_and_nhs(v, u, semi, sol.t[end])
         manual_volumes = TrixiParticles.particle_volumes(fluid,
                                                          TrixiParticles.wrap_v(v, fluid,
                                                                                semi))
         @test fresh_stats["particle_volume"] ≈ sum(manual_volumes) rtol=1.0e-12
+    end
+
+    @testset "buffered solutions require the final saved state" begin
+        # With `save_end=false`, the final computed state (and its activity mask)
+        # is not saved: even the default last-saved frame cannot be associated.
+        # A non-integer frame index is normalized before the guard applies.
+        h = 0.05
+        coordinates = reduce(hcat,
+                             vec([SVector((i - 0.5) * h, (j - 0.5) * h)
+                                  for i in 1:7, j in 1:7]))
+        initial_condition = InitialCondition(; coordinates,
+                                             velocity=zeros(2, size(coordinates, 2)),
+                                             density=1000.0, particle_spacing=h)
+        fluid = WeaklyCompressibleSPHSystem(initial_condition; buffer_size=1,
+                                            smoothing_kernel=WendlandC2Kernel{2}(),
+                                            smoothing_length=1.5h,
+                                            density_calculator=SummationDensity(),
+                                            state_equation=StateEquationCole(;
+                                                                             sound_speed=10.0,
+                                                                             reference_density=1000.0,
+                                                                             exponent=7))
+        semi = Semidiscretization(fluid;
+                                  neighborhood_search=TrixiParticles.GridNeighborhoodSearch{2}(;
+                                                                                               update_strategy=TrixiParticles.SerialUpdate()))
+        sol = solve(semidiscretize(semi, (0.0, 0.003)), RDPK3SpFSAL35(); dt=0.001,
+                    adaptive=false, save_everystep=true, save_end=false)
+        @test sol.t[end] != last(sol.prob.tspan)
+        @test_throws ArgumentError reconstruct_surface(semi, sol;
+                                                       tank_size=(0.5, 0.5))
+        @test_throws ArgumentError reconstruct_surface(semi, sol; frame=1,
+                                                       tank_size=(0.5, 0.5))
+        @test_throws ArgumentError reconstruct_surface(semi, sol;
+                                                       frame=CartesianIndex(1),
+                                                       tank_size=(0.5, 0.5))
     end
 end

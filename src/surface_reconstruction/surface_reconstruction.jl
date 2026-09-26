@@ -672,13 +672,14 @@ the system's spacing; all other `kwargs` are forwarded to [`SurfaceReconstructio
 For `SummationDensity`, the density cache must describe the given vectors. Refresh it
 with `update_systems_and_nhs(v_ode, u_ode, semi, t)` first — including for final states
 of non-FSAL integrators, whose caches need not match — or pass `refresh_caches=true`
-to recompute it here (only supported with fully active particles). Density calculators
-that store density in the state need no refresh. The [`reconstruct_surface(semi, sol)`](@ref)
-method refreshes automatically.
+with the state time `t` to perform that complete update here, including density
+corrections and time-dependent boundaries. Density calculators that store density in
+the state need no refresh. The [`reconstruct_surface(semi, sol)`](@ref) method refreshes
+automatically.
 """
 function reconstruct_surface(system::AbstractFluidSystem, v_ode, u_ode, semi;
                              particle_spacing=nothing, ndims=Base.ndims(system),
-                             refresh_caches::Bool=false, kwargs...)
+                             refresh_caches::Bool=false, t=nothing, kwargs...)
     ndims == Base.ndims(system) && ndims in (2, 3) ||
         throw(ArgumentError("reconstruction dimensions must match the 2D or 3D fluid system"))
 
@@ -694,9 +695,13 @@ function reconstruct_surface(system::AbstractFluidSystem, v_ode, u_ode, semi;
                         Float64(system.initial_condition.particle_spacing))
     v = wrap_v(v_ode, system, semi)
     u = wrap_u(u_ode, system, semi)
-    if refresh_caches && density_calculator(system) isa SummationDensity
-        update_nhs!(semi, u_ode)
-        compute_density!(system, u, u_ode, semi, density_calculator(system))
+    if refresh_caches
+        # A partial refresh (neighborhood search plus summation density) would silently
+        # drop density corrections and time-dependent boundary motion. Perform the
+        # complete update lifecycle at the state time instead.
+        t === nothing &&
+            throw(ArgumentError("`refresh_caches=true` requires the state time `t`"))
+        update_systems_and_nhs(v_ode, u_ode, semi, t)
     end
     points = active_surface_points(system, u)
     volumes = particle_volumes(system, v)
@@ -717,9 +722,10 @@ The particle data is taken from the semidiscretization the solution was computed
 (`sol.prob.p.semi`). On the CPU, this is `semi` itself; for GPU simulations,
 `semidiscretize` works on a device copy, while `semi` only identifies the systems.
 
-Saved solutions do not store per-frame particle activity, so historical frames of
-systems with particle buffers (inflow/outflow, deactivation) cannot be reconstructed
-reliably. Only `frame=lastindex(sol.u)` is supported there; systems without buffers
+Saved solutions do not store per-frame particle activity, so systems with particle
+buffers (inflow/outflow, deactivation) only support `frame=lastindex(sol.u)`, and only
+when the final simulation state was actually saved (`sol.t[end]` equals the end of
+`sol.prob.tspan`; in particular `save_end=false` excludes it). Systems without buffers
 support any saved frame.
 """
 function reconstruct_surface(semi, sol::ODESolution; system=nothing,
@@ -734,6 +740,11 @@ function reconstruct_surface(semi, sol::ODESolution; system=nothing,
         systems[system_index] isa AbstractFluidSystem ||
             throw(ArgumentError("system $system_index is not a fluid system"))
     end
+    if frame isa CartesianIndex
+        length(frame.I) == 1 ||
+            throw(ArgumentError("`frame` must be an integer index into `sol.u`"))
+        frame = first(frame.I)
+    end
     v_ode, u_ode = sol.u[frame].x
 
     # The solution vectors belong to the semidiscretization of the ODE problem, which is a
@@ -741,12 +752,15 @@ function reconstruct_surface(semi, sol::ODESolution; system=nothing,
     solution_semi = sol.prob.p.semi
     map(nparticles, solution_semi.systems) == map(nparticles, systems) ||
         throw(ArgumentError("`sol` was not computed with `semi`"))
-    if frame isa Integer && frame != lastindex(sol.u) &&
-       any(system -> buffer(system) isa SystemBuffer, solution_semi.systems)
-        throw(ArgumentError("historical frames of systems with particle buffers cannot " *
-                            "be reconstructed reliably because saved solutions do not " *
-                            "store per-frame particle activity; use " *
-                            "`frame=lastindex(sol.u)` or reconstruct from explicit " *
+    if frame isa Integer &&
+       any(system -> buffer(system) isa SystemBuffer, solution_semi.systems) &&
+       (frame != lastindex(sol.u) || sol.t[end] != last(sol.prob.tspan))
+        throw(ArgumentError("buffered systems only support reconstructing the final " *
+                            "saved simulation state: saved solutions do not store " *
+                            "per-frame particle activity, and the current activity " *
+                            "mask describes the end of the solve. Save the final " *
+                            "state (note `save_end=false` excludes it) and use " *
+                            "`frame=lastindex(sol.u)`, or reconstruct from explicit " *
                             "points and volumes"))
     end
 
