@@ -23,6 +23,14 @@ using OrdinaryDiffEqLowStorageRK
                      save_everystep=false, callback)
     end
 
+    @testset "mutually exclusive save schedules" begin
+        @test_throws ArgumentError SolutionSavingCallback(interval=5, dt=0.1)
+        @test_throws ArgumentError SolutionSavingCallback(interval=5,
+                                                          save_times=[0.1])
+        @test_throws ArgumentError SolutionSavingCallback(dt=0.1,
+                                                          save_times=[0.1])
+    end
+
     @testset verbose=true "show" begin
         out = joinpath(tempdir(), "trixi_out")
         output_directory_padded = out * " "^(65 - length(out))

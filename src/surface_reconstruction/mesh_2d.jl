@@ -139,6 +139,28 @@ function contour_analysis(mesh::SurfaceMesh{T, I, 2}; check_intersections=true) 
     return ContourAnalysis(loops, depths, signed_areas, region_areas, oriented_faces)
 end
 
+# Reuse the polygon closure criterion for reconstructed line segments. The stronger
+# `contour_analysis` check additionally rejects crossings and invalid nesting.
+function surface_mesh_vertex_degrees(mesh::SurfaceMesh{T, I, 2}) where {T, I}
+    segments = ((mesh.vertices[edge[1]], mesh.vertices[edge[2]]) for edge in mesh.faces)
+    return edge_vertex_degrees(segments)
+end
+
+function is_closed_geometry(mesh::SurfaceMesh{T, I, 2}) where {T, I}
+    isempty(mesh.faces) && return false
+    all(edge -> valid_face_indices(edge, length(mesh.vertices)), mesh.faces) || return false
+    return all(==(2), values(surface_mesh_vertex_degrees(mesh)))
+end
+
+function closure_error_detail(mesh::SurfaceMesh{T, I, 2}) where {T, I}
+    isempty(mesh.faces) && return "No contour segments were supplied."
+    invalid = count(edge -> !valid_face_indices(edge, length(mesh.vertices)), mesh.faces)
+    invalid > 0 &&
+        return "Found $invalid contour segments referencing nonexistent vertices."
+    invalid = count(!=(2), values(surface_mesh_vertex_degrees(mesh)))
+    return "Found $invalid contour vertices with an incident-edge count different from 2."
+end
+
 function mesh_geometry_stats(mesh::SurfaceMesh{T, I, 2}; analysis=nothing,
                              backend=SerialBackend()) where {T, I}
     analysis = isnothing(analysis) ? contour_analysis(mesh) : analysis

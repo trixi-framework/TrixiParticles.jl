@@ -157,15 +157,9 @@ function SurfaceReconstructionCallback(reconstruction::SurfaceReconstruction, se
                                        compress=1, write_statistics=true,
                                        write_boundaries=false,
                                        interpolated_quantities=())
-    if (dt > 0 && interval > 0) ||
-       (length(save_times) > 0 && (dt > 0 || interval > 0))
-        throw(ArgumentError("setting `interval`, `dt` and `save_times` simultaneously is not supported. " *
-                            "Use either `interval`, `dt` or `save_times`."))
-    end
-
-    if dt > 0
-        interval = Float64(dt)
-    end
+    interval = validate_save_schedule(interval, dt, save_times,
+                                      "setting `interval`, `dt` and `save_times` simultaneously is not supported. " *
+                                      "Use either `interval`, `dt` or `save_times`.")
 
     save_times = sort!(collect(Float64.(save_times)))
     all(format -> format in (:vtp, :ply), formats) ||
@@ -644,10 +638,7 @@ function write_surface_statistics(surface_callback, integrator)
 
     filename = joinpath(abspath(output_directory),
                         add_underscore_to_optional_prefix(prefix) * "statistics")
-    open(filename * ".json", "w") do file
-        JSON.json(file, data; pretty=4, allownan=true)
-    end
-    write_csv(filename * ".csv", data)
+    write_time_series_files(filename * ".json", filename * ".csv", data)
 
     return nothing
 end

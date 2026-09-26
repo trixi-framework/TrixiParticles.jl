@@ -1,4 +1,24 @@
 @testset verbose=true "PostprocessCallback" begin
+    @testset "shared series JSON/CSV writer" begin
+        mktempdir() do directory
+            json_path = joinpath(directory, "series.json")
+            csv_path = joinpath(directory, "series.csv")
+            values = TrixiParticles.create_series_dict([1.0, 2.0], [0.0, 0.1],
+                                                       "fluid_1")
+            data = Dict("meta" => Dict("source" => "test"),
+                        "measure_fluid_1" => values)
+            TrixiParticles.write_time_series_files(json_path, csv_path, data;
+                                                   save_csv=false)
+            @test isfile(json_path) && !isfile(csv_path)
+            @test TrixiParticles.JSON.parsefile(json_path)["measure_fluid_1"]["values"] ==
+                  [1.0, 2.0]
+            TrixiParticles.write_time_series_files(json_path, csv_path, data;
+                                                   save_json=false)
+            @test isfile(csv_path)
+            @test occursin("measure_fluid_1", first(readlines(csv_path)))
+        end
+    end
+
     @testset verbose=true "errors" begin
         error_str1 = "`funcs` cannot be empty"
         @test_throws ArgumentError(error_str1) PostprocessCallback(interval=10,

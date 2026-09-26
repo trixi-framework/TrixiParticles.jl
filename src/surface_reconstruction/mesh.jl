@@ -712,6 +712,24 @@ function count_boundary_and_nonmanifold_edges(mesh)
     return boundary_edges, nonmanifold_edges
 end
 
+# Same edge-incidence definition of "closed" as `TriangleMesh` in preprocessing.
+# This does not assert consistent orientation, vertex manifoldness, or embeddedness.
+@inline valid_face_indices(face, n_vertices) = all(index -> 1 <= index <= n_vertices, face)
+
+function is_closed_geometry(mesh::SurfaceMesh{T, I, 3}) where {T, I}
+    isempty(mesh.faces) && return false
+    all(face -> valid_face_indices(face, length(mesh.vertices)), mesh.faces) || return false
+    return count_boundary_and_nonmanifold_edges(mesh) == (0, 0)
+end
+
+function closure_error_detail(mesh::SurfaceMesh{T, I, 3}) where {T, I}
+    isempty(mesh.faces) && return "No triangle faces were supplied."
+    invalid = count(face -> !valid_face_indices(face, length(mesh.vertices)), mesh.faces)
+    invalid > 0 && return "Found $invalid triangles referencing nonexistent vertices."
+    boundary, nonmanifold = count_boundary_and_nonmanifold_edges(mesh)
+    return "Found $boundary boundary edges and $nonmanifold edges with more than two incident faces."
+end
+
 # `analysis` optionally supplies the `mesh_liquid_analysis` of `mesh` (e.g. computed
 # during the isovalue correction), which must then describe this exact mesh object
 function mesh_geometry_stats(mesh; analysis=nothing, backend=SerialBackend())
