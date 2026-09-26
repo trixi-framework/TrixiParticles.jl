@@ -86,6 +86,21 @@ end
 
 _default_append_collection(iter) = !isnothing(iter) && iter > 0
 
+# Particle and surface VTK writers use the same filename/PVD lifecycle. Return
+# `nothing` instead of a PVD when writing a single non-overwriting file; callers
+# populate and save a collection only if one was requested.
+function vtk_output_file_and_collection(base_file, iter, overwrite, append_collection)
+    if overwrite
+        # `_current` is a rolling checkpoint: each write replaces its PVD entry.
+        return base_file * "_current", paraview_collection(base_file; append=false)
+    elseif isnothing(iter)
+        return base_file, nothing
+    else
+        return base_file * add_underscore_to_optional_postfix(iter),
+               paraview_collection(base_file; append=append_collection)
+    end
+end
+
 function _trixi2vtk(dvdu_ode, vu_ode, semi, t; iter=nothing, overwrite=isnothing(iter),
                     append_collection=_default_append_collection(iter),
                     output_directory="out", prefix="", git_hash=compute_git_hash(),
@@ -148,19 +163,7 @@ function _trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
 
     file_ = joinpath(output_directory,
                      add_underscore_to_optional_prefix(prefix) * "$system_name")
-    collection_file = file_
-    has_collection = overwrite || !isnothing(iter)
-    if overwrite
-        file = file_ * "_current"
-        # Keep a PVD entry for the current file so opening the collection still works.
-        pvd = paraview_collection(collection_file; append=false)
-    elseif isnothing(iter)
-        file = file_
-    else
-        file = file_ * add_underscore_to_optional_postfix(iter)
-
-        pvd = paraview_collection(collection_file; append=append_collection)
-    end
+    file, pvd = vtk_output_file_and_collection(file_, iter, overwrite, append_collection)
 
     points = PointNeighbors.periodic_coords(active_coordinates(u, system),
                                             periodic_box)
@@ -202,13 +205,13 @@ function _trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
             end
         end
 
-        if has_collection
+        if !isnothing(pvd)
             # Add to collection
             pvd[t] = vtk
         end
     end
 
-    has_collection && vtk_save(pvd)
+    isnothing(pvd) || vtk_save(pvd)
 
     return file
 end

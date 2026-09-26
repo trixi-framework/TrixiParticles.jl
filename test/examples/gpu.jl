@@ -27,6 +27,9 @@ else
     error("Unknown GPU backend: $TRIXIPARTICLES_TEST_")
 end
 
+include(joinpath(@__DIR__, "..", "surface_reconstruction", "gpu_correctness.jl"))
+include(joinpath(@__DIR__, "..", "surface_reconstruction", "gpu_planar.jl"))
+
 @testset verbose=true "div_fast $TRIXIPARTICLES_TEST_" begin
     @testset verbose=true "CPU Float64" begin
         x = Float64(pi)
@@ -634,6 +637,40 @@ end
                 @test eltype(v_ode) == Float32
                 @test eltype(u_ode) == Float32
             end
+        end
+
+        @trixi_testset "postprocessing/surface_reconstruction_3d.jl" begin
+            # Import variables into scope
+            trixi_include_changeprecision(Float32, @__MODULE__,
+                                          joinpath(examples_dir(), "postprocessing",
+                                                   "surface_reconstruction_3d.jl"),
+                                          fluid_particle_spacing=0.1,
+                                          sol=nothing, ode=nothing)
+
+            # Neighborhood search with `FullGridCellList` for GPU compatibility
+            min_corner = minimum(tank.boundary.coordinates, dims=2)
+            max_corner = maximum(tank.boundary.coordinates, dims=2)
+            cell_list = FullGridCellList(; min_corner, max_corner)
+            semi_fullgrid = Semidiscretization(fluid_system, boundary_system,
+                                               neighborhood_search=GridNeighborhoodSearch{3}(;
+                                                                                             cell_list),
+                                               parallelization_backend=Main.parallelization_backend)
+
+            @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
+                                                             joinpath(examples_dir(),
+                                                                      "postprocessing",
+                                                                      "surface_reconstruction_3d.jl");
+                                                             tspan=(0.0f0, 0.02f0),
+                                                             fluid_particle_spacing=0.1,
+                                                             semi=semi_fullgrid) [
+                r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
+            ]
+            @test sol.retcode == ReturnCode.Success
+            @test surface_callback.affect!.latest_mesh isa SurfaceMesh
+            v_ode, u_ode = sol.u[end].x
+            backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
+            @test backend == Main.parallelization_backend
+            @test eltype(v_ode) == Float32
         end
 
         # Short tests to make sure that different models and kernels work on GPUs

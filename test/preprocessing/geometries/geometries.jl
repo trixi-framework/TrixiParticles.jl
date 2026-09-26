@@ -95,6 +95,36 @@
         @test !TrixiParticles.is_closed_geometry(open_polygon)
         @test !TrixiParticles.is_closed_geometry(partial_polygon)
 
+        # Reconstructed contours use the same degree-two closure criterion as
+        # imported polygons, including rejection of a missing closing segment.
+        contour = SurfaceMesh([SVector(1.0, 1.0), SVector(2.0, 1.0),
+                                  SVector(2.0, 2.0), SVector(1.0, 2.0)],
+                              [SVector{2, Int32}(i, mod1(i + 1, 4)) for i in 1:4])
+        open_contour = SurfaceMesh(contour.vertices, contour.faces[2:end])
+        @test TrixiParticles.is_closed_geometry(contour)
+        @test !TrixiParticles.is_closed_geometry(open_contour)
+        @test_throws ArgumentError TrixiParticles.require_closed_geometry(open_contour,
+                                                                          "setdiff")
+        invalid_contour = SurfaceMesh(contour.vertices, [SVector{2, Int32}(1, 99)])
+        @test !TrixiParticles.is_closed_geometry(invalid_contour)
+        @test_throws ArgumentError TrixiParticles.require_closed_geometry(invalid_contour,
+                                                                          "setdiff")
+        # Coincident coordinates with distinct IDs do not close a contour: indexed
+        # connectivity, not coordinate equality, decides.
+        duplicate_closed = SurfaceMesh([SVector(1.0, 1.0), SVector(2.0, 1.0),
+                                           SVector(2.0, 2.0), SVector(1.0, 2.0),
+                                           SVector(1.0, 1.0)],
+                                       [SVector{2, Int32}(i, i + 1) for i in 1:4])
+        @test !TrixiParticles.is_closed_geometry(duplicate_closed)
+        @test_throws ArgumentError TrixiParticles.require_closed_geometry(duplicate_closed,
+                                                                          "setdiff")
+        float_contour = SurfaceMesh(contour.vertices,
+                                    [SVector(2.0, 1.0), SVector(3.0, 2.0),
+                                        SVector(4.0, 3.0), SVector(1.0, 4.0)])
+        @test !TrixiParticles.is_closed_geometry(float_contour)
+        @test_throws ArgumentError TrixiParticles.require_closed_geometry(float_contour,
+                                                                          "setdiff")
+
         shape = RectangularShape(0.5, (2, 2), (1.0, 1.0), density=1.0)
         @test_throws ArgumentError intersect(shape, open_polygon)
         @test_throws ArgumentError setdiff(shape, open_polygon)
@@ -107,6 +137,19 @@
         @test !TrixiParticles.is_closed_geometry(planar_geometry)
         @test TrixiParticles.is_closed_geometry(closed_mesh)
         @test !TrixiParticles.is_closed_geometry(open_mesh)
+
+        # TriangleMesh stores precomputed edge indices; SurfaceMesh derives the same
+        # incidence property directly from its faces without constructing those arrays.
+        surface(mesh) = SurfaceMesh(SVector{3, Float32}.(mesh.vertices),
+                                    [SVector{3, Int32}(face...)
+                                     for face in mesh.face_vertices_ids])
+        @test TrixiParticles.is_closed_geometry(surface(closed_mesh))
+        @test !TrixiParticles.is_closed_geometry(surface(open_mesh))
+        invalid_surface = SurfaceMesh(surface(closed_mesh).vertices,
+                                      [SVector{3, Int32}(1, 2, 999)])
+        @test !TrixiParticles.is_closed_geometry(invalid_surface)
+        @test_throws ArgumentError TrixiParticles.require_closed_geometry(invalid_surface,
+                                                                          "setdiff")
     end
 
     @testset verbose=true "`delete_faces` Rebuilds Derived Data" begin

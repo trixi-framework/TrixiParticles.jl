@@ -111,6 +111,14 @@ press the play button (also shown below).
 
 ![image](https://github.com/user-attachments/assets/10dcf7eb-5808-4d4d-9db8-4beb25b5e51a)
 
+## Surface Reconstruction
+
+For three-dimensional simulations, a continuous water surface can be reconstructed from
+the fluid particles during a simulation with [`SurfaceReconstructionCallback`](@ref),
+writing VTK PolyData time series that open directly in ParaView or VisIt. See
+[Surface Reconstruction](@ref surface_reconstruction) for the algorithm, offline
+reconstruction from snapshots, systems, solutions, and initial conditions, and the API.
+
 ## API
 
 ```@autodocs

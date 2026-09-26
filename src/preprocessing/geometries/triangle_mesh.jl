@@ -1,4 +1,12 @@
-# This is the data format returned by `load(file)` when used with `.stl` files
+"""
+    TriangleMesh
+
+Closed triangle surface geometry in 3D, as returned by [`load_geometry`](@ref) for `.stl`
+files. Stores unique vertices, per-face vertex and edge indices, and angle-weighted
+vertex, edge, and face normals for signed-distance and inside/outside queries
+(see [`SignedDistanceField`](@ref) and [`WindingNumberJacobson`](@ref)). Reconstructed
+free surfaces convert to this type via `TriangleMesh(mesh::SurfaceMesh)`.
+"""
 struct TriangleMesh{NDIMS, ELTYPE}
     vertices          :: Vector{SVector{NDIMS, ELTYPE}}
     face_vertices     :: Vector{NTuple{3, SVector{NDIMS, ELTYPE}}}
@@ -250,7 +258,7 @@ function volume(mesh::TriangleMesh)
         # Formula for the volume of a tetrahedron:
         # V = (1/6) * |a · (b × c)|, where a, b, and c are vectors defining the tetrahedron.
         # Reference: https://en.wikipedia.org/wiki/Tetrahedron#Volume
-        return dot(vertices[1], cross(vertices[2], vertices[3])) / 6
+        return oriented_tetrahedron_volume(vertices[1], vertices[2], vertices[3])
     end
 
     return volume
