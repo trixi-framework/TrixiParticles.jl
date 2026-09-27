@@ -317,6 +317,11 @@ Modules = [TrixiParticles]
 Pages = [joinpath("preprocessing", "geometries", "triangle_mesh.jl")]
 ```
 
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("preprocessing", "geometries", "triangle_bvh.jl")]
+```
+
 ```@docs
 TrixiParticles.is_closed_geometry
 delete_faces

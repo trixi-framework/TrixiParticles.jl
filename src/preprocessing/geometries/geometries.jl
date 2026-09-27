@@ -1,5 +1,7 @@
+include("geometry_primitives.jl")
 include("polygon.jl")
 include("triangle_mesh.jl")
+include("triangle_bvh.jl")
 include("io.jl")
 
 @inline eachface(mesh) = Base.OneTo(nfaces(mesh))
@@ -16,10 +18,16 @@ function is_closed_geometry(polygon::Polygon)
 end
 
 function polygon_vertex_degrees(polygon)
-    VERTEX = typeof(first(first(polygon.edge_vertices)))
+    return edge_vertex_degrees(polygon.edge_vertices)
+end
+
+# A boundary described by segments has the same degree-two closure requirement
+# whether its edges come from imported polygon coordinates or a reconstructed mesh.
+function edge_vertex_degrees(edges)
+    VERTEX = typeof(first(first(edges)))
     vertex_degrees = Dict{VERTEX, Int}()
 
-    for edge in polygon.edge_vertices
+    for edge in edges
         for vertex in edge
             vertex_degrees[vertex] = get(vertex_degrees, vertex, 0) + 1
         end

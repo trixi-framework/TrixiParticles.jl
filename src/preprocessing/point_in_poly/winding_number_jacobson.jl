@@ -41,9 +41,7 @@ end
         b_ = norm(b)
         c_ = norm(c)
 
-        divisor = a_ * b_ * c_ + dot(a, b) * c_ + dot(b, c) * a_ + dot(c, a) * b_
-
-        return 2 * atan(det([a b c]), divisor)
+        return triangle_solid_angle(a, b, c, a_, b_, c_, det([a b c]))
     end
 
     return winding_number

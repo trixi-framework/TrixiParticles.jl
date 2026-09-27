@@ -621,6 +621,24 @@
                                                       "postprocessing.jl"))
             @test sol.retcode == ReturnCode.Success
         end
+        @trixi_testset "postprocessing/surface_reconstruction_2d.jl" begin
+            @trixi_test_nowarn trixi_include(@__MODULE__,
+                                             joinpath(examples_dir(), "postprocessing",
+                                                      "surface_reconstruction_2d.jl"),
+                                             fluid_particle_spacing=0.1, tspan=(0.0, 0.01))
+            @test sol.retcode == ReturnCode.Success
+            @test ndims(surface_callback.affect!.latest_mesh) == 2
+        end
+        @trixi_testset "postprocessing/surface_reconstruction_3d.jl" begin
+            @trixi_test_nowarn trixi_include(@__MODULE__,
+                                             joinpath(examples_dir(),
+                                                      "postprocessing",
+                                                      "surface_reconstruction_3d.jl"),
+                                             fluid_particle_spacing=0.05,
+                                             tspan=(0.0, 0.05))
+            @test sol.retcode == ReturnCode.Success
+            @test surface_callback.affect!.latest_mesh isa SurfaceMesh
+        end
     end
 
     @testset verbose=true "Preprocessing" begin
