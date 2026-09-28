@@ -1,0 +1,173 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 0eb4e55..09e5cef 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -5,6 +5,8 @@ cmake_minimum_required(VERSION 3.10)
+ 
+ project(SPlisHSPlasH)
+ 
++option(FOAM_GENERATOR_ONLY "Build only the headless FoamGenerator tool" OFF)
++
+ set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/CMake" ${CMAKE_MODULE_PATH})
+ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+ 
+@@ -28,7 +30,7 @@ add_subdirectory(extern/zlib)
+ add_subdirectory(extern/partio)
+ add_subdirectory(extern/md5)
+ add_subdirectory(extern/tinyexpr)
+-if (NOT SPH_LIBS_ONLY)
++if (NOT SPH_LIBS_ONLY AND NOT FOAM_GENERATOR_ONLY)
+ 	add_subdirectory(extern/glfw)
+ 	add_subdirectory(extern/imgui)
+ 	add_subdirectory(extern/nfd)
+@@ -58,7 +60,9 @@ add_subdirectory(Utilities)
+ ################################################################################
+ # executables
+ ################################################################################
+-if (NOT SPH_LIBS_ONLY)
++if (FOAM_GENERATOR_ONLY)
++	add_subdirectory(Tools/FoamGenerator)
++elseif (NOT SPH_LIBS_ONLY)
+ 	include(DataCopyTargets)
+ 	add_subdirectory(Tools)
+ 	add_subdirectory(Simulator)
+diff --git a/Tools/FoamGenerator/main.cpp b/Tools/FoamGenerator/main.cpp
+index 2c7a819..d2ba3a7 100644
+--- a/Tools/FoamGenerator/main.cpp
++++ b/Tools/FoamGenerator/main.cpp
+@@ -48,6 +48,7 @@ void advectFoamParticles();
+ void removeParticles();
+ 
+ std::vector<Vector3r> x_copy;
++std::vector<Vector3r> v_copy;
+ std::vector<unsigned char> particleType;
+ enum ParticleType {Foam, Spray, Bubbles, NUM_PARTICLE_TYPES};
+ enum GeneratedType {TrappedAir, WaveCrest, Vorticity, NUM_GENERATOR_TYPES};
+@@ -57,6 +58,7 @@ std::array<unsigned int, maxNumTypes> numParticlesOfType;
+ std::array<std::string, maxNumTypes> nameExtensions;
+ std::array<std::string, maxNumTypes> extendedFileNames;
+ std::array<std::vector<Vector3r>, maxNumTypes> particleCopies;
++std::array<std::vector<Vector3r>, maxNumTypes> particleVelocityCopies;
+ std::vector<Real> v_diff, curvature, omega_diff, energy;
+ std::string fileName_copy;
+ std::future<void> handle;
+@@ -100,8 +102,7 @@ enum KernelType { CubicSpline = 0, Ihmsen2012, NumKernelTypes };
+ KernelType kernelType = KernelType::CubicSpline;
+ Real(*kernelFct)(const Vector3r &) = CubicKernel::W;
+ 
+-std::random_device rand_device;
+-std::mt19937_64 random_generator(rand_device());
++std::mt19937_64 random_generator;
+ std::uniform_real_distribution<Real> uniform_distr_0_1(Real(0.0), Real(1.0));
+ Real max_v_diff = 0.0;
+ Real sum_v_diff = 0.0;
+@@ -176,6 +177,7 @@ int main( int argc, char **argv )
+ 			("bbtype", "chose how the bounding-box is used [kill | lifesteal | clamp]. Use in combination with --bbsize.", cxxopts::value<std::string>())
+ 			("skipframes", "number of frames to skip when writing foam", cxxopts::value<unsigned int>()->default_value("0"))
+ 			("f,foamscale", "Global multiplier for number of generated foam particles", cxxopts::value<Real>()->default_value("1000"))
++			("seed", "Deterministic 64-bit foam-generator seed", cxxopts::value<unsigned long long>())
+ 			("h,help", "Print help")
+ 			;
+ 
+@@ -186,6 +188,12 @@ int main( int argc, char **argv )
+ 			std::cout << options.help({ "", "Group" }) << std::endl;
+ 			exit(0);
+ 		}
++		if (!result.count("seed"))
++		{
++			LOG_ERR << "A deterministic --seed must be supplied.";
++			return 1;
++		}
++		random_generator.seed(result["seed"].as<unsigned long long>());
+ 
+ 		queryMode = false;
+ 		if (result.count("query"))
+@@ -1099,7 +1107,8 @@ inline void swapByteOrder(T* v)
+ 		std::swap(bytes[c], bytes[n - c - 1]);
+ }
+ 
+-void writeParticlesVTK(const std::string& fileName, const unsigned int numParticles, const Vector3r* particlePositions)
++void writeParticlesVTK(const std::string& fileName, const unsigned int numParticles,
++	const Vector3r* particlePositions, const Vector3r* particleVelocities)
+ {
+ 	if (0 == numParticles)
+ 		return;
+@@ -1190,6 +1199,15 @@ void writeParticlesVTK(const std::string& fileName, const unsigned int numPartic
+ 		// export to vtk
+ 		outfile.write(reinterpret_cast<char*>(attrData.data()), numParticles * sizeof(unsigned int));
+ 		outfile << "\n";
++
++		// Write velocities.
++		std::vector<Vector3r> velocities(particleVelocities, particleVelocities + numParticles);
++		for (unsigned int i = 0; i < numParticles; i++)
++			for (unsigned int c = 0; c < 3; c++)
++				swapByteOrder(&velocities[i][c]);
++		outfile << "VECTORS velocity" << real_str;
++		outfile.write(reinterpret_cast<char*>(velocities[0].data()), 3 * numParticles * sizeof(Real));
++		outfile << "\n";
+ 	}
+ 
+ 	outfile.close();
+@@ -1217,6 +1235,7 @@ void writeCurrentFrame_vtk()
+ 	const auto& numOfType = numParticlesOfType;
+ 	auto& handles = handlesType;
+ 	const auto& particleData = fx;
++	const auto& particleVelocities = fv;
+ 	const auto& particleTypes = particleType;
+ 	const auto& nameExt = nameExtensions;
+ 	// helper lambda to write particles depending on type
+@@ -1231,12 +1250,21 @@ void writeCurrentFrame_vtk()
+ 			handles[type].wait();
+ 		particleCopies[type].clear();
+ 		particleCopies[type].reserve(numOfType[type]);
++		particleVelocityCopies[type].clear();
++		particleVelocityCopies[type].reserve(numOfType[type]);
+ 		for (int i = 0; i < (int)particleData.size(); i++)
+ 		{
+ 			if (particleTypes[i] == type)
++			{
+ 				particleCopies[type].push_back(particleData[i]);
++				particleVelocityCopies[type].push_back(particleVelocities[i]);
++			}
+ 		}
+-		handles[type] = std::async(std::launch::async, [type] { writeParticlesVTK(extendedFileNames[type], (unsigned int)particleCopies[type].size(), particleCopies[type].data()); });
++		handles[type] = std::async(std::launch::async, [type] {
++			writeParticlesVTK(extendedFileNames[type],
++				(unsigned int)particleCopies[type].size(), particleCopies[type].data(),
++				particleVelocityCopies[type].data());
++		});
+ 	};
+ 
+ 	if (splitGenerators)
+@@ -1261,14 +1289,18 @@ void writeCurrentFrame_vtk()
+ 			handle.wait();
+ 
+ 		x_copy.resize(fx.size());
+-		//v_copy.resize(fv.size());
++		v_copy.resize(fv.size());
+ 		fileName_copy = fileName;
+ 		for (int i = 0; i < (int)fx.size(); i++)
+ 		{
+ 			x_copy[i] = fx[i];
++			v_copy[i] = fv[i];
+ 		}
+ 
+-		handle = std::async(std::launch::async, [] { writeParticlesVTK(fileName_copy, (unsigned int)x_copy.size(), x_copy.data()); });
++		handle = std::async(std::launch::async, [] {
++			writeParticlesVTK(fileName_copy, (unsigned int)x_copy.size(), x_copy.data(),
++				v_copy.data());
++		});
+ 	}
+ }
+ 
+@@ -1277,6 +1309,10 @@ void writeCurrentFrame_vtk()
+ */
+ Real clampAndNormalize(const Real val, const Real minVal, const Real maxVal)
+ {
++	// An absent potential has zero dynamic range. Treat it as zero rather than
++	// allowing 0/0 to suppress all other independent generation potentials.
++	if (maxVal == minVal)
++		return 0.0;
+ 	return (std::min(val, maxVal) - std::min(val, minVal)) / (maxVal - minVal);
+ }
+ 
