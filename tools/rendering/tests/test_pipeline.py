@@ -62,7 +62,7 @@ class TimeSeriesTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "invalid whitewater"):
             pipeline.validate(parsed)
         with self.assertRaisesRegex(Exception, "light"):
-            pipeline.light_specification("unparseable")
+            pipeline.light_specification("invalid-light")
         with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
             pipeline.parser().parse_args(args + ["--seed", "144", "--config", "case.json"])
 
