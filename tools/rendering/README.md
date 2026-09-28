@@ -95,7 +95,7 @@ python tools/rendering/pipeline.py render \
   coordinates and a velocity point array. Saved times must be uniformly spaced.
 - A surface reconstruction: the native PR #1329 PLY + VTP/PVD output, or a
   generated metadata file listing `frames`, each with `source_timestep`,
-  `simulation_time_s`, `water_file`, and `blade_files`.
+  `simulation_time_s`, `water_file`, and `solid_files` (or legacy `blade_files`).
 - Blender 5.2 with the Volume Coefficients and Geometry Nodes used here.
 - Foam stage only: Python 3.9, `meshio==5.3.5`, `numpy==2.0.2`,
   `partio==1.0.0`, and a FoamGenerator binary built with the patch below.
@@ -199,7 +199,7 @@ Option reference:
 | Selection | `--frame N` for one still, or `--sequence` with `--start/--stop/--stride`; `--resume` continues a validated prefix |
 | Scene | `--camera-position`, `--camera-target`, `--camera-fov`, `--tank-min`, `--tank-max`, `--light` (repeatable `name:x:y:z:energy:r:g:b:size`), `--world-color`, `--world-strength` |
 | Image | `--width`, `--height`, `--samples`, `--engine {cycles,eevee}`, `--device {cpu,gpu}`, `--gpu-backend`, `--view-transform`, `--look`, `--exposure`, `--gamma`, `--max-bounces`, `--transmission-bounces`, `--transparent-bounces`, `--png-compression`, `--no-denoise` |
-| Materials | `--material-preset {liquid,foam,stress}`, independent `--blade-material anodized-copper` and `--glass-material low-iron-glass`, and individual `--water-*`, `--blade-*`, `--glass-*`, `--foam-*`, `--spray-*`, `--bubble-*` flags |
+| Materials | `--material-preset {liquid,foam,stress}`, independent `--liquid-material {turbulent-water,clear-water}`, `--solid-material anodized-copper`, `--glass-material low-iron-glass`, and individual `--water-*`, `--solid-*`, `--glass-*`, `--foam-*`, `--spray-*`, `--bubble-*` flags |
 | Stress | `--mode stress --stress-mesh FILE` (repeat for each solid), `--stress-water-opacity`, `--stress-water-transmission`, `--stress-water-specular`, `--stress-normal-light`, `--stress-light-direction` |
 
 `render --sequence` writes numbered PNGs plus `render_metadata.json` and
@@ -222,8 +222,9 @@ ghosted shader is separate from the primary liquid-volume shader.
 
 ## Material presets
 
-Three scene presets exist, with separate named blade and glass materials.
-A `liquid` or `foam` scene includes **both** named materials automatically;
+Three scene presets exist, with separately selectable liquid, solid, and glass
+materials. A `liquid` or `foam` scene includes the v03 **turbulent-water**,
+**anodized-copper**, and **low-iron-glass** choices automatically;
 choose them independently to combine with explicitly supplied water/floor
 settings or to override part of a scene preset. Any property flag passed
 explicitly wins over both the component and scene presets. Flags outside
@@ -238,14 +239,18 @@ value.
 | `foam` | The `liquid` set plus froth, spray, and bubble materials | `--foam-dir` whitewater renders |
 | `stress` | YlOrRd vertex-color emission, `0.72–1.0` normal modulation, copper-edge/floor and `0.005` ghost water with its own physical material | `--mode stress --stress-mesh` |
 
-| Independent component | v03 appearance | What it sets |
+| Independent component | Appearance and scope | What it sets |
 |---|---|---|
-| `--blade-material anodized-copper` | Metallic copper clamped blades | Base RGB `(0.62, 0.10, 0.018)`, metallic `0.92`, roughness `0.30`, coat `0.16` |
+| `--liquid-material turbulent-water` | Reviewed v03 fluid | RGB `(0.35, 0.72, 1)`, roughness `0.06`, IOR `1.333`, scaled pure-water absorption plus low scattering |
+| `--liquid-material clear-water` | **Optional for other cases, not used in v03** | Untinted pure-water absorption `(0.34, 0.0565, 0.00922) m⁻¹`, no scattering, roughness `0.02`, IOR `1.333` |
+| `--solid-material anodized-copper` | Metallic copper clamped solids | Base RGB `(0.62, 0.10, 0.018)`, metallic `0.92`, roughness `0.30`, coat `0.16` |
 | `--glass-material low-iron-glass` | Editorial low-iron tank panes | RGB `(0.06, 0.42, 0.34)`, roughness `0.30`, transmission `0.90`, IOR `1.36`, specular `0.04`, opacity mix `0.04` |
 
-The blade and glass component selectors choose **materials**, not wall height,
-mesh bevel, floor extension, or other case geometry. The stress view uses
-vertex-colored YlOrRd blades and omits glass walls, so component selectors
+Component selectors choose **materials**, not wall height, mesh bevel, floor
+extension, or other case geometry. `--solid-*` geometry and material flags
+work with any reconstructed solid; the legacy `blade_files` metadata name is
+only an input adapter. The stress view uses vertex-colored YlOrRd solids
+and omits glass walls, so component selectors
 are rejected in `--mode stress`.
 
 Override example (scene settings remain CLI inputs):
@@ -255,8 +260,9 @@ python tools/rendering/pipeline.py render \
   --blender /path/to/blender --surface-dir /path/to/surface \
   --surface-pvd /path/to/surface/surface_fluid_1.pvd \
   --foam-dir /path/to/whitewater --output /path/to/new/still.png --frame 0 \
-  --material-preset foam --blade-material anodized-copper \
-  --glass-material low-iron-glass --foam-point-radius 0.008 \
+  --material-preset foam --liquid-material turbulent-water \
+  --solid-material anodized-copper --glass-material low-iron-glass \
+  --foam-point-radius 0.008 \
   --surface-axis-order xyz --foam-axis-order xyz \
   --camera-position 3 2 2 --camera-target 1 0.5 0.3 --camera-fov 34 \
   --tank-min 0 0 0 --tank-max 2 4 1 \
@@ -277,16 +283,22 @@ The bubble relative IOR is exactly `1 / 1.333`. These values are checked
 against the accepted v03 render metadata and source shaders. Explicit flags
 still override any one value.
 
+For a non-v03 clear-water case, keep the same CLI command but pass
+`--liquid-material clear-water` (with or without a `liquid`/`foam` scene
+preset). That switches only the water material; it does **not** claim that
+clear water was part of the approved v03 release. A custom tint can then
+override one property, e.g. `--water-color 0.8 0.9 1`.
+
 **Can the presets be used for v03 reproduction?** They supply the reviewed
 material parameters, yes. A matching v03 render additionally needs the
 original camera/lights, tank and pedestal geometry, frame selection,
 coordinate mapping, Blender/device/color management, accepted reconstruction
-and foam caches, and any render-only blade-floor treatment. Those settings
+and foam caches, and any render-only solid-floor treatment. Those settings
 are *not* preset; the follow-up v03 migration PR will pass them explicitly
 and establish full render and source-frame parity. This tools PR does not
-claim bitwise v03 image reproduction. The rejected `legacy-cyan` and
-`physical-clear` water branches and the redundant `foaming-water` preset
-are not implemented.
+claim bitwise v03 image reproduction. The rejected `legacy-cyan` and redundant
+`foaming-water` branches are removed; the old unused `physical-clear` code
+path is replaced by an explicitly selected, reusable `clear-water` material.
 
 ## Materials and scientific scope
 

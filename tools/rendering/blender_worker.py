@@ -24,7 +24,7 @@ def selected_sources(args):
     if args.surface_pvd is not None:
         frames = [{"source_timestep": item.index, "simulation_time_s": item.time,
                    "water_path": item.path.with_suffix(".ply"),
-                   "blades": [args.surface_dir /
+                   "solids": [args.surface_dir /
                               pattern.format(frame=item.index,
                                              iter=iteration_token(item.path.name, item.index),
                                              time=item.time)
@@ -39,7 +39,8 @@ def selected_sources(args):
         frames = [{"source_timestep": int(item["source_timestep"]),
                    "simulation_time_s": float(item["simulation_time_s"]),
                    "water_path": args.surface_dir / item["water_file"],
-                   "blades": [args.surface_dir / filename for filename in item["blade_files"]] +
+                   "solids": [args.surface_dir / filename
+                              for filename in item.get("solid_files", item.get("blade_files", []))] +
                    [args.surface_dir / pattern.format(frame=item["source_timestep"],
                                                       time=item["simulation_time_s"])
                     for pattern in args.solid_pattern]}
@@ -77,7 +78,7 @@ def verified_inputs(args, selected, whitewater):
     """Fingerprint the exact selected meshes and particles before rendering."""
     output = []
     for frame in selected:
-        paths = [frame["water_path"], *frame["blades"]]
+        paths = [frame["water_path"], *frame["solids"]]
         if args.mode == "stress":
             paths.extend(args.stress_mesh)
         if args.foam_dir is not None:
@@ -127,7 +128,8 @@ def principled(name, color, roughness, *, transmission=0, metallic=0, ior=1.45, 
 
 
 def water_material(args):
-    material = principled("Physical liquid", args.water_color, args.water_roughness,
+    label = (args.liquid_material or "custom liquid").replace("-", " ").title()
+    material = principled(label, args.water_color, args.water_roughness,
                           transmission=1, ior=args.water_ior)
     nodes, links = material.node_tree.nodes, material.node_tree.links
     volume = nodes.new("ShaderNodeVolumeCoefficients")
@@ -515,23 +517,24 @@ def build_scene(args, frame, whitewater):
                     froth_nodes(obj, material, args)
                 else:
                     instances(obj, material, kind, args)
-        blade_name = ("Anodized copper blades" if args.blade_material == "anodized-copper"
+        solid_name = ("Anodized copper solids" if args.solid_material == "anodized-copper"
                       else "Structural solid")
-        metal = principled(blade_name, args.blade_color, args.blade_roughness,
-                           metallic=args.blade_metallic, coat=args.blade_coat)
-        for index, path in enumerate(frame["blades"], 1):
-            obj = import_mesh(path, f"Structural solid {index}", metal, args.surface_axis_order)
-            if args.blade_floor_extension:
+        solid_shader = principled(solid_name, args.solid_color, args.solid_roughness,
+                                  metallic=args.solid_metallic, coat=args.solid_coat)
+        for index, path in enumerate(frame["solids"], 1):
+            obj = import_mesh(path, f"Structural solid {index}", solid_shader,
+                              args.surface_axis_order)
+            if args.solid_floor_extension:
                 ground = min(vertex.co.z for vertex in obj.data.vertices)
                 for vertex in obj.data.vertices:
                     if vertex.co.z <= ground + 1e-6:
-                        vertex.co.z -= args.blade_floor_extension
+                        vertex.co.z -= args.solid_floor_extension
                 obj.data.update()
-            if args.blade_bevel:
+            if args.solid_bevel:
                 bevel = obj.modifiers.new("Edge highlight", "BEVEL")
-                bevel.width, bevel.segments = args.blade_bevel, args.blade_bevel_segments
+                bevel.width, bevel.segments = args.solid_bevel, args.solid_bevel_segments
                 bevel.limit_method = "ANGLE"
-                bevel.angle_limit = math.radians(args.blade_bevel_angle)
+                bevel.angle_limit = math.radians(args.solid_bevel_angle)
     else:
         stress_materials = {}
         for index, mesh_path in enumerate(args.stress_mesh, 1):
@@ -545,17 +548,17 @@ def build_scene(args, frame, whitewater):
             if attribute not in stress_materials:
                 stress_materials[attribute] = stress_material(args, attribute)
             stress.data.materials.append(stress_materials[attribute])
-            if args.blade_floor_extension:
+            if args.solid_floor_extension:
                 ground = min(vertex.co.z for vertex in stress.data.vertices)
                 for vertex in stress.data.vertices:
                     if vertex.co.z <= ground + 1e-6:
-                        vertex.co.z -= args.blade_floor_extension
+                        vertex.co.z -= args.solid_floor_extension
                 stress.data.update()
-            if args.blade_bevel:
+            if args.solid_bevel:
                 bevel = stress.modifiers.new("Stress surface edge", "BEVEL")
-                bevel.width, bevel.segments = args.blade_bevel, args.blade_bevel_segments
+                bevel.width, bevel.segments = args.solid_bevel, args.solid_bevel_segments
                 bevel.limit_method = "ANGLE"
-                bevel.angle_limit = math.radians(args.blade_bevel_angle)
+                bevel.angle_limit = math.radians(args.solid_bevel_angle)
         if args.stress_water_opacity:
             ghost_material = principled("Ghost fluid", args.water_color,
                                         args.water_roughness,

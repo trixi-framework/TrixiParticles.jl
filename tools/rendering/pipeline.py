@@ -9,7 +9,8 @@ import subprocess
 import sys
 
 from data import axis_permutation, bounds
-from materials import BLADE_MATERIALS, GLASS_MATERIALS, MATERIAL_DEFAULTS, MATERIAL_PRESETS
+from materials import (GLASS_MATERIALS, LIQUID_MATERIALS, MATERIAL_DEFAULTS,
+                       MATERIAL_PRESETS, SOLID_MATERIALS)
 
 
 def positive(value: str) -> float:
@@ -103,8 +104,10 @@ def parser() -> argparse.ArgumentParser:
     render.add_argument("--mode", choices=("liquid", "stress"), default="liquid")
     render.add_argument("--material-preset", choices=tuple(MATERIAL_PRESETS),
                         help="Named v03 material set; explicit material flags override it")
-    render.add_argument("--blade-material", choices=tuple(BLADE_MATERIALS),
-                        help="Named solid material, independently selectable")
+    render.add_argument("--liquid-material", choices=tuple(LIQUID_MATERIALS),
+                        help="Named water shader; turbulent-water is the v03 selection")
+    render.add_argument("--solid-material", choices=tuple(SOLID_MATERIALS),
+                        help="Named material for any reconstructed solid")
     render.add_argument("--glass-material", choices=tuple(GLASS_MATERIALS),
                         help="Named tank-glass material, independently selectable")
     render.add_argument("--stress-mesh", action="append", type=Path, default=[],
@@ -146,14 +149,14 @@ def parser() -> argparse.ArgumentParser:
     render.add_argument("--water-absorption", nargs=3, type=float)
     render.add_argument("--water-scattering", nargs=3, type=float)
     render.add_argument("--water-scattering-anisotropy", type=float)
-    render.add_argument("--blade-color", nargs=3, type=float)
-    render.add_argument("--blade-metallic", type=fraction)
-    render.add_argument("--blade-roughness", type=fraction)
-    render.add_argument("--blade-coat", type=fraction)
-    render.add_argument("--blade-floor-extension", type=float, default=None)
-    render.add_argument("--blade-bevel", type=float, default=None)
-    render.add_argument("--blade-bevel-segments", type=int, default=None)
-    render.add_argument("--blade-bevel-angle", type=float, default=None)
+    render.add_argument("--solid-color", nargs=3, type=float)
+    render.add_argument("--solid-metallic", type=fraction)
+    render.add_argument("--solid-roughness", type=fraction)
+    render.add_argument("--solid-coat", type=fraction)
+    render.add_argument("--solid-floor-extension", type=float, default=None)
+    render.add_argument("--solid-bevel", type=float, default=None)
+    render.add_argument("--solid-bevel-segments", type=int, default=None)
+    render.add_argument("--solid-bevel-angle", type=float, default=None)
     render.add_argument("--floor-color", nargs=3, type=float)
     render.add_argument("--floor-metallic", type=fraction)
     render.add_argument("--floor-roughness", type=fraction)
@@ -215,8 +218,10 @@ def validate(args: argparse.Namespace) -> None:
     bounds(args.tank_min, args.tank_max)
     axis_permutation(args.surface_axis_order)
     axis_permutation(args.foam_axis_order)
-    explicit = {key for key in (*BLADE_MATERIALS["anodized-copper"],
-                                *GLASS_MATERIALS["low-iron-glass"])
+    component_keys = {key for catalog in (LIQUID_MATERIALS, SOLID_MATERIALS,
+                                          GLASS_MATERIALS)
+                      for component in catalog.values() for key in component}
+    explicit = {key for key in component_keys
                 if getattr(args, key, None) is not None}
     if args.material_preset is not None:
         if args.material_preset not in MATERIAL_PRESETS:
@@ -229,22 +234,27 @@ def validate(args: argparse.Namespace) -> None:
         for key, value in MATERIAL_PRESETS[args.material_preset].items():
             if getattr(args, key, None) is None:
                 setattr(args, key, value)
-    if args.mode == "stress" and (args.blade_material or args.glass_material):
-        raise ValueError("stress mode uses vertex colors and no glass walls; "
-                         "blade/glass materials are unused")
+    if args.mode == "stress" and (args.liquid_material or args.solid_material or
+                                  args.glass_material):
+        raise ValueError("stress mode uses vertex colors and a distinct ghost water; "
+                         "liquid/solid/glass material selectors are unused")
     # Explicit per-property values win; a selected component material replaces
     # the corresponding part of a scene preset without changing any other set.
-    blade_material = args.blade_material or (
+    liquid_material = args.liquid_material or (
+        "turbulent-water" if args.material_preset in ("liquid", "foam") else None)
+    solid_material = args.solid_material or (
         "anodized-copper" if args.material_preset in ("liquid", "foam") else None)
     glass_material = args.glass_material or (
         "low-iron-glass" if args.material_preset in ("liquid", "foam") else None)
-    for selection, catalog in ((blade_material, BLADE_MATERIALS),
+    for selection, catalog in ((liquid_material, LIQUID_MATERIALS),
+                               (solid_material, SOLID_MATERIALS),
                                (glass_material, GLASS_MATERIALS)):
         if selection is not None:
             for key, value in catalog[selection].items():
                 if key not in explicit:
                     setattr(args, key, value)
-    args.blade_material = blade_material
+    args.liquid_material = liquid_material
+    args.solid_material = solid_material
     args.glass_material = glass_material
     for key, value in MATERIAL_DEFAULTS.items():
         if getattr(args, key, None) is None:
@@ -252,8 +262,8 @@ def validate(args: argparse.Namespace) -> None:
     from math import isfinite
     if args.mode == "liquid":
         required = ("water_color", "water_roughness", "water_ior", "water_absorption",
-                    "water_scattering", "water_scattering_anisotropy", "blade_color",
-                    "blade_metallic", "blade_roughness", "blade_coat", "glass_color",
+                    "water_scattering", "water_scattering_anisotropy", "solid_color",
+                    "solid_metallic", "solid_roughness", "solid_coat", "glass_color",
                     "glass_opacity", "glass_roughness", "glass_ior", "glass_transmission",
                     "wall_thickness",
                     "floor_thickness", "visible_wall_height")
@@ -270,10 +280,10 @@ def validate(args: argparse.Namespace) -> None:
                (*args.camera_position, *args.camera_target,
                 *(args.water_absorption or ()), *(args.water_scattering or ()),
                 *args.stress_light_direction,
-                args.exposure, args.camera_fov, args.blade_bevel_angle,
+                args.exposure, args.camera_fov, args.solid_bevel_angle,
                 args.world_strength, args.visible_wall_height or 0)):
         raise ValueError("nonfinite render or material parameter")
-    for name in ("water_color", "blade_color", "glass_color", "world_color", "floor_color"):
+    for name in ("water_color", "solid_color", "glass_color", "world_color", "floor_color"):
         values = getattr(args, name)
         if values is not None:
             rgb(values)
@@ -283,13 +293,13 @@ def validate(args: argparse.Namespace) -> None:
     if args.width <= 0 or args.height <= 0 or args.samples <= 0 or args.stride <= 0 or \
             min(args.max_bounces, args.transmission_bounces,
                 args.transparent_bounces) < 0 or not 0 <= args.png_compression <= 100 or \
-            args.blade_bevel_segments < 1 or args.droplet_subdivisions < 0 or \
+            args.solid_bevel_segments < 1 or args.droplet_subdivisions < 0 or \
             (args.water_scattering_anisotropy is not None and
              not -1 <= args.water_scattering_anisotropy <= 1) or \
-            args.blade_floor_extension < 0 or args.blade_bevel < 0 or \
+            args.solid_floor_extension < 0 or args.solid_bevel < 0 or \
             args.floor_bevel < 0 or args.pedestal_margin < 0 or \
             args.wall_cap_extension < 0 or not 0 < args.camera_fov < 180 or \
-            not 0 <= args.blade_bevel_angle <= 180:
+            not 0 <= args.solid_bevel_angle <= 180:
         raise ValueError("invalid render dimensions or material parameters")
     if args.mode == "stress" and not args.stress_mesh:
         raise ValueError("stress mode requires at least one --stress-mesh")

@@ -8,8 +8,9 @@ stress surface with pedestal and optional ghost water).
 Presets are selected with ``--material-preset``; any explicitly passed
 material flag overrides the preset value for that flag. Camera, lights, tank
 bounds, resolution, and other scene settings are never part of a preset.
-The copper blade and low-iron glass materials are independently selectable
-with ``--blade-material`` and ``--glass-material``.
+The copper solid and low-iron glass materials are independently selectable
+with ``--solid-material`` and ``--glass-material``. Clear water is a second
+liquid material for other cases; v03 uses the turbulent-water selection.
 """
 
 from __future__ import annotations
@@ -17,10 +18,10 @@ from __future__ import annotations
 # Historical per-flag defaults, used when neither a preset nor an explicit
 # flag supplies a value. Kept separate so presets stay reviewable.
 MATERIAL_DEFAULTS = {
-    "blade_floor_extension": 0.0,
-    "blade_bevel": 0.0,
-    "blade_bevel_segments": 3,
-    "blade_bevel_angle": 24.0,
+    "solid_floor_extension": 0.0,
+    "solid_bevel": 0.0,
+    "solid_bevel_segments": 3,
+    "solid_bevel_angle": 24.0,
     "floor_bevel": 0.0,
     "pedestal_margin": 0.0,
     "pedestal_thickness": 0.08,
@@ -34,12 +35,12 @@ MATERIAL_DEFAULTS = {
     "droplet_subdivisions": 2,
 }
 
-BLADE_MATERIALS = {
+SOLID_MATERIALS = {
     "anodized-copper": {
-        "blade_color": (0.62, 0.10, 0.018),
-        "blade_metallic": 0.92,
-        "blade_roughness": 0.30,
-        "blade_coat": 0.16,
+        "solid_color": (0.62, 0.10, 0.018),
+        "solid_metallic": 0.92,
+        "solid_roughness": 0.30,
+        "solid_coat": 0.16,
     },
 }
 
@@ -54,18 +55,33 @@ GLASS_MATERIALS = {
     },
 }
 
+LIQUID_MATERIALS = {
+    "turbulent-water": {
+        # v03: Pope and Fry (1997) absorption scaled by 2.5, with low scattering.
+        "water_color": (0.35, 0.72, 1.0),
+        "water_roughness": 0.06,
+        "water_ior": 1.333,
+        "water_absorption": (0.85, 0.14125, 0.02305),
+        "water_scattering": (0.02, 0.04, 0.08),
+        "water_scattering_anisotropy": 0.35,
+    },
+    "clear-water": {
+        # Unscaled measured pure-water absorption; intended for non-v03 cases.
+        "water_color": (1.0, 1.0, 1.0),
+        "water_roughness": 0.02,
+        "water_ior": 1.333,
+        "water_absorption": (0.34, 0.0565, 0.00922),
+        "water_scattering": (0.0, 0.0, 0.0),
+        "water_scattering_anisotropy": 0.0,
+    },
+}
+
 _LIQUID = {
-    # Physical liquid: Pope and Fry (1997) pure-water absorption scaled by 2.5.
-    "water_color": (0.35, 0.72, 1.0),
-    "water_roughness": 0.06,
-    "water_ior": 1.333,
-    "water_absorption": (0.85, 0.14125, 0.02305),
-    "water_scattering": (0.02, 0.04, 0.08),
-    "water_scattering_anisotropy": 0.35,
-    # Reusable named blade material; render-only mesh offsets remain scene settings.
-    **BLADE_MATERIALS["anodized-copper"],
-    "blade_floor_extension": 0.02,
-    "blade_bevel": 0.005,
+    **LIQUID_MATERIALS["turbulent-water"],
+    **SOLID_MATERIALS["anodized-copper"],
+    # Render-only mesh offsets remain scene settings.
+    "solid_floor_extension": 0.02,
+    "solid_bevel": 0.005,
     # Tank base.
     "floor_color": (0.012, 0.018, 0.028),
     "floor_metallic": 0.35,
@@ -120,8 +136,8 @@ _STRESS = {
     "stress_water_opacity": 0.005,
     "stress_normal_light": 0.28,
     "stress_light_direction": (0.35, -0.45, 0.82),
-    "blade_floor_extension": 0.02,
-    "blade_bevel": 0.004,
+    "solid_floor_extension": 0.02,
+    "solid_bevel": 0.004,
     "floor_color": (0.020, 0.032, 0.050),
     "floor_metallic": 0.3,
     "floor_roughness": 0.4,
@@ -149,7 +165,8 @@ def describe_presets() -> str:
             lines.append(f"    {key} = {MATERIAL_PRESETS[name][key]!r}")
         lines.append("")
     lines.append("Component materials (may be selected alongside a scene preset):")
-    for selector, choices in (("--blade-material", BLADE_MATERIALS),
+    for selector, choices in (("--liquid-material", LIQUID_MATERIALS),
+                              ("--solid-material", SOLID_MATERIALS),
                               ("--glass-material", GLASS_MATERIALS)):
         for name, values in choices.items():
             lines.append(f"  {selector} {name}")

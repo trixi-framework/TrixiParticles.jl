@@ -87,21 +87,32 @@ class TimeSeriesTests(unittest.TestCase):
         self.assertEqual(tuple(parsed.spray_scale_range), (0.55, 1.15))
         self.assertEqual(parsed.bubble_relative_ior, 1.0 / 1.333)
         self.assertEqual(parsed.instance_seed, 0)
-        self.assertEqual(parsed.blade_material, "anodized-copper")
+        self.assertEqual(parsed.liquid_material, "turbulent-water")
+        self.assertEqual(parsed.solid_material, "anodized-copper")
         self.assertEqual(parsed.glass_material, "low-iron-glass")
 
         components = minimal_render("--material-preset", "foam", "--foam-dir", "foam",
-                                    "--blade-material", "anodized-copper",
+                                    "--solid-material", "anodized-copper",
                                     "--glass-material", "low-iron-glass",
-                                    "--blade-roughness", "0.18",
+                                    "--solid-roughness", "0.18",
                                     "--glass-transmission", "0.72")
         pipeline.validate(components)
-        self.assertEqual(components.blade_material, "anodized-copper")
+        self.assertEqual(components.solid_material, "anodized-copper")
         self.assertEqual(components.glass_material, "low-iron-glass")
-        self.assertEqual(components.blade_roughness, 0.18)
-        self.assertEqual(components.blade_color, (0.62, 0.10, 0.018))
+        self.assertEqual(components.solid_roughness, 0.18)
+        self.assertEqual(components.solid_color, (0.62, 0.10, 0.018))
         self.assertEqual(components.glass_transmission, 0.72)
         self.assertEqual(components.glass_color, (0.06, 0.42, 0.34))
+
+        clear = minimal_render("--material-preset", "foam", "--foam-dir", "foam",
+                               "--liquid-material", "clear-water", "--water-roughness", "0.12")
+        pipeline.validate(clear)
+        self.assertEqual(clear.liquid_material, "clear-water")
+        self.assertEqual(tuple(clear.water_color), (1.0, 1.0, 1.0))
+        self.assertEqual(tuple(clear.water_absorption), (0.34, 0.0565, 0.00922))
+        self.assertEqual(tuple(clear.water_scattering), (0.0, 0.0, 0.0))
+        self.assertEqual(clear.water_roughness, 0.12)
+        self.assertEqual(clear.solid_material, "anodized-copper")
 
         overridden = minimal_render("--material-preset", "foam", "--foam-dir", "foam",
                                     "--water-roughness", "0.5", "--foam-threshold", "0.7")
@@ -127,7 +138,7 @@ class TimeSeriesTests(unittest.TestCase):
         self.assertEqual(stress.stress_water_opacity, 0.005)
         self.assertEqual(stress.stress_water_transmission, 0.72)
         self.assertEqual(stress.stress_normal_light, 0.28)
-        self.assertEqual(stress.blade_bevel, 0.004)
+        self.assertEqual(stress.solid_bevel, 0.004)
 
         unused = minimal_render("--material-preset", "foam", "--mode", "stress",
                                 "--stress-mesh", "stress.ply")
@@ -141,7 +152,8 @@ class TimeSeriesTests(unittest.TestCase):
 
         self.assertIn("foam", materials.MATERIAL_PRESETS)
         self.assertIn("liquid", materials.describe_presets())
-        self.assertIn("--blade-material anodized-copper", materials.describe_presets())
+        self.assertIn("--liquid-material clear-water", materials.describe_presets())
+        self.assertIn("--solid-material anodized-copper", materials.describe_presets())
         self.assertIn("--glass-material low-iron-glass", materials.describe_presets())
 
 

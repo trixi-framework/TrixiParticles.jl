@@ -86,9 +86,9 @@ class BlenderRenderingTests(unittest.TestCase):
                     "--water-ior", "1.333", "--water-absorption", "0.85", "0.14", "0.02",
                     "--water-scattering", "0.02", "0.04", "0.08",
                     "--water-scattering-anisotropy", "0.35",
-                    "--blade-color", "0.62", "0.1", "0.018", "--blade-metallic", "0.92",
-                    "--blade-roughness", "0.3", "--blade-coat", "0.16",
-                    "--blade-floor-extension", "0.02", "--blade-bevel", "0.005",
+                    "--solid-color", "0.62", "0.1", "0.018", "--solid-metallic", "0.92",
+                    "--solid-roughness", "0.3", "--solid-coat", "0.16",
+                    "--solid-floor-extension", "0.02", "--solid-bevel", "0.005",
                     "--floor-color", "0.02", "0.03", "0.05", "--floor-metallic", "0.3",
                     "--floor-roughness", "0.4", "--glass-color", "0.06", "0.42", "0.34",
                     "--glass-opacity", "0.04", "--glass-roughness", "0.3",
@@ -123,7 +123,8 @@ class BlenderRenderingTests(unittest.TestCase):
                            "--solid-pattern", "solid_{frame:06d}.ply",
                            "--surface-axis-order", "xyz", "--foam-axis-order", "xyz",
                            "--material-preset", "foam",
-                           "--blade-material", "anodized-copper",
+                           "--liquid-material", "turbulent-water",
+                           "--solid-material", "anodized-copper",
                            "--glass-material", "low-iron-glass",
                            "--camera-position", "2", "-2", "2", "--camera-target",
                            "0.5", "0.5", "0.4", "--camera-fov", "38",
@@ -141,10 +142,27 @@ class BlenderRenderingTests(unittest.TestCase):
             self.assertEqual(png_dimensions(preset_still), (64, 64))
             record = json.loads(preset_still.with_suffix(".png.json").read_text())
             self.assertEqual(record["provenance"]["settings"]["material_preset"], "foam")
-            self.assertEqual(record["provenance"]["settings"]["blade_material"],
+            self.assertEqual(record["provenance"]["settings"]["liquid_material"],
+                             "turbulent-water")
+            self.assertEqual(record["provenance"]["settings"]["solid_material"],
                              "anodized-copper")
             self.assertEqual(record["provenance"]["settings"]["glass_material"],
                              "low-iron-glass")
+
+            clear_water = path / "clear_water.png"
+            clear_command = preset_base.copy()
+            clear_command[clear_command.index("foam", clear_command.index("--material-preset"))] = \
+                "liquid"
+            clear_command[clear_command.index("turbulent-water")] = "clear-water"
+            result = subprocess.run(clear_command + ["--output", str(clear_water),
+                                                     "--frame", "0"],
+                                    capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual(png_dimensions(clear_water), (64, 64))
+            clear_settings = json.loads(clear_water.with_suffix(".png.json").read_text())[
+                "provenance"]["settings"]
+            self.assertEqual(clear_settings["liquid_material"], "clear-water")
+            self.assertEqual(clear_settings["water_scattering"], [0, 0, 0])
             with self.assertRaises(subprocess.CalledProcessError):
                 subprocess.run(base + whitewater + ["--output", str(movie), "--sequence",
                                                 "--resume"], check=True,
