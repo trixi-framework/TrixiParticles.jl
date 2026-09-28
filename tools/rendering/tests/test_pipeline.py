@@ -11,7 +11,18 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import data
+import materials
 import pipeline
+
+
+def minimal_render(*extra):
+    base = ("render --blender blender --surface-dir surface --surface-pvd surface.pvd "
+            "--output out.png --frame 0 --surface-axis-order xyz --foam-axis-order xyz "
+            "--camera-position 2 -2 2 --camera-target 0.5 0.5 0.4 --camera-fov 38 "
+            "--tank-min -1 -1 -1 --tank-max 2 2 2 "
+            "--light key:1:-1:2:400:1:0.9:0.8:2 --width 64 --height 64 --samples 2 "
+            "--world-color 0.1 0.1 0.1 --world-strength 0.4").split()
+    return pipeline.parser().parse_args(base + list(extra))
 
 
 class TimeSeriesTests(unittest.TestCase):
@@ -65,6 +76,37 @@ class TimeSeriesTests(unittest.TestCase):
             pipeline.light_specification("invalid-light")
         with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
             pipeline.parser().parse_args(args + ["--seed", "144", "--config", "case.json"])
+
+    def test_material_preset_fills_and_explicit_flags_win(self):
+        parsed = minimal_render("--material-preset", "foam", "--foam-dir", "foam")
+        pipeline.validate(parsed)
+        self.assertEqual(tuple(parsed.water_color), (0.35, 0.72, 1.0))
+        self.assertEqual(parsed.foam_point_radius, 0.006)
+        self.assertEqual(tuple(parsed.spray_scale_range), (0.55, 1.15))
+        self.assertEqual(parsed.instance_seed, 0)
+
+        overridden = minimal_render("--material-preset", "foam", "--foam-dir", "foam",
+                                    "--water-roughness", "0.5", "--foam-threshold", "0.7")
+        pipeline.validate(overridden)
+        self.assertEqual(overridden.water_roughness, 0.5)
+        self.assertEqual(overridden.foam_threshold, 0.7)
+        self.assertEqual(tuple(overridden.water_color), (0.35, 0.72, 1.0))
+
+        incomplete = minimal_render()
+        with self.assertRaisesRegex(ValueError, "required render parameters"):
+            pipeline.validate(incomplete)
+
+        mismatched = minimal_render("--material-preset", "stress")
+        with self.assertRaisesRegex(ValueError, "stress preset"):
+            pipeline.validate(mismatched)
+
+        stress = minimal_render("--material-preset", "stress", "--mode", "stress",
+                                "--stress-mesh", "stress.ply")
+        pipeline.validate(stress)
+        self.assertEqual(tuple(stress.water_color), (0.35, 0.72, 1.0))
+
+        self.assertIn("foam", materials.MATERIAL_PRESETS)
+        self.assertIn("liquid", materials.describe_presets())
 
 
 class WhitewaterPayloadTests(unittest.TestCase):

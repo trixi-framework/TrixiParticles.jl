@@ -19,6 +19,75 @@ integration. Migrating the **existing v03 media-production pipeline and its
 approved assets** is a follow-up PR. No v03 release files or press scripts are
 rewritten here.
 
+## Quick start
+
+Most cases need only a material preset plus scene geometry. Three presets
+cover the reviewed v03 looks; any single flag can still override a preset
+value (see [Material presets](#material-presets)).
+
+Clean-water still from native PR #1329 output:
+
+```bash
+python tools/rendering/pipeline.py render \
+  --blender /path/to/blender --surface-dir /path/to/surface \
+  --surface-pvd /path/to/surface/surface_fluid_1.pvd \
+  --solid-pattern 'surface_structure_1_{iter}.ply' \
+  --output /path/to/new/still.png --frame 0 \
+  --material-preset liquid \
+  --surface-axis-order xyz --foam-axis-order xyz \
+  --camera-position 3 2 2 --camera-target 1 0.5 0.3 --camera-fov 34 \
+  --tank-min 0 0 0 --tank-max 2 4 1 \
+  --light 'key:0.2:2.8:3.8:1250:1:0.76:0.58:3.2' \
+  --width 640 --height 360 --samples 16 --device cpu \
+  --world-color 0.002 0.005 0.012 --world-strength 0.16
+```
+
+Whitewater sequence (generate once, then render a frame range):
+
+```bash
+python tools/rendering/pipeline.py foam \
+  --fluid-pvd /path/to/fluid.pvd \
+  --generator /path/to/SPlisHSPlasH/bin/FoamGenerator \
+  --output /path/to/new/whitewater \
+  --domain-min 0 0 0 --domain-max 2 4 1 \
+  --generator-radius 0.01 --foam-scale 1000 \
+  --lifetime-min 2 --lifetime-max 5 --buoyancy 2 \
+  --drag 0.8 --drag-reference-step 0.02 \
+  --seed 144 --generator-threads 1 \
+  --output-axis-order xyz
+
+python tools/rendering/pipeline.py render \
+  --blender /path/to/blender --surface-dir /path/to/surface \
+  --surface-pvd /path/to/surface/surface_fluid_1.pvd \
+  --solid-pattern 'surface_structure_1_{iter}.ply' \
+  --foam-dir /path/to/new/whitewater \
+  --output /path/to/new/frames --sequence --start 0 \
+  --material-preset foam \
+  --surface-axis-order xyz --foam-axis-order xyz \
+  --camera-position 3 2 2 --camera-target 1 0.5 0.3 --camera-fov 34 \
+  --tank-min 0 0 0 --tank-max 2 4 1 \
+  --light 'key:0.2:2.8:3.8:1250:1:0.76:0.58:3.2' \
+  --width 640 --height 360 --samples 16 \
+  --world-color 0.002 0.005 0.012 --world-strength 0.16
+```
+
+Stress still from a pre-colored PLY:
+
+```bash
+python tools/rendering/pipeline.py render \
+  --blender /path/to/blender --surface-dir /path/to/surface \
+  --surface-pvd /path/to/surface/surface_fluid_1.pvd \
+  --output /path/to/new/stress.png --frame 179 \
+  --mode stress --stress-mesh /path/to/stress_colored.ply \
+  --material-preset stress \
+  --surface-axis-order xyz --foam-axis-order xyz \
+  --camera-position 3 2 2 --camera-target 1 0.5 0.3 --camera-fov 34 \
+  --tank-min 0 0 0 --tank-max 2 4 1 \
+  --light 'key:0.2:2.8:3.8:1250:1:0.76:0.58:3.2' \
+  --width 640 --height 360 --samples 16 \
+  --world-color 0.002 0.005 0.012 --world-strength 0.16
+```
+
 ## Prerequisites
 
 - Fluid VTK time series (`fluid_1.pvd` or any other name) with 3D point
@@ -48,13 +117,12 @@ python tools/rendering/build/build_foam_generator.py \
 ```
 
 It needs `git`, `cmake`, and `ninja` on `PATH` (for example via
-`uv run --with cmake --with ninja`). Re-running the script against the same directories is idempotent. The
-executable appears at `/path/to/SPlisHSPlasH/bin/FoamGenerator`. Its `--help`
-output must include `--seed`; the wrapper rejects older binaries.
+`uv run --with cmake --with ninja`). Re-running the script against the same
+directories is idempotent. The executable appears at
+`/path/to/SPlisHSPlasH/bin/FoamGenerator`. Its `--help` output must include
+`--seed`; the wrapper rejects older binaries.
 
 ## 1. Generate whitewater
-
-An illustrative invocation for a fluid inside a translated 3D domain:
 
 ```bash
 uv run --no-project --python 3.9 \
@@ -73,19 +141,39 @@ uv run --no-project --python 3.9 \
   --output-axis-order xyz
 ```
 
+Option reference:
+
+| Flag | Meaning |
+|---|---|
+| `--fluid-pvd` | Source fluid VTK collection; every frame is read in order |
+| `--generator` | Patched FoamGenerator executable (must accept `--seed`) |
+| `--generator-source`, `--generator-patch` | Optional fingerprints recorded in the output manifest |
+| `--output` | New or empty directory for `frame_*.ply` plus `foam_metadata.json` |
+| `--domain-min`, `--domain-max` | Kill-box bounds; particles outside are clipped and counted |
+| `--generator-radius` | Smoothing length used by the generator |
+| `--foam-scale` | Global secondary-particle multiplier |
+| `--lifetime-min`, `--lifetime-max` | Advected particle lifetime range in seconds |
+| `--buoyancy` | Buoyancy coefficient |
+| `--drag`, `--drag-reference-step` | Drag at the reference step; converted to the source cadence |
+| `--seed` | Required 64-bit deterministic seed |
+| `--generator-threads` | `OMP_NUM_THREADS` for the generator run |
+| `--velocity-array` | Name of the source velocity point-data array |
+| `--output-axis-order` | `xyz` or `xzy` coordinate space of the packaged PLY |
+| `--reuse` | Reuse only a complete, hash-validated cache with identical provenance |
+
 The generator always reads the **complete specified PVD sequence** in physical
 order before producing the requested output; its automatic potential limits
 are calibrated on that complete sequence. Choose a render frame in stage 2,
 not by starting the generator in the middle of an evolving event.
 
 `foam_metadata.json` records the source timestamps/hashes, generator binary,
-seed, calibrated log, category counts, clipping against the supplied domain,
-the effective drag after cadence conversion, and output hashes. A complete
-cache may be reused with the same command plus `--reuse`; it validates inputs
-and every output. Incomplete generation must be restarted into a fresh
-directory, since resetting particle history at a later frame changes the
-model. The output PLY contains position and velocity in the specified axis
-order, even when only one of the three secondary types is present.
+seed, calibrated log, per-type and clipped counts, the effective drag after
+cadence conversion, and output hashes. A complete cache may be reused with the
+same command plus `--reuse`; it validates inputs and every output. Incomplete
+generation must be restarted into a fresh directory, since resetting particle
+history at a later frame changes the model. The output PLY contains position
+and velocity in the specified axis order, even when only one of the three
+secondary types is present.
 
 ## 2. Render surfaces and optional whitewater
 
@@ -102,51 +190,21 @@ records are used directly. The water and foam input axis orders are separate:
   consistently; the Blender worker flips imported face winding after an `xyz`
   reflection.
 
-Example render arguments for an illustrative one-frame liquid/whitewater case
-(replace paths and numbers for the current scene):
+Option reference:
 
-```bash
-python tools/rendering/pipeline.py render \
-  --blender /path/to/blender --surface-dir /path/to/surface \
-  --surface-pvd /path/to/surface/surface_fluid_1.pvd \
-  --solid-pattern 'surface_structure_1_{iter}.ply' \
-  --foam-dir /path/to/new/whitewater \
-  --output /path/to/new/frame_000000.png --frame 0 \
-  --surface-axis-order xyz --foam-axis-order xyz \
-  --camera-position 3 2 2 --camera-target 1 0.5 0.3 --camera-fov 34 \
-  --tank-min 0 0 0 --tank-max 2 4 1 \
-  --light 'key:0.2:2.8:3.8:1250:1:0.76:0.58:3.2' \
-  --width 640 --height 360 --samples 16 --device cpu \
-  --world-color 0.002 0.005 0.012 --world-strength 0.16 \
-  --water-color 0.35 0.72 1 --water-roughness 0.06 --water-ior 1.333 \
-  --water-absorption 0.85 0.14125 0.02305 \
-  --water-scattering 0.02 0.04 0.08 --water-scattering-anisotropy 0.35 \
-  --blade-color 0.62 0.10 0.018 --blade-metallic 0.92 \
-  --blade-roughness 0.30 --blade-coat 0.16 \
-  --blade-floor-extension 0 --blade-bevel 0.005 \
-  --floor-color 0.02 0.03 0.05 --floor-metallic 0.3 --floor-roughness 0.4 \
-  --glass-color 0.06 0.42 0.34 --glass-opacity 0.04 \
-  --glass-roughness 0.30 --glass-ior 1.36 \
-  --wall-thickness 0.018 --floor-thickness 0.018 --visible-wall-height 0.16 \
-  --foam-color 0.72 0.82 0.86 --foam-roughness 0.46 \
-  --foam-transmission 0.04 --foam-subsurface 0.035 \
-  --foam-point-radius 0.006 --foam-voxel-size 0.004 \
-  --foam-threshold 0.5 --foam-adaptivity 0.12 \
-  --foam-noise-scale 220 --foam-noise-detail 3 \
-  --foam-noise-roughness 0.7 --foam-micro-bump 0.00045 \
-  --foam-bump-strength 0.22 \
-  --spray-color 0.82 0.94 1 --spray-roughness 0.025 \
-  --spray-radius 0.0008 --spray-scale-range 0.55 1.15 \
-  --spray-exposure 0.001 --spray-max-stretch 4 \
-  --bubble-color 0.9 0.97 1 --bubble-roughness 0.025 \
-  --bubble-radius 0.0014 --bubble-scale-range 0.35 1.75 \
-  --bubble-relative-ior 0.75
-```
+| Group | Flags |
+|---|---|
+| Inputs | `--blender`, `--surface-dir`, `--surface-pvd` or `--surface-metadata`, `--foam-dir`, `--solid-pattern`, `--surface-axis-order`, `--foam-axis-order` |
+| Selection | `--frame N` for one still, or `--sequence` with `--start/--stop/--stride`; `--resume` continues a validated prefix |
+| Scene | `--camera-position`, `--camera-target`, `--camera-fov`, `--tank-min`, `--tank-max`, `--light` (repeatable `name:x:y:z:energy:r:g:b:size`), `--world-color`, `--world-strength` |
+| Image | `--width`, `--height`, `--samples`, `--engine {cycles,eevee}`, `--device {cpu,gpu}`, `--gpu-backend`, `--view-transform`, `--look`, `--exposure`, `--gamma`, `--max-bounces`, `--transmission-bounces`, `--transparent-bounces`, `--png-compression`, `--no-denoise` |
+| Materials | `--material-preset {liquid,foam,stress}` plus the individual `--water-*`, `--blade-*`, `--floor-*`, `--glass-*`, `--wall-*`, `--foam-*`, `--spray-*`, `--bubble-*` flags below |
+| Stress | `--mode stress --stress-mesh FILE`, `--stress-water-opacity`, `--stress-normal-light`, `--stress-light-direction` |
 
-`render --sequence --start 0 --stop 10 --stride 1` writes numbered PNGs plus
-`render_metadata.json` and `render_progress.json`. `--resume` validates the
-settings, source hashes, renderer source, and PNG prefix before continuing.
-An already complete sequence cannot be resumed or silently overwritten.
+`render --sequence` writes numbered PNGs plus `render_metadata.json` and
+`render_progress.json`. `--resume` validates the settings, source hashes,
+renderer source, and PNG prefix before continuing. An already complete
+sequence cannot be resumed or silently overwritten.
 
 For a pre-colored stress PLY, use `--mode stress --stress-mesh FILE`, optionally
 `--stress-water-opacity` and `--stress-normal-light`. The v03 stress image uses
@@ -158,21 +216,64 @@ liquid, glass, blade, or whitewater material parameters. When contextual water
 is shown, supply `--water-color`, `--water-roughness`, and `--water-ior`; its
 ghosted shader is separate from the primary liquid-volume shader.
 
+## Material presets
+
+Only three material sets exist. A preset fills every material flag it covers;
+any flag passed explicitly wins over the preset. Flags outside all presets
+(camera, lights, tank, resolution) are always required individually. Run
+`python tools/rendering/pipeline.py material-presets` to print every preset
+value.
+
+| Preset | Contents | Use with |
+|---|---|---|
+| `liquid` | Physical water (Pope–Fry absorption, scattering), copper solids, glass tank, floor, tank construction | Clean surface stills/sequences |
+| `foam` | The `liquid` set plus froth, spray, and bubble materials | `--foam-dir` whitewater renders |
+| `stress` | Pedestal and edge treatment, water triple for optional ghost water | `--mode stress --stress-mesh` |
+
+Examples:
+
+```bash
+# Reviewed v03 look, then tweak one value:
+--material-preset foam --foam-point-radius 0.008 ...
+
+# Explicit flags without any preset (all material flags required):
+--water-color 0.35 0.72 1 --water-roughness 0.06 --water-ior 1.333 ...
+```
+
+The presets encode the reviewed v03 values; overriding a flag is the
+supported way to explore variations while keeping the rest of the approved
+look. The rejected `legacy-cyan` and `physical-clear` water branches and the
+redundant `foaming-water` preset are not implemented.
+
 ## Materials and scientific scope
 
 There is **one** physically based transmitted/scattered liquid shader, with
-all coefficients supplied by CLI flags. Optional foam, velocity-aligned spray,
-and bubble interfaces use their own parameters. Solids, glass, the floor, and
-the stress view retain configurable materials. The rejected `legacy-cyan`
-and `physical-clear` water branches and the redundant `foaming-water` preset
-are not implemented. Enabling whitewater changes the scene, not the liquid
-material. Camera, lights, render engine/device, color management, and all
-render-only geometry offsets are explicit flags.
+all coefficients supplied by CLI flags or presets. Optional foam,
+velocity-aligned spray, and bubble interfaces use their own parameters.
+Solids, glass, the floor, and the stress view retain configurable materials.
+Enabling whitewater changes the scene, not the liquid material. Camera,
+lights, render engine/device, color management, and all render-only geometry
+offsets are explicit flags.
 
 Whitewater is a heuristic visualization of a single-phase fluid, **not** a
 quantitatively validated gas or spray phase. Rendering radii are sub-grid
 representations, not measured bubble sizes. Record the model settings and
 sources when presenting any additional case.
+
+## Troubleshooting
+
+- `Blender executable not found`: pass the real binary; a snap launcher path
+  must be given unresolved (the wrapper does not resolve it).
+- `FoamGenerator must support the explicit --seed build patch`: rebuild with
+  `build/build_foam_generator.py`; unpatched upstream binaries are rejected.
+- `source fluid frames must be uniformly spaced`: the foam stage needs a
+  constant cadence; check the PVD timestamps.
+- `whitewater cache provenance or frame count differs`: inputs or settings
+  changed; regenerate into a fresh directory instead of reusing.
+- `resume input, settings or renderer do not match`: resume only continues an
+  interrupted run with identical inputs, flags, and worker source.
+- Missing CUDA/OptiX devices abort GPU renders explicitly instead of silently
+  falling back to CPU.
 
 ## Tests
 
@@ -186,7 +287,8 @@ uv run --no-project --python 3.9 \
 
 The built FoamGenerator enables a seeded integration check; Blender 5.2
 enables small liquid/foam/spray/bubble and stress renders with translated
-bounds. Both tests are optional when those executables are unavailable:
+bounds, including a preset-based render. Both tests are optional when those
+executables are unavailable:
 
 ```bash
 TRIXIPARTICLES_FOAM_GENERATOR=/path/to/FoamGenerator \

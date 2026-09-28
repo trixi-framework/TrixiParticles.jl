@@ -9,6 +9,7 @@ import subprocess
 import sys
 
 from data import axis_permutation, bounds
+from materials import MATERIAL_DEFAULTS, MATERIAL_PRESETS
 
 
 def positive(value: str) -> float:
@@ -100,6 +101,8 @@ def parser() -> argparse.ArgumentParser:
     render.add_argument("--surface-axis-order", choices=("xyz", "xzy"), required=True)
     render.add_argument("--foam-axis-order", choices=("xyz", "xzy"), required=True)
     render.add_argument("--mode", choices=("liquid", "stress"), default="liquid")
+    render.add_argument("--material-preset", choices=tuple(MATERIAL_PRESETS),
+                        help="Named v03 material set; explicit material flags override it")
     render.add_argument("--stress-mesh", type=Path,
                         help="Optional pre-colored stress PLY for stress mode")
     render.add_argument("--stress-water-opacity", type=fraction, default=0.0)
@@ -142,25 +145,25 @@ def parser() -> argparse.ArgumentParser:
     render.add_argument("--blade-metallic", type=fraction)
     render.add_argument("--blade-roughness", type=fraction)
     render.add_argument("--blade-coat", type=fraction)
-    render.add_argument("--blade-floor-extension", type=float, default=0.0)
-    render.add_argument("--blade-bevel", type=float, default=0.0)
-    render.add_argument("--blade-bevel-segments", type=int, default=3)
-    render.add_argument("--blade-bevel-angle", type=float, default=24.0)
-    render.add_argument("--floor-color", nargs=3, type=float, required=True)
-    render.add_argument("--floor-metallic", type=fraction, required=True)
-    render.add_argument("--floor-roughness", type=fraction, required=True)
-    render.add_argument("--floor-bevel", type=float, default=0.0)
-    render.add_argument("--pedestal-margin", type=float, default=0.0)
-    render.add_argument("--pedestal-thickness", type=positive, default=0.08)
+    render.add_argument("--blade-floor-extension", type=float, default=None)
+    render.add_argument("--blade-bevel", type=float, default=None)
+    render.add_argument("--blade-bevel-segments", type=int, default=None)
+    render.add_argument("--blade-bevel-angle", type=float, default=None)
+    render.add_argument("--floor-color", nargs=3, type=float)
+    render.add_argument("--floor-metallic", type=fraction)
+    render.add_argument("--floor-roughness", type=fraction)
+    render.add_argument("--floor-bevel", type=float, default=None)
+    render.add_argument("--pedestal-margin", type=float, default=None)
+    render.add_argument("--pedestal-thickness", type=positive, default=None)
     render.add_argument("--glass-color", nargs=3, type=float)
     render.add_argument("--glass-opacity", type=fraction)
     render.add_argument("--glass-roughness", type=fraction)
     render.add_argument("--glass-ior", type=positive)
-    render.add_argument("--glass-specular", type=fraction, default=0.04)
+    render.add_argument("--glass-specular", type=fraction, default=None)
     render.add_argument("--wall-thickness", type=positive)
     render.add_argument("--floor-thickness", type=positive)
     render.add_argument("--visible-wall-height", type=positive)
-    render.add_argument("--wall-cap-extension", type=float, default=0.0)
+    render.add_argument("--wall-cap-extension", type=float, default=None)
 
     render.add_argument("--foam-color", nargs=3, type=float)
     render.add_argument("--foam-point-radius", type=positive)
@@ -186,8 +189,10 @@ def parser() -> argparse.ArgumentParser:
     render.add_argument("--bubble-radius", type=positive)
     render.add_argument("--bubble-scale-range", nargs=2, type=positive)
     render.add_argument("--bubble-relative-ior", type=positive)
-    render.add_argument("--instance-seed", type=int, default=0)
-    render.add_argument("--droplet-subdivisions", type=int, default=2)
+    render.add_argument("--instance-seed", type=int, default=None)
+    render.add_argument("--droplet-subdivisions", type=int, default=None)
+    commands.add_parser("material-presets",
+                        help="List named v03 material presets and exit")
     return result
 
 
@@ -203,6 +208,18 @@ def validate(args: argparse.Namespace) -> None:
     bounds(args.tank_min, args.tank_max)
     axis_permutation(args.surface_axis_order)
     axis_permutation(args.foam_axis_order)
+    if args.material_preset is not None:
+        if args.material_preset not in MATERIAL_PRESETS:
+            raise ValueError(f"unknown material preset: {args.material_preset}")
+        if args.mode == "liquid" and args.material_preset == "stress":
+            raise ValueError("the stress preset does not cover liquid-mode materials; "
+                             "use --material-preset liquid or foam")
+        for key, value in MATERIAL_PRESETS[args.material_preset].items():
+            if getattr(args, key, None) is None:
+                setattr(args, key, value)
+    for key, value in MATERIAL_DEFAULTS.items():
+        if getattr(args, key, None) is None:
+            setattr(args, key, value)
     from math import isfinite
     if args.mode == "liquid":
         required = ("water_color", "water_roughness", "water_ior", "water_absorption",
@@ -275,6 +292,10 @@ def validate(args: argparse.Namespace) -> None:
 def main(arguments: list[str] | None = None) -> None:
     values = sys.argv[1:] if arguments is None else arguments
     options = parser().parse_args(values)
+    if options.command == "material-presets":
+        from materials import describe_presets
+        print(describe_presets(), end="")
+        return
     try:
         validate(options)
     except ValueError as error:

@@ -114,6 +114,30 @@ class BlenderRenderingTests(unittest.TestCase):
             self.assertEqual(png_dimensions(movie / "frame_000000.png"), (64, 64))
             metadata = json.loads((movie / "render_metadata.json").read_text())
             self.assertEqual(metadata["frame_count"], 1)
+
+            # The same scene through --material-preset: only scene flags remain.
+            preset_base = [sys.executable, str(root / "pipeline.py"), "render", "--blender",
+                           os.environ["TRIXIPARTICLES_BLENDER"], "--surface-dir",
+                           str(surface), "--surface-pvd", str(surface / "surface.pvd"),
+                           "--solid-pattern", "solid_{frame:06d}.ply",
+                           "--surface-axis-order", "xyz", "--foam-axis-order", "xyz",
+                           "--material-preset", "foam",
+                           "--camera-position", "2", "-2", "2", "--camera-target",
+                           "0.5", "0.5", "0.4", "--camera-fov", "38",
+                           "--tank-min", "-1", "-1", "-1", "--tank-max", "2", "2", "2",
+                           "--light", "key:1:-1:2:400:1:0.9:0.8:2",
+                           "--width", "64", "--height", "64", "--samples", "2",
+                           "--device", "cpu",
+                           "--world-color", "0.1", "0.1", "0.1", "--world-strength", "0.4"]
+            preset_still = path / "preset.png"
+            result = subprocess.run(preset_base + ["--foam-dir", str(secondary),
+                                                   "--output", str(preset_still),
+                                                   "--frame", "0"],
+                                    capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual(png_dimensions(preset_still), (64, 64))
+            record = json.loads(preset_still.with_suffix(".png.json").read_text())
+            self.assertEqual(record["provenance"]["settings"]["material_preset"], "foam")
             with self.assertRaises(subprocess.CalledProcessError):
                 subprocess.run(base + whitewater + ["--output", str(movie), "--sequence",
                                                 "--resume"], check=True,
