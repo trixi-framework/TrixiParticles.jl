@@ -123,6 +123,8 @@ class BlenderRenderingTests(unittest.TestCase):
                            "--solid-pattern", "solid_{frame:06d}.ply",
                            "--surface-axis-order", "xyz", "--foam-axis-order", "xyz",
                            "--material-preset", "foam",
+                           "--blade-material", "anodized-copper",
+                           "--glass-material", "low-iron-glass",
                            "--camera-position", "2", "-2", "2", "--camera-target",
                            "0.5", "0.5", "0.4", "--camera-fov", "38",
                            "--tank-min", "-1", "-1", "-1", "--tank-max", "2", "2", "2",
@@ -139,6 +141,10 @@ class BlenderRenderingTests(unittest.TestCase):
             self.assertEqual(png_dimensions(preset_still), (64, 64))
             record = json.loads(preset_still.with_suffix(".png.json").read_text())
             self.assertEqual(record["provenance"]["settings"]["material_preset"], "foam")
+            self.assertEqual(record["provenance"]["settings"]["blade_material"],
+                             "anodized-copper")
+            self.assertEqual(record["provenance"]["settings"]["glass_material"],
+                             "low-iron-glass")
             with self.assertRaises(subprocess.CalledProcessError):
                 subprocess.run(base + whitewater + ["--output", str(movie), "--sequence",
                                                 "--resume"], check=True,

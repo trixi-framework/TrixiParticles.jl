@@ -87,6 +87,21 @@ class TimeSeriesTests(unittest.TestCase):
         self.assertEqual(tuple(parsed.spray_scale_range), (0.55, 1.15))
         self.assertEqual(parsed.bubble_relative_ior, 1.0 / 1.333)
         self.assertEqual(parsed.instance_seed, 0)
+        self.assertEqual(parsed.blade_material, "anodized-copper")
+        self.assertEqual(parsed.glass_material, "low-iron-glass")
+
+        components = minimal_render("--material-preset", "foam", "--foam-dir", "foam",
+                                    "--blade-material", "anodized-copper",
+                                    "--glass-material", "low-iron-glass",
+                                    "--blade-roughness", "0.18",
+                                    "--glass-transmission", "0.72")
+        pipeline.validate(components)
+        self.assertEqual(components.blade_material, "anodized-copper")
+        self.assertEqual(components.glass_material, "low-iron-glass")
+        self.assertEqual(components.blade_roughness, 0.18)
+        self.assertEqual(components.blade_color, (0.62, 0.10, 0.018))
+        self.assertEqual(components.glass_transmission, 0.72)
+        self.assertEqual(components.glass_color, (0.06, 0.42, 0.34))
 
         overridden = minimal_render("--material-preset", "foam", "--foam-dir", "foam",
                                     "--water-roughness", "0.5", "--foam-threshold", "0.7")
@@ -118,9 +133,16 @@ class TimeSeriesTests(unittest.TestCase):
                                 "--stress-mesh", "stress.ply")
         with self.assertRaisesRegex(ValueError, "only uses the stress"):
             pipeline.validate(unused)
+        unused_glass = minimal_render("--material-preset", "stress", "--mode", "stress",
+                                      "--stress-mesh", "stress.ply", "--glass-material",
+                                      "low-iron-glass")
+        with self.assertRaisesRegex(ValueError, "unused"):
+            pipeline.validate(unused_glass)
 
         self.assertIn("foam", materials.MATERIAL_PRESETS)
         self.assertIn("liquid", materials.describe_presets())
+        self.assertIn("--blade-material anodized-copper", materials.describe_presets())
+        self.assertIn("--glass-material low-iron-glass", materials.describe_presets())
 
 
 class WhitewaterPayloadTests(unittest.TestCase):

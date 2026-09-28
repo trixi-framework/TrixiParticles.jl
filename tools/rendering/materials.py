@@ -1,6 +1,6 @@
 """Named material presets for the Blender render stage.
 
-Only three material sets are needed, all taken from the reviewed v03 look:
+Three scene presets use the reviewed v03 material parameters:
 ``liquid`` (physical water, copper solids, glass tank, floor), ``foam``
 (``liquid`` plus froth, spray, and bubbles), and ``stress`` (vertex-colored
 stress surface with pedestal and optional ghost water).
@@ -8,6 +8,8 @@ stress surface with pedestal and optional ghost water).
 Presets are selected with ``--material-preset``; any explicitly passed
 material flag overrides the preset value for that flag. Camera, lights, tank
 bounds, resolution, and other scene settings are never part of a preset.
+The copper blade and low-iron glass materials are independently selectable
+with ``--blade-material`` and ``--glass-material``.
 """
 
 from __future__ import annotations
@@ -32,6 +34,26 @@ MATERIAL_DEFAULTS = {
     "droplet_subdivisions": 2,
 }
 
+BLADE_MATERIALS = {
+    "anodized-copper": {
+        "blade_color": (0.62, 0.10, 0.018),
+        "blade_metallic": 0.92,
+        "blade_roughness": 0.30,
+        "blade_coat": 0.16,
+    },
+}
+
+GLASS_MATERIALS = {
+    "low-iron-glass": {
+        "glass_color": (0.06, 0.42, 0.34),
+        "glass_opacity": 0.04,
+        "glass_roughness": 0.30,
+        "glass_ior": 1.36,
+        "glass_transmission": 0.90,
+        "glass_specular": 0.04,
+    },
+}
+
 _LIQUID = {
     # Physical liquid: Pope and Fry (1997) pure-water absorption scaled by 2.5.
     "water_color": (0.35, 0.72, 1.0),
@@ -40,11 +62,8 @@ _LIQUID = {
     "water_absorption": (0.85, 0.14125, 0.02305),
     "water_scattering": (0.02, 0.04, 0.08),
     "water_scattering_anisotropy": 0.35,
-    # Copper structural solids.
-    "blade_color": (0.62, 0.10, 0.018),
-    "blade_metallic": 0.92,
-    "blade_roughness": 0.30,
-    "blade_coat": 0.16,
+    # Reusable named blade material; render-only mesh offsets remain scene settings.
+    **BLADE_MATERIALS["anodized-copper"],
     "blade_floor_extension": 0.02,
     "blade_bevel": 0.005,
     # Tank base.
@@ -52,13 +71,8 @@ _LIQUID = {
     "floor_metallic": 0.35,
     "floor_roughness": 0.30,
     "floor_coat": 0.0,
-    # Tank glass.
-    "glass_color": (0.06, 0.42, 0.34),
-    "glass_opacity": 0.04,
-    "glass_roughness": 0.30,
-    "glass_ior": 1.36,
-    "glass_transmission": 0.90,
-    "glass_specular": 0.04,
+    # Reusable named tank-glass material.
+    **GLASS_MATERIALS["low-iron-glass"],
     # Tank construction.
     "wall_thickness": 0.018,
     "floor_thickness": 0.018,
@@ -134,4 +148,12 @@ def describe_presets() -> str:
         for key in sorted(MATERIAL_PRESETS[name]):
             lines.append(f"    {key} = {MATERIAL_PRESETS[name][key]!r}")
         lines.append("")
+    lines.append("Component materials (may be selected alongside a scene preset):")
+    for selector, choices in (("--blade-material", BLADE_MATERIALS),
+                              ("--glass-material", GLASS_MATERIALS)):
+        for name, values in choices.items():
+            lines.append(f"  {selector} {name}")
+            for key in sorted(values):
+                lines.append(f"    {key} = {values[key]!r}")
+            lines.append("")
     return "\n".join(lines).rstrip() + "\n"

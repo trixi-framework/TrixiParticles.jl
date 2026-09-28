@@ -199,7 +199,7 @@ Option reference:
 | Selection | `--frame N` for one still, or `--sequence` with `--start/--stop/--stride`; `--resume` continues a validated prefix |
 | Scene | `--camera-position`, `--camera-target`, `--camera-fov`, `--tank-min`, `--tank-max`, `--light` (repeatable `name:x:y:z:energy:r:g:b:size`), `--world-color`, `--world-strength` |
 | Image | `--width`, `--height`, `--samples`, `--engine {cycles,eevee}`, `--device {cpu,gpu}`, `--gpu-backend`, `--view-transform`, `--look`, `--exposure`, `--gamma`, `--max-bounces`, `--transmission-bounces`, `--transparent-bounces`, `--png-compression`, `--no-denoise` |
-| Materials | `--material-preset {liquid,foam,stress}` plus the individual `--water-*`, `--blade-*`, `--floor-*`, `--glass-*`, `--wall-*`, `--foam-*`, `--spray-*`, `--bubble-*` flags below |
+| Materials | `--material-preset {liquid,foam,stress}`, independent `--blade-material anodized-copper` and `--glass-material low-iron-glass`, and individual `--water-*`, `--blade-*`, `--glass-*`, `--foam-*`, `--spray-*`, `--bubble-*` flags |
 | Stress | `--mode stress --stress-mesh FILE` (repeat for each solid), `--stress-water-opacity`, `--stress-water-transmission`, `--stress-water-specular`, `--stress-normal-light`, `--stress-light-direction` |
 
 `render --sequence` writes numbered PNGs plus `render_metadata.json` and
@@ -222,9 +222,13 @@ ghosted shader is separate from the primary liquid-volume shader.
 
 ## Material presets
 
-Only three material sets exist. A preset fills every material flag it covers;
-any flag passed explicitly wins over the preset. Flags outside all presets
-(camera, lights, tank, resolution) are always required individually. Run
+Three scene presets exist, with separate named blade and glass materials.
+A `liquid` or `foam` scene includes **both** named materials automatically;
+choose them independently to combine with explicitly supplied water/floor
+settings or to override part of a scene preset. Any property flag passed
+explicitly wins over both the component and scene presets. Flags outside
+these presets (camera, lights, tank, resolution) are always required
+individually. Run
 `python tools/rendering/pipeline.py material-presets` to print every preset
 value.
 
@@ -234,6 +238,16 @@ value.
 | `foam` | The `liquid` set plus froth, spray, and bubble materials | `--foam-dir` whitewater renders |
 | `stress` | YlOrRd vertex-color emission, `0.72–1.0` normal modulation, copper-edge/floor and `0.005` ghost water with its own physical material | `--mode stress --stress-mesh` |
 
+| Independent component | v03 appearance | What it sets |
+|---|---|---|
+| `--blade-material anodized-copper` | Metallic copper clamped blades | Base RGB `(0.62, 0.10, 0.018)`, metallic `0.92`, roughness `0.30`, coat `0.16` |
+| `--glass-material low-iron-glass` | Editorial low-iron tank panes | RGB `(0.06, 0.42, 0.34)`, roughness `0.30`, transmission `0.90`, IOR `1.36`, specular `0.04`, opacity mix `0.04` |
+
+The blade and glass component selectors choose **materials**, not wall height,
+mesh bevel, floor extension, or other case geometry. The stress view uses
+vertex-colored YlOrRd blades and omits glass walls, so component selectors
+are rejected in `--mode stress`.
+
 Override example (scene settings remain CLI inputs):
 
 ```bash
@@ -241,7 +255,8 @@ python tools/rendering/pipeline.py render \
   --blender /path/to/blender --surface-dir /path/to/surface \
   --surface-pvd /path/to/surface/surface_fluid_1.pvd \
   --foam-dir /path/to/whitewater --output /path/to/new/still.png --frame 0 \
-  --material-preset foam --foam-point-radius 0.008 \
+  --material-preset foam --blade-material anodized-copper \
+  --glass-material low-iron-glass --foam-point-radius 0.008 \
   --surface-axis-order xyz --foam-axis-order xyz \
   --camera-position 3 2 2 --camera-target 1 0.5 0.3 --camera-fov 34 \
   --tank-min 0 0 0 --tank-max 2 4 1 \

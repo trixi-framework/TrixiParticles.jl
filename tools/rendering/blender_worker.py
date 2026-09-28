@@ -405,7 +405,8 @@ def tank_and_lighting(args):
         # The reviewed stress close-up omits the tank walls.
         add_lighting(args)
         return
-    glass = principled("Tank glass", args.glass_color, args.glass_roughness,
+    glass_name = "Low-iron glass" if args.glass_material == "low-iron-glass" else "Tank glass"
+    glass = principled(glass_name, args.glass_color, args.glass_roughness,
                        transmission=args.glass_transmission, ior=args.glass_ior)
     nodes, links = glass.node_tree.nodes, glass.node_tree.links
     bsdf = nodes.get("Principled BSDF")
@@ -514,7 +515,9 @@ def build_scene(args, frame, whitewater):
                     froth_nodes(obj, material, args)
                 else:
                     instances(obj, material, kind, args)
-        metal = principled("Structural solid", args.blade_color, args.blade_roughness,
+        blade_name = ("Anodized copper blades" if args.blade_material == "anodized-copper"
+                      else "Structural solid")
+        metal = principled(blade_name, args.blade_color, args.blade_roughness,
                            metallic=args.blade_metallic, coat=args.blade_coat)
         for index, path in enumerate(frame["blades"], 1):
             obj = import_mesh(path, f"Structural solid {index}", metal, args.surface_axis_order)

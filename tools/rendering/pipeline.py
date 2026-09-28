@@ -9,7 +9,7 @@ import subprocess
 import sys
 
 from data import axis_permutation, bounds
-from materials import MATERIAL_DEFAULTS, MATERIAL_PRESETS
+from materials import BLADE_MATERIALS, GLASS_MATERIALS, MATERIAL_DEFAULTS, MATERIAL_PRESETS
 
 
 def positive(value: str) -> float:
@@ -103,6 +103,10 @@ def parser() -> argparse.ArgumentParser:
     render.add_argument("--mode", choices=("liquid", "stress"), default="liquid")
     render.add_argument("--material-preset", choices=tuple(MATERIAL_PRESETS),
                         help="Named v03 material set; explicit material flags override it")
+    render.add_argument("--blade-material", choices=tuple(BLADE_MATERIALS),
+                        help="Named solid material, independently selectable")
+    render.add_argument("--glass-material", choices=tuple(GLASS_MATERIALS),
+                        help="Named tank-glass material, independently selectable")
     render.add_argument("--stress-mesh", action="append", type=Path, default=[],
                         help="Pre-colored stress PLY; repeat for each solid")
     render.add_argument("--stress-water-opacity", type=fraction)
@@ -211,6 +215,9 @@ def validate(args: argparse.Namespace) -> None:
     bounds(args.tank_min, args.tank_max)
     axis_permutation(args.surface_axis_order)
     axis_permutation(args.foam_axis_order)
+    explicit = {key for key in (*BLADE_MATERIALS["anodized-copper"],
+                                *GLASS_MATERIALS["low-iron-glass"])
+                if getattr(args, key, None) is not None}
     if args.material_preset is not None:
         if args.material_preset not in MATERIAL_PRESETS:
             raise ValueError(f"unknown material preset: {args.material_preset}")
@@ -222,6 +229,23 @@ def validate(args: argparse.Namespace) -> None:
         for key, value in MATERIAL_PRESETS[args.material_preset].items():
             if getattr(args, key, None) is None:
                 setattr(args, key, value)
+    if args.mode == "stress" and (args.blade_material or args.glass_material):
+        raise ValueError("stress mode uses vertex colors and no glass walls; "
+                         "blade/glass materials are unused")
+    # Explicit per-property values win; a selected component material replaces
+    # the corresponding part of a scene preset without changing any other set.
+    blade_material = args.blade_material or (
+        "anodized-copper" if args.material_preset in ("liquid", "foam") else None)
+    glass_material = args.glass_material or (
+        "low-iron-glass" if args.material_preset in ("liquid", "foam") else None)
+    for selection, catalog in ((blade_material, BLADE_MATERIALS),
+                               (glass_material, GLASS_MATERIALS)):
+        if selection is not None:
+            for key, value in catalog[selection].items():
+                if key not in explicit:
+                    setattr(args, key, value)
+    args.blade_material = blade_material
+    args.glass_material = glass_material
     for key, value in MATERIAL_DEFAULTS.items():
         if getattr(args, key, None) is None:
             setattr(args, key, value)
