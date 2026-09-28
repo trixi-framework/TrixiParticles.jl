@@ -32,29 +32,25 @@ rewritten here.
   The render stage is launched by ordinary Python and uses Blender's own Python
   and bundled NumPy; it does not import Partio or meshio.
 
-The bundled patch targets SPlisHSPlasH `f3f677140761db7637b5443beb54f19f1f835ed4`
+The patch in `build/` targets SPlisHSPlasH `f3f677140761db7637b5443beb54f19f1f835ed4`
 (2.18.1). It supports a headless build, explicit `--seed`, velocity arrays in
 split secondary-particle VTK, and zero-range potential normalization. When a
 calibrated generation potential has no range, its contribution is zero rather
-than `NaN`; this changes only the zero-range case. Pin the upstream source,
-apply the patch, and build `FoamGenerator` with double precision:
+than `NaN`; this changes only the zero-range case. Build `FoamGenerator` with
+the bundled script, which pins the upstream commit, applies the patch once,
+and configures double precision (all inputs are CLI parameters):
 
 ```bash
-git clone https://github.com/InteractiveComputerGraphics/SPlisHSPlasH.git /path/to/SPlisHSPlasH
-git -C /path/to/SPlisHSPlasH checkout f3f677140761db7637b5443beb54f19f1f835ed4
-git -C /path/to/SPlisHSPlasH apply "$PWD/tools/rendering/splishsplash_foam_generator.patch"
-cmake -S /path/to/SPlisHSPlasH -B /path/to/foam-build -G Ninja \
-  -DCMAKE_BUILD_TYPE=Release -DUSE_DOUBLE_PRECISION=ON \
-  -DFOAM_GENERATOR_ONLY=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.10
-cmake --build /path/to/foam-build --target Ext_NeighborhoodSearch Ext_PBD --parallel 4
-cmake -S /path/to/SPlisHSPlasH -B /path/to/foam-build -G Ninja \
-  -DCMAKE_BUILD_TYPE=Release -DUSE_DOUBLE_PRECISION=ON \
-  -DFOAM_GENERATOR_ONLY=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.10
-cmake --build /path/to/foam-build --target FoamGenerator --parallel 4
+python tools/rendering/build/build_foam_generator.py \
+  --source-dir /path/to/SPlisHSPlasH \
+  --build-dir /path/to/foam-build \
+  --jobs 4
 ```
 
-The executable normally appears at `/path/to/SPlisHSPlasH/bin/FoamGenerator`.
-Its `--help` output must include `--seed`; the wrapper rejects older binaries.
+It needs `git`, `cmake`, and `ninja` on `PATH` (for example via
+`uv run --with cmake --with ninja`). Re-running the script against the same directories is idempotent. The
+executable appears at `/path/to/SPlisHSPlasH/bin/FoamGenerator`. Its `--help`
+output must include `--seed`; the wrapper rejects older binaries.
 
 ## 1. Generate whitewater
 
@@ -67,7 +63,7 @@ uv run --no-project --python 3.9 \
   --fluid-pvd /path/to/fluid.pvd \
   --generator /path/to/SPlisHSPlasH/bin/FoamGenerator \
   --generator-source /path/to/SPlisHSPlasH/Tools/FoamGenerator/main.cpp \
-  --generator-patch tools/rendering/splishsplash_foam_generator.patch \
+  --generator-patch tools/rendering/build/splishsplash_foam_generator.patch \
   --output /path/to/new/whitewater \
   --domain-min -1 0 0 --domain-max 2 2 1 \
   --generator-radius 0.01 --foam-scale 1000 \
