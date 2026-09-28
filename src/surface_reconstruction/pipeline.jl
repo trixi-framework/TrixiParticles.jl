@@ -156,7 +156,8 @@ function _reconstruct!(workspace, points, volumes, boundaries, origin, spacing,
 
     start_time = time_ns()
     mesh_before_collapse = mesh
-    mesh, degenerate_cleanup = collapse_degenerate_triangles(mesh)
+    mesh,
+    degenerate_cleanup = collapse_degenerate_triangles(mesh; backend=workspace.backend)
     timings["final_degenerate_triangle_cleanup"] = (time_ns() - start_time) / 1.0e9
 
     start_time = time_ns()
@@ -219,7 +220,7 @@ function _reconstruct!(workspace, points, volumes, boundaries, origin, spacing,
         "initial_isovalue" => initial_isovalue,
         "effective_isovalue" => effective_isovalue,
         "isovalue_correction_evaluations" => evaluations,
-        "mesh_cleanup" => "merge vertices within absolute tolerance only when the merged vertex link remains one closed manifold cycle, discard collapsed triangles and connected shells with signed volume at floating-point zero, then collapse degenerate final-mesh edges only when topology remains manifold",
+        "mesh_cleanup" => "merge vertices within absolute tolerance only when the merged vertex link remains one closed manifold cycle, discard collapsed triangles and connected shells with signed volume at floating-point zero, then collapse degenerate final-mesh edges only when topology remains manifold and prune zero-volume remnants",
         "mesh_cleanup_tolerance" => MESH_CLEANUP_TOLERANCE_M,
         "mesh_vertices_merged" => final_evaluation["merged_vertices"],
         "mesh_vertex_merges_rejected_for_topology" => final_evaluation["rejected_nonmanifold_merges"],
@@ -230,6 +231,7 @@ function _reconstruct!(workspace, points, volumes, boundaries, origin, spacing,
         "mesh_degenerate_edges_collapsed" => degenerate_cleanup.collapsed_edges,
         "mesh_degenerate_cleanup_vertices_discarded" => degenerate_cleanup.removed_vertices,
         "mesh_degenerate_cleanup_triangles_discarded" => degenerate_cleanup.removed_faces,
+        "mesh_degenerate_cleanup_zero_volume_shells_discarded" => degenerate_cleanup.removed_zero_volume_shells,
         "mesh_degenerate_cleanup_maximum_edge_length" => degenerate_cleanup.maximum_edge_length,
         "sparse_component_fallback" => options.sparse_component_fallback,
         "n_sparse_source_components" => n_sparse_source_components,
