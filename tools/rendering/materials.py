@@ -23,7 +23,11 @@ MATERIAL_DEFAULTS = {
     "pedestal_margin": 0.0,
     "pedestal_thickness": 0.08,
     "glass_specular": 0.04,
+    "floor_coat": 0.0,
     "wall_cap_extension": 0.0,
+    "stress_water_opacity": 0.0,
+    "stress_normal_light": 0.0,
+    "stress_light_direction": (0.35, -0.45, 0.82),
     "instance_seed": 0,
     "droplet_subdivisions": 2,
 }
@@ -44,14 +48,17 @@ _LIQUID = {
     "blade_floor_extension": 0.02,
     "blade_bevel": 0.005,
     # Tank base.
-    "floor_color": (0.02, 0.03, 0.05),
-    "floor_metallic": 0.3,
-    "floor_roughness": 0.4,
+    "floor_color": (0.012, 0.018, 0.028),
+    "floor_metallic": 0.35,
+    "floor_roughness": 0.30,
+    "floor_coat": 0.0,
     # Tank glass.
     "glass_color": (0.06, 0.42, 0.34),
     "glass_opacity": 0.04,
     "glass_roughness": 0.30,
     "glass_ior": 1.36,
+    "glass_transmission": 0.90,
+    "glass_specular": 0.04,
     # Tank construction.
     "wall_thickness": 0.018,
     "floor_thickness": 0.018,
@@ -85,20 +92,26 @@ _FOAM = {
     "bubble_roughness": 0.025,
     "bubble_radius": 0.0014,
     "bubble_scale_range": (0.35, 1.75),
-    "bubble_relative_ior": 0.7501875,
+    "bubble_relative_ior": 1.0 / 1.333,
 }
 
 _STRESS = {
     # The stress view colors the surface from its own vertex colors; only the
     # pedestal, edge treatment, and optional ghost water use materials.
-    "water_color": (0.35, 0.72, 1.0),
-    "water_roughness": 0.06,
+    "water_color": (0.015, 0.28, 0.46),
+    "water_roughness": 0.18,
     "water_ior": 1.333,
+    "stress_water_transmission": 0.72,
+    "stress_water_specular": 0.18,
+    "stress_water_opacity": 0.005,
+    "stress_normal_light": 0.28,
+    "stress_light_direction": (0.35, -0.45, 0.82),
     "blade_floor_extension": 0.02,
-    "blade_bevel": 0.005,
-    "floor_color": (0.02, 0.03, 0.05),
+    "blade_bevel": 0.004,
+    "floor_color": (0.020, 0.032, 0.050),
     "floor_metallic": 0.3,
     "floor_roughness": 0.4,
+    "floor_coat": 0.10,
 }
 
 MATERIAL_PRESETS = {

@@ -79,7 +79,7 @@ def verified_inputs(args, selected, whitewater):
     for frame in selected:
         paths = [frame["water_path"], *frame["blades"]]
         if args.mode == "stress":
-            paths.append(args.stress_mesh)
+            paths.extend(args.stress_mesh)
         if args.foam_dir is not None:
             record = whitewater.get(frame["source_timestep"])
             if record is None or not math.isclose(record["simulation_time_s"],
@@ -396,7 +396,7 @@ def tank_and_lighting(args):
     x, depth, height = xmax - xmin, zmax - zmin, ymax - ymin
     thickness = args.wall_thickness or 0
     floor = principled("Tank base", args.floor_color, args.floor_roughness,
-                       metallic=args.floor_metallic)
+                       metallic=args.floor_metallic, coat=args.floor_coat)
     box("Tank pedestal", ((xmin + xmax) / 2, (zmin + zmax) / 2,
                           ymin - args.pedestal_thickness / 2 - thickness),
         (x + 2 * args.pedestal_margin, depth + 2 * args.pedestal_margin,
@@ -406,7 +406,7 @@ def tank_and_lighting(args):
         add_lighting(args)
         return
     glass = principled("Tank glass", args.glass_color, args.glass_roughness,
-                       transmission=1, ior=args.glass_ior)
+                       transmission=args.glass_transmission, ior=args.glass_ior)
     nodes, links = glass.node_tree.nodes, glass.node_tree.links
     bsdf = nodes.get("Principled BSDF")
     if "Specular IOR Level" in bsdf.inputs:
@@ -530,35 +530,45 @@ def build_scene(args, frame, whitewater):
                 bevel.limit_method = "ANGLE"
                 bevel.angle_limit = math.radians(args.blade_bevel_angle)
     else:
-        stress = import_mesh(args.stress_mesh, "Stress-colored solid", None,
-                             args.surface_axis_order)
-        stress.data.materials.clear()
-        colors = list(stress.data.color_attributes)
-        if not colors:
-            raise ValueError("stress surface needs a vertex color attribute")
-        stress.data.materials.append(stress_material(args, colors[0].name))
-        if args.blade_floor_extension:
-            ground = min(vertex.co.z for vertex in stress.data.vertices)
-            for vertex in stress.data.vertices:
-                if vertex.co.z <= ground + 1e-6:
-                    vertex.co.z -= args.blade_floor_extension
-            stress.data.update()
-        if args.blade_bevel:
-            bevel = stress.modifiers.new("Stress surface edge", "BEVEL")
-            bevel.width, bevel.segments = args.blade_bevel, args.blade_bevel_segments
-            bevel.limit_method = "ANGLE"
-            bevel.angle_limit = math.radians(args.blade_bevel_angle)
+        stress_materials = {}
+        for index, mesh_path in enumerate(args.stress_mesh, 1):
+            stress = import_mesh(mesh_path, f"Stress-colored solid {index}", None,
+                                 args.surface_axis_order)
+            stress.data.materials.clear()
+            colors = list(stress.data.color_attributes)
+            if not colors:
+                raise ValueError(f"stress surface needs a vertex color attribute: {mesh_path}")
+            attribute = colors[0].name
+            if attribute not in stress_materials:
+                stress_materials[attribute] = stress_material(args, attribute)
+            stress.data.materials.append(stress_materials[attribute])
+            if args.blade_floor_extension:
+                ground = min(vertex.co.z for vertex in stress.data.vertices)
+                for vertex in stress.data.vertices:
+                    if vertex.co.z <= ground + 1e-6:
+                        vertex.co.z -= args.blade_floor_extension
+                stress.data.update()
+            if args.blade_bevel:
+                bevel = stress.modifiers.new("Stress surface edge", "BEVEL")
+                bevel.width, bevel.segments = args.blade_bevel, args.blade_bevel_segments
+                bevel.limit_method = "ANGLE"
+                bevel.angle_limit = math.radians(args.blade_bevel_angle)
         if args.stress_water_opacity:
             ghost_material = principled("Ghost fluid", args.water_color,
-                                        args.water_roughness, transmission=1,
+                                        args.water_roughness,
+                                        transmission=args.stress_water_transmission,
                                         ior=args.water_ior)
             nodes = ghost_material.node_tree.nodes
             links = ghost_material.node_tree.links
+            ghost_bsdf = nodes.get("Principled BSDF")
+            if "Specular IOR Level" in ghost_bsdf.inputs:
+                ghost_bsdf.inputs["Specular IOR Level"].default_value = \
+                    args.stress_water_specular
             transparent = nodes.new("ShaderNodeBsdfTransparent")
             mix = nodes.new("ShaderNodeMixShader")
             mix.inputs[0].default_value = args.stress_water_opacity
             links.new(transparent.outputs[0], mix.inputs[1])
-            links.new(nodes.get("Principled BSDF").outputs[0], mix.inputs[2])
+            links.new(ghost_bsdf.outputs[0], mix.inputs[2])
             links.new(mix.outputs[0], nodes.get("Material Output").inputs["Surface"])
             ghost = import_mesh(frame["water_path"], "Ghost water",
                                 ghost_material, args.surface_axis_order)
@@ -579,6 +589,14 @@ def render_one(args, frame, whitewater, output):
             "sha256": file_sha256(output)}
 
 
+def jsonable(value):
+    if isinstance(value, Path):
+        return str(value)
+    if isinstance(value, (list, tuple)):
+        return [jsonable(item) for item in value]
+    return value
+
+
 def main():
     values = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     args = parser().parse_args(values)
@@ -588,7 +606,7 @@ def main():
     selected, surface_metadata = selected_sources(args)
     whitewater, foam_metadata = foam_frames(args)
     inputs = verified_inputs(args, selected, whitewater)
-    settings = {key: str(value) if isinstance(value, Path) else value
+    settings = {key: jsonable(value)
                 for key, value in vars(args).items() if key not in ("output", "resume")}
     provenance = {"settings": settings, "input_sha256": inputs,
                   "surface_metadata_sha256": file_sha256(surface_metadata),

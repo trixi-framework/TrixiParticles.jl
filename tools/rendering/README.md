@@ -78,7 +78,8 @@ python tools/rendering/pipeline.py render \
   --blender /path/to/blender --surface-dir /path/to/surface \
   --surface-pvd /path/to/surface/surface_fluid_1.pvd \
   --output /path/to/new/stress.png --frame 179 \
-  --mode stress --stress-mesh /path/to/stress_colored.ply \
+  --mode stress --stress-mesh /path/to/stress_blade_01.ply \
+  --stress-mesh /path/to/stress_blade_02.ply \
   --material-preset stress \
   --surface-axis-order xyz --foam-axis-order xyz \
   --camera-position 3 2 2 --camera-target 1 0.5 0.3 --camera-fov 34 \
@@ -199,21 +200,24 @@ Option reference:
 | Scene | `--camera-position`, `--camera-target`, `--camera-fov`, `--tank-min`, `--tank-max`, `--light` (repeatable `name:x:y:z:energy:r:g:b:size`), `--world-color`, `--world-strength` |
 | Image | `--width`, `--height`, `--samples`, `--engine {cycles,eevee}`, `--device {cpu,gpu}`, `--gpu-backend`, `--view-transform`, `--look`, `--exposure`, `--gamma`, `--max-bounces`, `--transmission-bounces`, `--transparent-bounces`, `--png-compression`, `--no-denoise` |
 | Materials | `--material-preset {liquid,foam,stress}` plus the individual `--water-*`, `--blade-*`, `--floor-*`, `--glass-*`, `--wall-*`, `--foam-*`, `--spray-*`, `--bubble-*` flags below |
-| Stress | `--mode stress --stress-mesh FILE`, `--stress-water-opacity`, `--stress-normal-light`, `--stress-light-direction` |
+| Stress | `--mode stress --stress-mesh FILE` (repeat for each solid), `--stress-water-opacity`, `--stress-water-transmission`, `--stress-water-specular`, `--stress-normal-light`, `--stress-light-direction` |
 
 `render --sequence` writes numbered PNGs plus `render_metadata.json` and
 `render_progress.json`. `--resume` validates the settings, source hashes,
 renderer source, and PNG prefix before continuing. An already complete
 sequence cannot be resumed or silently overwritten.
 
-For a pre-colored stress PLY, use `--mode stress --stress-mesh FILE`, optionally
+For pre-colored stress PLYs, repeat `--stress-mesh FILE` for each solid;
+the v03 stress view uses **five** blades. Optionally set
 `--stress-water-opacity` and `--stress-normal-light`. The v03 stress image uses
 an independently color-encoded YlOrRd PLY; this tool preserves the input
 vertex colors, its stress emission material, and the contextual ghost-water
-and floor treatments. Stress export itself remains an upstream input. When
-`--stress-water-opacity` is zero, the stress mode does **not** require unused
-liquid, glass, blade, or whitewater material parameters. When contextual water
-is shown, supply `--water-color`, `--water-roughness`, and `--water-ior`; its
+and floor treatments. Stress export itself remains an upstream input. The
+`stress` preset supplies the reviewed `0.005` ghost-water opacity, its distinct
+color/transmission/specular response, and the `0.72–1.0` world-normal luminance
+factor. Without a preset, `--stress-water-opacity 0` omits contextual water;
+otherwise pass `--water-color`, `--water-roughness`, `--water-ior`,
+`--stress-water-transmission`, and `--stress-water-specular` explicitly. The
 ghosted shader is separate from the primary liquid-volume shader.
 
 ## Material presets
@@ -228,22 +232,46 @@ value.
 |---|---|---|
 | `liquid` | Physical water (Pope–Fry absorption, scattering), copper solids, glass tank, floor, tank construction | Clean surface stills/sequences |
 | `foam` | The `liquid` set plus froth, spray, and bubble materials | `--foam-dir` whitewater renders |
-| `stress` | Pedestal and edge treatment, water triple for optional ghost water | `--mode stress --stress-mesh` |
+| `stress` | YlOrRd vertex-color emission, `0.72–1.0` normal modulation, copper-edge/floor and `0.005` ghost water with its own physical material | `--mode stress --stress-mesh` |
 
-Examples:
+Override example (scene settings remain CLI inputs):
 
 ```bash
-# Reviewed v03 look, then tweak one value:
---material-preset foam --foam-point-radius 0.008 ...
-
-# Explicit flags without any preset (all material flags required):
---water-color 0.35 0.72 1 --water-roughness 0.06 --water-ior 1.333 ...
+python tools/rendering/pipeline.py render \
+  --blender /path/to/blender --surface-dir /path/to/surface \
+  --surface-pvd /path/to/surface/surface_fluid_1.pvd \
+  --foam-dir /path/to/whitewater --output /path/to/new/still.png --frame 0 \
+  --material-preset foam --foam-point-radius 0.008 \
+  --surface-axis-order xyz --foam-axis-order xyz \
+  --camera-position 3 2 2 --camera-target 1 0.5 0.3 --camera-fov 34 \
+  --tank-min 0 0 0 --tank-max 2 4 1 \
+  --light 'key:0.2:2.8:3.8:1250:1:0.76:0.58:3.2' \
+  --width 640 --height 360 --samples 16 \
+  --world-color 0.002 0.005 0.012 --world-strength 0.16
 ```
 
-The presets encode the reviewed v03 values; overriding a flag is the
-supported way to explore variations while keeping the rest of the approved
-look. The rejected `legacy-cyan` and `physical-clear` water branches and the
-redundant `foaming-water` preset are not implemented.
+The presets encode v03's **material-node parameters**, not a complete v03
+scene. `liquid` and `foam` share the same physical water material, with
+absorption `(0.85, 0.14125, 0.02305) m⁻¹`, scattering `(0.02, 0.04, 0.08) m⁻¹`,
+and anisotropy `0.35`. The accepted tank base uses `(0.012, 0.018, 0.028)`
+linear RGB; the glass pane has transmission `0.90` and specular IOR level
+`0.04`. `stress` instead uses its `(0.020, 0.032, 0.050)` pedestal,
+`0.28`-weighted normal modulation, and ghost water with color
+`(0.015, 0.28, 0.46)`, transmission `0.72`, and specular level `0.18`.
+The bubble relative IOR is exactly `1 / 1.333`. These values are checked
+against the accepted v03 render metadata and source shaders. Explicit flags
+still override any one value.
+
+**Can the presets be used for v03 reproduction?** They supply the reviewed
+material parameters, yes. A matching v03 render additionally needs the
+original camera/lights, tank and pedestal geometry, frame selection,
+coordinate mapping, Blender/device/color management, accepted reconstruction
+and foam caches, and any render-only blade-floor treatment. Those settings
+are *not* preset; the follow-up v03 migration PR will pass them explicitly
+and establish full render and source-frame parity. This tools PR does not
+claim bitwise v03 image reproduction. The rejected `legacy-cyan` and
+`physical-clear` water branches and the redundant `foaming-water` preset
+are not implemented.
 
 ## Materials and scientific scope
 

@@ -103,12 +103,13 @@ def parser() -> argparse.ArgumentParser:
     render.add_argument("--mode", choices=("liquid", "stress"), default="liquid")
     render.add_argument("--material-preset", choices=tuple(MATERIAL_PRESETS),
                         help="Named v03 material set; explicit material flags override it")
-    render.add_argument("--stress-mesh", type=Path,
-                        help="Optional pre-colored stress PLY for stress mode")
-    render.add_argument("--stress-water-opacity", type=fraction, default=0.0)
-    render.add_argument("--stress-normal-light", type=fraction, default=0.0)
-    render.add_argument("--stress-light-direction", nargs=3, type=float,
-                        default=(0.35, -0.45, 0.82))
+    render.add_argument("--stress-mesh", action="append", type=Path, default=[],
+                        help="Pre-colored stress PLY; repeat for each solid")
+    render.add_argument("--stress-water-opacity", type=fraction)
+    render.add_argument("--stress-water-transmission", type=fraction)
+    render.add_argument("--stress-water-specular", type=fraction)
+    render.add_argument("--stress-normal-light", type=fraction)
+    render.add_argument("--stress-light-direction", nargs=3, type=float)
 
     render.add_argument("--camera-position", nargs=3, required=True, type=float)
     render.add_argument("--camera-target", nargs=3, required=True, type=float)
@@ -152,6 +153,7 @@ def parser() -> argparse.ArgumentParser:
     render.add_argument("--floor-color", nargs=3, type=float)
     render.add_argument("--floor-metallic", type=fraction)
     render.add_argument("--floor-roughness", type=fraction)
+    render.add_argument("--floor-coat", type=fraction)
     render.add_argument("--floor-bevel", type=float, default=None)
     render.add_argument("--pedestal-margin", type=float, default=None)
     render.add_argument("--pedestal-thickness", type=positive, default=None)
@@ -159,6 +161,7 @@ def parser() -> argparse.ArgumentParser:
     render.add_argument("--glass-opacity", type=fraction)
     render.add_argument("--glass-roughness", type=fraction)
     render.add_argument("--glass-ior", type=positive)
+    render.add_argument("--glass-transmission", type=fraction)
     render.add_argument("--glass-specular", type=fraction, default=None)
     render.add_argument("--wall-thickness", type=positive)
     render.add_argument("--floor-thickness", type=positive)
@@ -214,6 +217,8 @@ def validate(args: argparse.Namespace) -> None:
         if args.mode == "liquid" and args.material_preset == "stress":
             raise ValueError("the stress preset does not cover liquid-mode materials; "
                              "use --material-preset liquid or foam")
+        if args.mode == "stress" and args.material_preset != "stress":
+            raise ValueError("stress mode only uses the stress material preset")
         for key, value in MATERIAL_PRESETS[args.material_preset].items():
             if getattr(args, key, None) is None:
                 setattr(args, key, value)
@@ -225,10 +230,12 @@ def validate(args: argparse.Namespace) -> None:
         required = ("water_color", "water_roughness", "water_ior", "water_absorption",
                     "water_scattering", "water_scattering_anisotropy", "blade_color",
                     "blade_metallic", "blade_roughness", "blade_coat", "glass_color",
-                    "glass_opacity", "glass_roughness", "glass_ior", "wall_thickness",
+                    "glass_opacity", "glass_roughness", "glass_ior", "glass_transmission",
+                    "wall_thickness",
                     "floor_thickness", "visible_wall_height")
     else:
-        required = (("water_color", "water_roughness", "water_ior")
+        required = (("water_color", "water_roughness", "water_ior",
+                     "stress_water_transmission", "stress_water_specular")
                     if args.stress_water_opacity else ())
         if args.foam_dir is not None:
             raise ValueError("stress rendering does not use whitewater materials")
@@ -260,8 +267,8 @@ def validate(args: argparse.Namespace) -> None:
             args.wall_cap_extension < 0 or not 0 < args.camera_fov < 180 or \
             not 0 <= args.blade_bevel_angle <= 180:
         raise ValueError("invalid render dimensions or material parameters")
-    if args.mode == "stress" and args.stress_mesh is None:
-        raise ValueError("stress mode requires --stress-mesh")
+    if args.mode == "stress" and not args.stress_mesh:
+        raise ValueError("stress mode requires at least one --stress-mesh")
     if args.foam_dir is not None:
         required = ("foam_color", "foam_point_radius", "foam_voxel_size", "foam_threshold",
                     "foam_adaptivity", "foam_roughness", "foam_transmission",

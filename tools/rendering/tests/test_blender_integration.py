@@ -92,7 +92,8 @@ class BlenderRenderingTests(unittest.TestCase):
                     "--floor-color", "0.02", "0.03", "0.05", "--floor-metallic", "0.3",
                     "--floor-roughness", "0.4", "--glass-color", "0.06", "0.42", "0.34",
                     "--glass-opacity", "0.04", "--glass-roughness", "0.3",
-                    "--glass-ior", "1.36", "--wall-thickness", "0.018",
+                    "--glass-ior", "1.36", "--glass-transmission", "0.9",
+                    "--wall-thickness", "0.018",
                     "--floor-thickness", "0.018", "--visible-wall-height", "0.16"]
             whitewater = ["--foam-dir", str(secondary), "--foam-color", "0.72", "0.82", "0.86",
                           "--foam-point-radius", "0.006", "--foam-voxel-size", "0.004",
@@ -146,13 +147,15 @@ class BlenderRenderingTests(unittest.TestCase):
             result = subprocess.run(base + ["--output", str(stress), "--frame", "0",
                                             "--mode", "stress", "--stress-mesh",
                                             str(surface / "stress.ply"),
-                                            "--stress-water-opacity", "0.005"],
+                                            "--stress-water-opacity", "0.005",
+                                            "--stress-water-transmission", "0.72",
+                                            "--stress-water-specular", "0.18"],
                                     capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertEqual(png_dimensions(stress), (64, 64))
 
             minimal_stress = path / "stress_without_liquid_materials.png"
-            result = subprocess.run([
+            stress_command = [
                 sys.executable, str(root / "pipeline.py"), "render", "--blender",
                 os.environ["TRIXIPARTICLES_BLENDER"], "--surface-dir", str(surface),
                 "--surface-pvd", str(surface / "surface.pvd"),
@@ -165,9 +168,32 @@ class BlenderRenderingTests(unittest.TestCase):
                 "--width", "64", "--height", "64", "--samples", "2",
                 "--world-color", "0.1", "0.1", "0.1", "--world-strength", "0.4",
                 "--floor-color", "0.02", "0.03", "0.05", "--floor-metallic", "0.3",
-                "--floor-roughness", "0.4"], capture_output=True, text=True)
+                "--floor-roughness", "0.4"]
+            result = subprocess.run(stress_command, capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertEqual(png_dimensions(minimal_stress), (64, 64))
+
+            stress_preset = path / "stress_with_preset.png"
+            preset_command = stress_command.copy()
+            preset_command[preset_command.index(str(minimal_stress))] = str(stress_preset)
+            for flag, values in (("--floor-color", 3), ("--floor-metallic", 1),
+                                 ("--floor-roughness", 1)):
+                first = preset_command.index(flag)
+                del preset_command[first:first + values + 1]
+            second_blade = surface / "stress2.ply"
+            second_blade.write_bytes((surface / "stress.ply").read_bytes())
+            preset_command.extend(("--material-preset", "stress",
+                                   "--stress-mesh", str(second_blade)))
+            result = subprocess.run(preset_command, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual(png_dimensions(stress_preset), (64, 64))
+            settings = json.loads(stress_preset.with_suffix(".png.json").read_text())[
+                "provenance"]["settings"]
+            self.assertEqual(settings["stress_water_opacity"], 0.005)
+            self.assertEqual(settings["stress_water_transmission"], 0.72)
+            self.assertEqual(settings["stress_normal_light"], 0.28)
+            self.assertEqual(settings["floor_color"], [0.02, 0.032, 0.05])
+            self.assertEqual(len(settings["stress_mesh"]), 2)
 
             eevee = path / "eevee.png"
             result = subprocess.run(base + ["--output", str(eevee), "--frame", "0",

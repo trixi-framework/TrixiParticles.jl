@@ -81,8 +81,11 @@ class TimeSeriesTests(unittest.TestCase):
         parsed = minimal_render("--material-preset", "foam", "--foam-dir", "foam")
         pipeline.validate(parsed)
         self.assertEqual(tuple(parsed.water_color), (0.35, 0.72, 1.0))
+        self.assertEqual(tuple(parsed.floor_color), (0.012, 0.018, 0.028))
+        self.assertEqual(parsed.glass_transmission, 0.90)
         self.assertEqual(parsed.foam_point_radius, 0.006)
         self.assertEqual(tuple(parsed.spray_scale_range), (0.55, 1.15))
+        self.assertEqual(parsed.bubble_relative_ior, 1.0 / 1.333)
         self.assertEqual(parsed.instance_seed, 0)
 
         overridden = minimal_render("--material-preset", "foam", "--foam-dir", "foam",
@@ -103,7 +106,18 @@ class TimeSeriesTests(unittest.TestCase):
         stress = minimal_render("--material-preset", "stress", "--mode", "stress",
                                 "--stress-mesh", "stress.ply")
         pipeline.validate(stress)
-        self.assertEqual(tuple(stress.water_color), (0.35, 0.72, 1.0))
+        self.assertEqual(tuple(stress.water_color), (0.015, 0.28, 0.46))
+        self.assertEqual(tuple(stress.floor_color), (0.020, 0.032, 0.050))
+        self.assertEqual(stress.floor_coat, 0.10)
+        self.assertEqual(stress.stress_water_opacity, 0.005)
+        self.assertEqual(stress.stress_water_transmission, 0.72)
+        self.assertEqual(stress.stress_normal_light, 0.28)
+        self.assertEqual(stress.blade_bevel, 0.004)
+
+        unused = minimal_render("--material-preset", "foam", "--mode", "stress",
+                                "--stress-mesh", "stress.ply")
+        with self.assertRaisesRegex(ValueError, "only uses the stress"):
+            pipeline.validate(unused)
 
         self.assertIn("foam", materials.MATERIAL_PRESETS)
         self.assertIn("liquid", materials.describe_presets())
