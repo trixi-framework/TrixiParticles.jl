@@ -4,22 +4,14 @@ using OrdinaryDiffEqLowStorageRK
 # ==========================================================================================
 # 2D Periodic Poiseuille Flow with Carreau-Yasuda Viscosity
 #
-# Based on:
-#   P. J. Carreau. "Rheological Equations from Molecular Network Theories".
-#   Transactions of the Society of Rheology, Volume 16, Issue 1 (1972), pages 99-127.
-#   https://doi.org/10.1122/1.549276
-#
-#   K. Yasuda, R. C. Armstrong, R. E. Cohen.
-#   "Shear flow properties of concentrated solutions of linear and star branched
-#   polystyrenes". Rheologica Acta, Volume 20, Issue 2 (1981), pages 163-178.
-#   https://doi.org/10.1007/BF01513059
-#
-# The validation setup follows the pressure-driven Poiseuille benchmark in
-# Coclite et al. (2020), but uses WCSPH with an equivalent body acceleration.
+# Based on the Poiseuille benchmark in section 3.1 of:
+#   A. Coclite, G. M. Coclite, D. De Tommasi.
+#   "Capsules Rheology in Carreau–Yasuda Fluids".
+#   Nanomaterials 10 (2020), 2190. https://doi.org/10.3390/nano10112190
+# The pressure gradient is represented here by an equivalent WCSPH body acceleration.
 #
 # This example simulates pressure-driven channel flow with the
-# `ViscosityCarreauYasuda` non-Newtonian viscosity model. The driving pressure
-# gradient is represented by an equivalent body acceleration.
+# `ViscosityCarreauYasuda` non-Newtonian viscosity model.
 # ==========================================================================================
 
 # ==========================================================================================
@@ -35,14 +27,6 @@ sound_speed_factor = 60.0
 initial_condition_mode = :analytical
 power_law_index = 1.0
 viscosity_model = :carreau
-parallelization_backend = PolyesterBackend()
-output_directory = nothing
-smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-time_integrator = RDPK3SpFSAL35()
-cfl_number = 0.2
-abstol = 1.0e-7
-reltol = 1.0e-4
-maxiters = 2_000_000
 
 channel_height = 1.0
 channel_length = 6.0 * channel_height
@@ -191,6 +175,7 @@ tank = RectangularTank(particle_spacing, (channel_length, channel_height),
                        velocity=initial_velocity,
                        coordinates_eltype=Float64)
 
+smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 smoothing_length = 1.2 * particle_spacing
 
 sound_speed = sound_speed_factor * reference_velocity
@@ -223,10 +208,8 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid;
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
                                              tank.boundary.mass,
                                              AdamiPressureExtrapolation(),
-                                             smoothing_kernel,
-                                             smoothing_length;
-                                             state_equation,
-                                             viscosity)
+                                             smoothing_kernel, smoothing_length;
+                                             state_equation, viscosity)
 
 boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
 
@@ -240,26 +223,25 @@ neighborhood_search = GridNeighborhoodSearch{2}(; periodic_box, cell_list)
 
 semi = Semidiscretization(fluid_system, boundary_system;
                           neighborhood_search,
-                          parallelization_backend)
+                          parallelization_backend=PolyesterBackend())
 
 ode = semidiscretize(semi, tspan)
 
-if output_directory === nothing
-    output_directory = joinpath("out_poiseuille_carreau", "n_$power_law_index")
-end
+output_directory = joinpath("out_poiseuille_carreau", "n_$power_law_index")
 
 info_callback = InfoCallback(interval=200)
 saving_callback = SolutionSavingCallback(; dt=t_end / 20,
                                          prefix="",
                                          output_directory)
 pp_callback = nothing
-cfl_callback = StepsizeCallback(cfl=cfl_number)
+cfl_callback = StepsizeCallback(cfl=0.2)
 callbacks = CallbackSet(info_callback, saving_callback, pp_callback,
                         cfl_callback, UpdateCallback())
 
-sol = solve(ode, time_integrator;
-            abstol=abstol,
-            reltol=reltol,
+time_integration_scheme = RDPK3SpFSAL35()
+sol = solve(ode, time_integration_scheme;
+            abstol=1.0e-7,
+            reltol=1.0e-4,
             save_everystep=false,
             callback=callbacks,
-            maxiters=maxiters);
+            maxiters=2_000_000);

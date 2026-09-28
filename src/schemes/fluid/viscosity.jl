@@ -569,12 +569,14 @@ end
     v_b = viscous_velocity(v_neighbor_system, neighbor_system, neighbor, v_b)
     v_diff = v_a - v_b
 
-    # This is only a local pairwise approximation of the shear-rate magnitude.
-    # Do not add a particle-spacing-sized offset here: that changes the physical
-    # shear rate. The small lower bound only protects pathological near-zero distances.
+    # Approximate the shear-rate magnitude from the pairwise velocity difference.
+    # Bound the denominator below by shear_rate_epsilon times the average smoothing length.
     shear_rate_distance = max(distance,
                               viscosity.shear_rate_epsilon *
                               smoothing_length_average)
+    # Since this is one of the most performance critical functions, using fast divisions
+    # here gives a significant speedup on GPUs.
+    # See the docs page "Development" for more details on `div_fast`.
     gamma_dot = div_fast(sqrt(dot(v_diff, v_diff)), shear_rate_distance)
 
     # Compute Carreau-Yasuda effective viscosity

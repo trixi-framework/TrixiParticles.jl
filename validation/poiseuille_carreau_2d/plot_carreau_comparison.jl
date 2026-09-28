@@ -3,7 +3,10 @@ using Glob, Plots
 using TrixiParticles
 using TrixiParticles.JSON
 
-include("analytical_solution.jl")
+include("validation_util.jl")
+
+example_file = joinpath(examples_dir(), "fluid", "poiseuille_carreau_2d.jl")
+trixi_include(@__MODULE__, example_file; ode=nothing, sol=nothing)
 
 gr()
 
@@ -18,20 +21,9 @@ function profile_history(json_file::AbstractString)
     return times, profiles
 end
 
-function plot_carreau(out_root::AbstractString="out_poiseuille_carreau")
+function plot_carreau(out_root::AbstractString; save_figures=false)
     n_dirs = sort(glob(joinpath(out_root, "n_*")))
     isempty(n_dirs) && error("No n_* directories found under $out_root")
-
-    channel_height = 1.0
-    fluid_density = 1000.0
-    nu0 = 1.0e-3
-    nu_inf = 0.0
-    lambda_exponent = 2.0
-    reynolds_number = 200.0
-    reference_velocity = reynolds_number * nu0 / channel_height
-    pressure_gradient = 8.0 * fluid_density * reference_velocity^2 /
-                        (reynolds_number * channel_height)
-    carreau_time_constant = channel_height / reference_velocity
 
     profile_plot = plot(title="Final profile",
                         xlabel="y / H",
@@ -100,15 +92,21 @@ function plot_carreau(out_root::AbstractString="out_poiseuille_carreau")
         plot!(error_plot, times, relative_l2_errors;
               label="n=$(n_val)", linewidth=2)
 
-        savefig(per_case_fig, joinpath(n_dir, "carreau_comparison_and_error.png"))
+        display(per_case_fig)
+        if save_figures
+            savefig(per_case_fig, joinpath(n_dir, "carreau_comparison_and_error.png"))
+        end
     end
 
-    savefig(profile_plot, joinpath(out_root, "carreau_final_profiles.png"))
-    savefig(error_plot, joinpath(out_root, "carreau_error_comparison.png"))
-    println("Saved profile comparison to: ",
-            joinpath(out_root, "carreau_final_profiles.png"))
-    println("Saved error comparison to: ",
-            joinpath(out_root, "carreau_error_comparison.png"))
+    display(profile_plot)
+    display(error_plot)
+    if save_figures
+        savefig(profile_plot, joinpath(out_root, "carreau_final_profiles.png"))
+        savefig(error_plot, joinpath(out_root, "carreau_error_comparison.png"))
+    end
+    return profile_plot, error_plot
 end
 
-plot_carreau(length(ARGS) > 0 ? ARGS[1] : "out_poiseuille_carreau")
+output_directory = "out_poiseuille_carreau"
+save_figures = false
+profile_plot, error_plot = plot_carreau(output_directory; save_figures)

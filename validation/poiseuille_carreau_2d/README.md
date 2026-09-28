@@ -3,12 +3,13 @@
 This folder contains a periodic 2D Poiseuille validation case for the
 `ViscosityCarreauYasuda` non-Newtonian viscosity model in TrixiParticles.jl.
 
-The case checks whether the numerical solution approaches the steady
-one-dimensional Carreau-Yasuda velocity profile in a pressure-driven channel.
+The default run starts from the steady one-dimensional Carreau-Yasuda velocity
+profile and checks the numerical solution against that profile after time integration.
 It also includes `n = 1`, which recovers the Newtonian parabolic Poiseuille
 profile. The setup is inspired by the Poiseuille validation in section 3.1 of
-Coclite et al. (2020), but uses WCSPH with an equivalent body acceleration
-instead of the MRT-LBM pressure-gradient implementation used there.
+[Coclite et al. (2020)](https://doi.org/10.3390/nano10112190), but uses WCSPH
+with an equivalent body acceleration instead of the MRT-LBM pressure-gradient
+implementation used there.
 
 ## Files
 
@@ -18,6 +19,7 @@ instead of the MRT-LBM pressure-gradient implementation used there.
   Carreau-Yasuda power-law indices, writes interpolated velocity profiles with
   `PostprocessCallback`, and checks the final relative L2 errors against
   validation bounds.
+- `validation_util.jl`: shared velocity-error calculation for validation and plotting.
 - `plot_carreau_comparison.jl`: helper script for manual inspection of the
   saved JSON profiles and error trends.
 
@@ -42,34 +44,30 @@ Carreau-Yasuda stress relation
 tau(y) = rho0 * nu(gammadot) * gammadot
 ```
 
-where `tau(y) = dpdx * abs(y - H / 2)`. The resulting shear-rate profile is
-integrated from the wall to the centerline to obtain `u_x(y)`.
+Here `dpdx` is the magnitude of the driving pressure gradient and
+`tau(y) = dpdx * abs(y - H / 2)` is the shear-stress magnitude. The script solves
+the stress relation by bisection and integrates the shear rate from the wall
+toward the centerline using the trapezoidal rule to obtain `u_x(y)`.
 
-The validation records interpolated centerline velocity profiles with
-`PostprocessCallback`. The error against the analytical profile is computed
+The validation records interpolated velocity profiles across the channel at
+`x = L / 2` with `PostprocessCallback`. The error against the analytical profile is computed
 after the run from those JSON files.
-
-The current SPH viscosity model evaluates the Carreau-Yasuda law from a local
-pairwise shear-rate estimate `|v_a - v_b| / |r_a - r_b|`. This avoids the old
-particle-spacing-sized regularization in the denominator, but it is still not a
-full reconstruction of the continuum invariant `sqrt(2S:S)`. A future
-particle-gradient reconstruction would be needed for that stricter definition.
 
 ## Running
 
 Default run:
 
-```bash
-julia --project=run validation/poiseuille_carreau_2d/validation_poiseuille_carreau_2d.jl
+```julia
+using TrixiParticles
+include(joinpath(validation_dir(), "poiseuille_carreau_2d",
+                 "validation_poiseuille_carreau_2d.jl"))
 ```
 
 The default uses `ny = 50`, `t_end_factor = 0.1`, analytical initial conditions,
-`WendlandC2Kernel`, no particle shifting, and a timestamped output root. The
-timestamp avoids mixing a new interrupted run with stale VTU files from an older
-run. Strict steady-profile error bounds are checked for analytical initial
-conditions. Newtonian-start runs are useful as transient relaxation experiments,
-but they skip those steady-profile assertions by default because shear-thinning
-and shear-thickening cases can require much longer physical times to relax.
+`WendlandC2Kernel`, no particle shifting, and a timestamped output directory.
+Error bounds are checked by default for `initial_condition_mode=:analytical`.
+For `:newtonian` and `:zero`, errors are still computed, but the bounds are not
+checked unless `check_error_bounds=true` is passed.
 
 To change parameters from an interactive Julia session, use `trixi_include`:
 
@@ -86,7 +84,8 @@ trixi_include(@__MODULE__,
 The initial condition mode is one of `:newtonian`, `:analytical`, or
 `:zero`. The viscosity model is one of `:carreau` or `:newtonian`; the
 plain Newtonian option uses the same periodic channel setup with
-`ViscosityAdami(nu=nu0)` and is useful as a control case.
+`ViscosityAdami(nu=nu0)`. Use `n_values=(1.0,)` with this option so the
+initial profile and analytical comparison also use the Newtonian limit.
 
 Results are written to:
 
@@ -107,19 +106,25 @@ n = 1.0:  relative L2 <= 0.06
 n = 1.5:  relative L2 <= 0.06
 ```
 
-The relative L2 error is the main quantitative comparison metric. The maximum
-absolute error is also written to the CSV/JSON files, but it should not be
-compared directly across different `n` values without normalization because the
-velocity scale changes strongly for shear-thinning cases such as `n = 0.25`.
+The final errors are available in `final_relative_l2_errors` and
+`final_max_velocity_errors`. The JSON files contain velocity profile histories.
+Wall velocities are included when interpolating the profiles used for both the
+plots and the error calculation.
 
 ## Plotting
 
-After a run, create comparison plots with:
+After running the validation in the same Julia session, display comparison plots
+for that run with:
 
-```bash
-julia --project=run -e 'append!(ARGS, ["out_poiseuille_carreau"]); include("validation/poiseuille_carreau_2d/plot_carreau_comparison.jl")'
+```julia
+trixi_include(joinpath(validation_dir(), "poiseuille_carreau_2d",
+                       "plot_carreau_comparison.jl");
+              output_directory=output_root)
 ```
 
-The plotting helper uses optional plotting packages that should be installed in
-the separate developer `run` environment. They are not runtime dependencies of
-TrixiParticles.jl.
+For an earlier run, set `output_directory` to its
+`"out_poiseuille_carreau/run_<timestamp>"` directory. The plotting default is
+`"out_poiseuille_carreau"`; timestamped runs require the subdirectory explicitly.
+The plotting script requires `Glob` and `Plots` in the active Julia environment.
+Figures are displayed without saving. Pass `save_figures=true` to also save PNG
+files in the selected output directory and its case subdirectories.
