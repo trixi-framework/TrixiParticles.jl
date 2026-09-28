@@ -17,6 +17,7 @@ using GPUArraysCore: AbstractGPUArray
 using JSON: JSON
 using KernelAbstractions: KernelAbstractions, @kernel, @index
 using LinearAlgebra: norm, normalize, cross, dot, I, tr, inv, pinv, det
+using MarchingCubes: MarchingCubes
 using Polyester: Polyester, @batch
 using Printf: @printf, @sprintf
 using ReadVTK: ReadVTK
@@ -26,7 +27,7 @@ using SciMLBase: SciMLBase, CallbackSet, DiscreteCallback, DynamicalODEProblem,
                  derivative_discontinuity!, get_tmp_cache, set_proposed_dt!,
                  ODESolution, ODEProblem, terminate!, add_tstop!
 @reexport using StaticArrays: SVector
-using StaticArrays: @SMatrix, SMatrix, setindex
+using StaticArrays: @SMatrix, @SVector, SMatrix, MVector, setindex
 using Statistics: Statistics
 using StrideArraysCore: PtrArray, StaticInt
 using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!, @notimeit
@@ -43,7 +44,7 @@ using TrixiBase: @trixi_timeit, timer, timeit_debug_enabled,
 using PointNeighbors: PointNeighbors, foreach_point_neighbor, copy_neighborhood_search,
                       @threaded, AbstractNeighborhoodSearch
 using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, VTKFieldData, paraview_collection,
-                vtk_save
+                vtk_save, VTKPolyData, PolyData
 
 # `util.jl` needs to be first because of the macros `@trixi_timeit` and `@threaded`
 include("util.jl")
@@ -64,6 +65,10 @@ include("general/semidiscretization.jl")
 include("general/time_integration.jl")
 include("general/gpu.jl")
 include("preprocessing/preprocessing.jl")
+# `surface_reconstruction.jl` annotates `TriangleMesh`/`TriangleBvh` from preprocessing,
+# and the surface reconstruction callback requires `SurfaceReconstruction` to be defined.
+include("surface_reconstruction/surface_reconstruction.jl")
+include("callbacks/surface_reconstruction.jl")
 include("io/io.jl")
 include("general/restart.jl")
 include("visualization/recipes_plots.jl")
@@ -80,7 +85,7 @@ export BoundaryZone, InFlow, OutFlow, BidirectionalFlow
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
        PostprocessCallback, StepsizeCallback, UpdateCallback, SteadyStateReachedCallback,
        SplitIntegrationCallback, MechanicalWorkCalculator, calculated_mechanical_work,
-       SortingCallback
+       SortingCallback, SurfaceReconstructionCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller, TransportVelocityAdami, ParticleShiftingTechnique,
        ParticleShiftingTechniqueSun2017, ConsistentShiftingSun2019,
@@ -121,6 +126,9 @@ export interpolate_line, interpolate_points, interpolate_plane_3d, interpolate_p
 export SurfaceTensionAkinci, CohesionForceAkinci, SurfaceTensionMorris,
        SurfaceTensionMomentumMorris
 export ColorfieldSurfaceNormal
+export SurfaceMesh, SurfaceReconstruction, SurfaceReconstructionStatistics,
+       reconstruct_surface, reconstruct_surface!, statistics_dict, write_ply
+export BoundaryMesh, BoundaryTopology, lattice_surface_topology, enclosed_particles
 export SymplecticPositionVerlet
 export coordinates_eltype
 

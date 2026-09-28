@@ -5,6 +5,16 @@ function get_iter(dt::AbstractFloat, integrator)
     Int(div(integrator.t - first(integrator.sol.prob.tspan), dt, RoundNearest))
 end
 
+# Both solution and surface saving have the same mutually exclusive schedule modes.
+# Keep their caller-specific error messages and initial/final-event policies separate.
+# Pass literal messages to avoid allocating error strings on successful construction.
+function validate_save_schedule(interval::Integer, dt, save_times, message)
+    if (dt > 0 && interval > 0) || (!isempty(save_times) && (dt > 0 || interval > 0))
+        throw(ArgumentError(message))
+    end
+    return dt > 0 ? Float64(dt) : interval
+end
+
 # Used by `InfoCallback` and `PostProcessCallback`
 @inline function isfinished(integrator)
     # Checking for floating point equality is OK here as `DifferentialEquations.jl`
