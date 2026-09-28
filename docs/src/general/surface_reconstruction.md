@@ -238,6 +238,9 @@ tolerance, in which case reconstruction raises an error.
    and cavity regions. [`write_ply`](@ref), [`trixi2vtk`](@ref), and
    `TriangleMesh` conversion orient outer shells outward and cavities inward in the
    simulation coordinate system. The raw `SurfaceMesh` retains contour ordering.
+   Edge collapses can flatten a tiny closed shell; zero-volume remnants are pruned
+   again after these collapses, using the same volume threshold as the initial cleanup.
+   This does not change the reconstruction field or the selected isovalue.
 
 ![Cross-section from particles through CIC deposition and filtering to the constrained contour](surface_reconstruction_pipeline.png)
 

@@ -621,39 +621,63 @@ function first_degenerate_face(mesh, area_tolerance)
 end
 
 function collapse_degenerate_triangles(mesh; area_tolerance=1.0e-14,
-                                       maximum_collapses=1024)
+                                       maximum_collapses=1024, backend=SerialBackend())
     collapsed_edges = 0
     removed_vertices = 0
     removed_faces = 0
+    removed_zero_volume_shells = 0
     maximum_edge_length = 0.0
+    needs_volume_check = false
     while true
         degenerate_face = first_degenerate_face(mesh, area_tolerance)
-        isnothing(degenerate_face) && break
-        collapsed_edges < maximum_collapses ||
-            error("degenerate-triangle cleanup exceeded $maximum_collapses edge collapses")
-
-        face = mesh.faces[degenerate_face]
-        edges = [(face[1], face[2]), (face[2], face[3]), (face[3], face[1])]
-        sort!(edges;
-              by=edge -> norm(SVector{3, Float64}(mesh.vertices[edge[1]]) -
-                              SVector{3, Float64}(mesh.vertices[edge[2]])))
         result = nothing
-        for edge in edges
-            result = topology_preserving_edge_collapse(mesh, edge[1], edge[2])
-            isnothing(result) || break
+        if !isnothing(degenerate_face)
+            collapsed_edges < maximum_collapses ||
+                error("degenerate-triangle cleanup exceeded $maximum_collapses edge collapses")
+            face = mesh.faces[degenerate_face]
+            edges = [(face[1], face[2]), (face[2], face[3]), (face[3], face[1])]
+            sort!(edges;
+                  by=edge -> norm(SVector{3, Float64}(mesh.vertices[edge[1]]) -
+                                  SVector{3, Float64}(mesh.vertices[edge[2]])))
+            for edge in edges
+                result = topology_preserving_edge_collapse(mesh, edge[1], edge[2])
+                isnothing(result) || break
+            end
         end
-        isnothing(result) &&
-            error("degenerate surface triangle cannot be removed by a topology-preserving edge collapse")
-        mesh, removal = result
-        collapsed_edges += 1
-        removed_vertices += removal.removed_vertices
-        removed_faces += removal.removed_faces
-        maximum_edge_length = max(maximum_edge_length, removal.edge_length)
+        if !isnothing(result)
+            mesh, removal = result
+            collapsed_edges += 1
+            removed_vertices += removal.removed_vertices
+            removed_faces += removal.removed_faces
+            maximum_edge_length = max(maximum_edge_length, removal.edge_length)
+            needs_volume_check = true
+            continue
+        end
+
+        if needs_volume_check
+            # A link-preserving collapse can flatten a tiny closed shell. Its final
+            # tetrahedron has no collapsible edge (each would duplicate a face), so
+            # edge cleanup alone cannot finish. Apply the same zero-volume pruning
+            # used before cleanup, without changing the field or contour threshold.
+            # Check also when no degenerate faces remain: a flat shell can consist
+            # entirely of triangles with nonzero area.
+            mesh, _, removal = prune_zero_volume_shells(mesh; backend)
+            removed_zero_volume_shells += removal.removed_components
+            removed_vertices += removal.removed_vertices
+            removed_faces += removal.removed_faces
+            needs_volume_check = false
+            removal.removed_components > 0 && continue
+        end
+        isnothing(degenerate_face) && break
+        # A nonzero-volume shell or a mesh with no successful collapse is not a
+        # zero-volume remnant. Preserve the failure rather than remove its faces.
+        error("degenerate surface triangle cannot be removed by a topology-preserving edge collapse")
     end
     return mesh,
            (collapsed_edges=collapsed_edges,
             removed_vertices=removed_vertices,
             removed_faces=removed_faces,
+            removed_zero_volume_shells=removed_zero_volume_shells,
             maximum_edge_length=maximum_edge_length)
 end
 

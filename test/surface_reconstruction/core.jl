@@ -315,6 +315,77 @@
             @test after.n_degenerate_triangles == 0
         end
 
+        @testset "edge cleanup prunes newly flattened closed shells" begin
+            # This six-vertex shell has positive volume after the initial pruning.
+            # Two link-preserving collapses leave a flat tetrahedron, whose edges
+            # cannot collapse without producing duplicate faces. It used to fail
+            # even when included beside an otherwise valid reconstructed surface.
+            vertices = TrixiParticles.SVector{3, Float32}[(0, 0, -1 / 512),
+                                                          (0, -2.0^-24, 0),
+                                                          (0, 1 / 256, 0),
+                                                          (-2.0^-25, 0, 0),
+                                                          (0, 0, 0), (0, 0, 2.0^-25)]
+            faces = TrixiParticles.Face[(1, 4, 2), (5, 1, 2), (1, 3, 4), (1, 5, 3),
+                                        (2, 4, 6), (2, 6, 5), (4, 3, 6), (5, 6, 3)]
+            thin_shell = TrixiParticles.SurfaceMesh(vertices, faces)
+
+            # A collapse can also leave a flat tetrahedron with *no* small-area
+            # faces. Check volume after successful cleanup as well as on a stall.
+            cap_vertices = TrixiParticles.SVector{3, Float32}[(0, 0, 0), (1, 0, 0),
+                                                              (0, 1, 0),
+                                                              (0.25, 0.25, 0),
+                                                              (0, 0, 1.0e-14)]
+            cap_faces = TrixiParticles.Face[(1, 2, 5), (2, 3, 5), (3, 1, 5),
+                                            (2, 1, 4), (3, 2, 4), (1, 3, 4)]
+            thin_cap = TrixiParticles.SurfaceMesh(cap_vertices, cap_faces)
+
+            bulk = cube_mesh(2.0, 3.0)
+            for shell in (thin_shell, thin_cap),
+                backend in (SerialBackend(), PolyesterBackend())
+                mesh = combine_meshes(bulk, shell)
+                before, _, pruning = TrixiParticles.prune_zero_volume_shells(mesh;
+                                                                             backend)
+                @test before === mesh
+                @test pruning.removed_components == 0
+                @test TrixiParticles.count_boundary_and_nonmanifold_edges(mesh) == (0, 0)
+                @test !isnothing(TrixiParticles.first_degenerate_face(mesh, 1.0e-14))
+
+                cleaned,
+                cleanup = TrixiParticles.collapse_degenerate_triangles(mesh;
+                                                                       backend)
+                @test cleanup.collapsed_edges > 0
+                @test cleanup.removed_zero_volume_shells == 1
+                @test cleanup.removed_vertices == length(shell.vertices)
+                @test cleanup.removed_faces == length(shell.faces)
+                @test cleaned.vertices == bulk.vertices
+                @test cleaned.faces == bulk.faces
+                @test TrixiParticles.mesh_geometry_stats(cleaned).volume ≈ 1.0
+                @test TrixiParticles.count_boundary_and_nonmanifold_edges(cleaned) == (0, 0)
+                @test isnothing(TrixiParticles.first_degenerate_face(cleaned, 1.0e-14))
+                # Standalone remnants must also terminate rather than attempt a
+                # volume/nesting analysis of an empty mesh repeatedly.
+                empty_mesh,
+                empty_cleanup = TrixiParticles.collapse_degenerate_triangles(shell;
+                                                                             backend)
+                @test isempty(empty_mesh.faces) && isempty(empty_mesh.vertices)
+                @test empty_cleanup.removed_zero_volume_shells == 1
+            end
+
+            # An uncollapsible nonzero-volume tetrahedron is still an error.
+            # It must not be removed just because it contains a small-area face.
+            nonzero_vertices = TrixiParticles.SVector{3, Float32}[(0, 0, 0),
+                                                                  (1.0e-8, 0, 0),
+                                                                  (0, 1.0e-8, 0),
+                                                                  (0, 0, 20)]
+            tetrahedron_faces = TrixiParticles.Face[(1, 3, 2), (1, 2, 4),
+                                                    (1, 4, 3), (2, 3, 4)]
+            nonzero_shell = TrixiParticles.SurfaceMesh(nonzero_vertices, tetrahedron_faces)
+            @test abs(TrixiParticles.mesh_signed_volume(nonzero_shell)) > eps(Float64)
+            @test_throws "cannot be removed" TrixiParticles.collapse_degenerate_triangles(nonzero_shell)
+            @test_throws "cannot be removed" TrixiParticles.collapse_degenerate_triangles(combine_meshes(thin_shell,
+                                                                                                         nonzero_shell))
+        end
+
         @testset "box-restricted marching cubes matches MarchingCubes.jl bitwise" begin
             function library_mesh(scalar, origin, spacing)
                 dimensions = size(scalar)
