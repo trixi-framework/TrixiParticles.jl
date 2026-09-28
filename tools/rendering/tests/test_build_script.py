@@ -54,7 +54,7 @@ class BuildScriptTests(unittest.TestCase):
                                stdout=stream, check=True)
             subprocess.run(["git", "-C", str(source), "checkout", "-q", "--",
                             "file.txt"], check=True)
-            self.assertEqual(module.patch_state(source, patch), "appliable")
+            self.assertEqual(module.patch_state(source, patch), "applicable")
             subprocess.run(["git", "-C", str(source), "apply", str(patch)],
                            check=True)
             self.assertEqual(module.patch_state(source, patch), "applied")

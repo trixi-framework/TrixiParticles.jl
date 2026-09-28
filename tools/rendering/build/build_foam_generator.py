@@ -77,7 +77,7 @@ def commit_present(source: Path, commit: str) -> bool:
 
 
 def patch_state(source: Path, patch: Path) -> str:
-    """Return applied, appliable, or mismatch for a patch against a checkout."""
+    """Return applied, applicable, or mismatch for a patch against a checkout."""
     reverse = subprocess.run(["git", "apply", "--reverse", "--check", str(patch)],
                              cwd=source, capture_output=True)
     forward = subprocess.run(["git", "apply", "--check", str(patch)],
@@ -85,7 +85,7 @@ def patch_state(source: Path, patch: Path) -> str:
     if reverse.returncode == 0 and forward.returncode != 0:
         return "applied"
     if forward.returncode == 0 and reverse.returncode != 0:
-        return "appliable"
+        return "applicable"
     return "mismatch"
 
 
@@ -113,7 +113,7 @@ def ensure_source(source: Path, repo_url: str, commit: str, patch: Path,
                              f"to the pinned commit {commit}")
         run(["git", "checkout", commit], working_directory=source)
     state = patch_state(source, patch)
-    if state == "appliable":
+    if state == "applicable":
         run(["git", "apply", str(patch)], working_directory=source)
     elif state != "applied":
         raise ValueError(f"patch does not match the pinned source: {patch}")
