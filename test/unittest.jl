@@ -7,6 +7,7 @@
     include("systems/systems.jl")
     include("schemes/schemes.jl")
     include("preprocessing/preprocessing.jl")
+    include("surface_reconstruction/surface_reconstruction.jl")
     include("io/write_vtk.jl")
     include("io/read_vtk.jl")
     include("visualization/makie.jl")

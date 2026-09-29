@@ -234,72 +234,9 @@ function signed_point_face_distance(p::SVector{3}, boundary, face_index)
     nbc = edge_normals[e2]
     nac = edge_normals[e3]
 
-    ab = b - a
-    ac = c - a
-    ap = p - a
-
-    dot1 = dot(ab, ap)
-    dot2 = dot(ac, ap)
-
-    # Region 1: point `a`
-    (dot1 <= 0 && dot2 <= 0) && return signbit(dot(ap, na)), dot(ap, ap), na
-
-    bp = p - b
-
-    dot3 = dot(ab, bp)
-    dot4 = dot(ac, bp)
-
-    # Region 2: point `b`
-    (dot3 >= 0 && dot4 <= dot3) && return signbit(dot(bp, nb)), dot(bp, bp), nb
-
-    cp = p - c
-
-    dot5 = dot(ab, cp)
-    dot6 = dot(ac, cp)
-
-    # Region 3: point `c`
-    (dot6 >= 0 && dot5 <= dot6) && return signbit(dot(cp, nc)), dot(cp, cp), nc
-
-    vc = dot1 * dot4 - dot3 * dot2
-
-    if vc <= 0 && dot1 >= 0 && dot3 <= 0
-        t = dot1 / (dot1 - dot3)
-
-        v = p - (a + t * ab)
-
-        # Region 4: edge `ab`
-        return signbit(dot(v, nab)), dot(v, v), nab
-    end
-
-    vb = dot5 * dot2 - dot1 * dot6
-
-    if vb <= 0 && dot2 >= 0 && dot6 <= 0
-        t = dot2 / (dot2 - dot6)
-
-        v = p - (a + t * ac)
-
-        # Region 5: edge `ac`
-        return signbit(dot(v, nac)), dot(v, v), nac
-    end
-
-    va = dot3 * dot6 - dot5 * dot4
-
-    if va <= 0 && (dot4 - dot3) >= 0 && (dot5 - dot6) >= 0
-        t = (dot4 - dot3) / ((dot4 - dot3) + (dot5 - dot6))
-
-        v = p - (b + t * (c - b))
-
-        # Region 6: edge `bc`
-        return signbit(dot(v, nbc)), dot(v, v), nbc
-    end
-
-    # Region 0: triangle
-    denom = 1 / (va + vb + vc)
-
-    u = vb * denom
-    w = vc * denom
-
-    d = p - (a + u * ab + w * ac)
-
-    return signbit(dot(d, n)), dot(d, d), n
+    closest,
+    normal = triangle_closest_point_and_normal(p, a, b, c, (na, nb, nc),
+                                               (nab, nbc, nac), n, Val(false))
+    offset = p - closest
+    return signbit(dot(offset, normal)), dot(offset, offset), normal
 end

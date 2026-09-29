@@ -232,7 +232,7 @@ function volume(polygon::Polygon)
         v1 = polygon.vertices[edge[1]]
         v2 = polygon.vertices[edge[2]]
 
-        return (v1[1] * v2[2] - v2[1] * v1[2])
+        return planar_cross(v1, v2)
     end
     return abs(volume) / 2
 end

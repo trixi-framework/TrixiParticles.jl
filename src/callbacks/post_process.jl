@@ -239,19 +239,11 @@ function write_postprocess_callback(pp::PostprocessCallback, integrator)
     filename_json = pp.filename * time_stamp * ".json"
     filename_csv = pp.filename * time_stamp * ".csv"
 
-    if pp.write_json
-        abs_file_path = joinpath(abspath(pp.output_directory), filename_json)
-
-        open(abs_file_path, "w") do file
-            # Indent by 4 spaces
-            JSON.json(file, data; pretty=4, allownan=true)
-        end
-    end
-    if pp.write_csv
-        abs_file_path = joinpath(abspath(pp.output_directory), filename_csv)
-
-        write_csv(abs_file_path, data)
-    end
+    json_path = pp.write_json ? joinpath(abspath(pp.output_directory), filename_json) :
+                nothing
+    csv_path = pp.write_csv ? joinpath(abspath(pp.output_directory), filename_csv) : nothing
+    write_time_series_files(json_path, csv_path, data;
+                            save_json=pp.write_json, save_csv=pp.write_csv)
 end
 
 # This function prepares the data for writing to a JSON file by creating a dictionary
@@ -276,6 +268,19 @@ function create_series_dict(values, times, system_name="")
                 "system_name" => system_name,
                 "values" => values,
                 "time" => times)
+end
+
+# Identical JSON indentation/NaN handling and CSV layout for all postprocessing
+# time series; callbacks retain control over paths and which formats are written.
+@inline function write_time_series_files(json_path, csv_path, data; save_json=true,
+                                         save_csv=true)
+    if save_json
+        open(json_path, "w") do file
+            JSON.json(file, data; pretty=4, allownan=true)
+        end
+    end
+    save_csv && write_csv(csv_path, data)
+    return nothing
 end
 
 function write_csv(abs_file_path, data)
