@@ -135,4 +135,59 @@
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol) == 0
     end
+
+    @trixi_testset "poiseuille_flow_2d" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(validation_dir(), "poiseuille_flow_2d",
+                                                  "validation_poiseuille_flow_2d.jl"),
+                                         tspan=(0.0, 0.04))
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol) == 0
+
+        # Results are not bitwise reproducible with a different number of threads.
+        # Note that velocity values are in the order of 1e-3.
+        @test isapprox(error_v_x, 0, atol=1e-16)
+
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(validation_dir(), "poiseuille_flow_2d",
+                                                  "plot_poiseuille_flow_2d.jl")) [
+            r"GKS: cannot open display - headless operation mode active\n"
+        ]
+        # Verify number of plots
+        @test length(p_rmsep.series_list) == 2
+        @test length(p.series_list) == 10
+    end
+
+    @trixi_testset "poiseuille_flow_3d" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(validation_dir(), "poiseuille_flow_3d",
+                                                  "validation_poiseuille_flow_3d.jl"),
+                                         particle_spacing_factor=10,
+                                         tspan=(0.0, 0.02)) [
+            r"┌ Info: .*edge 2 length.*\n",
+            r"└ New edge 2 length.*\n",
+            r"┌ Warning: .*boundary face.*\n",
+            r"└ @ TrixiParticles .*boundary_zones\.jl:\d+\n"
+        ]
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol) == 0
+
+        # Results are not bitwise reproducible with a different number of threads.
+        # Note that velocity values are in the order of 1e-3.
+        @test isapprox(error_v_x, 0, atol=1e-16)
+
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(validation_dir(), "poiseuille_flow_3d",
+                                                  "plot_poiseuille_flow_3d.jl"),
+                                         particle_spacing_factor=10) [
+            r"┌ Info: .*edge 2 length.*\n",
+            r"└ New edge 2 length.*\n",
+            r"┌ Warning: .*boundary face.*\n",
+            r"└ @ TrixiParticles .*boundary_zones\.jl:\d+\n",
+            r"GKS: cannot open display - headless operation mode active\n"
+        ]
+        # Verify number of plots
+        @test length(p_rmsep.series_list) == 2
+        @test length(p.series_list) == 12
+    end
 end
