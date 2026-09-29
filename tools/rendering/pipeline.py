@@ -140,6 +140,8 @@ def parser() -> argparse.ArgumentParser:
 
     render.add_argument("--water-color", nargs=3, type=float)
     render.add_argument("--water-roughness", type=fraction)
+    render.add_argument("--water-transmission", type=fraction)
+    render.add_argument("--water-specular-level", type=fraction)
     render.add_argument("--water-ior", type=positive)
     render.add_argument("--water-absorption", nargs=3, type=float)
     render.add_argument("--water-scattering", nargs=3, type=float)
@@ -148,12 +150,25 @@ def parser() -> argparse.ArgumentParser:
     render.add_argument("--solid-metallic", type=fraction)
     render.add_argument("--solid-roughness", type=fraction)
     render.add_argument("--solid-coat", type=fraction)
+    render.add_argument("--solid-specular-level", type=fraction)
     render.add_argument("--solid-noise-scale", type=positive,
                         help="Optional local noise texture frequency for a solid")
     render.add_argument("--solid-bump-strength", type=fraction,
                         help="Optional procedural surface microstructure strength")
     render.add_argument("--solid-bump-distance", type=positive,
                         help="Optional microstructure bump distance in metres")
+    render.add_argument("--solid-inclusion-color", nargs=3, type=float,
+                        help="Optional aggregate/stone inclusion color")
+    render.add_argument("--solid-inclusion-scale", type=positive,
+                        help="Optional Voronoi inclusion frequency in inverse metres")
+    render.add_argument("--solid-inclusion-threshold", type=fraction,
+                        help="Voronoi inclusion core radius in cell units")
+    render.add_argument("--solid-inclusion-transition", type=positive,
+                        help="Transition from inclusion to matrix in cell units")
+    render.add_argument("--solid-inclusion-warp-scale", type=positive,
+                        help="Optional noise frequency that irregularizes inclusions")
+    render.add_argument("--solid-inclusion-distortion", type=float,
+                        help="Optional inclusion-boundary distortion in metres")
     render.add_argument("--solid-floor-extension", type=float, default=None)
     render.add_argument("--solid-bevel", type=float, default=None)
     render.add_argument("--solid-bevel-segments", type=int, default=None)
@@ -246,11 +261,25 @@ def validate(args: argparse.Namespace) -> None:
     elif args.solid_noise_scale is not None or args.solid_bump_distance is not None:
         if args.solid_bump_strength is None:
             raise ValueError("solid microstructure needs bump strength")
+    inclusions = ("solid_inclusion_scale", "solid_inclusion_threshold",
+                  "solid_inclusion_transition", "solid_inclusion_warp_scale",
+                  "solid_inclusion_distortion")
+    if args.solid_inclusion_color is not None:
+        missing = [name for name in inclusions if getattr(args, name) is None]
+        if missing:
+            raise ValueError("solid inclusions need: " + ", ".join(missing))
+        if args.solid_inclusion_threshold + args.solid_inclusion_transition >= 1:
+            raise ValueError("solid inclusion transition must end before 1")
+        if args.solid_inclusion_distortion < 0:
+            raise ValueError("solid inclusion distortion cannot be negative")
+    elif any(getattr(args, name) is not None for name in inclusions):
+        raise ValueError("solid inclusions need --solid-inclusion-color")
     if args.stress_water_opacity is None:
         args.stress_water_opacity = 0.0
     from math import isfinite
     if args.mode == "liquid":
-        required = ("water_color", "water_roughness", "water_ior", "water_absorption",
+        required = ("water_color", "water_roughness", "water_transmission", "water_ior",
+                    "water_absorption",
                     "water_scattering", "water_scattering_anisotropy", "glass_color",
                     "glass_opacity", "glass_roughness", "glass_ior", "glass_transmission",
                     "glass_specular", "wall_thickness", "floor_thickness",
@@ -272,7 +301,8 @@ def validate(args: argparse.Namespace) -> None:
                 args.exposure, args.camera_fov, args.solid_bevel_angle,
                 args.world_strength, args.visible_wall_height or 0)):
         raise ValueError("nonfinite render or material parameter")
-    for name in ("water_color", "solid_color", "glass_color", "world_color", "floor_color"):
+    for name in ("water_color", "solid_color", "glass_color", "world_color",
+                 "floor_color", "solid_inclusion_color"):
         values = getattr(args, name)
         if values is not None:
             rgb(values)

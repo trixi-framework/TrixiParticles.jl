@@ -130,8 +130,11 @@ def principled(name, color, roughness, *, transmission=0, metallic=0, ior=1.45, 
 def water_material(args):
     label = (args.liquid_material or "custom liquid").replace("-", " ").title()
     material = principled(label, args.water_color, args.water_roughness,
-                          transmission=1, ior=args.water_ior)
+                           transmission=args.water_transmission, ior=args.water_ior)
     nodes, links = material.node_tree.nodes, material.node_tree.links
+    bsdf = nodes.get("Principled BSDF")
+    if args.water_specular_level is not None and "Specular IOR Level" in bsdf.inputs:
+        bsdf.inputs["Specular IOR Level"].default_value = args.water_specular_level
     volume = nodes.new("ShaderNodeVolumeCoefficients")
     volume.inputs["Absorption Coefficients"].default_value = tuple(args.water_absorption)
     volume.inputs["Scatter Coefficients"].default_value = tuple(args.water_scattering)
@@ -527,9 +530,13 @@ def build_scene(args, frame, whitewater):
                           " solids")
             solid_shader = principled(solid_name, args.solid_color, args.solid_roughness,
                                       metallic=args.solid_metallic, coat=args.solid_coat)
+            nodes = solid_shader.node_tree.nodes
+            links = solid_shader.node_tree.links
+            bsdf = nodes.get("Principled BSDF")
+            if args.solid_specular_level is not None and "Specular IOR Level" in bsdf.inputs:
+                bsdf.inputs["Specular IOR Level"].default_value = args.solid_specular_level
+            coordinates = None
             if args.solid_bump_strength:
-                nodes = solid_shader.node_tree.nodes
-                links = solid_shader.node_tree.links
                 coordinates = nodes.new("ShaderNodeTexCoord")
                 noise = nodes.new("ShaderNodeTexNoise")
                 noise.inputs["Scale"].default_value = args.solid_noise_scale
@@ -539,7 +546,35 @@ def build_scene(args, frame, whitewater):
                 links.new(coordinates.outputs["Object"], noise.inputs["Vector"])
                 links.new(noise.outputs["Fac"], bump.inputs["Height"])
                 links.new(bump.outputs["Normal"],
-                          nodes.get("Principled BSDF").inputs["Normal"])
+                          bsdf.inputs["Normal"])
+            if args.solid_inclusion_color is not None:
+                if coordinates is None:
+                    coordinates = nodes.new("ShaderNodeTexCoord")
+                aggregate = nodes.new("ShaderNodeTexVoronoi")
+                aggregate.feature = "F1"
+                aggregate.distance = "EUCLIDEAN"
+                aggregate.inputs["Scale"].default_value = args.solid_inclusion_scale
+                distortion = nodes.new("ShaderNodeTexNoise")
+                distortion.inputs["Scale"].default_value = args.solid_inclusion_warp_scale
+                distortion_factor = nodes.new("ShaderNodeVectorMath")
+                distortion_factor.operation = "SCALE"
+                distortion_factor.inputs["Scale"].default_value = \
+                    args.solid_inclusion_distortion
+                distorted = nodes.new("ShaderNodeVectorMath")
+                distorted.operation = "ADD"
+                ramp = nodes.new("ShaderNodeValToRGB")
+                ramp.color_ramp.elements[0].position = args.solid_inclusion_threshold
+                ramp.color_ramp.elements[0].color = (*args.solid_inclusion_color, 1)
+                ramp.color_ramp.elements[1].position = (args.solid_inclusion_threshold +
+                                                        args.solid_inclusion_transition)
+                ramp.color_ramp.elements[1].color = (*args.solid_color, 1)
+                links.new(coordinates.outputs["Object"], distortion.inputs["Vector"])
+                links.new(distortion.outputs["Color"], distortion_factor.inputs["Vector"])
+                links.new(coordinates.outputs["Object"], distorted.inputs[0])
+                links.new(distortion_factor.outputs["Vector"], distorted.inputs[1])
+                links.new(distorted.outputs["Vector"], aggregate.inputs["Vector"])
+                links.new(aggregate.outputs["Distance"], ramp.inputs["Fac"])
+                links.new(ramp.outputs["Color"], bsdf.inputs["Base Color"])
             for index, path in enumerate(frame["solids"], 1):
                 obj = import_mesh(path, f"Structural solid {index}", solid_shader,
                                   args.surface_axis_order)

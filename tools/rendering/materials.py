@@ -47,13 +47,20 @@ SOLID_MATERIALS = {
         "solid_coat": 0.25,
     },
     "concrete": {
-        "solid_color": (0.42, 0.44, 0.43),
+        "solid_color": (0.065, 0.075, 0.073),
         "solid_metallic": 0.0,
-        "solid_roughness": 0.88,
+        "solid_roughness": 0.99,
         "solid_coat": 0.0,
+        "solid_specular_level": 0.03,
         "solid_noise_scale": 90.0,
-        "solid_bump_strength": 0.35,
-        "solid_bump_distance": 0.003,
+        "solid_bump_strength": 0.65,
+        "solid_bump_distance": 0.008,
+        "solid_inclusion_color": (0.028, 0.033, 0.035),
+        "solid_inclusion_scale": 18.0,
+        "solid_inclusion_threshold": 0.28,
+        "solid_inclusion_transition": 0.10,
+        "solid_inclusion_warp_scale": 36.0,
+        "solid_inclusion_distortion": 0.025,
     },
 }
 
@@ -73,6 +80,7 @@ LIQUID_MATERIALS = {
         # v03: Pope and Fry (1997) absorption scaled by 2.5, with low scattering.
         "water_color": (0.35, 0.72, 1.0),
         "water_roughness": 0.06,
+        "water_transmission": 1.0,
         "water_ior": 1.333,
         "water_absorption": (0.85, 0.14125, 0.02305),
         "water_scattering": (0.02, 0.04, 0.08),
@@ -82,6 +90,7 @@ LIQUID_MATERIALS = {
         # Unscaled measured pure-water absorption; intended for non-v03 cases.
         "water_color": (1.0, 1.0, 1.0),
         "water_roughness": 0.02,
+        "water_transmission": 1.0,
         "water_ior": 1.333,
         "water_absorption": (0.34, 0.0565, 0.00922),
         "water_scattering": (0.0, 0.0, 0.0),
@@ -91,19 +100,22 @@ LIQUID_MATERIALS = {
         # Illustrative optical appearance; fluid density/viscosity are solver inputs.
         "water_color": (0.30, 0.17, 0.055),
         "water_roughness": 0.19,
+        "water_transmission": 1.0,
         "water_ior": 1.47,
         "water_absorption": (1.1, 2.5, 5.5),
         "water_scattering": (0.012, 0.006, 0.002),
         "water_scattering_anisotropy": 0.15,
     },
     "melted-plastic": {
-        # Illustrative amber molten polymer, not a thermal/rheological model.
-        "water_color": (0.88, 0.25, 0.06),
-        "water_roughness": 0.13,
+        # Muted opaque polymer, not an emissive or thermal/rheological model.
+        "water_color": (0.13, 0.045, 0.015),
+        "water_roughness": 0.42,
+        "water_transmission": 0.0,
+        "water_specular_level": 0.10,
         "water_ior": 1.48,
-        "water_absorption": (0.12, 0.95, 3.1),
-        "water_scattering": (0.05, 0.03, 0.012),
-        "water_scattering_anisotropy": 0.20,
+        "water_absorption": (0.45, 1.2, 2.8),
+        "water_scattering": (0.0, 0.0, 0.0),
+        "water_scattering_anisotropy": 0.0,
     },
 }
 

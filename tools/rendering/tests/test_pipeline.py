@@ -123,7 +123,7 @@ class TimeSeriesTests(unittest.TestCase):
 
         for name, metallic, roughness in (("steel-uncoated", 1.0, 0.28),
                                           ("steel-white-semigloss", 0.0, 0.34),
-                                          ("concrete", 0.0, 0.88)):
+                                          ("concrete", 0.0, 0.99)):
             selection = list(base)
             selection[selection.index("anodized-copper")] = name
             solid = minimal_render(*selection)
@@ -137,18 +137,32 @@ class TimeSeriesTests(unittest.TestCase):
         pipeline.validate(concrete)
         self.assertGreater(concrete.solid_bump_strength, 0)
         self.assertGreater(concrete.solid_bump_distance, 0)
+        self.assertEqual(concrete.solid_inclusion_color, (0.028, 0.033, 0.035))
+        self.assertGreater(concrete.solid_inclusion_scale, 0)
+        self.assertEqual(concrete.solid_inclusion_scale, 18.0)
+        self.assertEqual(concrete.solid_inclusion_distortion, 0.025)
+        self.assertEqual(concrete.solid_roughness, 0.99)
+        self.assertEqual(concrete.solid_specular_level, 0.03)
         with self.assertRaisesRegex(ValueError, "scale and bump distance"):
             invalid_bump = minimal_render(*base, "--solid-bump-strength", "0.3")
             pipeline.validate(invalid_bump)
+        with self.assertRaisesRegex(ValueError, "solid inclusions need"):
+            pipeline.validate(minimal_render(*base, "--solid-inclusion-color",
+                                             "0.1", "0.1", "0.1"))
 
-        for name, ior, color in (("heavy-oil", 1.47, (0.30, 0.17, 0.055)),
-                                 ("melted-plastic", 1.48, (0.88, 0.25, 0.06))):
+        for name, ior, color, transmission in (
+            ("heavy-oil", 1.47, (0.30, 0.17, 0.055), 1.0),
+            ("melted-plastic", 1.48, (0.13, 0.045, 0.015), 0.0),
+        ):
             selection = ("--liquid-material", name, *base[2:])
             liquid = minimal_render(*selection)
             pipeline.validate(liquid)
             self.assertEqual(liquid.liquid_material, name)
             self.assertEqual(liquid.water_ior, ior)
             self.assertEqual(liquid.water_color, color)
+            self.assertEqual(liquid.water_transmission, transmission)
+        self.assertEqual(tuple(liquid.water_scattering), (0.0, 0.0, 0.0))
+        self.assertEqual(liquid.water_specular_level, 0.10)
 
         overridden = minimal_render(*base, *secondary, "--water-roughness", "0.5",
                                     "--foam-threshold", "0.7", "--floor-color", "0.2",
