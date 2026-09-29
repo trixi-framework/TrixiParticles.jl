@@ -37,3 +37,18 @@ pp_callback = PostprocessCallback(; dt=0.01, output_directory="out",
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "poiseuille_flow_3d.jl"),
               saving_callback=nothing, tspan=tspan, extra_callback=pp_callback,
               particle_spacing_factor=particle_spacing_factor)
+
+reference_file_name = joinpath(validation_dir(), "poiseuille_flow_3d",
+                               "validation_reference_$particle_spacing_factor.json")
+run_file_name = joinpath("out",
+                         "validation_run_poiseuille_flow_3d_$particle_spacing_factor.json")
+
+reference_data = TrixiParticles.JSON.parsefile(reference_file_name,
+                                               allownan=true)["v_x_fluid_1"]
+run_data = TrixiParticles.JSON.parsefile(run_file_name, allownan=true)["v_x_fluid_1"]
+
+error_v_x = profile_mse(reference_data["time"], reference_data["values"],
+                        run_data["time"], run_data["values"])
+
+println("Validation results for Poiseuille flow 3D with $particle_spacing_factor particles:")
+println("  MSE v_x: $error_v_x")
