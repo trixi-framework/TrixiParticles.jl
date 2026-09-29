@@ -2,8 +2,9 @@
 # 3D Pulsatile Channel Flow Simulation (Weakly Compressible SPH)
 #
 # Based on:
-#   Zhan, X., et al. "Dynamical pressure boundary condition for weakly compressible smoothed particle hydrodynamics"
-#   Physics of Fluids, Volume 37
+#   Shuoguo Zhang, Yu Fan, Dong Wu, Chi Zhang, Xiangyu Hu.
+#   "Dynamical pressure boundary condition for weakly compressible smoothed particle hydrodynamics".
+#   Physics of Fluids 37, 027193 (2025).
 #   https://doi.org/10.1063/5.0254575
 #
 # This example sets up a 3D pulsatile channel flow simulation in a circular pipe
