@@ -158,6 +158,59 @@ class BlenderRenderingTests(unittest.TestCase):
             self.assertEqual(record["provenance"]["settings"]["glass_material"],
                              "low-iron-glass")
 
+            # Original v03 inventories use blade_files, particle_counts, and
+            # filename instead of the new whitewater output field names.
+            (surface / "reconstruction_metadata.json").write_text(json.dumps({
+                "status": "complete", "source_run_id": "fixture-run",
+                "source_manifest_sha256": "fixture-source-hash",
+                "frames": [{"source_timestep": 0, "simulation_time_s": 0,
+                            "water_file": "water_000000.ply",
+                            "blade_files": ["solid_000000.ply"]}]}))
+            legacy = path / "legacy_foam"
+            legacy.mkdir()
+            legacy_outputs = []
+            for kind in ("foam", "spray", "bubbles"):
+                name = f"frame_000000_{kind}.ply"
+                payload = legacy / name
+                particle_ply(payload, (0.45, 0.3, 0.35))
+                legacy_outputs.append({"particle_type": kind, "filename": name,
+                                       "particle_count": 1, "size_bytes": payload.stat().st_size,
+                                       "sha256": file_sha256(payload)})
+            legacy_metadata = {"status": "complete", "source_run_id": "fixture-run",
+                               "source_manifest_sha256": "fixture-source-hash",
+                               "foam_generator": {}, "frame_count": 1,
+                               "frames": [{"source_timestep": 0, "simulation_time_s": 0,
+                                           "particle_counts": {"foam": 1, "spray": 1,
+                                                               "bubbles": 1, "total": 3},
+                                           "raw_particle_counts": {"foam": 1, "spray": 1,
+                                                                   "bubbles": 1},
+                                           "clipped_particle_counts": {"foam": 0,
+                                                                       "spray": 0,
+                                                                       "bubbles": 0},
+                                           "outputs": legacy_outputs}]}
+            (legacy / "foam_metadata.json").write_text(json.dumps(legacy_metadata))
+            legacy_command = selected_materials.copy()
+            legacy_command[legacy_command.index("--surface-pvd")] = "--surface-metadata"
+            legacy_command[legacy_command.index(str(surface / "surface.pvd"))] = \
+                str(surface / "reconstruction_metadata.json")
+            legacy_command[legacy_command.index("xyz")] = "xzy"
+            legacy_command[legacy_command.index("xyz")] = "xzy"
+            legacy_still = path / "legacy.png"
+            result = subprocess.run(legacy_command + ["--foam-dir", str(legacy),
+                                                   "--output", str(legacy_still),
+                                                   "--frame", "0"],
+                                    capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual(png_dimensions(legacy_still), (64, 64))
+            legacy_metadata["source_manifest_sha256"] = "wrong-source"
+            (legacy / "foam_metadata.json").write_text(json.dumps(legacy_metadata))
+            result = subprocess.run(legacy_command + ["--foam-dir", str(legacy),
+                                                   "--output", str(path / "rejected.png"),
+                                                   "--frame", "0"],
+                                    capture_output=True, text=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("source_manifest_sha256 differ", result.stderr)
+
             clear_water = path / "clear_water.png"
             clear_command = selected_materials.copy()
             for flag in ("--foam-material", "--spray-material", "--bubble-material"):
@@ -232,6 +285,34 @@ class BlenderRenderingTests(unittest.TestCase):
             self.assertEqual(settings["stress_normal_light"], 0.28)
             self.assertEqual(settings["floor_color"], [0.02, 0.032, 0.05])
             self.assertEqual(len(settings["stress_mesh"]), 2)
+
+            export_file = surface / "stress_surface_metadata.json"
+            export_record = {"status": "complete", "source_run_id": "fixture-run",
+                             "source_manifest_sha256": "fixture-source-hash",
+                             "outputs": {
+                                 "water": {"filename": "water_000000.ply",
+                                           "sha256": file_sha256(surface / "water_000000.ply")},
+                                 "blades": [{"output": {"filename": "stress.ply",
+                                                        "sha256": file_sha256(surface / "stress.ply")}},
+                                            {"output": {"filename": "stress2.ply",
+                                                        "sha256": file_sha256(second_blade)}}]}}
+            export_file.write_text(json.dumps(export_record))
+            audited = preset_command.copy()
+            audited[audited.index("--surface-pvd")] = "--surface-metadata"
+            audited[audited.index(str(surface / "surface.pvd"))] = \
+                str(surface / "reconstruction_metadata.json")
+            audited[audited.index(str(stress_preset))] = str(path / "audited_stress.png")
+            audited.extend(("--stress-export-metadata", str(export_file),
+                            "--stress-water-mesh", str(surface / "water_000000.ply")))
+            result = subprocess.run(audited, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            export_record["outputs"]["blades"][0]["output"]["sha256"] = "bad-hash"
+            export_file.write_text(json.dumps(export_record))
+            audited[audited.index(str(path / "audited_stress.png"))] = \
+                str(path / "rejected_stress.png")
+            result = subprocess.run(audited, capture_output=True, text=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("differs from inventory", result.stderr)
 
             eevee = path / "eevee.png"
             result = subprocess.run(base + ["--output", str(eevee), "--frame", "0",

@@ -55,20 +55,68 @@ def selected_sources(args):
                  (item["source_timestep"] - args.start) % args.stride == 0])
     if not selected:
         raise ValueError("surface selection is empty")
+    if args.mode == "stress" and args.stress_water_mesh is not None:
+        for item in selected:
+            item["water_path"] = args.stress_water_mesh
     return selected, metadata_path
 
 
-def foam_frames(args):
+def verify_stress_export(args, surface_metadata):
+    if args.stress_export_metadata is None:
+        return
+    if args.surface_metadata is None:
+        raise ValueError("stress export inventory needs surface metadata")
+    export = json.loads(args.stress_export_metadata.read_text(encoding="utf-8"))
+    surface = json.loads(surface_metadata.read_text(encoding="utf-8"))
+    if export.get("status") != "complete" or args.stress_water_mesh is None:
+        raise ValueError("stress export needs a complete inventory and water mesh")
+    for field in ("source_run_id", "source_manifest_sha256"):
+        if not export.get(field) or export[field] != surface.get(field):
+            raise ValueError(f"stress export and surface {field} differ")
+    outputs = export["outputs"]
+    records = [outputs["water"], *(blade["output"] for blade in outputs["blades"])]
+    paths = [args.stress_water_mesh, *args.stress_mesh]
+    if len(records) != len(paths):
+        raise ValueError("stress export blade count differs from selected meshes")
+    for record, path in zip(records, paths):
+        if record["filename"] != path.name or file_sha256(path) != record["sha256"]:
+            raise ValueError(f"stress export file differs from inventory: {path}")
+
+
+def foam_frames(args, surface_metadata):
     if args.foam_dir is None:
         return {}, None
     path = args.foam_dir / "foam_metadata.json"
     metadata = json.loads(path.read_text(encoding="utf-8"))
-    if metadata.get("status") != "complete" or metadata.get("coordinate_space") != \
-            f"source axes {args.foam_axis_order}":
-        raise ValueError("whitewater cache is incomplete or uses another coordinate order")
+    legacy = "foam_generator" in metadata and "generator" not in metadata
+    if metadata.get("status") != "complete":
+        raise ValueError("whitewater cache is incomplete")
+    if legacy:
+        if args.foam_axis_order != "xzy" or args.surface_metadata is None:
+            raise ValueError("legacy Blender-coordinate foam needs xzy and surface metadata")
+        surface = json.loads(surface_metadata.read_text(encoding="utf-8"))
+        for field in ("source_run_id", "source_manifest_sha256"):
+            if not metadata.get(field) or metadata[field] != surface.get(field):
+                raise ValueError(f"legacy foam and surface {field} differ")
+    elif metadata.get("coordinate_space") != f"source axes {args.foam_axis_order}":
+        raise ValueError("whitewater cache uses another coordinate order")
     if metadata.get("frame_count") != len(metadata.get("frames", [])):
         raise ValueError("whitewater cache has an incomplete frame inventory")
-    frames = {int(item["source_timestep"]): item for item in metadata["frames"]}
+    frames = {}
+    for item in metadata["frames"]:
+        if legacy:
+            item = {"source_timestep": item["source_timestep"],
+                    "simulation_time_s": item["simulation_time_s"],
+                    "counts": item["particle_counts"],
+                    "raw_counts": item["raw_particle_counts"],
+                    "clipped_counts": item["clipped_particle_counts"],
+                    "outputs": [{"type": output["particle_type"],
+                                 "file": output["filename"],
+                                 "count": output["particle_count"],
+                                 "bytes": output["size_bytes"],
+                                 "sha256": output["sha256"]}
+                                for output in item["outputs"]]}
+        frames[int(item["source_timestep"])] = item
     if len(frames) != metadata["frame_count"]:
         raise ValueError("duplicate whitewater source timestep")
     return frames, path
@@ -93,9 +141,15 @@ def verified_inputs(args, selected, whitewater):
             if sum(record["counts"][kind] for kind in ("foam", "spray", "bubbles")) != \
                     record["counts"]["total"]:
                 raise ValueError("whitewater category counts differ from the total")
+            if {item["type"] for item in record["outputs"]} != \
+                    {kind for kind in ("foam", "spray", "bubbles")
+                     if record["counts"][kind] > 0}:
+                raise ValueError("whitewater output types differ from category counts")
             for item in record["outputs"]:
                 path = args.foam_dir / item["file"]
                 if item["type"] not in ("foam", "spray", "bubbles") or \
+                        path.name != item["file"] or \
+                        item["count"] != record["counts"][item["type"]] or \
                         not path.is_file() or path.stat().st_size != item["bytes"] or \
                         file_sha256(path) != item["sha256"]:
                     raise ValueError(f"whitewater output failed validation: {path}")
@@ -447,8 +501,10 @@ def tank_and_lighting(args):
     thickness = args.wall_thickness or 0
     floor = principled("Tank base", args.floor_color, args.floor_roughness,
                        metallic=args.floor_metallic, coat=args.floor_coat)
+    pedestal_center = (args.pedestal_center_offset if args.pedestal_center_offset is not None
+                       else -args.pedestal_thickness / 2 - thickness)
     box("Tank pedestal", ((xmin + xmax) / 2, (zmin + zmax) / 2,
-                          ymin - args.pedestal_thickness / 2 - thickness),
+                          ymin + pedestal_center),
         (x + 2 * args.pedestal_margin, depth + 2 * args.pedestal_margin,
          args.pedestal_thickness), floor, args.floor_bevel)
     if args.mode == "stress":
@@ -458,6 +514,7 @@ def tank_and_lighting(args):
     glass_name = "Low-iron glass" if args.glass_material == "low-iron-glass" else "Tank glass"
     glass = principled(glass_name, args.glass_color, args.glass_roughness,
                        transmission=args.glass_transmission, ior=args.glass_ior)
+    overhang = thickness if args.glass_overhang is None else args.glass_overhang
     nodes, links = glass.node_tree.nodes, glass.node_tree.links
     bsdf = nodes.get("Principled BSDF")
     if "Specular IOR Level" in bsdf.inputs:
@@ -470,19 +527,20 @@ def tank_and_lighting(args):
     links.new(mix.outputs[0], nodes.get("Material Output").inputs["Surface"])
     box("Glass floor", ((xmin + xmax) / 2, (zmin + zmax) / 2,
                         ymin - args.floor_thickness / 2),
-        (x + 2 * thickness, depth + 2 * thickness, args.floor_thickness), glass)
+        (x + 2 * overhang, depth + 2 * overhang, args.floor_thickness), glass,
+        args.glass_bevel)
     full_height = height + args.wall_cap_extension
     box("Upstream wall", (xmin - thickness / 2, (zmin + zmax) / 2,
                           ymin + full_height / 2),
-        (thickness, depth + 2 * thickness, full_height), glass)
+        (thickness, depth + 2 * overhang, full_height), glass, args.glass_bevel)
     box("Far wall", ((xmin + xmax) / 2, zmin - thickness / 2,
                      ymin + full_height / 2),
-        (x + 2 * thickness, thickness, full_height), glass)
+        (x + 2 * overhang, thickness, full_height), glass, args.glass_bevel)
     visible = args.visible_wall_height
     box("Downstream wall", (xmax + thickness / 2, (zmin + zmax) / 2, ymin + visible / 2),
-        (thickness, depth + 2 * thickness, visible), glass)
+        (thickness, depth + 2 * overhang, visible), glass, args.glass_bevel)
     box("Near wall", ((xmin + xmax) / 2, zmax + thickness / 2, ymin + visible / 2),
-        (x + 2 * thickness, thickness, visible), glass)
+        (x + 2 * overhang, thickness, visible), glass, args.glass_bevel)
     add_lighting(args)
 
 
@@ -539,6 +597,8 @@ def configure_render(args, target):
     camera = bpy.data.cameras.new("Render camera")
     camera.sensor_fit = "VERTICAL"
     camera.lens = camera.sensor_height / (2 * math.tan(math.radians(args.camera_fov) / 2))
+    camera.clip_start = 0.02
+    camera.clip_end = 100.0
     camera_object = bpy.data.objects.new("Render camera", camera)
     bpy.context.collection.objects.link(camera_object)
     camera_object.location = args.camera_position
@@ -772,12 +832,15 @@ def main():
         raise ValueError("Blender worker needs the render subcommand")
     validate(args)
     selected, surface_metadata = selected_sources(args)
-    whitewater, foam_metadata = foam_frames(args)
+    verify_stress_export(args, surface_metadata)
+    whitewater, foam_metadata = foam_frames(args, surface_metadata)
     inputs = verified_inputs(args, selected, whitewater)
     settings = {key: jsonable(value)
                 for key, value in vars(args).items() if key not in ("output", "resume")}
     provenance = {"settings": settings, "input_sha256": inputs,
                   "surface_metadata_sha256": file_sha256(surface_metadata),
+                  "stress_export_metadata_sha256": file_sha256(args.stress_export_metadata)
+                  if args.stress_export_metadata else None,
                   "foam_metadata_sha256": file_sha256(foam_metadata) if foam_metadata else None,
                   "renderer_sha256": file_sha256(Path(__file__)),
                   "blender": bpy.app.version_string}

@@ -106,6 +106,10 @@ def parser() -> argparse.ArgumentParser:
                             help="Select this material independently; property flags override it")
     render.add_argument("--stress-mesh", action="append", type=Path, default=[],
                         help="Pre-colored stress PLY; repeat for each solid")
+    render.add_argument("--stress-water-mesh", type=Path,
+                        help="Audited water context PLY accompanying a stress export")
+    render.add_argument("--stress-export-metadata", type=Path,
+                        help="Generated stress inventory with water/blade SHA-256 records")
     render.add_argument("--stress-water-opacity", type=fraction)
     render.add_argument("--stress-water-transmission", type=fraction)
     render.add_argument("--stress-water-specular", type=fraction)
@@ -190,6 +194,8 @@ def parser() -> argparse.ArgumentParser:
     render.add_argument("--floor-bevel", type=float, default=None)
     render.add_argument("--pedestal-margin", type=float, default=None)
     render.add_argument("--pedestal-thickness", type=positive, default=None)
+    render.add_argument("--pedestal-center-offset", type=float,
+                        help="Pedestal centre height relative to the tank floor")
     render.add_argument("--glass-color", nargs=3, type=float)
     render.add_argument("--glass-opacity", type=fraction)
     render.add_argument("--glass-roughness", type=fraction)
@@ -200,6 +206,9 @@ def parser() -> argparse.ArgumentParser:
     render.add_argument("--floor-thickness", type=positive)
     render.add_argument("--visible-wall-height", type=positive)
     render.add_argument("--wall-cap-extension", type=float, default=None)
+    render.add_argument("--glass-overhang", type=float,
+                        help="Glass panel extension past the tank on each side")
+    render.add_argument("--glass-bevel", type=float, default=0.0)
 
     render.add_argument("--foam-color", nargs=3, type=float)
     render.add_argument("--foam-point-radius", type=positive)
@@ -253,6 +262,8 @@ def validate(args: argparse.Namespace) -> None:
         raise ValueError("stress view uses a pre-colored solid and omits other materials")
     if args.mode == "liquid" and args.ghost_material is not None:
         raise ValueError("ghost material is only used in the stress view")
+    if args.mode == "liquid" and (args.stress_water_mesh or args.stress_export_metadata):
+        raise ValueError("stress export inputs are only used in the stress view")
     if args.foam_dir is None and any(getattr(args, key) is not None for key in
                                      ("foam_material", "spray_material", "bubble_material")):
         raise ValueError("whitewater materials need --foam-dir")
@@ -324,7 +335,9 @@ def validate(args: argparse.Namespace) -> None:
                 *(args.water_absorption or ()), *(args.water_scattering or ()),
                 *args.stress_light_direction,
                 args.exposure, args.camera_fov, args.solid_bevel_angle,
-                args.world_strength, args.visible_wall_height or 0)):
+                args.world_strength, args.visible_wall_height or 0,
+                args.pedestal_center_offset or 0, args.glass_bevel,
+                args.glass_overhang or 0)):
         raise ValueError("nonfinite render or material parameter")
     for name in ("water_color", "solid_color", "glass_color", "world_color",
                  "floor_color", "solid_texture_tint", "solid_pore_color"):
@@ -342,6 +355,8 @@ def validate(args: argparse.Namespace) -> None:
              not -1 <= args.water_scattering_anisotropy <= 1) or \
             args.solid_floor_extension < 0 or args.solid_bevel < 0 or \
             args.floor_bevel < 0 or args.pedestal_margin < 0 or \
+            args.glass_bevel < 0 or (args.glass_overhang is not None and
+                                     args.glass_overhang < 0) or \
             args.wall_cap_extension < 0 or not 0 < args.camera_fov < 180 or \
             not 0 <= args.solid_bevel_angle <= 180:
         raise ValueError("invalid render dimensions or material parameters")

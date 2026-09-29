@@ -14,10 +14,8 @@ referenced below are *generated data inventories/provenance*, not configuration
 files. `python tools/rendering/pipeline.py foam --help` and `render --help`
 enumerate every option. Use a new output directory for each run.
 
-This PR adds reusable tools stacked on the #1333 simulation/reconstruction
-integration. Migrating the **existing v03 media-production pipeline and its
-approved assets** is a follow-up PR. No v03 release files or press scripts are
-rewritten here.
+The accepted C01 v03 workflow, including reviewed settings and original
+metadata/cache compatibility, is documented in [V03_MIGRATION.md](V03_MIGRATION.md).
 
 ## Quick start
 
@@ -206,9 +204,9 @@ Option reference:
 
 | Group | Flags |
 |---|---|
-| Inputs | `--blender`, `--surface-dir`, `--surface-pvd` or `--surface-metadata`, `--foam-dir`, `--solid-pattern`, `--surface-axis-order`, `--foam-axis-order` |
+| Inputs | `--blender`, `--surface-dir`, `--surface-pvd` or `--surface-metadata`, `--foam-dir`, `--solid-pattern`, `--surface-axis-order`, `--foam-axis-order`, `--stress-water-mesh`, `--stress-export-metadata` |
 | Selection | `--frame N` for one still, or `--sequence` with `--start/--stop/--stride`; `--resume` continues a validated prefix |
-| Scene | `--camera-position`, `--camera-target`, `--camera-fov`, `--tank-min`, `--tank-max`, `--light` (repeatable `name:x:y:z:energy:r:g:b:size`), `--world-color`, `--world-strength`, `--solid-floor-extension`, `--solid-bevel`, `--pedestal-*`, `--floor-bevel`, `--wall-thickness`, `--floor-thickness`, `--visible-wall-height` |
+| Scene | `--camera-position`, `--camera-target`, `--camera-fov`, `--tank-min`, `--tank-max`, `--light` (repeatable `name:x:y:z:energy:r:g:b:size`), `--world-color`, `--world-strength`, `--solid-floor-extension`, `--solid-bevel`, `--pedestal-*`, `--floor-bevel`, `--wall-thickness`, `--floor-thickness`, `--visible-wall-height`, `--glass-overhang`, `--glass-bevel` |
 | Image | `--width`, `--height`, `--samples`, `--engine {cycles,eevee}`, `--device {cpu,gpu}`, `--gpu-backend`, `--view-transform`, `--look`, `--exposure`, `--gamma`, `--max-bounces`, `--transmission-bounces`, `--transparent-bounces`, `--png-compression`, `--no-denoise` |
 | Materials | Independent `--liquid-material {turbulent-water,clear-water}`, `--solid-material anodized-copper`, `--glass-material low-iron-glass`, `--floor-material {dark-metal,neutral-stress}`, `--foam-material whitewater-froth`, `--spray-material water-droplet`, `--bubble-material submerged-air`, `--ghost-material v03-ghost-water`; individual property flags override them |
 | Stress | `--mode stress --stress-mesh FILE` (repeat for each solid), `--stress-water-opacity`, `--stress-water-transmission`, `--stress-water-specular`, `--stress-normal-light`, `--stress-light-direction` |
@@ -297,8 +295,8 @@ copper or glass wall shader. Pass its `--floor-material`, optional
 These material values agree with the reviewed v03 material nodes, but do not
 alone guarantee the v03 image. Full reproduction needs the accepted input
 caches, original camera/lights, scene construction, Blender/device/color
-management and frame mapping. The follow-up v03 migration PR will pin and
-validate those settings. The rejected `legacy-cyan` and redundant
+management and frame mapping; [the v03 handoff](V03_MIGRATION.md) records
+the commands and observed comparisons. The rejected `legacy-cyan` and redundant
 `foaming-water` branches remain removed; `clear-water` is a deliberately
 selected, reusable treatment for non-v03 cases.
 
@@ -375,8 +373,5 @@ uv run --no-project --python 3.9 \
   python -m unittest discover -s tools/rendering/tests -v
 ```
 
-The follow-up v03 migration PR will pin its exact CLI invocation, compare all
-601 foam/spray/bubble source counts and particle hashes, inspect rendered
-frames including the foam peak and stress peak, and retain the accepted v03
-package until equivalence is verified. The current v03 media assets and
-press-specific scripts are intentionally untouched by this tools PR.
+See [the v03 migration](V03_MIGRATION.md) for exact CLI invocations and the
+validation status against the accepted 601-frame foam and render outputs.
