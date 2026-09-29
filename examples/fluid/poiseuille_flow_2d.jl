@@ -19,7 +19,8 @@ using OrdinaryDiffEqLowStorageRK
 channel_height = 0.001 # distance between top and bottom walls
 channel_length = 0.004 # distance between inlet and outlet
 
-particle_spacing = channel_height / 30
+particle_spacing_factor = 30
+particle_spacing = channel_height / particle_spacing_factor
 
 # Make sure that the kernel support of fluid particles at a boundary is always fully sampled
 boundary_layers = 4
@@ -42,8 +43,8 @@ reynolds_number = 50
 imposed_pressure_drop = 0.1
 outlet_pressure = 0.1
 inlet_pressure = outlet_pressure + imposed_pressure_drop
-const dynamic_viscosity = sqrt(fluid_density * channel_height^3 * imposed_pressure_drop /
-                               (8 * channel_length * reynolds_number))
+dynamic_viscosity = sqrt(fluid_density * channel_height^3 * imposed_pressure_drop /
+                         (8 * channel_length * reynolds_number))
 
 v_max = channel_height^2 * imposed_pressure_drop / (8 * dynamic_viscosity * channel_length)
 

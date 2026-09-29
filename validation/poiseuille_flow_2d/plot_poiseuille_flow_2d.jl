@@ -1,9 +1,18 @@
 using TrixiParticles
+using TrixiParticles.JSON
 using Plots
+
+# Reference files are available for 30 and 50.
+# Use `particle_spacing_factor = 50` to match the resolution used by Zhang et al. (2025).
+particle_spacing_factor = 50
+
+# Set to true to plot the results of a validation run in the `out` folder
+# instead of the reference file.
+use_sim_results = false
 
 # Import variables into scope
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "poiseuille_flow_2d.jl"),
-              sol=nothing)
+              particle_spacing_factor=particle_spacing_factor, sol=nothing)
 
 # Analytical velocity evolution given in eq. 16 (Zhang et al., 2025)
 function poiseuille_velocity(y, t)
@@ -34,16 +43,19 @@ function poiseuille_velocity(y, t)
 end
 
 # Load results
-output_directory = joinpath(validation_dir(), "poiseuille_flow_2d")
-data = TrixiParticles.CSV.read(joinpath(output_directory, "result_vx.csv"),
-                               TrixiParticles.DataFrame)
+input_file = use_sim_results ?
+             joinpath("out",
+                      "validation_run_poiseuille_flow_2d_$particle_spacing_factor.json") :
+             joinpath(validation_dir(), "poiseuille_flow_2d",
+                      "validation_reference_$particle_spacing_factor.json")
+data = JSON.parsefile(input_file, allownan=true)["v_x_fluid_1"]
 
-times = data[!, "time"]
+times = data["time"]
 times_ref = [0.1, 0.3, 0.6, 0.9, 2.0]
 positions = range(0, channel_height, length=100)
 data_range = 2:98
-data_indices = findall(t -> t in times_ref, times)
-v_x_vector = [eval(Meta.parse(str)) for str in data[!, "v_x_fluid_1"]][data_indices]
+data_indices = [findfirst(t -> isapprox(t, t_ref), times) for t_ref in times_ref]
+v_x_vector = [Float64.(data["values"][i]) for i in data_indices]
 
 # Calculate RMSEP error (eq. 17, Zhang et al., 2025)
 rmsep_run = Float64[]

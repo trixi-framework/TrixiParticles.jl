@@ -1,8 +1,15 @@
 using TrixiParticles
+using TrixiParticles.JSON
 using Plots
 using Bessels
 
-particle_spacing_factor = 30
+# Reference files are available for 10, 20, 30, 40 and 50.
+# Use `particle_spacing_factor = 50` to match the resolution used by Zhang et al. (2025).
+particle_spacing_factor = 50
+
+# Set to true to plot the results of a validation run in the `out` folder
+# instead of the reference file.
+use_sim_results = false
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "poiseuille_flow_3d.jl"),
               particle_spacing_factor=particle_spacing_factor, sol=nothing)
@@ -40,19 +47,19 @@ function hagen_poiseuille_velocity(r, t)
     return v_x
 end
 
-output_directory = joinpath(validation_dir(), "poiseuille_flow_3d")
+input_file = use_sim_results ?
+             joinpath("out",
+                      "validation_run_poiseuille_flow_3d_$particle_spacing_factor.json") :
+             joinpath(validation_dir(), "poiseuille_flow_3d",
+                      "validation_reference_$particle_spacing_factor.json")
+data = JSON.parsefile(input_file, allownan=true)["v_x_fluid_1"]
 
-data = TrixiParticles.CSV.read(joinpath(output_directory,
-                                        "result_vx" * "_dp_$particle_spacing_factor" *
-                                        ".csv"),
-                               TrixiParticles.DataFrame)
-
-times = data[!, "time"]
+times = data["time"]
 times_ref = [0.03, 0.05, 0.07, 0.14, 0.3, 1.0]
 positions = range(-channel_radius, channel_radius, length=100)
 data_range = 10:90
-data_indices = findall(t -> t in times_ref, times)
-v_x_vector = [eval(Meta.parse(str)) for str in data[!, "v_x_fluid_1"]][data_indices]
+data_indices = [findfirst(t -> isapprox(t, t_ref), times) for t_ref in times_ref]
+v_x_vector = [Float64.(data["values"][i]) for i in data_indices]
 
 # Calculate RMSEP error (eq. 17, Zhang et al., 2025)
 rmsep_run = Float64[]
