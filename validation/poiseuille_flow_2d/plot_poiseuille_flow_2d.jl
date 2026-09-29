@@ -68,7 +68,8 @@ end
 # RMSEP error (%) received by Zhang et al. (2025)
 rmsep_reference = [1.81, 0.95, 0.67, 0.86, 1.22]
 
-p_rmsep = scatter(times_ref, rmsep_run, markersize=5, label="TrixiP")
+p_rmsep = scatter(times_ref, rmsep_run, markersize=5, label="TrixiP",
+                  title="Poiseuille Flow 2D")
 scatter!(p_rmsep, times_ref, rmsep_reference, marker=:x, markersize=5,
          markerstrokewidth=3, label="Zhang et al. (2025)", dpi=200)
 
@@ -86,7 +87,8 @@ label_ = "TrixiP (" .* ["0.1" "0.3" "0.6" "0.9" "∞"] .* " s)"
 line_colors = cgrad(:coolwarm, length(times_ref), categorical=true)
 
 p = scatter(plot_range, v_x_plot, label=label_, linewidth=3, markersize=5, opacity=0.6,
-            palette=line_colors.colors, legend_position=:outerright, size=(750, 400))
+            palette=line_colors.colors, legend_position=:outerright, size=(750, 400),
+            title="Poiseuille Flow 2D")
 for t in times_ref
     label__ = t == 2.0 ? "analytical" : nothing
     plot!(p, (y) -> -poiseuille_velocity(y, t), xlims=(0, channel_height),
