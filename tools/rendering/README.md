@@ -324,7 +324,7 @@ sources when presenting any additional case.
   and height maps. [Rough Concrete](https://polyhaven.com/a/rough_concrete)
   provides a second photographic reference for a largely continuous granular
   cement surface rather than black circular aggregate dots.
-- [ACI: *Aggregates for Concrete*](https://www.concrete.org/Portals/0/Files/PDF/E1_07.PDF):
+- [American Concrete Institute: *Aggregates for Concrete*](https://www.concrete.org/Portals/0/Files/PDF/E1_07.PDF):
   aggregates occupy approximately 60–75% of concrete volume. That describes
   its interior composition; it does not imply that all stones are fully
   exposed on a cast outer face.
