@@ -9,8 +9,7 @@ import subprocess
 import sys
 
 from data import axis_permutation, bounds
-from materials import (GLASS_MATERIALS, LIQUID_MATERIALS, MATERIAL_DEFAULTS,
-                       MATERIAL_PRESETS, SOLID_MATERIALS)
+from materials import MATERIAL_SELECTORS, SCENE_DEFAULTS
 
 
 def positive(value: str) -> float:
@@ -102,21 +101,17 @@ def parser() -> argparse.ArgumentParser:
     render.add_argument("--surface-axis-order", choices=("xyz", "xzy"), required=True)
     render.add_argument("--foam-axis-order", choices=("xyz", "xzy"), required=True)
     render.add_argument("--mode", choices=("liquid", "stress"), default="liquid")
-    render.add_argument("--material-preset", choices=tuple(MATERIAL_PRESETS),
-                        help="Named v03 material set; explicit material flags override it")
-    render.add_argument("--liquid-material", choices=tuple(LIQUID_MATERIALS),
-                        help="Named water shader; turbulent-water is the v03 selection")
-    render.add_argument("--solid-material", choices=tuple(SOLID_MATERIALS),
-                        help="Named material for any reconstructed solid")
-    render.add_argument("--glass-material", choices=tuple(GLASS_MATERIALS),
-                        help="Named tank-glass material, independently selectable")
+    for _, flag, choices in MATERIAL_SELECTORS:
+        render.add_argument(flag, choices=tuple(choices),
+                            help="Select this material independently; property flags override it")
     render.add_argument("--stress-mesh", action="append", type=Path, default=[],
                         help="Pre-colored stress PLY; repeat for each solid")
     render.add_argument("--stress-water-opacity", type=fraction)
     render.add_argument("--stress-water-transmission", type=fraction)
     render.add_argument("--stress-water-specular", type=fraction)
-    render.add_argument("--stress-normal-light", type=fraction)
-    render.add_argument("--stress-light-direction", nargs=3, type=float)
+    render.add_argument("--stress-normal-light", type=fraction, default=0.0)
+    render.add_argument("--stress-light-direction", nargs=3, type=float,
+                        default=(0.35, -0.45, 0.82))
 
     render.add_argument("--camera-position", nargs=3, required=True, type=float)
     render.add_argument("--camera-target", nargs=3, required=True, type=float)
@@ -201,8 +196,7 @@ def parser() -> argparse.ArgumentParser:
     render.add_argument("--bubble-relative-ior", type=positive)
     render.add_argument("--instance-seed", type=int, default=None)
     render.add_argument("--droplet-subdivisions", type=int, default=None)
-    commands.add_parser("material-presets",
-                        help="List named v03 material presets and exit")
+    commands.add_parser("materials", help="List independent material choices and exit")
     return result
 
 
@@ -218,61 +212,44 @@ def validate(args: argparse.Namespace) -> None:
     bounds(args.tank_min, args.tank_max)
     axis_permutation(args.surface_axis_order)
     axis_permutation(args.foam_axis_order)
-    component_keys = {key for catalog in (LIQUID_MATERIALS, SOLID_MATERIALS,
-                                          GLASS_MATERIALS)
+    component_keys = {key for _, _, catalog in MATERIAL_SELECTORS
                       for component in catalog.values() for key in component}
     explicit = {key for key in component_keys
                 if getattr(args, key, None) is not None}
-    if args.material_preset is not None:
-        if args.material_preset not in MATERIAL_PRESETS:
-            raise ValueError(f"unknown material preset: {args.material_preset}")
-        if args.mode == "liquid" and args.material_preset == "stress":
-            raise ValueError("the stress preset does not cover liquid-mode materials; "
-                             "use --material-preset liquid or foam")
-        if args.mode == "stress" and args.material_preset != "stress":
-            raise ValueError("stress mode only uses the stress material preset")
-        for key, value in MATERIAL_PRESETS[args.material_preset].items():
-            if getattr(args, key, None) is None:
-                setattr(args, key, value)
-    if args.mode == "stress" and (args.liquid_material or args.solid_material or
-                                  args.glass_material):
-        raise ValueError("stress mode uses vertex colors and a distinct ghost water; "
-                         "liquid/solid/glass material selectors are unused")
-    # Explicit per-property values win; a selected component material replaces
-    # the corresponding part of a scene preset without changing any other set.
-    liquid_material = args.liquid_material or (
-        "turbulent-water" if args.material_preset in ("liquid", "foam") else None)
-    solid_material = args.solid_material or (
-        "anodized-copper" if args.material_preset in ("liquid", "foam") else None)
-    glass_material = args.glass_material or (
-        "low-iron-glass" if args.material_preset in ("liquid", "foam") else None)
-    for selection, catalog in ((liquid_material, LIQUID_MATERIALS),
-                               (solid_material, SOLID_MATERIALS),
-                               (glass_material, GLASS_MATERIALS)):
-        if selection is not None:
-            for key, value in catalog[selection].items():
+    if args.mode == "stress" and any(getattr(args, key) is not None for key in
+                                      ("liquid_material", "solid_material", "glass_material",
+                                       "foam_material", "spray_material", "bubble_material")):
+        raise ValueError("stress view uses a pre-colored solid and omits other materials")
+    if args.mode == "liquid" and args.ghost_material is not None:
+        raise ValueError("ghost material is only used in the stress view")
+    if args.foam_dir is None and any(getattr(args, key) is not None for key in
+                                     ("foam_material", "spray_material", "bubble_material")):
+        raise ValueError("whitewater materials need --foam-dir")
+    for selector, _, catalog in MATERIAL_SELECTORS:
+        choice = getattr(args, selector)
+        if choice is not None:
+            for key, value in catalog[choice].items():
                 if key not in explicit:
                     setattr(args, key, value)
-    args.liquid_material = liquid_material
-    args.solid_material = solid_material
-    args.glass_material = glass_material
-    for key, value in MATERIAL_DEFAULTS.items():
+    for key, value in SCENE_DEFAULTS.items():
         if getattr(args, key, None) is None:
             setattr(args, key, value)
+    if args.stress_water_opacity is None:
+        args.stress_water_opacity = 0.0
     from math import isfinite
     if args.mode == "liquid":
         required = ("water_color", "water_roughness", "water_ior", "water_absorption",
-                    "water_scattering", "water_scattering_anisotropy", "solid_color",
-                    "solid_metallic", "solid_roughness", "solid_coat", "glass_color",
+                    "water_scattering", "water_scattering_anisotropy", "glass_color",
                     "glass_opacity", "glass_roughness", "glass_ior", "glass_transmission",
-                    "wall_thickness",
-                    "floor_thickness", "visible_wall_height")
+                    "glass_specular", "wall_thickness", "floor_thickness",
+                    "visible_wall_height")
     else:
         required = (("water_color", "water_roughness", "water_ior",
                      "stress_water_transmission", "stress_water_specular")
                     if args.stress_water_opacity else ())
         if args.foam_dir is not None:
             raise ValueError("stress rendering does not use whitewater materials")
+    required += ("floor_color", "floor_metallic", "floor_roughness", "floor_coat")
     missing = [name for name in required if getattr(args, name) is None]
     if missing:
         raise ValueError("required render parameters: " + ", ".join(missing))
@@ -333,9 +310,9 @@ def validate(args: argparse.Namespace) -> None:
 def main(arguments: list[str] | None = None) -> None:
     values = sys.argv[1:] if arguments is None else arguments
     options = parser().parse_args(values)
-    if options.command == "material-presets":
-        from materials import describe_presets
-        print(describe_presets(), end="")
+    if options.command == "materials":
+        from materials import describe_materials
+        print(describe_materials(), end="")
         return
     try:
         validate(options)

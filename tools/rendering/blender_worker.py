@@ -517,24 +517,30 @@ def build_scene(args, frame, whitewater):
                     froth_nodes(obj, material, args)
                 else:
                     instances(obj, material, kind, args)
-        solid_name = ("Anodized copper solids" if args.solid_material == "anodized-copper"
-                      else "Structural solid")
-        solid_shader = principled(solid_name, args.solid_color, args.solid_roughness,
-                                  metallic=args.solid_metallic, coat=args.solid_coat)
-        for index, path in enumerate(frame["solids"], 1):
-            obj = import_mesh(path, f"Structural solid {index}", solid_shader,
-                              args.surface_axis_order)
-            if args.solid_floor_extension:
-                ground = min(vertex.co.z for vertex in obj.data.vertices)
-                for vertex in obj.data.vertices:
-                    if vertex.co.z <= ground + 1e-6:
-                        vertex.co.z -= args.solid_floor_extension
-                obj.data.update()
-            if args.solid_bevel:
-                bevel = obj.modifiers.new("Edge highlight", "BEVEL")
-                bevel.width, bevel.segments = args.solid_bevel, args.solid_bevel_segments
-                bevel.limit_method = "ANGLE"
-                bevel.angle_limit = math.radians(args.solid_bevel_angle)
+        if frame["solids"]:
+            required = ("solid_color", "solid_metallic", "solid_roughness", "solid_coat")
+            missing = [name for name in required if getattr(args, name) is None]
+            if missing:
+                raise ValueError("solid meshes need a --solid-material or explicit values: " +
+                                 ", ".join(missing))
+            solid_name = ("Anodized copper solids" if args.solid_material == "anodized-copper"
+                          else "Structural solid")
+            solid_shader = principled(solid_name, args.solid_color, args.solid_roughness,
+                                      metallic=args.solid_metallic, coat=args.solid_coat)
+            for index, path in enumerate(frame["solids"], 1):
+                obj = import_mesh(path, f"Structural solid {index}", solid_shader,
+                                  args.surface_axis_order)
+                if args.solid_floor_extension:
+                    ground = min(vertex.co.z for vertex in obj.data.vertices)
+                    for vertex in obj.data.vertices:
+                        if vertex.co.z <= ground + 1e-6:
+                            vertex.co.z -= args.solid_floor_extension
+                    obj.data.update()
+                if args.solid_bevel:
+                    bevel = obj.modifiers.new("Edge highlight", "BEVEL")
+                    bevel.width, bevel.segments = args.solid_bevel, args.solid_bevel_segments
+                    bevel.limit_method = "ANGLE"
+                    bevel.angle_limit = math.radians(args.solid_bevel_angle)
     else:
         stress_materials = {}
         for index, mesh_path in enumerate(args.stress_mesh, 1):

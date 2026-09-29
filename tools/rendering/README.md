@@ -21,9 +21,10 @@ rewritten here.
 
 ## Quick start
 
-Most cases need only a material preset plus scene geometry. Three presets
-cover the reviewed v03 looks; any single flag can still override a preset
-value (see [Material presets](#material-presets)).
+Select only the materials present in a scene, then pass its geometry, camera,
+and lighting separately. Named choices supply the reviewed v03 values where
+applicable; explicit property flags override one value without replacing other
+materials (see [Materials by role](#materials-by-role)).
 
 Clean-water still from native PR #1329 output:
 
@@ -33,7 +34,10 @@ python tools/rendering/pipeline.py render \
   --surface-pvd /path/to/surface/surface_fluid_1.pvd \
   --solid-pattern 'surface_structure_1_{iter}.ply' \
   --output /path/to/new/still.png --frame 0 \
-  --material-preset liquid \
+  --liquid-material turbulent-water --solid-material anodized-copper \
+  --glass-material low-iron-glass --floor-material dark-metal \
+  --solid-floor-extension 0.02 --solid-bevel 0.005 \
+  --wall-thickness 0.018 --floor-thickness 0.018 --visible-wall-height 0.16 \
   --surface-axis-order xyz --foam-axis-order xyz \
   --camera-position 3 2 2 --camera-target 1 0.5 0.3 --camera-fov 34 \
   --tank-min 0 0 0 --tank-max 2 4 1 \
@@ -62,7 +66,12 @@ python tools/rendering/pipeline.py render \
   --solid-pattern 'surface_structure_1_{iter}.ply' \
   --foam-dir /path/to/new/whitewater \
   --output /path/to/new/frames --sequence --start 0 \
-  --material-preset foam \
+  --liquid-material turbulent-water --solid-material anodized-copper \
+  --glass-material low-iron-glass --floor-material dark-metal \
+  --foam-material whitewater-froth --spray-material water-droplet \
+  --bubble-material submerged-air \
+  --solid-floor-extension 0.02 --solid-bevel 0.005 \
+  --wall-thickness 0.018 --floor-thickness 0.018 --visible-wall-height 0.16 \
   --surface-axis-order xyz --foam-axis-order xyz \
   --camera-position 3 2 2 --camera-target 1 0.5 0.3 --camera-fov 34 \
   --tank-min 0 0 0 --tank-max 2 4 1 \
@@ -80,7 +89,9 @@ python tools/rendering/pipeline.py render \
   --output /path/to/new/stress.png --frame 179 \
   --mode stress --stress-mesh /path/to/stress_blade_01.ply \
   --stress-mesh /path/to/stress_blade_02.ply \
-  --material-preset stress \
+  --floor-material neutral-stress --ghost-material v03-ghost-water \
+  --stress-normal-light 0.28 --solid-floor-extension 0.02 --solid-bevel 0.004 \
+  --pedestal-margin 0.09 --pedestal-thickness 0.055 --floor-bevel 0.025 \
   --surface-axis-order xyz --foam-axis-order xyz \
   --camera-position 3 2 2 --camera-target 1 0.5 0.3 --camera-fov 34 \
   --tank-min 0 0 0 --tank-max 2 4 1 \
@@ -197,9 +208,9 @@ Option reference:
 |---|---|
 | Inputs | `--blender`, `--surface-dir`, `--surface-pvd` or `--surface-metadata`, `--foam-dir`, `--solid-pattern`, `--surface-axis-order`, `--foam-axis-order` |
 | Selection | `--frame N` for one still, or `--sequence` with `--start/--stop/--stride`; `--resume` continues a validated prefix |
-| Scene | `--camera-position`, `--camera-target`, `--camera-fov`, `--tank-min`, `--tank-max`, `--light` (repeatable `name:x:y:z:energy:r:g:b:size`), `--world-color`, `--world-strength` |
+| Scene | `--camera-position`, `--camera-target`, `--camera-fov`, `--tank-min`, `--tank-max`, `--light` (repeatable `name:x:y:z:energy:r:g:b:size`), `--world-color`, `--world-strength`, `--solid-floor-extension`, `--solid-bevel`, `--pedestal-*`, `--floor-bevel`, `--wall-thickness`, `--floor-thickness`, `--visible-wall-height` |
 | Image | `--width`, `--height`, `--samples`, `--engine {cycles,eevee}`, `--device {cpu,gpu}`, `--gpu-backend`, `--view-transform`, `--look`, `--exposure`, `--gamma`, `--max-bounces`, `--transmission-bounces`, `--transparent-bounces`, `--png-compression`, `--no-denoise` |
-| Materials | `--material-preset {liquid,foam,stress}`, independent `--liquid-material {turbulent-water,clear-water}`, `--solid-material anodized-copper`, `--glass-material low-iron-glass`, and individual `--water-*`, `--solid-*`, `--glass-*`, `--foam-*`, `--spray-*`, `--bubble-*` flags |
+| Materials | Independent `--liquid-material {turbulent-water,clear-water}`, `--solid-material anodized-copper`, `--glass-material low-iron-glass`, `--floor-material {dark-metal,neutral-stress}`, `--foam-material whitewater-froth`, `--spray-material water-droplet`, `--bubble-material submerged-air`, `--ghost-material v03-ghost-water`; individual property flags override them |
 | Stress | `--mode stress --stress-mesh FILE` (repeat for each solid), `--stress-water-opacity`, `--stress-water-transmission`, `--stress-water-specular`, `--stress-normal-light`, `--stress-light-direction` |
 
 `render --sequence` writes numbered PNGs plus `render_metadata.json` and
@@ -213,97 +224,62 @@ the v03 stress view uses **five** blades. Optionally set
 an independently color-encoded YlOrRd PLY; this tool preserves the input
 vertex colors, its stress emission material, and the contextual ghost-water
 and floor treatments. Stress export itself remains an upstream input. The
-`stress` preset supplies the reviewed `0.005` ghost-water opacity, its distinct
-color/transmission/specular response, and the `0.72–1.0` world-normal luminance
-factor. Without a preset, `--stress-water-opacity 0` omits contextual water;
+`--ghost-material v03-ghost-water` supplies the reviewed `0.005` opacity and
+distinct color/transmission/specular response; pass `--stress-normal-light 0.28`
+for the `0.72–1.0` world-normal luminance factor. Without a ghost selection,
+contextual water is omitted;
 otherwise pass `--water-color`, `--water-roughness`, `--water-ior`,
 `--stress-water-transmission`, and `--stress-water-specular` explicitly. The
 ghosted shader is separate from the primary liquid-volume shader.
 
-## Material presets
+## Materials by role
 
-Three scene presets exist, with separately selectable liquid, solid, and glass
-materials. A `liquid` or `foam` scene includes the v03 **turbulent-water**,
-**anodized-copper**, and **low-iron-glass** choices automatically;
-choose them independently to combine with explicitly supplied water/floor
-settings or to override part of a scene preset. Any property flag passed
-explicitly wins over both the component and scene presets. Flags outside
-these presets (camera, lights, tank, resolution) are always required
-individually. Run
-`python tools/rendering/pipeline.py material-presets` to print every preset
-value.
+There is no scene-level material bundle. Select
+**only** the materials the frame uses; a selector fills its own shader fields
+and nothing else. Explicit property flags override individual values. Run
+`python tools/rendering/pipeline.py materials` for all choices and values.
 
-| Preset | Contents | Use with |
+| Selector | Reviewed material / use | Key values |
 |---|---|---|
-| `liquid` | Physical water (Pope–Fry absorption, scattering), copper solids, glass tank, floor, tank construction | Clean surface stills/sequences |
-| `foam` | The `liquid` set plus froth, spray, and bubble materials | `--foam-dir` whitewater renders |
-| `stress` | YlOrRd vertex-color emission, `0.72–1.0` normal modulation, copper-edge/floor and `0.005` ghost water with its own physical material | `--mode stress --stress-mesh` |
+| `--liquid-material turbulent-water` | **v03** water | RGB `(0.35, 0.72, 1)`, roughness `0.06`, IOR `1.333`, Pope–Fry absorption scaled `2.5×`, low scattering |
+| `--liquid-material clear-water` | Other cases; **not in v03** | Untinted pure-water absorption `(0.34, 0.0565, 0.00922) m⁻¹`, scattering zero, roughness `0.02` |
+| `--solid-material anodized-copper` | **v03** structural solids | RGB `(0.62, 0.10, 0.018)`, metallic `0.92`, roughness `0.30`, coat `0.16` |
+| `--glass-material low-iron-glass` | **v03** tank panes | RGB `(0.06, 0.42, 0.34)`, roughness `0.30`, transmission `0.90`, IOR `1.36`, specular `0.04`, opacity mix `0.04` |
+| `--floor-material dark-metal` | **v03** liquid/foam view | RGB `(0.012, 0.018, 0.028)`, metallic `0.35`, roughness `0.30` |
+| `--floor-material neutral-stress` | **v03** stress close-up | RGB `(0.020, 0.032, 0.050)`, metallic `0.30`, roughness `0.40`, coat `0.10` |
+| `--foam-material whitewater-froth` | **v03** marker-density froth | RGB `(0.72, 0.82, 0.86)` plus independent radius, voxel, threshold and noise settings |
+| `--spray-material water-droplet` | **v03** velocity-aligned spray | RGB `(0.82, 0.94, 1)`, radius `0.0008 m`, exposure `0.001 s` |
+| `--bubble-material submerged-air` | **v03** bubble interfaces | RGB `(0.9, 0.97, 1)`, radius `0.0014 m`, relative IOR exactly `1 / 1.333` |
+| `--ghost-material v03-ghost-water` | **v03** stress context, if enabled | Opacity `0.005`, RGB `(0.015, 0.28, 0.46)`, transmission `0.72`, specular `0.18` |
 
-| Independent component | Appearance and scope | What it sets |
-|---|---|---|
-| `--liquid-material turbulent-water` | Reviewed v03 fluid | RGB `(0.35, 0.72, 1)`, roughness `0.06`, IOR `1.333`, scaled pure-water absorption plus low scattering |
-| `--liquid-material clear-water` | **Optional for other cases, not used in v03** | Untinted pure-water absorption `(0.34, 0.0565, 0.00922) m⁻¹`, no scattering, roughness `0.02`, IOR `1.333` |
-| `--solid-material anodized-copper` | Metallic copper clamped solids | Base RGB `(0.62, 0.10, 0.018)`, metallic `0.92`, roughness `0.30`, coat `0.16` |
-| `--glass-material low-iron-glass` | Editorial low-iron tank panes | RGB `(0.06, 0.42, 0.34)`, roughness `0.30`, transmission `0.90`, IOR `1.36`, specular `0.04`, opacity mix `0.04` |
-
-Component selectors choose **materials**, not wall height, mesh bevel, floor
-extension, or other case geometry. `--solid-*` geometry and material flags
-work with any reconstructed solid; the legacy `blade_files` metadata name is
-only an input adapter. The stress view uses vertex-colored YlOrRd solids
-and omits glass walls, so component selectors
-are rejected in `--mode stress`.
-
-Override example (scene settings remain CLI inputs):
+For example, change the floor color without changing the water or solid:
 
 ```bash
-python tools/rendering/pipeline.py render \
-  --blender /path/to/blender --surface-dir /path/to/surface \
-  --surface-pvd /path/to/surface/surface_fluid_1.pvd \
-  --foam-dir /path/to/whitewater --output /path/to/new/still.png --frame 0 \
-  --material-preset foam --liquid-material turbulent-water \
-  --solid-material anodized-copper --glass-material low-iron-glass \
-  --foam-point-radius 0.008 \
-  --surface-axis-order xyz --foam-axis-order xyz \
-  --camera-position 3 2 2 --camera-target 1 0.5 0.3 --camera-fov 34 \
-  --tank-min 0 0 0 --tank-max 2 4 1 \
-  --light 'key:0.2:2.8:3.8:1250:1:0.76:0.58:3.2' \
-  --width 640 --height 360 --samples 16 \
-  --world-color 0.002 0.005 0.012 --world-strength 0.16
+--liquid-material turbulent-water --solid-material anodized-copper \
+--glass-material low-iron-glass --floor-material dark-metal \
+--floor-color 0.04 0.04 0.06
 ```
 
-The presets encode v03's **material-node parameters**, not a complete v03
-scene. `liquid` and `foam` share the same physical water material, with
-absorption `(0.85, 0.14125, 0.02305) m⁻¹`, scattering `(0.02, 0.04, 0.08) m⁻¹`,
-and anisotropy `0.35`. The accepted tank base uses `(0.012, 0.018, 0.028)`
-linear RGB; the glass pane has transmission `0.90` and specular IOR level
-`0.04`. `stress` instead uses its `(0.020, 0.032, 0.050)` pedestal,
-`0.28`-weighted normal modulation, and ghost water with color
-`(0.015, 0.28, 0.46)`, transmission `0.72`, and specular level `0.18`.
-The bubble relative IOR is exactly `1 / 1.333`. These values are checked
-against the accepted v03 render metadata and source shaders. Explicit flags
-still override any one value.
+Wall size, blade seating, bevels, pedestal dimensions, camera, lights, render
+engine and color management are **scene geometry/lighting parameters**, not
+material choices. They remain CLI flags and are not filled by any material.
+Legacy `blade_files` metadata is accepted as a data-field alias for generic
+`solid_files`. The stress view uses colors baked into each input PLY; it has no
+copper or glass wall shader. Pass its `--floor-material`, optional
+`--ghost-material`, and explicit `--stress-normal-light` instead.
 
-For a non-v03 clear-water case, keep the same CLI command but pass
-`--liquid-material clear-water` (with or without a `liquid`/`foam` scene
-preset). That switches only the water material; it does **not** claim that
-clear water was part of the approved v03 release. A custom tint can then
-override one property, e.g. `--water-color 0.8 0.9 1`.
-
-**Can the presets be used for v03 reproduction?** They supply the reviewed
-material parameters, yes. A matching v03 render additionally needs the
-original camera/lights, tank and pedestal geometry, frame selection,
-coordinate mapping, Blender/device/color management, accepted reconstruction
-and foam caches, and any render-only solid-floor treatment. Those settings
-are *not* preset; the follow-up v03 migration PR will pass them explicitly
-and establish full render and source-frame parity. This tools PR does not
-claim bitwise v03 image reproduction. The rejected `legacy-cyan` and redundant
-`foaming-water` branches are removed; the old unused `physical-clear` code
-path is replaced by an explicitly selected, reusable `clear-water` material.
+These material values agree with the reviewed v03 material nodes, but do not
+alone guarantee the v03 image. Full reproduction needs the accepted input
+caches, original camera/lights, scene construction, Blender/device/color
+management and frame mapping. The follow-up v03 migration PR will pin and
+validate those settings. The rejected `legacy-cyan` and redundant
+`foaming-water` branches remain removed; `clear-water` is a deliberately
+selected, reusable treatment for non-v03 cases.
 
 ## Materials and scientific scope
 
 There is **one** physically based transmitted/scattered liquid shader, with
-all coefficients supplied by CLI flags or presets. Optional foam,
+all coefficients supplied by CLI flags or named materials. Optional foam,
 velocity-aligned spray, and bubble interfaces use their own parameters.
 Solids, glass, the floor, and the stress view retain configurable materials.
 Enabling whitewater changes the scene, not the liquid material. Camera,
@@ -342,7 +318,7 @@ uv run --no-project --python 3.9 \
 
 The built FoamGenerator enables a seeded integration check; Blender 5.2
 enables small liquid/foam/spray/bubble and stress renders with translated
-bounds, including a preset-based render. Both tests are optional when those
+bounds, including independently selected materials. Both tests are optional when those
 executables are unavailable:
 
 ```bash

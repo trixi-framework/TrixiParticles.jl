@@ -90,9 +90,11 @@ class BlenderRenderingTests(unittest.TestCase):
                     "--solid-roughness", "0.3", "--solid-coat", "0.16",
                     "--solid-floor-extension", "0.02", "--solid-bevel", "0.005",
                     "--floor-color", "0.02", "0.03", "0.05", "--floor-metallic", "0.3",
-                    "--floor-roughness", "0.4", "--glass-color", "0.06", "0.42", "0.34",
+                    "--floor-roughness", "0.4", "--floor-coat", "0",
+                    "--glass-color", "0.06", "0.42", "0.34",
                     "--glass-opacity", "0.04", "--glass-roughness", "0.3",
                     "--glass-ior", "1.36", "--glass-transmission", "0.9",
+                    "--glass-specular", "0.04",
                     "--wall-thickness", "0.018",
                     "--floor-thickness", "0.018", "--visible-wall-height", "0.16"]
             whitewater = ["--foam-dir", str(secondary), "--foam-color", "0.72", "0.82", "0.86",
@@ -116,16 +118,22 @@ class BlenderRenderingTests(unittest.TestCase):
             metadata = json.loads((movie / "render_metadata.json").read_text())
             self.assertEqual(metadata["frame_count"], 1)
 
-            # The same scene through --material-preset: only scene flags remain.
-            preset_base = [sys.executable, str(root / "pipeline.py"), "render", "--blender",
+            # The same scene through independently selected materials.
+            selected_materials = [sys.executable, str(root / "pipeline.py"), "render", "--blender",
                            os.environ["TRIXIPARTICLES_BLENDER"], "--surface-dir",
                            str(surface), "--surface-pvd", str(surface / "surface.pvd"),
                            "--solid-pattern", "solid_{frame:06d}.ply",
                            "--surface-axis-order", "xyz", "--foam-axis-order", "xyz",
-                           "--material-preset", "foam",
                            "--liquid-material", "turbulent-water",
                            "--solid-material", "anodized-copper",
                            "--glass-material", "low-iron-glass",
+                           "--floor-material", "dark-metal",
+                           "--foam-material", "whitewater-froth",
+                           "--spray-material", "water-droplet",
+                           "--bubble-material", "submerged-air",
+                           "--solid-floor-extension", "0.02", "--solid-bevel", "0.005",
+                           "--wall-thickness", "0.018", "--floor-thickness", "0.018",
+                           "--visible-wall-height", "0.16",
                            "--camera-position", "2", "-2", "2", "--camera-target",
                            "0.5", "0.5", "0.4", "--camera-fov", "38",
                            "--tank-min", "-1", "-1", "-1", "--tank-max", "2", "2", "2",
@@ -134,14 +142,14 @@ class BlenderRenderingTests(unittest.TestCase):
                            "--device", "cpu",
                            "--world-color", "0.1", "0.1", "0.1", "--world-strength", "0.4"]
             preset_still = path / "preset.png"
-            result = subprocess.run(preset_base + ["--foam-dir", str(secondary),
+            result = subprocess.run(selected_materials + ["--foam-dir", str(secondary),
                                                    "--output", str(preset_still),
                                                    "--frame", "0"],
                                     capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertEqual(png_dimensions(preset_still), (64, 64))
             record = json.loads(preset_still.with_suffix(".png.json").read_text())
-            self.assertEqual(record["provenance"]["settings"]["material_preset"], "foam")
+            self.assertEqual(record["provenance"]["settings"]["floor_material"], "dark-metal")
             self.assertEqual(record["provenance"]["settings"]["liquid_material"],
                              "turbulent-water")
             self.assertEqual(record["provenance"]["settings"]["solid_material"],
@@ -150,9 +158,10 @@ class BlenderRenderingTests(unittest.TestCase):
                              "low-iron-glass")
 
             clear_water = path / "clear_water.png"
-            clear_command = preset_base.copy()
-            clear_command[clear_command.index("foam", clear_command.index("--material-preset"))] = \
-                "liquid"
+            clear_command = selected_materials.copy()
+            for flag in ("--foam-material", "--spray-material", "--bubble-material"):
+                index = clear_command.index(flag)
+                del clear_command[index:index + 2]
             clear_command[clear_command.index("turbulent-water")] = "clear-water"
             result = subprocess.run(clear_command + ["--output", str(clear_water),
                                                      "--frame", "0"],
@@ -192,7 +201,7 @@ class BlenderRenderingTests(unittest.TestCase):
                 "--width", "64", "--height", "64", "--samples", "2",
                 "--world-color", "0.1", "0.1", "0.1", "--world-strength", "0.4",
                 "--floor-color", "0.02", "0.03", "0.05", "--floor-metallic", "0.3",
-                "--floor-roughness", "0.4"]
+                "--floor-roughness", "0.4", "--floor-coat", "0"]
             result = subprocess.run(stress_command, capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertEqual(png_dimensions(minimal_stress), (64, 64))
@@ -201,12 +210,16 @@ class BlenderRenderingTests(unittest.TestCase):
             preset_command = stress_command.copy()
             preset_command[preset_command.index(str(minimal_stress))] = str(stress_preset)
             for flag, values in (("--floor-color", 3), ("--floor-metallic", 1),
-                                 ("--floor-roughness", 1)):
+                                 ("--floor-roughness", 1), ("--floor-coat", 1)):
                 first = preset_command.index(flag)
                 del preset_command[first:first + values + 1]
             second_blade = surface / "stress2.ply"
             second_blade.write_bytes((surface / "stress.ply").read_bytes())
-            preset_command.extend(("--material-preset", "stress",
+            preset_command.extend(("--floor-material", "neutral-stress",
+                                   "--ghost-material", "v03-ghost-water",
+                                   "--stress-normal-light", "0.28",
+                                   "--solid-floor-extension", "0.02",
+                                   "--solid-bevel", "0.004",
                                    "--stress-mesh", str(second_blade)))
             result = subprocess.run(preset_command, capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

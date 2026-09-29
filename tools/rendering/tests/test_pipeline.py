@@ -77,11 +77,21 @@ class TimeSeriesTests(unittest.TestCase):
         with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
             pipeline.parser().parse_args(args + ["--seed", "144", "--config", "case.json"])
 
-    def test_material_preset_fills_and_explicit_flags_win(self):
-        parsed = minimal_render("--material-preset", "foam", "--foam-dir", "foam")
+    def test_independent_materials_and_explicit_flags(self):
+        base = ("--liquid-material", "turbulent-water",
+                "--solid-material", "anodized-copper",
+                "--glass-material", "low-iron-glass",
+                "--floor-material", "dark-metal",
+                "--wall-thickness", "0.018", "--floor-thickness", "0.018",
+                "--visible-wall-height", "0.16")
+        secondary = ("--foam-dir", "foam", "--foam-material", "whitewater-froth",
+                     "--spray-material", "water-droplet",
+                     "--bubble-material", "submerged-air")
+        parsed = minimal_render(*base, *secondary)
         pipeline.validate(parsed)
         self.assertEqual(tuple(parsed.water_color), (0.35, 0.72, 1.0))
         self.assertEqual(tuple(parsed.floor_color), (0.012, 0.018, 0.028))
+        self.assertEqual(parsed.floor_material, "dark-metal")
         self.assertEqual(parsed.glass_transmission, 0.90)
         self.assertEqual(parsed.foam_point_radius, 0.006)
         self.assertEqual(tuple(parsed.spray_scale_range), (0.55, 1.15))
@@ -91,10 +101,7 @@ class TimeSeriesTests(unittest.TestCase):
         self.assertEqual(parsed.solid_material, "anodized-copper")
         self.assertEqual(parsed.glass_material, "low-iron-glass")
 
-        components = minimal_render("--material-preset", "foam", "--foam-dir", "foam",
-                                    "--solid-material", "anodized-copper",
-                                    "--glass-material", "low-iron-glass",
-                                    "--solid-roughness", "0.18",
+        components = minimal_render(*base, *secondary, "--solid-roughness", "0.18",
                                     "--glass-transmission", "0.72")
         pipeline.validate(components)
         self.assertEqual(components.solid_material, "anodized-copper")
@@ -104,8 +111,8 @@ class TimeSeriesTests(unittest.TestCase):
         self.assertEqual(components.glass_transmission, 0.72)
         self.assertEqual(components.glass_color, (0.06, 0.42, 0.34))
 
-        clear = minimal_render("--material-preset", "foam", "--foam-dir", "foam",
-                               "--liquid-material", "clear-water", "--water-roughness", "0.12")
+        clear_base = ("--liquid-material", "clear-water", *base[2:])
+        clear = minimal_render(*clear_base, *secondary, "--water-roughness", "0.12")
         pipeline.validate(clear)
         self.assertEqual(clear.liquid_material, "clear-water")
         self.assertEqual(tuple(clear.water_color), (1.0, 1.0, 1.0))
@@ -114,23 +121,24 @@ class TimeSeriesTests(unittest.TestCase):
         self.assertEqual(clear.water_roughness, 0.12)
         self.assertEqual(clear.solid_material, "anodized-copper")
 
-        overridden = minimal_render("--material-preset", "foam", "--foam-dir", "foam",
-                                    "--water-roughness", "0.5", "--foam-threshold", "0.7")
+        overridden = minimal_render(*base, *secondary, "--water-roughness", "0.5",
+                                    "--foam-threshold", "0.7", "--floor-color", "0.2",
+                                    "0.3", "0.4")
         pipeline.validate(overridden)
         self.assertEqual(overridden.water_roughness, 0.5)
         self.assertEqual(overridden.foam_threshold, 0.7)
         self.assertEqual(tuple(overridden.water_color), (0.35, 0.72, 1.0))
+        self.assertEqual(tuple(overridden.floor_color), (0.2, 0.3, 0.4))
 
         incomplete = minimal_render()
         with self.assertRaisesRegex(ValueError, "required render parameters"):
             pipeline.validate(incomplete)
 
-        mismatched = minimal_render("--material-preset", "stress")
-        with self.assertRaisesRegex(ValueError, "stress preset"):
-            pipeline.validate(mismatched)
-
-        stress = minimal_render("--material-preset", "stress", "--mode", "stress",
-                                "--stress-mesh", "stress.ply")
+        stress = minimal_render("--mode", "stress", "--stress-mesh", "stress.ply",
+                                "--floor-material", "neutral-stress",
+                                "--ghost-material", "v03-ghost-water",
+                                "--stress-normal-light", "0.28",
+                                "--solid-bevel", "0.004", "--solid-floor-extension", "0.02")
         pipeline.validate(stress)
         self.assertEqual(tuple(stress.water_color), (0.015, 0.28, 0.46))
         self.assertEqual(tuple(stress.floor_color), (0.020, 0.032, 0.050))
@@ -140,21 +148,27 @@ class TimeSeriesTests(unittest.TestCase):
         self.assertEqual(stress.stress_normal_light, 0.28)
         self.assertEqual(stress.solid_bevel, 0.004)
 
-        unused = minimal_render("--material-preset", "foam", "--mode", "stress",
-                                "--stress-mesh", "stress.ply")
-        with self.assertRaisesRegex(ValueError, "only uses the stress"):
+        unused = minimal_render("--mode", "stress", "--stress-mesh", "stress.ply",
+                                "--floor-material", "neutral-stress",
+                                "--liquid-material", "turbulent-water")
+        with self.assertRaisesRegex(ValueError, "pre-colored"):
             pipeline.validate(unused)
-        unused_glass = minimal_render("--material-preset", "stress", "--mode", "stress",
+        unused_glass = minimal_render("--mode", "stress", "--floor-material", "neutral-stress",
                                       "--stress-mesh", "stress.ply", "--glass-material",
                                       "low-iron-glass")
-        with self.assertRaisesRegex(ValueError, "unused"):
+        with self.assertRaisesRegex(ValueError, "pre-colored"):
             pipeline.validate(unused_glass)
 
-        self.assertIn("foam", materials.MATERIAL_PRESETS)
-        self.assertIn("liquid", materials.describe_presets())
-        self.assertIn("--liquid-material clear-water", materials.describe_presets())
-        self.assertIn("--solid-material anodized-copper", materials.describe_presets())
-        self.assertIn("--glass-material low-iron-glass", materials.describe_presets())
+        unused_foam = minimal_render(*base, "--foam-material", "whitewater-froth")
+        with self.assertRaisesRegex(ValueError, "need --foam-dir"):
+            pipeline.validate(unused_foam)
+
+        with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+            minimal_render("--material-preset", "foam")
+        self.assertIn("--liquid-material clear-water", materials.describe_materials())
+        self.assertIn("--solid-material anodized-copper", materials.describe_materials())
+        self.assertIn("--glass-material low-iron-glass", materials.describe_materials())
+        self.assertIn("--floor-material neutral-stress", materials.describe_materials())
 
 
 class WhitewaterPayloadTests(unittest.TestCase):
