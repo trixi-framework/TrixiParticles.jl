@@ -77,9 +77,8 @@ end
 # Section 2.2 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
 # Note: This is the simplest form of normal approximation commonly used in SPH and comes
 # with serious deficits in accuracy especially at corners, small neighborhoods and boundaries
-function calc_normal!(system::AbstractFluidSystem, neighbor_system::AbstractBoundarySystem,
-                      u_system, v, v_neighbor_system, u_neighbor_system, semi,
-                      surface_normal_method, neighbor_surface_normal_method)
+function calc_boundary_normal!(system::AbstractFluidSystem, neighbor_system, u_system, v,
+                               u_neighbor_system, semi, surface_normal_method)
     (; cache) = system
     (; colorfield, initial_colorfield) = neighbor_system.boundary_model.cache
     (; boundary_contact_threshold) = surface_normal_method
@@ -122,6 +121,13 @@ function calc_normal!(system::AbstractFluidSystem, neighbor_system::AbstractBoun
     end
 
     return system
+end
+
+function calc_normal!(system::AbstractFluidSystem, neighbor_system::AbstractBoundarySystem,
+                      u_system, v, v_neighbor_system, u_neighbor_system, semi,
+                      surface_normal_method, neighbor_surface_normal_method)
+    return calc_boundary_normal!(system, neighbor_system, u_system, v, u_neighbor_system,
+                                 semi, surface_normal_method)
 end
 
 function remove_invalid_normals!(system::AbstractFluidSystem, surface_tension,
@@ -196,13 +202,19 @@ function compute_surface_normal!(system::AbstractFluidSystem,
     set_zero!(cache.neighbor_count)
 
     # TODO: if color values are set only different systems need to be called
-    @trixi_timeit timer() "compute surface normal" foreach_system(semi) do neighbor_system
-        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
-        v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
+    @trixi_timeit timer() "compute surface normal" begin
+        foreach_system_wrapped(semi, v_ode,
+                               u_ode) do neighbor_system, v_neighbor_system,
+                                         u_neighbor_system
+            if !has_system_interaction(system, neighbor_system, semi)
+                # No interaction between these systems.
+                return
+            end
 
-        calc_normal!(system, neighbor_system, u, v, v_neighbor_system,
-                     u_neighbor_system, semi, surface_normal_method_,
-                     surface_normal_method(neighbor_system))
+            calc_normal!(system, neighbor_system, u, v, v_neighbor_system,
+                         u_neighbor_system, semi, surface_normal_method_,
+                         surface_normal_method(neighbor_system))
+        end
     end
     remove_invalid_normals!(system, surface_tension, surface_normal_method_)
 
@@ -269,13 +281,19 @@ function compute_curvature!(system::AbstractFluidSystem,
     # Reset surface curvature
     set_zero!(cache.curvature)
 
-    @trixi_timeit timer() "compute surface curvature" foreach_system(semi) do neighbor_system
-        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
-        v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
+    @trixi_timeit timer() "compute surface curvature" begin
+        foreach_system_wrapped(semi, v_ode,
+                               u_ode) do neighbor_system, v_neighbor_system,
+                                         u_neighbor_system
+            if !has_system_interaction(system, neighbor_system, semi)
+                # No interaction between these systems.
+                return
+            end
 
-        calc_curvature!(system, neighbor_system, u, v, v_neighbor_system,
-                        u_neighbor_system, semi, surface_normal_method(system),
-                        surface_normal_method(neighbor_system))
+            calc_curvature!(system, neighbor_system, u, v, v_neighbor_system,
+                            u_neighbor_system, semi, surface_normal_method(system),
+                            surface_normal_method(neighbor_system))
+        end
     end
     return system
 end

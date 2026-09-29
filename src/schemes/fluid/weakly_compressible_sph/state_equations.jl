@@ -25,7 +25,14 @@ The speed of sound is initialized as `min_sound_speed`.
 - `max_sound_speed=100.0f0`: The maximum permissible speed of sound.
 - `exponent`: An exponent, typically 7 for water simulations.
 - `background_pressure=0.0f0`: A constant background pressure.
-- `clip_negative_pressure=false`: When true, negative pressure values are clipped to 0.0. This can prevent spurious surface tension effects but might allow for unphysical fluid rarefaction.
+- `clip_negative_pressure=false`: When true, negative pressure values are clipped to 0.0.
+  This can prevent spurious surface tension effects but allows for unphysical fluid
+  rarefaction and causes incorrect fluid behavior in regions of low pressure.
+  Note that negative pressure values of boundary particles in the
+  [`BoundaryModelDummyParticles`](@ref) can lead to sticking artifacts at the boundary.
+  The `BoundaryModelDummyParticles` itself also provides an option to clip negative
+  pressure of boundary particles, which is a more targeted way to prevent sticking artifacts
+  without affecting the fluid behavior in the rest of the domain.
 """
 struct StateEquationAdaptiveCole{ELTYPE, CLIP, SR} # Boolean to clip negative pressure
     sound_speed_ref     :: SR

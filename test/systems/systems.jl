@@ -1,5 +1,6 @@
 include("wcsph_system.jl")
 include("edac_system.jl")
+include("rigid_system.jl")
 include("tlsph_system.jl")
 include("boundary_system.jl")
 include("open_boundary_system.jl")

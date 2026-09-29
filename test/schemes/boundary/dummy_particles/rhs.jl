@@ -17,11 +17,11 @@
         # Create several neighbor systems to test fluid-neighbor interaction
         function second_systems(initial_condition, density_calculator, state_equation,
                                 smoothing_kernel, smoothing_length)
-            second_fluid_system = WeaklyCompressibleSPHSystem(initial_condition,
-                                                              density_calculator,
-                                                              state_equation,
+            second_fluid_system = WeaklyCompressibleSPHSystem(initial_condition;
                                                               smoothing_kernel,
-                                                              smoothing_length)
+                                                              smoothing_length,
+                                                              density_calculator,
+                                                              state_equation)
 
             # Overwrite `second_fluid_system.pressure` because we skip the update step
             second_fluid_system.pressure .= initial_condition.pressure
@@ -77,8 +77,9 @@
             v_boundary_continuity = copy(initial_condition.density')
 
             # TLSPH system
-            structure_system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
-                                                        smoothing_length, 0.0, 0.0,
+            structure_system = TotalLagrangianSPHSystem(initial_condition; smoothing_kernel,
+                                                        smoothing_length, young_modulus=0.0,
+                                                        poisson_ratio=0.0,
                                                         boundary_model=boundary_model_continuity)
 
             # Positions of the structure particles are not used here
@@ -126,7 +127,7 @@
             for seed in 1:3
                 # A larger number of particles will increase accumulated errors in the
                 # summation. A larger tolerance will have to be used for the tests below.
-                ic = rectangular_patch(particle_spacing, (3, 3), seed=seed)
+                ic = rectangular_patch(particle_spacing, (3, 3); seed)
 
                 # Split initial condition at center particle into two systems
                 center_particle = ceil(Int, TrixiParticles.nparticles(ic) / 2)
@@ -135,7 +136,8 @@
                                                     ic.mass[1:center_particle],
                                                     ic.density[1:center_particle],
                                                     ic.pressure[1:center_particle],
-                                                    ic.particle_spacing)
+                                                    ic.particle_spacing,
+                                                    nothing)
 
                 boundary = InitialCondition{ndims(ic)}(ic.coordinates[:,
                                                                       (center_particle + 1):end],
@@ -144,13 +146,14 @@
                                                        ic.mass[(center_particle + 1):end],
                                                        ic.density[(center_particle + 1):end],
                                                        ic.pressure[(center_particle + 1):end],
-                                                       ic.particle_spacing)
+                                                       ic.particle_spacing,
+                                                       nothing)
 
-                fluid_system = WeaklyCompressibleSPHSystem(fluid,
-                                                           density_calculator,
-                                                           state_equation,
+                fluid_system = WeaklyCompressibleSPHSystem(fluid;
                                                            smoothing_kernel,
-                                                           smoothing_length)
+                                                           smoothing_length,
+                                                           density_calculator,
+                                                           state_equation)
                 n_particles = TrixiParticles.nparticles(fluid_system)
 
                 # Overwrite `fluid_system.pressure` because we skip the update step

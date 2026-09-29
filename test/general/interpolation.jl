@@ -100,16 +100,16 @@
 
         viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 
-        fluid_system = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(),
-                                                   state_equation, smoothing_kernel,
-                                                   smoothing_length, viscosity=viscosity,
+        fluid_system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
+                                                   smoothing_length,
+                                                   density_calculator=ContinuityDensity(),
+                                                   state_equation, viscosity,
                                                    acceleration=(0.0, -9.81))
 
         boundary_model = BoundaryModelDummyParticles(bnd.density, bnd.mass,
-                                                     state_equation=state_equation,
-                                                     viscosity=viscosity,
                                                      AdamiPressureExtrapolation(),
-                                                     smoothing_kernel, smoothing_length)
+                                                     smoothing_kernel, smoothing_length;
+                                                     state_equation, viscosity)
 
         boundary_system = WallBoundarySystem(bnd, boundary_model)
 
@@ -141,8 +141,8 @@
                                                                                   semi_no_boundary,
                                                                                   fluid_system,
                                                                                   v_no_bnd,
-                                                                                  u_no_bnd,
-                                                                                  cut_off_bnd=cut_off_bnd)
+                                                                                  u_no_bnd;
+                                                                                  cut_off_bnd)
 
                 # Top outside
                 distance_top_outside = binary_search_outside(ny * particle_spacing,
@@ -206,8 +206,8 @@
                 result_multipoint = TrixiParticles.interpolate_points(multi_point_coords,
                                                                       semi_no_boundary,
                                                                       fluid_system,
-                                                                      v_no_bnd, u_no_bnd,
-                                                                      cut_off_bnd=cut_off_bnd)
+                                                                      v_no_bnd, u_no_bnd;
+                                                                      cut_off_bnd)
 
                 expected_multi = (density=[666.0, 666.0000000000001, 666.0],
                                   neighbor_count=[2, 6, 5],
@@ -221,16 +221,14 @@
             @testset verbose=true "Interpolation Line no boundary - cut_off_bnd = $(cut_off_bnd)" begin
                 result_endpoint = TrixiParticles.interpolate_line([1.0, -0.05], [1.0, 1.0],
                                                                   5, semi_no_boundary,
-                                                                  fluid_system,
-                                                                  v_no_bnd, u_no_bnd,
-                                                                  endpoint=true,
-                                                                  cut_off_bnd=cut_off_bnd)
+                                                                  fluid_system, v_no_bnd,
+                                                                  u_no_bnd; endpoint=true,
+                                                                  cut_off_bnd)
 
-                result = TrixiParticles.interpolate_line([1.0, -0.05], [1.0, 1.0],
-                                                         5, semi_no_boundary,
-                                                         fluid_system, v_no_bnd, u_no_bnd,
-                                                         endpoint=false,
-                                                         cut_off_bnd=cut_off_bnd)
+                result = TrixiParticles.interpolate_line([1.0, -0.05], [1.0, 1.0], 5,
+                                                         semi_no_boundary, fluid_system,
+                                                         v_no_bnd, u_no_bnd; endpoint=false,
+                                                         cut_off_bnd)
 
                 expected_res = (density=[666.0, 666.0, 666.0], neighbor_count=[2, 2, 1],
                                 point_coords=[1.0 1.0 1.0;
@@ -354,8 +352,8 @@
                                                                                   semi_boundary,
                                                                                   fluid_system,
                                                                                   v_bnd,
-                                                                                  u_bnd,
-                                                                                  cut_off_bnd=cut_off_bnd)
+                                                                                  u_bnd;
+                                                                                  cut_off_bnd)
 
                 # Top outside
                 distance_top_outside = binary_search_outside(ny * particle_spacing,
@@ -440,9 +438,8 @@
 
                 result_multipoint = TrixiParticles.interpolate_points(multi_point_coords,
                                                                       semi_boundary,
-                                                                      fluid_system,
-                                                                      v_bnd, u_bnd,
-                                                                      cut_off_bnd=cut_off_bnd)
+                                                                      fluid_system, v_bnd,
+                                                                      u_bnd; cut_off_bnd)
                 if cut_off_bnd
                     expected_multi = (density=[666.0, 666.0000000000001, 666.0],
                                       neighbor_count=[4, 6, 5],
@@ -474,16 +471,28 @@
             @testset verbose=true "Interpolation Line boundary - cut_off_bnd = $(cut_off_bnd)" begin
                 result_endpoint = TrixiParticles.interpolate_line([1.0, -0.05], [1.0, 1.0],
                                                                   5, semi_boundary,
-                                                                  fluid_system,
-                                                                  v_bnd, u_bnd,
-                                                                  endpoint=true,
-                                                                  cut_off_bnd=cut_off_bnd)
+                                                                  fluid_system, v_bnd,
+                                                                  u_bnd; endpoint=true,
+                                                                  cut_off_bnd)
 
-                result = TrixiParticles.interpolate_line([1.0, -0.05], [1.0, 1.0],
-                                                         5, semi_no_boundary,
-                                                         fluid_system, v_no_bnd, u_no_bnd,
-                                                         endpoint=false,
-                                                         cut_off_bnd=cut_off_bnd)
+                result_endpoint_wall_velocity = TrixiParticles.interpolate_line([
+                                                                                    1.0,
+                                                                                    -0.05
+                                                                                ],
+                                                                                [1.0, 1.0],
+                                                                                5,
+                                                                                semi_boundary,
+                                                                                fluid_system,
+                                                                                v_bnd,
+                                                                                u_bnd;
+                                                                                endpoint=true,
+                                                                                cut_off_bnd,
+                                                                                include_wall_velocity=true)
+
+                result = TrixiParticles.interpolate_line([1.0, -0.05], [1.0, 1.0], 5,
+                                                         semi_no_boundary, fluid_system,
+                                                         v_no_bnd, u_no_bnd; endpoint=false,
+                                                         cut_off_bnd)
                 if cut_off_bnd
                     expected_res = (density=[666.0, 666.0, 666.0], neighbor_count=[2, 2, 1],
                                     point_coords=[1.0 1.0 1.0;
@@ -517,6 +526,8 @@
 
                     compare_interpolation_result(result, expected_res)
                     compare_interpolation_result(result_endpoint, expected_res_end)
+                    compare_interpolation_result(result_endpoint_wall_velocity,
+                                                 expected_res_end)
 
                 else
                     expected_res = (density=[666.0, 666.0, 666.0], neighbor_count=[2, 2, 1],
@@ -527,29 +538,44 @@
                                     pressure=[
                                         0.4527147691600855,
                                         0.9912738969258665,
-                                        1.4000000000000001
+                                        1.4
                                     ])
-                    expected_res_end = (density=[
-                                            666.0,
-                                            666.0,
-                                            665.9999999999999,
-                                            666.0,
-                                            666.0
-                                        ], neighbor_count=[1, 2, 2, 1, 1],
+                    expected_res_end = (density=[666.0, 666.0, 666.0, 666.0, 666.0],
+                                        neighbor_count=[1, 2, 2, 1, 1],
                                         point_coords=[1.0 1.0 1.0 1.0 1.0;
                                                       -0.05 0.2125 0.475 0.7375 1.0],
-                                        velocity=[7.7 7.699999999999999 7.699999999999999 7.7 7.7;
-                                                  0.10099999999999999 0.10605429538320173 0.12465095587703465 0.14900000000000002 0.22100000000000006],
+                                        velocity=[7.7 7.7 7.7 7.7 7.7;
+                                                  0.101 0.10605429538320173 0.12465095587703465 0.149 0.221],
                                         pressure=[
-                                            0.19999999999999998,
+                                            0.2,
                                             0.4527147691600855,
                                             0.9912738969258663,
-                                            1.4000000000000001,
+                                            1.4,
                                             2.2
                                         ])
+                    expected_res_end_wall_velocity = (density=[
+                                                          666.0,
+                                                          666.0,
+                                                          666.0,
+                                                          666.0,
+                                                          666.0
+                                                      ], neighbor_count=[2, 2, 2, 1, 1],
+                                                      point_coords=[1.0 1.0 1.0 1.0 1.0;
+                                                                    -0.05 0.2125 0.475 0.7375 1.0],
+                                                      velocity=[0.7077120921221691 7.7 7.7 7.7 7.7;
+                                                                0.009282976792771307 0.10605429538320173 0.12465095587703465 0.149 0.221],
+                                                      pressure=[
+                                                          0.2,
+                                                          0.4527147691600855,
+                                                          0.9912738969258663,
+                                                          1.4,
+                                                          2.2
+                                                      ])
 
                     compare_interpolation_result(result, expected_res)
                     compare_interpolation_result(result_endpoint, expected_res_end)
+                    compare_interpolation_result(result_endpoint_wall_velocity,
+                                                 expected_res_end_wall_velocity)
                 end
             end
         end
@@ -580,11 +606,19 @@
                                                  include_wall_velocity=true,
                                                  fluid_system, v_ode, u_ode).velocity
 
+            v_wall_velocity_without_cutoff = interpolate_points(points_coords,
+                                                                semi_boundary,
+                                                                include_wall_velocity=true,
+                                                                fluid_system,
+                                                                v_ode, u_ode;
+                                                                cut_off_bnd=false).velocity
+
             v_no_wall_velocity = interpolate_points(points_coords, semi_boundary,
                                                     include_wall_velocity=false,
                                                     fluid_system, v_ode, u_ode).velocity
 
             @test isapprox(v_wall_velocity[2, 1], 0.0; atol=eps())
+            @test isapprox(v_wall_velocity_without_cutoff[2, 1], 0.0; atol=eps())
             @test isapprox(v_no_wall_velocity[2, 1], 0.1; atol=eps())
             @test any(isapprox.(v_wall_velocity[:, 3:end], v_no_wall_velocity[:, 3:end],
                                 atol=eps()))
@@ -618,10 +652,8 @@
             const_pressure = [2 * new_wall_distance]
             const_velocity = [5; 0.1 * new_wall_distance^2+0.1; 0.0;;]
 
-            return (density=const_density,
-                    neighbor_count=neighbor_count,
-                    point_coords=[0.0; wall_distance; 0.0;;],
-                    velocity=const_velocity,
+            return (; density=const_density, neighbor_count,
+                    point_coords=[0.0; wall_distance; 0.0;;], velocity=const_velocity,
                     pressure=const_pressure)
         end
 
@@ -651,16 +683,16 @@
 
         viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 
-        fluid_system = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(),
-                                                   state_equation, smoothing_kernel,
-                                                   smoothing_length, viscosity=viscosity,
+        fluid_system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
+                                                   smoothing_length,
+                                                   density_calculator=ContinuityDensity(),
+                                                   state_equation, viscosity,
                                                    acceleration=(0.0, -9.81, 0.0))
 
         boundary_model = BoundaryModelDummyParticles(bnd.density, bnd.mass,
-                                                     state_equation=state_equation,
-                                                     viscosity=viscosity,
                                                      AdamiPressureExtrapolation(),
-                                                     smoothing_kernel, smoothing_length)
+                                                     smoothing_kernel, smoothing_length;
+                                                     state_equation, viscosity)
 
         boundary_system = WallBoundarySystem(bnd, boundary_model)
 
@@ -688,14 +720,12 @@
 
         for cut_off_bnd in [true, false]
             @testset verbose=true "Interpolation Point no boundary - cut_off_bnd = $(cut_off_bnd)" begin
-                interpolation_walldistance(y) = TrixiParticles.interpolate_points([0.0;
-                                                                                   y;
-                                                                                   0.0;;],
+                interpolation_walldistance(y) = TrixiParticles.interpolate_points([0.0; y; 0.0;;],
                                                                                   semi_no_boundary,
                                                                                   fluid_system,
                                                                                   v_no_bnd,
-                                                                                  u_no_bnd,
-                                                                                  cut_off_bnd=cut_off_bnd)
+                                                                                  u_no_bnd;
+                                                                                  cut_off_bnd)
 
                 # Top outside
                 distance_top_outside = binary_search_outside(ny * particle_spacing,
@@ -763,8 +793,8 @@
                 result_multipoint = TrixiParticles.interpolate_points(multi_point_coords,
                                                                       semi_no_boundary,
                                                                       fluid_system,
-                                                                      v_no_bnd, u_no_bnd,
-                                                                      cut_off_bnd=cut_off_bnd)
+                                                                      v_no_bnd, u_no_bnd;
+                                                                      cut_off_bnd)
 
                 expected_multi = (density=[666.0, 666.0, 666.0], neighbor_count=[4, 4, 9],
                                   point_coords=multi_point_coords,
@@ -779,14 +809,12 @@
 
         for cut_off_bnd in [true, false]
             @testset verbose=true "Interpolation Point boundary - cut_off_bnd = $(cut_off_bnd)" begin
-                interpolation_walldistance(y) = TrixiParticles.interpolate_points([0.0;
-                                                                                   y;
-                                                                                   0.0;;],
+                interpolation_walldistance(y) = TrixiParticles.interpolate_points([0.0; y; 0.0;;],
                                                                                   semi_boundary,
                                                                                   fluid_system,
                                                                                   v_no_bnd,
-                                                                                  u_no_bnd,
-                                                                                  cut_off_bnd=cut_off_bnd)
+                                                                                  u_no_bnd;
+                                                                                  cut_off_bnd)
 
                 # Top outside
                 distance_top_outside = binary_search_outside(ny * particle_spacing,
@@ -871,8 +899,8 @@
                 result_multipoint = TrixiParticles.interpolate_points(multi_point_coords,
                                                                       semi_no_boundary,
                                                                       fluid_system,
-                                                                      v_no_bnd, u_no_bnd,
-                                                                      cut_off_bnd=cut_off_bnd)
+                                                                      v_no_bnd, u_no_bnd;
+                                                                      cut_off_bnd)
 
                 expected_multi = (density=[666.0, 666.0, 666.0], neighbor_count=[4, 4, 9],
                                   point_coords=multi_point_coords,
@@ -948,11 +976,19 @@
                                                  include_wall_velocity=true,
                                                  fluid_system, v_ode, u_ode).velocity
 
+            v_wall_velocity_without_cutoff = interpolate_points(points_coords,
+                                                                semi_boundary,
+                                                                include_wall_velocity=true,
+                                                                fluid_system,
+                                                                v_ode, u_ode;
+                                                                cut_off_bnd=false).velocity
+
             v_no_wall_velocity = interpolate_points(points_coords, semi_boundary,
                                                     include_wall_velocity=false,
                                                     fluid_system, v_ode, u_ode).velocity
 
             @test isapprox(v_wall_velocity[2, 1], 0.0; atol=eps())
+            @test isapprox(v_wall_velocity_without_cutoff[2, 1], 0.0; atol=eps())
             @test isapprox(v_no_wall_velocity[2, 1], 0.1; atol=eps())
             @test any(isapprox.(v_wall_velocity[:, 3:end], v_no_wall_velocity[:, 3:end],
                                 atol=eps()))

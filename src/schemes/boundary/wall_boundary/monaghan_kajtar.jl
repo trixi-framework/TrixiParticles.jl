@@ -43,6 +43,10 @@ function Base.show(io::IO, model::BoundaryModelMonaghanKajtar)
     print(io, ")")
 end
 
+@inline function density_calculator(model::BoundaryModelMonaghanKajtar)
+    return nothing
+end
+
 @inline function pressure_acceleration(particle_system,
                                        neighbor_system::Union{WallBoundarySystem{<:BoundaryModelMonaghanKajtar},
                                                               TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
@@ -65,6 +69,21 @@ end
     return K / beta^(ndims(particle_system) - 1) * pos_diff /
            (distance * distance_from_singularity) *
            boundary_kernel(distance, smoothing_length(particle_system, particle))
+end
+
+# Disambiguation for corrections with asymmetric kernel gradients
+@inline function pressure_acceleration(particle_system,
+                                       neighbor_system::Union{WallBoundarySystem{<:BoundaryModelMonaghanKajtar},
+                                                              TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
+                                       particle, neighbor, m_a, m_b, p_a, p_b, rho_a, rho_b,
+                                       pos_diff, distance, grad_kernel,
+                                       ::Union{KernelCorrection,
+                                               GradientCorrection,
+                                               BlendedGradientCorrection,
+                                               MixedKernelGradientCorrection})
+    return pressure_acceleration(particle_system, neighbor_system, particle, neighbor,
+                                 m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff, distance,
+                                 grad_kernel, nothing)
 end
 
 @fastpow @inline function boundary_kernel(r, h)

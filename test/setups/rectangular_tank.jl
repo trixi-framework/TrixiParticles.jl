@@ -89,6 +89,16 @@
 
                 @test isapprox(tank.boundary.coordinates, expected_coordinates[i])
             end
+
+            @testset "Spacing Ratio" begin
+                tank = RectangularTank(0.1, (0.2, 0.2), (0.3, 0.3), water_density,
+                                       spacing_ratio=3)
+                expected_coordinates = copy(tank.boundary.coordinates)
+
+                reset_wall!(tank, (true, true, true, true), (0.0, 0.3, 0.0, 0.3))
+
+                @test isapprox(tank.boundary.coordinates, expected_coordinates)
+            end
         end
 
         @testset "Info and Error" begin

@@ -24,7 +24,7 @@
 
             initial_condition = InitialCondition(; coordinates, mass, density)
 
-            system = EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
+            system = EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel,
                                                  smoothing_length, sound_speed)
 
             @test system isa EntropicallyDampedSPHSystem{NDIMS}
@@ -36,17 +36,16 @@
             @test system.viscosity === nothing
             @test system.nu_edac == (0.5 * smoothing_length * sound_speed) / 8
             @test system.acceleration == [0.0 for _ in 1:NDIMS]
-
             error_str1 = "`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"
-            @test_throws ArgumentError(error_str1) EntropicallyDampedSPHSystem(initial_condition,
+            @test_throws ArgumentError(error_str1) EntropicallyDampedSPHSystem(initial_condition;
                                                                                smoothing_kernel,
                                                                                smoothing_length,
                                                                                sound_speed,
                                                                                acceleration=(0.0))
 
             error_str2 = "smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"
-            @test_throws ArgumentError(error_str2) EntropicallyDampedSPHSystem(initial_condition,
-                                                                               smoothing_kernel2,
+            @test_throws ArgumentError(error_str2) EntropicallyDampedSPHSystem(initial_condition;
+                                                                               smoothing_kernel=smoothing_kernel2,
                                                                                smoothing_length,
                                                                                sound_speed)
         end
@@ -79,8 +78,8 @@
             smoothing_length = 0.362
             sound_speed = 10.0
 
-            system = EntropicallyDampedSPHSystem(setup, smoothing_kernel, smoothing_length,
-                                                 sound_speed)
+            system = EntropicallyDampedSPHSystem(setup; smoothing_kernel,
+                                                 smoothing_length, sound_speed)
 
             @test system isa EntropicallyDampedSPHSystem{NDIMS}
             @test system.initial_condition == setup
@@ -105,7 +104,7 @@
             sound_speed = 10.0
 
             error_str = "`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"
-            @test_throws ArgumentError(error_str) EntropicallyDampedSPHSystem(setup,
+            @test_throws ArgumentError(error_str) EntropicallyDampedSPHSystem(setup;
                                                                               smoothing_kernel,
                                                                               smoothing_length,
                                                                               sound_speed,
@@ -125,7 +124,7 @@
         sound_speed = 10.0
 
         initial_condition = InitialCondition(; coordinates, mass, density)
-        system = EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
+        system = EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel,
                                              smoothing_length, sound_speed)
 
         show_compact = "EntropicallyDampedSPHSystem{2}(SummationDensity(), nothing, nothing, Val{:smoothing_kernel}(), [0.0, 0.0], nothing, nothing) with 2 particles"
@@ -161,7 +160,7 @@
         sound_speed = 10.0
 
         initial_condition = InitialCondition(; coordinates, mass, density, pressure)
-        system = EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
+        system = EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel,
                                              smoothing_length, sound_speed)
 
         u0 = zeros(TrixiParticles.u_nvariables(system),
@@ -187,7 +186,7 @@
         initial_condition = InitialCondition(; coordinates, velocity, mass, density,
                                              pressure)
 
-        system = EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
+        system = EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel,
                                              smoothing_length, sound_speed)
 
         v0 = zeros(TrixiParticles.v_nvariables(system),
@@ -204,7 +203,7 @@
         initial_condition = InitialCondition(; coordinates, velocity, mass, density,
                                              pressure=pressure_function)
 
-        system = EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
+        system = EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel,
                                              smoothing_length, sound_speed)
 
         v0 = zeros(TrixiParticles.v_nvariables(system),
@@ -224,10 +223,10 @@
         transport_velocity = [nothing, TransportVelocityAdami(background_pressure=10000.0)]
         names = ["No TVF", "TransportVelocityAdami"]
         @testset "$(names[i])" for i in eachindex(transport_velocity)
-            system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel,
+            system = EntropicallyDampedSPHSystem(fluid; smoothing_kernel,
+                                                 smoothing_length, sound_speed=0.0,
                                                  shifting_technique=transport_velocity[i],
-                                                 average_pressure_reduction=true,
-                                                 smoothing_length, 0.0)
+                                                 average_pressure_reduction=true)
             semi = Semidiscretization(system)
 
             TrixiParticles.initialize_neighborhood_searches!(semi)
@@ -244,5 +243,35 @@
             @test all(i -> isapprox(system.cache.pressure_average[i], -50.968532955185964),
                       nparticles(system))
         end
+    end
+
+    @trixi_testset "restart_with! with ContinuityDensity" begin
+        coordinates = [0.5 2.0
+                       1.0 2.0]
+        velocity = 2 * coordinates
+        mass = [1.25, 1.5]
+        density = [990.0, 1000.0]
+        pressure = [5.0, 7.8]
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        smoothing_length = 0.362
+        sound_speed = 10.0
+
+        initial_condition = InitialCondition(; coordinates, velocity, mass, density,
+                                             pressure)
+        system = EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel,
+                                             smoothing_length, sound_speed,
+                                             density_calculator=ContinuityDensity())
+
+        u_new = coordinates .+ 1
+        velocity_new = velocity .+ 2
+        pressure_new = [11.0, 13.0]
+        density_new = [980.0, 970.0]
+        v_new = vcat(velocity_new, pressure_new', density_new')
+
+        TrixiParticles.restart_with!(system, v_new, u_new)
+
+        @test system.initial_condition.coordinates == u_new
+        @test system.initial_condition.velocity == velocity_new
+        @test system.initial_condition.pressure == pressure_new
     end
 end

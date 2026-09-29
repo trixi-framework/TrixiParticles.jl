@@ -77,8 +77,8 @@ end
 function calculate_pressure!(system, dt)
     (; pressure_reference_values, boundary_zones_flow_rate) = system.cache
 
-    foreach_noalloc(pressure_reference_values,
-                    boundary_zones_flow_rate) do (pressure_model, flow_rate)
+    foreach_noalloc_zip(pressure_reference_values,
+                        boundary_zones_flow_rate) do (pressure_model, flow_rate)
         calculate_pressure!(pressure_model, system, flow_rate[], dt)
     end
 

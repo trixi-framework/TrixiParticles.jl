@@ -3,6 +3,56 @@ include("mirroring.jl")
 include("boundary_zone.jl")
 include("pressure_model.jl")
 
+@testset verbose=true "Free-Surface Shifting Ramp" begin
+    particle_spacing = 0.1
+    smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+    smoothing_length = 0.5
+    compact_support = TrixiParticles.compact_support(smoothing_kernel, smoothing_length)
+
+    zone_width = 3 * compact_support
+    distances_from_free_surface = compact_support .* [0.5, 1.0, 1.5, 2.0]
+    coordinates = stack(SVector(-zone_width + distance, 0.5)
+                        for distance in distances_from_free_surface)
+    initial_condition = InitialCondition(; coordinates, density=1.0,
+                                         particle_spacing)
+
+    fluid = RectangularShape(particle_spacing, (2, 2), (0.0, 0.0), density=1.0)
+    fluid_system = EntropicallyDampedSPHSystem(fluid; smoothing_kernel,
+                                               smoothing_length, sound_speed=1.0,
+                                               shifting_technique=ParticleShiftingTechnique())
+
+    boundary_zone = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, 1.0]),
+                                 face_normal=[1.0, 0.0], boundary_type=InFlow(),
+                                 open_boundary_layers=round(Int,
+                                                            zone_width / particle_spacing),
+                                 initial_condition, density=1.0, particle_spacing)
+    open_boundary = OpenBoundarySystem(boundary_zone; fluid_system, buffer_size=0,
+                                       boundary_model=BoundaryModelDynamicalPressureZhang())
+    open_boundary.boundary_zone_indices .= 1
+
+    unmodified_delta_v = [1.0, -2.0]
+    for particle in axes(open_boundary.cache.delta_v, 2)
+        open_boundary.cache.delta_v[:, particle] .= unmodified_delta_v
+    end
+
+    TrixiParticles.modify_shifting_at_free_surfaces!(open_boundary,
+                                                     initial_condition.coordinates,
+                                                     DummySemidiscretization())
+
+    kernel_max = TrixiParticles.smoothing_kernel(open_boundary, 0, 1)
+
+    @test iszero(open_boundary.cache.delta_v[:, 1])
+    @test iszero(open_boundary.cache.delta_v[:, 2])
+
+    dist_from_cutoff = 2 * compact_support - distances_from_free_surface[3]
+    shifting_weight = TrixiParticles.smoothing_kernel(open_boundary, dist_from_cutoff,
+                                                      3) / kernel_max
+    @test isapprox(open_boundary.cache.delta_v[:, 3],
+                   unmodified_delta_v * shifting_weight)
+
+    @test open_boundary.cache.delta_v[:, 4] == unmodified_delta_v
+end
+
 @testset verbose=true "Calculate Flow Rate" begin
     particle_spacing = 0.01
 
@@ -16,8 +66,8 @@ include("pressure_model.jl")
 
     smoothing_length = 1.3 * particle_spacing
     smoothing_kernel = WendlandC2Kernel{ndims(fluid)}()
-    fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_length,
-                                               1.0)
+    fluid_system = EntropicallyDampedSPHSystem(fluid; smoothing_kernel,
+                                               smoothing_length, sound_speed=1.0)
     fluid_system.cache.density .= fluid.density
 
     # Use a smaller cross-sectional area to test user-defined area functionality
@@ -26,9 +76,9 @@ include("pressure_model.jl")
     sample_points = RectangularShape(particle_spacing, (1, round(Int, n_particles_y / 2)),
                                      (0.0, 0.5), density=1.0).coordinates
 
-    zone = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, 2.0]),
-                        face_normal=(-1.0, 0.0), open_boundary_layers=10, density=1000.0,
-                        particle_spacing, sample_points=sample_points,
+    zone = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, 2.0]), face_normal=(-1.0, 0.0),
+                        open_boundary_layers=10, density=1000.0, particle_spacing,
+                        sample_points,
                         reference_velocity=(pos, t) -> velocity_function(pos))
 
     open_boundary = OpenBoundarySystem(zone; fluid_system,

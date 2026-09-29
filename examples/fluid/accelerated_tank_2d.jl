@@ -6,7 +6,7 @@
 # ==========================================================================================
 
 using TrixiParticles
-using OrdinaryDiffEq
+using OrdinaryDiffEqLowStorageRK
 
 # Resolution
 fluid_particle_spacing = 0.05
@@ -19,7 +19,6 @@ is_moving(t) = true
 boundary_movement = PrescribedMotion(movement_function, is_moving)
 
 trixi_include(@__MODULE__,
-              joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"),
-              fluid_particle_spacing=fluid_particle_spacing,
-              prescribed_motion=boundary_movement,
-              tspan=(0.0, 1.0), system_acceleration=(0.0, 0.0));
+              joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl");
+              fluid_particle_spacing, prescribed_motion=boundary_movement, tspan=(0.0, 1.0),
+              system_acceleration=(0.0, 0.0));

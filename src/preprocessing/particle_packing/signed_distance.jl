@@ -103,8 +103,7 @@ function trixi2vtk(signed_distance_field::SignedDistanceField;
     (; positions, distances, normals) = signed_distance_field
     positions = stack(signed_distance_field.positions)
 
-    trixi2vtk(positions, signed_distances=distances, normals=normals,
-              filename=filename, output_directory=output_directory)
+    trixi2vtk(positions; signed_distances=distances, normals, filename, output_directory)
 end
 
 delete_positions_in_empty_cells!(positions, nhs::TrivialNeighborhoodSearch) = positions
