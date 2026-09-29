@@ -12,7 +12,8 @@ reynolds_number = 200
 cylinder_diameter = 0.1
 domain_size = (25 * cylinder_diameter, 20 * cylinder_diameter)
 
-open_boundary_model = BoundaryModelMirroringTafuni(; mirror_method=ZerothOrderMirroring())
+mirror_method = FirstOrderMirroring(; firstorder_tolerance=1e-3)
+open_boundary_model = BoundaryModelMirroringTafuni(; mirror_method)
 
 # The vortex shedding is chaotic, so the results depend on the order of the floating point
 # operations. Use `SerialUpdate()` to obtain consistent results with multiple threads.

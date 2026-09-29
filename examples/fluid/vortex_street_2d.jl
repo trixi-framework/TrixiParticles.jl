@@ -155,12 +155,14 @@ ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=50)
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
+sorting_callback = SortingCallback(interval=1000)
 
 extra_callback = nothing
 
-callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback(), extra_callback)
+callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback(),
+                        sorting_callback, extra_callback)
 
 sol = solve(ode, RDPK3SpFSAL35(),
             abstol=1e-6, # May need tuning to prevent boundary penetration
             reltol=1e-4, # May need tuning to prevent boundary penetration
-            save_everystep=false, callback=callbacks);
+            save_everystep=false, callback=callbacks, maxiters=10^7);
