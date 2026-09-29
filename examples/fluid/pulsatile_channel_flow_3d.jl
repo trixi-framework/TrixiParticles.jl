@@ -13,7 +13,7 @@ using TrixiParticles
 
 particle_spacing_factor = 30
 
-trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hagen_poiseuille_flow_3d.jl"),
+trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "poiseuille_flow_3d.jl"),
               tspan=(0.0, 1.0), sol=nothing,
               particle_spacing_factor=particle_spacing_factor)
 
@@ -26,7 +26,7 @@ end
 saving_callback = SolutionSavingCallback(dt=0.01, prefix="", output_directory="out")
 extra_callback = nothing
 
-trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hagen_poiseuille_flow_3d.jl"),
+trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "poiseuille_flow_3d.jl"),
               tspan=(0.0, 12.6), particle_spacing_factor=particle_spacing_factor,
               extra_callback=extra_callback, saving_callback=saving_callback, v_max=v_max,
               reference_pressure_in=dynamic_pressure_drop,

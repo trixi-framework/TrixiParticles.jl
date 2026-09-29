@@ -4,7 +4,7 @@ using Bessels
 
 particle_spacing_factor = 30
 
-trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hagen_poiseuille_flow_3d.jl"),
+trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "poiseuille_flow_3d.jl"),
               particle_spacing_factor=particle_spacing_factor, sol=nothing)
 
 # Analytical velocity evolution given in eq. 18 (Zhang et al., 2025)

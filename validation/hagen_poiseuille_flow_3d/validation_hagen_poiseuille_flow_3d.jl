@@ -14,12 +14,12 @@ function v_x_interpolated(system::TrixiParticles.AbstractFluidSystem{3},
 end
 
 particle_spacing_factor = 30
-output_directory = joinpath(validation_dir(), "hagen_poiseuille_flow_3d")
+output_directory = joinpath(validation_dir(), "poiseuille_flow_3d")
 pp_callback = PostprocessCallback(; dt=0.01, output_directory=output_directory,
                                   v_x=v_x_interpolated,
                                   filename="result_vx" * "_dp_$particle_spacing_factor",
                                   write_csv=true, write_file_interval=1)
 
-trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hagen_poiseuille_flow_3d.jl"),
+trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "poiseuille_flow_3d.jl"),
               saving_callback=nothing, tspan=(0.0, 1.0), extra_callback=pp_callback,
               particle_spacing_factor=particle_spacing_factor)

@@ -4,7 +4,7 @@ using Bessels
 
 particle_spacing_factor = 30
 
-trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hagen_poiseuille_flow_3d.jl"),
+trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "poiseuille_flow_3d.jl"),
               particle_spacing_factor=particle_spacing_factor, sol=nothing)
 
 # First five roots of the Bessel function of the first kind, J₀(x),
@@ -40,7 +40,7 @@ function hagen_poiseuille_velocity(r, t)
     return v_x
 end
 
-output_directory = joinpath(examples_dir(), validation_dir(), "hagen_poiseuille_flow_3d")
+output_directory = joinpath(examples_dir(), validation_dir(), "poiseuille_flow_3d")
 
 data = TrixiParticles.CSV.read(joinpath(output_directory,
                                         "result_vx" * "_dp_$particle_spacing_factor" *
