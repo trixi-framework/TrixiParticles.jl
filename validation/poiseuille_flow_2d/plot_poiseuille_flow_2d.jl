@@ -9,20 +9,20 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "poiseuille_flow_2d
 function poiseuille_velocity(y, t)
 
     # Base profile (stationary part)
-    base_profile = (pressure_drop / (2 * dynamic_viscosity * flow_length)) * y *
-                   (y - wall_distance)
+    base_profile = (imposed_pressure_drop / (2 * dynamic_viscosity * channel_length)) * y *
+                   (y - channel_height)
 
     # Transient terms (Fourier series)
     transient_sum = 0.0
 
     for n in 0:10  # Limit to 10 terms for convergence
-        coefficient = (4 * pressure_drop * wall_distance^2) /
-                      (dynamic_viscosity * flow_length * pi^3 * (2 * n + 1)^3)
+        coefficient = (4 * imposed_pressure_drop * channel_height^2) /
+                      (dynamic_viscosity * channel_length * pi^3 * (2 * n + 1)^3)
 
-        sine_term = sin(pi * y * (2 * n + 1) / wall_distance)
+        sine_term = sin(pi * y * (2 * n + 1) / channel_height)
 
         exp_term = exp(-((2 * n + 1)^2 * pi^2 * dynamic_viscosity * t) /
-                       (fluid_density * wall_distance^2))
+                       (fluid_density * channel_height^2))
 
         transient_sum += coefficient * sine_term * exp_term
     end
@@ -40,7 +40,7 @@ data = TrixiParticles.CSV.read(joinpath(output_directory, "result_vx.csv"),
 
 times = data[!, "time"]
 times_ref = [0.1, 0.3, 0.6, 0.9, 2.0]
-positions = range(0, wall_distance, length=100)
+positions = range(0, channel_height, length=100)
 data_range = 2:98
 data_indices = findall(t -> t in times_ref, times)
 v_x_vector = [eval(Meta.parse(str)) for str in data[!, "v_x_fluid_1"]][data_indices]
@@ -70,7 +70,7 @@ rmsep_reference = [1.81, 0.95, 0.67, 0.86, 1.22]
 
 p_rmsep = scatter(times_ref, rmsep_run, markersize=5, label="TrixiP")
 scatter!(p_rmsep, times_ref, rmsep_reference, marker=:x, markersize=5,
-         markerstrokewidth=3, label="Zhang et al. (2025)")
+         markerstrokewidth=3, label="Zhang et al. (2025)", dpi=200)
 
 yaxis!(p_rmsep, ylabel="RMSEP error (%)", ylims=(0, 4))
 xaxis!(p_rmsep, xlabel="t", xlims=(0, 2.05))
@@ -80,7 +80,7 @@ plot!(bottom_margin=5Plots.mm)
 
 display(p_rmsep)
 
-plot_range = range(0, wall_distance, length=50)
+plot_range = range(0, channel_height, length=50)
 v_x_plot = view(stack(v_x_vector), 1:2:100, :)
 label_ = "TrixiP (" .* ["0.1" "0.3" "0.6" "0.9" "∞"] .* " s)"
 line_colors = cgrad(:coolwarm, length(times_ref), categorical=true)
@@ -89,13 +89,12 @@ p = scatter(plot_range, v_x_plot, label=label_, linewidth=3, markersize=5, opaci
             palette=line_colors.colors, legend_position=:outerright, size=(750, 400))
 for t in times_ref
     label__ = t == 2.0 ? "analytical" : nothing
-    plot!(p, (y) -> -poiseuille_velocity(y, t), xlims=(0, wall_distance),
+    plot!(p, (y) -> -poiseuille_velocity(y, t), xlims=(0, channel_height),
           ylims=(-0.002, 0.014), label=label__, linewidth=3, linestyle=:dash, color=:black)
 end
 
 yaxis!(p, ylabel="x velocity (m/s)")
 xaxis!(p, xlabel="y position (m)")
-plot!(left_margin=5Plots.mm)
-plot!(bottom_margin=5Plots.mm)
+plot!(left_margin=5Plots.mm, bottom_margin=5Plots.mm, dpi=200)
 
 display(p)
