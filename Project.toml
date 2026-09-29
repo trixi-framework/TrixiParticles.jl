@@ -46,7 +46,8 @@ TrixiParticlesOrdinaryDiffEqSymplecticRKExt = ["OrdinaryDiffEqSymplecticRK", "Or
 [compat]
 Accessors = "0.1.43"
 Adapt = "4"
-CSV = "1"
+# There is a conflict with JSON, Documenter and Parsers which forces CSV=0.10 for the documentation build env (September 2026)
+CSV = "0.10, 1"
 CUDA = "6"
 DataFrames = "1.6"
 Dates = "1"
