@@ -12,7 +12,7 @@ function load_velocity_profiles(input_file, times_ref)
     return [Float64.(data["values"][i]) for i in data_indices]
 end
 
-# Calculate the RMSEP error in percent (eq. 17, Zhang et al., 2025).
+# Calculate the RMSEP in percent (eq. 17, Zhang et al., 2025).
 function rmsep(v_x_vector, times_ref, positions, data_range, v_analytical)
     N = length(data_range)
 
@@ -37,7 +37,7 @@ function plot_rmsep(times_ref, rmsep_run, rmsep_reference; title, xlims)
     scatter!(p, times_ref, rmsep_reference, marker=:x, markersize=5,
              markerstrokewidth=3, label="Zhang et al. (2025)", dpi=200)
 
-    yaxis!(p, ylabel="RMSEP error (%)", ylims=(0, 4))
+    yaxis!(p, ylabel="RMSEP (%)", ylims=(0, 4))
     xaxis!(p, xlabel="t", xlims=xlims)
     plot!(p, left_margin=5Plots.mm, right_margin=5Plots.mm, bottom_margin=5Plots.mm)
 

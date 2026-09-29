@@ -56,7 +56,7 @@ data_range = 2:98
 v_analytical(y, t) = -poiseuille_velocity(y, t)
 rmsep_run = rmsep(v_x_vector, times_ref, positions, data_range, v_analytical)
 
-# RMSEP error (%) received by Zhang et al. (2025)
+# RMSEP (%) received by Zhang et al. (2025)
 rmsep_reference = [1.81, 0.95, 0.67, 0.86, 1.22]
 
 p_rmsep = plot_rmsep(times_ref, rmsep_run, rmsep_reference,

@@ -59,7 +59,7 @@ data_range = 10:90
 
 rmsep_run = rmsep(v_x_vector, times_ref, positions, data_range, hagen_poiseuille_velocity)
 
-# RMSEP error (%) received by Zhang et al. (2025)
+# RMSEP (%) received by Zhang et al. (2025)
 rmsep_reference = [2.97, 1.88, 1.61, 1.5, 0.74, 0.89]
 
 p_rmsep = plot_rmsep(times_ref, rmsep_run, rmsep_reference,
