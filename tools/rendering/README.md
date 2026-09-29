@@ -248,7 +248,7 @@ and nothing else. Explicit property flags override individual values. Run
 | `--solid-material anodized-copper` | **v03** structural solids | RGB `(0.62, 0.10, 0.018)`, metallic `0.92`, roughness `0.30`, coat `0.16` |
 | `--solid-material steel-uncoated` | Brushed bare steel | Neutral metal, roughness `0.28`, subtle procedural microtexture |
 | `--solid-material steel-white-semigloss` | White semi-gloss paint over steel | Dielectric white coating (`metallic 0`), roughness `0.34`, coat `0.25` |
-| `--solid-material concrete` | Dark porous concrete with visible stone inclusions | Cement RGB `(0.065, 0.075, 0.073)`, roughness `0.99`, low specular `0.03`, irregular dark aggregate inclusions and strong micro-bump |
+| `--solid-material concrete` | Dark porous concrete with varied stone inclusions and trapped-air pores | Cement RGB `(0.065, 0.075, 0.073)`, roughness `0.99`, low specular `0.03`; stones vary in cell size, color and roughness, with uncommon medium and rare large pores |
 | `--glass-material low-iron-glass` | **v03** tank panes | RGB `(0.06, 0.42, 0.34)`, roughness `0.30`, transmission `0.90`, IOR `1.36`, specular `0.04`, opacity mix `0.04` |
 | `--floor-material dark-metal` | **v03** liquid/foam view | RGB `(0.012, 0.018, 0.028)`, metallic `0.35`, roughness `0.30` |
 | `--floor-material neutral-stress` | **v03** stress close-up | RGB `(0.020, 0.032, 0.050)`, metallic `0.30`, roughness `0.40`, coat `0.10` |
@@ -266,13 +266,19 @@ For example, change the floor color without changing the water or solid:
 ```
 
 The three new solids and two new liquids are **visualization presets**, not
-measurements of the depicted material. The bare-steel and concrete selectors
-use `--solid-noise-scale`, `--solid-bump-strength`, and
-`--solid-bump-distance`; concrete additionally uses a Voronoi aggregate mask
-controlled by `--solid-inclusion-color`, `--solid-inclusion-scale`,
-`--solid-inclusion-threshold`, and `--solid-inclusion-transition`; a separately
-parameterized noise warp makes their contours irregular. These can be
-overridden separately.
+measurements of the depicted material. Bare steel and concrete use
+`--solid-noise-scale`, `--solid-bump-strength`, and `--solid-bump-distance`.
+Concrete uses Voronoi cells with per-stone radius, three-tone color and
+roughness variation (`--solid-inclusion-*`). The reviewed illustrative choice
+uses inclusion radii `0.12–0.50` of a cell and stone roughness `0.42–0.90`,
+so individual stones do not share one size or gloss level. Medium pores
+occur in about 4% of cells; separately distributed large pores occur in
+about 16% of much larger cells (`--solid-medium-pore-*`,
+`--solid-large-pore-*`). The latter suggest a few trapped-air cavities;
+their darker interior and two-depth bump shading do **not** remove material
+from the actual simulation or mesh.
+All frequencies, probabilities, colors, radii, and shading distances can be
+overridden independently through CLI flags.
 The painted steel preset is a dielectric paint layer, not exposed metal.
 Oil and molten-plastic selections do **not** change the simulated density,
 viscosity, or temperature—those are simulation inputs. The molten-plastic

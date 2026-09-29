@@ -158,17 +158,37 @@ def parser() -> argparse.ArgumentParser:
     render.add_argument("--solid-bump-distance", type=positive,
                         help="Optional microstructure bump distance in metres")
     render.add_argument("--solid-inclusion-color", nargs=3, type=float,
-                        help="Optional aggregate/stone inclusion color")
+                        help="Optional midtone per-stone aggregate color")
+    render.add_argument("--solid-inclusion-dark-color", nargs=3, type=float)
+    render.add_argument("--solid-inclusion-light-color", nargs=3, type=float)
     render.add_argument("--solid-inclusion-scale", type=positive,
                         help="Optional Voronoi inclusion frequency in inverse metres")
     render.add_argument("--solid-inclusion-threshold", type=fraction,
-                        help="Voronoi inclusion core radius in cell units")
+                        help="Minimum stone radius in Voronoi cell units")
+    render.add_argument("--solid-inclusion-radius-variation", type=fraction)
+    render.add_argument("--solid-inclusion-probability", type=fraction)
     render.add_argument("--solid-inclusion-transition", type=positive,
                         help="Transition from inclusion to matrix in cell units")
+    render.add_argument("--solid-inclusion-roughness-range", nargs=2, type=fraction)
     render.add_argument("--solid-inclusion-warp-scale", type=positive,
                         help="Optional noise frequency that irregularizes inclusions")
     render.add_argument("--solid-inclusion-distortion", type=float,
                         help="Optional inclusion-boundary distortion in metres")
+    render.add_argument("--solid-pore-color", nargs=3, type=float,
+                        help="Optional dark interior color for two-scale trapped-air pores")
+    render.add_argument("--solid-medium-pore-scale", type=positive)
+    render.add_argument("--solid-medium-pore-probability", type=fraction)
+    render.add_argument("--solid-medium-pore-radius", type=fraction)
+    render.add_argument("--solid-medium-pore-radius-variation", type=fraction)
+    render.add_argument("--solid-large-pore-scale", type=positive)
+    render.add_argument("--solid-large-pore-probability", type=fraction)
+    render.add_argument("--solid-large-pore-radius", type=fraction)
+    render.add_argument("--solid-large-pore-radius-variation", type=fraction)
+    render.add_argument("--solid-pore-transition", type=positive)
+    render.add_argument("--solid-pore-bump-strength", type=fraction)
+    render.add_argument("--solid-pore-bump-distance", type=positive)
+    render.add_argument("--solid-pore-roughness", type=fraction)
+    render.add_argument("--solid-medium-pore-depth-ratio", type=fraction)
     render.add_argument("--solid-floor-extension", type=float, default=None)
     render.add_argument("--solid-bevel", type=float, default=None)
     render.add_argument("--solid-bevel-segments", type=int, default=None)
@@ -261,19 +281,41 @@ def validate(args: argparse.Namespace) -> None:
     elif args.solid_noise_scale is not None or args.solid_bump_distance is not None:
         if args.solid_bump_strength is None:
             raise ValueError("solid microstructure needs bump strength")
-    inclusions = ("solid_inclusion_scale", "solid_inclusion_threshold",
-                  "solid_inclusion_transition", "solid_inclusion_warp_scale",
-                  "solid_inclusion_distortion")
+    inclusions = ("solid_inclusion_dark_color", "solid_inclusion_light_color",
+                  "solid_inclusion_scale", "solid_inclusion_threshold",
+                  "solid_inclusion_radius_variation", "solid_inclusion_probability",
+                  "solid_inclusion_transition", "solid_inclusion_roughness_range",
+                  "solid_inclusion_warp_scale", "solid_inclusion_distortion")
     if args.solid_inclusion_color is not None:
         missing = [name for name in inclusions if getattr(args, name) is None]
         if missing:
             raise ValueError("solid inclusions need: " + ", ".join(missing))
-        if args.solid_inclusion_threshold + args.solid_inclusion_transition >= 1:
-            raise ValueError("solid inclusion transition must end before 1")
+        if (args.solid_inclusion_threshold + args.solid_inclusion_radius_variation +
+                args.solid_inclusion_transition) >= 1:
+            raise ValueError("maximum solid inclusion radius must end before 1")
         if args.solid_inclusion_distortion < 0:
             raise ValueError("solid inclusion distortion cannot be negative")
+        if args.solid_inclusion_roughness_range[0] > args.solid_inclusion_roughness_range[1]:
+            raise ValueError("solid inclusion roughness range must be increasing")
     elif any(getattr(args, name) is not None for name in inclusions):
         raise ValueError("solid inclusions need --solid-inclusion-color")
+    pores = ("solid_medium_pore_scale", "solid_medium_pore_probability",
+             "solid_medium_pore_radius", "solid_medium_pore_radius_variation",
+             "solid_large_pore_scale", "solid_large_pore_probability",
+             "solid_large_pore_radius", "solid_large_pore_radius_variation",
+             "solid_pore_transition",
+             "solid_pore_bump_strength", "solid_pore_bump_distance",
+             "solid_pore_roughness",
+             "solid_medium_pore_depth_ratio")
+    if args.solid_pore_color is not None:
+        missing = [name for name in pores if getattr(args, name) is None]
+        if missing:
+            raise ValueError("solid pores need: " + ", ".join(missing))
+        if (args.solid_medium_pore_radius + args.solid_medium_pore_radius_variation > 1 or
+                args.solid_large_pore_radius + args.solid_large_pore_radius_variation > 1):
+            raise ValueError("solid pore radius must stay within its Voronoi cell")
+    elif any(getattr(args, name) is not None for name in pores):
+        raise ValueError("solid pores need --solid-pore-color")
     if args.stress_water_opacity is None:
         args.stress_water_opacity = 0.0
     from math import isfinite
@@ -302,7 +344,8 @@ def validate(args: argparse.Namespace) -> None:
                 args.world_strength, args.visible_wall_height or 0)):
         raise ValueError("nonfinite render or material parameter")
     for name in ("water_color", "solid_color", "glass_color", "world_color",
-                 "floor_color", "solid_inclusion_color"):
+                 "floor_color", "solid_inclusion_color", "solid_inclusion_dark_color",
+                 "solid_inclusion_light_color", "solid_pore_color"):
         values = getattr(args, name)
         if values is not None:
             rgb(values)

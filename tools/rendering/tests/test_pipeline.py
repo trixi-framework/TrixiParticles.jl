@@ -137,17 +137,27 @@ class TimeSeriesTests(unittest.TestCase):
         pipeline.validate(concrete)
         self.assertGreater(concrete.solid_bump_strength, 0)
         self.assertGreater(concrete.solid_bump_distance, 0)
-        self.assertEqual(concrete.solid_inclusion_color, (0.028, 0.033, 0.035))
+        self.assertEqual(concrete.solid_inclusion_color, (0.050, 0.059, 0.058))
         self.assertGreater(concrete.solid_inclusion_scale, 0)
-        self.assertEqual(concrete.solid_inclusion_scale, 18.0)
+        self.assertEqual(concrete.solid_inclusion_scale, 14.0)
         self.assertEqual(concrete.solid_inclusion_distortion, 0.025)
+        self.assertEqual(concrete.solid_inclusion_radius_variation, 0.38)
+        self.assertEqual(tuple(concrete.solid_inclusion_roughness_range), (0.42, 0.90))
         self.assertEqual(concrete.solid_roughness, 0.99)
         self.assertEqual(concrete.solid_specular_level, 0.03)
+        self.assertLess(concrete.solid_large_pore_scale,
+                        concrete.solid_medium_pore_scale)
+        self.assertLess(concrete.solid_medium_pore_probability, 0.06)
+        self.assertLess(concrete.solid_large_pore_probability, 0.20)
+        self.assertGreater(concrete.solid_pore_bump_distance, 0)
         with self.assertRaisesRegex(ValueError, "scale and bump distance"):
             invalid_bump = minimal_render(*base, "--solid-bump-strength", "0.3")
             pipeline.validate(invalid_bump)
         with self.assertRaisesRegex(ValueError, "solid inclusions need"):
             pipeline.validate(minimal_render(*base, "--solid-inclusion-color",
+                                             "0.1", "0.1", "0.1"))
+        with self.assertRaisesRegex(ValueError, "solid pores need"):
+            pipeline.validate(minimal_render(*base, "--solid-pore-color",
                                              "0.1", "0.1", "0.1"))
 
         for name, ior, color, transmission in (
