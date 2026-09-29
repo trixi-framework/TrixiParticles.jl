@@ -11,14 +11,11 @@ using LinearAlgebra: norm
 using OrdinaryDiffEqLowStorageRK
 using TrixiParticles
 
-CUDA.allowscalar(false)
-
 # ==========================================================================================
 # ==== Resolution and experiment setup
 particle_spacing = 0.006885f0
 structure_boundary_spacing = particle_spacing / 2
 neighborhood_padding = 10 * particle_spacing
-parallelization_backend = CUDABackend()
 
 gravity = 9.81f0
 acceleration = (0.0f0, -gravity, 0.0f0)
@@ -85,8 +82,7 @@ function add_blade_boundary_normals(initial_condition, min_x, min_z)
         distances[4] == minimum_distance && (normals[2, particle] += 1)
         distances[5] == minimum_distance && (normals[3, particle] -= 1)
         distances[6] == minimum_distance && (normals[3, particle] += 1)
-        normal_norm = norm(normals[:, particle])
-        iszero(normal_norm) || (normals[:, particle] ./= normal_norm)
+        normals[:, particle] ./= norm(normals[:, particle])
     end
 
     return InitialCondition(; coordinates=initial_condition.coordinates,
@@ -317,7 +313,8 @@ structure_boundary_model = BoundaryModelDummyParticles(hydrodynamic_density,
 structure_viscosity = ArtificialViscosityMonaghan(alpha=0.1f0, beta=0.0f0)
 structure_system = TotalLagrangianSPHSystem(combined_structure;
                                             smoothing_kernel=structure_kernel,
-                                            smoothing_length=sqrt(3.0f0) * particle_spacing,
+                                            smoothing_length=sqrt(3.0f0) *
+                                                             particle_spacing,
                                             young_modulus=500_000.0f0,
                                             poisson_ratio=0.35f0,
                                             boundary_model=structure_boundary_model,
@@ -337,8 +334,7 @@ attached_structure_boundary_system = make_attached_blade_boundary(structure_syst
                                                                   state_equation,
                                                                   structure_pressure_extrapolation,
                                                                   structure_boundary_state,
-                                                                  true,
-                                                                  blade_chamfer_size)
+                                                                  true, blade_chamfer_size)
 
 # ==========================================================================================
 # ==== Simulation
@@ -349,7 +345,9 @@ neighborhood_search = GridNeighborhoodSearch{3}(; cell_list,
                                                 update_strategy=ParallelUpdate())
 systems = (fluid_system, tank_boundary_system, structure_system,
            attached_structure_boundary_system)
-semi = Semidiscretization(systems...; neighborhood_search, parallelization_backend)
+semi = Semidiscretization(systems...;
+                          neighborhood_search,
+                          parallelization_backend=CUDABackend())
 ode = semidiscretize(semi, tspan)
 
 output_dt = 1.0f0 / 300.0f0
