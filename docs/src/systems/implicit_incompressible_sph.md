@@ -5,10 +5,7 @@ is a method that achieves incompressibility by solving the pressure Poisson equa
 The resulting linear system is iteratively solved with the relaxed Jacobi method.
 Unlike the [weakly compressible SPH method](@ref wcsph), incompressible methods determine
 pressure by enforcing the incompressibility constraint rather than using an equation of
-state. In the derivation below, we keep the force notation of
-[Ihmsen et al. (2013)](@cite Ihmsen2013), which is also the standard presentation in the
-IISPH literature. Internally, TrixiParticles.jl applies the equivalent pressure
-accelerations ``\bm{F}_i^p / m_i``; this changes only the presentation, not the algebra.
+state.
 
 ```@autodocs
 Modules = [TrixiParticles]

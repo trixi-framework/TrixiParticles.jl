@@ -16,11 +16,6 @@ Pages = [joinpath("schemes", "boundary", "prescribed_motion.jl")]
 
 # [Boundary Models](@id boundary_models)
 
-!!! note
-    The pairwise interaction terms below are written in force form, following the SPH literature.
-    TrixiParticles.jl applies the corresponding accelerations internally. Where the implemented
-    boundary discretization differs from the literature formula, both forms are stated explicitly.
-
 ## Dummy Particles
 
 Boundaries modeled as dummy particles, which are treated like fluid particles,
