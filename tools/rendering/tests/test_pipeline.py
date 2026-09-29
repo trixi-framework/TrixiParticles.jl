@@ -121,6 +121,35 @@ class TimeSeriesTests(unittest.TestCase):
         self.assertEqual(clear.water_roughness, 0.12)
         self.assertEqual(clear.solid_material, "anodized-copper")
 
+        for name, metallic, roughness in (("steel-uncoated", 1.0, 0.28),
+                                          ("steel-white-semigloss", 0.0, 0.34),
+                                          ("concrete", 0.0, 0.88)):
+            selection = list(base)
+            selection[selection.index("anodized-copper")] = name
+            solid = minimal_render(*selection)
+            pipeline.validate(solid)
+            self.assertEqual(solid.solid_material, name)
+            self.assertEqual(solid.solid_metallic, metallic)
+            self.assertEqual(solid.solid_roughness, roughness)
+        concrete_args = list(base)
+        concrete_args[concrete_args.index("anodized-copper")] = "concrete"
+        concrete = minimal_render(*concrete_args)
+        pipeline.validate(concrete)
+        self.assertGreater(concrete.solid_bump_strength, 0)
+        self.assertGreater(concrete.solid_bump_distance, 0)
+        with self.assertRaisesRegex(ValueError, "scale and bump distance"):
+            invalid_bump = minimal_render(*base, "--solid-bump-strength", "0.3")
+            pipeline.validate(invalid_bump)
+
+        for name, ior, color in (("heavy-oil", 1.47, (0.30, 0.17, 0.055)),
+                                 ("melted-plastic", 1.48, (0.88, 0.25, 0.06))):
+            selection = ("--liquid-material", name, *base[2:])
+            liquid = minimal_render(*selection)
+            pipeline.validate(liquid)
+            self.assertEqual(liquid.liquid_material, name)
+            self.assertEqual(liquid.water_ior, ior)
+            self.assertEqual(liquid.water_color, color)
+
         overridden = minimal_render(*base, *secondary, "--water-roughness", "0.5",
                                     "--foam-threshold", "0.7", "--floor-color", "0.2",
                                     "0.3", "0.4")

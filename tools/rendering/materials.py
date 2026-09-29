@@ -30,6 +30,31 @@ SOLID_MATERIALS = {
         "solid_roughness": 0.30,
         "solid_coat": 0.16,
     },
+    "steel-uncoated": {
+        "solid_color": (0.53, 0.58, 0.63),
+        "solid_metallic": 1.0,
+        "solid_roughness": 0.28,
+        "solid_coat": 0.0,
+        "solid_noise_scale": 240.0,
+        "solid_bump_strength": 0.06,
+        "solid_bump_distance": 0.0003,
+    },
+    "steel-white-semigloss": {
+        # A dielectric white paint layer over steel; the coating is not metallic.
+        "solid_color": (0.83, 0.86, 0.88),
+        "solid_metallic": 0.0,
+        "solid_roughness": 0.34,
+        "solid_coat": 0.25,
+    },
+    "concrete": {
+        "solid_color": (0.42, 0.44, 0.43),
+        "solid_metallic": 0.0,
+        "solid_roughness": 0.88,
+        "solid_coat": 0.0,
+        "solid_noise_scale": 90.0,
+        "solid_bump_strength": 0.35,
+        "solid_bump_distance": 0.003,
+    },
 }
 
 GLASS_MATERIALS = {
@@ -61,6 +86,24 @@ LIQUID_MATERIALS = {
         "water_absorption": (0.34, 0.0565, 0.00922),
         "water_scattering": (0.0, 0.0, 0.0),
         "water_scattering_anisotropy": 0.0,
+    },
+    "heavy-oil": {
+        # Illustrative optical appearance; fluid density/viscosity are solver inputs.
+        "water_color": (0.30, 0.17, 0.055),
+        "water_roughness": 0.19,
+        "water_ior": 1.47,
+        "water_absorption": (1.1, 2.5, 5.5),
+        "water_scattering": (0.012, 0.006, 0.002),
+        "water_scattering_anisotropy": 0.15,
+    },
+    "melted-plastic": {
+        # Illustrative amber molten polymer, not a thermal/rheological model.
+        "water_color": (0.88, 0.25, 0.06),
+        "water_roughness": 0.13,
+        "water_ior": 1.48,
+        "water_absorption": (0.12, 0.95, 3.1),
+        "water_scattering": (0.05, 0.03, 0.012),
+        "water_scattering_anisotropy": 0.20,
     },
 }
 

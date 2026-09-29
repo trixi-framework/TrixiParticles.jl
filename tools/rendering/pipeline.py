@@ -148,6 +148,12 @@ def parser() -> argparse.ArgumentParser:
     render.add_argument("--solid-metallic", type=fraction)
     render.add_argument("--solid-roughness", type=fraction)
     render.add_argument("--solid-coat", type=fraction)
+    render.add_argument("--solid-noise-scale", type=positive,
+                        help="Optional local noise texture frequency for a solid")
+    render.add_argument("--solid-bump-strength", type=fraction,
+                        help="Optional procedural surface microstructure strength")
+    render.add_argument("--solid-bump-distance", type=positive,
+                        help="Optional microstructure bump distance in metres")
     render.add_argument("--solid-floor-extension", type=float, default=None)
     render.add_argument("--solid-bevel", type=float, default=None)
     render.add_argument("--solid-bevel-segments", type=int, default=None)
@@ -234,6 +240,12 @@ def validate(args: argparse.Namespace) -> None:
     for key, value in SCENE_DEFAULTS.items():
         if getattr(args, key, None) is None:
             setattr(args, key, value)
+    if args.solid_bump_strength is not None and args.solid_bump_strength > 0:
+        if args.solid_noise_scale is None or args.solid_bump_distance is None:
+            raise ValueError("solid microstructure needs scale and bump distance")
+    elif args.solid_noise_scale is not None or args.solid_bump_distance is not None:
+        if args.solid_bump_strength is None:
+            raise ValueError("solid microstructure needs bump strength")
     if args.stress_water_opacity is None:
         args.stress_water_opacity = 0.0
     from math import isfinite

@@ -243,7 +243,12 @@ and nothing else. Explicit property flags override individual values. Run
 |---|---|---|
 | `--liquid-material turbulent-water` | **v03** water | RGB `(0.35, 0.72, 1)`, roughness `0.06`, IOR `1.333`, Pope–Fry absorption scaled `2.5×`, low scattering |
 | `--liquid-material clear-water` | Other cases; **not in v03** | Untinted pure-water absorption `(0.34, 0.0565, 0.00922) m⁻¹`, scattering zero, roughness `0.02` |
+| `--liquid-material heavy-oil` | Illustrative dark amber oil | RGB `(0.30, 0.17, 0.055)`, roughness `0.19`, IOR `1.47`, blue-biased absorption |
+| `--liquid-material melted-plastic` | Illustrative translucent molten polymer | RGB `(0.88, 0.25, 0.06)`, roughness `0.13`, IOR `1.48`, amber absorption |
 | `--solid-material anodized-copper` | **v03** structural solids | RGB `(0.62, 0.10, 0.018)`, metallic `0.92`, roughness `0.30`, coat `0.16` |
+| `--solid-material steel-uncoated` | Brushed bare steel | Neutral metal, roughness `0.28`, subtle procedural microtexture |
+| `--solid-material steel-white-semigloss` | White semi-gloss paint over steel | Dielectric white coating (`metallic 0`), roughness `0.34`, coat `0.25` |
+| `--solid-material concrete` | Porous, uncoated concrete | Neutral grey, roughness `0.88`, procedural micro-bump |
 | `--glass-material low-iron-glass` | **v03** tank panes | RGB `(0.06, 0.42, 0.34)`, roughness `0.30`, transmission `0.90`, IOR `1.36`, specular `0.04`, opacity mix `0.04` |
 | `--floor-material dark-metal` | **v03** liquid/foam view | RGB `(0.012, 0.018, 0.028)`, metallic `0.35`, roughness `0.30` |
 | `--floor-material neutral-stress` | **v03** stress close-up | RGB `(0.020, 0.032, 0.050)`, metallic `0.30`, roughness `0.40`, coat `0.10` |
@@ -260,7 +265,15 @@ For example, change the floor color without changing the water or solid:
 --floor-color 0.04 0.04 0.06
 ```
 
-Wall size, blade seating, bevels, pedestal dimensions, camera, lights, render
+The three new solids and two new liquids are **visualization presets**, not
+measurements of the depicted material. The bare-steel and concrete selectors
+use `--solid-noise-scale`, `--solid-bump-strength`, and
+`--solid-bump-distance` under the hood; these can be overridden separately.
+The painted steel preset is a dielectric paint layer, not exposed metal.
+Oil and molten-plastic selections do **not** change the simulated density,
+viscosity, or temperature—those are simulation inputs.
+
+Wall size, solid seating, bevels, pedestal dimensions, camera, lights, render
 engine and color management are **scene geometry/lighting parameters**, not
 material choices. They remain CLI flags and are not filled by any material.
 Legacy `blade_files` metadata is accepted as a data-field alias for generic

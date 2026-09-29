@@ -523,10 +523,23 @@ def build_scene(args, frame, whitewater):
             if missing:
                 raise ValueError("solid meshes need a --solid-material or explicit values: " +
                                  ", ".join(missing))
-            solid_name = ("Anodized copper solids" if args.solid_material == "anodized-copper"
-                          else "Structural solid")
+            solid_name = ((args.solid_material or "custom").replace("-", " ").title() +
+                          " solids")
             solid_shader = principled(solid_name, args.solid_color, args.solid_roughness,
                                       metallic=args.solid_metallic, coat=args.solid_coat)
+            if args.solid_bump_strength:
+                nodes = solid_shader.node_tree.nodes
+                links = solid_shader.node_tree.links
+                coordinates = nodes.new("ShaderNodeTexCoord")
+                noise = nodes.new("ShaderNodeTexNoise")
+                noise.inputs["Scale"].default_value = args.solid_noise_scale
+                bump = nodes.new("ShaderNodeBump")
+                bump.inputs["Strength"].default_value = args.solid_bump_strength
+                bump.inputs["Distance"].default_value = args.solid_bump_distance
+                links.new(coordinates.outputs["Object"], noise.inputs["Vector"])
+                links.new(noise.outputs["Fac"], bump.inputs["Height"])
+                links.new(bump.outputs["Normal"],
+                          nodes.get("Principled BSDF").inputs["Normal"])
             for index, path in enumerate(frame["solids"], 1):
                 obj = import_mesh(path, f"Structural solid {index}", solid_shader,
                                   args.surface_axis_order)
