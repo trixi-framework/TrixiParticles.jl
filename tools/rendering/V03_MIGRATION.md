@@ -56,15 +56,6 @@ position/velocity payload against the accepted cache. The new PLY header
 describes its coordinate order differently, so whole-file SHA-256 differs even
 when payloads agree. Preserve the approved cache until these checks pass.
 
-The comparison validates source VTK hashes, seed and each PLY's recorded
-whole-file hash, then compares the six Float32 particle attributes
-independently of header comments:
-
-```bash
-python3 tools/rendering/compare_foam.py --reference "$FOAM_DIR" \
-  --candidate "$OUT/foam_generated"
-```
-
 ## Accepted clean and whitewater scenes
 
 The following Bash array holds only explicit CLI flags. It records the old
@@ -165,9 +156,9 @@ settings rather than presuming bitwise identity.
   both converters wrote the **same Partio SHA-256**
   `1c902d32fa7e37b5d5ec49da74669553c0d23ce1d4162c8b3998b3bb783a813d`
   for 1,097,505 fluid particles.
-- `compare_foam.py --reference "$FOAM_DIR"` validated all 601 accepted
-  whitewater records, category totals, clipping, PLY attributes and recorded
-  file hashes. The foam peak is 58,326 at frame 174.
+- A one-off local audit checked all 601 accepted whitewater records, category
+  totals, clipping, PLY attributes and recorded file hashes. The foam peak is
+  58,326 at frame 174.
 - The new renderer read that cache without conversion, and produced GPU/OptiX
   3840×2160, 96-sample frame-174 stills. Against the released unbranded v03
   originals (whose hashes match the release render manifests), clean water
