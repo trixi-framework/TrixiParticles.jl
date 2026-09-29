@@ -8,6 +8,8 @@ not included in material dictionaries. Explicit property flags take precedence.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 # Neutral *scene* defaults, not material parameters. Materials must be selected
 # by role or supplied explicitly through per-property flags.
 SCENE_DEFAULTS = {
@@ -47,37 +49,31 @@ SOLID_MATERIALS = {
         "solid_coat": 0.25,
     },
     "concrete": {
-        "solid_color": (0.065, 0.075, 0.073),
+        # CC0, scanned 2 m PBR surface by Charlotte Baglioni (Poly Haven).
+        "solid_color": (0.12, 0.12, 0.11),
         "solid_metallic": 0.0,
-        "solid_roughness": 0.99,
+        "solid_roughness": 0.85,
         "solid_coat": 0.0,
-        "solid_specular_level": 0.03,
-        "solid_noise_scale": 90.0,
-        "solid_bump_strength": 0.65,
-        "solid_bump_distance": 0.008,
-        "solid_inclusion_dark_color": (0.015, 0.022, 0.026),
-        "solid_inclusion_color": (0.050, 0.059, 0.058),
-        "solid_inclusion_light_color": (0.103, 0.100, 0.088),
-        "solid_inclusion_scale": 14.0,
-        "solid_inclusion_threshold": 0.12,
-        "solid_inclusion_radius_variation": 0.38,
-        "solid_inclusion_probability": 0.72,
-        "solid_inclusion_transition": 0.08,
-        "solid_inclusion_roughness_range": (0.42, 0.90),
-        "solid_inclusion_warp_scale": 36.0,
-        "solid_inclusion_distortion": 0.025,
-        "solid_pore_color": (0.008, 0.012, 0.014),
-        "solid_medium_pore_scale": 16.0,
-        "solid_medium_pore_probability": 0.04,
-        "solid_medium_pore_radius": 0.12,
-        "solid_medium_pore_radius_variation": 0.10,
-        "solid_large_pore_scale": 3.4,
-        "solid_large_pore_probability": 0.16,
-        "solid_large_pore_radius": 0.13,
-        "solid_large_pore_radius_variation": 0.15,
-        "solid_pore_transition": 0.05,
-        "solid_pore_bump_strength": 0.8,
-        "solid_pore_bump_distance": 0.03,
+        "solid_specular_level": 0.25,
+        "solid_texture_dir": Path(__file__).resolve().parent / "assets" / "concrete",
+        "solid_texture_width_m": 2.0,
+        "solid_texture_tint": (0.48, 0.50, 0.48),
+        "solid_texture_bump_strength": 0.7,
+        "solid_texture_bump_distance": 0.004,
+        # Tiny entrained pores come from the scan. These rare defects represent
+        # > 1 mm *entrapped* voids, not centimeter-scale holes in normal concrete.
+        "solid_pore_color": (0.012, 0.016, 0.018),
+        "solid_medium_pore_scale": 60.0,
+        "solid_medium_pore_probability": 0.005,
+        "solid_medium_pore_radius": 0.06,
+        "solid_medium_pore_radius_variation": 0.08,
+        "solid_large_pore_scale": 8.0,
+        "solid_large_pore_probability": 0.045,
+        "solid_large_pore_radius": 0.06,
+        "solid_large_pore_radius_variation": 0.06,
+        "solid_pore_transition": 0.03,
+        "solid_pore_bump_strength": 0.7,
+        "solid_pore_bump_distance": 0.014,
         "solid_pore_roughness": 0.99,
         "solid_medium_pore_depth_ratio": 0.25,
     },

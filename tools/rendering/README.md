@@ -248,7 +248,7 @@ and nothing else. Explicit property flags override individual values. Run
 | `--solid-material anodized-copper` | **v03** structural solids | RGB `(0.62, 0.10, 0.018)`, metallic `0.92`, roughness `0.30`, coat `0.16` |
 | `--solid-material steel-uncoated` | Brushed bare steel | Neutral metal, roughness `0.28`, subtle procedural microtexture |
 | `--solid-material steel-white-semigloss` | White semi-gloss paint over steel | Dielectric white coating (`metallic 0`), roughness `0.34`, coat `0.25` |
-| `--solid-material concrete` | Dark porous concrete with varied stone inclusions and trapped-air pores | Cement RGB `(0.065, 0.075, 0.073)`, roughness `0.99`, low specular `0.03`; stones vary in cell size, color and roughness, with uncommon medium and rare large pores |
+| `--solid-material concrete` | Scanned coarse concrete with naturally distributed aggregate | CC0 photographed 1K diffuse/roughness/height maps of a 2 m surface, plus sparse subtle entrapped-air pore shading |
 | `--glass-material low-iron-glass` | **v03** tank panes | RGB `(0.06, 0.42, 0.34)`, roughness `0.30`, transmission `0.90`, IOR `1.36`, specular `0.04`, opacity mix `0.04` |
 | `--floor-material dark-metal` | **v03** liquid/foam view | RGB `(0.012, 0.018, 0.028)`, metallic `0.35`, roughness `0.30` |
 | `--floor-material neutral-stress` | **v03** stress close-up | RGB `(0.020, 0.032, 0.050)`, metallic `0.30`, roughness `0.40`, coat `0.10` |
@@ -266,19 +266,20 @@ For example, change the floor color without changing the water or solid:
 ```
 
 The three new solids and two new liquids are **visualization presets**, not
-measurements of the depicted material. Bare steel and concrete use
+measurements of the depicted material. Bare steel uses
 `--solid-noise-scale`, `--solid-bump-strength`, and `--solid-bump-distance`.
-Concrete uses Voronoi cells with per-stone radius, three-tone color and
-roughness variation (`--solid-inclusion-*`). The reviewed illustrative choice
-uses inclusion radii `0.12–0.50` of a cell and stone roughness `0.42–0.90`,
-so individual stones do not share one size or gloss level. Medium pores
-occur in about 4% of cells; separately distributed large pores occur in
-about 16% of much larger cells (`--solid-medium-pore-*`,
-`--solid-large-pore-*`). The latter suggest a few trapped-air cavities;
-their darker interior and two-depth bump shading do **not** remove material
-from the actual simulation or mesh.
-All frequencies, probabilities, colors, radii, and shading distances can be
-overridden independently through CLI flags.
+Concrete now uses actual scanned [CC0 PBR maps](assets/concrete/README.md):
+photographed diffuse aggregate and paste color, a *separate* roughness map,
+and a height map for fine bump shading. The map tile is 2 m wide; override
+its path and real-world width with `--solid-texture-dir` and
+`--solid-texture-width-m` for a different scan. The 1K maps add about 2.5 MB
+of material data to the tools PR; they are **not example renders**.
+
+The photographed surface already contains many tiny irregular pits. A
+separate optional two-scale shader adds **rare** irregular trapped-air void
+accents (`--solid-medium-pore-*`, `--solid-large-pore-*`). It does not insert
+large circular holes or remove material from the actual simulation mesh.
+Colors, tint, pore frequency and shading depth can be adjusted with CLI flags.
 The painted steel preset is a dielectric paint layer, not exposed metal.
 Oil and molten-plastic selections do **not** change the simulated density,
 viscosity, or temperature—those are simulation inputs. The molten-plastic
@@ -315,6 +316,26 @@ Whitewater is a heuristic visualization of a single-phase fluid, **not** a
 quantitatively validated gas or spray phase. Rendering radii are sub-grid
 representations, not measured bubble sizes. Record the model settings and
 sources when presenting any additional case.
+
+### Concrete references and scale
+
+- [Poly Haven: Gravel Embedded Concrete](https://polyhaven.com/a/gravel_embedded_concrete):
+  the actual CC0 2 m scan used by this preset, including diffuse, roughness
+  and height maps. [Rough Concrete](https://polyhaven.com/a/rough_concrete)
+  provides a second photographic reference for a largely continuous granular
+  cement surface rather than black circular aggregate dots.
+- [ACI: *Aggregates for Concrete*](https://www.concrete.org/Portals/0/Files/PDF/E1_07.PDF):
+  aggregates occupy approximately 60–75% of concrete volume. That describes
+  its interior composition; it does not imply that all stones are fully
+  exposed on a cast outer face.
+- [University of Illinois Concrete Microscopy Library](https://publish.illinois.edu/concretemicroscopylibrary/air-entrainment/):
+  NIST microscopy examples show air voids in fields of view only a few
+  millimetres wide; the 10 mm field labels entrapped voids larger than 1.5 mm.
+  [ASTM C457/C457M](https://store.astm.org/c0457_c0457m-16.html) says the
+  common entrapped/entrained distinction is arbitrary, but entrapped voids
+  are often above 1 mm and irregular. Centimetre-scale black craters would
+  suggest a concrete defect, not ordinary concrete. The preset does not
+  assert measured porosity.
 
 ## Troubleshooting
 

@@ -123,7 +123,7 @@ class TimeSeriesTests(unittest.TestCase):
 
         for name, metallic, roughness in (("steel-uncoated", 1.0, 0.28),
                                           ("steel-white-semigloss", 0.0, 0.34),
-                                          ("concrete", 0.0, 0.99)):
+                                          ("concrete", 0.0, 0.85)):
             selection = list(base)
             selection[selection.index("anodized-copper")] = name
             solid = minimal_render(*selection)
@@ -135,27 +135,24 @@ class TimeSeriesTests(unittest.TestCase):
         concrete_args[concrete_args.index("anodized-copper")] = "concrete"
         concrete = minimal_render(*concrete_args)
         pipeline.validate(concrete)
-        self.assertGreater(concrete.solid_bump_strength, 0)
-        self.assertGreater(concrete.solid_bump_distance, 0)
-        self.assertEqual(concrete.solid_inclusion_color, (0.050, 0.059, 0.058))
-        self.assertGreater(concrete.solid_inclusion_scale, 0)
-        self.assertEqual(concrete.solid_inclusion_scale, 14.0)
-        self.assertEqual(concrete.solid_inclusion_distortion, 0.025)
-        self.assertEqual(concrete.solid_inclusion_radius_variation, 0.38)
-        self.assertEqual(tuple(concrete.solid_inclusion_roughness_range), (0.42, 0.90))
-        self.assertEqual(concrete.solid_roughness, 0.99)
-        self.assertEqual(concrete.solid_specular_level, 0.03)
+        self.assertTrue(concrete.solid_texture_dir.is_dir())
+        self.assertEqual(concrete.solid_texture_width_m, 2.0)
+        self.assertEqual(tuple(concrete.solid_texture_tint), (0.48, 0.50, 0.48))
+        self.assertGreater(concrete.solid_texture_bump_strength, 0)
+        self.assertGreater(concrete.solid_texture_bump_distance, 0)
+        from data import file_sha256
+        self.assertEqual(file_sha256(concrete.solid_texture_dir / "diffuse.jpg"),
+                         "3ea5b493379c4d30c02c04b93361d3e34f91ed04058ffb4ea915702f1cd17049")
         self.assertLess(concrete.solid_large_pore_scale,
                         concrete.solid_medium_pore_scale)
-        self.assertLess(concrete.solid_medium_pore_probability, 0.06)
-        self.assertLess(concrete.solid_large_pore_probability, 0.20)
+        self.assertLess(concrete.solid_medium_pore_probability, 0.01)
+        self.assertLess(concrete.solid_large_pore_probability, 0.05)
         self.assertGreater(concrete.solid_pore_bump_distance, 0)
         with self.assertRaisesRegex(ValueError, "scale and bump distance"):
             invalid_bump = minimal_render(*base, "--solid-bump-strength", "0.3")
             pipeline.validate(invalid_bump)
-        with self.assertRaisesRegex(ValueError, "solid inclusions need"):
-            pipeline.validate(minimal_render(*base, "--solid-inclusion-color",
-                                             "0.1", "0.1", "0.1"))
+        with self.assertRaisesRegex(ValueError, "solid texture maps need"):
+            pipeline.validate(minimal_render(*base, "--solid-texture-dir", "/tmp"))
         with self.assertRaisesRegex(ValueError, "solid pores need"):
             pipeline.validate(minimal_render(*base, "--solid-pore-color",
                                              "0.1", "0.1", "0.1"))

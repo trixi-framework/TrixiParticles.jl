@@ -77,8 +77,12 @@ def foam_frames(args):
 def verified_inputs(args, selected, whitewater):
     """Fingerprint the exact selected meshes and particles before rendering."""
     output = []
+    hash_cache = {}
     for frame in selected:
         paths = [frame["water_path"], *frame["solids"]]
+        if frame["solids"] and args.solid_texture_dir is not None:
+            paths.extend(args.solid_texture_dir / name
+                         for name in ("diffuse.jpg", "roughness.jpg", "height.jpg"))
         if args.mode == "stress":
             paths.extend(args.stress_mesh)
         if args.foam_dir is not None:
@@ -100,7 +104,10 @@ def verified_inputs(args, selected, whitewater):
         for path in paths:
             if not path.is_file():
                 raise ValueError(f"missing render input: {path}")
-            checksums[str(path.resolve())] = file_sha256(path)
+            key = str(path.resolve())
+            if key not in hash_cache:
+                hash_cache[key] = file_sha256(path)
+            checksums[key] = hash_cache[key]
         output.append(checksums)
     return output
 
@@ -141,7 +148,7 @@ def math_output(nodes, links, operation, *values):
 
 def cellular_mask(nodes, links, vector, *, scale, radius, variation,
                   probability, transition):
-    """Per-cell radius and occupancy yield naturally varied solid inclusions."""
+    """Sparse air-void mask with per-cell radius and occupancy variation."""
     cells = nodes.new("ShaderNodeTexVoronoi")
     cells.feature = "F1"
     cells.distance = "EUCLIDEAN"
@@ -587,51 +594,43 @@ def build_scene(args, frame, whitewater):
                 micro_normal = bump.outputs["Normal"]
             surface_color = None
             surface_roughness = None
-            if args.solid_inclusion_color is not None:
+            if args.solid_texture_dir is not None:
                 if coordinates is None:
                     coordinates = nodes.new("ShaderNodeTexCoord")
-                distortion = nodes.new("ShaderNodeTexNoise")
-                distortion.inputs["Scale"].default_value = args.solid_inclusion_warp_scale
-                distortion_factor = nodes.new("ShaderNodeVectorMath")
-                distortion_factor.operation = "SCALE"
-                distortion_factor.inputs["Scale"].default_value = \
-                    args.solid_inclusion_distortion
-                distorted = nodes.new("ShaderNodeVectorMath")
-                distorted.operation = "ADD"
-                links.new(coordinates.outputs["Object"], distortion.inputs["Vector"])
-                links.new(distortion.outputs["Color"], distortion_factor.inputs["Vector"])
-                links.new(coordinates.outputs["Object"], distorted.inputs[0])
-                links.new(distortion_factor.outputs["Vector"], distorted.inputs[1])
-                stone_mask, stone_random = cellular_mask(
-                    nodes, links, distorted.outputs["Vector"],
-                    scale=args.solid_inclusion_scale,
-                    radius=args.solid_inclusion_threshold,
-                    variation=args.solid_inclusion_radius_variation,
-                    probability=args.solid_inclusion_probability,
-                    transition=args.solid_inclusion_transition)
-                stone_colors = nodes.new("ShaderNodeValToRGB")
-                stone_colors.color_ramp.elements[0].color = \
-                    (*args.solid_inclusion_dark_color, 1)
-                stone_colors.color_ramp.elements[1].color = \
-                    (*args.solid_inclusion_light_color, 1)
-                stone_colors.color_ramp.elements.new(0.5).color = \
-                    (*args.solid_inclusion_color, 1)
-                links.new(stone_random.outputs["Blue"], stone_colors.inputs["Fac"])
-                stone_mix = nodes.new("ShaderNodeMixRGB")
-                stone_mix.blend_type = "MIX"
-                stone_mix.inputs["Color1"].default_value = (*args.solid_color, 1)
-                links.new(stone_mask, stone_mix.inputs["Factor"])
-                links.new(stone_colors.outputs["Color"], stone_mix.inputs["Color2"])
-                surface_color = stone_mix.outputs["Color"]
-                rock_min, rock_max = args.solid_inclusion_roughness_range
-                rock_roughness = math_output(nodes, links, "MULTIPLY_ADD",
-                                             stone_random.outputs["Red"],
-                                             rock_max - rock_min, rock_min)
-                roughness_difference = math_output(nodes, links, "SUBTRACT",
-                                                   rock_roughness, args.solid_roughness)
-                surface_roughness = math_output(nodes, links, "ADD", args.solid_roughness,
-                                                math_output(nodes, links, "MULTIPLY",
-                                                            roughness_difference, stone_mask))
+                mapping = nodes.new("ShaderNodeVectorMath")
+                mapping.operation = "SCALE"
+                mapping.inputs["Scale"].default_value = 1 / args.solid_texture_width_m
+                links.new(coordinates.outputs["Object"], mapping.inputs["Vector"])
+                images = {}
+                for name in ("diffuse", "roughness", "height"):
+                    texture = nodes.new("ShaderNodeTexImage")
+                    texture.image = bpy.data.images.load(
+                        str((args.solid_texture_dir / f"{name}.jpg").resolve()),
+                        check_existing=True)
+                    texture.projection = "BOX"
+                    texture.projection_blend = 0.2
+                    if name != "diffuse":
+                        texture.image.colorspace_settings.name = "Non-Color"
+                    links.new(mapping.outputs["Vector"], texture.inputs["Vector"])
+                    images[name] = texture
+                tint = nodes.new("ShaderNodeMixRGB")
+                tint.blend_type = "MULTIPLY"
+                tint.inputs["Factor"].default_value = 1.0
+                tint.inputs["Color2"].default_value = (*args.solid_texture_tint, 1)
+                links.new(images["diffuse"].outputs["Color"], tint.inputs["Color1"])
+                surface_color = tint.outputs["Color"]
+                roughness_bw = nodes.new("ShaderNodeRGBToBW")
+                links.new(images["roughness"].outputs["Color"], roughness_bw.inputs["Color"])
+                surface_roughness = roughness_bw.outputs["Val"]
+                height_bw = nodes.new("ShaderNodeRGBToBW")
+                links.new(images["height"].outputs["Color"], height_bw.inputs["Color"])
+                scan_bump = nodes.new("ShaderNodeBump")
+                scan_bump.inputs["Strength"].default_value = args.solid_texture_bump_strength
+                scan_bump.inputs["Distance"].default_value = args.solid_texture_bump_distance
+                links.new(height_bw.outputs["Val"], scan_bump.inputs["Height"])
+                if micro_normal is not None:
+                    links.new(micro_normal, scan_bump.inputs["Normal"])
+                micro_normal = scan_bump.outputs["Normal"]
             if args.solid_pore_color is not None:
                 if coordinates is None:
                     coordinates = nodes.new("ShaderNodeTexCoord")
