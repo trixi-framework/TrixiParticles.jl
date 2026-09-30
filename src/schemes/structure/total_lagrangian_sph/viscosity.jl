@@ -1,30 +1,32 @@
 # Unpack the neighboring systems viscosity to dispatch on the viscosity type.
 # This function is only necessary to allow `nothing` as viscosity.
 # Otherwise, we could just apply the viscosity as a function directly.
-@propagate_inbounds function dv_viscosity_tlsph!(dv_particle, system, v_system,
-                                                 particle, neighbor,
-                                                 current_pos_diff, current_distance,
-                                                 m_a, m_b, rho_a, rho_b, F_a, grad_kernel)
+@propagate_inbounds function add_dv_viscosity_tlsph(dv_particle, system, v_system,
+                                                    particle, neighbor,
+                                                    current_pos_diff, current_distance,
+                                                    m_a, m_b, rho_a, rho_b, F_a,
+                                                    grad_kernel)
     viscosity = system.viscosity
 
-    return dv_viscosity_tlsph!(dv_particle, viscosity, system, v_system,
-                               particle, neighbor, current_pos_diff, current_distance,
-                               m_a, m_b, rho_a, rho_b, F_a, grad_kernel)
+    return add_dv_viscosity_tlsph(dv_particle, viscosity, system, v_system,
+                                  particle, neighbor, current_pos_diff, current_distance,
+                                  m_a, m_b, rho_a, rho_b, F_a, grad_kernel)
 end
 
-@propagate_inbounds function dv_viscosity_tlsph!(dv_particle, viscosity, system,
-                                                 v_system, particle, neighbor,
-                                                 current_pos_diff, current_distance,
-                                                 m_a, m_b, rho_a, rho_b, F_a, grad_kernel)
+@propagate_inbounds function add_dv_viscosity_tlsph(dv_particle, viscosity, system,
+                                                    v_system, particle, neighbor,
+                                                    current_pos_diff, current_distance,
+                                                    m_a, m_b, rho_a, rho_b, F_a,
+                                                    grad_kernel)
     return viscosity(dv_particle, system, v_system, particle, neighbor,
                      current_pos_diff, current_distance,
                      m_a, m_b, rho_a, rho_b, F_a, grad_kernel)
 end
 
-@inline function dv_viscosity_tlsph!(dv_particle, viscosity::Nothing, system,
-                                     v_system, particle, neighbor,
-                                     current_pos_diff, current_distance,
-                                     m_a, m_b, rho_a, rho_b, F_a, grad_kernel)
+@inline function add_dv_viscosity_tlsph(dv_particle, viscosity::Nothing, system,
+                                        v_system, particle, neighbor,
+                                        current_pos_diff, current_distance,
+                                        m_a, m_b, rho_a, rho_b, F_a, grad_kernel)
     return dv_particle
 end
 
@@ -83,7 +85,7 @@ end
             return dv_particle
         end
         # See eq. 26 of Lin et al. (2015)
-        dv_particle[] += m_b * det_F * inv(F_a)' * pi_ab
+        dv_particle += m_b * det_F * inv(F_a)' * pi_ab
     end
 
     return dv_particle

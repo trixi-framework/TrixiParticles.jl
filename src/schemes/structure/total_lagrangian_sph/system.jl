@@ -145,10 +145,26 @@ function TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing
         poisson_ratio_sorted = poisson_ratio
     end
 
-    initial_coordinates = copy(initial_condition_sorted.coordinates)
-    current_coordinates = copy(initial_condition_sorted.coordinates)
-    mass = copy(initial_condition_sorted.mass)
-    material_density = copy(initial_condition_sorted.density)
+    initial_coordinates = similar(initial_condition_sorted.coordinates)
+    current_coordinates = similar(initial_condition_sorted.coordinates)
+    mass = similar(initial_condition_sorted.mass)
+    material_density = similar(initial_condition_sorted.density)
+
+    # Initialize the runtime arrays in parallel so that, on NUMA systems, the first-touch
+    # allocation policy places their memory close to the threads that will access it
+    # during the simulation.
+    # The semidiscretization backend is not available in the constructor yet, and using
+    # Polyester here is harmless for serial and GPU simulations.
+    # This makes the RHS significantly faster on large data center CPUs with multiple
+    # NUMA domains (see http://github.com/trixi-framework/TrixiParticles.jl/pull/1294).
+    parallelization_backend = PolyesterBackend()
+    copyto_threaded!(initial_coordinates, initial_condition_sorted.coordinates,
+                     parallelization_backend)
+    copyto_threaded!(current_coordinates, initial_condition_sorted.coordinates,
+                     parallelization_backend)
+    copyto_threaded!(mass, initial_condition_sorted.mass, parallelization_backend)
+    copyto_threaded!(material_density, initial_condition_sorted.density,
+                     parallelization_backend)
     correction_matrix = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
     pk1_rho2 = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
     deformation_grad = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
@@ -305,6 +321,29 @@ end
     end
 
     return current_clamped_velocity(v, system, system.clamped_particles_motion, particle)
+end
+
+@propagate_inbounds function current_acceleration(system::TotalLagrangianSPHSystem,
+                                                  particle)
+    return current_acceleration(system, system.clamped_particles_motion, particle)
+end
+
+@propagate_inbounds function current_acceleration(system::TotalLagrangianSPHSystem,
+                                                  clamped_particles_motion, particle)
+    return zero(SVector{ndims(system), eltype(system)})
+end
+
+# `clamped_particles_moving` is always `false` without a `PrescribedMotion`,
+# but both branches are compiled on GPUs, so we need the "no `PrescribedMotion`" dispatch
+# above to avoid access to the undefined field `cache.acceleration`.
+@propagate_inbounds function current_acceleration(system::TotalLagrangianSPHSystem,
+                                                  ::PrescribedMotion, particle)
+    if particle <= system.n_integrated_particles || !system.clamped_particles_moving[]
+        # TODO Return `dv` of solid particles
+        return zero(SVector{ndims(system), eltype(system)})
+    end
+
+    return extract_svector(system.cache.acceleration, system, particle)
 end
 
 @inline function current_clamped_velocity(v, system, prescribed_motion, particle)
@@ -509,18 +548,15 @@ end
 
         # Accumulate the contributions over all neighbors before writing
         # to `deformation_grad` to reduce the number of memory writes.
-        # Note that we need a `Ref` in order to be able to update these variables
-        # inside the closure in the `foreach_neighbor` loop.
-        result = Ref(zero(L_a))
+        result = @inbounds mapreduce_neighbor(+, initial_coords, initial_coords,
+                                              neighborhood_search, backend, particle;
+                                              init=zero(L_a)) do particle, neighbor,
+                                                                 initial_pos_diff,
+                                                                 initial_distance
 
-        # Loop over all neighbors within the kernel cutoff
-        @inbounds foreach_neighbor(initial_coords, initial_coords,
-                                   neighborhood_search, backend,
-                                   particle) do particle, neighbor,
-                                                initial_pos_diff, initial_distance
             # Skip neighbors with the same position because the kernel gradient is zero.
             # Note that `return` only exits the closure, i.e., skips the current neighbor.
-            skip_zero_distance(system) && initial_distance < almostzero && return
+            skip_zero_distance(system) && initial_distance < almostzero && return zero(L_a)
 
             # Now that we know that `distance` is not zero, we can safely call the unsafe
             # version of the kernel gradient to avoid redundant zero checks.
@@ -544,12 +580,12 @@ end
             #   -volume * pos_diff * (L_a * grad_kernel)'
             # Equivalent transposed form that is much faster in 3D:
             F_T = -volume * L_a * grad_kernel * pos_diff'
-            result[] += F_T'
+            return F_T'
         end
 
         for j in 1:ndims(system), i in 1:ndims(system)
             # We overwrite every entry of `deformation_grad`, so no `set_zero!` is required.
-            @inbounds deformation_grad[i, j, particle] = result[][i, j]
+            @inbounds deformation_grad[i, j, particle] = result[i, j]
         end
     end
 
