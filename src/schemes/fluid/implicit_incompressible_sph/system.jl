@@ -585,12 +585,14 @@ function pressure_update(system, pressure, reference_density, a_ii, sum_term, om
         else
             pressure[particle] = zero(pressure[particle])
         end
-        # Calculate the average density error for the termination condition
+        # Calculate the density error for the termination condition. Entries of
+        # particles whose pressure is zero are explicitly cleared so that no stale
+        # values from previous iterations enter the termination condition.
         if pressure[particle] != 0.0
             new_density = a_ii[particle] * pressure[particle] + sum_term[particle] -
                           iisph_source_term(system, particle) +
                           reference_density
-            density_error[particle] = abs(new_density - reference_density)
+            density_error[particle] = new_density - reference_density
         else
             density_error[particle] = zero(eltype(density_error))
         end

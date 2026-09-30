@@ -207,6 +207,21 @@ continue with the old value. The numerical error introduced by this technique re
 as only isolated or almost isolated particles are affected.
 
 
+## Termination Criterion
+
+The relaxed Jacobi scheme stops once the density error criterion below is satisfied
+(and at least `min_iterations` iterations have been performed), or once it reaches
+`max_iterations`. Each particle contributes its signed density deviation
+```math
+e_i = a_{ii} p_i + \sum_{j \neq i} a_{ij} p_j - (\rho_0 - \rho_i^{\text{adv}}),
+```
+evaluated with the updated pressure values. The contributions of particles whose
+pressure is zero are explicitly cleared, so that no stale values from previous
+iterations enter the criterion. Note that `max_error` is given in percent.
+
+Since the deviations are signed, they can cancel each other in the sum, which makes
+the relative density error smaller than the sum of the absolute deviations would be.
+
 ## Boundary Handling
 
 The previously introduced formulation did not distinguish between fluid and boundary
