@@ -667,7 +667,9 @@
         @trixi_testset "preprocessing/complex_shape_3d.jl" begin
             @trixi_test_nowarn trixi_include(@__MODULE__,
                                              joinpath(examples_dir(), "preprocessing",
-                                                      "complex_shape_3d.jl"))
+                                                      "complex_shape_3d.jl"),
+                                             file=joinpath(examples_dir(), "preprocessing",
+                                                           "data", "sphere.stl"))
             @test nparticles(shape_sampled) > 0
         end
     end
