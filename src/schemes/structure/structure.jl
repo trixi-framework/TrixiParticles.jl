@@ -45,10 +45,10 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
 
         # Now that we know that `distance` is not zero, we can safely call the unsafe
         # version of the kernel gradient to avoid redundant zero checks.
-        # Note that we use the `neighbor_system` to compute the kernel gradient
-        # to obtain the same force as in the fluid-structure interaction.
-        grad_kernel = smoothing_kernel_grad_unsafe(neighbor_system, pos_diff,
-                                                   distance, neighbor)
+        # Evaluate the actual fluid-side gradient. Corrected gradients need not be odd,
+        # so negating a gradient evaluated at `pos_diff` would give a different force.
+        grad_kernel_fluid = smoothing_kernel_grad_unsafe(neighbor_system, -pos_diff,
+                                                         distance, neighbor)
 
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
@@ -69,22 +69,22 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
         p_a = current_pressure(v_particle_system, particle_system, particle)
         p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)
 
-        # Particle and neighbor (and the corresponding systems and particle quantities) are
-        # switched in the following two calls. This yields the exact same pair force as in the
-        # fluid-structure interaction, but with flipped sign because `pos_diff` is reversed.
-        dv_boundary = pressure_acceleration(neighbor_system, particle_system,
-                                            neighbor, particle,
-                                            m_b, m_a, p_b, p_a, rho_b, rho_a,
-                                            pos_diff, distance, grad_kernel,
-                                            system_correction(neighbor_system))
+        # Evaluate pressure and viscosity with fluid-first ordering, then negate the
+        # acceleration to obtain the reaction on the structure. This also preserves the
+        # approaching-particle condition of artificial viscosity.
+        dv_fluid = pressure_acceleration(neighbor_system, particle_system,
+                                         neighbor, particle,
+                                         m_b, m_a, p_b, p_a, rho_b, rho_a,
+                                         -pos_diff, distance, grad_kernel_fluid,
+                                         system_correction(neighbor_system))
 
-        dv_particle = add_dv_viscosity(dv_boundary, neighbor_system, particle_system,
-                                       v_neighbor_system, v_particle_system,
-                                       neighbor, particle, pos_diff, distance,
-                                       sound_speed, m_b, m_a, rho_b, rho_a,
-                                       v_b, v_a, grad_kernel)
+        dv_fluid = add_dv_viscosity(dv_fluid, neighbor_system, particle_system,
+                                    v_neighbor_system, v_particle_system,
+                                    neighbor, particle, -pos_diff, distance,
+                                    sound_speed, m_b, m_a, rho_b, rho_a,
+                                    v_b, v_a, grad_kernel_fluid)
 
-        dv_particle = add_dv_adhesion(dv_particle, surface_tension,
+        dv_particle = add_dv_adhesion(-dv_fluid, surface_tension,
                                       neighbor_system, particle_system,
                                       neighbor, particle, pos_diff, distance)
 
@@ -93,7 +93,7 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
         drho_particle = add_continuity_equation(zero(rho_a),
                                                 particle_system, neighbor_system,
                                                 particle, neighbor, pos_diff, distance,
-                                                m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+                                                m_b, rho_a, rho_b, v_a, v_b)
 
         @inbounds write_drho_particle!(dv, particle_system, drho_particle, particle)
     end
@@ -105,7 +105,7 @@ end
                                          particle_system::AbstractStructureSystem,
                                          neighbor_system::AbstractFluidSystem,
                                          particle, neighbor, pos_diff, distance,
-                                         m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+                                         m_b, rho_a, rho_b, v_a, v_b)
     return drho_particle
 end
 
@@ -114,7 +114,12 @@ end
                                                                 TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}}},
                                          neighbor_system::AbstractFluidSystem,
                                          particle, neighbor, pos_diff, distance,
-                                         m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+                                         m_b, rho_a, rho_b, v_a, v_b)
+    # Density evolution uses the structure-side orientation. Only evaluate this
+    # additional gradient when the boundary model integrates density.
+    grad_kernel = smoothing_kernel_grad_unsafe(neighbor_system, pos_diff, distance,
+                                               neighbor)
+
     return add_continuity_equation(drho_particle,
                                    density_calculator(neighbor_system),
                                    m_b, rho_a, rho_b, v_a, v_b, grad_kernel, particle)
