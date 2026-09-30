@@ -11,6 +11,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Replaced the experimental `MechanicalWorkCalculatorCallback` with
   `MechanicalWorkCalculator`, which can be passed as a custom quantity to
   `PostprocessCallback` (#1228).
+- Added the `ThrustCalculator` custom quantity to calculate the thrust exerted by a
+  `TotalLagrangianSPHSystem` on interacting fluid systems (#1229).
 
 ### Important Bugfixes
 
