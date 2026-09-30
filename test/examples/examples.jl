@@ -664,6 +664,12 @@
                                              joinpath(examples_dir(), "preprocessing",
                                                       "packing_3d.jl"))
         end
+        @trixi_testset "preprocessing/complex_shape_3d.jl" begin
+            @trixi_test_nowarn trixi_include(@__MODULE__,
+                                             joinpath(examples_dir(), "preprocessing",
+                                                      "complex_shape_3d.jl"))
+            @test nparticles(shape_sampled) > 0
+        end
     end
 
     @testset verbose=true "DEM" begin

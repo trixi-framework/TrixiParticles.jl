@@ -15,7 +15,7 @@ using TrixiParticles
 particle_spacing = 0.05
 
 filename = "sphere"
-file = joinpath("examples", "preprocessing", "data", filename * ".stl")
+file = pkgdir(TrixiParticles, "examples", "preprocessing", "data", filename * ".stl")
 
 geometry = load_geometry(file)
 
