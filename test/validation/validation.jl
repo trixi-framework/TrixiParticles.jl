@@ -26,7 +26,8 @@
             r"WARNING: Method definition solve_shear_rate_from_stress.*\n",
             r"WARNING: Method definition analytical_ux_profile.*\n",
             r"WARNING: Method definition velocity_profile_errors.*\n",
-            r"WARNING: Method definition newtonian_ux.*\n"
+            r"WARNING: Method definition newtonian_ux.*\n",
+            r"GKS: cannot open display - headless operation mode active\n"
         ]
         @test profile_plot.n == 4
         @test error_plot.n == 2

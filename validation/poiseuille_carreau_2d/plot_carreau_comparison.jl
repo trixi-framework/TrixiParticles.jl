@@ -22,7 +22,7 @@ function profile_history(json_file::AbstractString)
 end
 
 function plot_carreau(out_root::AbstractString; save_figures=false)
-    n_dirs = sort(glob(joinpath(out_root, "n_*")))
+    n_dirs = sort(glob("n_*", out_root))
     isempty(n_dirs) && error("No n_* directories found under $out_root")
 
     profile_plot = plot(title="Final profile",
