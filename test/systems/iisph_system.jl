@@ -442,8 +442,7 @@
             system_pressure.density_error .= [0.0, 99.0]
 
             semi = DummySemidiscretization()
-            # First particle uses the standard Jacobi update; the second hits the
-            # safeguarded zero-a_ii path.
+            # First particle uses standard Jacobi update; second hits the safeguarded zero-a_ii path.
             # For particle 1: (1-omega)*0 + omega/a_ii * (source - sum_term) with omega=0.4,
             # source=(1000-990)=10, a_ii=0.5, sum_term=5 gives pressure 4 and
             # density_error = 997-1000 = -3 (signed deviation).
