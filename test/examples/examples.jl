@@ -671,6 +671,7 @@
                                              file=joinpath(examples_dir(), "preprocessing",
                                                            "data", "sphere.stl"))
             @test nparticles(shape_sampled) > 0
+            @test nparticles(boundary_sampled) > 0
         end
     end
 
