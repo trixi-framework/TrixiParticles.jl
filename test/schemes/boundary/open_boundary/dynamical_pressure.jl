@@ -29,7 +29,10 @@
                               boundary_type=OutFlow(), face_normal=[-1.0, 0.0],
                               open_boundary_layers=10, initial_condition=ic,
                               density=1.0, particle_spacing)
-            bz.initial_condition.mass .= ic.mass
+
+            # The boundary pressure term does not conserve momentum, so we set the pressure
+            # of the boundary zone to zero (it is otherwise taken from `ic`).
+            bz.initial_condition.pressure .= 0
 
             system_wcsph = WeaklyCompressibleSPHSystem(ic; smoothing_kernel,
                                                        smoothing_length,
