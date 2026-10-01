@@ -290,6 +290,24 @@ function BoundaryZone(; boundary_face, face_normal, density, particle_spacing,
                         prescribed_density, prescribed_pressure, prescribed_velocity)
 end
 
+# See the docstring of `SpongeLayer`
+function SpongeLayer(boundary_zone::BoundaryZone; length, sound_speed,
+                     reference_velocity=nothing, strength=1)
+    (; zone_origin, face_normal, prescribed_velocity) = boundary_zone
+
+    if isnothing(reference_velocity)
+        if !prescribed_velocity
+            throw(ArgumentError("the boundary zone has no prescribed velocity, " *
+                                "so `reference_velocity` must be passed"))
+        end
+        reference_velocity = boundary_zone.reference_values.reference_velocity
+    end
+
+    # `zone_origin` lies in the boundary face, and `face_normal` points into the fluid domain
+    return SpongeLayer(; face_origin=zone_origin, face_normal, length, sound_speed,
+                       reference_velocity, strength)
+end
+
 function boundary_type_name(boundary_zone::BoundaryZone)
     (; flow_direction, face_normal, is_bidirectional) = boundary_zone
 
