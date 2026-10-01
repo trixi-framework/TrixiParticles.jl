@@ -54,8 +54,9 @@ sound_speed = sound_speed_factor * v_max
 flow_direction = (1.0, 0.0)
 
 # Linear pressure distribution of the steady-state solution
-initial_pressure_function(pos) = outlet_pressure +
-                                 imposed_pressure_drop * (1 - pos[1] / channel_length)
+function initial_pressure_function(pos)
+    return outlet_pressure + imposed_pressure_drop * (1 - pos[1] / channel_length)
+end
 
 channel = RectangularTank(particle_spacing, domain_size, domain_size, fluid_density,
                           pressure=initial_pressure_function,
@@ -162,7 +163,8 @@ if use_wcsph
         (; coordinates, density) = system.initial_condition
         for particle in TrixiParticles.each_integrated_particle(system)
             pressure = initial_pressure_function(coordinates[:, particle])
-            density[particle] = TrixiParticles.inverse_state_equation(state_equation, pressure)
+            density[particle] = TrixiParticles.inverse_state_equation(state_equation,
+                                                                      pressure)
         end
     end
 end

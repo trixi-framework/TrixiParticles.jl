@@ -171,8 +171,9 @@ open_boundary = OpenBoundarySystem(inlet_zone, outlet_zone; fluid_system,
 # with the pressure prescribed at the open boundaries. The resulting initial pressure wave
 # can push particles out of the domain at high resolutions.
 # TODO set the density in the initial condition once #1340 is merged.
-initial_pressure_function(pos) = outlet_reference_pressure +
-                                 imposed_pressure_drop * (1 - pos[1] / channel_length)
+function initial_pressure_function(pos)
+    return outlet_reference_pressure + imposed_pressure_drop * (1 - pos[1] / channel_length)
+end
 for system in (fluid_system, open_boundary)
     (; coordinates, density) = system.initial_condition
     for particle in TrixiParticles.each_integrated_particle(system)
