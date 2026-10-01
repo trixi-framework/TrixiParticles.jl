@@ -156,6 +156,7 @@ open_boundary = OpenBoundarySystem(inlet_boundary_zone, outlet_boundary_zone; fl
 # initial condition. Thus, the fluid would start at zero pressure, which is inconsistent
 # with the pressure prescribed at the open boundaries. The resulting initial pressure wave
 # can push particles out of the domain at high resolutions.
+# TODO set the density in the initial condition once #1340 is merged.
 if use_wcsph
     for system in (fluid_system, open_boundary)
         (; coordinates, density) = system.initial_condition
