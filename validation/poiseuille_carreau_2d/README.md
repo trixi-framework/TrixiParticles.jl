@@ -122,9 +122,6 @@ trixi_include(joinpath(validation_dir(), "poiseuille_carreau_2d",
               output_directory=output_root)
 ```
 
-For an earlier run, set `output_directory` to its
-`"out_poiseuille_carreau/run_<timestamp>"` directory. The plotting default is
-`"out_poiseuille_carreau"`; timestamped runs require the subdirectory explicitly.
 The plotting script requires `Glob` and `Plots` in the active Julia environment.
 Figures are displayed without saving. Pass `save_figures=true` to also save PNG
 files in the selected output directory and its case subdirectories.
