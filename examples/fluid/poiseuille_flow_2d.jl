@@ -53,10 +53,12 @@ sound_speed = sound_speed_factor * v_max
 
 flow_direction = (1.0, 0.0)
 
+# Linear pressure distribution of the steady-state solution
+initial_pressure_function(pos) = outlet_pressure +
+                                 imposed_pressure_drop * (1 - pos[1] / channel_length)
+
 channel = RectangularTank(particle_spacing, domain_size, domain_size, fluid_density,
-                          pressure=(pos) -> outlet_pressure +
-                                            imposed_pressure_drop *
-                                            (1 - (pos[1] / channel_length)),
+                          pressure=initial_pressure_function,
                           n_layers=boundary_layers, faces=(false, false, true, true),
                           coordinates_eltype=Float64)
 
@@ -149,6 +151,20 @@ open_boundary = OpenBoundarySystem(inlet_boundary_zone, outlet_boundary_zone; fl
                                    boundary_model=open_boundary_model,
                                    calculate_flow_rate=true,
                                    buffer_size=n_buffer_particles)
+
+# The WCSPH system computes the pressure from the density and ignores the pressure of the
+# initial condition. Thus, the fluid would start at zero pressure, which is inconsistent
+# with the pressure prescribed at the open boundaries. The resulting initial pressure wave
+# can push particles out of the domain at high resolutions.
+if use_wcsph
+    for system in (fluid_system, open_boundary)
+        (; coordinates, density) = system.initial_condition
+        for particle in TrixiParticles.each_integrated_particle(system)
+            pressure = initial_pressure_function(coordinates[:, particle])
+            density[particle] = TrixiParticles.inverse_state_equation(state_equation, pressure)
+        end
+    end
+end
 
 # ==========================================================================================
 # ==== Boundary
