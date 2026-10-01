@@ -90,7 +90,7 @@ initial profile and analytical comparison also use the Newtonian limit.
 Results are written to:
 
 ```text
-out_poiseuille_carreau/run_<timestamp>/n_<n>/
+out_poiseuille_carreau/n_<n>/
 ```
 
 Each case contains VTU output and a
