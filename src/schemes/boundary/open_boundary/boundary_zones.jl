@@ -54,10 +54,11 @@ There are three ways to specify the actual shape of the boundary zone:
     - `BidirectionalFlow()` (default) for an bidirectional flow boundary
 - `open_boundary_layers`: Number of particle layers in the direction opposite to `face_normal`.
 - `particle_spacing`: The spacing between the particles (see [`InitialCondition`](@ref)).
-- `density`: Particle density (see [`InitialCondition`](@ref)) when no `initial_condition`
-             is passed. With `BoundaryModelDynamicalPressureZhang`, this is also used as
+- `density`: Scalar particle density used when no `initial_condition` is passed.
+             With `BoundaryModelDynamicalPressureZhang`, this is also used as
              rest density for new particles when no equation of state is used by the
-             fluid system.
+             fluid system. For a spatially varying initial density, pass an
+             `initial_condition` with the desired density.
 - `initial_condition=nothing`: `InitialCondition` for the inflow particles.
                                Particles outside the boundary zone will be removed.
                                Do not use together with `extrude_geometry`.
@@ -194,6 +195,10 @@ function BoundaryZone(; boundary_face, face_normal, density, particle_spacing,
                       reference_velocity=nothing)
     if open_boundary_layers <= 0
         throw(ArgumentError("`open_boundary_layers` must be positive and greater than zero"))
+    end
+
+    if !(density isa Real)
+        throw(ArgumentError("`density` must be a scalar"))
     end
 
     # `face_normal` always points in fluid domain
