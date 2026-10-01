@@ -637,6 +637,13 @@ end
 
 function update_shifting!(system, shifting::TransportVelocityAdami, v, u, v_ode,
                           u_ode, semi)
+    @trixi_timeit timer() "update shifting" begin
+        update_shifting_inner!(system, shifting, v, u, v_ode, u_ode, semi)
+    end
+end
+
+function update_shifting_inner!(system, shifting::TransportVelocityAdami,
+                                v, u, v_ode, u_ode, semi)
     (; delta_v) = system.cache
     (; background_pressure) = shifting
 
