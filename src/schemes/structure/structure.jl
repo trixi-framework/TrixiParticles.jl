@@ -17,6 +17,25 @@ end
     end
 end
 
+# Match the pressure and viscosity corrections used by the fluid-side RHS.
+@inline function structure_fluid_force_correction(system::AbstractFluidSystem,
+                                                  particle, rho_a, rho_b)
+    return zero(rho_a), 1, 1
+end
+
+@inline function structure_fluid_force_correction(system::WeaklyCompressibleSPHSystem,
+                                                  particle, rho_a, rho_b)
+    viscosity_correction, pressure_correction,
+    _ = free_surface_correction(system_correction(system), system, rho_a, rho_b)
+
+    return zero(rho_a), viscosity_correction, pressure_correction
+end
+
+@propagate_inbounds function structure_fluid_force_correction(system::EntropicallyDampedSPHSystem,
+                                                              particle, rho_a, rho_b)
+    return average_pressure(system, particle), 1, 1
+end
+
 function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
                                    v_neighbor_system, u_neighbor_system,
                                    particle_system,
@@ -69,20 +88,26 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
         p_a = current_pressure(v_particle_system, particle_system, particle)
         p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)
 
+        p_avg, viscosity_correction,
+        pressure_correction = @inbounds structure_fluid_force_correction(neighbor_system,
+                                                                         neighbor,
+                                                                         rho_b, rho_a)
+
         # Evaluate pressure and viscosity with fluid-first ordering, then negate the
         # acceleration to obtain the reaction on the structure. This also preserves the
         # approaching-particle condition of artificial viscosity.
         dv_fluid = pressure_acceleration(neighbor_system, particle_system,
                                          neighbor, particle,
-                                         m_b, m_a, p_b, p_a, rho_b, rho_a,
+                                         m_b, m_a, p_b - p_avg, p_a - p_avg, rho_b, rho_a,
                                          -pos_diff, distance, grad_kernel_fluid,
                                          system_correction(neighbor_system))
+        dv_fluid *= pressure_correction
 
         dv_fluid = add_dv_viscosity(dv_fluid, neighbor_system, particle_system,
                                     v_neighbor_system, v_particle_system,
                                     neighbor, particle, -pos_diff, distance,
                                     sound_speed, m_b, m_a, rho_b, rho_a,
-                                    v_b, v_a, grad_kernel_fluid)
+                                    v_b, v_a, grad_kernel_fluid, viscosity_correction)
 
         dv_particle = add_dv_adhesion(-dv_fluid, surface_tension,
                                       neighbor_system, particle_system,

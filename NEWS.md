@@ -16,7 +16,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 - Corrected hydrodynamic reaction forces on TLSPH and rigid-body systems, including
   corrected kernel gradients and the approaching-particle condition for artificial
-  viscosity.
+  viscosity (#1338).
 - Fixed the sign of the quadratic term in `ArtificialViscosityMonaghan` (#1295).
 - Fixed mathematical inconsistencies in the SPH documentation, including incorrect
   formulas, inconsistent force-vs-acceleration notation, and wrong LaTeX text-mode

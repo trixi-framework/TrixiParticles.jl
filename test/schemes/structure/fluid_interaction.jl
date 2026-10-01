@@ -7,20 +7,26 @@
     state_equation = StateEquationCole(; sound_speed=10.0, reference_density, exponent=1.0)
     viscosities = (nothing, ViscosityAdami(nu=0.1), ViscosityMorris(nu=0.1),
                    ArtificialViscosityMonaghan(alpha=0.1))
-    configurations = ((nothing, AdamiPressureExtrapolation()),
-                      (nothing, ContinuityDensity()),
-                      (KernelCorrection(), SummationDensity()),
-                      (MixedKernelGradientCorrection(), SummationDensity()))
+    configurations = ((:wcsph, nothing, AdamiPressureExtrapolation()),
+                      (:wcsph, nothing, ContinuityDensity()),
+                      (:wcsph, AkinciFreeSurfaceCorrection(reference_density),
+                       AdamiPressureExtrapolation()),
+                      (:wcsph, KernelCorrection(), SummationDensity()),
+                      (:wcsph, MixedKernelGradientCorrection(), SummationDensity()),
+                      (:edac, nothing, AdamiPressureExtrapolation()),
+                      (:edac_pressure_reduction, nothing, AdamiPressureExtrapolation()))
     # Zero pressure isolates viscosity for approaching and receding particles.
     # Nonzero pressure checks that pressure and viscous reactions accumulate consistently.
     fluid_states = ((velocity=(1.0, 0.5), density=reference_density),
                     (velocity=(-1.0, -0.5), density=reference_density),
                     (velocity=(1.0, 0.5), density=1005.0))
 
-    @testset "$viscosity, $correction, $boundary_density" for viscosity in viscosities,
-                                                              (correction,
-                                                               boundary_density) in
-                                                              configurations
+    @testset "$fluid_scheme, $viscosity, $correction, $boundary_density" for viscosity in
+                                                                             viscosities,
+                                                                             (fluid_scheme,
+                                                                              correction,
+                                                                              boundary_density) in
+                                                                             configurations
 
         @testset "$structure_kind, $fluid_state" for structure_kind in
                                                      (:tlsph, :clamped_tlsph, :rigid),
@@ -35,12 +41,21 @@
             fluid_ic = InitialCondition(; coordinates=reshape([0.0, 0.0], 2, 1),
                                         velocity=fluid_velocity,
                                         mass=[reference_density],
-                                        density=[fluid_state.density], particle_spacing)
-            fluid_system = WeaklyCompressibleSPHSystem(fluid_ic; smoothing_kernel,
-                                                       smoothing_length, viscosity,
-                                                       correction,
-                                                       density_calculator=ContinuityDensity(),
-                                                       state_equation)
+                                        density=[fluid_state.density],
+                                        pressure=state_equation(fluid_state.density),
+                                        particle_spacing)
+            fluid_system = if fluid_scheme == :wcsph
+                WeaklyCompressibleSPHSystem(fluid_ic; smoothing_kernel, smoothing_length,
+                                            viscosity, correction,
+                                            density_calculator=ContinuityDensity(),
+                                            state_equation)
+            else
+                EntropicallyDampedSPHSystem(fluid_ic; smoothing_kernel, smoothing_length,
+                                            sound_speed=10.0, viscosity, correction,
+                                            density_calculator=ContinuityDensity(),
+                                            average_pressure_reduction=fluid_scheme ==
+                                                                       :edac_pressure_reduction)
+            end
 
             structure_ic = InitialCondition(; coordinates=reshape([1.5, 0.0], 2, 1),
                                             velocity=zeros(2, 1), mass=[structure_density],
@@ -66,10 +81,12 @@
             v_ode, u_ode = ode.u0.x
             dv_ode = zero(v_ode)
             TrixiParticles.kick!(dv_ode, v_ode, u_ode, ode.p, 0.0)
+            v_fluid = TrixiParticles.wrap_v(v_ode, fluid, semi)
             dv_fluid = TrixiParticles.wrap_v(dv_ode, fluid, semi)
             expected_force = -fluid.mass[1] * dv_fluid[1:2, 1]
 
-            if !isnothing(correction)
+            if correction isa KernelCorrection ||
+               correction isa MixedKernelGradientCorrection
                 # Ensure that this fixture exercises a gradient that is not odd.
                 pos_diff = SVector(1.5, 0.0)
                 gradient = TrixiParticles.smoothing_kernel_grad_unsafe(fluid, pos_diff,
@@ -81,7 +98,7 @@
             end
 
             if fluid_state.density == reference_density
-                @test iszero(fluid.pressure[1])
+                @test iszero(TrixiParticles.current_pressure(v_fluid, fluid, 1))
                 @test iszero(structure.boundary_model.pressure[1])
                 if isnothing(viscosity) ||
                    (viscosity isa ArtificialViscosityMonaghan &&
@@ -91,6 +108,11 @@
                     # The viscous reaction on the structure follows the fluid motion.
                     @test expected_force[1] * fluid_state.velocity[1] > 0
                 end
+            elseif fluid_scheme == :edac_pressure_reduction && isnothing(viscosity)
+                # Uniform nonzero pressure produces no force after pressure reduction.
+                @test TrixiParticles.current_pressure(v_fluid, fluid, 1) ≈
+                      structure.boundary_model.pressure[1]
+                @test isapprox(expected_force, zeros(2); atol=sqrt(eps()))
             else
                 @test !iszero(expected_force)
             end
@@ -112,7 +134,6 @@
             else
                 v_structure = TrixiParticles.wrap_v(v_ode, structure, semi)
                 u_structure = TrixiParticles.wrap_u(u_ode, structure, semi)
-                v_fluid = TrixiParticles.wrap_v(v_ode, fluid, semi)
                 u_fluid = TrixiParticles.wrap_u(u_ode, fluid, semi)
                 # Include clamped particles when checking the pair reaction directly.
                 dv_structure_fluid = zeros(eltype(structure), ndims(structure),
