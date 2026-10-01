@@ -82,8 +82,7 @@ end
 # ==========================================================================================
 # ==== Run Simulations
 n_values = (1.0, 1.5, 0.5, 0.25)
-output_root = joinpath("out_poiseuille_carreau",
-                       "run_" * Dates.format(now(), dateformat"yyyymmdd_HHMMSS"))
+output_root = "out_poiseuille_carreau"
 check_error_bounds = initial_condition_mode == :analytical
 
 for power_law_index in n_values
