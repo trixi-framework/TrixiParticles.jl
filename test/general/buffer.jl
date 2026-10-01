@@ -66,13 +66,16 @@
         pressures = initial_condition.pressure[1] .* ones(nparticles(ic_with_buffer))
         @test pressures == ic_with_buffer.pressure
 
-        @testset "Illegal Input" begin
+        @testset "Non-Constant Density" begin
             # The rectangular patch has a perturbed, non-constant density
             ic = rectangular_patch(0.1, (3, 3))
             buffer = TrixiParticles.SystemBuffer(9, 7)
 
-            error_str = "`initial_condition.density` needs to be constant when using `SystemBuffer`"
-            @test_throws ArgumentError(error_str) TrixiParticles.allocate_buffer(ic, buffer)
+            ic_with_buffer = TrixiParticles.allocate_buffer(ic, buffer)
+
+            @test nparticles(ic_with_buffer) == nparticles(ic) + 7
+            @test ic_with_buffer.density[1:9] == ic.density
+            @test all(==(first(ic.density)), ic_with_buffer.density[10:end])
         end
     end
 end

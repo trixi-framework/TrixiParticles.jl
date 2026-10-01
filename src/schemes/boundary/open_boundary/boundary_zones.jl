@@ -54,7 +54,10 @@ There are three ways to specify the actual shape of the boundary zone:
     - `BidirectionalFlow()` (default) for an bidirectional flow boundary
 - `open_boundary_layers`: Number of particle layers in the direction opposite to `face_normal`.
 - `particle_spacing`: The spacing between the particles (see [`InitialCondition`](@ref)).
-- `density`: Particle density (see [`InitialCondition`](@ref)).
+- `density`: Particle density (see [`InitialCondition`](@ref)) when no `initial_condition`
+             is passed. With `BoundaryModelDynamicalPressureZhang`, this is also used as
+             rest density for new particles when no equation of state is used by the
+             fluid system.
 - `initial_condition=nothing`: `InitialCondition` for the inflow particles.
                                Particles outside the boundary zone will be removed.
                                Do not use together with `extrude_geometry`.
@@ -169,6 +172,7 @@ struct BoundaryZone{NDIMS, ELTYPE, IC, S, R, C}
     zone_width        :: ELTYPE
     flow_direction    :: SVector{NDIMS, ELTYPE}
     face_normal       :: SVector{NDIMS, ELTYPE}
+    rest_density      :: ELTYPE # Only required for `BoundaryModelDynamicalPressureZhang`
     rest_pressure     :: ELTYPE # Only required for `BoundaryModelDynamicalPressureZhang`
     reference_values  :: R
     cache             :: C
@@ -285,7 +289,8 @@ function BoundaryZone(; boundary_face, face_normal, density, particle_spacing,
     is_bidirectional = boundary_type isa BidirectionalFlow
 
     return BoundaryZone(ic, spanning_set_, zone_origin, zone_width,
-                        flow_direction, face_normal_, rest_pressure, reference_values,
+                        flow_direction, face_normal_, convert(ELTYPE, density),
+                        rest_pressure, reference_values,
                         cache, is_bidirectional, average_inflow_velocity,
                         prescribed_density, prescribed_pressure, prescribed_velocity)
 end
@@ -537,7 +542,7 @@ function current_boundary_zone(system, particle)
 end
 
 function remove_outside_particles(initial_condition, spanning_set, zone_origin)
-    (; coordinates, velocity, density, particle_spacing) = initial_condition
+    (; coordinates, velocity, density, mass, pressure, particle_spacing) = initial_condition
 
     in_zone = fill(true, nparticles(initial_condition))
 
@@ -548,8 +553,10 @@ function remove_outside_particles(initial_condition, spanning_set, zone_origin)
         in_zone[particle] = is_in_boundary_zone(spanning_set, particle_position)
     end
 
-    return InitialCondition(; coordinates=coordinates[:, in_zone], density=first(density),
-                            velocity=velocity[:, in_zone], particle_spacing)
+    return InitialCondition(; coordinates=coordinates[:, in_zone],
+                            velocity=velocity[:, in_zone], density=density[in_zone],
+                            mass=mass[in_zone], pressure=pressure[in_zone],
+                            particle_spacing)
 end
 
 function wrap_reference_function(function_::Nothing, ref_dummy)
