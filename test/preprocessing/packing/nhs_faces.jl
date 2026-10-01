@@ -4,7 +4,7 @@
                     0.0 0.0 0.7 0.0]
 
         # Only use the third edge of the triangle, i.e. the edge from [0.1, 0.0] to [0.0, 0.0]
-        edge_aligned = deleteat!(TrixiParticles.Polygon(triangle), [1, 2])
+        edge_aligned = TrixiParticles.delete_faces(TrixiParticles.Polygon(triangle), [1, 2])
         edge_id = 1 # Only one edge in `Polygon`
 
         cell_sizes = [1.0 + sqrt(eps()), 0.1]
@@ -27,7 +27,8 @@
         end
 
         # Only use the first edge of the triangle, i.e. the edge from [0.0, 0.0] to [0.5, 0.7]
-        edge_arbitrary = deleteat!(TrixiParticles.Polygon(triangle), [2, 3])
+        edge_arbitrary = TrixiParticles.delete_faces(TrixiParticles.Polygon(triangle),
+                                                     [2, 3])
         edge_id = 1 # Only one edge in `Polygon`
 
         expected_ncells_bbox = [(1, 1), (6, 7)]
