@@ -8,12 +8,7 @@ function interact!(dv, v_particle_system, u_particle_system,
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-    # For `distance == 0`, the analytical gradient is zero, but the unsafe gradient
-    # and the density diffusion divide by zero.
-    # To account for rounding errors, we check if `distance` is almost zero.
-    # Since the coordinates are in the order of the smoothing length `h`, `distance^2` is in
-    # the order of `h^2`, so we need to check `distance < sqrt(eps(h^2))`.
-    # Note that `sqrt(eps(h^2)) != eps(h)`.
+    # Use the shared scheme policy before evaluating unsafe pair operators.
     compact_support_ = compact_support(particle_system, neighbor_system)
     almostzero = interaction_zero_distance(particle_system, neighbor_system)
 

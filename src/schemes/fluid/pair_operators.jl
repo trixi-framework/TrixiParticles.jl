@@ -28,17 +28,6 @@ end
     return free_surface_correction(system_correction(system), system, rho_a, rho_b)
 end
 
-# Reproduce the fluid RHS tolerances on both sides of a pair: EDAC/IISPH use h^2,
-# WCSPH uses the pair support radius squared. Different tolerances break reactions.
-@inline function interaction_zero_distance(system, neighbor_system)
-    return sqrt(eps(initial_smoothing_length(system)^2))
-end
-
-@inline function interaction_zero_distance(system::WeaklyCompressibleSPHSystem,
-                                           neighbor_system)
-    return sqrt(eps(compact_support(system, neighbor_system)^2))
-end
-
 @inline function skip_fluid_pair(system, distance, support, almostzero)
     # Coincident particles can retain a finite corrected gradient; respect the
     # correction's skip_zero_distance policy instead of discarding every such pair.
