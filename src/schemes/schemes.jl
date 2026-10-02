@@ -17,12 +17,11 @@ include("fluid/implicit_incompressible_sph/implicit_incompressible_sph.jl")
 include("boundary/wall_boundary/structure_corrections.jl")
 
 # Include rhs for all schemes
-include("fluid/interaction.jl")
 include("fluid/weakly_compressible_sph/rhs.jl")
 include("fluid/entropically_damped_sph/rhs.jl")
 include("fluid/implicit_incompressible_sph/rhs.jl")
 include("boundary/wall_boundary/rhs.jl")
-include("structure/structure.jl")
+include("structure/fluid_interaction.jl")
 include("structure/rigid_body/rhs.jl")
 include("structure/total_lagrangian_sph/rhs.jl")
 include("structure/discrete_element_method/rhs.jl")
