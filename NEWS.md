@@ -15,7 +15,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 ### Important Bugfixes
 
 - Fixed hydrodynamic boundary-gradient and correction-cache evaluation for TLSPH
-  and rigid-body coupling, independently of the elastic TLSPH kernel.
+  and rigid-body coupling, independently of the elastic TLSPH kernel (#1342).
 - Fixed pressure mirroring for TLSPH and rigid-body neighbors and for EDAC momentum,
   pressure diffusion, and average-pressure reduction at walls and structures (#1341).
 - Corrected pressure and viscous reaction forces on TLSPH and rigid-body systems,
