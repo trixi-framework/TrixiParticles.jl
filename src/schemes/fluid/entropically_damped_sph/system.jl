@@ -263,10 +263,6 @@ end
 
 @inline shifting_technique(system::EntropicallyDampedSPHSystem) = system.shifting_technique
 
-@inline function correction_matrix(system::EntropicallyDampedSPHSystem, particle)
-    return extract_smatrix(system.cache.correction_matrix, system, particle)
-end
-
 @propagate_inbounds function average_pressure(system::EntropicallyDampedSPHSystem, particle)
     average_pressure(system, system.average_pressure_reduction, particle)
 end

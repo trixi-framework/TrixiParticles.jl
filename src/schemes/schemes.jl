@@ -15,6 +15,7 @@ include("boundary/wall_boundary/monaghan_kajtar.jl")
 include("fluid/implicit_incompressible_sph/implicit_incompressible_sph.jl")
 
 # Include rhs for all schemes
+include("fluid/interaction.jl")
 include("fluid/weakly_compressible_sph/rhs.jl")
 include("fluid/entropically_damped_sph/rhs.jl")
 include("fluid/implicit_incompressible_sph/rhs.jl")

@@ -1,3 +1,5 @@
+using Logging: NullLogger, with_logger
+
 @testset verbose=true "Structure-fluid force balance" begin
     particle_spacing = 1.0
     smoothing_kernel = SchoenbergCubicSplineKernel{2}()
@@ -7,8 +9,6 @@
     state_equation = StateEquationCole(; sound_speed=10.0, reference_density, exponent=1.0)
     viscosities = (nothing, ViscosityAdami(nu=0.1), ViscosityMorris(nu=0.1),
                    ArtificialViscosityMonaghan(alpha=0.1, beta=0.2))
-    shifting_techniques = (nothing, ConsistentShiftingSun2019(),
-                           TransportVelocityAdami(background_pressure=1000.0))
     configurations = ((:wcsph, nothing, AdamiPressureExtrapolation()),
                       (:wcsph, nothing, ContinuityDensity()),
                       (:wcsph, AkinciFreeSurfaceCorrection(reference_density),
@@ -17,20 +17,18 @@
                       (:wcsph, MixedKernelGradientCorrection(), SummationDensity()),
                       (:edac, nothing, AdamiPressureExtrapolation()),
                       (:edac_pressure_reduction, nothing, AdamiPressureExtrapolation()))
-    # Zero pressure isolates viscosity and shifting for approaching and receding particles.
-    # Nonzero pressure checks that all momentum terms accumulate consistently.
+    # Zero pressure isolates viscosity for approaching and receding particles.
+    # Nonzero pressure checks that pressure and viscosity accumulate consistently.
     fluid_states = ((velocity=(1.0, 0.5), density=reference_density),
                     (velocity=(-1.0, -0.5), density=reference_density),
                     (velocity=(1.0, 0.5), density=1005.0))
 
-    @testset "$fluid_scheme, $viscosity, $correction, $boundary_density, $shifting_technique" for shifting_technique in
-                                                                                                  shifting_techniques,
-                                                                                                  viscosity in
-                                                                                                  viscosities,
-                                                                                                  (fluid_scheme,
-                                                                                                   correction,
-                                                                                                   boundary_density) in
-                                                                                                  configurations
+    @testset "$fluid_scheme, $viscosity, $correction, $boundary_density" for viscosity in
+                                                                             viscosities,
+                                                                             (fluid_scheme,
+                                                                              correction,
+                                                                              boundary_density) in
+                                                                             configurations
 
         @testset "$structure_kind, $fluid_state" for structure_kind in
                                                      (:tlsph, :clamped_tlsph, :rigid),
@@ -50,13 +48,12 @@
                                         particle_spacing)
             fluid_system = if fluid_scheme == :wcsph
                 WeaklyCompressibleSPHSystem(fluid_ic; smoothing_kernel, smoothing_length,
-                                            viscosity, correction, shifting_technique,
+                                            viscosity, correction,
                                             density_calculator=ContinuityDensity(),
                                             state_equation)
             else
                 EntropicallyDampedSPHSystem(fluid_ic; smoothing_kernel, smoothing_length,
                                             sound_speed=10.0, viscosity, correction,
-                                            shifting_technique,
                                             density_calculator=ContinuityDensity(),
                                             average_pressure_reduction=fluid_scheme ==
                                                                        :edac_pressure_reduction)
@@ -79,9 +76,11 @@
                                          clamped_particles, boundary_model)
             end
 
-            semi = Semidiscretization(fluid_system, structure_system;
-                                      parallelization_backend=SerialBackend())
-            ode = semidiscretize(semi, (0.0, 0.01))
+            semi = with_logger(NullLogger()) do
+                Semidiscretization(fluid_system, structure_system;
+                                   parallelization_backend=SerialBackend())
+            end
+            ode = semidiscretize(semi, (0.0, 0.01); reset_threads=false)
             fluid, structure = ode.p.semi.systems
             v_ode, u_ode = ode.u0.x
             dv_ode = zero(v_ode)
@@ -90,16 +89,11 @@
             u_fluid = TrixiParticles.wrap_u(u_ode, fluid, semi)
             v_structure = TrixiParticles.wrap_v(v_ode, structure, semi)
             u_structure = TrixiParticles.wrap_u(u_ode, structure, semi)
-            # Isolate this pair from fluid self-interaction terms, which can be nonzero
-            # with shifting and corrected kernel gradients.
+            # Isolate this pair from corrected fluid self-interaction terms.
             dv_fluid = zero(v_fluid)
             TrixiParticles.interact!(dv_fluid, v_fluid, u_fluid,
                                      v_structure, u_structure, fluid, structure, semi)
             expected_force = -fluid.mass[1] * dv_fluid[1:2, 1]
-
-            if !isnothing(shifting_technique)
-                @test !iszero(TrixiParticles.delta_v(fluid, 1))
-            end
 
             if correction isa KernelCorrection ||
                correction isa MixedKernelGradientCorrection
@@ -116,28 +110,19 @@
             if fluid_state.density == reference_density
                 @test iszero(TrixiParticles.current_pressure(v_fluid, fluid, 1))
                 @test iszero(structure.boundary_model.pressure[1])
-                if isnothing(shifting_technique)
-                    if isnothing(viscosity) ||
-                       (viscosity isa ArtificialViscosityMonaghan &&
-                        fluid_state.velocity[1] < 0)
-                        @test iszero(expected_force)
-                    else
-                        # The viscous reaction on the structure follows the fluid motion.
-                        @test expected_force[1] * fluid_state.velocity[1] > 0
-                    end
-                elseif isnothing(viscosity)
-                    # A nonzero reaction with no pressure or viscosity exercises shifting.
-                    @test !iszero(expected_force)
+                if isnothing(viscosity) ||
+                   (viscosity isa ArtificialViscosityMonaghan &&
+                    fluid_state.velocity[1] < 0)
+                    @test iszero(expected_force)
+                else
+                    # The viscous reaction on the structure follows the fluid motion.
+                    @test expected_force[1] * fluid_state.velocity[1] > 0
                 end
             elseif fluid_scheme == :edac_pressure_reduction && isnothing(viscosity)
                 # Uniform nonzero pressure produces no force after pressure reduction.
                 @test TrixiParticles.current_pressure(v_fluid, fluid, 1) ≈
                       structure.boundary_model.pressure[1]
-                if isnothing(shifting_technique)
-                    @test isapprox(expected_force, zeros(2); atol=sqrt(eps()))
-                else
-                    @test !iszero(expected_force)
-                end
+                @test isapprox(expected_force, zeros(2); atol=sqrt(eps()))
             else
                 @test !iszero(expected_force)
             end

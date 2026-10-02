@@ -4,6 +4,24 @@ Rigid bodies in TrixiParticles.jl are represented by particles whose motion is e
 with rigid-body translation and rotation. This allows fluid-structure interaction while
 keeping the structure kinematics rigid.
 
+## [Fluid loads](@id fluid_structure_loads)
+
+Fluid loads are assembled from pressure, viscosity, and adhesion using the same
+pair operators as the fluid momentum equation. For each fluid particle `f` and
+structure particle `s`, the physical fluid acceleration contributes the reaction
+force `F_s = -m_f a_f`. Rigid-body resultants and torque are computed from these
+particle forces; TLSPH uses the material mass to convert them to acceleration.
+
+Particle shifting and transport-velocity momentum corrections are applied only to
+the fluid RHS. They are not interfacial traction and therefore
+are excluded from the structural load. With shifting enabled, action-reaction
+balance applies to the physical pair forces rather than the entire fluid RHS.
+
+The structure-to-fluid search covers both the fluid and boundary-model kernel
+supports. Momentum uses the fluid support, while boundary density evolution uses
+the boundary model's own kernel, support, and correction. In TLSPH this
+hydrodynamic kernel is separate from the elastic self-interaction kernel.
+
 ## API
 
 ```@autodocs

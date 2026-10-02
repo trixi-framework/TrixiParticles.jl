@@ -131,6 +131,15 @@ structure, and we recommend using it in combination with penalty force to both
 prevent hourglass modes and stabilize the fluid close to the fluid-structure interface.
 
 
+## Fluid loads
+
+Fluid pressure, viscosity, and adhesion contribute equal-and-opposite physical
+pair forces, converted to TLSPH acceleration using the structure's material mass.
+The dummy-particle boundary model supplies the hydrodynamic kernel independently
+of the elastic kernel. Shifting transport corrections remain in the fluid RHS
+and are excluded from structural loads; see [Fluid loads](@ref fluid_structure_loads) in
+[Rigid Bodies](@ref rigid_body) for the coupling convention.
+
 ## [Velocity Averaging](@id velocity_averaging)
 
 In FSI cases with very stiff structures, the two techniques above might not be
