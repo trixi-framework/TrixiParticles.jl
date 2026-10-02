@@ -1,4 +1,9 @@
 # Structure-fluid coupling shared by TLSPH and rigid-body systems.
+# Here the traversal labels are reversed: a=s (structure), b=f (fluid), and the
+# neighbor search returns pos_diff=x_s-x_f. Physical operators below are evaluated
+# with fluid-first arguments and r_fs=-pos_diff, then F_s=-m_f*a_f^physical.
+# The default particle range advances free particles; callers such as mechanical
+# work calculation can explicitly include clamped particles to recover their loads.
 function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
                                    v_neighbor_system, u_neighbor_system,
                                    particle_system,
@@ -7,18 +12,25 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
     sound_speed = system_sound_speed(neighbor_system)
     correction = system_correction(neighbor_system)
 
+    # Coupling follows the current spatial configuration, unlike TLSPH elastic
+    # self-interaction, whose neighborhood is built in the initial configuration.
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
     neighborhood_search = get_neighborhood_search(particle_system, neighbor_system, semi)
     backend = semi.parallelization_backend
 
-    # Use the same pair cutoffs as the fluid RHS.
+    # The reverse search may expose a different neighbor set. Limit the reaction
+    # operator to the same support and near-zero predicate used by the fluid RHS.
     compact_support_ = compact_support(neighbor_system, particle_system)
     almostzero = interaction_zero_distance(neighbor_system, particle_system)
 
+    # Each task owns one structural particle. Neighbor contributions remain local
+    # until reduction, so force_per_particle and dv need no per-pair atomic updates.
     @threaded semi for particle in eachparticle
         # In fluid-structure interaction, use the "hydrodynamic mass" of the structure particles
         # corresponding to the rest density of the fluid and not the material density.
+        # This mass/pressure/density is the boundary state used by the forward fluid
+        # interaction. Material mass enters only when writing TLSPH acceleration.
         m_a = @inbounds hydrodynamic_mass(particle_system, particle)
         rho_a = @inbounds current_density(v_particle_system, particle_system, particle)
         v_a = @inbounds current_velocity(v_particle_system, particle_system, particle)
@@ -41,7 +53,10 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
             rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
             v_b = @inbounds current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
-            # Boundary density has its own kernel support and zero-distance check.
+            # Evaluate density before the fluid momentum cutoff: boundary support
+            # may be larger, so a pair skipped by the fluid can still evolve rho_s.
+            # The boundary gradient independently enforces its own support and
+            # near-zero policy, including when its support is smaller than the fluid's.
             drho_particle = @inbounds add_continuity_equation(zero(rho_a),
                                                               particle_system,
                                                               neighbor_system,
@@ -49,16 +64,23 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
                                                               distance, m_b, rho_a, rho_b,
                                                               v_a, v_b)
 
-            # Apply the fluid-side cutoffs only to physical momentum contributions.
+            # The reaction search covers both supports, but only pairs accepted by
+            # the fluid contribute momentum. Preserve the density rate on early exit
+            # instead of returning init, which would discard a valid boundary update.
             if skip_fluid_pair(neighbor_system, distance, compact_support_, almostzero)
                 return zero(v_a), drho_particle
             end
 
-            # Corrected gradients need not be odd; evaluate the fluid-side gradient.
+            # Evaluate grad_f W(r_fs) directly at the fluid particle. Neighborhood
+            # corrections contain particle-local terms, so -grad_f W(r_sf) need not
+            # equal grad_f W(-r_sf). Negating a structure-oriented corrected gradient
+            # would therefore give the wrong pressure/viscous reaction.
             grad_kernel_fluid = smoothing_kernel_grad_unsafe(neighbor_system, -pos_diff,
                                                              distance, neighbor)
 
-            # Use the hydrodynamic pressure defined by the structure's boundary model.
+            # Read fluid pressure first, then use the same boundary-pressure dispatch
+            # as the forward interaction. Pair-local mirroring, where supported,
+            # needs p_f even though the traversal visits the structure particle first.
             p_b = @inbounds current_pressure(v_neighbor_system, neighbor_system, neighbor)
             p_a = @inbounds neighbor_pressure(v_particle_system, particle_system, particle,
                                               p_b)
@@ -78,9 +100,14 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
                                                                   grad_kernel_fluid,
                                                                   correction)
 
+            # m_b is fluid mass in this traversal: Newton's third law transfers the
+            # opposite physical force, not merely an acceleration with reversed sign.
             return -m_b * dv_fluid, drho_particle
         end
 
+        # TLS divides the accumulated force by material mass; rigid bodies retain
+        # particle forces for the later resultant/torque reduction. Boundary density
+        # is a separate scalar state derivative and is written through its own dispatch.
         @inbounds write_fluid_force!(dv, particle_system, force_particle_, particle)
         @inbounds write_drho_particle!(dv, particle_system, drho_particle_,
                                        particle)
@@ -94,6 +121,8 @@ end
                                          neighbor_system::AbstractFluidSystem,
                                          particle, neighbor, pos_diff, distance,
                                          m_b, rho_a, rho_b, v_a, v_b)
+    # Pressure-extrapolated and summation-density boundaries have no density ODE
+    # contribution; only the ContinuityDensity specialization below evolves rho_s.
     return drho_particle
 end
 
@@ -103,8 +132,11 @@ end
                                          neighbor_system::AbstractFluidSystem,
                                          particle, neighbor, pos_diff, distance,
                                          m_b, rho_a, rho_b, v_a, v_b)
-    # Density evolves with the boundary's own kernel and correction, not with the
-    # neighboring fluid's corrected gradient evaluated in the opposite direction.
+    # Continuity has structure-first orientation: (v_s-v_f) dot grad_s W. Its
+    # gradient uses the hydrodynamic boundary kernel/correction, independently of
+    # the fluid's gradient and the TLSPH elastic self-interaction kernel.
+    # The fluid density formulation selects the weight: m_f for SummationDensity,
+    # or (rho_s/rho_f)*m_f for ContinuityDensity.
     grad_kernel = hydrodynamic_kernel_grad(particle_system, pos_diff, distance, particle)
 
     return add_continuity_equation(drho_particle,
@@ -113,6 +145,7 @@ end
 end
 
 @inline function write_drho_particle!(dv, ::AbstractSystem, drho_particle, particle)
+    # A boundary model without an integrated density must not modify a velocity row.
     return dv
 end
 
@@ -120,6 +153,8 @@ end
                                                   ::Union{RigidBodySystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
                                                           TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}}},
                                                   drho_particle, particle)
+    # ContinuityDensity appends hydrodynamic density to v; momentum occupies the
+    # preceding rows. Add rather than overwrite when several fluid systems contribute.
     dv[end, particle] += drho_particle
 
     return dv
