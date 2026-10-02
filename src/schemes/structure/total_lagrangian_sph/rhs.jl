@@ -117,6 +117,17 @@ function interact!(dv, v_particle_system, u_particle_system,
                                      particle_system, neighbor_system, semi; eachparticle)
 end
 
+@propagate_inbounds function write_fluid_force!(dv,
+                                                particle_system::TotalLagrangianSPHSystem,
+                                                force_particle, particle)
+    material_mass = particle_system.mass[particle]
+    for i in 1:ndims(particle_system)
+        dv[i, particle] += force_particle[i] / material_mass
+    end
+
+    return dv
+end
+
 # Structure-boundary interaction
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
