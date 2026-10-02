@@ -19,13 +19,8 @@ function interact!(dv, v_particle_system, u_particle_system,
     neighborhood_search = get_neighborhood_search(particle_system, neighbor_system, semi)
     backend = semi.parallelization_backend
 
-    # For `distance == 0`, the analytical gradient is zero, but the unsafe gradient divides
-    # by zero. To account for rounding errors, we check if `distance` is almost zero.
-    # Since the coordinates are in the order of the compact support `c`, `distance^2` is in
-    # the order of `c^2`, so we need to check `distance < sqrt(eps(c^2))`.
-    # Note that `sqrt(eps(c^2)) != eps(c)`.
-    compact_support_ = compact_support(particle_system, neighbor_system)
-    almostzero = sqrt(eps(compact_support_^2))
+    # Use the shared scheme policy before evaluating unsafe pair operators.
+    almostzero = interaction_zero_distance(particle_system, neighbor_system)
 
     @threaded semi for particle in eachparticle
         # We are looping over the particles of `particle_system`, so it is guaranteed
