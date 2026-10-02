@@ -14,6 +14,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Important Bugfixes
 
+- Fixed the sign of the quadratic term in `ArtificialViscosityMonaghan` (#1295).
 - Fixed mathematical inconsistencies in the SPH documentation, including incorrect
   formulas, inconsistent force-vs-acceleration notation, and wrong LaTeX text-mode
   commands (#1086).
@@ -53,6 +54,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Fixed Bernoulli pressure extrapolation for moving wall boundaries and wall boundary
   restarts with `ContinuityDensity` (#1201).
 - Fixed `StepsizeCallback` for inviscid simulations (#1244).
+- Fixed unnecessary right-hand-side evaluations after state-mutating callbacks when using
+  `SymplecticPositionVerlet` (#1264).
 
 ## Version 0.5.2
 
