@@ -217,14 +217,9 @@ function compute_correction_values!(system,
 
             neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-            # For `distance == 0`, the analytical gradient is zero, but the unsafe gradient
-            # and the density diffusion divide by zero.
-            # To account for rounding errors, we check if `distance` is almost zero.
-            # Since the coordinates are in the order of the smoothing length `h`, `distance^2` is in
-            # the order of `h^2`, so we need to check `distance < sqrt(eps(h^2))`.
-            # Note that `sqrt(eps(h^2)) != eps(h)`.
+            # Raw kernel-correction coefficients use the kernel's smoothing-length scale.
             h = initial_smoothing_length(system)
-            almostzero = sqrt(eps(h^2))
+            almostzero = interaction_zero_distance(h)
 
             # Loop over all pairs of particles and neighbors within the kernel cutoff
             foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
@@ -370,7 +365,8 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
             end
 
             neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
-            almostzero = sqrt(eps(compact_support(system, neighbor_system)^2))
+            # Gradient-matrix assembly retains its search-support scale for all systems.
+            almostzero = interaction_zero_distance(compact_support(system, neighbor_system))
 
             foreach_point_neighbor(system, neighbor_system, coordinates, neighbor_coords,
                                    semi) do particle, neighbor, pos_diff, distance
