@@ -1,4 +1,6 @@
 @testset verbose=true "Structure-fluid force balance" begin
+    # One fluid/structure pair isolates cross-system forces from elastic forces.
+    # At r/h = 1.5 the cubic-spline gradient is nonzero and has a simple exact value.
     particle_spacing = 1.0
     smoothing_kernel = SchoenbergCubicSplineKernel{2}()
     smoothing_length = 1.0
@@ -7,6 +9,8 @@
     state_equation = StateEquationCole(; sound_speed=10.0, reference_density, exponent=1.0)
     viscosities = (nothing, ViscosityAdami(nu=0.1), ViscosityMorris(nu=0.1),
                    ArtificialViscosityMonaghan(alpha=0.1, beta=0.2))
+    # Exercise fluid-side prefactors as well as the reaction sign: Akinci changes
+    # viscosity scaling, kernel corrections need not be odd, and EDAC reduces pressure.
     configurations = ((:wcsph, nothing, AdamiPressureExtrapolation()),
                       (:wcsph, nothing, ContinuityDensity()),
                       (:wcsph, AkinciFreeSurfaceCorrection(reference_density),
@@ -17,6 +21,8 @@
                       (:edac_pressure_reduction, nothing, AdamiPressureExtrapolation()))
     # Zero pressure isolates viscosity for approaching and receding particles.
     # Nonzero pressure checks that pressure and viscosity accumulate consistently.
+    # The structure lies to the right: positive fluid vx approaches it, while
+    # negative vx must deactivate Monaghan artificial viscosity (but not physical viscosity).
     fluid_states = ((velocity=(1.0, 0.5), density=reference_density),
                     (velocity=(-1.0, -0.5), density=reference_density),
                     (velocity=(1.0, 0.5), density=1005.0))
@@ -57,6 +63,8 @@
                                                                        :edac_pressure_reduction)
             end
 
+            # Material mass is twice hydrodynamic mass. Using the wrong mass when
+            # converting reaction force to TLSPH acceleration cannot pass this check.
             structure_ic = InitialCondition(; coordinates=reshape([1.5, 0.0], 2, 1),
                                             velocity=zeros(2, 1), mass=[structure_density],
                                             density=[structure_density], particle_spacing)
@@ -74,6 +82,8 @@
                                          clamped_particles, boundary_model)
             end
 
+            # TLS setup reports its deep copy; other setup logs, including warnings,
+            # are unexpected rather than being hidden by a null logger.
             semi = if structure_system isa TotalLagrangianSPHSystem
                 @test_logs (:info,
                             r"^To create the self-interaction neighborhood search of a `TotalLagrangianSPHSystem`") begin
@@ -88,6 +98,8 @@
             fluid, structure = ode.p.semi.systems
             v_ode, u_ode = ode.u0.x
             dv_ode = zero(v_ode)
+            # Run the normal RHS update sequence to populate boundary pressures,
+            # ghost velocities, and fluid correction/average-pressure caches.
             TrixiParticles.kick!(dv_ode, v_ode, u_ode, ode.p, 0.0)
             v_fluid = TrixiParticles.wrap_v(v_ode, fluid, semi)
             u_fluid = TrixiParticles.wrap_u(u_ode, fluid, semi)
@@ -97,6 +109,8 @@
             dv_fluid = zero(v_fluid)
             TrixiParticles.interact!(dv_fluid, v_fluid, u_fluid,
                                      v_structure, u_structure, fluid, structure, semi)
+            # Newton's third law uses the fluid particle's mass, regardless of the
+            # structure's material mass or how it stores its resultant force.
             expected_force = -fluid.mass[1] * dv_fluid[1:2, 1]
 
             if correction isa KernelCorrection ||
@@ -143,6 +157,7 @@
             end
 
             if structure isa RigidBodySystem
+                # kick! must carry the particle reaction through to the body resultant.
                 @test isapprox(structure.resultant_force[], expected_force;
                                rtol=sqrt(eps()), atol=sqrt(eps()))
             else
@@ -156,6 +171,7 @@
                                rtol=sqrt(eps()), atol=sqrt(eps()))
 
                 if structure_kind == :tlsph
+                    # An integrated particle must receive the same reaction in the full RHS.
                     dv_structure = TrixiParticles.wrap_v(dv_ode, structure, semi)
                     @test isapprox(structure.mass[1] * dv_structure[1:2, 1], expected_force;
                                    rtol=sqrt(eps()), atol=sqrt(eps()))
