@@ -28,12 +28,6 @@ end
     return free_surface_correction(system_correction(system), system, rho_a, rho_b)
 end
 
-@inline function skip_fluid_pair(system, distance, support, almostzero)
-    # Coincident particles can retain a finite corrected gradient; respect the
-    # correction's skip_zero_distance policy instead of discarding every such pair.
-    return distance > support || (skip_zero_distance(system) && distance < almostzero)
-end
-
 @inline function sum_interaction_contributions(a, b)
     # Reduce a momentum/force vector and density-rate scalar separately, preserving
     # their distinct meaning while avoiding per-neighbor writes to the RHS arrays.

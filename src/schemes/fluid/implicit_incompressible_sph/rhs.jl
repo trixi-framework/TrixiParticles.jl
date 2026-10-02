@@ -10,9 +10,10 @@ function interact!(dv, v_particle_system, u_particle_system,
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-    # Use the shared scheme policy before evaluating unsafe pair operators.
+    # All kernel interactions use the same relative squared-distance criterion.
     compact_support_ = compact_support(particle_system, neighbor_system)
-    almostzero = interaction_zero_distance(particle_system, neighbor_system)
+    h = initial_smoothing_length(particle_system)
+    zero_distance_squared = eps(typeof(h)) * h^2
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     foreach_point_neighbor(particle_system, neighbor_system,
@@ -23,7 +24,10 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                                                 distance
         # Skip neighbors with the same position because the kernel gradient is zero.
         # Note that `return` only exits the closure, i.e., skips the current neighbor.
-        skip_fluid_pair(particle_system, distance, compact_support_, almostzero) && return
+        if distance > compact_support_ ||
+           (skip_zero_distance(particle_system) && distance^2 < zero_distance_squared)
+            return
+        end
 
         # Now that we know that `distance` is not zero, we can safely call the unsafe
         # version of the kernel gradient to avoid redundant zero checks.
