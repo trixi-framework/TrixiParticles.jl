@@ -50,9 +50,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         p_a = @inbounds current_pressure(v_particle_system, particle_system, particle)
         # The following call is equivalent to
         #     `p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)`
-        # Only when the neighbor system is a `WallBoundarySystem`
-        # or a `TotalLagrangianSPHSystem` with the boundary model `PressureMirroring`,
-        # this will return `p_b = p_a`, which is the pressure of the fluid particle.
+        # For boundaries and structures using `PressureMirroring`, this returns
+        # `p_b = p_a`, which is the pressure of the fluid particle.
         p_b = @inbounds neighbor_pressure(v_neighbor_system, neighbor_system,
                                           neighbor, p_a)
 
