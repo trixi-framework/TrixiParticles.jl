@@ -70,16 +70,19 @@ function interact!(dv, v_particle_system, u_particle_system,
             p_b = @inbounds neighbor_pressure(v_neighbor_system, neighbor_system,
                                               neighbor, p_a)
 
-            dv_particle = @inbounds fluid_pair_acceleration(particle_system,
-                                                            neighbor_system,
-                                                            v_particle_system,
-                                                            v_neighbor_system,
-                                                            particle, neighbor,
-                                                            m_a, m_b, p_a, p_b, rho_a,
-                                                            rho_b,
-                                                            v_a, v_b, pos_diff, distance,
-                                                            sound_speed, grad_kernel,
-                                                            correction)
+            dv_particle = @inbounds physical_fluid_pair_acceleration(particle_system,
+                                                                     neighbor_system,
+                                                                     v_particle_system,
+                                                                     v_neighbor_system,
+                                                                     particle, neighbor,
+                                                                     m_a, m_b, p_a, p_b,
+                                                                     rho_a,
+                                                                     rho_b,
+                                                                     v_a, v_b, pos_diff,
+                                                                     distance,
+                                                                     sound_speed,
+                                                                     grad_kernel,
+                                                                     correction)
 
             # Extra terms in the momentum equation when using a shifting technique
             dv_particle = @inbounds add_dv_shifting(dv_particle,

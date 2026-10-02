@@ -1,4 +1,4 @@
-# Shared structure-fluid interaction helpers used by multiple structure schemes.
+# Structure-fluid coupling shared by TLSPH and rigid-body systems.
 function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
                                    v_neighbor_system, u_neighbor_system,
                                    particle_system,
@@ -65,14 +65,18 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
 
             # Fluid-first ordering preserves the actual fluid force, including the
             # approaching-particle condition of artificial viscosity.
-            dv_fluid = @inbounds fluid_pair_acceleration(neighbor_system, particle_system,
-                                                         v_neighbor_system,
-                                                         v_particle_system,
-                                                         neighbor, particle,
-                                                         m_b, m_a, p_b, p_a, rho_b, rho_a,
-                                                         v_b, v_a, -pos_diff, distance,
-                                                         sound_speed, grad_kernel_fluid,
-                                                         correction)
+            dv_fluid = @inbounds physical_fluid_pair_acceleration(neighbor_system,
+                                                                  particle_system,
+                                                                  v_neighbor_system,
+                                                                  v_particle_system,
+                                                                  neighbor, particle,
+                                                                  m_b, m_a, p_b, p_a, rho_b,
+                                                                  rho_a,
+                                                                  v_b, v_a, -pos_diff,
+                                                                  distance,
+                                                                  sound_speed,
+                                                                  grad_kernel_fluid,
+                                                                  correction)
 
             return -m_b * dv_fluid, drho_particle
         end

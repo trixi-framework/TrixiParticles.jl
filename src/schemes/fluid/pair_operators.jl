@@ -1,5 +1,5 @@
-# Shared fluid-side pair operators. Structure reactions use the same physical
-# acceleration, with fluid-first arguments, before converting acceleration to force.
+# Physical momentum pair operators shared by fluid RHSs and structure reactions.
+# Continuity, EDAC pressure evolution, and shifting transport are assembled separately.
 @propagate_inbounds function neighbor_pressure(v_neighbor_system, neighbor_system,
                                                neighbor, p_a)
     return current_pressure(v_neighbor_system, neighbor_system, neighbor)
@@ -44,12 +44,16 @@ end
     return dv_a + dv_b, drho_a + drho_b
 end
 
-@propagate_inbounds function fluid_pair_acceleration(particle_system, neighbor_system,
-                                                     v_particle_system, v_neighbor_system,
-                                                     particle, neighbor,
-                                                     m_a, m_b, p_a, p_b, rho_a, rho_b,
-                                                     v_a, v_b, pos_diff, distance,
-                                                     sound_speed, grad_kernel, correction)
+@propagate_inbounds function physical_fluid_pair_acceleration(particle_system,
+                                                              neighbor_system,
+                                                              v_particle_system,
+                                                              v_neighbor_system,
+                                                              particle, neighbor,
+                                                              m_a, m_b, p_a, p_b, rho_a,
+                                                              rho_b,
+                                                              v_a, v_b, pos_diff, distance,
+                                                              sound_speed, grad_kernel,
+                                                              correction)
     p_avg = average_pressure(particle_system, particle)
     viscosity_correction, pressure_correction,
     surface_tension_correction = interaction_force_correction(particle_system, rho_a, rho_b)
