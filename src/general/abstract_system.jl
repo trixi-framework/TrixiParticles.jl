@@ -139,29 +139,15 @@ end
     return skip_zero_distance(system_correction(system))
 end
 
-# Distances are compared with roundoff in squared coordinates. For a length scale
-# ell, use sqrt(eps(ell^2)), which differs from eps(ell). The scalar overload lets
-# operators retain an explicit scale, e.g. DEM radius or correction-search support.
-@inline function interaction_zero_distance(length_scale::Real)
-    return sqrt(eps(length_scale^2))
-end
-
-# Pair operators normally use the particle system's initial smoothing length.
-# Scheme-specific overrides select their own scale, so forward fluid interactions
-# and structure reactions share exactly the same near-zero tolerance.
-@inline function interaction_zero_distance(system, neighbor_system)
-    return interaction_zero_distance(initial_smoothing_length(system))
-end
-
 # Robust/safe version of the function below. In performance-critical code, manually check
 # the kernel support, call `skip_zero_distance` and then `smoothing_kernel_grad_unsafe`.
 @inline function smoothing_kernel_grad(system, pos_diff, distance, particle)
     h = smoothing_length(system, particle)
     compact_support_ = compact_support(system_smoothing_kernel(system), h)
 
-    # Note that `sqrt(eps(h^2)) != eps(h)`
+    # The same relative squared-distance criterion is used by the pair RHSs.
     if distance >= compact_support_ ||
-       (skip_zero_distance(system) && distance^2 < eps(h^2))
+       (skip_zero_distance(system) && distance^2 < eps(typeof(h)) * h^2)
         return zero(pos_diff)
     end
 

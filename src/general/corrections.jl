@@ -218,10 +218,10 @@ function compute_correction_values!(system,
 
             neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-            # Raw kernel-correction coefficients use the kernel context's scale,
-            # which can be a structure's boundary model rather than its elastic kernel.
+            # Apply the relative rule with the kernel context's h, which can belong
+            # to the hydrodynamic boundary model rather than the elastic structure.
             h = initial_smoothing_length(kernel_system)
-            almostzero = interaction_zero_distance(h)
+            zero_distance_squared = eps(typeof(h)) * h^2
 
             # Loop over all pairs of particles and neighbors within the kernel cutoff
             foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
@@ -237,7 +237,7 @@ function compute_correction_values!(system,
                 kernel_correction_coefficient[particle] += volume * W
 
                 # Only consider particles with a distance > 0.
-                if distance > almostzero
+                if distance^2 >= zero_distance_squared
                     # A structure reaction search can extend beyond the boundary
                     # kernel, so enforce the kernel's own support here.
                     grad_W = kernel_grad(system_smoothing_kernel(kernel_system), pos_diff,
@@ -381,14 +381,15 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
             end
 
             neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
-            # Gradient-matrix assembly retains its search-support scale for all systems.
-            almostzero = interaction_zero_distance(compact_support(system, neighbor_system))
+            h = initial_smoothing_length(kernel_system)
+            zero_distance_squared = eps(typeof(h)) * h^2
 
             foreach_point_neighbor(system, neighbor_system, coordinates, neighbor_coords,
                                    semi) do particle, neighbor, pos_diff, distance
                 # Skip neighbors with the same position if the kernel gradient is zero.
                 # Note that `return` only exits the closure, i.e., skips the current neighbor.
-                skip_zero_distance(correction) && distance < almostzero && return
+                skip_zero_distance(correction) && distance^2 < zero_distance_squared &&
+                    return
 
                 # Now that we know that `distance` is not zero, we can safely call the unsafe
                 # version of the kernel gradient to avoid redundant zero checks.

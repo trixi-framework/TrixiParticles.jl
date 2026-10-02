@@ -6,9 +6,9 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-    # DEM has no smoothing length: retain the maximum particle radius as its scale.
+    # DEM has no kernel h; apply the same relative criterion to the particle radius.
     r = maximum(particle_system.radius)
-    almostzero = interaction_zero_distance(r)
+    zero_distance_squared = eps(typeof(r)) * r^2
 
     foreach_point_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
                            semi;
@@ -16,7 +16,7 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
                                                                                 neighbor,
                                                                                 pos_diff,
                                                                                 distance
-        distance < almostzero && return
+        distance^2 < zero_distance_squared && return
 
         # Retrieve particle properties
         m_a = particle_system.mass[particle]

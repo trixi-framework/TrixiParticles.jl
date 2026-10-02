@@ -5,15 +5,16 @@ function interact!(dv, v_particle_system, u_particle_system,
     system_coords = current_coordinates(u_particle_system, system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-    # Packing uses the shared smoothing-length tolerance before its unsafe gradient.
-    almostzero = interaction_zero_distance(system, neighbor_system)
+    # Packing uses the same relative kernel-distance criterion.
+    h = initial_smoothing_length(system)
+    zero_distance_squared = eps(typeof(h)) * h^2
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
                            semi) do particle, neighbor, pos_diff, distance
         # Skip neighbors with the same position because the kernel gradient is zero.
         # Note that `return` only exits the closure, i.e., skips the current neighbor.
-        skip_zero_distance(system) && distance < almostzero && return
+        skip_zero_distance(system) && distance^2 < zero_distance_squared && return
 
         # Now that we know that `distance` is not zero, we can safely call the unsafe
         # version of the kernel gradient to avoid redundant zero checks.
