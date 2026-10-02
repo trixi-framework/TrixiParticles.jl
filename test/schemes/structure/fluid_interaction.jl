@@ -1,5 +1,3 @@
-using Logging: NullLogger, with_logger
-
 @testset verbose=true "Structure-fluid force balance" begin
     particle_spacing = 1.0
     smoothing_kernel = SchoenbergCubicSplineKernel{2}()
@@ -76,9 +74,15 @@ using Logging: NullLogger, with_logger
                                          clamped_particles, boundary_model)
             end
 
-            semi = with_logger(NullLogger()) do
-                Semidiscretization(fluid_system, structure_system;
-                                   parallelization_backend=SerialBackend())
+            semi = if structure_system isa TotalLagrangianSPHSystem
+                @test_logs (:info,
+                            r"^To create the self-interaction neighborhood search of a `TotalLagrangianSPHSystem`") begin
+                    Semidiscretization(fluid_system, structure_system;
+                                       parallelization_backend=SerialBackend())
+                end
+            else
+                @test_logs Semidiscretization(fluid_system, structure_system;
+                                              parallelization_backend=SerialBackend())
             end
             ode = semidiscretize(semi, (0.0, 0.01); reset_threads=false)
             fluid, structure = ode.p.semi.systems
