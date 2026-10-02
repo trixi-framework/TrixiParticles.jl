@@ -8,6 +8,8 @@ export structure_fluid_pair_state
 # Prescribed pair states isolate interaction operators from density/pressure updates.
 function structure_fluid_pair_state(; fluid_scheme=:wcsph, structure_kind=:tlsph,
                                     fluid_options=(;),
+                                    boundary_viscosity=get(fluid_options, :viscosity,
+                                                           nothing),
                                     boundary_density=AdamiPressureExtrapolation(),
                                     distance=1.5, dimensions=2,
                                     boundary_smoothing_length=1.0,
@@ -49,7 +51,6 @@ function structure_fluid_pair_state(; fluid_scheme=:wcsph, structure_kind=:tlsph
                                     mass=2100.0 .+ 300.0 .* (0:(n - 1)),
                                     density=fill(2000.0, n),
                                     particle_spacing)
-    viscosity = get(fluid_options, :viscosity, nothing)
     hydrodynamic_mass = 700.0 .+ 50.0 .* (0:(n - 1))
     boundary_model = monaghan_kajtar ?
                      BoundaryModelMonaghanKajtar(10.0, 1.0, particle_spacing,
@@ -57,7 +58,8 @@ function structure_fluid_pair_state(; fluid_scheme=:wcsph, structure_kind=:tlsph
                      BoundaryModelDummyParticles(fill(950.0, n), hydrodynamic_mass,
                                                  boundary_density, smoothing_kernel,
                                                  boundary_smoothing_length;
-                                                 state_equation, viscosity,
+                                                 state_equation,
+                                                 viscosity=boundary_viscosity,
                                                  correction=boundary_correction,
                                                  reference_particle_spacing=1.0)
     structure = if structure_kind == :rigid
@@ -84,7 +86,7 @@ function structure_fluid_pair_state(; fluid_scheme=:wcsph, structure_kind=:tlsph
     TrixiParticles.current_pressure(v_fluid, fluid) .= 500.0
     if !monaghan_kajtar
         structure.boundary_model.pressure .= 230.0
-        !isnothing(viscosity) &&
+        !isnothing(boundary_viscosity) &&
             (structure.boundary_model.cache.wall_velocity .= 2 .* structure_velocity .-
                                                              velocity)
     end

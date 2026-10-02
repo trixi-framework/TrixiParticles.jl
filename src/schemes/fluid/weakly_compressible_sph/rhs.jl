@@ -11,9 +11,6 @@ function interact!(dv, v_particle_system, u_particle_system,
 
     sound_speed = system_sound_speed(particle_system)
 
-    surface_tension_a = surface_tension_model(particle_system)
-    surface_tension_b = surface_tension_model(neighbor_system)
-
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
     neighborhood_search = get_neighborhood_search(particle_system, neighbor_system, semi)
@@ -25,7 +22,7 @@ function interact!(dv, v_particle_system, u_particle_system,
     # the order of `c^2`, so we need to check `distance < sqrt(eps(c^2))`.
     # Note that `sqrt(eps(c^2)) != eps(c)`.
     compact_support_ = compact_support(particle_system, neighbor_system)
-    almostzero = sqrt(eps(compact_support_^2))
+    almostzero = interaction_zero_distance(particle_system, neighbor_system)
 
     @threaded semi for particle in eachparticle
         # We are looping over the particles of `particle_system`, so it is guaranteed
@@ -38,18 +35,14 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         # Accumulate the RHS contributions over all neighbors before writing to `dv`,
         # to reduce the number of memory writes.
-        @inline function dv_drho_sum(a, b)
-            dv_a, drho_a = a
-            dv_b, drho_b = b
-            return dv_a + dv_b, drho_a + drho_b
-        end
         init = (zero(v_a), zero(rho_a))
 
         # Loop over all neighbors within the kernel cutoff.
         # Make sure that the returned names `dv_particle_` and `drho_particle_`
         # are not used inside the closure to avoid allocations.
         (dv_particle_,
-         drho_particle_) = @inbounds mapreduce_neighbor(dv_drho_sum, system_coords,
+         drho_particle_) = @inbounds mapreduce_neighbor(sum_interaction_contributions,
+                                                        system_coords,
                                                         neighbor_system_coords,
                                                         neighborhood_search,
                                                         backend, particle;
@@ -57,7 +50,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                                  pos_diff, distance
             # Skip neighbors with the same position because the kernel gradient is zero.
             # Note that `return` only exits the closure, i.e., skips the current neighbor.
-            skip_zero_distance(particle_system) && distance < almostzero && return init
+            skip_fluid_pair(particle_system, distance, compact_support_, almostzero) &&
+                return init
 
             # Now that we know that `distance` is not zero, we can safely call the unsafe
             # version of the kernel gradient to avoid redundant zero checks.
@@ -76,29 +70,16 @@ function interact!(dv, v_particle_system, u_particle_system,
             p_b = @inbounds neighbor_pressure(v_neighbor_system, neighbor_system,
                                               neighbor, p_a)
 
-            # Determine correction factors.
-            # This can usually be ignored, as these are all 1 when no correction is used.
-            (viscosity_correction, pressure_correction,
-             surface_tension_correction) = free_surface_correction(correction,
-                                                                   particle_system,
-                                                                   rho_a, rho_b)
-
-            # For `ContinuityDensity` without correction, this is equivalent to
-            # dv_pressure = -m_b * (p_a + p_b) / (rho_a * rho_b) * grad_kernel
-            dv_pressure = pressure_acceleration(particle_system, neighbor_system,
-                                                particle, neighbor,
-                                                m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
-                                                distance, grad_kernel, correction)
-            dv_particle = dv_pressure * pressure_correction
-
-            # Propagate `@inbounds` to the viscosity function, which accesses particle data
-            dv_particle = @inbounds add_dv_viscosity(dv_particle, particle_system,
-                                                     neighbor_system,
-                                                     v_particle_system, v_neighbor_system,
-                                                     particle, neighbor, pos_diff, distance,
-                                                     sound_speed, m_a, m_b, rho_a, rho_b,
-                                                     v_a, v_b, grad_kernel,
-                                                     viscosity_correction)
+            dv_particle = @inbounds fluid_pair_acceleration(particle_system,
+                                                            neighbor_system,
+                                                            v_particle_system,
+                                                            v_neighbor_system,
+                                                            particle, neighbor,
+                                                            m_a, m_b, p_a, p_b, rho_a,
+                                                            rho_b,
+                                                            v_a, v_b, pos_diff, distance,
+                                                            sound_speed, grad_kernel,
+                                                            correction)
 
             # Extra terms in the momentum equation when using a shifting technique
             dv_particle = @inbounds add_dv_shifting(dv_particle,
@@ -108,20 +89,6 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                     particle, neighbor, m_a, m_b, rho_a,
                                                     rho_b, v_a, v_b, pos_diff, distance,
                                                     grad_kernel, correction)
-
-            dv_particle = @inbounds add_dv_surface_tension(dv_particle,
-                                                           surface_tension_a,
-                                                           surface_tension_b,
-                                                           particle_system,
-                                                           neighbor_system,
-                                                           particle, neighbor,
-                                                           pos_diff, distance,
-                                                           rho_a, rho_b, grad_kernel,
-                                                           surface_tension_correction)
-
-            dv_particle = @inbounds add_dv_adhesion(dv_particle, surface_tension_a,
-                                                    particle_system, neighbor_system,
-                                                    particle, neighbor, pos_diff, distance)
 
             drho_particle = zero(rho_a)
 
@@ -146,17 +113,4 @@ function interact!(dv, v_particle_system, u_particle_system,
     end
 
     return dv
-end
-
-@propagate_inbounds function neighbor_pressure(v_neighbor_system, neighbor_system,
-                                               neighbor, p_a)
-    return current_pressure(v_neighbor_system, neighbor_system, neighbor)
-end
-
-@inline function neighbor_pressure(v_neighbor_system,
-                                   neighbor_system::Union{WallBoundarySystem{<:BoundaryModelDummyParticles{PressureMirroring}},
-                                                          TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{PressureMirroring}},
-                                                          RigidBodySystem{<:BoundaryModelDummyParticles{PressureMirroring}}},
-                                   neighbor, p_a)
-    return p_a
 end
