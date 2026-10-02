@@ -46,8 +46,10 @@ using .FSIPairFixtures: structure_fluid_pair_state
     # Density survives fluid pair skips, but never extends beyond its own kernel.
     # The cases isolate: fluid near-zero skip with finite boundary gradient;
     # a pair outside fluid support but inside boundary support; and the reverse.
-    # At h=1, r=2e-8 lies between the boundary's ~1.49e-8 and WCSPH's ~2.98e-8 cutoffs.
-    for (h, distance) in ((1.0, 2.0e-8), (2.0, 2.5), (0.5, 1.5))
+    # The rule is uniformly r^2 < eps(Float64)*h^2. Boundary h=0.5 retains r=1e-8
+    # while fluid h=1 skips it. At equal h=1, r=2e-8 is now retained on both sides,
+    # exposing the former support-scaled WCSPH skip without a density/force mismatch.
+    for (h, distance) in ((0.5, 1.0e-8), (1.0, 2.0e-8), (2.0, 2.5), (0.5, 1.5))
         state = structure_fluid_pair_state(; structure_kind=:rigid, distance,
                                            boundary_density=ContinuityDensity(),
                                            boundary_smoothing_length=h)
@@ -58,6 +60,6 @@ using .FSIPairFixtures: structure_fluid_pair_state
                      (q < 1 ? -3q + 2.25q^2 : -0.75 * (2 - q)^2) * 10 / (7pi * h^3)
         # The pair lies on the x-axis, so only v_sx-v_fx=-0.75 enters boundary continuity.
         @test dv_structure[end, 1] ≈ 950.0 / 1005.0 * 1100.0 * (-0.75) * derivative
-        @test iszero(force) == (distance < 3.0e-8 || distance > 2)
+        @test iszero(force) == (distance^2 < eps(Float64) || distance > 2)
     end
 end

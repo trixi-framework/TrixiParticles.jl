@@ -12,12 +12,6 @@
     return free_surface_correction(system_correction(system), system, rho_a, rho_b)
 end
 
-@inline function skip_fluid_pair(system, distance, support, almostzero)
-    # Corrected kernels can have a finite, nonzero gradient at coincident particles.
-    # Honor their skip_zero_distance policy instead of dropping all zero-distance pairs.
-    return distance > support || (skip_zero_distance(system) && distance < almostzero)
-end
-
 @inline function sum_interaction_contributions(a, b)
     # Reduce a vector momentum/force contribution and a scalar density rate together
     # without packing quantities with different meanings into one static vector.
@@ -93,10 +87,11 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
     neighborhood_search = get_neighborhood_search(particle_system, neighbor_system, semi)
     backend = semi.parallelization_backend
 
-    # The reverse search may expose a different neighbor set. Limit the reaction
-    # operator to the same support and near-zero predicate used by the fluid RHS.
+    # Match the fluid's support and its uniform h-relative squared-distance rule.
+    # The support factor does not enter the near-zero criterion.
     compact_support_ = compact_support(neighbor_system, particle_system)
-    almostzero = interaction_zero_distance(neighbor_system, particle_system)
+    h = initial_smoothing_length(neighbor_system)
+    zero_distance_squared = eps(typeof(h)) * h^2
 
     # Each task owns one structural particle. Neighbor contributions remain local
     # until reduction, so force_per_particle and dv need no per-pair atomic updates.
@@ -141,7 +136,8 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
             # The reaction search covers both supports, but only pairs accepted by
             # the fluid contribute momentum. Preserve the density rate on early exit
             # instead of returning init, which would discard a valid boundary update.
-            if skip_fluid_pair(neighbor_system, distance, compact_support_, almostzero)
+            if distance > compact_support_ ||
+               (skip_zero_distance(neighbor_system) && distance^2 < zero_distance_squared)
                 return zero(v_a), drho_particle
             end
 

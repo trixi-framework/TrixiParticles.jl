@@ -525,8 +525,9 @@ end
 @inline function calc_deformation_grad!(deformation_grad, system, semi)
     (; mass, material_density) = system
 
-    # Use the same TLSPH tolerance as elastic self-interaction in the RHS.
-    almostzero = interaction_zero_distance(system, system)
+    # Match the squared-distance criterion used by elastic self-interaction.
+    h = initial_smoothing_length(system)
+    zero_distance_squared = eps(typeof(h)) * h^2
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     initial_coords = initial_coordinates(system)
@@ -550,7 +551,8 @@ end
 
             # Skip neighbors with the same position because the kernel gradient is zero.
             # Note that `return` only exits the closure, i.e., skips the current neighbor.
-            skip_zero_distance(system) && initial_distance < almostzero && return zero(L_a)
+            skip_zero_distance(system) && initial_distance^2 < zero_distance_squared &&
+                return zero(L_a)
 
             # Now that we know that `distance` is not zero, we can safely call the unsafe
             # version of the kernel gradient to avoid redundant zero checks.

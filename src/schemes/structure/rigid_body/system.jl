@@ -293,7 +293,8 @@ end
     (; adhesion_coefficient) = neighbor_system
 
     # No adhesion with oneself. See `src/general/smoothing_kernels.jl` for more details.
-    distance^2 < eps(initial_smoothing_length(particle_system)^2) && return dv_particle
+    h = initial_smoothing_length(particle_system)
+    distance^2 < eps(typeof(h)) * h^2 && return dv_particle
 
     abs(adhesion_coefficient) < eps() && return dv_particle
 
