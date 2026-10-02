@@ -14,11 +14,9 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Important Bugfixes
 
-- Corrected hydrodynamic reaction forces on TLSPH and rigid-body systems, including
-  asymmetric kernel gradients, unequal fluid/boundary supports, and artificial
-  viscosity. Structural loads now exclude shifting transport corrections. Fixed
-  pressure mirroring for structures and EDAC walls, hydrodynamic boundary-kernel
-  evaluation, and double-counted Monaghan-Kajtar repulsion with TVF (#1338).
+- Corrected pressure and viscous reaction forces on TLSPH and rigid-body systems,
+  including asymmetric fluid gradients, free-surface factors, EDAC pressure
+  reduction, and the approaching-particle condition for artificial viscosity (#1338).
 - Fixed the sign of the quadratic term in `ArtificialViscosityMonaghan` (#1295).
 - Fixed mathematical inconsistencies in the SPH documentation, including incorrect
   formulas, inconsistent force-vs-acceleration notation, and wrong LaTeX text-mode
@@ -57,6 +55,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Fixed Bernoulli pressure extrapolation for moving wall boundaries and wall boundary
   restarts with `ContinuityDensity` (#1201).
 - Fixed `StepsizeCallback` for inviscid simulations (#1244).
+- Fixed unnecessary right-hand-side evaluations after state-mutating callbacks when using
+  `SymplecticPositionVerlet` (#1264).
 
 ## Version 0.5.2
 

@@ -113,41 +113,6 @@ end
     return ndims(boundary_model.smoothing_kernel)
 end
 
-# A structure's hydrodynamic kernel uses the boundary model as its correction
-# context, independently of the structure's elastic kernel and correction matrix.
-@inline system_correction(model::BoundaryModelDummyParticles) = model.correction
-@inline skip_zero_distance(model::BoundaryModelDummyParticles) = skip_zero_distance(model.correction)
-
-@propagate_inbounds function kernel_correction_coefficient(model::BoundaryModelDummyParticles,
-                                                           particle)
-    return model.cache.kernel_correction_coefficient[particle]
-end
-
-@propagate_inbounds function dw_gamma(model::BoundaryModelDummyParticles, particle)
-    return extract_svector(model.cache.dw_gamma, Val(ndims(model)), particle)
-end
-
-@propagate_inbounds function correction_matrix(model::BoundaryModelDummyParticles, particle)
-    return extract_smatrix(model.cache.correction_matrix, Val(ndims(model)), particle)
-end
-
-@inline function correction_kernel_grad(correction, smoothing_kernel, pos_diff, distance,
-                                        smoothing_length_,
-                                        model::BoundaryModelDummyParticles,
-                                        particle)
-    # Assemble from the raw boundary gradient, never from its uninitialized or
-    # previous gradient-correction matrix.
-    return kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length_)
-end
-
-@inline function correction_kernel_grad(::MixedKernelGradientCorrection, smoothing_kernel,
-                                        pos_diff, distance, smoothing_length_,
-                                        model::BoundaryModelDummyParticles, particle)
-    return corrected_kernel_grad_unsafe(smoothing_kernel, pos_diff, distance,
-                                        smoothing_length_, KernelCorrection(), model,
-                                        particle)
-end
-
 @inline function clip_negative_pressure(::BoundaryModelDummyParticles{<:Any, <:Any, CLIP}) where {CLIP}
     return CLIP
 end

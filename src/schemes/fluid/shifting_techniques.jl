@@ -609,12 +609,10 @@ end
     # With the most common pressure acceleration formulation, this is
     #   m_b * (A_a + A_b) / (ρ_a * ρ_b) * ∇W_ab.
     # In order to obtain this, we pass `p_a = A_a` and `p_b = A_b` to the
-    # inter-particle pressure operator, bypassing physical boundary repulsion.
-    dv_particle += pressure_acceleration_interparticle(system, neighbor_system, particle,
-                                                       neighbor,
-                                                       m_a, m_b, A_a, A_b, rho_a, rho_b,
-                                                       pos_diff, distance, grad_kernel,
-                                                       correction)
+    # `pressure_acceleration` function.
+    dv_particle += pressure_acceleration(system, neighbor_system, particle, neighbor,
+                                         m_a, m_b, A_a, A_b, rho_a, rho_b,
+                                         pos_diff, distance, grad_kernel, correction)
 
     return dv_particle
 end
@@ -639,6 +637,13 @@ end
 
 function update_shifting!(system, shifting::TransportVelocityAdami, v, u, v_ode,
                           u_ode, semi)
+    @trixi_timeit timer() "update shifting" begin
+        update_shifting_inner!(system, shifting, v, u, v_ode, u_ode, semi)
+    end
+end
+
+function update_shifting_inner!(system, shifting::TransportVelocityAdami,
+                                v, u, v_ode, u_ode, semi)
     (; delta_v) = system.cache
     (; background_pressure) = shifting
 
@@ -688,7 +693,7 @@ function update_shifting!(system, shifting::TransportVelocityAdami, v, u, v_ode,
             #   m_b * (p_a / ρ_a^2 + p_b / ρ_b^2) * ∇W_ab
             # is used. They consequently changed the shifting velocity to
             #   δv = -Δt/2 * p_0 * \sum_b[ m_b * (1 / ρ_a^2 + 1 / ρ_b^2) * ∇W_ab ].
-            # We therefore use the inter-particle pressure operator to compute the
+            # We therefore use the function `pressure_acceleration` to compute the
             # shifting velocity according to the used pressure acceleration formulation.
             # In most cases, this will be
             #   δv = -Δt/2 * p_0 * \sum_b[ m_b * (1 + 1) / (ρ_a * ρ_b) * ∇W_ab ].
@@ -706,14 +711,12 @@ function update_shifting!(system, shifting::TransportVelocityAdami, v, u, v_ode,
             # Applying this equation as equality yields the shifting velocity
             #   δv = -p_0 / 8 * h / c * \sum_b[ m_b * (1 + 1) / (ρ_a * ρ_b) * ∇W_ab ].
             # The last part is achieved by passing `p_a = 1` and `p_b = 1` to the
-            # inter-particle pressure operator, bypassing physical boundary repulsion.
+            # `pressure_acceleration` function.
             delta_v_ = background_pressure / 8 * h / sound_speed *
-                       pressure_acceleration_interparticle(system, neighbor_system,
-                                                           particle, neighbor,
-                                                           m_a, m_b, 1, 1, rho_a, rho_b,
-                                                           pos_diff,
-                                                           distance, grad_kernel,
-                                                           system_correction(system))
+                       pressure_acceleration(system, neighbor_system, particle, neighbor,
+                                             m_a, m_b, 1, 1, rho_a, rho_b, pos_diff,
+                                             distance, grad_kernel,
+                                             system_correction(system))
 
             # Write into the buffer
             for i in eachindex(delta_v_)

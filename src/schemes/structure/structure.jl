@@ -20,46 +20,65 @@ end
     return dv
 end
 
-@inline function hydrodynamic_kernel_grad(system::Union{TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles},
-                                                        RigidBodySystem{<:BoundaryModelDummyParticles}},
-                                          pos_diff, distance, particle)
-    return smoothing_kernel_grad(system.boundary_model, pos_diff, distance, particle)
+@inline average_pressure(system, particle) = zero(eltype(system))
+
+@inline interaction_force_correction(system, rho_a, rho_b) = (1, 1, 1)
+
+@inline function interaction_force_correction(system::WeaklyCompressibleSPHSystem,
+                                              rho_a, rho_b)
+    return free_surface_correction(system_correction(system), system, rho_a, rho_b)
 end
 
-# Populate hydrodynamic correction caches in the boundary-model context. TLSPH's
-# elastic correction matrix and smoothing length belong to self-interaction only.
-function compute_correction_values!(system::Union{TotalLagrangianSPHSystem,
-                                                  RigidBodySystem},
-                                    ::ShepardKernelCorrection, u, v_ode, u_ode, semi)
-    model = system.boundary_model
-    return compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode,
-                                  semi, model.cache.kernel_correction_coefficient;
-                                  kernel_system=model)
+@inline function interaction_zero_distance(system, neighbor_system)
+    return sqrt(eps(initial_smoothing_length(system)^2))
 end
 
-function compute_correction_values!(system::Union{TotalLagrangianSPHSystem,
-                                                  RigidBodySystem},
-                                    correction::Union{KernelCorrection,
-                                                      MixedKernelGradientCorrection},
-                                    u, v_ode, u_ode, semi)
-    model = system.boundary_model
-    return compute_correction_values!(system, correction, current_coordinates(u, system),
-                                      v_ode, u_ode, semi,
-                                      model.cache.kernel_correction_coefficient,
-                                      model.cache.dw_gamma; kernel_system=model)
+@inline function interaction_zero_distance(system::WeaklyCompressibleSPHSystem,
+                                           neighbor_system)
+    return sqrt(eps(compact_support(system, neighbor_system)^2))
 end
 
-function compute_gradient_correction_matrix!(correction::Union{GradientCorrection,
-                                                               BlendedGradientCorrection,
-                                                               MixedKernelGradientCorrection},
-                                             model::BoundaryModelDummyParticles,
-                                             system::Union{TotalLagrangianSPHSystem,
-                                                           RigidBodySystem},
-                                             u, v_ode, u_ode, semi)
-    return compute_gradient_correction_matrix!(model.cache.correction_matrix, system,
-                                               current_coordinates(u, system),
-                                               v_ode, u_ode, semi, correction,
-                                               model.smoothing_kernel; kernel_system=model)
+@inline function skip_fluid_pair(system, distance, support, almostzero)
+    return distance > support || (skip_zero_distance(system) && distance < almostzero)
+end
+
+@inline function sum_interaction_contributions(a, b)
+    dv_a, drho_a = a
+    dv_b, drho_b = b
+    return dv_a + dv_b, drho_a + drho_b
+end
+
+# Evaluate physical acceleration in fluid-first order. Shifting transport terms
+# are not interfacial traction and do not contribute to the structural load.
+@propagate_inbounds function fluid_pair_acceleration(particle_system, neighbor_system,
+                                                     v_particle_system, v_neighbor_system,
+                                                     particle, neighbor,
+                                                     m_a, m_b, p_a, p_b, rho_a, rho_b,
+                                                     v_a, v_b, pos_diff, distance,
+                                                     sound_speed, grad_kernel, correction)
+    p_avg = average_pressure(particle_system, particle)
+    viscosity_correction, pressure_correction,
+    surface_tension_correction = interaction_force_correction(particle_system, rho_a, rho_b)
+    dv_pressure = pressure_acceleration(particle_system, neighbor_system,
+                                        particle, neighbor, m_a, m_b,
+                                        p_a - p_avg, p_b - p_avg, rho_a, rho_b,
+                                        pos_diff, distance, grad_kernel, correction)
+    dv_particle = dv_pressure * pressure_correction
+    dv_particle = add_dv_viscosity(dv_particle, particle_system, neighbor_system,
+                                   v_particle_system, v_neighbor_system,
+                                   particle, neighbor, pos_diff, distance, sound_speed,
+                                   m_a, m_b, rho_a, rho_b, v_a, v_b, grad_kernel,
+                                   viscosity_correction)
+    surface_tension_a = surface_tension_model(particle_system)
+    surface_tension_b = surface_tension_model(neighbor_system)
+    dv_particle = add_dv_surface_tension(dv_particle, surface_tension_a, surface_tension_b,
+                                         particle_system, neighbor_system, particle,
+                                         neighbor,
+                                         pos_diff, distance, rho_a, rho_b, grad_kernel,
+                                         surface_tension_correction)
+    return add_dv_adhesion(dv_particle, surface_tension_a,
+                           particle_system, neighbor_system, particle, neighbor,
+                           pos_diff, distance)
 end
 
 function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
@@ -104,18 +123,15 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
             rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
             v_b = @inbounds current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
-            # Boundary density has its own kernel support and zero-distance check.
+            skip_fluid_pair(neighbor_system, distance, compact_support_, almostzero) &&
+                return init
+
             drho_particle = @inbounds add_continuity_equation(zero(rho_a),
                                                               particle_system,
                                                               neighbor_system,
                                                               particle, neighbor, pos_diff,
                                                               distance, m_b, rho_a, rho_b,
                                                               v_a, v_b)
-
-            # Apply the fluid-side cutoffs only to physical momentum contributions.
-            if skip_fluid_pair(neighbor_system, distance, compact_support_, almostzero)
-                return zero(v_a), drho_particle
-            end
 
             # Corrected gradients need not be odd; evaluate the fluid-side gradient.
             grad_kernel_fluid = smoothing_kernel_grad_unsafe(neighbor_system, -pos_diff,
@@ -162,9 +178,9 @@ end
                                          neighbor_system::AbstractFluidSystem,
                                          particle, neighbor, pos_diff, distance,
                                          m_b, rho_a, rho_b, v_a, v_b)
-    # Density evolves with the boundary's own kernel and correction, not with the
-    # neighboring fluid's corrected gradient evaluated in the opposite direction.
-    grad_kernel = hydrodynamic_kernel_grad(particle_system, pos_diff, distance, particle)
+    # Boundary density retains its existing structure-first gradient.
+    grad_kernel = smoothing_kernel_grad_unsafe(neighbor_system, pos_diff, distance,
+                                               neighbor)
 
     return add_continuity_equation(drho_particle,
                                    density_calculator(neighbor_system),
