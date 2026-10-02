@@ -376,45 +376,21 @@ Pages = [joinpath("schemes", "boundary", "open_boundary", "pressure_model.jl")]
 ## [Non-reflecting outlet](@id impedance_outlet)
 
 This section explains the idea behind [`ImpedanceOutletPressure`](@ref).
-No background in fluid dynamics is required.
-
-### The problem: what should happen at the end of the domain?
-
-Many simulations only cover a piece of a much longer geometry.
-For example, we simulate the flow through a channel of length ``L``,
-but we think of the channel as continuing far beyond ``x = L``.
-At the outlet ``x = L``, we have to choose a boundary condition.
-Ideally, it should make the outlet *invisible*:
-everything that reaches the outlet should simply leave the domain, as it would in the
-infinitely long channel.
-
-The difficulty is that the fluid is (weakly) compressible.
-Small disturbances of the pressure ``p`` and of the velocity ``u`` in flow direction
-travel through the fluid as waves with the speed of sound ``c``.
-A sudden change of the flow, for example a vortex shed by an obstacle, sends such waves
-in both directions.
+This model sets the outlet pressure from the mean outflow velocity through a prescribed outlet impedance. Matching this impedance to the characteristic impedance ``\rho_0 c`` of the fluid gives a non-reflecting pressure outlet.
+With ``u_{\text{ref}}`` equal to the actual mean outflow velocity, this is the non-reflecting counterpart of prescribing a constant pressure ``p = p_{\text{ref}}``.
 
 ### Waves in one dimension
 
-Consider small deviations ``p'`` and ``u'`` from a uniform flow,
-averaged over the cross section of the channel, so that they only depend on ``x`` and ``t``.
-They approximately satisfy the linear system
+Consider small deviations ``p'`` and ``u'`` from a uniform flow with density ``\rho_0``
+and mean velocity ``U``, averaged over the cross section of the channel,
+so that they only depend on ``x`` and ``t``.
+A well-known property of the one-dimensional Euler equations is that such small deviations
+travel as two sound waves along the characteristics of the equations.
+These waves are described by the quantities ``w_\pm = p' \pm \rho_0 c \, u'``,
+the linearized Riemann invariants, where ``c`` is the speed of sound.
+They are transported with the speeds ``U \pm c``:
 ```math
-\frac{\partial p'}{\partial t} + U \frac{\partial p'}{\partial x} + \rho_0 c^2 \frac{\partial u'}{\partial x} = 0,
-\qquad
-\frac{\partial u'}{\partial t} + U \frac{\partial u'}{\partial x} + \frac{1}{\rho_0} \frac{\partial p'}{\partial x} = 0,
-```
-where ``\rho_0`` is the density of the fluid and ``U`` the mean flow velocity.
-This is the one-dimensional wave equation written as a first-order system.
-It decouples into two transport equations when we use the variables
-```math
-w_+ = p' + \rho_0 c \, u', \qquad w_- = p' - \rho_0 c \, u'.
-```
-Adding ``\rho_0 c`` times the second equation to the first equation, or subtracting it, gives
-```math
-\frac{\partial w_+}{\partial t} + (U + c) \frac{\partial w_+}{\partial x} = 0,
-\qquad
-\frac{\partial w_-}{\partial t} + (U - c) \frac{\partial w_-}{\partial x} = 0.
+\frac{\partial w_\pm}{\partial t} + (U \pm c) \frac{\partial w_\pm}{\partial x} = 0.
 ```
 In weakly compressible SPH, ``U`` is much smaller than ``c``.
 So ``w_+`` is a wave that moves downstream (towards the outlet) and ``w_-`` is a wave
@@ -424,7 +400,7 @@ At the outlet, ``w_+`` arrives from inside the domain, so it is determined by th
 solution inside the domain.
 In contrast, ``w_-`` enters the domain from the outside, so it is the one quantity that
 the boundary condition has to provide.
-In the infinitely long channel, nothing comes back from beyond ``x = L``.
+In an infinitely long channel, nothing comes back from beyond ``x = L``.
 The correct boundary condition is therefore
 ```math
 w_- = 0 \quad \Leftrightarrow \quad p' = \rho_0 c \, u' \quad \text{at } x = L.
@@ -476,6 +452,8 @@ and ``Z = \rho_0 c`` is the only choice without reflection (``R = 0``).
   Since ``Z`` is large (for water-like fluid with ``\rho_0 = 1000`` and ``c = 15``,
   ``Z = 15000``), even ``\delta = 0.01`` shifts the pressure by ``150``.
   The pressure level still does not drift, it just settles at a different value.
+  At mean pressure ``p_{\text{mean}} \gg 0`` or ``p_{\text{mean}} \ll 0``,
+  the implemented SPH methods become numerically unstable.
 - **Only the mean velocity is used.**
   The velocity usually varies across the outlet (for example in the wake behind an obstacle).
   Applying ``p' = Z u'`` to each particle would turn these variations into large pressure

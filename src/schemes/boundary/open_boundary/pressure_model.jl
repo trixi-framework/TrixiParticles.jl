@@ -126,7 +126,7 @@ end
 
 Pressure model for an outlet [`BoundaryZone`](@ref) that lets waves leave the domain
 without reflecting them back, while keeping the pressure level fixed.
-See [Non-reflecting outlet](@ref impedance_outlet) for a step-by-step explanation.
+See [Non-reflecting outlet](@ref impedance_outlet) for more details.
 
 In every time step, the pressure in the boundary zone is set to
 ```math
@@ -134,17 +134,18 @@ p = p_{\text{ref}} + Z \left( \bar{u} - u_{\text{ref}} \right),
 ```
 where ``\bar{u} = Q / A`` is the mean outflow velocity, that is, the volumetric
 flow rate ``Q`` out of the domain divided by the area ``A`` of the boundary face.
+
+With the impedance ``Z = \rho_0 c``, where ``\rho_0`` is the reference density and
+``c`` is the speed of sound of the fluid, sound waves leave the domain without reflection.
 When the fluid leaves the domain with the expected velocity ``u_{\text{ref}}``,
 the pressure is ``p_{\text{ref}}``.
 When it leaves faster, the pressure is increased, which slows it down, and vice versa.
-With the impedance ``Z = \rho_0 c``, where ``\rho_0`` is the reference density and
-``c`` is the speed of sound of the fluid, this is exactly the relation between pressure
-and velocity in a wave that moves out of the domain.
-Such waves therefore pass the outlet as if the domain continued beyond it.
 
-The flow rate is computed at the `sample_points` of the [`BoundaryZone`](@ref).
-These points are automatically moved to where the boundary model applies the pressure
-(see [Non-reflecting outlet](@ref impedance_outlet)).
+!!! warning
+    Note that `reference_velocity` must be the inflow rate divided by the area of the outlet
+    face. Choosing a different value will cause the pressure level to settle at a different
+    value than ``p_{\text{ref}}``. Even a small deviation from the correct value can cause
+    a large pressure shift, which can make the simulation unstable.
 
 # Keywords
 - `reference_velocity`:     Expected mean outflow velocity ``u_{\text{ref}}``
