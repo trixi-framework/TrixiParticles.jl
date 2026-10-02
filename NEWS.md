@@ -23,6 +23,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Corrected pressure and viscous reaction forces on TLSPH and rigid-body systems,
   including asymmetric fluid gradients, free-surface factors, EDAC pressure
   reduction, and the approaching-particle condition for artificial viscosity (#1338).
+- Unified near-zero distance checks using the relative squared-distance criterion
+  `r^2 < eps(typeof(h)) * h^2` across kernels and particle operators (#1347).
 - Fixed the sign of the quadratic term in `ArtificialViscosityMonaghan` (#1295).
 - Fixed mathematical inconsistencies in the SPH documentation, including incorrect
   formulas, inconsistent force-vs-acceleration notation, and wrong LaTeX text-mode
@@ -33,6 +35,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Fixed the custom quantities `kinetic_energy`, `total_mass`, `max_pressure`, `min_pressure`,
   `avg_pressure`, `max_density`, `min_density` and `avg_density` to only take active particles
   into account (#1184).
+- Fixed the IISPH pressure solver to clear stale density error contributions of
+  zero-pressure particles instead of retaining them in the termination condition (#1215).
 
 ## Version 0.5.3
 

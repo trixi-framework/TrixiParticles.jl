@@ -284,13 +284,6 @@ end
 
 @inline system_sound_speed(system::WeaklyCompressibleSPHSystem) = sound_speed(system.state_equation)
 
-# WCSPH scales the near-zero check with its pair support rather than h. Keep this
-# policy with the scheme and reuse it for both its RHS and the structural reaction.
-@inline function interaction_zero_distance(system::WeaklyCompressibleSPHSystem,
-                                           neighbor_system)
-    return interaction_zero_distance(compact_support(system, neighbor_system))
-end
-
 @inline shifting_technique(system::WeaklyCompressibleSPHSystem) = system.shifting_technique
 
 @inline density_diffusion(system::WeaklyCompressibleSPHSystem) = system.density_diffusion
