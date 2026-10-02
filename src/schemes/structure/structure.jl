@@ -20,6 +20,48 @@ end
     return dv
 end
 
+@inline function hydrodynamic_kernel_grad(system::Union{TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles},
+                                                        RigidBodySystem{<:BoundaryModelDummyParticles}},
+                                          pos_diff, distance, particle)
+    return smoothing_kernel_grad(system.boundary_model, pos_diff, distance, particle)
+end
+
+# Populate hydrodynamic correction caches in the boundary-model context. TLSPH's
+# elastic correction matrix and smoothing length belong to self-interaction only.
+function compute_correction_values!(system::Union{TotalLagrangianSPHSystem,
+                                                  RigidBodySystem},
+                                    ::ShepardKernelCorrection, u, v_ode, u_ode, semi)
+    model = system.boundary_model
+    return compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode,
+                                  semi, model.cache.kernel_correction_coefficient;
+                                  kernel_system=model)
+end
+
+function compute_correction_values!(system::Union{TotalLagrangianSPHSystem,
+                                                  RigidBodySystem},
+                                    correction::Union{KernelCorrection,
+                                                      MixedKernelGradientCorrection},
+                                    u, v_ode, u_ode, semi)
+    model = system.boundary_model
+    return compute_correction_values!(system, correction, current_coordinates(u, system),
+                                      v_ode, u_ode, semi,
+                                      model.cache.kernel_correction_coefficient,
+                                      model.cache.dw_gamma; kernel_system=model)
+end
+
+function compute_gradient_correction_matrix!(correction::Union{GradientCorrection,
+                                                               BlendedGradientCorrection,
+                                                               MixedKernelGradientCorrection},
+                                             model::BoundaryModelDummyParticles,
+                                             system::Union{TotalLagrangianSPHSystem,
+                                                           RigidBodySystem},
+                                             u, v_ode, u_ode, semi)
+    return compute_gradient_correction_matrix!(model.cache.correction_matrix, system,
+                                               current_coordinates(u, system), v_ode, u_ode,
+                                               semi, correction, model.smoothing_kernel;
+                                               kernel_system=model)
+end
+
 @inline average_pressure(system, particle) = zero(eltype(system))
 
 @inline interaction_force_correction(system, rho_a, rho_b) = (1, 1, 1)
@@ -178,9 +220,9 @@ end
                                          neighbor_system::AbstractFluidSystem,
                                          particle, neighbor, pos_diff, distance,
                                          m_b, rho_a, rho_b, v_a, v_b)
-    # Boundary density retains its existing structure-first gradient.
-    grad_kernel = smoothing_kernel_grad_unsafe(neighbor_system, pos_diff, distance,
-                                               neighbor)
+    # Hydrodynamic density uses the boundary kernel, not the neighboring fluid's
+    # correction or a TLSPH elastic self-interaction kernel.
+    grad_kernel = hydrodynamic_kernel_grad(particle_system, pos_diff, distance, particle)
 
     return add_continuity_equation(drho_particle,
                                    density_calculator(neighbor_system),

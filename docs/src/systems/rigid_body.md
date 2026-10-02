@@ -12,6 +12,10 @@ Rigid bodies sum particle forces and torques, while TLSPH converts force to
 acceleration with the material mass. Shifting momentum terms remain in the fluid
 RHS and are excluded from structural loads because they are transport corrections.
 
+Hydrodynamic boundary gradients and density evolution use the dummy-particle
+boundary model's own kernel and correction caches. In TLSPH these are independent
+of the elastic self-interaction kernel and correction matrix.
+
 ## API
 
 ```@autodocs

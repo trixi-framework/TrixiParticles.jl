@@ -162,6 +162,12 @@ end
                                         system_correction(system), system, particle)
 end
 
+# Most systems have a single kernel. Structures can have a separate hydrodynamic
+# boundary kernel, which must not be confused with their elastic self-interaction.
+@inline function hydrodynamic_kernel_grad(system, pos_diff, distance, particle)
+    return smoothing_kernel_grad(system, pos_diff, distance, particle)
+end
+
 # System updates do nothing by default, but can be dispatched if needed
 function update_positions!(system, v, u, v_ode, u_ode, semi, t)
     return system
