@@ -263,6 +263,10 @@ end
 
 @inline shifting_technique(system::EntropicallyDampedSPHSystem) = system.shifting_technique
 
+@inline function correction_matrix(system::EntropicallyDampedSPHSystem, particle)
+    return extract_smatrix(system.cache.correction_matrix, system, particle)
+end
+
 @propagate_inbounds function average_pressure(system::EntropicallyDampedSPHSystem, particle)
     average_pressure(system, system.average_pressure_reduction, particle)
 end
@@ -332,6 +336,7 @@ function update_average_pressure!(system, ::Val{true}, v_ode, u_ode, semi)
     set_zero!(pressure_average)
     set_zero!(neighbor_counter)
 
+    v = wrap_v(v_ode, system, semi)
     u = wrap_u(u_ode, system, semi)
 
     # Use enabled neighbor systems for the average pressure.
@@ -354,8 +359,10 @@ function update_average_pressure!(system, ::Val{true}, v_ode, u_ode, semi)
                                                                                neighbor,
                                                                                pos_diff,
                                                                                distance
-                pressure_average[particle] += current_pressure(v_neighbor_system,
-                                                               neighbor_system, neighbor)
+                p_a = current_pressure(v, system, particle)
+                pressure_average[particle] += neighbor_pressure(v_neighbor_system,
+                                                                neighbor_system, neighbor,
+                                                                p_a)
                 neighbor_counter[particle] += 1
             end
         end

@@ -15,8 +15,11 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 ### Important Bugfixes
 
 - Corrected hydrodynamic reaction forces on TLSPH and rigid-body systems, including
-  corrected kernel gradients and the approaching-particle condition for artificial
-  viscosity (#1338).
+  corrected kernel gradients, shifting momentum terms, near-zero-distance handling,
+  and the approaching-particle condition for artificial viscosity (#1338).
+- Fixed EDAC interaction with gradient-based kernel corrections (#1338).
+- Fixed pressure mirroring for fluid-structure interaction and boundary-kernel
+  evaluation in the structure continuity equation (#1338).
 - Fixed the sign of the quadratic term in `ArtificialViscosityMonaghan` (#1295).
 - Fixed mathematical inconsistencies in the SPH documentation, including incorrect
   formulas, inconsistent force-vs-acceleration notation, and wrong LaTeX text-mode
