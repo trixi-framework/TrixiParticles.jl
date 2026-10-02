@@ -372,3 +372,112 @@ Particles farther away from the free surface use the unmodified shifting velocit
 Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "boundary", "open_boundary", "pressure_model.jl")]
 ```
+
+## [Non-reflecting outlet](@id impedance_outlet)
+
+This section explains the idea behind [`ImpedanceOutletPressure`](@ref).
+This model sets the outlet pressure from the mean outflow velocity through a prescribed outlet impedance. Matching this impedance to the characteristic impedance ``\rho_0 c`` of the fluid gives a non-reflecting pressure outlet.
+With ``u_{\text{ref}}`` equal to the actual mean outflow velocity, this is the non-reflecting counterpart of prescribing a constant pressure ``p = p_{\text{ref}}``.
+
+### Waves in one dimension
+
+Consider small deviations ``p'`` and ``u'`` from a uniform flow with density ``\rho_0``
+and mean velocity ``U``, averaged over the cross section of the channel,
+so that they only depend on ``x`` and ``t``.
+A well-known property of the one-dimensional Euler equations is that such small deviations
+travel as two sound waves along the characteristics of the equations.
+These waves are described by the quantities ``w_\pm = p' \pm \rho_0 c \, u'``,
+the linearized Riemann invariants, where ``c`` is the speed of sound.
+They are transported with the speeds ``U \pm c``:
+```math
+\frac{\partial w_\pm}{\partial t} + (U \pm c) \frac{\partial w_\pm}{\partial x} = 0.
+```
+In weakly compressible SPH, ``U`` is much smaller than ``c``.
+So ``w_+`` is a wave that moves downstream (towards the outlet) and ``w_-`` is a wave
+that moves upstream (away from the outlet).
+
+At the outlet, ``w_+`` arrives from inside the domain, so it is determined by the
+solution inside the domain.
+In contrast, ``w_-`` enters the domain from the outside, so it is the one quantity that
+the boundary condition has to provide.
+In an infinitely long channel, nothing comes back from beyond ``x = L``.
+The correct boundary condition is therefore
+```math
+w_- = 0 \quad \Leftrightarrow \quad p' = \rho_0 c \, u' \quad \text{at } x = L.
+```
+
+### Why simpler boundary conditions are not enough
+
+- **Prescribed pressure** ``p = p_{\text{ref}}``, so ``p' = 0`` and therefore ``w_- = -w_+``.
+  Every wave reaching the outlet is sent back into the domain with the opposite sign.
+  Between a reflecting outlet and a reflecting inlet, waves can bounce back and forth
+  and form a standing wave that never decays.
+- **Nothing prescribed** at the outlet (all quantities are extrapolated from the domain).
+  When only the inflow velocity is prescribed at the inlet, adding a constant to the pressure
+  everywhere gives another valid solution.
+  Nothing determines the pressure level, so it can slowly drift away.
+
+### The impedance condition
+
+[`ImpedanceOutletPressure`](@ref) imposes the condition ``w_- = 0`` from above:
+```math
+p = p_{\text{ref}} + Z \left( \bar{u} - u_{\text{ref}} \right), \qquad Z = \rho_0 c,
+```
+where ``\bar{u}`` is the mean velocity through the outlet face
+(the volumetric flow rate divided by the area of the face)
+and ``u_{\text{ref}}`` is the expected mean outflow velocity.
+The constant ``Z`` is called the *impedance*: the ratio between a pressure change
+and the velocity change that it causes.
+This condition has two properties:
+1. Waves leave the domain without reflection.
+2. The pressure level cannot drift: when the flow leaves the domain at the expected
+   velocity, the pressure at the outlet is ``p_{\text{ref}}``.
+
+More generally, ``p' = Z u'`` with any ``Z \geq 0`` reflects a fraction
+```math
+R = \frac{w_-}{w_+} = \frac{Z - \rho_0 c}{Z + \rho_0 c}
+```
+of each wave.
+A prescribed pressure is the special case ``Z = 0`` (``R = -1``),
+a prescribed velocity is the limit ``Z \to \infty`` (``R = 1``),
+and ``Z = \rho_0 c`` is the only choice without reflection (``R = 0``).
+
+### Practical remarks
+
+- **Choosing `reference_velocity`.**
+  The fluid that leaves the domain must have entered it,
+  so ``u_{\text{ref}}`` is the inflow rate divided by the area of the outlet face.
+  If ``u_{\text{ref}}`` is off by ``\delta``, the pressure level settles at
+  ``p_{\text{ref}} + Z \delta`` instead of ``p_{\text{ref}}``.
+  Since ``Z`` is large (for water-like fluid with ``\rho_0 = 1000`` and ``c = 15``,
+  ``Z = 15000``), even ``\delta = 0.01`` shifts the pressure by ``150``.
+  The pressure level still does not drift, it just settles at a different value.
+  At mean pressure ``p_{\text{mean}} \gg 0`` or ``p_{\text{mean}} \ll 0``,
+  the implemented SPH methods become numerically unstable.
+- **Only the mean velocity is used.**
+  The velocity usually varies across the outlet (for example in the wake behind an obstacle).
+  Applying ``p' = Z u'`` to each particle would turn these variations into large pressure
+  variations.
+  Using the mean velocity means that only waves which are uniform across the outlet
+  are absorbed.
+  This is the main type of wave in a long channel.
+  Waves that hit the outlet at an angle are partly reflected.
+- **Where the velocity is measured.**
+  The relation ``p' = Z u'`` must hold at the place where the boundary model actually
+  applies the pressure.
+  If the velocity is measured a distance ``d`` upstream of this place,
+  the boundary reacts to the wave too early, by the time ``d / c``.
+  This causes reflections that grow with ``d``, and for wide boundary zones
+  the outlet can even amplify waves.
+  The mean velocity is computed at the `sample_points` of the [`BoundaryZone`](@ref),
+  which are placed as follows:
+  - [`BoundaryModelMirroringTafuni`](@ref) and [`BoundaryModelCharacteristicsLastiwka`](@ref)
+    set the pressure of all particles in the boundary zone, so the pressure acts at the
+    boundary face.
+    The sample points are left unchanged at the boundary face.
+  - [`BoundaryModelDynamicalPressureZhang`](@ref) applies the boundary pressure only to
+    particles whose kernel support is cut off, which are at the downstream end of the
+    boundary zone (see [Dynamical Pressure](@ref dynamical_pressure)).
+    The sample points are automatically moved downstream into the last particle layer of the
+    boundary zone, that is, to the distance `(open_boundary_layers - 1) * particle_spacing`
+    from the boundary face.
