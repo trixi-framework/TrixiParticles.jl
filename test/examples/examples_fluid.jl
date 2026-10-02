@@ -698,6 +698,10 @@
     include("dam_break_2d_corrections.jl")
 
     @testset "`SymplecticPositionVerlet`" begin
+        symplectic_rk_extension = Base.get_extension(TrixiParticles,
+                                                     :TrixiParticlesOrdinaryDiffEqSymplecticRKExt)
+        @test !symplectic_rk_extension.OrdinaryDiffEqCore.isfsal(SymplecticPositionVerlet())
+
         @testset "2D unstable" begin
             @trixi_test_nowarn trixi_include(@__MODULE__,
                                              joinpath(examples_dir(), "fluid",
