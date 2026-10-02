@@ -145,9 +145,9 @@ end
     h = smoothing_length(system, particle)
     compact_support_ = compact_support(system_smoothing_kernel(system), h)
 
-    # Note that `sqrt(eps(h^2)) != eps(h)`
+    # The same relative squared-distance criterion is used by the pair RHSs.
     if distance >= compact_support_ ||
-       (skip_zero_distance(system) && distance^2 < eps(h^2))
+       (skip_zero_distance(system) && distance^2 < eps(typeof(h)) * h^2)
         return zero(pos_diff)
     end
 

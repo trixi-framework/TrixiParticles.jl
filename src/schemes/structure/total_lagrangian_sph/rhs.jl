@@ -21,14 +21,9 @@ end
     neighborhood_search = get_neighborhood_search(system, semi)
     backend = semi.parallelization_backend
 
-    # For `distance == 0`, the analytical gradient is zero, but the unsafe gradient
-    # and the density diffusion divide by zero.
-    # To account for rounding errors, we check if `distance` is almost zero.
-    # Since the coordinates are in the order of the smoothing length `h`, `distance^2` is in
-    # the order of `h^2`, so we need to check `distance < sqrt(eps(h^2))`.
-    # Note that `sqrt(eps(h^2)) != eps(h)`.
+    # Elastic interactions use the same relative criterion with the elastic h.
     h = initial_smoothing_length(system)
-    almostzero = sqrt(eps(h^2))
+    zero_distance_squared = eps(typeof(h)) * h^2
 
     @threaded semi for particle in eachparticle
         # We are looping over the particles of `system`, so it is guaranteed
@@ -53,7 +48,7 @@ end
 
             # Skip neighbors with the same position because the kernel gradient is zero.
             # Note that `return` only exits the closure, i.e., skips the current neighbor.
-            if skip_zero_distance(system) && initial_distance < almostzero
+            if skip_zero_distance(system) && initial_distance^2 < zero_distance_squared
                 return zero(initial_pos_diff)
             end
 
