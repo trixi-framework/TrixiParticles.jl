@@ -525,14 +525,8 @@ end
 @inline function calc_deformation_grad!(deformation_grad, system, semi)
     (; mass, material_density) = system
 
-    # For `distance == 0`, the analytical gradient is zero, but the unsafe gradient
-    # and the density diffusion divide by zero.
-    # To account for rounding errors, we check if `distance` is almost zero.
-    # Since the coordinates are in the order of the smoothing length `h`, `distance^2` is in
-    # the order of `h^2`, so we need to check `distance < sqrt(eps(h^2))`.
-    # Note that `sqrt(eps(h^2)) != eps(h)`.
-    h = initial_smoothing_length(system)
-    almostzero = sqrt(eps(h^2))
+    # Use the same TLSPH tolerance as elastic self-interaction in the RHS.
+    almostzero = interaction_zero_distance(system, system)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     initial_coords = initial_coordinates(system)
