@@ -165,15 +165,18 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
             rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
             v_b = @inbounds current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
-            skip_fluid_pair(neighbor_system, distance, compact_support_, almostzero) &&
-                return init
-
+            # Boundary density has its own support and near-zero check.
             drho_particle = @inbounds add_continuity_equation(zero(rho_a),
                                                               particle_system,
                                                               neighbor_system,
                                                               particle, neighbor, pos_diff,
                                                               distance, m_b, rho_a, rho_b,
                                                               v_a, v_b)
+
+            # Apply the fluid-side cutoffs only to physical momentum contributions.
+            if skip_fluid_pair(neighbor_system, distance, compact_support_, almostzero)
+                return zero(v_a), drho_particle
+            end
 
             # Corrected gradients need not be odd; evaluate the fluid-side gradient.
             grad_kernel_fluid = smoothing_kernel_grad_unsafe(neighbor_system, -pos_diff,
