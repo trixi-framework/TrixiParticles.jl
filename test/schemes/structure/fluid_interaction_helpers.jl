@@ -1,7 +1,7 @@
 module FSIPairFixtures
 using TrixiParticles
 using LinearAlgebra: I
-using Logging: NullLogger, with_logger
+using Test: @test_logs
 
 export structure_fluid_pair_state
 
@@ -57,8 +57,13 @@ function structure_fluid_pair_state(; fluid_scheme=:wcsph, structure_kind=:tlsph
         TotalLagrangianSPHSystem(structure_ic; smoothing_kernel, smoothing_length,
                                  young_modulus=1.0e5, poisson_ratio=0.3, boundary_model)
     end
-    semi = with_logger(NullLogger()) do
-        Semidiscretization(fluid, structure; parallelization_backend)
+    semi = if structure isa TotalLagrangianSPHSystem
+        @test_logs (:info,
+                    r"^To create the self-interaction neighborhood search of a `TotalLagrangianSPHSystem`") begin
+            Semidiscretization(fluid, structure; parallelization_backend)
+        end
+    else
+        @test_logs Semidiscretization(fluid, structure; parallelization_backend)
     end
     ode = semidiscretize(semi, (0.0, 0.01); reset_threads=false)
     fluid, structure = semi.systems
