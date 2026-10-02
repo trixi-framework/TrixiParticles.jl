@@ -71,19 +71,13 @@ end
            boundary_kernel(distance, smoothing_length(particle_system, particle))
 end
 
-# Disambiguation for corrections with asymmetric kernel gradients
-@inline function pressure_acceleration(particle_system,
-                                       neighbor_system::Union{WallBoundarySystem{<:BoundaryModelMonaghanKajtar},
-                                                              TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
-                                       particle, neighbor, m_a, m_b, p_a, p_b, rho_a, rho_b,
-                                       pos_diff, distance, grad_kernel,
-                                       ::Union{KernelCorrection,
-                                               GradientCorrection,
-                                               BlendedGradientCorrection,
-                                               MixedKernelGradientCorrection})
-    return pressure_acceleration(particle_system, neighbor_system, particle, neighbor,
-                                 m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff, distance,
-                                 grad_kernel, nothing)
+# Repulsive particles have no hydrodynamic kernel of their own. Transport
+# operators use the reversed fluid gradient, not an elastic structure kernel or
+# the Monaghan-Kajtar repulsion law.
+@inline function neighbor_kernel_gradient(system::Union{WallBoundarySystem{<:BoundaryModelMonaghanKajtar},
+                                                        TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
+                                          pos_diff, distance, particle, W_a)
+    return -W_a
 end
 
 @fastpow @inline function boundary_kernel(r, h)

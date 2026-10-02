@@ -12,6 +12,7 @@ function structure_fluid_pair_state(; fluid_scheme=:wcsph, structure_kind=:tlsph
                                     distance=1.5, dimensions=2,
                                     boundary_smoothing_length=1.0,
                                     boundary_correction=nothing,
+                                    monaghan_kajtar=false,
                                     structure_smoothing_length=1.0,
                                     structure_smoothing_kernel=SchoenbergCubicSplineKernel{dimensions}(),
                                     coordinates=reshape([distance; zeros(dimensions - 1)],
@@ -49,8 +50,11 @@ function structure_fluid_pair_state(; fluid_scheme=:wcsph, structure_kind=:tlsph
                                     density=fill(2000.0, n),
                                     particle_spacing)
     viscosity = get(fluid_options, :viscosity, nothing)
-    boundary_model = BoundaryModelDummyParticles(fill(950.0, n),
-                                                 700.0 .+ 50.0 .* (0:(n - 1)),
+    hydrodynamic_mass = 700.0 .+ 50.0 .* (0:(n - 1))
+    boundary_model = monaghan_kajtar ?
+                     BoundaryModelMonaghanKajtar(10.0, 1.0, particle_spacing,
+                                                 hydrodynamic_mass) :
+                     BoundaryModelDummyParticles(fill(950.0, n), hydrodynamic_mass,
                                                  boundary_density, smoothing_kernel,
                                                  boundary_smoothing_length;
                                                  state_equation, viscosity,
@@ -78,10 +82,12 @@ function structure_fluid_pair_state(; fluid_scheme=:wcsph, structure_kind=:tlsph
     u_structure = TrixiParticles.wrap_u(u_ode, structure, semi)
     TrixiParticles.current_density(v_fluid, fluid) .= 1005.0
     TrixiParticles.current_pressure(v_fluid, fluid) .= 500.0
-    structure.boundary_model.pressure .= 230.0
-    !isnothing(viscosity) &&
-        (structure.boundary_model.cache.wall_velocity .= 2 .* structure_velocity .-
-                                                         velocity)
+    if !monaghan_kajtar
+        structure.boundary_model.pressure .= 230.0
+        !isnothing(viscosity) &&
+            (structure.boundary_model.cache.wall_velocity .= 2 .* structure_velocity .-
+                                                             velocity)
+    end
     for (field, value) in ((:delta_v, [0.4, -0.3, 0.2][1:dimensions]),
          (:dw_gamma, [0.1, -0.2, 0.15][1:dimensions]),
          (:kernel_correction_coefficient, 1.3), (:pressure_average, 120.0))
