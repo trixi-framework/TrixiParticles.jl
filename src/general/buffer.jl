@@ -22,12 +22,9 @@ function allocate_buffer(initial_condition, buffer::SystemBuffer)
     coordinates = fill(eltype(initial_condition)(1e16), ndims(initial_condition),
                        buffer_size)
 
-    if all(rho -> isapprox(rho, first(initial_condition.density), atol=eps(), rtol=eps()),
-           initial_condition.density)
-        density = first(initial_condition.density)
-    else
-        throw(ArgumentError("`initial_condition.density` needs to be constant when using `SystemBuffer`"))
-    end
+    # The density of buffer particles is overwritten when they are activated,
+    # so any valid density value works here.
+    density = first(initial_condition.density)
 
     particle_spacing = initial_condition.particle_spacing
 

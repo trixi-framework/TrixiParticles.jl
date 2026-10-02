@@ -185,13 +185,9 @@ function create_cache_open_boundary(boundary_model, fluid_system, initial_condit
         # since it is specified independently from the computed pressure for the momentum equation.
         pressure_boundary = copy(initial_condition.pressure)
 
-        # The first entry of the density vector can be used,
-        # as it was already verified in `allocate_buffer` that the density array is constant.
-        density_rest = first(initial_condition.density)
-
         cache = (; density_diffusion,
                  create_cache_density_diffusion(initial_condition, density_diffusion)...,
-                 pressure_boundary, density_rest, cache...)
+                 pressure_boundary, cache...)
 
         if fluid_system isa EntropicallyDampedSPHSystem
             # Density and pressure is stored in `v`
