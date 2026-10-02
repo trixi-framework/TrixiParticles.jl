@@ -1,6 +1,6 @@
 include("initial_condition.jl")
 include("smoothing_kernels.jl")
-include("interaction_zero_distance.jl")
+include("near_zero_distance.jl")
 include("density_calculator.jl")
 include("semidiscretization.jl")
 include("interpolation.jl")

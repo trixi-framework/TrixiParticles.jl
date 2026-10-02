@@ -21,8 +21,9 @@ end
     neighborhood_search = get_neighborhood_search(system, semi)
     backend = semi.parallelization_backend
 
-    # Elastic self-interaction uses the TLSPH smoothing-length tolerance.
-    almostzero = interaction_zero_distance(system, system)
+    # Elastic interactions use the same relative criterion with the elastic h.
+    h = initial_smoothing_length(system)
+    zero_distance_squared = eps(typeof(h)) * h^2
 
     @threaded semi for particle in eachparticle
         # We are looping over the particles of `system`, so it is guaranteed
@@ -47,7 +48,7 @@ end
 
             # Skip neighbors with the same position because the kernel gradient is zero.
             # Note that `return` only exits the closure, i.e., skips the current neighbor.
-            if skip_zero_distance(system) && initial_distance < almostzero
+            if skip_zero_distance(system) && initial_distance^2 < zero_distance_squared
                 return zero(initial_pos_diff)
             end
 
