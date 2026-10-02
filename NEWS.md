@@ -14,6 +14,9 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Important Bugfixes
 
+- Corrected pressure and viscous reaction forces on TLSPH and rigid-body systems,
+  including asymmetric fluid gradients, free-surface factors, EDAC pressure
+  reduction, and the approaching-particle condition for artificial viscosity (#1338).
 - Fixed the sign of the quadratic term in `ArtificialViscosityMonaghan` (#1295).
 - Fixed mathematical inconsistencies in the SPH documentation, including incorrect
   formulas, inconsistent force-vs-acceleration notation, and wrong LaTeX text-mode
