@@ -14,6 +14,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Important Bugfixes
 
+- Fixed pressure mirroring for TLSPH and rigid-body neighbors and for EDAC momentum,
+  pressure diffusion, and average-pressure reduction at walls and structures (#1341).
 - Corrected pressure and viscous reaction forces on TLSPH and rigid-body systems,
   including asymmetric fluid gradients, free-surface factors, EDAC pressure
   reduction, and the approaching-particle condition for artificial viscosity (#1338).
