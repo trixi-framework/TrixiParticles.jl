@@ -13,6 +13,9 @@ function structure_fluid_pair_state(; fluid_scheme=:wcsph, structure_kind=:tlsph
                                     fluid_options=(;),
                                     boundary_density=AdamiPressureExtrapolation(),
                                     distance=1.5, dimensions=2,
+                                    boundary_correction=nothing,
+                                    structure_smoothing_length=1.0,
+                                    structure_smoothing_kernel=SchoenbergCubicSplineKernel{dimensions}(),
                                     coordinates=reshape([distance; zeros(dimensions - 1)],
                                                         dimensions, 1),
                                     parallelization_backend=SerialBackend())
@@ -55,13 +58,15 @@ function structure_fluid_pair_state(; fluid_scheme=:wcsph, structure_kind=:tlsph
                                                  boundary_density, smoothing_kernel,
                                                  smoothing_length;
                                                  state_equation, viscosity,
+                                                 correction=boundary_correction,
                                                  reference_particle_spacing=1.0)
     structure = if structure_kind == :rigid
         RigidBodySystem(structure_ic; boundary_model, adhesion_coefficient=0.25)
     elseif structure_kind == :wall
         WallBoundarySystem(structure_ic, boundary_model)
     else
-        TotalLagrangianSPHSystem(structure_ic; smoothing_kernel, smoothing_length,
+        TotalLagrangianSPHSystem(structure_ic; smoothing_kernel=structure_smoothing_kernel,
+                                 smoothing_length=structure_smoothing_length,
                                  young_modulus=1.0e5, poisson_ratio=0.3, boundary_model)
     end
     # Assert the expected TLS-copy notice and reject any other setup logs or warnings.

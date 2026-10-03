@@ -158,10 +158,9 @@ end
                                          neighbor_system::AbstractFluidSystem,
                                          particle, neighbor, pos_diff, distance,
                                          m_b, rho_a, rho_b, v_a, v_b)
-    # The legacy density operator uses the fluid kernel with structure-first
-    # orientation (v_s-v_f) dot grad_s W, independently of the reaction sign.
-    grad_kernel = smoothing_kernel_grad_unsafe(neighbor_system, pos_diff, distance,
-                                               neighbor)
+    # Continuity uses (v_s-v_f) dot grad_s W from the hydrodynamic boundary kernel.
+    # The fluid formulation weights it by m_f (summation) or (rho_s/rho_f)*m_f (continuity).
+    grad_kernel = hydrodynamic_kernel_grad(particle_system, pos_diff, distance, particle)
 
     return add_continuity_equation(drho_particle,
                                    density_calculator(neighbor_system),

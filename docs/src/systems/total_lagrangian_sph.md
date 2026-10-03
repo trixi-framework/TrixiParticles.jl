@@ -131,6 +131,13 @@ structure, and we recommend using it in combination with penalty force to both
 prevent hourglass modes and stabilize the fluid close to the fluid-structure interface.
 
 
+## Fluid loads
+
+The dummy-particle boundary model supplies the hydrodynamic kernel independently
+of the elastic self-interaction kernel. The fluid-side asymmetric pressure operator
+and boundary-density evolution use this hydrodynamic kernel and its correction
+caches; see [Fluid loads](@ref fluid_structure_loads) for the coupling convention.
+
 ## [Velocity Averaging](@id velocity_averaging)
 
 In FSI cases with very stiff structures, the two techniques above might not be
