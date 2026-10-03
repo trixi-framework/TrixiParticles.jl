@@ -16,6 +16,10 @@ Hydrodynamic boundary gradients and density evolution use the dummy-particle
 boundary model's own kernel and correction caches. In TLSPH these are independent
 of the elastic self-interaction kernel and correction matrix.
 
+The structure-to-fluid search covers both the fluid and boundary-model supports.
+Physical momentum uses the fluid cutoff, while boundary density uses its own
+kernel support and near-zero-distance handling.
+
 ## API
 
 ```@autodocs

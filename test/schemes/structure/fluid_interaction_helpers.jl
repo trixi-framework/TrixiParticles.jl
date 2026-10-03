@@ -13,12 +13,15 @@ function structure_fluid_pair_state(; fluid_scheme=:wcsph, structure_kind=:tlsph
                                     fluid_options=(;),
                                     boundary_density=AdamiPressureExtrapolation(),
                                     distance=1.5, dimensions=2,
+                                    boundary_smoothing_length=1.0,
                                     boundary_correction=nothing,
                                     structure_smoothing_length=1.0,
                                     structure_smoothing_kernel=SchoenbergCubicSplineKernel{dimensions}(),
                                     coordinates=reshape([distance; zeros(dimensions - 1)],
                                                         dimensions, 1),
-                                    parallelization_backend=SerialBackend())
+                                    parallelization_backend=SerialBackend(),
+                                    neighborhood_search=GridNeighborhoodSearch{dimensions}(),
+                                    neighborhood_search_handler=SharedNHSHandler)
     smoothing_kernel = SchoenbergCubicSplineKernel{dimensions}()
     smoothing_length = particle_spacing = 1.0
     state_equation = StateEquationCole(; sound_speed=10.0, reference_density=1000.0,
@@ -56,7 +59,7 @@ function structure_fluid_pair_state(; fluid_scheme=:wcsph, structure_kind=:tlsph
     boundary_model = BoundaryModelDummyParticles(fill(950.0, n),
                                                  700.0 .+ 50.0 .* (0:(n - 1)),
                                                  boundary_density, smoothing_kernel,
-                                                 smoothing_length;
+                                                 boundary_smoothing_length;
                                                  state_equation, viscosity,
                                                  correction=boundary_correction,
                                                  reference_particle_spacing=1.0)
@@ -73,10 +76,12 @@ function structure_fluid_pair_state(; fluid_scheme=:wcsph, structure_kind=:tlsph
     semi = if structure isa TotalLagrangianSPHSystem
         @test_logs (:info,
                     r"^To create the self-interaction neighborhood search of a `TotalLagrangianSPHSystem`") begin
-            Semidiscretization(fluid, structure; parallelization_backend)
+            Semidiscretization(fluid, structure; parallelization_backend,
+                               neighborhood_search, neighborhood_search_handler)
         end
     else
-        @test_logs Semidiscretization(fluid, structure; parallelization_backend)
+        @test_logs Semidiscretization(fluid, structure; parallelization_backend,
+                                      neighborhood_search, neighborhood_search_handler)
     end
     ode = semidiscretize(semi, (0.0, 0.01); reset_threads=false)
     # Modify the semidiscretization-owned TLS copy used by the actual pair operators.

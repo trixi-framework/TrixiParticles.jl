@@ -96,18 +96,20 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
             rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
             v_b = @inbounds current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
-            # Corrected coincident-particle gradients can be finite and nonzero.
-            if distance > compact_support_ ||
-               (skip_zero_distance(neighbor_system) && distance^2 < zero_distance_squared)
-                return init
-            end
-
+            # Boundary density can use pairs outside fluid support, so evaluate it
+            # before the momentum cutoff and preserve its rate on early exit.
             drho_particle = @inbounds add_continuity_equation(zero(rho_a),
                                                               particle_system,
                                                               neighbor_system,
                                                               particle, neighbor, pos_diff,
                                                               distance, m_b, rho_a, rho_b,
                                                               v_a, v_b)
+
+            # Corrected coincident-particle gradients can be finite and nonzero.
+            if distance > compact_support_ ||
+               (skip_zero_distance(neighbor_system) && distance^2 < zero_distance_squared)
+                return zero(v_a), drho_particle
+            end
 
             # Corrected gradients need not be odd: evaluate grad_f W(x_f-x_s)
             # directly instead of negating a gradient computed with x_s-x_f.

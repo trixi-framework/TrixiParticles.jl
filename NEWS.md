@@ -14,6 +14,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Important Bugfixes
 
+- Fixed structure-fluid reactions with unequal kernel supports while retaining
+  independent boundary-density support and near-zero-distance handling (#1343).
 - Fixed hydrodynamic boundary-gradient and correction-cache evaluation for TLSPH
   and rigid-body coupling, independently of the elastic TLSPH kernel (#1342).
 - Fixed pressure mirroring for TLSPH and rigid-body neighbors and for EDAC momentum,
