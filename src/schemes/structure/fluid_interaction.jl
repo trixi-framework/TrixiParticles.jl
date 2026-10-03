@@ -19,8 +19,8 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
     zero_distance_squared = eps(typeof(h)) * h^2
 
     @threaded semi for particle in eachparticle
-        # Use the forward fluid interaction's hydrodynamic boundary state.
-        # TLSPH material mass enters only when converting reaction force to acceleration.
+        # In fluid-structure interaction, use the "hydrodynamic mass" of the structure particles
+        # corresponding to the rest density of the fluid and not the material density.
         m_a = @inbounds hydrodynamic_mass(particle_system, particle)
         rho_a = @inbounds current_density(v_particle_system, particle_system, particle)
         v_a = @inbounds current_velocity(v_particle_system, particle_system, particle)
