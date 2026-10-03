@@ -11,6 +11,7 @@ function interact!(dv, v_particle_system, u_particle_system,
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
     # All kernel interactions use the same relative squared-distance criterion.
+    compact_support_ = compact_support(particle_system, neighbor_system)
     h = initial_smoothing_length(particle_system)
     zero_distance_squared = eps(typeof(h)) * h^2
 
@@ -23,7 +24,10 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                                                 distance
         # Skip neighbors with the same position because the kernel gradient is zero.
         # Note that `return` only exits the closure, i.e., skips the current neighbor.
-        skip_zero_distance(particle_system) && distance^2 < zero_distance_squared && return
+        if distance > compact_support_ ||
+           (skip_zero_distance(particle_system) && distance^2 < zero_distance_squared)
+            return
+        end
 
         # Now that we know that `distance` is not zero, we can safely call the unsafe
         # version of the kernel gradient to avoid redundant zero checks.
@@ -50,21 +54,20 @@ function interact!(dv, v_particle_system, u_particle_system,
         p_b = @inbounds neighbor_pressure(v_neighbor_system, neighbor_system,
                                           neighbor, p_a)
 
-        dv_pressure = pressure_acceleration(particle_system, neighbor_system,
-                                            particle, neighbor,
-                                            m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
-                                            distance, grad_kernel, nothing)
-
-        # Propagate `@inbounds` to the viscosity function, which accesses particle data
-        dv_viscosity_ = @inbounds add_dv_viscosity(zero(pos_diff), particle_system,
-                                                   neighbor_system,
-                                                   v_particle_system, v_neighbor_system,
-                                                   particle, neighbor, pos_diff, distance,
-                                                   sound_speed, m_a, m_b, rho_a, rho_b,
-                                                   v_a, v_b, grad_kernel)
+        dv_particle = @inbounds physical_fluid_pair_acceleration(particle_system,
+                                                                 neighbor_system,
+                                                                 v_particle_system,
+                                                                 v_neighbor_system,
+                                                                 particle, neighbor,
+                                                                 m_a, m_b, p_a, p_b, rho_a,
+                                                                 rho_b,
+                                                                 v_a, v_b, pos_diff,
+                                                                 distance,
+                                                                 sound_speed, grad_kernel,
+                                                                 nothing)
 
         for i in 1:ndims(particle_system)
-            @inbounds dv[i, particle] += dv_pressure[i] + dv_viscosity_[i]
+            @inbounds dv[i, particle] += dv_particle[i]
         end
     end
     return dv
