@@ -14,6 +14,9 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Important Bugfixes
 
+- Corrected pressure and viscous reaction forces on TLSPH and rigid-body systems,
+  including asymmetric fluid gradients, free-surface factors, EDAC pressure
+  reduction, and the approaching-particle condition for artificial viscosity (#1338).
 - Unified near-zero distance checks using the relative squared-distance criterion
   `r^2 < eps(typeof(h)) * h^2` across kernels and particle operators (#1347).
 - Fixed the sign of the quadratic term in `ArtificialViscosityMonaghan` (#1295).

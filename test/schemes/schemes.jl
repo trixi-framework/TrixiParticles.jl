@@ -1,4 +1,5 @@
 include("structure/total_lagrangian_sph/total_lagrangian_sph.jl")
+include("structure/fluid_interaction.jl")
 include("boundary/dummy_particles/dummy_particles.jl")
 include("boundary/monaghan_kajtar/monaghan_kajtar.jl")
 include("boundary/open_boundary/open_boundary.jl")
