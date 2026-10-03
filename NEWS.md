@@ -14,6 +14,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Important Bugfixes
 
+- Fixed double-counted Monaghan-Kajtar repulsion in TVF momentum and
+  background-pressure shifting operators (#1344).
 - Fixed structure-fluid reactions with unequal kernel supports while retaining
   independent boundary-density support and near-zero-distance handling (#1343).
 - Fixed hydrodynamic boundary-gradient and correction-cache evaluation for TLSPH

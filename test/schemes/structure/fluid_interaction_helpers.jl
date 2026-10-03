@@ -15,6 +15,7 @@ function structure_fluid_pair_state(; fluid_scheme=:wcsph, structure_kind=:tlsph
                                     distance=1.5, dimensions=2,
                                     boundary_smoothing_length=1.0,
                                     boundary_correction=nothing,
+                                    monaghan_kajtar=false,
                                     structure_smoothing_length=1.0,
                                     structure_smoothing_kernel=SchoenbergCubicSplineKernel{dimensions}(),
                                     coordinates=reshape([distance; zeros(dimensions - 1)],
@@ -56,8 +57,13 @@ function structure_fluid_pair_state(; fluid_scheme=:wcsph, structure_kind=:tlsph
                                     density=fill(2000.0, n),
                                     particle_spacing)
     viscosity = get(fluid_options, :viscosity, nothing)
-    boundary_model = BoundaryModelDummyParticles(fill(950.0, n),
-                                                 700.0 .+ 50.0 .* (0:(n - 1)),
+    hydrodynamic_mass = 700.0 .+ 50.0 .* (0:(n - 1))
+    # Repulsive particles derive density from mass/spacing^dimensions; at spacing=1,
+    # the single MK boundary particle has rho_s=m_s=700 instead of dummy density 950.
+    boundary_model = monaghan_kajtar ?
+                     BoundaryModelMonaghanKajtar(10.0, 1.0, particle_spacing,
+                                                 hydrodynamic_mass) :
+                     BoundaryModelDummyParticles(fill(950.0, n), hydrodynamic_mass,
                                                  boundary_density, smoothing_kernel,
                                                  boundary_smoothing_length;
                                                  state_equation, viscosity,
@@ -95,11 +101,13 @@ function structure_fluid_pair_state(; fluid_scheme=:wcsph, structure_kind=:tlsph
     # cannot make the fluid and boundary values equal and hide an argument-order bug.
     TrixiParticles.current_density(v_fluid, fluid) .= 1005.0
     TrixiParticles.current_pressure(v_fluid, fluid) .= 500.0
-    structure.boundary_model.pressure .= 230.0
-    # A single fluid neighbor gives the no-slip ghost velocity 2v_s - v_f.
-    !isnothing(viscosity) &&
-        (structure.boundary_model.cache.wall_velocity .= 2 .* structure_velocity .-
-                                                         velocity)
+    if !monaghan_kajtar
+        structure.boundary_model.pressure .= 230.0
+        # A single fluid neighbor gives the no-slip ghost velocity 2v_s - v_f.
+        !isnothing(viscosity) &&
+            (structure.boundary_model.cache.wall_velocity .= 2 .* structure_velocity .-
+                                                             velocity)
+    end
     # Prescribed nonzero shifts and non-unit correction data give independent pair
     # expectations; cache-construction tests must populate their own caches via updates.
     for (field, value) in ((:delta_v, [0.4, -0.3, 0.2][1:dimensions]),
