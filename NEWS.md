@@ -11,6 +11,9 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Replaced the experimental `MechanicalWorkCalculatorCallback` with
   `MechanicalWorkCalculator`, which can be passed as a custom quantity to
   `PostprocessCallback` (#1228).
+- The compact support of a `BoundaryModelDummyParticles` of a `TotalLagrangianSPHSystem`
+  or `RigidBodySystem` must now be the same as the compact support of all fluid systems
+  in the simulation (#1348).
 
 ### Important Bugfixes
 

@@ -17,6 +17,30 @@ end
     end
 end
 
+# The structure-fluid interaction computes the opposite of the force that the fluid
+# experiences in the fluid-structure interaction. Therefore, both interactions must find
+# the same pairs of particles, so the neighborhood search of the structure must use
+# the compact support of the fluid.
+# Note that this is only a restriction for `BoundaryModelDummyParticles`, since
+# `BoundaryModelMonaghanKajtar` always uses the compact support of the fluid.
+function check_compact_support_fsi(system, ::BoundaryModelDummyParticles,
+                                   neighbor_system::AbstractFluidSystem)
+    compact_support_structure = compact_support(system, neighbor_system)
+    compact_support_fluid = compact_support(neighbor_system, system)
+
+    if !isapprox(compact_support_structure, compact_support_fluid)
+        throw(ArgumentError("the compact support of the boundary model of the " *
+                            "`$(nameof(typeof(system)))` ($compact_support_structure) " *
+                            "must be the same as the compact support of the fluid system " *
+                            "($compact_support_fluid). Use the same smoothing kernel and " *
+                            "smoothing length for the boundary model as for the fluid."))
+    end
+
+    return system
+end
+
+check_compact_support_fsi(system, boundary_model, neighbor_system) = system
+
 function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
                                    v_neighbor_system, u_neighbor_system,
                                    particle_system,
@@ -26,8 +50,6 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-    # Restrict reactions to pairs present in the fluid-side interaction.
-    fluid_compact_support = compact_support(neighbor_system, particle_system)
     h = initial_smoothing_length(neighbor_system)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
@@ -38,9 +60,6 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
         # is zero, but computing it would divide by zero (see `almostzero`).
         # Note that `return` only exits the closure, i.e., skips the current neighbor.
         skip_zero_distance(neighbor_system) && distance < almostzero(h) && return
-
-        # Also skip neighbors that are outside the compact support of the fluid.
-        distance > fluid_compact_support && return
 
         # Now that we know that `distance` is not zero, we can safely call the unsafe
         # version of the kernel gradient to avoid redundant zero checks.

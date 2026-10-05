@@ -868,4 +868,8 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
         throw(ArgumentError("`BoundaryModelDummyParticles` with density calculator " *
                             "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"))
     end
+
+    foreach_system(systems) do neighbor
+        check_compact_support_fsi(system, boundary_model, neighbor)
+    end
 end
