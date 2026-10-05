@@ -262,4 +262,160 @@
             end
         end
     end
+
+    # The force that a structure particle experiences from a fluid particle must be
+    # exactly the opposite of the force that the fluid particle experiences from the
+    # structure particle.
+    @testset verbose=true "Linear Momentum Conservation in Fluid-Structure Interaction" begin
+        particle_spacing = 0.1
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        smoothing_length = 1.2 * particle_spacing
+        fluid_density = 1000.0
+        # Only needed for the artificial viscosity, so we can mock the state equation
+        # by using a `NamedTuple`.
+        sound_speed = 10.0
+        state_equation = (; sound_speed)
+
+        viscosities = [
+            ArtificialViscosityMonaghan(alpha=0.02, beta=0.1),
+            ViscosityMorris(nu=1e-3),
+            ViscosityAdami(nu=1e-3)
+        ]
+
+        # The extra terms of the shifting techniques in the momentum equation also act
+        # between fluid and structure particles, so they must be included in the
+        # structure-fluid interaction as well.
+        shifting_techniques = [
+            nothing,
+            ParticleShiftingTechnique(),
+            TransportVelocityAdami(background_pressure=1000.0)
+        ]
+
+        @testset "Viscosity `$(nameof(typeof(viscosity)))`" for viscosity in viscosities
+            @testset "Shifting `$(nameof(typeof(shifting_technique)))`" for shifting_technique in
+                                                                            shifting_techniques
+                # Fluid patch centered at the origin and structure patch directly to the
+                # right of it. The patches are 3 particles wide, so the offset of
+                # 3 particle spacings makes them adjacent, and the random perturbations of
+                # the positions and velocities yield approaching and receding
+                # fluid-structure pairs.
+                fluid = rectangular_patch(particle_spacing, (3, 3); seed=1)
+                structure = rectangular_patch(particle_spacing, (3, 3); seed=2,
+                                              offset=(3 * particle_spacing, 0.0))
+                n_structure = nparticles(structure)
+
+                # Viscosity models other than `ArtificialViscosityMonaghan` require
+                # the fluid to use the same viscosity model as the structure.
+                fluid_systems = [
+                    WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
+                                                smoothing_length,
+                                                density_calculator=ContinuityDensity(),
+                                                state_equation, viscosity,
+                                                shifting_technique),
+                    EntropicallyDampedSPHSystem(fluid; smoothing_kernel,
+                                                smoothing_length,
+                                                sound_speed, viscosity,
+                                                shifting_technique,
+                                                density_calculator=ContinuityDensity())
+                ]
+
+                # Skip the shifting update step by setting random shifting velocities
+                if !isnothing(shifting_technique)
+                    for fluid_system in fluid_systems
+                        fluid_system.cache.delta_v .= rand(size(fluid.velocity)...)
+                    end
+                end
+
+                # The hydrodynamic mass of the structure particles corresponds to the
+                # fluid rest density, while the material mass is the perturbed `mass`
+                # of the initial condition.
+                hydrodynamic_densities = fill(fluid_density, n_structure)
+                hydrodynamic_masses = hydrodynamic_densities * particle_spacing^2
+                function boundary_model()
+                    model = BoundaryModelDummyParticles(hydrodynamic_densities,
+                                                        hydrodynamic_masses,
+                                                        AdamiPressureExtrapolation(),
+                                                        smoothing_kernel,
+                                                        smoothing_length; viscosity)
+                    # Skip the boundary update step by setting the extrapolated
+                    # quantities directly. Use random wall velocities to make sure that
+                    # these are used in the viscosity in both directions.
+                    model.pressure .= structure.pressure
+                    model.cache.density .= structure.density
+                    model.cache.wall_velocity .= structure.velocity .+
+                                                 rand(size(structure.velocity)...)
+                    return model
+                end
+
+                structure_systems = [
+                    TotalLagrangianSPHSystem(structure; smoothing_kernel,
+                                             smoothing_length,
+                                             young_modulus=1e6, poisson_ratio=0.3,
+                                             boundary_model=boundary_model()),
+                    RigidBodySystem(structure; boundary_model=boundary_model(),
+                                    acceleration=(0.0, 0.0))
+                ]
+
+                semi = DummySemidiscretization()
+
+                @testset "`$(nameof(typeof(fluid_system)))`" for fluid_system in
+                                                                 fluid_systems
+
+                    @testset "`$(nameof(typeof(structure_system)))`" for structure_system in
+                                                                         structure_systems
+
+                        if fluid_system isa EntropicallyDampedSPHSystem
+                            v_fluid = vcat(fluid.velocity, fluid.pressure',
+                                           fluid.density')
+                        else
+                            fluid_system.pressure .= fluid.pressure
+                            v_fluid = vcat(fluid.velocity, fluid.density')
+                        end
+                        u_fluid = fluid.coordinates
+
+                        v_structure = copy(structure.velocity)
+                        u_structure = copy(structure.coordinates)
+                        if structure_system isa TotalLagrangianSPHSystem
+                            # TLSPH stores the current coordinates in the system.
+                            structure_system.current_coordinates .= structure.coordinates
+                        else
+                            structure_system.force_per_particle .= 0
+                        end
+
+                        # Fluid-structure interaction
+                        dv_fluid = zero(v_fluid)
+                        TrixiParticles.interact!(dv_fluid, v_fluid, u_fluid,
+                                                 v_structure, u_structure,
+                                                 fluid_system, structure_system, semi)
+
+                        # Structure-fluid interaction
+                        dv_structure = zero(v_structure)
+                        TrixiParticles.interact!(dv_structure, v_structure, u_structure,
+                                                 v_fluid, u_fluid,
+                                                 structure_system, fluid_system, semi)
+
+                        # Total force on the fluid: ∑ m_a dv_a
+                        force_fluid = sum(fluid.mass' .* view(dv_fluid, 1:2, :), dims=2)
+
+                        # Make sure that the test is not trivially satisfied
+                        @test norm(force_fluid) > 1
+
+                        # Total force on the structure
+                        if structure_system isa TotalLagrangianSPHSystem
+                            # TLSPH accelerations are scaled by the material mass
+                            force_structure = sum(structure.mass' .* dv_structure,
+                                                  dims=2)
+                        else
+                            # The rigid body accumulates the forces per particle
+                            force_structure = sum(structure_system.force_per_particle,
+                                                  dims=2)
+                        end
+
+                        @test isapprox(force_fluid + force_structure, zeros(2, 1),
+                                       atol=1e-10 * norm(force_fluid))
+                    end
+                end
+            end
+        end
+    end
 end
