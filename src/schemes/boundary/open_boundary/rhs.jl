@@ -10,9 +10,7 @@ function interact!(dv, v_particle_system, u_particle_system,
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-    # Boundary kernels use the same relative criterion with their own h.
     h = initial_smoothing_length(particle_system)
-    zero_distance_squared = eps(typeof(h)) * h^2
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     foreach_point_neighbor(particle_system, neighbor_system,
@@ -21,9 +19,10 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                                                 neighbor,
                                                                                 pos_diff,
                                                                                 distance
-        # Skip neighbors with the same position because the kernel gradient is zero.
+        # Skip neighbors with (almost) the same position because the kernel gradient
+        # is zero, but computing it would divide by zero (see `almostzero`).
         # Note that `return` only exits the closure, i.e., skips the current neighbor.
-        skip_zero_distance(particle_system) && distance^2 < zero_distance_squared && return
+        skip_zero_distance(particle_system) && distance < almostzero(h) && return
 
         # Now that we know that `distance` is not zero, we can safely call the unsafe
         # version of the kernel gradient to avoid redundant zero checks.

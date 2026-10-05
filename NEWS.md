@@ -11,14 +11,17 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Replaced the experimental `MechanicalWorkCalculatorCallback` with
   `MechanicalWorkCalculator`, which can be passed as a custom quantity to
   `PostprocessCallback` (#1228).
+- The compact support of a `BoundaryModelDummyParticles` of a `TotalLagrangianSPHSystem`
+  or `RigidBodySystem` must now be the same as the compact support of all fluid systems
+  in the simulation (#1348).
 
 ### Important Bugfixes
 
 - Corrected pressure and viscous reaction forces on TLSPH and rigid-body systems,
   including asymmetric fluid gradients, free-surface factors, EDAC pressure
   reduction, and the approaching-particle condition for artificial viscosity (#1338).
-- Unified near-zero distance checks using the relative squared-distance criterion
-  `r^2 < eps(typeof(h)) * h^2` across kernels and particle operators (#1347).
+- Fixed asymmetric DEM contact forces near coincidence by using a pair-local
+  radius scale for the near-zero distance cutoff (#1347).
 - Fixed the sign of the quadratic term in `ArtificialViscosityMonaghan` (#1295).
 - Fixed mathematical inconsistencies in the SPH documentation, including incorrect
   formulas, inconsistent force-vs-acceleration notation, and wrong LaTeX text-mode
@@ -31,6 +34,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   into account (#1184).
 - Fixed the IISPH pressure solver to clear stale density error contributions of
   zero-pressure particles instead of retaining them in the termination condition (#1215).
+- Fixed the viscous force on structures in fluid-structure interaction, which had the wrong
+  sign (#1348).
 
 ## Version 0.5.3
 

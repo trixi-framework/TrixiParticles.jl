@@ -14,6 +14,30 @@ end
     return dv_a + dv_b, drho_a + drho_b
 end
 
+# The structure-fluid interaction computes the opposite of the force that the fluid
+# experiences in the fluid-structure interaction. Therefore, both interactions must find
+# the same pairs of particles, so the neighborhood search of the structure must use
+# the compact support of the fluid.
+# Note that this is only a restriction for `BoundaryModelDummyParticles`, since
+# `BoundaryModelMonaghanKajtar` always uses the compact support of the fluid.
+function check_compact_support_fsi(system, ::BoundaryModelDummyParticles,
+                                   neighbor_system::AbstractFluidSystem)
+    compact_support_structure = compact_support(system, neighbor_system)
+    compact_support_fluid = compact_support(neighbor_system, system)
+
+    if !isapprox(compact_support_structure, compact_support_fluid)
+        throw(ArgumentError("the compact support of the boundary model of the " *
+                            "`$(nameof(typeof(system)))` ($compact_support_structure) " *
+                            "must be the same as the compact support of the fluid system " *
+                            "($compact_support_fluid). Use the same smoothing kernel and " *
+                            "smoothing length for the boundary model as for the fluid."))
+    end
+
+    return system
+end
+
+check_compact_support_fsi(system, boundary_model, neighbor_system) = system
+
 # Fluid-first arguments: a=f, b=s, pos_diff=x_f-x_s, with the gradient evaluated at f.
 # Return a_f^physical for the reaction F_s=-m_f*a_f^physical; shifting is excluded.
 @propagate_inbounds function physical_fluid_pair_acceleration(particle_system,
@@ -70,7 +94,6 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
 
     compact_support_ = compact_support(neighbor_system, particle_system)
     h = initial_smoothing_length(neighbor_system)
-    zero_distance_squared = eps(typeof(h)) * h^2
 
     @threaded semi for particle in eachparticle
         # In fluid-structure interaction, use the "hydrodynamic mass" of the structure particles
@@ -98,7 +121,7 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
 
             # Corrected coincident-particle gradients can be finite and nonzero.
             if distance > compact_support_ ||
-               (skip_zero_distance(neighbor_system) && distance^2 < zero_distance_squared)
+               (skip_zero_distance(neighbor_system) && distance < almostzero(h))
                 return init
             end
 
