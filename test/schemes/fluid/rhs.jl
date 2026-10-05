@@ -281,7 +281,7 @@
                                            exponent=1)
 
         function create_fluid_system(scheme, velocity, density, viscosity;
-                                     shifting_technique=nothing)
+                                     shifting_technique=nothing, correction=nothing)
             fluid = InitialCondition(; coordinates=zeros(2, 1),
                                      velocity=reshape(collect(velocity), 2, 1),
                                      mass=[fluid_density * particle_spacing^2],
@@ -292,7 +292,8 @@
                 return WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
                                                    smoothing_length, state_equation,
                                                    density_calculator=ContinuityDensity(),
-                                                   viscosity, shifting_technique)
+                                                   viscosity, shifting_technique,
+                                                   correction)
             end
 
             # Note that the average pressure reduction is enabled by default
@@ -304,7 +305,8 @@
                                                density_calculator=ContinuityDensity())
         end
 
-        function create_structure_system(structure_type, viscosity)
+        function create_structure_system(structure_type, viscosity;
+                                         density_calculator=AdamiPressureExtrapolation())
             # The material mass is twice the hydrodynamic mass, so using the wrong mass
             # to convert the force on the structure to an acceleration fails the test.
             structure = InitialCondition(; coordinates=reshape([1.5, 0.0], 2, 1),
@@ -314,7 +316,7 @@
             boundary_model = BoundaryModelDummyParticles([fluid_density],
                                                          [fluid_density *
                                                           particle_spacing^2],
-                                                         AdamiPressureExtrapolation(),
+                                                         density_calculator,
                                                          smoothing_kernel,
                                                          smoothing_length;
                                                          state_equation, viscosity)
@@ -444,6 +446,39 @@
                         end
                     end
                 end
+            end
+        end
+
+        @testset "Corrected gradients `$(nameof(typeof(correction)))`" for correction in
+                                                                           (KernelCorrection(),
+                                                                            MixedKernelGradientCorrection())
+            @testset "`$structure_type`, viscosity `$(nameof(typeof(viscosity)))`" for structure_type in
+                                                                                       structure_types,
+                                                                                       viscosity in
+                                                                                       (nothing,
+                                                                                        ViscosityAdami(nu=0.1),
+                                                                                        ViscosityMorris(nu=0.1))
+
+                fluid_system = create_fluid_system("WCSPH", (1.0, 0.5), 1005.0,
+                                                   viscosity; correction)
+                structure_system = create_structure_system(structure_type, viscosity;
+                                                           density_calculator=SummationDensity())
+                fluid, structure, arrays, semi = initialize(fluid_system, structure_system)
+
+                # The correction adds a non-odd term. Negating the structure-first
+                # gradient therefore does not reproduce the fluid-first gradient.
+                pos_diff = SVector(1.5, 0.0)
+                grad_kernel = TrixiParticles.smoothing_kernel_grad_unsafe(fluid, pos_diff,
+                                                                          1.5, 1)
+                grad_kernel_fluid = TrixiParticles.smoothing_kernel_grad_unsafe(fluid,
+                                                                                -pos_diff,
+                                                                                1.5, 1)
+                @test !isapprox(grad_kernel_fluid, -grad_kernel)
+
+                force_fluid, force_structure = pair_forces(fluid, structure, arrays, semi)
+                @test !iszero(force_fluid)
+                @test isapprox(force_structure, -force_fluid,
+                               rtol=sqrt(eps()), atol=sqrt(eps()))
             end
         end
 
