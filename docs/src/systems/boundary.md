@@ -376,8 +376,16 @@ Pages = [joinpath("schemes", "boundary", "open_boundary", "pressure_model.jl")]
 ## [Non-reflecting outlet](@id impedance_outlet)
 
 This section explains the idea behind [`ImpedanceOutletPressure`](@ref).
-This model sets the outlet pressure from the mean outflow velocity through a prescribed outlet impedance. Matching this impedance to the characteristic impedance ``\rho_0 c`` of the fluid gives a non-reflecting pressure outlet.
-With ``u_{\text{ref}}`` equal to the actual mean outflow velocity, this is the non-reflecting counterpart of prescribing a constant pressure ``p = p_{\text{ref}}``.
+
+In simple words, this model prescribes the pressure at the outlet, but not as an exactly
+constant value. Instead, it varies the pressure slightly when a wave passes through
+the outlet, so that the wave leaves the domain without being reflected.
+
+The model sets the outlet pressure from the mean outflow velocity through a prescribed
+outlet impedance. Matching this impedance to the characteristic impedance ``\rho_0 c``
+of the fluid gives a non-reflecting pressure outlet.
+With ``u_{\text{ref}}`` equal to the actual mean outflow velocity, this is the
+non-reflecting counterpart of prescribing a constant pressure ``p = p_{\text{ref}}``.
 
 ### Waves in one dimension
 
@@ -441,6 +449,10 @@ of each wave.
 A prescribed pressure is the special case ``Z = 0`` (``R = -1``),
 a prescribed velocity is the limit ``Z \to \infty`` (``R = 1``),
 and ``Z = \rho_0 c`` is the only choice without reflection (``R = 0``).
+
+In terms of the [`RCRWindkesselModel`](@ref), the impedance outlet is the
+characteristic-impedance term ``R_1`` of a Windkessel model, plus an explicitly prescribed
+pressure level ``p_{\text{ref}}`` instead of the ``R_2``–``C`` branch.
 
 ### Practical remarks
 
