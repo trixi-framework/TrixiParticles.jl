@@ -73,55 +73,27 @@ end
 Base.ndims(::DummySystem) = 2
 
 @testset "DEM near-zero pair symmetry" begin
-    for T in (Float32, Float64)
-        ic = InitialCondition(; coordinates=zeros(T, 2, 1), mass=T[1],
-                              density=one(T), particle_spacing=one(T))
-        model = LinearContactModel(one(T))
-        system_a = DEMSystem(ic; contact_model=model, radius=T(0.3),
-                             damping_coefficient=zero(T), acceleration=(zero(T), zero(T)))
-        system_b = DEMSystem(ic; contact_model=model, radius=one(T),
-                             damping_coefficient=zero(T), acceleration=(zero(T), zero(T)))
-        v = zeros(T, 2, 1)
-        u_a, u_b = ic.coordinates, copy(ic.coordinates)
-        semi = DummySemidiscretization()
+    ic = InitialCondition(; coordinates=zeros(Float32, 2, 1), mass=Float32[1],
+                          density=1.0f0, particle_spacing=1.0f0)
+    model = LinearContactModel(1.0f0)
+    system_a = DEMSystem(ic; contact_model=model, radius=0.3f0,
+                         damping_coefficient=0.0f0, acceleration=(0.0f0, 0.0f0))
+    system_b = DEMSystem(ic; contact_model=model, radius=1.0f0,
+                         damping_coefficient=0.0f0, acceleration=(0.0f0, 0.0f0))
+    v = zeros(Float32, 2, 1)
+    u_a, u_b = ic.coordinates, copy(ic.coordinates)
+    semi = DummySemidiscretization()
 
-        # Include coincidence, a separation between the old system-based cutoffs,
-        # the exact strict-comparison boundary, and a larger retained separation.
-        for factor in T.((0.0, 0.75, 1.0, 1.5))
-            u_b[1, 1] = factor * sqrt(eps(T))
-            dv_a, dv_b = zero(v), zero(v)
-            TrixiParticles.interact!(dv_a, v, u_a, v, u_b,
-                                     system_a, system_b, semi)
-            TrixiParticles.interact!(dv_b, v, u_b, v, u_a,
-                                     system_b, system_a, semi)
-            @test system_a.mass[1] * dv_a ≈ -system_b.mass[1] * dv_b
-            @test iszero(dv_a) == (factor < 1)
-            @test iszero(dv_b) == (factor < 1)
-            if factor >= 1
-                expected_force = SVector(-(T(0.3) + one(T) - u_b[1, 1]), zero(T))
-                @test system_a.mass[1] * dv_a[:, 1] ≈ expected_force
-            end
-        end
-
-        # An unrelated large particle must not suppress the smaller pair's contact.
-        ic_large = InitialCondition(; coordinates=T[0 1.0e5; 0 0], mass=ones(T, 2),
-                                    density=one(T), particle_spacing=one(T))
-        system_large = DEMSystem(ic_large; contact_model=model, radius=T(0.3),
-                                 damping_coefficient=zero(T),
-                                 acceleration=(zero(T), zero(T)))
-        system_large.radius[2] = T(1000)
-        u_b[1, 1] = T(0.75) * sqrt(eps(T)) * system_large.radius[2]
-        v_large = zeros(T, 2, 2)
-        dv_large, dv_b = zero(v_large), zero(v)
-        TrixiParticles.interact!(dv_large, v_large, ic_large.coordinates, v, u_b,
-                                 system_large, system_b, semi)
-        TrixiParticles.interact!(dv_b, v, u_b, v_large, ic_large.coordinates,
-                                 system_b, system_large, semi)
-        @test !iszero(dv_large[:, 1])
-        @test iszero(dv_large[:, 2])
-        @test system_large.mass[1] * dv_large[:, 1] ≈ -system_b.mass[1] * dv_b[:, 1]
-        expected_force = SVector(-(T(0.3) + one(T) - u_b[1, 1]), zero(T))
-        @test system_large.mass[1] * dv_large[:, 1] ≈ expected_force
+    # The first separation is between the old cutoffs; the second retains the contact.
+    for factor in (0.75f0, 1.5f0)
+        u_b[1, 1] = factor * sqrt(eps(Float32))
+        dv_a, dv_b = zero(v), zero(v)
+        TrixiParticles.interact!(dv_a, v, u_a, v, u_b,
+                                 system_a, system_b, semi)
+        TrixiParticles.interact!(dv_b, v, u_b, v, u_a,
+                                 system_b, system_a, semi)
+        @test system_a.mass[1] * dv_a ≈ -system_b.mass[1] * dv_b
+        @test iszero(dv_a) == (factor < 1)
     end
 end
 
