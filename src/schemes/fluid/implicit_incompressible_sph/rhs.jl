@@ -72,8 +72,8 @@ function interact!(dv, v_particle_system, u_particle_system,
     return dv
 end
 
-# Add the acceleration of particle `particle` in `particle_system` due to the neighbor
-# `neighbor` in `neighbor_system` to `dv_particle`.
+# Add the acceleration of `particle` due to `neighbor` to `dv_particle`.
+# `particle` must be in `particle_system` and `neighbor` must be in `neighbor_system`.
 # Note that this function is also used for the structure-fluid interaction to compute
 # the exact opposite pair force. When adding new terms here, make sure that they are
 # also valid for structure neighbors.
