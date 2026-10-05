@@ -26,6 +26,8 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
+    # Restrict reactions to pairs present in the fluid-side interaction.
+    fluid_compact_support = compact_support(neighbor_system, particle_system)
     h = initial_smoothing_length(neighbor_system)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
@@ -36,6 +38,9 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
         # is zero, but computing it would divide by zero (see `almostzero`).
         # Note that `return` only exits the closure, i.e., skips the current neighbor.
         skip_zero_distance(neighbor_system) && distance < almostzero(h) && return
+
+        # Also skip neighbors that are outside the compact support of the fluid.
+        distance > fluid_compact_support && return
 
         # Now that we know that `distance` is not zero, we can safely call the unsafe
         # version of the kernel gradient to avoid redundant zero checks.
