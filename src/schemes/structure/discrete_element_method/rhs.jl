@@ -6,28 +6,29 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-    # For `distance == 0`, computing the contact normal divides by zero.
-    # To account for rounding errors, we check if `distance` is almost zero.
-    # Since the coordinates are in the order of the radius `r`, `distance^2` is in
-    # the order of `r^2`, so we check `distance^2 < eps(typeof(r)) * r^2`.
-    # DEM has no smoothing kernel, so the particle radius is the characteristic length.
-    # Comparing squared distances directly avoids computing a square root.
-    # Note that `sqrt(eps(typeof(r))) * r != eps(r)`.
-    r = maximum(particle_system.radius)
-    zero_distance_squared = eps(typeof(r)) * r^2
-
     foreach_point_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
                            semi;
                            points=each_integrated_particle(particle_system)) do particle,
                                                                                 neighbor,
                                                                                 pos_diff,
                                                                                 distance
-        distance^2 < zero_distance_squared && return
-
         # Retrieve particle properties
-        m_a = particle_system.mass[particle]
         r_a = particle_system.radius[particle]
         r_b = neighbor_system.radius[neighbor]
+
+        # The contact normal is undefined for coincident centers, although the force
+        # magnitude need not vanish as `distance` approaches zero.
+        # Treat effectively coincident particles as numerically zero using the relative
+        # criterion `distance^2 < eps(typeof(r)) * r^2`, with the larger pair radius `r`.
+        # This symmetric scale gives both directions the same skip decision and is
+        # independent of unrelated particles in either system.
+        # Comparing squared distances directly avoids computing a square root.
+        # Note that `sqrt(eps(typeof(r))) * r != eps(r)`.
+        r = max(r_a, r_b)
+        zero_distance_squared = eps(typeof(r)) * r^2
+        distance^2 < zero_distance_squared && return
+
+        m_a = particle_system.mass[particle]
 
         # Compute the overlap (penetration depth)
         overlap = r_a + r_b - distance

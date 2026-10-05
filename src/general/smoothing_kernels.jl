@@ -3,10 +3,12 @@ abstract type AbstractSmoothingKernel{NDIMS} end
 @inline Base.ndims(::AbstractSmoothingKernel{NDIMS}) where {NDIMS} = NDIMS
 
 @inline function kernel_grad(kernel, pos_diff, distance, h)
-    # For `distance == 0`, the analytical gradient is zero, but the code divides by zero.
-    # To account for rounding errors, we check if `distance` is almost zero.
-    # Since the coordinates are in the order of the smoothing length `h`,
-    # `distance^2` is in the order of `h^2`, hence `distance^2 < eps(typeof(h)) * h^2`.
+    # Some unsafe kernel derivatives divide by `distance`. Treat effectively coincident
+    # particles as numerically zero to avoid division by zero and handle rounding errors.
+    # Most kernels have zero gradient at coincidence, but the Spiky gradient is undefined.
+    # Use the smoothing length `h` to set the relative cutoff
+    # `distance^2 < eps(typeof(h)) * h^2`, independently of the kernel's compact support.
+    # This is a numerical convention, not an exact zero-gradient limit for every kernel.
     # Note that this is faster than `distance < sqrt(eps(typeof(h))) * h`.
     # Also note that `sqrt(eps(typeof(h))) * h != eps(h)`.
     compact_support_ = compact_support(kernel, h)
@@ -34,8 +36,8 @@ end
 end
 
 @inline function kernel_deriv(kernel, r::Real, h)
-    # Zero out result if outside of compact support or if `r` is almost zero
-    # (to avoid division by zero in the unsafe version).
+    # Return zero outside compact support or for numerically zero separations,
+    # using the same cutoff convention as `kernel_grad`.
     compact_support_ = compact_support(kernel, h)
     if r < compact_support_ && r^2 >= eps(typeof(h)) * h^2
         # The unsafe version returns the kernel derivative divided by `r`,
@@ -667,6 +669,10 @@ This kernel function has a compact support of `` [0, h] ``.
 The Spiky kernel is particularly known for its sharp gradients, which can help to preserve
 sharp features in fluid simulations, especially near solid boundaries.
 These sharp gradients at the boundary are also the largest disadvantage as they can lead to instability.
+
+At coincident particle positions, the spatial gradient is undefined. The safe kernel
+gradient and derivative return zero for effectively coincident particles using the shared
+numerical zero-distance cutoff, rather than an analytical zero-gradient limit.
 
 The smoothing length is typically in the range ``[1.5\delta, 3.0\delta]``,
 where ``\delta`` is the typical particle spacing.

@@ -11,11 +11,10 @@ function interact!(dv, v_particle_system, u_particle_system,
     surface_tension_a = surface_tension_model(particle_system)
     surface_tension_b = surface_tension_model(neighbor_system)
 
-    # For `distance == 0`, the analytical gradient is zero, but the unsafe gradient
-    # divides by zero.
-    # To account for rounding errors, we check if `distance` is almost zero.
-    # Since the coordinates are in the order of the smoothing length `h`, `distance^2` is in
-    # the order of `h^2`, so we check `distance^2 < eps(typeof(h)) * h^2`.
+    # Some unsafe kernel gradients divide by `distance`, so effectively coincident particles
+    # are treated as numerically zero to avoid division by zero and handle rounding errors.
+    # This is a numerical convention; not every kernel has a zero-gradient limit.
+    # Scale the cutoff by the smoothing length `h`: `distance^2 < eps(typeof(h)) * h^2`.
     # Comparing squared distances directly avoids computing a square root.
     # Note that `sqrt(eps(typeof(h))) * h != eps(h)`.
     h = initial_smoothing_length(particle_system)
@@ -28,12 +27,12 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                                                 neighbor,
                                                                                 pos_diff,
                                                                                 distance
-        # Skip neighbors with the same position because the kernel gradient is zero.
+        # Skip numerically zero separations only when the correction permits it.
         # Note that `return` only exits the closure, i.e., skips the current neighbor.
         skip_zero_distance(particle_system) && distance^2 < zero_distance_squared && return
 
-        # Now that we know that `distance` is not zero, we can safely call the unsafe
-        # version of the kernel gradient to avoid redundant zero checks.
+        # The correction-dependent check makes it safe to call the unsafe kernel gradient
+        # without repeating its zero-distance check.
         grad_kernel = smoothing_kernel_grad_unsafe(particle_system, pos_diff,
                                                    distance, particle)
 

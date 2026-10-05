@@ -156,7 +156,8 @@ end
     (; surface_tension_coefficient) = surface_tension
 
     # Eq. 2
-    # We only reach this function when `sqrt(eps()) < distance <= support_radius`
+    # The caller excludes numerically zero separations. At coincidence the force
+    # direction is undefined, although its magnitude has a nonzero limiting value.
     if distance > 0.5 * support_radius
         # Attractive force
         C = (support_radius - distance)^3 * distance^3
@@ -214,7 +215,8 @@ end
                                         surface_tension_correction)
     (; smoothing_kernel) = particle_system
 
-    # No cohesion with oneself. See `src/general/smoothing_kernels.jl` for more details.
+    # Omit effectively coincident pairs by the numerical convention described in
+    # `src/general/smoothing_kernels.jl`.
     h = initial_smoothing_length(particle_system)
     distance^2 < eps(typeof(h)) * h^2 && return dv_particle
 
@@ -241,7 +243,8 @@ end
     (; surface_tension_coefficient) = surface_tension_a
 
     smoothing_length_ = smoothing_length(particle_system, particle)
-    # No surface tension with oneself. See `src/general/smoothing_kernels.jl` for more details.
+    # Omit effectively coincident pairs by the numerical convention described in
+    # `src/general/smoothing_kernels.jl`.
     h = initial_smoothing_length(particle_system)
     distance^2 < eps(typeof(h)) * h^2 && return dv_particle
 
@@ -268,7 +271,8 @@ end
                                         surface_tension_correction)
     (; surface_tension_coefficient) = surface_tension_a
 
-    # No surface tension with oneself. See `src/general/smoothing_kernels.jl` for more details.
+    # Omit effectively coincident pairs by the numerical convention described in
+    # `src/general/smoothing_kernels.jl`.
     h = initial_smoothing_length(particle_system)
     distance^2 < eps(typeof(h)) * h^2 && return dv_particle
 
@@ -344,7 +348,8 @@ end
                                         surface_tension_correction)
     (; surface_tension_coefficient) = surface_tension_a
 
-    # No surface tension with oneself. See `src/general/smoothing_kernels.jl` for more details.
+    # Omit effectively coincident pairs by the numerical convention described in
+    # `src/general/smoothing_kernels.jl`.
     h = initial_smoothing_length(particle_system)
     distance^2 < eps(typeof(h)) * h^2 && return dv_particle
 
@@ -366,7 +371,8 @@ end
                                  particle, neighbor, pos_diff, distance)
     (; adhesion_coefficient) = neighbor_system
 
-    # No adhesion with oneself. See `src/general/smoothing_kernels.jl` for more details.
+    # Omit effectively coincident pairs by the numerical convention described in
+    # `src/general/smoothing_kernels.jl`.
     h = initial_smoothing_length(particle_system)
     distance^2 < eps(typeof(h)) * h^2 && return dv_particle
 
