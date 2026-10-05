@@ -17,6 +17,30 @@ end
     end
 end
 
+# The structure-fluid interaction computes the opposite of the force that the fluid
+# experiences in the fluid-structure interaction. Therefore, both interactions must find
+# the same pairs of particles, so the neighborhood search of the structure must use
+# the compact support of the fluid.
+# Note that this is only a restriction for `BoundaryModelDummyParticles`, since
+# `BoundaryModelMonaghanKajtar` always uses the compact support of the fluid.
+function check_compact_support_fsi(system, ::BoundaryModelDummyParticles,
+                                   neighbor_system::AbstractFluidSystem)
+    compact_support_structure = compact_support(system, neighbor_system)
+    compact_support_fluid = compact_support(neighbor_system, system)
+
+    if !isapprox(compact_support_structure, compact_support_fluid)
+        throw(ArgumentError("the compact support of the boundary model of the " *
+                            "`$(nameof(typeof(system)))` ($compact_support_structure) " *
+                            "must be the same as the compact support of the fluid system " *
+                            "($compact_support_fluid). Use the same smoothing kernel and " *
+                            "smoothing length for the boundary model as for the fluid."))
+    end
+
+    return system
+end
+
+check_compact_support_fsi(system, boundary_model, neighbor_system) = system
+
 function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
                                    v_neighbor_system, u_neighbor_system,
                                    particle_system,
@@ -52,8 +76,6 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
         v_a = current_velocity(v_particle_system, particle_system, particle)
         v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
-        surface_tension = surface_tension_model(neighbor_system)
-
         # In fluid-structure interaction, use the "hydrodynamic mass" of the structure particles
         # corresponding to the rest density of the fluid and not the material density.
         m_a = hydrodynamic_mass(particle_system, particle)
@@ -63,24 +85,23 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
         p_a = current_pressure(v_particle_system, particle_system, particle)
         p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)
 
-        # Particle and neighbor (and the corresponding systems and particle quantities) are
-        # switched in the following two calls. This yields the exact same pair force as in the
-        # fluid-structure interaction, but with flipped sign because `pos_diff` is reversed.
-        dv_boundary = pressure_acceleration(neighbor_system, particle_system,
-                                            neighbor, particle,
-                                            m_b, m_a, p_b, p_a, rho_b, rho_a,
-                                            pos_diff, distance, grad_kernel,
-                                            system_correction(neighbor_system))
-
-        dv_particle = add_dv_viscosity(dv_boundary, neighbor_system, particle_system,
-                                       v_neighbor_system, v_particle_system,
-                                       neighbor, particle, pos_diff, distance,
-                                       sound_speed, m_b, m_a, rho_b, rho_a,
-                                       v_b, v_a, grad_kernel)
-
-        dv_particle = add_dv_adhesion(dv_particle, surface_tension,
-                                      neighbor_system, particle_system,
-                                      neighbor, particle, pos_diff, distance)
+        # Compute the acceleration of the fluid particle due to the structure particle
+        # with the exact same function as in the fluid-structure interaction.
+        # Particle and neighbor (and the corresponding systems and particle quantities)
+        # are switched, so we also have to flip `pos_diff` and `grad_kernel`.
+        # By Newton's third law, the structure particle experiences the opposite force.
+        #
+        # Note that the extra terms of shifting techniques in the momentum equation are
+        # intentionally not applied to the structure.
+        # Shifting makes the fluid particles quasi-Lagrangian, i.e., they don't move
+        # exactly with the fluid velocity. The extra terms correct for this by accounting
+        # for the momentum transported between fluid particles. They are not a force.
+        dv_fluid = add_momentum_equation(zero(v_b), neighbor_system, particle_system,
+                                         v_neighbor_system, v_particle_system,
+                                         neighbor, particle, -pos_diff, distance,
+                                         -grad_kernel, sound_speed, m_b, m_a, p_b, p_a,
+                                         rho_b, rho_a, v_b, v_a)
+        dv_particle = -dv_fluid
 
         accumulate_structure_fluid_pair!(dv, dv_particle, particle_system, particle, m_b)
 
