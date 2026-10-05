@@ -72,6 +72,14 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
         # Particle and neighbor (and the corresponding systems and particle quantities)
         # are switched, so we also have to flip `pos_diff` and `grad_kernel`.
         # By Newton's third law, the structure particle experiences the opposite force.
+        #
+        # Note that the extra terms of shifting techniques in the momentum equation are
+        # intentionally not applied to the structure.
+        # Shifting makes the fluid particles quasi-Lagrangian, i.e., they don't move
+        # exactly with the fluid velocity. The extra terms correct for this by accounting
+        # for the momentum transported between fluid particles. They are not a force.
+        # No fluid crosses the fluid-structure interface, so the structure only feels
+        # the physical forces (pressure, viscosity, adhesion).
         dv_fluid = add_momentum_equation(zero(v_b), neighbor_system, particle_system,
                                          v_neighbor_system, v_particle_system,
                                          neighbor, particle, -pos_diff, distance,

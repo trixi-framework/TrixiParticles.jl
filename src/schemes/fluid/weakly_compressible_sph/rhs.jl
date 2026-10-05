@@ -84,6 +84,17 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                           sound_speed, m_a, m_b, p_a, p_b,
                                                           rho_a, rho_b, v_a, v_b)
 
+            # Extra terms in the momentum equation when using a shifting technique.
+            # These are not included in `add_momentum_equation` because they must not be
+            # applied to structures (see `interact_structure_fluid!`).
+            dv_particle = @inbounds add_dv_shifting(dv_particle,
+                                                    shifting_technique(particle_system),
+                                                    particle_system, neighbor_system,
+                                                    v_particle_system, v_neighbor_system,
+                                                    particle, neighbor, m_a, m_b, rho_a,
+                                                    rho_b, v_a, v_b, pos_diff, distance,
+                                                    grad_kernel, correction)
+
             drho_particle = zero(rho_a)
 
             # TODO If variable smoothing_length is used, this should use the neighbor smoothing length
@@ -111,8 +122,8 @@ end
 
 # Add the acceleration of particle `particle` in `particle_system` due to the neighbor
 # `neighbor` in `neighbor_system` to `dv_particle`.
-# This includes pressure, viscosity, extra terms from shifting techniques,
-# surface tension and adhesion.
+# This includes pressure, viscosity, surface tension and adhesion, but not the extra terms
+# from shifting techniques (see `interact_structure_fluid!`).
 # Note that this function is also used for the structure-fluid interaction to compute
 # the exact opposite pair force. When adding new terms here, make sure that they are
 # also valid for structure neighbors.
@@ -147,13 +158,6 @@ end
                                    particle, neighbor, pos_diff, distance,
                                    sound_speed, m_a, m_b, rho_a, rho_b,
                                    v_a, v_b, grad_kernel, viscosity_correction)
-
-    # Extra terms in the momentum equation when using a shifting technique.
-    dv_particle = add_dv_shifting(dv_particle, shifting_technique(particle_system),
-                                  particle_system, neighbor_system,
-                                  v_particle_system, v_neighbor_system,
-                                  particle, neighbor, m_a, m_b, rho_a, rho_b, v_a, v_b,
-                                  pos_diff, distance, grad_kernel, correction)
 
     dv_particle = add_dv_surface_tension(dv_particle, surface_tension_a, surface_tension_b,
                                          particle_system, neighbor_system,
