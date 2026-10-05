@@ -19,7 +19,7 @@ abstract type AbstractSmoothingKernel{NDIMS} end
     # For `distance == 0`, the analytical gradient is zero, but the code divides by zero.
     # See `almostzero` for an explanation of this check.
     compact_support_ = compact_support(kernel, h)
-    nonzero = distance < compact_support_ && distance > almostzero(h)
+    nonzero = distance < compact_support_ && distance >= almostzero(h)
     nonzero || return zero(pos_diff)
 
     # Now we can use `kernel_grad_unsafe` without worrying about division by zero
@@ -44,9 +44,9 @@ end
 
 @inline function kernel_deriv(kernel, r::Real, h)
     # Zero out result if outside of compact support or if `r` is almost zero
-    # (to avoid division by zero in the unsafe version).
+    # to avoid division by zero in the unsafe version (see `almostzero`).
     compact_support_ = compact_support(kernel, h)
-    if r < compact_support_ && r^2 > eps(h^2)
+    if r < compact_support_ && r >= almostzero(h)
         # The unsafe version returns the kernel derivative divided by `r`,
         # so we multiply it by `r` to get the actual derivative.
         return kernel_deriv_div_r_unsafe(kernel, r, h) * r

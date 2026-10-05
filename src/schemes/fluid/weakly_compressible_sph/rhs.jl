@@ -19,7 +19,7 @@ function interact!(dv, v_particle_system, u_particle_system,
     neighborhood_search = get_neighborhood_search(particle_system, neighbor_system, semi)
     backend = semi.parallelization_backend
 
-    compact_support_ = compact_support(particle_system, neighbor_system)
+    h = initial_smoothing_length(particle_system)
 
     @threaded semi for particle in eachparticle
         # We are looping over the particles of `particle_system`, so it is guaranteed
@@ -52,7 +52,7 @@ function interact!(dv, v_particle_system, u_particle_system,
             # Skip neighbors with (almost) the same position because the kernel gradient
             # is zero, but computing it would divide by zero (see `almostzero`).
             # Note that `return` only exits the closure, i.e., skips the current neighbor.
-            if skip_zero_distance(particle_system) && distance < almostzero(compact_support_)
+            if skip_zero_distance(particle_system) && distance < almostzero(h)
                 return init
             end
 
