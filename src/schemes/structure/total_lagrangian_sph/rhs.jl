@@ -21,16 +21,7 @@ end
     neighborhood_search = get_neighborhood_search(system, semi)
     backend = semi.parallelization_backend
 
-    # Some unsafe kernel gradients divide by `initial_distance`, so effectively coincident
-    # reference positions are treated as numerically zero to avoid division by zero and
-    # handle rounding errors. This is a numerical convention; not every kernel has a
-    # zero-gradient limit.
-    # Scale the cutoff by the elastic smoothing length `h`:
-    # `initial_distance^2 < eps(typeof(h)) * h^2`.
-    # Comparing squared distances directly avoids computing a square root.
-    # Note that `sqrt(eps(typeof(h))) * h != eps(h)`.
     h = initial_smoothing_length(system)
-    zero_distance_squared = eps(typeof(h)) * h^2
 
     @threaded semi for particle in eachparticle
         # We are looping over the particles of `system`, so it is guaranteed
@@ -53,14 +44,15 @@ end
                                                                                     initial_pos_diff,
                                                                                     initial_distance
 
-            # Skip numerically zero reference separations only when the correction permits it.
+            # Skip neighbors with (almost) the same position because the kernel gradient
+            # is zero, but computing it would divide by zero (see `almostzero`).
             # Note that `return` only exits the closure, i.e., skips the current neighbor.
-            if skip_zero_distance(system) && initial_distance^2 < zero_distance_squared
+            if skip_zero_distance(system) && initial_distance < almostzero(h)
                 return zero(initial_pos_diff)
             end
 
-            # The correction-dependent check makes it safe to call the unsafe kernel
-            # gradient without repeating its zero-distance check.
+            # Now that we know that `distance` is not zero, we can safely call the unsafe
+            # version of the kernel gradient to avoid redundant zero checks.
             grad_kernel = smoothing_kernel_grad_unsafe(system, initial_pos_diff,
                                                        initial_distance, particle)
 

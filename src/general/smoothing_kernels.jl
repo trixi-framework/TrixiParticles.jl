@@ -2,17 +2,24 @@ abstract type AbstractSmoothingKernel{NDIMS} end
 
 @inline Base.ndims(::AbstractSmoothingKernel{NDIMS}) where {NDIMS} = NDIMS
 
+# Threshold below which a `distance` is considered zero, where `h` is the length scale
+# of the coordinates (e.g., the smoothing length or the compact support).
+# For `distance == 0`, the analytical kernel gradient is zero, but the code divides by zero.
+# To account for rounding errors, we check if `distance` is almost zero.
+# Since the coordinates are in the order of `h`, `distance^2` is in the order of `h^2`,
+# so the rounding error of `distance^2` is in the order of `eps(h^2) ≈ eps(typeof(h)) * h^2`.
+# Hence, we consider `distance` almost zero if `distance^2 < eps(typeof(h)) * h^2`,
+# or, equivalently, `distance < sqrt(eps(typeof(h))) * h`.
+# Note that `sqrt(eps(h^2)) != eps(h)`.
+# Since `sqrt(eps(typeof(h)))` is constant-propagated, this is only a multiplication
+# and can be used inside hot loops without precomputing the threshold.
+@inline almostzero(h) = sqrt(eps(typeof(h))) * h
+
 @inline function kernel_grad(kernel, pos_diff, distance, h)
-    # Some unsafe kernel derivatives divide by `distance`. Treat effectively coincident
-    # particles as numerically zero to avoid division by zero and handle rounding errors.
-    # Most kernels have zero gradient at coincidence, but the Spiky gradient is undefined.
-    # Use the smoothing length `h` to set the relative cutoff
-    # `distance^2 < eps(typeof(h)) * h^2`, independently of the kernel's compact support.
-    # This is a numerical convention, not an exact zero-gradient limit for every kernel.
-    # Note that this is faster than `distance < sqrt(eps(typeof(h))) * h`.
-    # Also note that `sqrt(eps(typeof(h))) * h != eps(h)`.
+    # For `distance == 0`, the analytical gradient is zero, but the code divides by zero.
+    # See `almostzero` for an explanation of this check.
     compact_support_ = compact_support(kernel, h)
-    nonzero = distance < compact_support_ && distance^2 >= eps(typeof(h)) * h^2
+    nonzero = distance < compact_support_ && distance >= almostzero(h)
     nonzero || return zero(pos_diff)
 
     # Now we can use `kernel_grad_unsafe` without worrying about division by zero
@@ -36,10 +43,10 @@ end
 end
 
 @inline function kernel_deriv(kernel, r::Real, h)
-    # Return zero outside compact support or for numerically zero separations,
-    # using the same cutoff convention as `kernel_grad`.
+    # Zero out result if outside of compact support or if `r` is almost zero
+    # to avoid division by zero in the unsafe version (see `almostzero`).
     compact_support_ = compact_support(kernel, h)
-    if r < compact_support_ && r^2 >= eps(typeof(h)) * h^2
+    if r < compact_support_ && r >= almostzero(h)
         # The unsafe version returns the kernel derivative divided by `r`,
         # so we multiply it by `r` to get the actual derivative.
         return kernel_deriv_div_r_unsafe(kernel, r, h) * r
@@ -669,10 +676,6 @@ This kernel function has a compact support of `` [0, h] ``.
 The Spiky kernel is particularly known for its sharp gradients, which can help to preserve
 sharp features in fluid simulations, especially near solid boundaries.
 These sharp gradients at the boundary are also the largest disadvantage as they can lead to instability.
-
-At coincident particle positions, the spatial gradient is undefined. The safe kernel
-gradient and derivative return zero for effectively coincident particles using the shared
-numerical zero-distance cutoff, rather than an analytical zero-gradient limit.
 
 The smoothing length is typically in the range ``[1.5\delta, 3.0\delta]``,
 where ``\delta`` is the typical particle spacing.

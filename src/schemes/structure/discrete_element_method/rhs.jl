@@ -18,15 +18,9 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
 
         # The contact normal is undefined for coincident centers, although the force
         # magnitude need not vanish as `distance` approaches zero.
-        # Treat effectively coincident particles as numerically zero using the relative
-        # criterion `distance^2 < eps(typeof(r)) * r^2`, with the larger pair radius `r`.
-        # This symmetric scale gives both directions the same skip decision and is
-        # independent of unrelated particles in either system.
-        # Comparing squared distances directly avoids computing a square root.
-        # Note that `sqrt(eps(typeof(r))) * r != eps(r)`.
-        r = max(r_a, r_b)
-        zero_distance_squared = eps(typeof(r)) * r^2
-        distance^2 < zero_distance_squared && return
+        # Use the larger pair radius as the length scale for `almostzero`, so both
+        # directions make the same skip decision independently of unrelated particles.
+        distance < almostzero(max(r_a, r_b)) && return
 
         m_a = particle_system.mass[particle]
 

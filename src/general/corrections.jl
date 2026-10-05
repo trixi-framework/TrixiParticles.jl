@@ -217,16 +217,7 @@ function compute_correction_values!(system,
 
             neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-            # Some unsafe kernel gradients divide by `distance`, so effectively coincident
-            # particles are treated as numerically zero to avoid division by zero and handle
-            # rounding errors. This is a numerical convention; not every kernel has a
-            # zero-gradient limit.
-            # Scale the cutoff by the smoothing length `h`:
-            # `distance^2 < eps(typeof(h)) * h^2`, as in the uncorrected kernel gradient.
-            # Comparing squared distances directly avoids computing a square root.
-            # Note that `sqrt(eps(typeof(h))) * h != eps(h)`.
             h = initial_smoothing_length(system)
-            zero_distance_squared = eps(typeof(h)) * h^2
 
             # Loop over all pairs of particles and neighbors within the kernel cutoff
             foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
@@ -241,10 +232,11 @@ function compute_correction_values!(system,
 
                 kernel_correction_coefficient[particle] += volume * W
 
-                # Only include gradients outside the numerical zero-distance cutoff.
-                if distance^2 >= zero_distance_squared
-                    # The distance check makes it safe to call the unsafe kernel gradient
-                    # without repeating its zero-distance check.
+                # Only consider particles with a distance > 0 because the kernel gradient
+                # is zero otherwise, but computing it would divide by zero (see `almostzero`).
+                if distance >= almostzero(h)
+                    # Now that we know that `distance` is not zero, we can safely call the
+                    # unsafe version of the kernel gradient to avoid redundant zero checks.
                     grad_W = kernel_grad_unsafe(system_smoothing_kernel(system), pos_diff,
                                                 distance,
                                                 smoothing_length(system, particle))
@@ -373,7 +365,6 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
 
             neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
             h = initial_smoothing_length(system)
-            zero_distance_squared = eps(typeof(h)) * h^2
 
             foreach_point_neighbor(system, neighbor_system, coordinates, neighbor_coords,
                                    semi) do particle, neighbor, pos_diff, distance
@@ -394,13 +385,15 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
                                                         particle)
                 end
 
-                # Skip numerically zero separations only when the correction permits it.
+                # Skip neighbors with (almost) the same position because the kernel gradient
+                # is zero, but computing it would divide by zero (see `almostzero`).
                 # Note that `return` only exits the closure, i.e., skips the current neighbor.
-                skip_zero_distance(correction) && distance^2 < zero_distance_squared &&
+                if skip_zero_distance(correction) && distance < almostzero(h)
                     return
+                end
 
-                # The correction-dependent check makes it safe to call the unsafe kernel
-                # gradient without repeating its zero-distance check.
+                # Now that we know that `distance` is not zero, we can safely call the unsafe
+                # version of the kernel gradient to avoid redundant zero checks.
                 smoothing_length_ = smoothing_length(system, particle)
                 grad_kernel = kernel_grad_local(correction, smoothing_kernel, pos_diff,
                                                 distance, smoothing_length_, system,

@@ -292,10 +292,8 @@ end
                                  particle, neighbor, pos_diff, distance)
     (; adhesion_coefficient) = neighbor_system
 
-    # Omit effectively coincident pairs by the numerical convention described in
-    # `src/general/smoothing_kernels.jl`.
-    h = initial_smoothing_length(particle_system)
-    distance^2 < eps(typeof(h)) * h^2 && return dv_particle
+    # No adhesion with oneself (see `almostzero`).
+    distance < almostzero(initial_smoothing_length(particle_system)) && return dv_particle
 
     abs(adhesion_coefficient) < eps() && return dv_particle
 
