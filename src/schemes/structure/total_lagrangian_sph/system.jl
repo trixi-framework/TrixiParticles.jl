@@ -525,7 +525,14 @@ end
 @inline function calc_deformation_grad!(deformation_grad, system, semi)
     (; mass, material_density) = system
 
-    # Match the squared-distance criterion used by elastic self-interaction.
+    # For `initial_distance == 0`, the analytical gradient is zero, but the unsafe gradient
+    # divides by zero.
+    # To account for rounding errors, we check if `initial_distance` is almost zero.
+    # Since the initial coordinates are in the order of the smoothing length `h`,
+    # `initial_distance^2` is in the order of `h^2`, so we use the relative criterion
+    # `initial_distance^2 < eps(typeof(h)) * h^2`.
+    # Comparing squared distances directly avoids computing a square root.
+    # Note that `sqrt(eps(typeof(h))) * h != eps(h)`.
     h = initial_smoothing_length(system)
     zero_distance_squared = eps(typeof(h)) * h^2
 

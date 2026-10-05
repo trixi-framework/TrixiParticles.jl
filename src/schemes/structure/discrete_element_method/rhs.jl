@@ -6,7 +6,13 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-    # DEM has no kernel h; apply the same relative criterion to the particle radius.
+    # For `distance == 0`, computing the contact normal divides by zero.
+    # To account for rounding errors, we check if `distance` is almost zero.
+    # Since the coordinates are in the order of the radius `r`, `distance^2` is in
+    # the order of `r^2`, so we check `distance^2 < eps(typeof(r)) * r^2`.
+    # DEM has no smoothing kernel, so the particle radius is the characteristic length.
+    # Comparing squared distances directly avoids computing a square root.
+    # Note that `sqrt(eps(typeof(r))) * r != eps(r)`.
     r = maximum(particle_system.radius)
     zero_distance_squared = eps(typeof(r)) * r^2
 

@@ -217,7 +217,14 @@ function compute_correction_values!(system,
 
             neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-            # Coefficient assembly uses the same relative criterion as its kernel.
+            # For `distance == 0`, the analytical gradient is zero, but the unsafe gradient
+            # divides by zero.
+            # To account for rounding errors, we check if `distance` is almost zero.
+            # Since the coordinates are in the order of the smoothing length `h`,
+            # `distance^2` is in the order of `h^2`, so we use the relative criterion
+            # `distance^2 < eps(typeof(h)) * h^2`.
+            # Comparing squared distances directly avoids computing a square root.
+            # Note that `sqrt(eps(typeof(h))) * h != eps(h)`.
             h = initial_smoothing_length(system)
             zero_distance_squared = eps(typeof(h)) * h^2
 

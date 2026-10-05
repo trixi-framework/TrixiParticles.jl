@@ -146,6 +146,7 @@ end
     compact_support_ = compact_support(system_smoothing_kernel(system), h)
 
     # The same relative squared-distance criterion is used by the pair RHSs.
+    # Note that `sqrt(eps(typeof(h))) * h != eps(h)`.
     if distance >= compact_support_ ||
        (skip_zero_distance(system) && distance^2 < eps(typeof(h)) * h^2)
         return zero(pos_diff)

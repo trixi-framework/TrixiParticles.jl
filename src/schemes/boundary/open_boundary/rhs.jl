@@ -10,7 +10,13 @@ function interact!(dv, v_particle_system, u_particle_system,
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-    # Boundary kernels use the same relative criterion with their own h.
+    # For `distance == 0`, the analytical gradient is zero, but the unsafe gradient
+    # divides by zero.
+    # To account for rounding errors, we check if `distance` is almost zero.
+    # Since the coordinates are in the order of the smoothing length `h`, `distance^2` is in
+    # the order of `h^2`, so we check `distance^2 < eps(typeof(h)) * h^2`.
+    # Comparing squared distances directly avoids computing a square root.
+    # Note that `sqrt(eps(typeof(h))) * h != eps(h)`.
     h = initial_smoothing_length(particle_system)
     zero_distance_squared = eps(typeof(h)) * h^2
 
