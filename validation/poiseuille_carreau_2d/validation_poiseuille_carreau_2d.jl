@@ -106,7 +106,7 @@ for power_law_index in n_values
     trixi_include(@__MODULE__, example_file;
                   ny, t_end_factor, power_law_index, pp_callback, output_directory,
                   smoothing_kernel=WendlandC2Kernel{2}(),
-                  initial_condition_mode, viscosity_model)
+                  initial_condition_mode, viscosity_model, nu0, reynolds_number)
 
     _, profiles = profile_history(output_directory, result_filename)
     relative_l2_errors, max_velocity_errors = error_history(profiles, power_law_index)
