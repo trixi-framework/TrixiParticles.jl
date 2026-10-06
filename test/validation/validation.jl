@@ -5,7 +5,7 @@
                                                   "validation_poiseuille_carreau_2d.jl"),
                                          nu0=40.0, reynolds_number=0.05,
                                          ny=8, t_end_factor=0.0002,
-                                          relative_l2_error_bounds=Dict(1.0 => 0.06,
+                                         relative_l2_error_bounds=Dict(1.0 => 0.06,
                                                                        0.5 => 0.06),
                                          n_values=(1.0, 0.5), output_root=mktempdir()) [
             r"WARNING: Method definition linear_interpolation_clamped.*\n",
@@ -20,8 +20,6 @@
         @test all(isfinite, values(final_relative_l2_errors))
         @test all(error <= relative_l2_error_bounds[n]
                   for (n, error) in final_relative_l2_errors)
-
-
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(validation_dir(), "poiseuille_carreau_2d",
                                                   "plot_carreau_comparison.jl"),
