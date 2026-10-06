@@ -15,7 +15,7 @@ include("validation_util.jl")
 # Load the example's setup and analytical helpers without assembling or solving the ODE.
 example_file = joinpath(examples_dir(), "fluid", "poiseuille_carreau_2d.jl")
 trixi_include(@__MODULE__, example_file; ode=nothing, sol=nothing,
-              ny=50, t_end_factor=0.1,
+              ny=50, t_end_factor=0.1, nu0=1.0e-3, reynolds_number=200.0
               initial_condition_mode=:analytical, viscosity_model=:carreau,
               smoothing_kernel=WendlandC2Kernel{2}())
 
