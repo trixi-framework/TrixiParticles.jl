@@ -134,6 +134,10 @@ For dummy-particle fluid coupling, the structure-side gradient in corrected flui
 pressure uses the boundary model's kernel, independently of the elastic
 self-interaction kernel. Boundary and fluid compact supports must match.
 
+Boundary-model correction caches are assembled with hydrodynamic particle volumes
+over the current hydrodynamic neighborhood, including structure self-neighbors.
+The elastic self-interaction retains its frozen neighborhood and correction matrix.
+
 ## [Velocity Averaging](@id velocity_averaging)
 
 In FSI cases with very stiff structures, the two techniques above might not be
