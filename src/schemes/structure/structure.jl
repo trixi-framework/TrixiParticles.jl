@@ -51,6 +51,7 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
     h = initial_smoothing_length(neighbor_system)
+    correction = system_correction(neighbor_system)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     foreach_point_neighbor(particle_system, neighbor_system,
@@ -67,6 +68,9 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
         # to obtain the same force as in the fluid-structure interaction.
         grad_kernel = smoothing_kernel_grad_unsafe(neighbor_system, pos_diff,
                                                    distance, neighbor)
+        grad_kernel_fluid = fluid_reaction_kernel_grad(correction, neighbor_system,
+                                                       pos_diff, distance, neighbor,
+                                                       grad_kernel)
 
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
@@ -88,7 +92,7 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
         # Compute the acceleration of the fluid particle due to the structure particle
         # with the exact same function as in the fluid-structure interaction.
         # Particle and neighbor (and the corresponding systems and particle quantities)
-        # are switched, so we also have to flip `pos_diff` and `grad_kernel`.
+        # are switched, so we use the fluid-first displacement and gradient.
         # By Newton's third law, the structure particle experiences the opposite force.
         #
         # Note that the extra terms of shifting techniques in the momentum equation are
@@ -99,7 +103,7 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
         dv_fluid = add_momentum_equation(zero(v_b), neighbor_system, particle_system,
                                          v_neighbor_system, v_particle_system,
                                          neighbor, particle, -pos_diff, distance,
-                                         -grad_kernel, sound_speed, m_b, m_a, p_b, p_a,
+                                         grad_kernel_fluid, sound_speed, m_b, m_a, p_b, p_a,
                                          rho_b, rho_a, v_b, v_a)
         dv_particle = -dv_fluid
 
@@ -114,6 +118,21 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
     end
 
     return dv
+end
+
+@inline function fluid_reaction_kernel_grad(::Nothing, system, pos_diff, distance, particle,
+                                            grad_kernel)
+    # Reversing the displacement changes only the sign of the uncorrected gradient.
+    # Reuse it with the opposite sign to obtain the fluid-first gradient.
+    return -grad_kernel
+end
+
+@inline function fluid_reaction_kernel_grad(correction, system, pos_diff, distance,
+                                            particle,
+                                            grad_kernel)
+    # With corrections, reversing the displacement may not be equivalent to negating
+    # the gradient. Evaluate it with the fluid-first displacement instead.
+    return smoothing_kernel_grad_unsafe(system, -pos_diff, distance, particle)
 end
 
 @inline function add_continuity_equation(drho_particle,
