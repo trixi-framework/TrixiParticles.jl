@@ -8,12 +8,7 @@ function interact!(dv, v_particle_system, u_particle_system,
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-    surface_tension_a = surface_tension_model(particle_system)
-    surface_tension_b = surface_tension_model(neighbor_system)
-
-    # All kernel interactions use the same relative squared-distance criterion.
     h = initial_smoothing_length(particle_system)
-    zero_distance_squared = eps(typeof(h)) * h^2
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     foreach_point_neighbor(particle_system, neighbor_system,
@@ -22,9 +17,10 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                                                 neighbor,
                                                                                 pos_diff,
                                                                                 distance
-        # Skip neighbors with the same position because the kernel gradient is zero.
+        # Skip neighbors with (almost) the same position because the kernel gradient
+        # is zero, but computing it would divide by zero (see `almostzero`).
         # Note that `return` only exits the closure, i.e., skips the current neighbor.
-        skip_zero_distance(particle_system) && distance^2 < zero_distance_squared && return
+        skip_zero_distance(particle_system) && distance < almostzero(h) && return
 
         # Now that we know that `distance` is not zero, we can safely call the unsafe
         # version of the kernel gradient to avoid redundant zero checks.
@@ -43,31 +39,21 @@ function interact!(dv, v_particle_system, u_particle_system,
         p_a = @inbounds current_pressure(v_particle_system, particle_system, particle)
         p_b = @inbounds neighbor_pressure(v_neighbor_system, neighbor_system, neighbor, p_a)
 
-        # This technique by Basa et al. 2017 (10.1002/fld.1927) aims to reduce numerical
-        # errors due to large pressures by subtracting the average pressure of neighboring
-        # particles.
-        # It results in significant improvement for EDAC, especially with TVF,
-        # but not for WCSPH, according to Ramachandran & Puri (2019), Section 3.2.
-        # Note that the return value is zero when not using average pressure reduction.
-        p_avg = @inbounds average_pressure(particle_system, particle)
-
         m_a = @inbounds hydrodynamic_mass(particle_system, particle)
         m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
 
-        dv_pressure = pressure_acceleration(particle_system, neighbor_system,
-                                            particle, neighbor,
-                                            m_a, m_b, p_a - p_avg, p_b - p_avg, rho_a,
-                                            rho_b, pos_diff, distance, grad_kernel,
-                                            correction)
+        # Propagate `@inbounds` to the momentum equation, which accesses particle data
+        dv_particle = @inbounds add_momentum_equation(zero(v_a), particle_system,
+                                                      neighbor_system,
+                                                      v_particle_system, v_neighbor_system,
+                                                      particle, neighbor,
+                                                      pos_diff, distance, grad_kernel,
+                                                      sound_speed, m_a, m_b, p_a, p_b,
+                                                      rho_a, rho_b, v_a, v_b)
 
-        dv_particle = @inbounds add_dv_viscosity(dv_pressure, particle_system,
-                                                 neighbor_system,
-                                                 v_particle_system, v_neighbor_system,
-                                                 particle, neighbor, pos_diff, distance,
-                                                 sound_speed, m_a, m_b, rho_a, rho_b,
-                                                 v_a, v_b, grad_kernel)
-
-        # Extra terms in the momentum equation when using a shifting technique
+        # Extra terms in the momentum equation when using a shifting technique.
+        # These are not included in `add_momentum_equation` because they must not be
+        # applied to structures (see `interact_structure_fluid!`).
         dv_particle = @inbounds add_dv_shifting(dv_particle,
                                                 shifting_technique(particle_system),
                                                 particle_system, neighbor_system,
@@ -75,17 +61,6 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                 particle, neighbor, m_a, m_b, rho_a, rho_b,
                                                 v_a, v_b,
                                                 pos_diff, distance, grad_kernel, correction)
-
-        dv_particle = @inbounds add_dv_surface_tension(dv_particle,
-                                                       surface_tension_a, surface_tension_b,
-                                                       particle_system, neighbor_system,
-                                                       particle, neighbor,
-                                                       pos_diff, distance,
-                                                       rho_a, rho_b, grad_kernel, 1)
-
-        dv_particle = @inbounds add_dv_adhesion(dv_particle, surface_tension_a,
-                                                particle_system, neighbor_system,
-                                                particle, neighbor, pos_diff, distance)
 
         for i in 1:ndims(particle_system)
             @inbounds dv[i, particle] += dv_particle[i]
@@ -113,6 +88,57 @@ function interact!(dv, v_particle_system, u_particle_system,
     end
 
     return dv
+end
+
+# Add the acceleration of `particle` due to `neighbor` to `dv_particle`.
+# `particle` must be in `particle_system` and `neighbor` must be in `neighbor_system`.
+# This includes pressure, viscosity, surface tension and adhesion, but not the extra terms
+# from shifting techniques (see `interact_structure_fluid!`).
+# Note that this function is also used for the structure-fluid interaction to compute
+# the exact opposite pair force. When adding new terms here, make sure that they are
+# also valid for structure neighbors.
+@propagate_inbounds function add_momentum_equation(dv_particle,
+                                                   particle_system::EntropicallyDampedSPHSystem,
+                                                   neighbor_system,
+                                                   v_particle_system, v_neighbor_system,
+                                                   particle, neighbor, pos_diff, distance,
+                                                   grad_kernel, sound_speed, m_a, m_b,
+                                                   p_a, p_b, rho_a, rho_b, v_a, v_b)
+    (; correction) = particle_system
+
+    surface_tension_a = surface_tension_model(particle_system)
+    surface_tension_b = surface_tension_model(neighbor_system)
+
+    # This technique by Basa et al. 2017 (10.1002/fld.1927) aims to reduce numerical
+    # errors due to large pressures by subtracting the average pressure of neighboring
+    # particles.
+    # It results in significant improvement for EDAC, especially with TVF,
+    # but not for WCSPH, according to Ramachandran & Puri (2019), Section 3.2.
+    # Note that the return value is zero when not using average pressure reduction.
+    p_avg = average_pressure(particle_system, particle)
+
+    dv_particle += pressure_acceleration(particle_system, neighbor_system,
+                                         particle, neighbor,
+                                         m_a, m_b, p_a - p_avg, p_b - p_avg, rho_a,
+                                         rho_b, pos_diff, distance, grad_kernel,
+                                         correction)
+
+    dv_particle = add_dv_viscosity(dv_particle, particle_system, neighbor_system,
+                                   v_particle_system, v_neighbor_system,
+                                   particle, neighbor, pos_diff, distance,
+                                   sound_speed, m_a, m_b, rho_a, rho_b,
+                                   v_a, v_b, grad_kernel)
+
+    dv_particle = add_dv_surface_tension(dv_particle, surface_tension_a, surface_tension_b,
+                                         particle_system, neighbor_system,
+                                         particle, neighbor, pos_diff, distance,
+                                         rho_a, rho_b, grad_kernel, 1)
+
+    dv_particle = add_dv_adhesion(dv_particle, surface_tension_a,
+                                  particle_system, neighbor_system,
+                                  particle, neighbor, pos_diff, distance)
+
+    return dv_particle
 end
 
 @inline function pressure_evolution!(dv, particle_system, neighbor_system, v_diff,

@@ -2,11 +2,24 @@ abstract type AbstractSmoothingKernel{NDIMS} end
 
 @inline Base.ndims(::AbstractSmoothingKernel{NDIMS}) where {NDIMS} = NDIMS
 
+# Threshold below which a `distance` is considered zero, where `h` is the length scale
+# of the coordinates (e.g., the smoothing length or the compact support).
+# For `distance == 0`, the analytical kernel gradient is zero, but the code divides by zero.
+# To account for rounding errors, we check if `distance` is almost zero.
+# Since the coordinates are in the order of `h`, `distance^2` is in the order of `h^2`,
+# so the rounding error of `distance^2` is in the order of `eps(h^2) ≈ eps(typeof(h)) * h^2`.
+# Hence, we consider `distance` almost zero if `distance^2 < eps(typeof(h)) * h^2`,
+# or, equivalently, `distance < sqrt(eps(typeof(h))) * h`.
+# Note that `sqrt(eps(h^2)) != eps(h)`.
+# Since `sqrt(eps(typeof(h)))` is constant-propagated, this is only a multiplication
+# and can be used inside hot loops without precomputing the threshold.
+@inline almostzero(h) = sqrt(eps(typeof(h))) * h
+
 @inline function kernel_grad(kernel, pos_diff, distance, h)
-    # Use one relative near-zero criterion: (distance/h)^2 < eps(typeof(h)).
-    # Compare squared lengths directly to avoid a square root in the hot path.
+    # For `distance == 0`, the analytical gradient is zero, but the code divides by zero.
+    # See `almostzero` for an explanation of this check.
     compact_support_ = compact_support(kernel, h)
-    nonzero = distance < compact_support_ && distance^2 >= eps(typeof(h)) * h^2
+    nonzero = distance < compact_support_ && distance >= almostzero(h)
     nonzero || return zero(pos_diff)
 
     # Now we can use `kernel_grad_unsafe` without worrying about division by zero
@@ -31,9 +44,9 @@ end
 
 @inline function kernel_deriv(kernel, r::Real, h)
     # Zero out result if outside of compact support or if `r` is almost zero
-    # (to avoid division by zero in the unsafe version).
+    # to avoid division by zero in the unsafe version (see `almostzero`).
     compact_support_ = compact_support(kernel, h)
-    if r < compact_support_ && r^2 >= eps(typeof(h)) * h^2
+    if r < compact_support_ && r >= almostzero(h)
         # The unsafe version returns the kernel derivative divided by `r`,
         # so we multiply it by `r` to get the actual derivative.
         return kernel_deriv_div_r_unsafe(kernel, r, h) * r
