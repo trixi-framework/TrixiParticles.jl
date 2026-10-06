@@ -20,10 +20,10 @@ trixi_include(@__MODULE__, example_file; ode=nothing, sol=nothing,
               smoothing_kernel=WendlandC2Kernel{2}())
 
 # Maximum accepted relative L2 error for each power-law index.
-relative_l2_error_bounds = Dict(0.25 => 0.06,
-                                0.5 => 0.06,
-                                1.0 => 0.06,
-                                1.5 => 0.06)
+relative_l2_error_bounds = Dict(0.25 => 0.01,
+                                0.5 => 0.006,
+                                1.0 => 0.006,
+                                1.5 => 0.006)
 
 final_relative_l2_errors = Dict{Float64, Float64}()
 final_max_velocity_errors = Dict{Float64, Float64}()
