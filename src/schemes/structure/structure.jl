@@ -86,8 +86,12 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
 
         # In fluid-structure interaction, use the "hydrodynamic pressure" of the structure
         # particles corresponding to the chosen boundary model.
-        p_a = current_pressure(v_particle_system, particle_system, particle)
+        # The following call is equivalent to
+        #     `p_a = current_pressure(v_particle_system, particle_system, particle)`
+        # For structures using `PressureMirroring`, this returns `p_a = p_b`, which is
+        # the pressure of the fluid particle, mirroring the fluid-structure interaction.
         p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)
+        p_a = neighbor_pressure(v_particle_system, particle_system, particle, p_b)
 
         # Compute the acceleration of the fluid particle due to the structure particle
         # with the exact same function as in the fluid-structure interaction.

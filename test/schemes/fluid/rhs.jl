@@ -446,12 +446,14 @@
 
                     boundary_densities = if correction isa KernelCorrection ||
                                             correction isa MixedKernelGradientCorrection
-                        (AdamiPressureExtrapolation(), SummationDensity())
+                        (AdamiPressureExtrapolation(), SummationDensity(),
+                         PressureMirroring())
                     elseif scheme == "WCSPH" && isnothing(correction) &&
                            structure_type === RigidBodySystem
-                        (AdamiPressureExtrapolation(), ContinuityDensity())
+                        (AdamiPressureExtrapolation(), ContinuityDensity(),
+                         PressureMirroring())
                     else
-                        (AdamiPressureExtrapolation(),)
+                        (AdamiPressureExtrapolation(), PressureMirroring())
                     end
 
                     @testset "Boundary `$(nameof(typeof(boundary_density)))`" for boundary_density in
@@ -511,9 +513,14 @@
                                 end
                             elseif isnothing(viscosity)
                                 if scheme == "EDAC with average pressure reduction"
-                                    @test TrixiParticles.current_pressure(v_fluid, fluid,
-                                                                          1) ≈
-                                          structure.boundary_model.pressure[1]
+                                    # `PressureMirroring` leaves the cache at its
+                                    # initial value, so only compare for Adami.
+                                    if boundary_density isa AdamiPressureExtrapolation
+                                        @test TrixiParticles.current_pressure(v_fluid,
+                                                                              fluid,
+                                                                              1) ≈
+                                              structure.boundary_model.pressure[1]
+                                    end
                                     @test isapprox(force_structure, zeros(2),
                                                    atol=sqrt(eps()))
                                 else
