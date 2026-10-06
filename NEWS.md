@@ -20,14 +20,9 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Fixed pressure mirroring for TLSPH and rigid-body neighbors and for EDAC momentum,
   pressure diffusion, and average-pressure reduction at walls and structures (#1341).
 - Fixed structure-fluid reaction forces with asymmetric corrected fluid kernel
-  gradients by evaluating the fluid-first gradient directly, correcting pressure and
-  viscous reaction forces on TLSPH and rigid-body systems, including free-surface
-  factors, EDAC pressure reduction, and the approaching-particle condition for
-  artificial viscosity (#1338).
-- Unified near-zero distance checks using the relative squared-distance criterion
-  `r^2 < eps(typeof(h)) * h^2` across kernels and particle operators, fixing
-  asymmetric DEM contact forces near coincidence with a pair-local radius scale
-  (#1347).
+  gradients by evaluating the fluid-first gradient directly (#1338).
+- Fixed asymmetric DEM contact forces near coincidence by using a pair-local
+  radius scale for the near-zero distance cutoff (#1347).
 - Fixed the sign of the quadratic term in `ArtificialViscosityMonaghan` (#1295).
 - Fixed mathematical inconsistencies in the SPH documentation, including incorrect
   formulas, inconsistent force-vs-acceleration notation, and wrong LaTeX text-mode
