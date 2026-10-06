@@ -15,7 +15,9 @@
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol) == 0
         @test all(isfinite, values(final_relative_l2_errors))
-        @test all(error -> error < 0.06, values(final_relative_l2_errors))
+        @test all(error <= relative_l2_error_bounds[n]
+                  for (n, error) in final_relative_l2_errors)
+
 
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(validation_dir(), "poiseuille_carreau_2d",
