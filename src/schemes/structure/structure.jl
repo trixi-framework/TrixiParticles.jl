@@ -51,6 +51,7 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
     h = initial_smoothing_length(neighbor_system)
+    correction = system_correction(neighbor_system)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     foreach_point_neighbor(particle_system, neighbor_system,
@@ -67,10 +68,9 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
         # to obtain the same force as in the fluid-structure interaction.
         grad_kernel = smoothing_kernel_grad_unsafe(neighbor_system, pos_diff,
                                                    distance, neighbor)
-        # Corrected gradients need not be odd, so evaluate the fluid-first gradient
-        # directly instead of negating the structure-first gradient.
-        grad_kernel_fluid = smoothing_kernel_grad_unsafe(neighbor_system, -pos_diff,
-                                                         distance, neighbor)
+        grad_kernel_fluid = fluid_reaction_kernel_grad(correction, neighbor_system,
+                                                       pos_diff, distance, neighbor,
+                                                       grad_kernel)
 
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
@@ -118,6 +118,21 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
     end
 
     return dv
+end
+
+@inline function fluid_reaction_kernel_grad(::Nothing, system, pos_diff, distance, particle,
+                                            grad_kernel)
+    # Reversing the displacement changes only the sign of the uncorrected gradient.
+    # Reuse it with the opposite sign to obtain the fluid-first gradient.
+    return -grad_kernel
+end
+
+@inline function fluid_reaction_kernel_grad(correction, system, pos_diff, distance,
+                                            particle,
+                                            grad_kernel)
+    # With corrections, reversing the displacement may not be equivalent to negating
+    # the gradient. Evaluate it with the fluid-first displacement instead.
+    return smoothing_kernel_grad_unsafe(system, -pos_diff, distance, particle)
 end
 
 @inline function add_continuity_equation(drho_particle,
