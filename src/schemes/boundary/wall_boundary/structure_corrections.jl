@@ -1,5 +1,20 @@
 # Hydrodynamic dummy-particle corrections for fluid-coupled structures. These use
 # the boundary-model context independently of TLSPH's elastic self-interaction.
+@inline function pressure_acceleration(particle_system,
+                                       neighbor_system::Union{TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles},
+                                                              RigidBodySystem{<:BoundaryModelDummyParticles}},
+                                       particle, neighbor, m_a, m_b, p_a, p_b, rho_a, rho_b,
+                                       pos_diff, distance, W_a,
+                                       correction::Union{KernelCorrection,
+                                                         GradientCorrection,
+                                                         BlendedGradientCorrection,
+                                                         MixedKernelGradientCorrection})
+    # The boundary model supplies the kernel and correction state for fluid pressure.
+    return pressure_acceleration(particle_system, neighbor_system.boundary_model,
+                                 particle, neighbor, m_a, m_b, p_a, p_b, rho_a, rho_b,
+                                 pos_diff, distance, W_a, correction)
+end
+
 @inline has_boundary_correction(system) = false
 
 @inline function has_boundary_correction(system::Union{TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles},
@@ -20,12 +35,6 @@ end
                                                                   RigidBodySystem},
                                                     neighbor, semi)
     return get_boundary_correction_neighborhood_search(system, neighbor, semi)
-end
-
-@inline function hydrodynamic_kernel_grad(system::Union{TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles},
-                                                        RigidBodySystem{<:BoundaryModelDummyParticles}},
-                                          pos_diff, distance, particle)
-    return smoothing_kernel_grad(system.boundary_model, pos_diff, distance, particle)
 end
 
 function compute_correction_values!(system::Union{TotalLagrangianSPHSystem,
