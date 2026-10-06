@@ -134,23 +134,6 @@ end
     return extract_smatrix(model.cache.correction_matrix, Val(ndims(model)), particle)
 end
 
-@inline function correction_kernel_grad(correction, smoothing_kernel, pos_diff, distance,
-                                        smoothing_length_,
-                                        model::BoundaryModelDummyParticles,
-                                        particle)
-    # Assemble from the raw boundary gradient, never from its uninitialized or
-    # previous gradient-correction matrix.
-    return kernel_grad_unsafe(smoothing_kernel, pos_diff, distance, smoothing_length_)
-end
-
-@inline function correction_kernel_grad(::MixedKernelGradientCorrection, smoothing_kernel,
-                                        pos_diff, distance, smoothing_length_,
-                                        model::BoundaryModelDummyParticles, particle)
-    return corrected_kernel_grad_unsafe(smoothing_kernel, pos_diff, distance,
-                                        smoothing_length_, KernelCorrection(), model,
-                                        particle)
-end
-
 @inline function clip_negative_pressure(::BoundaryModelDummyParticles{<:Any, <:Any, CLIP}) where {CLIP}
     return CLIP
 end

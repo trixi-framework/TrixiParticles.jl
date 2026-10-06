@@ -92,11 +92,6 @@ function initialize_neighborhood_searches!(semi, u0_ode,
         end
     end
 
-    initialize_boundary_correction_searches!(semi,
-                                             system -> initial_restart_coordinates(system,
-                                                                                   u0_ode,
-                                                                                   semi))
-
     return semi
 end
 

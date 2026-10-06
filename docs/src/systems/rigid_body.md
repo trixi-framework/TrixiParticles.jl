@@ -4,16 +4,6 @@ Rigid bodies in TrixiParticles.jl are represented by particles whose motion is e
 with rigid-body translation and rotation. This allows fluid-structure interaction while
 keeping the structure kinematics rigid.
 
-## [Fluid loads](@id fluid_structure_loads)
-
-The neighbor gradient in the fluid's asymmetric corrected-pressure operator uses
-the dummy-particle boundary model's kernel and correction caches. These caches are
-assembled over the current hydrodynamic neighborhood, including the structure's
-own particles, independently of elastic self-interaction and rigid-body contact searches.
-
-The boundary model and all coupled fluids must have the same compact support.
-The elastic TLSPH kernel and smoothing length can differ from the hydrodynamic ones.
-
 ## API
 
 ```@autodocs

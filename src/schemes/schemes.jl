@@ -14,9 +14,6 @@ include("boundary/wall_boundary/monaghan_kajtar.jl")
 # Implicit incompressible SPH requires the `WallBoundarySystem`
 include("fluid/implicit_incompressible_sph/implicit_incompressible_sph.jl")
 
-# Dummy-particle hydrodynamic corrections require the concrete structure types.
-include("boundary/wall_boundary/structure_corrections.jl")
-
 # Include rhs for all schemes
 include("fluid/weakly_compressible_sph/rhs.jl")
 include("fluid/entropically_damped_sph/rhs.jl")
