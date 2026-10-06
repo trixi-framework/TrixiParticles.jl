@@ -140,7 +140,7 @@ end
                                         particle)
     # Assemble from the raw boundary gradient, never from its uninitialized or
     # previous gradient-correction matrix.
-    return kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length_)
+    return kernel_grad_unsafe(smoothing_kernel, pos_diff, distance, smoothing_length_)
 end
 
 @inline function correction_kernel_grad(::MixedKernelGradientCorrection, smoothing_kernel,

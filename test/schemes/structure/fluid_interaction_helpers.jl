@@ -18,6 +18,9 @@ function structure_fluid_pair_state(; fluid_scheme=:wcsph, structure_kind=:tlsph
                                     structure_smoothing_kernel=SchoenbergCubicSplineKernel{dimensions}(),
                                     coordinates=reshape([distance; zeros(dimensions - 1)],
                                                         dimensions, 1),
+                                    neighborhood_search=GridNeighborhoodSearch{dimensions}(),
+                                    neighborhood_search_handler=TrixiParticles.default_neighborhood_search_handler(neighborhood_search),
+                                    interaction_matrix=nothing,
                                     parallelization_backend=SerialBackend())
     smoothing_kernel = SchoenbergCubicSplineKernel{dimensions}()
     smoothing_length = particle_spacing = 1.0
@@ -73,10 +76,14 @@ function structure_fluid_pair_state(; fluid_scheme=:wcsph, structure_kind=:tlsph
     semi = if structure isa TotalLagrangianSPHSystem
         @test_logs (:info,
                     r"^To create the self-interaction neighborhood search of a `TotalLagrangianSPHSystem`") begin
-            Semidiscretization(fluid, structure; parallelization_backend)
+            Semidiscretization(fluid, structure; neighborhood_search,
+                               neighborhood_search_handler, interaction_matrix,
+                               parallelization_backend)
         end
     else
-        @test_logs Semidiscretization(fluid, structure; parallelization_backend)
+        @test_logs Semidiscretization(fluid, structure; neighborhood_search,
+                                      neighborhood_search_handler, interaction_matrix,
+                                      parallelization_backend)
     end
     ode = semidiscretize(semi, (0.0, 0.01); reset_threads=false)
     # Modify the semidiscretization-owned TLS copy used by the actual pair operators.

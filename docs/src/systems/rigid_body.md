@@ -6,9 +6,13 @@ keeping the structure kinematics rigid.
 
 ## [Fluid loads](@id fluid_structure_loads)
 
-Hydrodynamic boundary gradients and density evolution use the dummy-particle
-boundary model's own kernel and correction caches. In TLSPH these are independent
-of the elastic self-interaction kernel and correction matrix.
+The neighbor gradient in the fluid's asymmetric corrected-pressure operator uses
+the dummy-particle boundary model's kernel and correction caches. These caches are
+assembled over the current hydrodynamic neighborhood, including the structure's
+own particles, independently of elastic self-interaction and rigid-body contact searches.
+
+The boundary model and all coupled fluids must have the same compact support.
+The elastic TLSPH kernel and smoothing length can differ from the hydrodynamic ones.
 
 ## API
 

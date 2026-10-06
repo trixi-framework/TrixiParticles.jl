@@ -17,8 +17,9 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Important Bugfixes
 
-- Fixed hydrodynamic boundary-gradient and correction-cache evaluation for TLSPH
-  and rigid-body coupling, independently of the elastic TLSPH kernel (#1342).
+- Fixed boundary-kernel selection in corrected FSI pressure and structure boundary
+  correction caches, using current hydrodynamic neighborhoods rather than elastic
+  or contact searches (#1342).
 - Fixed pressure mirroring for TLSPH and rigid-body neighbors and for EDAC momentum,
   pressure diffusion, and average-pressure reduction at walls and structures (#1341).
 - Fixed structure-fluid reaction forces with asymmetric corrected fluid kernel
