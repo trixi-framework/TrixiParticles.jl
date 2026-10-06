@@ -4,14 +4,6 @@ Rigid bodies in TrixiParticles.jl are represented by particles whose motion is e
 with rigid-body translation and rotation. This allows fluid-structure interaction while
 keeping the structure kinematics rigid.
 
-## [Fluid loads](@id fluid_structure_loads)
-
-Pressure, viscosity, and adhesion use fluid-first pair operators. The physical
-fluid acceleration contributes the structural reaction `F_s = -m_f a_f`.
-Rigid bodies sum particle forces and torques, while TLSPH converts force to
-acceleration with the material mass. Shifting momentum terms remain in the fluid
-RHS and are excluded from structural loads because they are transport corrections.
-
 ## API
 
 ```@autodocs

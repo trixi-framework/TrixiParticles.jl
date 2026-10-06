@@ -217,9 +217,7 @@ function compute_correction_values!(system,
 
             neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-            # Coefficient assembly uses the same relative criterion as its kernel.
             h = initial_smoothing_length(system)
-            zero_distance_squared = eps(typeof(h)) * h^2
 
             # Loop over all pairs of particles and neighbors within the kernel cutoff
             foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
@@ -234,8 +232,9 @@ function compute_correction_values!(system,
 
                 kernel_correction_coefficient[particle] += volume * W
 
-                # Only consider particles with a distance > 0.
-                if distance^2 >= zero_distance_squared
+                # Only consider particles with a distance > 0 because the kernel gradient
+                # is zero otherwise, but computing it would divide by zero (see `almostzero`).
+                if distance >= almostzero(h)
                     # Now that we know that `distance` is not zero, we can safely call the
                     # unsafe version of the kernel gradient to avoid redundant zero checks.
                     grad_W = kernel_grad_unsafe(system_smoothing_kernel(system), pos_diff,
@@ -366,7 +365,6 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
 
             neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
             h = initial_smoothing_length(system)
-            zero_distance_squared = eps(typeof(h)) * h^2
 
             foreach_point_neighbor(system, neighbor_system, coordinates, neighbor_coords,
                                    semi) do particle, neighbor, pos_diff, distance
@@ -387,10 +385,12 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
                                                         particle)
                 end
 
-                # Skip neighbors with the same position if the kernel gradient is zero.
+                # Skip neighbors with (almost) the same position because the kernel gradient
+                # is zero, but computing it would divide by zero (see `almostzero`).
                 # Note that `return` only exits the closure, i.e., skips the current neighbor.
-                skip_zero_distance(correction) && distance^2 < zero_distance_squared &&
+                if skip_zero_distance(correction) && distance < almostzero(h)
                     return
+                end
 
                 # Now that we know that `distance` is not zero, we can safely call the unsafe
                 # version of the kernel gradient to avoid redundant zero checks.

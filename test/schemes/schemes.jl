@@ -1,5 +1,4 @@
 include("structure/total_lagrangian_sph/total_lagrangian_sph.jl")
-include("structure/fluid_interaction.jl")
 include("structure/fluid_interaction_helpers.jl")
 include("boundary/pressure_mirroring.jl")
 include("boundary/dummy_particles/dummy_particles.jl")
