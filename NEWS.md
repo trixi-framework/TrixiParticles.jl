@@ -18,7 +18,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 ### Important Bugfixes
 
 - Fixed the structure-side kernel gradient in corrected FSI pressure to use the
-  dummy-particle boundary model rather than the elastic TLSPH kernel (#1342).
+  boundary model's kernel rather than the TLSPH self-interaction kernel (#1342).
 - Fixed pressure mirroring for TLSPH and rigid-body neighbors and for EDAC momentum,
   pressure diffusion, and average-pressure reduction at walls and structures (#1341).
 - Fixed structure-fluid reaction forces with asymmetric corrected fluid kernel
