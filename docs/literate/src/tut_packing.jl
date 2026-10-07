@@ -75,8 +75,8 @@ plot!(right_margin=5Plots.mm) #hide
 # ## Creating an initial configuration of boundary particles
 
 # To create the initial configuration of the boundary particles,
-# we use the sampled points of the SDF whose signed distance lies between 0
-# and `boundary_thickness`.
+# we use the sampled points of the SDF whose signed distance lies between the
+# geometry offset implied by `place_on_shell` and `boundary_thickness`.
 # Here, we need to specify the `density` of the boundary particles.
 # As an example, we choose `1.0` for all particles.
 # This gives us an [`InitialCondition`](@ref InitialCondition) for the boundary particles.
@@ -211,7 +211,7 @@ plot!(geometry, seriestype=:path, color=:black, label=nothing, linewidth=2)
 boundary_system = ParticlePackingSystem(boundary_sampled; is_boundary=true,
                                         smoothing_kernel, smoothing_length,
                                         boundary_compress_factor=0.7, signed_distance_field,
-                                        background_pressure)
+                                        boundary_thickness, background_pressure)
 
 # We can now couple the boundary system with the interior system:
 semi = Semidiscretization(packing_system, boundary_system)
