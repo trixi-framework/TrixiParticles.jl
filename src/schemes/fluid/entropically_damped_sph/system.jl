@@ -303,12 +303,21 @@ function update_quantities!(system::EntropicallyDampedSPHSystem, v, u,
     compute_density!(system, u, u_ode, semi, system.density_calculator)
 end
 
+function update_density_correction_values!(system::EntropicallyDampedSPHSystem, v, u,
+                                           v_ode, u_ode, semi, t)
+    (; correction) = system
+    density_correction = correction_density(correction)
+
+    compute_correction_values!(system, density_correction, u, v_ode, u_ode, semi)
+
+    return system
+end
+
 function update_density_correction!(system::EntropicallyDampedSPHSystem, v, u, v_ode,
                                     u_ode, semi, t)
     (; correction, density_calculator) = system
     density_correction = correction_density(correction)
 
-    compute_correction_values!(system, density_correction, u, v_ode, u_ode, semi)
     kernel_correct_density!(system, v, u, v_ode, u_ode, semi, density_correction,
                             density_calculator)
 

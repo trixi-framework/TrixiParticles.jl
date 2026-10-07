@@ -63,16 +63,12 @@ We provide several example simulation setups in the `examples` folder (which can
 
 <table align="center" border="0">
   <tr>
-  </tr>
-  <tr>
     <td align="center">
       <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/683e9363-5705-49cc-9a5c-3b47d73ea4b8" style="width: 80% !important;"/><br><figcaption>2D Dam Break</figcaption>
     </td>
     <td align="center">
       <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/c10faddf-0400-47c9-b225-f5d286a8ecb8" style="width: 80% !important;"/><br><figcaption>Moving Wall</figcaption>
     </td>
-  </tr>
-  <tr>
   </tr>
   <tr>
     <td align="center">
@@ -191,7 +187,7 @@ and
 
 ## Authors
 Erik Faulhaber (University of Cologne) and Niklas Neher (HLRS) implemented the foundations
-for TrixiParticles.jl and are principal developers along with Sven Berger (hereon).
+for TrixiParticles.jl and are principal developers along with Sven Berger (Hereon).
 The project was started by Michael Schlottke-Lakemper (University of Augsburg)
 and Gregor Gassner (University of Cologne), who provide scientific direction and technical advice.
 The full list of contributors can be found in [AUTHORS.md](AUTHORS.md).
