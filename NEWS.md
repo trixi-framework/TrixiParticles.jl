@@ -17,6 +17,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Important Bugfixes
 
+- Fixed `RectangularShape` handling of coordinate-dependent density in hydrostatic pressure
+  initialization and prevented coordinate perturbation from changing the global random state (#1196).
 - Fixed the sign of the quadratic term in `ArtificialViscosityMonaghan` (#1295).
 - Fixed mathematical inconsistencies in the SPH documentation, including incorrect
   formulas, inconsistent force-vs-acceleration notation, and wrong LaTeX text-mode
