@@ -24,8 +24,8 @@ Rectangular shape filled with particles. Returns an [`InitialCondition`](@ref).
                     coordinates to its mass, or a scalar for a constant mass over all particles.
 - `density`:        Either a function mapping each particle's coordinates to its density,
                     or a scalar for a constant density over all particles.
-                    Required when not using a state equation. With `acceleration`, a function
-                    allows the hydrostatic pressure gradient to vary between columns.
+                    Required when not using a state equation. When used together with `acceleration`,
+                    this density (scalar or function) is used to compute the hydrostatic pressure gradient.
                     Cannot be used together with `state_equation`.
 - `pressure`:       Scalar to set the pressure of all particles to this value.
                     This is only used by the [`EntropicallyDampedSPHSystem`](@ref) and
