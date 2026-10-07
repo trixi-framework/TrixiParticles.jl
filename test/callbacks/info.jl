@@ -169,6 +169,8 @@
         output = String(read(pipe))
 
         @test startswith(output, expected)
+        # TimerOutputs controls the table layout, which differs between versions.
+        @test occursin(r"TrixiParticles\.jl[\s─]*Time\s+Allocations", output)
     end
 
     @testset verbose=true "affect! finished with split integration" begin
@@ -213,6 +215,8 @@
         output = String(read(pipe))
 
         @test startswith(output, expected)
+        # TimerOutputs controls the table layout, which differs between versions.
+        @test occursin(r"TrixiParticles\.jl[\s─]*Time\s+Allocations", output)
     end
 
     # TODO add unit tests for all summary box functions
