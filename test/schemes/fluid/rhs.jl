@@ -281,10 +281,13 @@
                                            exponent=1)
 
         function create_fluid_system(scheme, velocity, density, viscosity;
-                                     shifting_technique=nothing, correction=nothing)
-            fluid = InitialCondition(; coordinates=zeros(2, 1),
-                                     velocity=reshape(collect(velocity), 2, 1),
-                                     mass=[fluid_density * particle_spacing^2],
+                                     shifting_technique=nothing, correction=nothing,
+                                     dimensions=2,
+                                     mass=fluid_density * particle_spacing^dimensions)
+            local smoothing_kernel = SchoenbergCubicSplineKernel{dimensions}()
+            fluid = InitialCondition(; coordinates=zeros(dimensions, 1),
+                                     velocity=reshape(collect(velocity), dimensions, 1),
+                                     mass=[mass],
                                      density=[density], pressure=state_equation(density),
                                      particle_spacing)
 
@@ -309,20 +312,32 @@
                                          boundary_density=AdamiPressureExtrapolation(),
                                          monaghan_kajtar=false,
                                          clamped=false,
-                                         elastic_kernel=smoothing_kernel,
+                                         dimensions=2,
+                                         coordinates=reshape([1.5; zeros(dimensions - 1)],
+                                                             dimensions, 1),
+                                         velocity=zeros(size(coordinates)),
+                                         mass=fill(2 * fluid_density *
+                                                   particle_spacing^dimensions,
+                                                   size(coordinates, 2)),
+                                         hydrodynamic_mass=fill(fluid_density *
+                                                                particle_spacing^dimensions,
+                                                                size(coordinates, 2)),
+                                         hydrodynamic_density=fill(fluid_density,
+                                                                   size(coordinates, 2)),
+                                         elastic_kernel=SchoenbergCubicSplineKernel{dimensions}(),
                                          elastic_smoothing_length=smoothing_length)
-            # The material mass is twice the hydrodynamic mass, so using the wrong mass
-            # to convert the force on the structure to an acceleration fails the test.
-            structure = InitialCondition(; coordinates=reshape([1.5, 0.0], 2, 1),
-                                         velocity=zeros(2, 1),
-                                         mass=[2 * fluid_density * particle_spacing^2],
-                                         density=[2 * fluid_density], particle_spacing)
-            hydrodynamic_mass = [fluid_density * particle_spacing^2]
+            # By default, the material mass is twice the hydrodynamic mass, so using the
+            # wrong mass to convert the force on the structure to an acceleration fails.
+            structure = InitialCondition(; coordinates, velocity, mass,
+                                         density=fill(2 * fluid_density,
+                                                      size(coordinates, 2)),
+                                         particle_spacing)
+            local smoothing_kernel = SchoenbergCubicSplineKernel{dimensions}()
             boundary_model = if monaghan_kajtar
                 BoundaryModelMonaghanKajtar(10.0, 1.0, particle_spacing,
                                             hydrodynamic_mass; viscosity)
             else
-                BoundaryModelDummyParticles([fluid_density], hydrodynamic_mass,
+                BoundaryModelDummyParticles(hydrodynamic_density, hydrodynamic_mass,
                                             boundary_density, smoothing_kernel,
                                             smoothing_length; state_equation, viscosity)
             end
@@ -345,18 +360,19 @@
         # Run the regular update step to compute the boundary pressure, the wall velocity
         # for the viscosity, and the average pressure of EDAC. Return the systems
         # stored in the semidiscretization and the wrapped arrays.
-        function initialize(fluid_system, structure_system)
+        function initialize(fluid_system, structure_system;
+                            parallelization_backend=SerialBackend())
             semi = if structure_system isa TotalLagrangianSPHSystem
                 @test_logs (:info,
                             r"^To create the self-interaction neighborhood search of a `TotalLagrangianSPHSystem`") begin
                     Semidiscretization(fluid_system, structure_system;
-                                       parallelization_backend=SerialBackend())
+                                       parallelization_backend)
                 end
             else
                 @test_logs Semidiscretization(fluid_system, structure_system;
-                                              parallelization_backend=SerialBackend())
+                                              parallelization_backend)
             end
-            ode = semidiscretize(semi, (0.0, 0.01))
+            ode = semidiscretize(semi, (0.0, 0.01); reset_threads=false)
             v_ode, u_ode = ode.u0.x
             TrixiParticles.update_systems_and_nhs(v_ode, u_ode, ode.p.semi, 0.0)
 
@@ -645,6 +661,128 @@
 
                 # The shifting terms must not be applied to the structure.
                 @test force_structure_shifting == force_structure
+            end
+        end
+
+        @testset "Physical loads and shifting transport" begin
+            # Zero pressures and no viscosity isolate the prescribed transport term.
+            # Unequal hydrodynamic masses and densities distinguish the EDAC TVF factor
+            # from WCSPH. Pressure mirroring keeps the boundary pressure at zero.
+            for scheme in ("WCSPH", "EDAC"), structure_type in structure_types,
+                shifting_technique in
+                (ConsistentShiftingSun2019(),
+                 TransportVelocityAdami(background_pressure=1000.0))
+
+                fluid_system = create_fluid_system(scheme, (1.0, 0.5), fluid_density,
+                                                   nothing; shifting_technique, mass=1100.0)
+                structure_system = create_structure_system(structure_type, nothing;
+                                                           boundary_density=PressureMirroring(),
+                                                           hydrodynamic_mass=[700.0],
+                                                           hydrodynamic_density=[950.0])
+                fluid, structure, arrays, semi,
+                _ = initialize(fluid_system, structure_system)
+                v_fluid, _, _, _ = arrays
+
+                for scale in (1.0, 7.0)
+                    fluid.cache.delta_v[:, 1] .= scale .* [0.4, -0.3]
+                    force_fluid,
+                    force_structure = pair_forces(fluid, structure, arrays,
+                                                  semi)
+                    # The structure is at rest, so only the fluid's transport tensor
+                    # contributes. Sun gives 2m_s/rho_s, WCSPH TVF gives -m_s/rho_s,
+                    # and EDAC TVF gives -(V_f^2+V_s^2)/m_f * rho_f*rho_s/(rho_f+rho_s).
+                    factor = if shifting_technique isa ParticleShiftingTechnique
+                        2 * 700.0 / 950.0
+                    elseif scheme == "WCSPH"
+                        -700.0 / 950.0
+                    else
+                        -((1100.0 / fluid_density)^2 + (700.0 / 950.0)^2) / 1100.0 *
+                        fluid_density * 950.0 / (fluid_density + 950.0)
+                    end
+                    expected = fluid.mass[1] * factor * v_fluid[1:2, 1] *
+                               dot(scale .* [0.4, -0.3], [15 / (56pi), 0.0])
+                    @test force_fluid ≈ expected
+                    @test iszero(force_structure)
+                end
+            end
+        end
+
+        @testset "3D forces and rigid torque" begin
+            # Noncollinear points and unequal particle weights exercise all force/torque
+            # components. Both backends must preserve the physical pair balance.
+            for scheme in ("WCSPH", "EDAC"), structure_type in structure_types,
+                parallelization_backend in (SerialBackend(), PolyesterBackend())
+                viscosity = ViscosityAdami(nu=0.1)
+                fluid_system = create_fluid_system(scheme, (1.0, 0.5, 0.7), 1005.0,
+                                                   viscosity; dimensions=3, mass=1100.0,
+                                                   shifting_technique=ConsistentShiftingSun2019())
+                structure_system = create_structure_system(structure_type, viscosity;
+                                                           dimensions=3,
+                                                           coordinates=[1.2 1.4 1.6;
+                                                                        -0.4 0.5 0.1;
+                                                                        0.2 -0.3 0.6],
+                                                           velocity=repeat(reshape([0.25,
+                                                                                       -0.4,
+                                                                                       0.2],
+                                                                                   3, 1),
+                                                                           1, 3),
+                                                           mass=[2100.0, 2400.0, 2700.0],
+                                                           hydrodynamic_mass=[700.0, 750.0,
+                                                               800.0])
+                fluid, structure, arrays, semi,
+                ode = initialize(fluid_system, structure_system; parallelization_backend)
+                v_fluid, u_fluid, v_structure, u_structure = arrays
+
+                # Isolate physical acceleration, then restore a prescribed shift before
+                # the structural RHS. Transport must not contribute to structural loads.
+                fluid.cache.delta_v .= 0
+                dv_fluid = zero(v_fluid)
+                TrixiParticles.interact!(dv_fluid, v_fluid, u_fluid, v_structure,
+                                         u_structure, fluid, structure, semi)
+                fluid.cache.delta_v[:, 1] .= [0.4, -0.3, 0.2]
+                dv_structure = zero(v_structure)
+                TrixiParticles.reset_interaction_caches!(structure)
+                TrixiParticles.interact!(dv_structure, v_structure, u_structure, v_fluid,
+                                         u_fluid, structure, fluid, semi)
+                forces = structure isa RigidBodySystem ?
+                         copy(structure.force_per_particle) :
+                         dv_structure[1:3, :] .* reshape(structure.mass, 1, :)
+                @test vec(sum(forces; dims=2)) ≈ -fluid.mass[1] * dv_fluid[1:3, 1]
+
+                if structure isa RigidBodySystem
+                    TrixiParticles.update_final!(structure, v_structure, u_structure,
+                                                 ode.u0.x[1], ode.u0.x[2], semi, 0.0)
+                    # Independently sum world-space lever-arm cross force about the
+                    # material center of mass. Asymmetric geometry gives nonzero torque.
+                    expected_torque = sum(cross(u_structure[:, i] -
+                                                structure.center_of_mass[], forces[:, i])
+                                          for i in eachparticle(structure))
+                    TrixiParticles.apply_resultant_force_and_torque!(dv_structure,
+                                                                     structure, semi)
+                    @test structure.resultant_force[] ≈ vec(sum(forces; dims=2))
+                    @test structure.resultant_torque[] ≈ expected_torque
+                end
+            end
+        end
+
+        @testset "Additional boundary viscosity models" begin
+            # Distinct fluid/boundary models expose incorrect viscosity dispatch.
+            # Zero pressure isolates viscous drag, including SGS and shear dependence.
+            for scheme in ("WCSPH", "EDAC"), structure_type in structure_types,
+                boundary_viscosity in
+                (ViscosityAdamiSGS(nu=0.1), ViscosityMorrisSGS(nu=0.1),
+                 ViscosityCarreauYasuda(nu0=0.1, nu_inf=0.01, lambda=1.0, a=2.0, n=0.5))
+
+                fluid_system = create_fluid_system(scheme, (1.0, 0.5), fluid_density,
+                                                   ViscosityAdami(nu=0.4))
+                structure_system = create_structure_system(structure_type,
+                                                           boundary_viscosity)
+                fluid, structure, arrays, semi,
+                _ = initialize(fluid_system, structure_system)
+                force_fluid, force_structure = pair_forces(fluid, structure, arrays, semi)
+                @test force_structure ≈ -force_fluid
+                # Conservation alone would not catch both sides having the wrong sign.
+                @test force_structure[1] > 0
             end
         end
 

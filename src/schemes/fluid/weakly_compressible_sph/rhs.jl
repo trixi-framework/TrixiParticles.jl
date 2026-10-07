@@ -29,14 +29,18 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         # Accumulate the RHS contributions over all neighbors before writing to `dv`,
         # to reduce the number of memory writes.
+        @inline function dv_drho_sum(a, b)
+            dv_a, drho_a = a
+            dv_b, drho_b = b
+            return dv_a + dv_b, drho_a + drho_b
+        end
         init = (zero(v_a), zero(rho_a))
 
         # Loop over all neighbors within the kernel cutoff.
         # Make sure that the returned names `dv_particle_` and `drho_particle_`
         # are not used inside the closure to avoid allocations.
         (dv_particle_,
-         drho_particle_) = @inbounds mapreduce_neighbor(sum_interaction_contributions,
-                                                        system_coords,
+         drho_particle_) = @inbounds mapreduce_neighbor(dv_drho_sum, system_coords,
                                                         neighbor_system_coords,
                                                         neighborhood_search,
                                                         backend, particle;
@@ -110,4 +114,17 @@ function interact!(dv, v_particle_system, u_particle_system,
     end
 
     return dv
+end
+
+@propagate_inbounds function neighbor_pressure(v_neighbor_system, neighbor_system,
+                                               neighbor, p_a)
+    return current_pressure(v_neighbor_system, neighbor_system, neighbor)
+end
+
+@inline function neighbor_pressure(v_neighbor_system,
+                                   neighbor_system::Union{WallBoundarySystem{<:BoundaryModelDummyParticles{PressureMirroring}},
+                                                          TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{PressureMirroring}},
+                                                          RigidBodySystem{<:BoundaryModelDummyParticles{PressureMirroring}}},
+                                   neighbor, p_a)
+    return p_a
 end

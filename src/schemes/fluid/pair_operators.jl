@@ -1,5 +1,10 @@
-# Physical momentum pair operators shared by fluid RHSs and structure reactions.
-# Continuity, EDAC pressure evolution, and shifting transport are assembled separately.
+# Add the acceleration of `particle` due to `neighbor` to `dv_particle`.
+# `particle` must be in `particle_system` and `neighbor` must be in `neighbor_system`.
+# This includes pressure, viscosity, surface tension and adhesion, but not the extra terms
+# from shifting techniques (see `interact_structure_fluid!`).
+# Note that this function is also used for the structure-fluid interaction to compute
+# the exact opposite pair force. When adding new terms here, make sure that they are
+# also valid for structure neighbors.
 @propagate_inbounds function add_momentum_equation(dv_particle,
                                                    particle_system::Union{WeaklyCompressibleSPHSystem,
                                                                           EntropicallyDampedSPHSystem,
@@ -9,88 +14,36 @@
                                                    particle, neighbor, pos_diff, distance,
                                                    grad_kernel, sound_speed, m_a, m_b,
                                                    p_a, p_b, rho_a, rho_b, v_a, v_b)
-    return dv_particle +
-           physical_fluid_pair_acceleration(particle_system, neighbor_system,
-                                            v_particle_system, v_neighbor_system,
-                                            particle, neighbor, m_a, m_b, p_a, p_b,
-                                            rho_a, rho_b, v_a, v_b, pos_diff, distance,
-                                            sound_speed, grad_kernel,
-                                            system_correction(particle_system))
-end
+    correction = system_correction(particle_system)
+    surface_tension_a = surface_tension_model(particle_system)
+    surface_tension_b = surface_tension_model(neighbor_system)
 
-@propagate_inbounds function neighbor_pressure(v_neighbor_system, neighbor_system,
-                                               neighbor, p_a)
-    return current_pressure(v_neighbor_system, neighbor_system, neighbor)
-end
-
-@inline function neighbor_pressure(v_neighbor_system,
-                                   neighbor_system::Union{WallBoundarySystem{<:BoundaryModelDummyParticles{PressureMirroring}},
-                                                          TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{PressureMirroring}},
-                                                          RigidBodySystem{<:BoundaryModelDummyParticles{PressureMirroring}}},
-                                   neighbor, p_a)
-    return p_a
-end
-
-# EDAC supplies its own particle-local pressure average. Other schemes keep their
-# absolute pressures by subtracting zero in the physical pair operator.
-@inline average_pressure(system, particle) = zero(eltype(system))
-
-# EDAC/IISPH use unity; WCSPH delegates to the free-surface correction configured
-# for its fluid-side pair force. The structure reaction must use the same factors.
-@inline function interaction_force_correction(system, rho_a, rho_b)
-    return 1, 1, 1
-end
-
-@inline function interaction_force_correction(system::WeaklyCompressibleSPHSystem,
-                                              rho_a, rho_b)
-    return free_surface_correction(system_correction(system), system, rho_a, rho_b)
-end
-
-@inline function sum_interaction_contributions(a, b)
-    # Reduce a momentum/force vector and density-rate scalar separately, preserving
-    # their distinct meaning while avoiding per-neighbor writes to the RHS arrays.
-    dv_a, drho_a = a
-    dv_b, drho_b = b
-    return dv_a + dv_b, drho_a + drho_b
-end
-
-# Here a is the fluid particle and b its neighbor: pos_diff=x_a-x_b, with the
-# gradient evaluated at a in that direction. Return acceleration of a; a structure
-# caller then applies -m_a to obtain the opposite force on b.
-@propagate_inbounds function physical_fluid_pair_acceleration(particle_system,
-                                                              neighbor_system,
-                                                              v_particle_system,
-                                                              v_neighbor_system,
-                                                              particle, neighbor,
-                                                              m_a, m_b, p_a, p_b, rho_a,
-                                                              rho_b,
-                                                              v_a, v_b, pos_diff, distance,
-                                                              sound_speed, grad_kernel,
-                                                              correction)
-    # EDAC subtracts the fluid particle's local mean from both pair pressures,
-    # including a boundary pressure, so the reaction matches its reduced fluid force.
+    # This technique by Basa et al. 2017 (10.1002/fld.1927) aims to reduce numerical
+    # errors due to large pressures by subtracting the average pressure of neighboring
+    # particles.
+    # It results in significant improvement for EDAC, especially with TVF,
+    # but not for WCSPH, according to Ramachandran & Puri (2019), Section 3.2.
+    # Note that the return value is zero when not using average pressure reduction.
     p_avg = average_pressure(particle_system, particle)
+
+    # WCSPH uses its free-surface correction; EDAC and IISPH keep unit factors.
     viscosity_correction, pressure_correction,
     surface_tension_correction = interaction_force_correction(particle_system, rho_a, rho_b)
 
+    # For `ContinuityDensity` without correction or average pressure reduction,
+    # this is equivalent to -m_b * (p_a + p_b) / (rho_a * rho_b) * grad_kernel.
     dv_pressure = pressure_acceleration(particle_system, neighbor_system,
                                         particle, neighbor, m_a, m_b,
                                         p_a - p_avg, p_b - p_avg, rho_a, rho_b,
                                         pos_diff, distance, grad_kernel, correction)
-    dv_particle = dv_pressure * pressure_correction
+    dv_particle += dv_pressure * pressure_correction
 
-    # Keep systems and kinematics fluid-first together. The helper supplies ghost
-    # velocities for no-slip models and preserves artificial viscosity's approach test.
     dv_particle = add_dv_viscosity(dv_particle, particle_system, neighbor_system,
                                    v_particle_system, v_neighbor_system,
                                    particle, neighbor, pos_diff, distance, sound_speed,
                                    m_a, m_b, rho_a, rho_b, v_a, v_b, grad_kernel,
                                    viscosity_correction)
 
-    # Surface-force dispatch skips unsupported pair models; rigid-body adhesion
-    # uses this same fluid-frame displacement before the caller takes the reaction.
-    surface_tension_a = surface_tension_model(particle_system)
-    surface_tension_b = surface_tension_model(neighbor_system)
     dv_particle = add_dv_surface_tension(dv_particle, surface_tension_a, surface_tension_b,
                                          particle_system, neighbor_system, particle,
                                          neighbor,
@@ -100,7 +53,21 @@ end
                                   particle_system, neighbor_system, particle, neighbor,
                                   pos_diff, distance)
 
-    # Shifting is a transport correction, not interfacial traction. Apply its
-    # momentum terms separately in the fluid RHS, not to the structural load.
     return dv_particle
+end
+
+@inline function average_pressure(system::Union{WeaklyCompressibleSPHSystem,
+                                                ImplicitIncompressibleSPHSystem}, particle)
+    return zero(eltype(system))
+end
+
+@inline function interaction_force_correction(system::Union{EntropicallyDampedSPHSystem,
+                                                            ImplicitIncompressibleSPHSystem},
+                                              rho_a, rho_b)
+    return 1, 1, 1
+end
+
+@inline function interaction_force_correction(system::WeaklyCompressibleSPHSystem,
+                                              rho_a, rho_b)
+    return free_surface_correction(system_correction(system), system, rho_a, rho_b)
 end
