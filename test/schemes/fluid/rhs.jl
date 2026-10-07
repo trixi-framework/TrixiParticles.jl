@@ -307,7 +307,9 @@
 
         function create_structure_system(structure_type, viscosity;
                                          boundary_density=AdamiPressureExtrapolation(),
-                                         clamped=false)
+                                         clamped=false,
+                                         elastic_kernel=smoothing_kernel,
+                                         elastic_smoothing_length=smoothing_length)
             # The material mass is twice the hydrodynamic mass, so using the wrong mass
             # to convert the force on the structure to an acceleration fails the test.
             structure = InitialCondition(; coordinates=reshape([1.5, 0.0], 2, 1),
@@ -323,8 +325,9 @@
                                                          state_equation, viscosity)
 
             if structure_type === TotalLagrangianSPHSystem
-                return TotalLagrangianSPHSystem(structure; smoothing_kernel,
-                                                smoothing_length, young_modulus=1e5,
+                return TotalLagrangianSPHSystem(structure; smoothing_kernel=elastic_kernel,
+                                                smoothing_length=elastic_smoothing_length,
+                                                young_modulus=1e5,
                                                 poisson_ratio=0.3, boundary_model,
                                                 clamped_particles=clamped ? (1:1) : (1:0))
             end
@@ -554,6 +557,36 @@
                         end
                     end
                 end
+            end
+        end
+
+        @testset "Boundary kernel in corrected pressure" begin
+            for structure_type in structure_types,
+                correction in (KernelCorrection(), MixedKernelGradientCorrection())
+                fluid_system = create_fluid_system("WCSPH", (0.0, 0.0), 1005.0, nothing;
+                                                   correction)
+                # The boundary model's kernel and the fluid kernel have compact support 2.0.
+                # For TLSPH, r=1.5 lies outside the self-interaction kernel's support of 2*0.4.
+                structure_system = create_structure_system(structure_type, nothing;
+                                                           boundary_density=PressureMirroring(),
+                                                           elastic_kernel=WendlandC2Kernel{2}(),
+                                                           elastic_smoothing_length=0.4)
+                fluid, structure, arrays, semi,
+                _ = initialize(fluid_system, structure_system)
+                force_fluid, force_structure = pair_forces(fluid, structure, arrays, semi)
+                # Independent cubic-spline gradients, including the fluid's kernel
+                # correction. The collinear gradient-correction matrix is the identity.
+                grad_s = SVector(-15 / (56pi), 0.0)
+                gamma_f = fluid_density / 1005.0 * 10 / (7pi) + 5 / (112pi)
+                dw_gamma_f = -grad_s / gamma_f
+                grad_f = (-grad_s - 5 / (112pi) * dw_gamma_f) / gamma_f
+                expected = 500.0 * fluid_density / 1005.0 * (grad_f - grad_s)
+                @test force_structure ≈ expected
+                @test force_fluid ≈ -expected
+
+                # The boundary model's kernel and fluid kernel must have equal compact support.
+                structure = TrixiParticles.@set structure.boundary_model.smoothing_length = 0.5
+                @test_throws ArgumentError Semidiscretization(fluid, structure)
             end
         end
 

@@ -116,6 +116,24 @@ end
     return ndims(boundary_model.smoothing_kernel)
 end
 
+# Evaluate fluid-pressure gradients with the boundary model's kernel and correction data.
+# The TLSPH self-interaction kernel and correction matrix belong to the structure.
+@inline system_correction(model::BoundaryModelDummyParticles) = model.correction
+@inline skip_zero_distance(model::BoundaryModelDummyParticles) = skip_zero_distance(model.correction)
+
+@propagate_inbounds function kernel_correction_coefficient(model::BoundaryModelDummyParticles,
+                                                           particle)
+    return model.cache.kernel_correction_coefficient[particle]
+end
+
+@propagate_inbounds function dw_gamma(model::BoundaryModelDummyParticles, particle)
+    return extract_svector(model.cache.dw_gamma, Val(ndims(model)), particle)
+end
+
+@propagate_inbounds function correction_matrix(model::BoundaryModelDummyParticles, particle)
+    return extract_smatrix(model.cache.correction_matrix, Val(ndims(model)), particle)
+end
+
 @inline function clip_negative_pressure(::BoundaryModelDummyParticles{<:Any, <:Any, CLIP}) where {CLIP}
     return CLIP
 end
