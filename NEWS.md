@@ -17,6 +17,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Important Bugfixes
 
+- Fixed double-counted Monaghan-Kajtar repulsion in TVF momentum and
+  background-pressure shifting operators (#1344).
 - Fixed the structure-side kernel gradient in corrected FSI pressure to use the
   boundary model's kernel rather than the TLSPH self-interaction kernel (#1342).
 - Fixed pressure mirroring for TLSPH and rigid-body neighbors and for EDAC momentum,
