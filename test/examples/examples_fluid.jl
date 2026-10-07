@@ -494,6 +494,16 @@
         @test count_rhs_allocations(sol) == 0
     end
 
+    @trixi_testset "fluid/poiseuille_carreau_2d.jl" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "poiseuille_carreau_2d.jl"),
+                                         ny=8, tspan=(0.0, 0.001), power_law_index=0.5,
+                                         output_directory=mktempdir())
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol) == 0
+    end
+
     @trixi_testset "fluid/poiseuille_flow_2d.jl (WCSPH)" begin
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",
