@@ -117,7 +117,8 @@
 
         closed_polygon = TrixiParticles.Polygon(open_square)
         open_polygon = TrixiParticles.Polygon(open_square; close_curve=false)
-        partial_polygon = TrixiParticles.delete_faces(TrixiParticles.Polygon(open_square), 2)
+        partial_polygon = TrixiParticles.delete_faces(TrixiParticles.Polygon(open_square),
+                                                      2)
 
         @test TrixiParticles.is_closed_geometry(closed_polygon)
         @test !TrixiParticles.is_closed_geometry(open_polygon)
