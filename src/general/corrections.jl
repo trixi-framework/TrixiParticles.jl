@@ -160,8 +160,10 @@ function compute_correction_values!(system::AbstractBoundarySystem,
 end
 
 function compute_shepard_coeff!(system, system_coords, v_ode, u_ode, semi,
-                                kernel_correction_coefficient)
+                                kernel_correction_coefficient,
+                                density_numerator=nothing)
     set_zero!(kernel_correction_coefficient)
+    reset_density_numerator!(density_numerator)
 
     # Use enabled neighbor systems for the correction value.
     @trixi_timeit timer() "compute correction value" begin
@@ -180,12 +182,10 @@ function compute_shepard_coeff!(system, system_coords, v_ode, u_ode, semi,
                                    semi) do particle, neighbor, pos_diff, distance
                 rho_b = current_density(v_neighbor_system, neighbor_system, neighbor)
                 m_b = hydrodynamic_mass(neighbor_system, neighbor)
-                volume = m_b / rho_b
+                W = smoothing_kernel(system, distance, particle)
 
-                kernel_correction_coefficient[particle] += volume *
-                                                           smoothing_kernel(system,
-                                                                            distance,
-                                                                            particle)
+                accumulate_shepard_values!(kernel_correction_coefficient,
+                                           density_numerator, particle, m_b, rho_b, W)
             end
         end
     end
@@ -203,6 +203,23 @@ function sanitize_kernel_correction_coefficient!(coefficient, system, semi)
         end
     end
 
+    return coefficient
+end
+
+@inline reset_density_numerator!(::Nothing) = nothing
+@inline reset_density_numerator!(density_numerator) = set_zero!(density_numerator)
+
+@inline function accumulate_shepard_values!(coefficient, ::Nothing, particle, mass,
+                                            density, W)
+    @inbounds coefficient[particle] += (mass / density) * W
+    return coefficient
+end
+
+@inline function accumulate_shepard_values!(coefficient, density_numerator, particle, mass,
+                                            density, W)
+    weighted_mass = mass * W
+    @inbounds coefficient[particle] += weighted_mass / density
+    @inbounds density_numerator[particle] += weighted_mass
     return coefficient
 end
 
@@ -254,14 +271,7 @@ function compute_correction_values!(system,
 
             neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-            # For `distance == 0`, the analytical gradient is zero, but the unsafe gradient
-            # and the density diffusion divide by zero.
-            # To account for rounding errors, we check if `distance` is almost zero.
-            # Since the coordinates are in the order of the smoothing length `h`, `distance^2` is in
-            # the order of `h^2`, so we need to check `distance < sqrt(eps(h^2))`.
-            # Note that `sqrt(eps(h^2)) != eps(h)`.
             h = initial_smoothing_length(system)
-            almostzero = sqrt(eps(h^2))
 
             # Loop over all pairs of particles and neighbors within the kernel cutoff
             foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
@@ -276,8 +286,9 @@ function compute_correction_values!(system,
 
                 kernel_correction_coefficient[particle] += volume * W
 
-                # Only consider particles with a distance > 0.
-                if distance > almostzero
+                # Only consider particles with a distance > 0 because the kernel gradient
+                # is zero otherwise, but computing it would divide by zero (see `almostzero`).
+                if distance >= almostzero(h)
                     # Now that we know that `distance` is not zero, we can safely call the
                     # unsafe version of the kernel gradient to avoid redundant zero checks.
                     grad_W = kernel_grad_unsafe(system_smoothing_kernel(system), pos_diff,
@@ -420,7 +431,7 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
             end
 
             neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
-            almostzero = sqrt(eps(compact_support(system, neighbor_system)^2))
+            h = initial_smoothing_length(system)
 
             foreach_point_neighbor(system, neighbor_system, coordinates, neighbor_coords,
                                    semi) do particle, neighbor, pos_diff, distance
@@ -441,9 +452,12 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
                                                         particle)
                 end
 
-                # Skip neighbors with the same position if the kernel gradient is zero.
+                # Skip neighbors with (almost) the same position because the kernel gradient
+                # is zero, but computing it would divide by zero (see `almostzero`).
                 # Note that `return` only exits the closure, i.e., skips the current neighbor.
-                skip_zero_distance(correction) && distance < almostzero && return
+                if skip_zero_distance(correction) && distance < almostzero(h)
+                    return
+                end
 
                 # Now that we know that `distance` is not zero, we can safely call the unsafe
                 # version of the kernel gradient to avoid redundant zero checks.
