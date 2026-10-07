@@ -26,7 +26,7 @@ end
                                                          GradientCorrection,
                                                          BlendedGradientCorrection,
                                                          MixedKernelGradientCorrection})
-    # The boundary model supplies the kernel and correction state for fluid pressure.
+    # Use the boundary model's kernel and correction data for fluid pressure.
     return pressure_acceleration(particle_system, neighbor_system.boundary_model,
                                  particle, neighbor, m_a, m_b, p_a, p_b, rho_a, rho_b,
                                  pos_diff, distance, W_a, correction)
