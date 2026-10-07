@@ -245,13 +245,13 @@ end
                      direction,
                      eachparticle=eachparticle(system))
 
-Functor that computes the instantaneous hydrodynamic force exerted by the fluid on a
-[`TotalLagrangianSPHSystem`](@ref), projected onto `direction`.
+Functor that computes the instantaneous hydrodynamic force along `direction` exerted by
+interacting fluid systems on a [`TotalLagrangianSPHSystem`](@ref).
 It can be passed as a custom quantity to [`PostprocessCallback`](@ref).
 
-For a fixed fluid-interacting structure in a channel flow, choose `direction` as the
-direction of useful force and multiply the recorded thrust by the corresponding reference
-speed to obtain useful mechanical power.
+For a fixed structure in a channel-flow propulsion test, `T * U_ref` defines a reference
+propulsive power, where `T` is the recorded thrust and `U_ref` is the reference translation
+speed along `direction`.
 
 !!! warning "Experimental implementation"
     This is an experimental feature and may change in future releases.
@@ -262,16 +262,18 @@ speed to obtain useful mechanical power.
 - `semi`: The [`Semidiscretization`](@ref) that contains `system`.
 
 # Keywords
-- `direction`: Direction onto which the hydrodynamic force is projected. The vector is
-               normalized internally.
-- `eachparticle=eachparticle(system)`: Iterator selecting which particles contribute.
+- `direction`: Nonzero vector defining the projection direction. Its length must
+               equal the number of spatial dimensions. It is normalized internally.
+- `eachparticle=eachparticle(system)`: Iterator selecting the particles whose hydrodynamic
+               forces are summed. The default includes all particles, including clamped ones.
 
 # Examples
 ```jldoctest; output = false, setup = :(system = TotalLagrangianSPHSystem(RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0); smoothing_kernel=WendlandC2Kernel{2}(), smoothing_length=1.0, young_modulus=1.0, poisson_ratio=1.0); semi = (; systems=(system,), parallelization_backend=SerialBackend()))
 # Create a thrust calculator in x-direction
 thrust_calculator = ThrustCalculator(system, semi; direction=SVector(1.0, 0.0))
 
-# After postprocessing, retrieve the latest thrust value
+# Retrieve the latest thrust value. This is zero until the calculator has been
+# evaluated by a `PostprocessCallback`.
 thrust = calculated_thrust(thrust_calculator)
 
 # output
@@ -319,7 +321,8 @@ end
 """
     calculated_thrust(calculator::ThrustCalculator)
 
-Get the latest projected hydrodynamic force from a [`ThrustCalculator`](@ref).
+Get the projected hydrodynamic force from the last evaluation of a
+[`ThrustCalculator`](@ref).
 """
 function calculated_thrust(calculator::ThrustCalculator)
     return calculator.thrust

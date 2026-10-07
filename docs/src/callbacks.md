@@ -17,8 +17,8 @@ Pages = ["general/custom_quantities.jl"]
 
 # Mechanical Work and Thrust Calculators
 
-The `MechanicalWorkCalculator` and `ThrustCalculator` are special custom quantities to be
-used with the [`PostprocessCallback`](@ref).
+The `MechanicalWorkCalculator` and `ThrustCalculator` are designed to be used as custom
+quantities with a [`PostprocessCallback`](@ref).
 
 ```@autodocs
 Modules = [TrixiParticles]

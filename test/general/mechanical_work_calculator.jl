@@ -237,10 +237,13 @@
                                                      state_equation,
                                                      reference_particle_spacing=particle_spacing)
 
+        # Add a non-fluid load along the thrust direction, which must not be included
+        # in the calculated thrust.
         structure_system = TotalLagrangianSPHSystem(structure_ic; smoothing_kernel,
                                                     smoothing_length,
                                                     young_modulus=1.0e5,
                                                     poisson_ratio=0.3,
+                                                    acceleration=(10.0, 0.0),
                                                     boundary_model)
 
         semi_ = Semidiscretization(fluid_system, structure_system)
