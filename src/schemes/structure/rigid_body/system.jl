@@ -81,6 +81,12 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
         throw(ArgumentError("`RigidBodySystem` currently supports only 2D and 3D, got $(NDIMS)D"))
     end
 
+    if boundary_model isa BoundaryModelDummyParticles &&
+       !isnothing(boundary_model.correction)
+        throw(ArgumentError("corrections in `BoundaryModelDummyParticles` are not " *
+                            "supported for `RigidBodySystem`"))
+    end
+
     ELTYPE = eltype(initial_condition)
     acceleration_ = SVector(acceleration...)
     if length(acceleration_) != NDIMS
@@ -266,28 +272,6 @@ end
     return system.boundary_model.smoothing_kernel
 end
 
-@inline function system_correction(system::RigidBodySystem{<:BoundaryModelDummyParticles})
-    return correction_gradient(system.boundary_model.correction)
-end
-
-@inline function hydrodynamic_correction(system::RigidBodySystem{<:BoundaryModelDummyParticles})
-    return correction_gradient(system.boundary_model.correction)
-end
-
-@inline function kernel_correction_coefficient(system::RigidBodySystem{<:BoundaryModelDummyParticles},
-                                               particle)
-    return system.boundary_model.cache.kernel_correction_coefficient[particle]
-end
-
-@inline function dw_gamma(system::RigidBodySystem{<:BoundaryModelDummyParticles}, particle)
-    return extract_svector(system.boundary_model.cache.dw_gamma, system, particle)
-end
-
-@inline function correction_matrix(system::RigidBodySystem{<:BoundaryModelDummyParticles},
-                                   particle)
-    return extract_smatrix(system.boundary_model.cache.correction_matrix, system, particle)
-end
-
 function initialize!(system::RigidBodySystem, semi)
     initialize_colorfield!(system, system.boundary_model, semi)
     return system
@@ -310,8 +294,8 @@ end
                                  particle, neighbor, pos_diff, distance)
     (; adhesion_coefficient) = neighbor_system
 
-    # No adhesion with oneself. See `src/general/smoothing_kernels.jl` for more details.
-    distance^2 < eps(initial_smoothing_length(particle_system)^2) && return dv_particle
+    # No adhesion with oneself (see `almostzero`).
+    distance < almostzero(initial_smoothing_length(particle_system)) && return dv_particle
 
     abs(adhesion_coefficient) < eps() && return dv_particle
 
@@ -378,13 +362,6 @@ function restart_with!(system::RigidBodySystem, v, u)
     return system
 end
 
-function update_density_correction!(system::RigidBodySystem{<:BoundaryModelDummyParticles},
-                                    v, u, v_ode, u_ode, semi, t)
-    update_density_correction!(system.boundary_model, system, v, u, v_ode, u_ode, semi)
-
-    return system
-end
-
 function update_boundary_interpolation!(system::RigidBodySystem, v, u, v_ode, u_ode,
                                         semi, t)
     return update_boundary_interpolation!(system.boundary_model, system, v, u, v_ode,
@@ -399,13 +376,6 @@ end
 function update_boundary_interpolation!(boundary_model, system::RigidBodySystem, v, u,
                                         v_ode, u_ode, semi, t)
     update_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi)
-    return system
-end
-
-function update_gradient_correction!(system::RigidBodySystem{<:BoundaryModelDummyParticles},
-                                     v, u, v_ode, u_ode, semi, t)
-    update_gradient_correction!(system.boundary_model, system, v, u, v_ode, u_ode, semi)
-
     return system
 end
 
@@ -661,6 +631,8 @@ function check_configuration(system::RigidBodySystem, systems, nhs)
             throw(ArgumentError("a boundary model for `RigidBodySystem` must be specified " *
                                 "when simulating a fluid-structure interaction."))
         end
+
+        check_compact_support_fsi(system, boundary_model, neighbor)
 
         if neighbor isa AbstractFluidSystem &&
            neighbor.surface_normal_method isa ColorfieldSurfaceNormal

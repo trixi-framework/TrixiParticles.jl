@@ -183,8 +183,8 @@ end
 
     @test mixed_boundary_rhs_is_valid(backend)
 
-    # Exercise the corrected fluid-structure reaction path on the selected backend.
-    function corrected_structure_rhs_is_valid(kind, structure_kind, backend)
+    # Exercise the corrected fluid-TLSPH reaction path on the selected backend.
+    function corrected_structure_rhs_is_valid(kind, backend)
         spacing = 0.1f0
         density = 1000.0f0
         kernel = WendlandC6Kernel{2}()
@@ -193,6 +193,7 @@ end
                                            reference_density=density, exponent=1)
         fluid_initial = RectangularShape(spacing, (4, 3), (0.0f0, 0.0f0);
                                          density, coordinates_eltype=Float32)
+        fluid_initial.pressure .= range(1.0f0, 2.0f0; length=length(fluid_initial.pressure))
         fluid = if kind == :wcsph
             WeaklyCompressibleSPHSystem(fluid_initial; smoothing_kernel=kernel,
                                         smoothing_length,
@@ -217,13 +218,9 @@ end
                                                      smoothing_length;
                                                      state_equation,
                                                      correction=GradientCorrection())
-        structure = if structure_kind == :rigid
-            RigidBodySystem(structure_initial; boundary_model, particle_spacing=spacing)
-        else
-            TotalLagrangianSPHSystem(structure_initial; smoothing_kernel=kernel,
-                                     smoothing_length, young_modulus=0.0f0,
-                                     poisson_ratio=0.0f0, boundary_model)
-        end
+        structure = TotalLagrangianSPHSystem(structure_initial; smoothing_kernel=kernel,
+                                             smoothing_length, young_modulus=0.0f0,
+                                             poisson_ratio=0.0f0, boundary_model)
 
         semi = Semidiscretization(fluid, structure; neighborhood_search=nothing,
                                   parallelization_backend=backend)
@@ -238,23 +235,20 @@ end
                      if system isa TrixiParticles.AbstractFluidSystem)
         structure = only(system
                          for system in ode.p.semi.systems
-                         if system isa Union{RigidBodySystem, TotalLagrangianSPHSystem})
+                         if system isa TotalLagrangianSPHSystem)
         dv_fluid = Array(TrixiParticles.wrap_v(dv_ode, fluid, ode.p.semi))
         fluid_force = vec(sum(Array(fluid.mass)' .* view(dv_fluid, 1:2, :); dims=2))
-        structure_force = if structure isa RigidBodySystem
-            vec(sum(Array(structure.force_per_particle); dims=2))
-        else
-            dv_structure = Array(TrixiParticles.wrap_v(dv_ode, structure, ode.p.semi))
-            vec(sum(Array(structure.mass)' .* view(dv_structure, 1:2, :); dims=2))
-        end
+        dv_structure = Array(TrixiParticles.wrap_v(dv_ode, structure, ode.p.semi))
+        structure_force = vec(sum(Array(structure.mass)' .* view(dv_structure, 1:2, :);
+                                  dims=2))
         force_scale = norm(fluid_force) + norm(structure_force)
 
         return all(isfinite, Array(dv_ode)) && force_scale > eps(Float32) &&
                norm(fluid_force + structure_force) / force_scale < 2e-4
     end
 
-    for kind in (:wcsph, :edac), structure_kind in (:rigid, :tlsph)
-        @test corrected_structure_rhs_is_valid(kind, structure_kind, backend)
+    for kind in (:wcsph, :edac)
+        @test corrected_structure_rhs_is_valid(kind, backend)
     end
 
     spacing = 0.1f0
@@ -393,8 +387,11 @@ end
     # operator. This checks density and pressure values, not only finiteness.
     v[end, :] .= 1000.0f0
     TrixiParticles.reinit_density!(system, v, u, v_ode, u_ode, ode.p.semi)
-    @test Array(v[end, :])≈fill(1000.0f0, size(v, 2)) rtol=2e-5 atol=2e-5
-    @test maximum(abs, Array(system.pressure)) < 1.0f-2
+    density_atol = 8eps(1000.0f0)
+    @test Array(v[end, :])≈fill(1000.0f0, size(v, 2)) rtol=0 atol=density_atol
+    # The linear state equation amplifies Float32 density roundoff by the sound speed squared.
+    pressure_atol = state_equation(1000.0f0 + density_atol)
+    @test maximum(abs, Array(system.pressure)) <= pressure_atol
 end
 
 @testset verbose=true "Examples $TRIXIPARTICLES_TEST_" begin

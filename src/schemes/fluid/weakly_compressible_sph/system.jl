@@ -325,12 +325,21 @@ end
     return system
 end
 
+function update_density_correction_values!(system::WeaklyCompressibleSPHSystem, v, u,
+                                           v_ode, u_ode, semi, t)
+    (; correction) = system
+    density_correction = correction_density(correction)
+
+    compute_correction_values!(system, density_correction, u, v_ode, u_ode, semi)
+
+    return system
+end
+
 function update_density_correction!(system::WeaklyCompressibleSPHSystem, v, u, v_ode,
                                     u_ode, semi, t)
     (; density_calculator, correction) = system
     density_correction = correction_density(correction)
 
-    compute_correction_values!(system, density_correction, u, v_ode, u_ode, semi)
     kernel_correct_density!(system, v, u, v_ode, u_ode, semi, density_correction,
                             density_calculator)
 
@@ -496,7 +505,7 @@ function apply_reinit_density!(system::WeaklyCompressibleSPHSystem, ::Continuity
 
     # Compute density with `SummationDensity` and store the result in `v`,
     # overwriting the previous integrated density.
-    summation_density!(system, semi, u, u_ode, v[end, :])
+    summation_density!(system, semi, u, u_ode, current_density(v, system))
 
     @threaded semi for particle in eachparticle(system)
         v[end, particle] /= coefficient[particle]

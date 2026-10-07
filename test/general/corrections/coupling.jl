@@ -106,7 +106,9 @@ end
 
     # Build a perturbed fluid-structure pair and return force-balance diagnostics.
     function coupled_result(kind, structure_kind, correction;
-                            boundary_correction=correction, reverse_order=false,
+                            boundary_correction=structure_kind == :rigid ? nothing :
+                                                correction,
+                            reverse_order=false,
                             average_pressure_reduction=false,
                             structural_smoothing_kernel=nothing,
                             structural_smoothing_length=nothing)
@@ -215,7 +217,8 @@ end
                        cache_is_finite(structure))
     end
 
-    # Every supported correction conserves momentum for rigid and deformable structures.
+    # Every supported fluid correction conserves momentum for rigid and deformable structures.
+    # Only TLSPH boundary models support correction caches.
     corrections = (KernelCorrection(), GradientCorrection(),
                    BlendedGradientCorrection(0.4), MixedKernelGradientCorrection())
     for kind in (:wcsph, :edac), structure_kind in (:rigid, :tlsph),
@@ -232,7 +235,11 @@ end
         reverse = coupled_result(:edac, structure_kind, GradientCorrection();
                                  reverse_order=true)
         @test forward.fluid_correction≈reverse.fluid_correction rtol=5e-13 atol=5e-13
-        @test forward.structure_correction≈reverse.structure_correction rtol=5e-13 atol=5e-13
+        if structure_kind == :rigid
+            @test forward.structure_correction === reverse.structure_correction === nothing
+        else
+            @test forward.structure_correction≈reverse.structure_correction rtol=5e-13 atol=5e-13
+        end
         @test forward.fluid_rhs≈reverse.fluid_rhs rtol=1e-11 atol=1e-10
         @test forward.fluid_force≈reverse.fluid_force rtol=1e-11 atol=1e-10
         @test forward.structure_force≈reverse.structure_force rtol=1e-11 atol=1e-10
