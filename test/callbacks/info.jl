@@ -155,8 +155,10 @@
           Time steps:                            453 (accepted)        472 (total)
         ────────────────────────────────────────────────────────────────────────────────────────────────────
 
-        ────────────────────────────────────────────────────────────────────
-        TrixiParticles.jl          Time                    Allocations"""
+                             TrixiParticles.jl
+        ────────────────────────────────────────────────────────────
+                                  Time              Allocations
+                            ─────────────────    ──────────────────"""
 
         # Redirect `stdout` to a string
         pipe = Pipe()
@@ -167,6 +169,8 @@
         output = String(read(pipe))
 
         @test startswith(output, expected)
+        # TimerOutputs controls the table layout, which differs between versions.
+        @test occursin(r"TrixiParticles\.jl[\s─]*Time\s+Allocations", output)
     end
 
     @testset verbose=true "affect! finished with split integration" begin
@@ -197,8 +201,10 @@
           Split integration time steps:          938 (accepted)       1023 (total)
         ────────────────────────────────────────────────────────────────────────────────────────────────────
 
-        ────────────────────────────────────────────────────────────────────
-        TrixiParticles.jl          Time                    Allocations"""
+                             TrixiParticles.jl
+        ────────────────────────────────────────────────────────────
+                                  Time              Allocations
+                            ─────────────────    ──────────────────"""
 
         # Redirect `stdout` to a string
         pipe = Pipe()
@@ -209,6 +215,8 @@
         output = String(read(pipe))
 
         @test startswith(output, expected)
+        # TimerOutputs controls the table layout, which differs between versions.
+        @test occursin(r"TrixiParticles\.jl[\s─]*Time\s+Allocations", output)
     end
 
     # TODO add unit tests for all summary box functions

@@ -291,16 +291,17 @@ function calculate_predicted_velocity_and_d_ii_values!(system::ImplicitIncompres
 
             grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
-            dv_viscosity_ = Ref(zero(pos_diff))
-            @inbounds dv_viscosity!(dv_viscosity_, system, neighbor_system,
-                                    v_particle_system, v_neighbor_system,
-                                    particle, neighbor, pos_diff, distance,
-                                    sound_speed, m_a, m_b, rho_a, rho_b,
-                                    v_a, v_b, grad_kernel)
+            dv_viscosity_ = @inbounds add_dv_viscosity(zero(pos_diff), system,
+                                                       neighbor_system,
+                                                       v_particle_system, v_neighbor_system,
+                                                       particle, neighbor, pos_diff,
+                                                       distance,
+                                                       sound_speed, m_a, m_b, rho_a, rho_b,
+                                                       v_a, v_b, grad_kernel)
             # Add all other non-pressure forces
             for i in 1:ndims(system)
                 @inbounds advection_velocity[i,
-                                             particle] += time_step * dv_viscosity_[][i]
+                                             particle] += time_step * dv_viscosity_[i]
             end
             # Calculate d_ii with eq. 9 in Ihmsen et al. (2013)
             for i in 1:ndims(system)
@@ -496,7 +497,8 @@ function calculate_sum_d_ij_pj!(sum_d_ij_pj, system,
     (; time_step) = system
 
     system_coords = current_coordinates(u, system)
-    neighbor_coords = current_coordinates(u, neighbor_system)
+    u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
+    neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
     foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords, semi;
                            points=each_integrated_particle(system)) do particle, neighbor,
@@ -584,12 +586,15 @@ function pressure_update(system, pressure, reference_density, a_ii, sum_term, om
         else
             pressure[particle] = zero(pressure[particle])
         end
-        # Calculate the average density error for the termination condition
-        if (pressure[particle] != 0.0)
+        # Calculate the density error for the termination condition, explicitly
+        # clearing zero-pressure entries (no stale values from previous iterations).
+        if pressure[particle] != 0.0
             new_density = a_ii[particle] * pressure[particle] + sum_term[particle] -
                           iisph_source_term(system, particle) +
                           reference_density
-            density_error[particle] = (new_density - reference_density)
+            density_error[particle] = new_density - reference_density
+        else
+            density_error[particle] = zero(eltype(density_error))
         end
     end
     relative_density_error = sum(density_error) / reference_density
