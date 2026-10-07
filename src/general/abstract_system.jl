@@ -145,9 +145,9 @@ end
     h = smoothing_length(system, particle)
     compact_support_ = compact_support(system_smoothing_kernel(system), h)
 
-    # Note that `sqrt(eps(h^2)) != eps(h)`
+    # See `almostzero` for an explanation of the zero distance check
     if distance >= compact_support_ ||
-       (skip_zero_distance(system) && distance^2 < eps(h^2))
+       (skip_zero_distance(system) && distance < almostzero(h))
         return zero(pos_diff)
     end
 
