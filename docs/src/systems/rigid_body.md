@@ -65,8 +65,8 @@ For tangential displacement history ``\boldsymbol{\xi}`` and slip velocity
 -k_t \boldsymbol{\xi} - c_t \boldsymbol{v}_t.
 ```
 
-The contact sticks while
-``\lVert\boldsymbol{F}_t^{\mathrm{trial}}\rVert \le \mu_s F_n``. Otherwise the model
+An initially sticking contact breaks away when
+``\lVert\boldsymbol{F}_t^{\mathrm{trial}}\rVert > \mu_s F_n``. The model then
 uses kinetic friction of limiting magnitude ``\mu_k F_n`` opposite the current slip
 velocity. `stick_velocity_tolerance` supplies a `tanh` regularization close to zero slip
 speed. At exactly zero slip speed, the restoring direction of the trial force is retained.
@@ -80,7 +80,18 @@ onto the current contact plane:
 \left(\boldsymbol{\xi} + \Delta t\,\boldsymbol{v}_t\right).
 ```
 
-The stored extension is capped at the static Coulomb limit. Initialization uses
+During sliding with ``k_t > 0``, the stored spring extension is back-calculated from the
+kinetic force, including the tangential dashpot contribution:
+
+```math
+\boldsymbol{\xi} \leftarrow
+-\frac{\boldsymbol{F}_t + c_t\boldsymbol{v}_t}{k_t}.
+```
+
+A persistent sliding flag retains kinetic friction while slip continues in the restoring-force
+direction above `stick_velocity_tolerance`. Stopping or reversing slip allows the spring to
+stick and unload. Each RHS evaluation projects a local copy of history into its current
+contact plane, without changing persistent state. Initialization uses
 ``\Delta t = 0`` so contacts are registered without adding displacement before the first
 accepted step. Rejected steps and intermediate Runge-Kutta stages never advance history.
 
@@ -99,6 +110,11 @@ the two models. Contact distance is the larger value, friction coefficients are 
 values, and the larger stick-velocity tolerance and penetration slop are used. These
 symmetric rules ensure that the two ordered interaction passes produce equal-and-opposite
 contact forces.
+
+Rigid-rigid forces act at the midpoint between the contacting particles. Relative contact
+velocity is evaluated there, including both bodies' rotation, and the corresponding torque
+corrections are accumulated with the particle forces. This conserves total angular momentum
+as well as linear momentum for freely moving bodies.
 
 If either rigid body has zero friction coefficients, the minimum-coefficient rule makes the
 pair frictionless. A tangential spring on only one body can contribute to a pair only when
