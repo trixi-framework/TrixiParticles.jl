@@ -64,29 +64,3 @@ function interact!(dv, v_particle_system, u_particle_system,
     end
     return dv
 end
-
-# Add the acceleration of `particle` due to `neighbor` to `dv_particle`.
-# `particle` must be in `particle_system` and `neighbor` must be in `neighbor_system`.
-# Note that this function is also used for the structure-fluid interaction to compute
-# the exact opposite pair force. When adding new terms here, make sure that they are
-# also valid for structure neighbors.
-@propagate_inbounds function add_momentum_equation(dv_particle,
-                                                   particle_system::ImplicitIncompressibleSPHSystem,
-                                                   neighbor_system,
-                                                   v_particle_system, v_neighbor_system,
-                                                   particle, neighbor, pos_diff, distance,
-                                                   grad_kernel, sound_speed, m_a, m_b,
-                                                   p_a, p_b, rho_a, rho_b, v_a, v_b)
-    dv_particle += pressure_acceleration(particle_system, neighbor_system,
-                                         particle, neighbor,
-                                         m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
-                                         distance, grad_kernel, nothing)
-
-    dv_particle = add_dv_viscosity(dv_particle, particle_system, neighbor_system,
-                                   v_particle_system, v_neighbor_system,
-                                   particle, neighbor, pos_diff, distance,
-                                   sound_speed, m_a, m_b, rho_a, rho_b,
-                                   v_a, v_b, grad_kernel)
-
-    return dv_particle
-end
