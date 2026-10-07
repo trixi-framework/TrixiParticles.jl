@@ -16,6 +16,9 @@ Boundary model for [`WallBoundarySystem`](@ref).
                         See [the docs](@ref boundary_models) for more information.
 - `smoothing_kernel`: Smoothing kernel should be the same as for the adjacent fluid system.
 - `smoothing_length`: Smoothing length should be the same as for the adjacent fluid system.
+                      For a [`TotalLagrangianSPHSystem`](@ref) or a [`RigidBodySystem`](@ref),
+                      the compact support of `smoothing_kernel` and `smoothing_length`
+                      must be the same as for all fluid systems in the simulation.
 
 # Keywords
 - `state_equation`:             This should be the same as for the adjacent fluid system
@@ -113,8 +116,8 @@ end
     return ndims(boundary_model.smoothing_kernel)
 end
 
-# A structure's hydrodynamic kernel uses the boundary model as its correction
-# context, independently of the structure's elastic kernel and correction matrix.
+# Evaluate fluid-pressure gradients with the boundary model's kernel and correction data.
+# The TLSPH self-interaction kernel and correction matrix belong to the structure.
 @inline system_correction(model::BoundaryModelDummyParticles) = model.correction
 @inline skip_zero_distance(model::BoundaryModelDummyParticles) = skip_zero_distance(model.correction)
 
@@ -129,23 +132,6 @@ end
 
 @propagate_inbounds function correction_matrix(model::BoundaryModelDummyParticles, particle)
     return extract_smatrix(model.cache.correction_matrix, Val(ndims(model)), particle)
-end
-
-@inline function correction_kernel_grad(correction, smoothing_kernel, pos_diff, distance,
-                                        smoothing_length_,
-                                        model::BoundaryModelDummyParticles,
-                                        particle)
-    # Assemble from the raw boundary gradient, never from its uninitialized or
-    # previous gradient-correction matrix.
-    return kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length_)
-end
-
-@inline function correction_kernel_grad(::MixedKernelGradientCorrection, smoothing_kernel,
-                                        pos_diff, distance, smoothing_length_,
-                                        model::BoundaryModelDummyParticles, particle)
-    return corrected_kernel_grad_unsafe(smoothing_kernel, pos_diff, distance,
-                                        smoothing_length_, KernelCorrection(), model,
-                                        particle)
 end
 
 @inline function clip_negative_pressure(::BoundaryModelDummyParticles{<:Any, <:Any, CLIP}) where {CLIP}

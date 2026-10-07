@@ -149,19 +149,11 @@ end
 end
 
 @inline function compact_support(system, model::BoundaryModelDummyParticles, neighbor)
-    # Auxiliary boundary passes use the model's compact support. The structure-fluid
-    # specialization below additionally covers all reaction pairs.
+    # TODO: Monaghan-Kajtar BC are using the fluid's compact support for structure-fluid
+    # interaction. Dummy particle BC use the model's compact support, which is also used
+    # for density summations.
     (; smoothing_kernel, smoothing_length) = model
     return compact_support(smoothing_kernel, smoothing_length)
-end
-
-@inline function compact_support(system::Union{TotalLagrangianSPHSystem, RigidBodySystem},
-                                 model::BoundaryModelDummyParticles,
-                                 neighbor::AbstractFluidSystem)
-    # The reaction must visit every pair seen by the fluid, while boundary density
-    # and pressure interpolation still need the boundary model's own support.
-    boundary_support = compact_support(model.smoothing_kernel, model.smoothing_length)
-    return max(boundary_support, compact_support(neighbor, system))
 end
 
 @inline function compact_support(system::WallBoundarySystem,

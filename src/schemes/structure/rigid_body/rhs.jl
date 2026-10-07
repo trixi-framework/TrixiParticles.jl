@@ -33,17 +33,6 @@ function interact!(dv, v_particle_system, u_particle_system,
                                      particle_system, neighbor_system, semi)
 end
 
-# Accumulate pair forces before reducing them to rigid-body resultants.
-@propagate_inbounds function write_fluid_force!(dv, particle_system::RigidBodySystem,
-                                                force_particle, particle)
-    force_per_particle = particle_system.force_per_particle
-    for i in 1:ndims(particle_system)
-        force_per_particle[i, particle] += force_particle[i]
-    end
-
-    return dv
-end
-
 # Reduce the accumulated fluid forces to rigid-body resultants and apply the corresponding
 # translational and rotational acceleration to every rigid particle.
 function apply_resultant_force_and_torque!(dv, particle_system::RigidBodySystem, semi)

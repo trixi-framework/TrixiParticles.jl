@@ -1,5 +1,23 @@
 # Physical momentum pair operators shared by fluid RHSs and structure reactions.
 # Continuity, EDAC pressure evolution, and shifting transport are assembled separately.
+@propagate_inbounds function add_momentum_equation(dv_particle,
+                                                   particle_system::Union{WeaklyCompressibleSPHSystem,
+                                                                          EntropicallyDampedSPHSystem,
+                                                                          ImplicitIncompressibleSPHSystem},
+                                                   neighbor_system,
+                                                   v_particle_system, v_neighbor_system,
+                                                   particle, neighbor, pos_diff, distance,
+                                                   grad_kernel, sound_speed, m_a, m_b,
+                                                   p_a, p_b, rho_a, rho_b, v_a, v_b)
+    return dv_particle +
+           physical_fluid_pair_acceleration(particle_system, neighbor_system,
+                                            v_particle_system, v_neighbor_system,
+                                            particle, neighbor, m_a, m_b, p_a, p_b,
+                                            rho_a, rho_b, v_a, v_b, pos_diff, distance,
+                                            sound_speed, grad_kernel,
+                                            system_correction(particle_system))
+end
+
 @propagate_inbounds function neighbor_pressure(v_neighbor_system, neighbor_system,
                                                neighbor, p_a)
     return current_pressure(v_neighbor_system, neighbor_system, neighbor)

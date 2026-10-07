@@ -8,10 +8,7 @@ function interact!(dv, v_particle_system, u_particle_system,
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-    # All kernel interactions use the same relative squared-distance criterion.
-    compact_support_ = compact_support(particle_system, neighbor_system)
     h = initial_smoothing_length(particle_system)
-    zero_distance_squared = eps(typeof(h)) * h^2
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     foreach_point_neighbor(particle_system, neighbor_system,
@@ -20,12 +17,10 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                                                 neighbor,
                                                                                 pos_diff,
                                                                                 distance
-        # Skip neighbors with the same position because the kernel gradient is zero.
+        # Skip neighbors with (almost) the same position because the kernel gradient
+        # is zero, but computing it would divide by zero (see `almostzero`).
         # Note that `return` only exits the closure, i.e., skips the current neighbor.
-        if distance > compact_support_ ||
-           (skip_zero_distance(particle_system) && distance^2 < zero_distance_squared)
-            return
-        end
+        skip_zero_distance(particle_system) && distance < almostzero(h) && return
 
         # Now that we know that `distance` is not zero, we can safely call the unsafe
         # version of the kernel gradient to avoid redundant zero checks.
@@ -47,19 +42,18 @@ function interact!(dv, v_particle_system, u_particle_system,
         m_a = @inbounds hydrodynamic_mass(particle_system, particle)
         m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
 
-        dv_particle = @inbounds physical_fluid_pair_acceleration(particle_system,
-                                                                 neighbor_system,
-                                                                 v_particle_system,
-                                                                 v_neighbor_system,
-                                                                 particle, neighbor,
-                                                                 m_a, m_b, p_a, p_b, rho_a,
-                                                                 rho_b,
-                                                                 v_a, v_b, pos_diff,
-                                                                 distance,
-                                                                 sound_speed, grad_kernel,
-                                                                 correction)
+        # Propagate `@inbounds` to the momentum equation, which accesses particle data
+        dv_particle = @inbounds add_momentum_equation(zero(v_a), particle_system,
+                                                      neighbor_system,
+                                                      v_particle_system, v_neighbor_system,
+                                                      particle, neighbor,
+                                                      pos_diff, distance, grad_kernel,
+                                                      sound_speed, m_a, m_b, p_a, p_b,
+                                                      rho_a, rho_b, v_a, v_b)
 
-        # Extra terms in the momentum equation when using a shifting technique
+        # Extra terms in the momentum equation when using a shifting technique.
+        # These are not included in `add_momentum_equation` because they must not be
+        # applied to structures (see `interact_structure_fluid!`).
         dv_particle = @inbounds add_dv_shifting(dv_particle,
                                                 shifting_technique(particle_system),
                                                 particle_system, neighbor_system,
