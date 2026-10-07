@@ -17,25 +17,21 @@ end
     end
 end
 
-@inline function neighbor_kernel_gradient(system::Union{TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles},
-                                                        RigidBodySystem{<:BoundaryModelDummyParticles}},
-                                          pos_diff, distance, particle, W_a)
-    return smoothing_kernel_grad(system.boundary_model, pos_diff, distance, particle)
-end
-
-@inline function pressure_acceleration(particle_system,
-                                       neighbor_system::Union{TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles},
-                                                              RigidBodySystem{<:BoundaryModelDummyParticles}},
-                                       particle, neighbor, m_a, m_b, p_a, p_b, rho_a, rho_b,
-                                       pos_diff, distance, W_a,
-                                       correction::Union{KernelCorrection,
-                                                         GradientCorrection,
-                                                         BlendedGradientCorrection,
-                                                         MixedKernelGradientCorrection})
-    # Use the boundary model's kernel and correction data for fluid pressure.
-    return pressure_acceleration(particle_system, neighbor_system.boundary_model,
-                                 particle, neighbor, m_a, m_b, p_a, p_b, rho_a, rho_b,
-                                 pos_diff, distance, W_a, correction)
+@inline function pressure_acceleration_interparticle(particle_system,
+                                                     neighbor_system::Union{TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles},
+                                                                            RigidBodySystem{<:BoundaryModelDummyParticles}},
+                                                     particle, neighbor, m_a, m_b, p_a, p_b,
+                                                     rho_a, rho_b, pos_diff, distance, W_a,
+                                                     correction::Union{KernelCorrection,
+                                                                       GradientCorrection,
+                                                                       BlendedGradientCorrection,
+                                                                       MixedKernelGradientCorrection})
+    # Use the boundary model's kernel and correction data for fluid pressure and TVF.
+    return pressure_acceleration_interparticle(particle_system,
+                                               neighbor_system.boundary_model,
+                                               particle, neighbor, m_a, m_b, p_a, p_b,
+                                               rho_a, rho_b, pos_diff, distance, W_a,
+                                               correction)
 end
 
 # The structure-fluid interaction computes the opposite of the force that the fluid
