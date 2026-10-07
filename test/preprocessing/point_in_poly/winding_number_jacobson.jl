@@ -3,6 +3,11 @@
         data_dir = pkgdir(TrixiParticles, "examples", "preprocessing", "data")
         geometry = load_geometry(joinpath(data_dir, "circle.asc"))
 
+        winding = WindingNumberJacobson()
+
+        show_compact = "WindingNumberJacobson{NaiveWinding}()"
+        @test repr(winding) == show_compact
+
         winding = WindingNumberJacobson(; hierarchical_winding=false)
 
         show_compact = "WindingNumberJacobson{NaiveWinding}()"
@@ -29,5 +34,21 @@
             │ winding: ………………………………………………………… HierarchicalWinding                                              │
             └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", winding) == show_box
+    end
+
+    @testset verbose=true "Point Matrix Input" begin
+        geometry = TrixiParticles.Polygon([0.0 1.0 1.0 0.0 0.0;
+                                           0.0 0.0 1.0 1.0 0.0])
+        point_storage = [0.5 0.0 1.5;
+                         0.5 0.0 1.5]
+        points = @view point_storage[:, 1:2:3]
+
+        expected = Bool[true, false]
+
+        inpoly_jacobson, _ = WindingNumberJacobson()(geometry, points)
+        inpoly_hormann, _ = WindingNumberHormann()(geometry, points)
+
+        @test inpoly_jacobson == expected
+        @test inpoly_hormann == expected
     end
 end
