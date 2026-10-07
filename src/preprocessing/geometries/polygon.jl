@@ -8,21 +8,30 @@ struct Polygon{NDIMS, ELTYPE}
     min_corner        :: SVector{NDIMS, ELTYPE}
     max_corner        :: SVector{NDIMS, ELTYPE}
 
-    function Polygon(vertices)
+    function Polygon(vertices; close_curve=true)
         NDIMS = size(vertices, 1)
 
-        return Polygon{NDIMS}(vertices)
+        return Polygon{NDIMS}(vertices; close_curve)
     end
 
     # Function barrier to make `NDIMS` static and therefore `SVector`s type-stable
-    function Polygon{NDIMS}(vertices_) where {NDIMS}
-        n_vertices = size(vertices_, 2)
+    function Polygon{NDIMS}(vertices_; close_curve=true) where {NDIMS}
         ELTYPE = eltype(vertices_)
 
-        min_corner = SVector{NDIMS}(minimum(vertices_, dims=2))
-        max_corner = SVector{NDIMS}(maximum(vertices_, dims=2))
+        vertices = collect(reinterpret(reshape, SVector{NDIMS, ELTYPE}, vertices_))
 
-        vertices = reinterpret(reshape, SVector{NDIMS, ELTYPE}, vertices_)
+        if length(vertices) < 3
+            throw(ArgumentError("polygon requires at least three vertices"))
+        end
+
+        if close_curve && !isapprox(first(vertices), last(vertices))
+            push!(vertices, first(vertices))
+        end
+
+        n_vertices = length(vertices)
+
+        min_corner = SVector([minimum(v[i] for v in vertices) for i in 1:NDIMS]...)
+        max_corner = SVector([maximum(v[i] for v in vertices) for i in 1:NDIMS]...)
 
         # Sum over all the edges and determine if the vertices are in clockwise order
         # to make sure that all normals pointing outwards.
@@ -61,6 +70,10 @@ struct Polygon{NDIMS, ELTYPE}
             push!(edge_vertices, (v1, v2))
             push!(edge_vertices_ids, (i, i + 1))
             push!(edge_normals, edge_normal)
+        end
+
+        if length(edge_vertices) < 3
+            throw(ArgumentError("polygon requires at least three non-degenerate edges"))
         end
 
         vertex_normals = Vector{NTuple{2, SVector{NDIMS, ELTYPE}}}()
