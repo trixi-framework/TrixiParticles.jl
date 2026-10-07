@@ -146,10 +146,10 @@ function RectangularShape(particle_spacing, n_particles_per_dimension, min_coord
             fill!(pressure, zero(ELTYPE))
         elseif state_equation === nothing && density isa Function
             initialize_pressure_with_coordinate_density!(pressure, particle_spacing,
-                                                          acceleration, density,
-                                                          coordinates,
-                                                          n_particles_per_dimension,
-                                                          loop_order, accel_dim)
+                                                         acceleration, density,
+                                                         coordinates,
+                                                         n_particles_per_dimension,
+                                                         loop_order, accel_dim)
         else
             density_fun = state_equation === nothing ? (pressure -> density) :
                           (pressure -> inverse_state_equation(state_equation, pressure))
@@ -326,7 +326,7 @@ function initialize_pressure_with_coordinate_density!(pressure, particle_spacing
     surface_index = first(sorted_indices)
     # Copy `particle_indices` but flatten the dimension in which the acceleration is acting.
     column_starts = ntuple(dim -> dim == accel_dim ? (surface_index:surface_index) :
-                                   axes(particle_indices, dim), Val(NDIMS))
+                                  axes(particle_indices, dim), Val(NDIMS))
 
     for column_start in CartesianIndices(column_starts)
         pressure_prev = zero(eltype(pressure))
