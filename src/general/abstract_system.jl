@@ -145,9 +145,9 @@ end
     h = smoothing_length(system, particle)
     compact_support_ = compact_support(system_smoothing_kernel(system), h)
 
-    # The same relative squared-distance criterion is used by the pair RHSs.
+    # See `almostzero` for an explanation of the zero distance check
     if distance >= compact_support_ ||
-       (skip_zero_distance(system) && distance^2 < eps(typeof(h)) * h^2)
+       (skip_zero_distance(system) && distance < almostzero(h))
         return zero(pos_diff)
     end
 
@@ -160,12 +160,6 @@ end
     return corrected_kernel_grad_unsafe(system_smoothing_kernel(system), pos_diff,
                                         distance, smoothing_length(system, particle),
                                         system_correction(system), system, particle)
-end
-
-# Most systems have a single kernel. Structures can have a separate hydrodynamic
-# boundary kernel, which must not be confused with their elastic self-interaction.
-@inline function hydrodynamic_kernel_grad(system, pos_diff, distance, particle)
-    return smoothing_kernel_grad(system, pos_diff, distance, particle)
 end
 
 # System updates do nothing by default, but can be dispatched if needed

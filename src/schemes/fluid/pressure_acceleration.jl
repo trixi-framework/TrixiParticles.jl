@@ -186,5 +186,5 @@ end
 end
 
 @inline function neighbor_kernel_gradient(system, pos_diff, distance, particle, W_a)
-    return hydrodynamic_kernel_grad(system, pos_diff, distance, particle)
+    return smoothing_kernel_grad(system, pos_diff, distance, particle)
 end

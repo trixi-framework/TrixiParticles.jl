@@ -525,9 +525,7 @@ end
 @inline function calc_deformation_grad!(deformation_grad, system, semi)
     (; mass, material_density) = system
 
-    # Match the squared-distance criterion used by elastic self-interaction.
     h = initial_smoothing_length(system)
-    zero_distance_squared = eps(typeof(h)) * h^2
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     initial_coords = initial_coordinates(system)
@@ -549,10 +547,12 @@ end
                                                                  initial_pos_diff,
                                                                  initial_distance
 
-            # Skip neighbors with the same position because the kernel gradient is zero.
+            # Skip neighbors with (almost) the same position because the kernel gradient
+            # is zero, but computing it would divide by zero (see `almostzero`).
             # Note that `return` only exits the closure, i.e., skips the current neighbor.
-            skip_zero_distance(system) && initial_distance^2 < zero_distance_squared &&
+            if skip_zero_distance(system) && initial_distance < almostzero(h)
                 return zero(L_a)
+            end
 
             # Now that we know that `distance` is not zero, we can safely call the unsafe
             # version of the kernel gradient to avoid redundant zero checks.
@@ -867,5 +867,9 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
        boundary_model.density_calculator isa ContinuityDensity
         throw(ArgumentError("`BoundaryModelDummyParticles` with density calculator " *
                             "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"))
+    end
+
+    foreach_system(systems) do neighbor
+        check_compact_support_fsi(system, boundary_model, neighbor)
     end
 end

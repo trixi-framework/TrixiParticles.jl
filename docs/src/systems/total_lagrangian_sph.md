@@ -130,13 +130,9 @@ In these cases, artificial viscosity is effective at stabilizing the fluid close
 structure, and we recommend using it in combination with penalty force to both
 prevent hourglass modes and stabilize the fluid close to the fluid-structure interface.
 
-
-## Fluid loads
-
-The dummy-particle boundary model supplies the hydrodynamic kernel independently
-of the elastic self-interaction kernel. The fluid-side asymmetric pressure operator
-and boundary-density evolution use this hydrodynamic kernel and its correction
-caches; see [Fluid loads](@ref fluid_structure_loads) for the coupling convention.
+For dummy-particle fluid coupling, corrected pressure uses the boundary model's
+kernel for the structure-side gradient, independently of the TLSPH self-interaction
+kernel. The boundary model's kernel and fluid kernel must have equal compact support.
 
 ## [Velocity Averaging](@id velocity_averaging)
 
