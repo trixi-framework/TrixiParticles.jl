@@ -134,6 +134,10 @@ For dummy-particle fluid coupling, corrected pressure uses the boundary model's
 kernel for the structure-side gradient, independently of the TLSPH self-interaction
 kernel. The boundary model's kernel and fluid kernel must have equal compact support.
 
+Boundary-model correction caches are assembled with hydrodynamic particle volumes
+over the current hydrodynamic neighborhood, including structure self-neighbors.
+The elastic self-interaction retains its frozen neighborhood and correction matrix.
+
 ## [Velocity Averaging](@id velocity_averaging)
 
 In FSI cases with very stiff structures, the two techniques above might not be

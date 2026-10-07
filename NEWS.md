@@ -17,6 +17,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Important Bugfixes
 
+- Fixed structure boundary-correction caches to use their own kernel, raw gradients,
+  and complete current neighborhoods (#1351).
 - Fixed the structure-side kernel gradient in corrected FSI pressure to use the
   boundary model's kernel rather than the TLSPH self-interaction kernel (#1342).
 - Fixed pressure mirroring for TLSPH and rigid-body neighbors and for EDAC momentum,
