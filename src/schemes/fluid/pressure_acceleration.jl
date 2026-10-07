@@ -177,14 +177,10 @@ end
                                                                        GradientCorrection,
                                                                        BlendedGradientCorrection,
                                                                        MixedKernelGradientCorrection})
-    W_b = neighbor_kernel_gradient(neighbor_system, -pos_diff, distance, neighbor, W_a)
+    W_b = smoothing_kernel_grad(neighbor_system, -pos_diff, distance, neighbor)
 
     # With correction, the kernel gradient is not necessarily symmetric, so call the
     # asymmetric version of the pressure acceleration formulation.
     return pressure_acceleration_formulation(particle_system)(m_a, m_b, rho_a, rho_b,
                                                               p_a, p_b, W_a, W_b)
-end
-
-@inline function neighbor_kernel_gradient(system, pos_diff, distance, particle, W_a)
-    return smoothing_kernel_grad(system, pos_diff, distance, particle)
 end

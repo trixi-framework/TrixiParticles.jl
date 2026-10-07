@@ -74,10 +74,17 @@ end
 # Repulsive particles have no hydrodynamic kernel of their own. Transport
 # operators use the reversed fluid gradient, not an elastic structure kernel or
 # the Monaghan-Kajtar repulsion law.
-@inline function neighbor_kernel_gradient(system::Union{WallBoundarySystem{<:BoundaryModelMonaghanKajtar},
-                                                        TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
-                                          pos_diff, distance, particle, W_a)
-    return -W_a
+@inline function pressure_acceleration_interparticle(particle_system,
+                                                     neighbor_system::Union{WallBoundarySystem{<:BoundaryModelMonaghanKajtar},
+                                                                            TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
+                                                     particle, neighbor, m_a, m_b, p_a, p_b,
+                                                     rho_a, rho_b, pos_diff, distance, W_a,
+                                                     correction::Union{KernelCorrection,
+                                                                       GradientCorrection,
+                                                                       BlendedGradientCorrection,
+                                                                       MixedKernelGradientCorrection})
+    return pressure_acceleration_formulation(particle_system)(m_a, m_b, rho_a, rho_b,
+                                                              p_a, p_b, W_a, -W_a)
 end
 
 @fastpow @inline function boundary_kernel(r, h)
