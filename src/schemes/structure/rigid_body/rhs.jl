@@ -371,10 +371,12 @@ function accumulate_contact_manifold_sums!(cache, particle, manifold_index, cont
     return cache
 end
 
+# Static dimension and element type avoid boxed scalar operations in the neighbor closure
+# on Julia 1.10 when the semidiscretization contains different rigid-body system types.
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
-                   particle_system::RigidBodySystem,
-                   neighbor_system::RigidBodySystem, semi)
+                   particle_system::RigidBodySystem{<:Any, <:Any, NDIMS, ELTYPE},
+                   neighbor_system::RigidBodySystem, semi) where {NDIMS, ELTYPE <: Real}
     contact_model = particle_system.contact_model
     neighbor_contact_model = neighbor_system.contact_model
 
@@ -386,7 +388,6 @@ function interact!(dv, v_particle_system, u_particle_system,
     # We don't need to model self collision
     particle_system === neighbor_system && return dv
 
-    ELTYPE = eltype(particle_system)
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
     set_zero!(particle_system.cache.contact_count_per_particle)
@@ -394,7 +395,7 @@ function interact!(dv, v_particle_system, u_particle_system,
     contact_count_per_particle = particle_system.cache.contact_count_per_particle
     max_contact_penetration_per_particle = particle_system.cache.max_contact_penetration_per_particle
     pair_parameters = rigid_contact_pair_parameters(contact_model, neighbor_contact_model)
-    zero_tangential = zero(SVector{ndims(particle_system), ELTYPE})
+    zero_tangential = zero(SVector{NDIMS, ELTYPE})
     contact_map = particle_system.cache.contact_tangential_displacement
     sliding_map = particle_system.cache.contact_sliding
     neighbor_system_index = system_indices(neighbor_system, semi)
