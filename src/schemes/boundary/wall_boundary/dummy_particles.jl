@@ -116,8 +116,8 @@ end
     return ndims(boundary_model.smoothing_kernel)
 end
 
-# A structure's hydrodynamic kernel uses the boundary model as its correction
-# context, independently of the structure's elastic kernel and correction matrix.
+# Evaluate fluid-pressure gradients with the boundary model's kernel and correction data.
+# The TLSPH self-interaction kernel and correction matrix belong to the structure.
 @inline system_correction(model::BoundaryModelDummyParticles) = model.correction
 @inline skip_zero_distance(model::BoundaryModelDummyParticles) = skip_zero_distance(model.correction)
 

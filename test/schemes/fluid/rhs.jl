@@ -565,8 +565,8 @@
                 correction in (KernelCorrection(), MixedKernelGradientCorrection())
                 fluid_system = create_fluid_system("WCSPH", (0.0, 0.0), 1005.0, nothing;
                                                    correction)
-                # r=1.5 is inside the common boundary/fluid support of 2.0, but
-                # outside the elastic TLSPH support of 2*0.4.
+                # The boundary model's kernel and the fluid kernel have compact support 2.0.
+                # For TLSPH, r=1.5 lies outside the self-interaction kernel's support of 2*0.4.
                 structure_system = create_structure_system(structure_type, nothing;
                                                            boundary_density=PressureMirroring(),
                                                            elastic_kernel=WendlandC2Kernel{2}(),
@@ -584,7 +584,7 @@
                 @test force_structure ≈ expected
                 @test force_fluid ≈ -expected
 
-                # The elastic kernel may differ, but boundary/fluid support must match.
+                # The boundary model's kernel and fluid kernel must have equal compact support.
                 structure = TrixiParticles.@set structure.boundary_model.smoothing_length = 0.5
                 @test_throws ArgumentError Semidiscretization(fluid, structure)
             end
