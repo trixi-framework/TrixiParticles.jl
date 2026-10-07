@@ -186,7 +186,6 @@ end
     distance >= support_radius && return zero(pos_diff)
 
     # Eq. 2 in dimensionless form avoids scale-dependent powers up to `support_radius^9`.
-    # We only reach this function when `sqrt(eps()) < distance <= support_radius`
     normalized_distance = distance / support_radius
     if normalized_distance > one(normalized_distance) / 2
         # Attractive force
@@ -248,8 +247,8 @@ end
                                         surface_tension_correction)
     (; smoothing_kernel) = particle_system
 
-    # No cohesion with oneself. See `src/general/smoothing_kernels.jl` for more details.
-    distance^2 < eps(initial_smoothing_length(particle_system)^2) && return dv_particle
+    # No cohesion with oneself (see `almostzero`).
+    distance < almostzero(initial_smoothing_length(particle_system)) && return dv_particle
 
     m_b = hydrodynamic_mass(neighbor_system, neighbor)
     support_radius = compact_support(smoothing_kernel,
@@ -274,8 +273,8 @@ end
     (; surface_tension_coefficient) = surface_tension_a
 
     smoothing_length_ = smoothing_length(particle_system, particle)
-    # No surface tension with oneself. See `src/general/smoothing_kernels.jl` for more details.
-    distance^2 < eps(initial_smoothing_length(particle_system)^2) && return dv_particle
+    # No surface tension with oneself (see `almostzero`).
+    distance < almostzero(initial_smoothing_length(particle_system)) && return dv_particle
 
     m_b = hydrodynamic_mass(neighbor_system, neighbor)
     n_a = surface_normal(particle_system, particle)
@@ -300,8 +299,8 @@ end
                                         surface_tension_correction)
     (; surface_tension_coefficient) = surface_tension_a
 
-    # No surface tension with oneself. See `src/general/smoothing_kernels.jl` for more details.
-    distance^2 < eps(initial_smoothing_length(particle_system)^2) && return dv_particle
+    # No surface tension with oneself (see `almostzero`).
+    distance < almostzero(initial_smoothing_length(particle_system)) && return dv_particle
 
     n_a = surface_normal(particle_system, particle)
     curvature_a = curvature(particle_system, particle)
@@ -375,8 +374,8 @@ end
                                         surface_tension_correction)
     (; surface_tension_coefficient) = surface_tension_a
 
-    # No surface tension with oneself. See `src/general/smoothing_kernels.jl` for more details.
-    distance^2 < eps(initial_smoothing_length(particle_system)^2) && return dv_particle
+    # No surface tension with oneself (see `almostzero`).
+    distance < almostzero(initial_smoothing_length(particle_system)) && return dv_particle
 
     S_a = stress_tensor(particle_system, particle)
     S_b = stress_tensor(neighbor_system, neighbor)
@@ -396,8 +395,8 @@ end
                                  particle, neighbor, pos_diff, distance)
     (; adhesion_coefficient) = neighbor_system
 
-    # No adhesion with oneself. See `src/general/smoothing_kernels.jl` for more details.
-    distance^2 < eps(initial_smoothing_length(particle_system)^2) && return dv_particle
+    # No adhesion with oneself (see `almostzero`).
+    distance < almostzero(initial_smoothing_length(particle_system)) && return dv_particle
 
     # No reason to calculate the adhesion force if adhesion coefficient is near zero
     abs(adhesion_coefficient) < eps() && return dv_particle
