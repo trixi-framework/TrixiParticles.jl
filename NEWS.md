@@ -4,6 +4,20 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.6.0
+
+### API Changes
+
+- Custom functions passed as `pressure_acceleration` must accept both pair gradients
+  (`W_a`, `W_b`) when either interacting system uses an asymmetric gradient correction
+  (#1289).
+
+### Important Bugfixes
+
+- Fixed linear-momentum conservation for corrected pressure forces, made EDAC
+  average-pressure reduction pair-symmetric, and applied exact fluid-structure pressure
+  reaction forces (#1289).
+
 ## Version 0.5.4
 
 ### API Changes
