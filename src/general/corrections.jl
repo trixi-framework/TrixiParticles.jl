@@ -249,6 +249,17 @@ function compute_shepard_coeff!(system, system_coords, v_ode, u_ode, semi,
     return kernel_correction_coefficient
 end
 
+function sanitize_kernel_correction_coefficient!(coefficient, system, semi)
+    @threaded semi for particle in eachindex(coefficient)
+        value = coefficient[particle]
+        if !isfinite(value) || value <= zero(value)
+            coefficient[particle] = one(value)
+        end
+    end
+
+    return coefficient
+end
+
 @inline reset_density_numerator!(::Nothing) = nothing
 @inline reset_density_numerator!(density_numerator) = set_zero!(density_numerator)
 
@@ -263,16 +274,6 @@ end
     weighted_mass = mass * W
     @inbounds coefficient[particle] += weighted_mass / density
     @inbounds density_numerator[particle] += weighted_mass
-    return coefficient
-end
-
-function sanitize_kernel_correction_coefficient!(coefficient, system, semi)
-    @threaded semi for particle in eachindex(coefficient)
-        value = coefficient[particle]
-        if !isfinite(value) || value <= zero(value)
-            coefficient[particle] = one(value)
-        end
-    end
     return coefficient
 end
 
