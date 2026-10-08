@@ -501,7 +501,8 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
 
             foreach_point_neighbor(system, neighbor_system, coordinates, neighbor_coords,
                                    semi) do particle, neighbor, pos_diff, distance
-                # Skip neighbors with the same position if the kernel gradient is zero.
+                # Skip neighbors with (almost) the same position because the kernel gradient
+                # is zero, but computing it would divide by zero (see `almostzero`).
                 # Note that `return` only exits the closure, i.e., skips the current neighbor.
                 if skip_zero_distance(correction) && distance < almostzero(h)
                     return
