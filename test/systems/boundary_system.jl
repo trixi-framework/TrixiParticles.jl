@@ -47,7 +47,7 @@
                                                    density_calculator=ContinuityDensity(),
                                                    state_equation, smoothing_kernel,
                                                    smoothing_length,
-                                                   correction=KernelCorrection(),
+                                                   gradient_correction=KernelCorrection(),
                                                    reference_particle_spacing=0.1)
 
         boundary_model = BoundaryModelDummyParticles(boundary_ic;
@@ -65,7 +65,7 @@
         @test system.boundary_model.smoothing_length == smoothing_length
         @test system.boundary_model.viscosity == viscosity
         @test system.boundary_model.state_equation == state_equation
-        @test system.boundary_model.correction isa KernelCorrection
+        @test system.boundary_model.correction.gradient isa KernelCorrection
         @test system.boundary_model.cache.reference_particle_spacing == 0.1
         @test system.adhesion_coefficient == 0.3
         @test system.cache.color == 2
