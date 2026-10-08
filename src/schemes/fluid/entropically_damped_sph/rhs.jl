@@ -4,6 +4,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                    particle_system::EntropicallyDampedSPHSystem,
                    neighbor_system, semi)
     (; sound_speed, density_calculator, correction, nu_edac) = particle_system
+    gradient_correction = correction_gradient(correction)
 
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -60,7 +61,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                 v_particle_system, v_neighbor_system,
                                                 particle, neighbor, m_a, m_b, rho_a, rho_b,
                                                 v_a, v_b,
-                                                pos_diff, distance, grad_kernel, correction)
+                                                pos_diff, distance, grad_kernel,
+                                                gradient_correction)
 
         for i in 1:ndims(particle_system)
             @inbounds dv[i, particle] += dv_particle[i]
@@ -105,6 +107,7 @@ end
                                                    grad_kernel, sound_speed, m_a, m_b,
                                                    p_a, p_b, rho_a, rho_b, v_a, v_b)
     (; correction) = particle_system
+    gradient_correction = correction_gradient(correction)
 
     surface_tension_a = surface_tension_model(particle_system)
     surface_tension_b = surface_tension_model(neighbor_system)
@@ -121,7 +124,7 @@ end
                                          particle, neighbor,
                                          m_a, m_b, p_a - p_avg, p_b - p_avg, rho_a,
                                          rho_b, pos_diff, distance, grad_kernel,
-                                         correction)
+                                         gradient_correction)
 
     dv_particle = add_dv_viscosity(dv_particle, particle_system, neighbor_system,
                                    v_particle_system, v_neighbor_system,
