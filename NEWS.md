@@ -4,6 +4,14 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.5.6
+
+### Features
+
+- Added history-dependent static and kinetic friction to `RigidContactModel` for
+  rigid-wall and rigid-rigid contact. Tangential spring history requires
+  `UpdateCallback(interval=1)` and currently supports CPU backends (#1126).
+
 ## Version 0.5.4
 
 ### API Changes
