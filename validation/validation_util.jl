@@ -42,3 +42,28 @@ function extract_number_from_filename(filename)
     end
     return -1
 end
+
+# Compute the MSE of spatial profiles (e.g., a velocity profile along a line)
+# over all simulation time points, which must be contained in the reference time points.
+# Entries that are `NaN` in both the reference and the simulation data
+# (e.g., interpolation points outside the fluid domain) are skipped.
+function profile_mse(reference_time, reference_values, simulation_time, simulation_values)
+    sum_squared_error = 0.0
+    n_values = 0
+
+    for (t, values) in zip(simulation_time, simulation_values)
+        i = findfirst(t_ref -> isapprox(t_ref, t), reference_time)
+        if isnothing(i)
+            throw(ArgumentError("simulation time $t is not contained in the reference data"))
+        end
+
+        for (value_ref, value) in zip(reference_values[i], values)
+            isnan(value_ref) && isnan(value) && continue
+
+            sum_squared_error += (value - value_ref)^2
+            n_values += 1
+        end
+    end
+
+    return sum_squared_error / n_values
+end
