@@ -289,8 +289,7 @@
                                                          structure_ic.mass,
                                                          SummationDensity(), kernel,
                                                          smoothing_length;
-                                                         state_equation,
-                                                         correction=nothing)
+                                                         state_equation)
             structure = TotalLagrangianSPHSystem(structure_ic;
                                                  smoothing_kernel=kernel,
                                                  smoothing_length,
@@ -325,7 +324,7 @@
                                                  particle_spacing=1.0)
             system = WeaklyCompressibleSPHSystem(initial_condition;
                                                  density_calculator=SummationDensity(),
-                                                 correction=ShepardKernelCorrection(),
+                                                 density_correction=ShepardKernelCorrection(),
                                                  state_equation,
                                                  smoothing_kernel=kernel,
                                                  smoothing_length)
@@ -342,7 +341,7 @@
             u = TrixiParticles.wrap_u(u_ode, system, semi)
 
             TrixiParticles.compute_correction_values!(system,
-                                                      TrixiParticles.system_correction(system),
+                                                      TrixiParticles.correction_density(system.correction),
                                                       u, v_ode, u_ode, semi)
 
             return copy(system.cache.kernel_correction_coefficient), semi

@@ -59,7 +59,7 @@ sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1;
                                                      state_equation, viscosity,
                                                      acceleration=(0.0, -gravity),
                                                      surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=2.0),
-                                                     correction=AkinciFreeSurfaceCorrection(fluid_density),
+                                                     force_correction=AkinciFreeSurfaceCorrection(fluid_density),
                                                      reference_particle_spacing=fluid_particle_spacing)
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "falling_water_spheres_2d.jl");
