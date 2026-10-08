@@ -180,7 +180,7 @@ end
     compact_support_ = compact_support(smoothing_kernel, h)
 
     if distance >= compact_support_ ||
-       (skip_zero_distance(correction) && distance^2 < eps(h^2))
+       (skip_zero_distance(correction) && distance < almostzero(h))
         return zero(pos_diff)
     end
 

@@ -287,28 +287,6 @@ end
     return system.boundary_model.smoothing_kernel
 end
 
-@inline function system_correction(system::RigidBodySystem{<:BoundaryModelDummyParticles})
-    return correction_gradient(system.boundary_model.correction)
-end
-
-@inline function hydrodynamic_correction(system::RigidBodySystem{<:BoundaryModelDummyParticles})
-    return correction_gradient(system.boundary_model.correction)
-end
-
-@inline function kernel_correction_coefficient(system::RigidBodySystem{<:BoundaryModelDummyParticles},
-                                               particle)
-    return system.boundary_model.cache.kernel_correction_coefficient[particle]
-end
-
-@inline function dw_gamma(system::RigidBodySystem{<:BoundaryModelDummyParticles}, particle)
-    return extract_svector(system.boundary_model.cache.dw_gamma, system, particle)
-end
-
-@inline function correction_matrix(system::RigidBodySystem{<:BoundaryModelDummyParticles},
-                                   particle)
-    return extract_smatrix(system.boundary_model.cache.correction_matrix, system, particle)
-end
-
 function initialize!(system::RigidBodySystem, semi)
     reset_contact_history!(system)
     initialize_colorfield!(system, system.boundary_model, semi)

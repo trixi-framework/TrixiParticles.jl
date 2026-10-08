@@ -18,7 +18,7 @@ function interact!(dv, v_particle_system, u_particle_system,
     backend = semi.parallelization_backend
 
     h = initial_smoothing_length(particle_system)
-    distance_threshold = almostzero(h)
+    zero_distance_threshold = almostzero(h)
     zero_distance_mode = zero_distance_gradient_mode(particle_system, neighbor_system)
 
     @threaded semi for particle in eachparticle
@@ -51,13 +51,14 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                                  pos_diff, distance
             # Skip neighbors with the same position when both endpoint gradients are zero.
             # Note that `return` only exits the closure, i.e., skips the current neighbor.
-            skip_zero_distance(zero_distance_mode, distance, distance_threshold) &&
+            if skip_zero_distance(zero_distance_mode, distance, zero_distance_threshold)
                 return init
+            end
 
             grad_kernel = local_smoothing_kernel_grad_unsafe(zero_distance_mode,
                                                              particle_system, pos_diff,
                                                              distance, particle,
-                                                             distance_threshold)
+                                                             zero_distance_threshold)
 
             # `foreach_neighbor` makes sure that `neighbor` is in bounds of `neighbor_system`
             m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)

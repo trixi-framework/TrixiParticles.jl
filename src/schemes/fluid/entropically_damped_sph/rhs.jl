@@ -10,7 +10,7 @@ function interact!(dv, v_particle_system, u_particle_system,
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
     h = initial_smoothing_length(particle_system)
-    distance_threshold = almostzero(h)
+    zero_distance_threshold = almostzero(h)
     zero_distance_mode = zero_distance_gradient_mode(particle_system, neighbor_system)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
@@ -22,12 +22,12 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                                                 distance
         # Skip neighbors with the same position when both endpoint gradients are zero.
         # Note that `return` only exits the closure, i.e., skips the current neighbor.
-        skip_zero_distance(zero_distance_mode, distance, distance_threshold) && return
+        skip_zero_distance(zero_distance_mode, distance, zero_distance_threshold) && return
 
         grad_kernel = local_smoothing_kernel_grad_unsafe(zero_distance_mode,
                                                          particle_system, pos_diff,
                                                          distance, particle,
-                                                         distance_threshold)
+                                                         zero_distance_threshold)
 
         # `foreach_point_neighbor` makes sure that `particle` and `neighbor` are
         # in bounds of the respective system. For performance reasons, we use `@inbounds`

@@ -514,7 +514,7 @@ function apply_reinit_density!(system::WeaklyCompressibleSPHSystem, ::Continuity
 
     # Compute density with `SummationDensity` and store the result in `v`,
     # overwriting the previous integrated density.
-    summation_density!(system, semi, u, u_ode, v[end, :])
+    summation_density!(system, semi, u, u_ode, current_density(v, system))
 
     @threaded semi for particle in eachparticle(system)
         v[end, particle] /= coefficient[particle]
