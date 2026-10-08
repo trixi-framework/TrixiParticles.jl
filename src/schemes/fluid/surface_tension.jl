@@ -120,6 +120,12 @@ struct SurfaceTensionMomentumMorris{ELTYPE} <: AbstractSurfaceTension
     end
 end
 
+# Surface-model capabilities are expressed through dispatch so that constructors do not need
+# to duplicate concrete model checks.
+@inline requires_surface_normal(::Nothing) = false
+@inline requires_surface_normal(::CohesionForceAkinci) = false
+@inline requires_surface_normal(::Any) = true
+
 @inline function calculate_interface_dt(v_ode, u_ode, cfl_number, system, neighbor_system,
                                         semi, surface_tension::SurfaceTensionMorris,
                                         neighbor_surface_tension::SurfaceTensionMorris)
@@ -154,12 +160,6 @@ function calculate_surface_tension_dt(v_ode, system, neighbor_system, semi,
                 (4 * pi * surface_tension_coefficient))
 end
 
-# Surface-model capabilities are expressed through dispatch so that constructors do not need
-# to duplicate concrete model checks.
-@inline requires_surface_normal(::Nothing) = false
-@inline requires_surface_normal(::CohesionForceAkinci) = false
-@inline requires_surface_normal(::Any) = true
-
 function create_cache_surface_tension(::SurfaceTensionMomentumMorris, ELTYPE, NDIMS,
                                       nparticles)
     delta_s = Array{ELTYPE, 1}(undef, nparticles)
@@ -186,7 +186,6 @@ end
     distance >= support_radius && return zero(pos_diff)
 
     # Eq. 2 in dimensionless form avoids scale-dependent powers up to `support_radius^9`.
-    # We only reach this function when `sqrt(eps()) < distance <= support_radius`
     normalized_distance = distance / support_radius
     if normalized_distance > one(normalized_distance) / 2
         # Attractive force
