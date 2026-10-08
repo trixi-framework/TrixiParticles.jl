@@ -87,6 +87,14 @@ shape = extrude_geometry(shape; direction, particle_spacing=0.1, n_extrude=4, de
 function extrude_geometry(geometry; particle_spacing=-1, direction, n_extrude::Integer,
                           velocity=zeros(length(direction)), place_on_shell=false,
                           mass=nothing, density=nothing, pressure=0.0)
+    if all(iszero, direction)
+        throw(ArgumentError("`direction` needs to be non-zero"))
+    end
+
+    if n_extrude < 1
+        throw(ArgumentError("`n_extrude` needs to be positive"))
+    end
+
     direction_ = normalize(direction)
     NDIMS = length(direction_)
 
@@ -104,6 +112,11 @@ function extrude_geometry(geometry; particle_spacing=-1, direction, n_extrude::I
     geometry = shift_plane_corners(geometry, direction_, particle_spacing, place_on_shell)
 
     face_coords = sample_plane(geometry, particle_spacing; place_on_shell)
+
+    if size(face_coords, 1) != NDIMS
+        throw(ArgumentError("`direction` must be of length $(size(face_coords, 1)) " *
+                            "for the sampled geometry"))
+    end
 
     coords = (face_coords .+ i * particle_spacing * direction_ for i in 0:(n_extrude - 1))
 
@@ -235,6 +248,10 @@ end
 
 function shift_plane_corners(plane_points::NTuple{2}, direction, particle_spacing,
                              place_on_shell)
+    if length(direction) != 2
+        throw(ArgumentError("`direction` must be 2D when extruding 2D points"))
+    end
+
     # With `place_on_shell`, particles need to be AT the min coordinates and not half a particle
     # spacing away from it.
     (place_on_shell) && (return plane_points)
@@ -254,6 +271,10 @@ end
 
 function shift_plane_corners(plane_points::NTuple{3}, direction, particle_spacing,
                              place_on_shell)
+    if length(direction) != 3
+        throw(ArgumentError("`direction` must be 3D when extruding 3D points"))
+    end
+
     # With `place_on_shell`, particles need to be AT the min coordinates and not half a particle
     # spacing away from it.
     (place_on_shell) && (return plane_points)
