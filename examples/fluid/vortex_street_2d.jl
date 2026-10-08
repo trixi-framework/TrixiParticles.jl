@@ -92,7 +92,8 @@ density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 shifting_technique = ParticleShiftingTechnique(; sound_speed_factor=0.2, v_max_factor=0)
 
 # Note that `tensile_instability_control` is not momentum-conserving for negative pressures.
-# Use the default formulation when forces on the cylinder are measured.
+# Use the default formulation when forces on the cylinder are measured like in the
+# validation case corresponding to this example file.
 fluid_system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel, smoothing_length,
                                            density_calculator=fluid_density_calculator,
                                            state_equation, density_diffusion, viscosity,

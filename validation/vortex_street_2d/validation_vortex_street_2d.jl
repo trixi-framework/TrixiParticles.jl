@@ -2,10 +2,9 @@ using TrixiParticles
 
 tspan = (0.0, 20.0)
 
-# In Tafuni et al. (2018), the resolution is `0.01` (5M particles).
-# Results in 1.3M particles and acceptable results compared to Tafuni et al. (2018).
-# resolution_factor = 0.02 # (runtime: ~6-10h)
-# Results in 200k particles and much noisier results compared to Tafuni et al. (2018).
+# In Tafuni et al. (2018), the resolution factor is `0.01` (5M particles), which result
+# in 1.3M particles. `resolution_factor = 0.02` results in 200k particles and much noisier
+# results compared to Tafuni et al. (2018).
 resolution_factor = 0.05
 
 reynolds_number = 200
@@ -46,21 +45,30 @@ shifting_technique = TransportVelocityAdami(background_pressure=5 * fluid_densit
 clamped_particles = eachparticle(cylinder)
 boundary_system_cylinder = TotalLagrangianSPHSystem(cylinder; smoothing_kernel,
                                                     smoothing_length, clamped_particles,
-                                                    young_modulus=1e6, poisson_ratio=0.3,
+                                                    young_modulus=1e4, poisson_ratio=0.3,
                                                     boundary_model=boundary_model_cylinder)
 
-# The `ThrustCalculator` needs the system as it is stored in a `Semidiscretization`.
-# Only the system index is used, so this semidiscretization is not used for the simulation.
-semi_calculator = Semidiscretization(fluid_system, open_boundary, boundary_system_wall,
-                                     boundary_system_cylinder; neighborhood_search=nhs)
-cylinder_system = semi_calculator.systems[end]
+# Set up the simulation with the TLSPH cylinder without running it, so that the force
+# calculators can be created for the cylinder system in the final semidiscretization.
+trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "vortex_street_2d.jl"),
+              parallelization_backend=parallelization_backend,
+              reynolds_number=reynolds_number,
+              open_boundary_model=open_boundary_model, update_strategy=update_strategy,
+              shifting_technique=shifting_technique,
+              boundary_system_cylinder=boundary_system_cylinder,
+              particle_spacing_factor=resolution_factor, domain_size=domain_size,
+              tspan=tspan, saving_callback=nothing, sol=nothing)
+
+# The `Semidiscretization` creates a copy of the TLSPH system, so the `ThrustCalculator`
+# needs the system as it is stored in the semidiscretization.
+cylinder_system = semi.systems[end]
 
 # The force coefficients are computed from the total hydrodynamic force on the cylinder,
 # including pressure and viscous forces.
-let cylinder_system = cylinder_system, semi_calculator = semi_calculator
-    drag_calculator = ThrustCalculator(cylinder_system, semi_calculator,
+let cylinder_system = cylinder_system, semi = semi
+    drag_calculator = ThrustCalculator(cylinder_system, semi,
                                        direction=(1.0, 0.0))
-    lift_calculator = ThrustCalculator(cylinder_system, semi_calculator,
+    lift_calculator = ThrustCalculator(cylinder_system, semi,
                                        direction=(0.0, 1.0))
     force_scaling = 2 / (fluid_density * prescribed_velocity^2 * cylinder_diameter)
 
@@ -109,12 +117,9 @@ pp_callback = PostprocessCallback(; dt=0.02,
 
 # ======================================================================================
 # ==== Run the simulation
-trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "vortex_street_2d.jl"),
-              parallelization_backend=parallelization_backend,
-              reynolds_number=reynolds_number,
-              open_boundary_model=open_boundary_model, update_strategy=update_strategy,
-              shifting_technique=shifting_technique,
-              boundary_system_cylinder=boundary_system_cylinder,
-              particle_spacing_factor=resolution_factor, domain_size=domain_size,
-              tspan=tspan,
-              extra_callback=pp_callback, saving_callback=nothing)
+callbacks = CallbackSet(callbacks, pp_callback)
+
+sol = solve(ode, RDPK3SpFSAL35(),
+            abstol=1e-6, # May need tuning to prevent boundary penetration
+            reltol=1e-4, # May need tuning to prevent boundary penetration
+            save_everystep=false, callback=callbacks, maxiters=10^7);
