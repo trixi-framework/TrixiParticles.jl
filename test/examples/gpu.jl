@@ -77,6 +77,114 @@ end
     end
 end
 
+@testset verbose=true "Correction lifecycle $TRIXIPARTICLES_TEST_" begin
+    # Build a fluid system of the given kind (`:wcsph` or `:edac`) with a correction.
+    function correction_fluid(kind, initial_condition, smoothing_kernel,
+                              smoothing_length, density_calculator, correction)
+        if kind == :wcsph
+            state_equation = StateEquationCole(; sound_speed=10.0f0,
+                                               reference_density=1000.0f0, exponent=1)
+            return WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
+                                               smoothing_length, density_calculator,
+                                               state_equation, correction)
+        end
+
+        return EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel,
+                                           smoothing_length, sound_speed=10.0f0,
+                                           pressure_acceleration=nothing,
+                                           density_calculator, correction)
+    end
+
+    # All correction caches present in the system must stay on the backend, keep
+    # `Float32` values, and remain finite.
+    function correction_cache_is_valid(system, backend)
+        return all((:kernel_correction_coefficient, :dw_gamma,
+                    :correction_matrix)) do name
+            hasproperty(system.cache, name) || return true
+            values = getproperty(system.cache, name)
+            return eltype(values) == Float32 && all(isfinite, Array(values)) &&
+                   TrixiParticles.KernelAbstractions.get_backend(values) == backend
+        end
+    end
+
+    function correction_rhs_is_valid(kind, correction, density_calculator, backend)
+        spacing = 0.1f0
+        initial_condition = RectangularShape(spacing, (4, 4), (0.0f0, 0.0f0);
+                                             density=1000.0f0,
+                                             velocity=pos -> SVector(pos[1], -pos[2]),
+                                             coordinates_eltype=Float32)
+        system = correction_fluid(kind, initial_condition, WendlandC6Kernel{2}(),
+                                  2spacing, density_calculator, correction)
+        semi = Semidiscretization(system; neighborhood_search=nothing,
+                                  parallelization_backend=backend)
+        ode = semidiscretize(semi, (0.0f0, 0.1f0); reset_threads=false)
+        v_ode, u_ode = ode.u0.x
+        dv_ode = similar(v_ode)
+        fill!(dv_ode, 0.0f0)
+        # Evaluate the RHS, which triggers the staged correction updates.
+        TrixiParticles.kick!(dv_ode, v_ode, u_ode, ode.p, 0.0f0)
+
+        return eltype(dv_ode) == Float32 && all(isfinite, Array(dv_ode)) &&
+               correction_cache_is_valid(first(ode.p.semi.systems), backend)
+    end
+
+    backend = Main.parallelization_backend
+    # Check the RHS evaluation with the Shepard correction for both system types.
+    for kind in (:wcsph, :edac)
+        @test correction_rhs_is_valid(kind, ShepardKernelCorrection(), SummationDensity(),
+                                      backend)
+    end
+
+    spacing = 0.1f0
+    initial_condition = RectangularShape(spacing, (2, 2), (0.0f0, 0.0f0);
+                                         density=1000.0f0,
+                                         coordinates_eltype=Float32)
+    system = correction_fluid(:wcsph, initial_condition, WendlandC6Kernel{2}(),
+                              2spacing, SummationDensity(), ShepardKernelCorrection())
+    semi = Semidiscretization(system; neighborhood_search=nothing,
+                              parallelization_backend=backend)
+    ode = semidiscretize(semi, (0.0f0, 0.1f0); reset_threads=false)
+    # The sanitizer must replace invalid coefficients by one on the GPU while
+    # preserving valid Float32 normalizers below `sqrt(eps(Float32))`.
+    coefficient = Adapt.adapt(backend, Float32[0.0, NaN, -1.0, 1.0f-4, 2.0])
+    TrixiParticles.sanitize_kernel_correction_coefficient!(coefficient,
+                                                           first(ode.p.semi.systems),
+                                                           ode.p.semi)
+    @test Array(coefficient) == Float32[1.0, 1.0, 1.0, 1.0f-4, 2.0]
+
+    initial_condition = RectangularShape(spacing, (4, 4), (0.0f0, 0.0f0);
+                                         density=1000.0f0,
+                                         coordinates_eltype=Float32)
+    state_equation = StateEquationCole(; sound_speed=10.0f0,
+                                       reference_density=1000.0f0, exponent=1)
+    system = WeaklyCompressibleSPHSystem(initial_condition;
+                                         smoothing_kernel=WendlandC6Kernel{2}(),
+                                         smoothing_length=2spacing,
+                                         density_calculator=ContinuityDensity(),
+                                         state_equation)
+    semi = Semidiscretization(system; neighborhood_search=nothing,
+                              parallelization_backend=backend)
+    ode = semidiscretize(semi, (0.0f0, 0.1f0); reset_threads=false)
+    v_ode, u_ode = ode.u0.x
+    system = first(ode.p.semi.systems)
+    v = TrixiParticles.wrap_v(v_ode, system, ode.p.semi)
+    u = TrixiParticles.wrap_u(u_ode, system, ode.p.semi)
+    density = collect(range(800.0f0, 1200.0f0; length=size(v, 2)))
+    # Start from a non-constant continuity density, so that the reinitialization
+    # actually has to update values on the GPU.
+    v[end, :] .= Adapt.adapt(backend, density)
+    TrixiParticles.update_nhs!(ode.p.semi, u_ode)
+    TrixiParticles.reinit_density!(system, v, u, v_ode, u_ode, ode.p.semi)
+    @test all(isfinite, Array(v[end, :]))
+
+    # A constant field is the zeroth-order consistency invariant of the Shepard
+    # operator. This checks density and pressure values, not only finiteness.
+    v[end, :] .= 1000.0f0
+    TrixiParticles.reinit_density!(system, v, u, v_ode, u_ode, ode.p.semi)
+    @test Array(v[end, :])≈fill(1000.0f0, size(v, 2)) rtol=2e-5 atol=2e-5
+    @test maximum(abs, Array(system.pressure)) < 1.0f-2
+end
+
 @testset verbose=true "Examples $TRIXIPARTICLES_TEST_" begin
     @testset verbose=true "Fluid" begin
         @trixi_testset "fluid/dam_break_2d_gpu.jl Float64" begin

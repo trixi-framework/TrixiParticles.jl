@@ -52,7 +52,8 @@ end
     ShepardKernelCorrection()
 
 Kernel correction, as explained by [Bonet (1999)](@cite Bonet1999), uses Shepard interpolation
-to obtain a 0-th order accurate result, which was first proposed by [Li et al. (1996)](@cite Li1996).
+to obtain a zeroth-order consistent result (exact reproduction of constants), which was first
+proposed by [Li et al. (1996)](@cite Li1996).
 
 The kernel correction coefficient is determined by
 ```math
@@ -61,7 +62,11 @@ c(x) = \sum_{b=1} V_b W_b(x),
 where ``V_b = m_b / \rho_b`` is the volume of particle ``b``.
 
 This correction is applied with [`SummationDensity`](@ref) to correct the density and leads
-to an improvement, especially at free surfaces.
+to an improvement, especially at free surfaces. With summation density, the current one-pass
+implementation uses the density available when each system is processed and therefore reduces
+the free-surface error without guaranteeing convergence for multiple interacting systems.
+[`DensityReinitializationCallback`](@ref) computes all simultaneously requested corrections
+from the independently evolved continuity density before replacing any density.
 
 !!! note
     - It is also referred to as "0th order correction".
@@ -108,6 +113,16 @@ which results in a 1st-order-accurate SPH method (see [Bonet, 1999](@cite Bonet1
 """
 struct MixedKernelGradientCorrection end
 
+correction_density(::Any) = nothing
+correction_density(correction::ShepardKernelCorrection) = correction
+
+correction_gradient(::Nothing) = nothing
+correction_gradient(::ShepardKernelCorrection) = nothing
+correction_gradient(::AkinciFreeSurfaceCorrection) = nothing
+correction_gradient(correction) = correction
+
+correction_force(correction) = correction
+
 function kernel_correction_coefficient(system::AbstractFluidSystem, particle)
     return system.cache.kernel_correction_coefficient[particle]
 end
@@ -136,8 +151,10 @@ function compute_correction_values!(system::AbstractBoundarySystem,
 end
 
 function compute_shepard_coeff!(system, system_coords, v_ode, u_ode, semi,
-                                kernel_correction_coefficient)
+                                kernel_correction_coefficient,
+                                density_numerator=nothing)
     set_zero!(kernel_correction_coefficient)
+    reset_density_numerator!(density_numerator)
 
     # Use enabled neighbor systems for the correction value.
     @trixi_timeit timer() "compute correction value" begin
@@ -156,17 +173,45 @@ function compute_shepard_coeff!(system, system_coords, v_ode, u_ode, semi,
                                    semi) do particle, neighbor, pos_diff, distance
                 rho_b = current_density(v_neighbor_system, neighbor_system, neighbor)
                 m_b = hydrodynamic_mass(neighbor_system, neighbor)
-                volume = m_b / rho_b
+                W = smoothing_kernel(system, distance, particle)
 
-                kernel_correction_coefficient[particle] += volume *
-                                                           smoothing_kernel(system,
-                                                                            distance,
-                                                                            particle)
+                accumulate_shepard_values!(kernel_correction_coefficient,
+                                           density_numerator, particle, m_b, rho_b, W)
             end
         end
     end
 
+    sanitize_kernel_correction_coefficient!(kernel_correction_coefficient, system, semi)
+
     return kernel_correction_coefficient
+end
+
+function sanitize_kernel_correction_coefficient!(coefficient, system, semi)
+    @threaded semi for particle in eachindex(coefficient)
+        value = coefficient[particle]
+        if !isfinite(value) || value <= zero(value)
+            coefficient[particle] = one(value)
+        end
+    end
+
+    return coefficient
+end
+
+@inline reset_density_numerator!(::Nothing) = nothing
+@inline reset_density_numerator!(density_numerator) = set_zero!(density_numerator)
+
+@inline function accumulate_shepard_values!(coefficient, ::Nothing, particle, mass,
+                                            density, W)
+    @inbounds coefficient[particle] += (mass / density) * W
+    return coefficient
+end
+
+@inline function accumulate_shepard_values!(coefficient, density_numerator, particle, mass,
+                                            density, W)
+    weighted_mass = mass * W
+    @inbounds coefficient[particle] += weighted_mass / density
+    @inbounds density_numerator[particle] += weighted_mass
+    return coefficient
 end
 
 function dw_gamma(system::AbstractFluidSystem, particle)
