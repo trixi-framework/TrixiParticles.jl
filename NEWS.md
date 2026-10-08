@@ -8,10 +8,10 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### API Changes
 
-- `load_geometry` and `TrixiParticles.Polygon` now close 2D curves by default.
-  Use `close_curve=false` for intentional open curves. Region sampling, geometric
-  `intersect` and `setdiff`, and signed-distance fields for boundary packing now require
-  closed geometries (#1187).
+- `load_geometry` now closes 2D `.asc` and `.dxf` curves by default. Use `close_curve=false`
+  for intentional open curves. `ComplexShape`, geometric `intersect` and `setdiff`, and
+  `SignedDistanceField` with `use_for_boundary_packing=true` now require closed
+  geometries (#1187).
 
 ## Version 0.5.4
 
