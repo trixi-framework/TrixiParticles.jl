@@ -324,14 +324,7 @@ function compute_correction_values!(system,
 
             neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-            # For `distance == 0`, the analytical gradient is zero, but the unsafe gradient
-            # and the density diffusion divide by zero.
-            # To account for rounding errors, we check if `distance` is almost zero.
-            # Since the coordinates are in the order of the smoothing length `h`, `distance^2` is in
-            # the order of `h^2`, so we need to check `distance < sqrt(eps(h^2))`.
-            # Note that `sqrt(eps(h^2)) != eps(h)`.
             h = hydrodynamic_smoothing_length(system, nothing)
-            almostzero = sqrt(eps(h^2))
 
             # Loop over all pairs of particles and neighbors within the kernel cutoff
             foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
@@ -347,8 +340,9 @@ function compute_correction_values!(system,
 
                 kernel_correction_coefficient[particle] += volume * W
 
-                # Only consider particles with a distance > 0.
-                if distance > almostzero
+                # Only consider particles with a distance > 0 because the kernel gradient
+                # is zero otherwise, but computing it would divide by zero (see `almostzero`).
+                if distance >= almostzero(h)
                     # Now that we know that `distance` is not zero, we can safely call the
                     # unsafe version of the kernel gradient to avoid redundant zero checks.
                     grad_W = kernel_grad_unsafe(smoothing_kernel, pos_diff, distance,
@@ -502,13 +496,15 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
             end
 
             neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
-            almostzero = sqrt(eps(compact_support(system, neighbor_system)^2))
+            h = hydrodynamic_smoothing_length(system, nothing)
 
             foreach_point_neighbor(system, neighbor_system, coordinates, neighbor_coords,
                                    semi) do particle, neighbor, pos_diff, distance
                 # Skip neighbors with the same position if the kernel gradient is zero.
                 # Note that `return` only exits the closure, i.e., skips the current neighbor.
-                skip_zero_distance(correction) && distance < almostzero && return
+                if skip_zero_distance(correction) && distance < almostzero(h)
+                    return
+                end
 
                 # Now that we know that `distance` is not zero, we can safely call the unsafe
                 # version of the kernel gradient to avoid redundant zero checks.

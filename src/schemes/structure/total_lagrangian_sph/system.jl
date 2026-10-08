@@ -145,10 +145,26 @@ function TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing
         poisson_ratio_sorted = poisson_ratio
     end
 
-    initial_coordinates = copy(initial_condition_sorted.coordinates)
-    current_coordinates = copy(initial_condition_sorted.coordinates)
-    mass = copy(initial_condition_sorted.mass)
-    material_density = copy(initial_condition_sorted.density)
+    initial_coordinates = similar(initial_condition_sorted.coordinates)
+    current_coordinates = similar(initial_condition_sorted.coordinates)
+    mass = similar(initial_condition_sorted.mass)
+    material_density = similar(initial_condition_sorted.density)
+
+    # Initialize the runtime arrays in parallel so that, on NUMA systems, the first-touch
+    # allocation policy places their memory close to the threads that will access it
+    # during the simulation.
+    # The semidiscretization backend is not available in the constructor yet, and using
+    # Polyester here is harmless for serial and GPU simulations.
+    # This makes the RHS significantly faster on large data center CPUs with multiple
+    # NUMA domains (see http://github.com/trixi-framework/TrixiParticles.jl/pull/1294).
+    parallelization_backend = PolyesterBackend()
+    copyto_threaded!(initial_coordinates, initial_condition_sorted.coordinates,
+                     parallelization_backend)
+    copyto_threaded!(current_coordinates, initial_condition_sorted.coordinates,
+                     parallelization_backend)
+    copyto_threaded!(mass, initial_condition_sorted.mass, parallelization_backend)
+    copyto_threaded!(material_density, initial_condition_sorted.density,
+                     parallelization_backend)
     correction_matrix = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
     pk1_rho2 = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
     deformation_grad = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
@@ -617,14 +633,7 @@ end
 @inline function calc_deformation_grad!(deformation_grad, system, semi)
     (; mass, material_density) = system
 
-    # For `distance == 0`, the analytical gradient is zero, but the unsafe gradient
-    # and the density diffusion divide by zero.
-    # To account for rounding errors, we check if `distance` is almost zero.
-    # Since the coordinates are in the order of the smoothing length `h`, `distance^2` is in
-    # the order of `h^2`, so we need to check `distance < sqrt(eps(h^2))`.
-    # Note that `sqrt(eps(h^2)) != eps(h)`.
     h = initial_smoothing_length(system)
-    almostzero = sqrt(eps(h^2))
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     initial_coords = initial_coordinates(system)
@@ -646,9 +655,12 @@ end
                                                                  initial_pos_diff,
                                                                  initial_distance
 
-            # Skip neighbors with the same position because the kernel gradient is zero.
+            # Skip neighbors with (almost) the same position because the kernel gradient
+            # is zero, but computing it would divide by zero (see `almostzero`).
             # Note that `return` only exits the closure, i.e., skips the current neighbor.
-            skip_zero_distance(system) && initial_distance < almostzero && return zero(L_a)
+            if skip_zero_distance(system) && initial_distance < almostzero(h)
+                return zero(L_a)
+            end
 
             # Now that we know that `distance` is not zero, we can safely call the unsafe
             # version of the kernel gradient to avoid redundant zero checks.
@@ -963,5 +975,9 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
        boundary_model.density_calculator isa ContinuityDensity
         throw(ArgumentError("`BoundaryModelDummyParticles` with density calculator " *
                             "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"))
+    end
+
+    foreach_system(systems) do neighbor
+        check_compact_support_fsi(system, boundary_model, neighbor)
     end
 end

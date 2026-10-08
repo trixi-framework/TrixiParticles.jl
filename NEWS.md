@@ -11,9 +11,15 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Replaced the experimental `MechanicalWorkCalculatorCallback` with
   `MechanicalWorkCalculator`, which can be passed as a custom quantity to
   `PostprocessCallback` (#1228).
+- The compact support of a `BoundaryModelDummyParticles` of a `TotalLagrangianSPHSystem`
+  or `RigidBodySystem` must now be the same as the compact support of all fluid systems
+  in the simulation (#1348).
 
 ### Important Bugfixes
 
+- Fixed asymmetric DEM contact forces near coincidence by using a pair-local
+  radius scale for the near-zero distance cutoff (#1347).
+- Fixed the sign of the quadratic term in `ArtificialViscosityMonaghan` (#1295).
 - Fixed mathematical inconsistencies in the SPH documentation, including incorrect
   formulas, inconsistent force-vs-acceleration notation, and wrong LaTeX text-mode
   commands (#1086).
@@ -25,6 +31,10 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   factor when more than one fluid system used a surface normal method (#1214).
 - Fixed characteristic open boundaries to keep fallback values local to each boundary zone
   and reject unsupported bidirectional zones (#1203).
+- Fixed the IISPH pressure solver to clear stale density error contributions of
+  zero-pressure particles instead of retaining them in the termination condition (#1215).
+- Fixed the viscous force on structures in fluid-structure interaction, which had the wrong
+  sign (#1348).
 
 - Hardened surface tension model configuration by validating coefficients and surface-normal
   thresholds, avoiding unnecessary normal allocation for `CohesionForceAkinci`, and stabilizing
@@ -49,6 +59,11 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Added the number of split integration time steps to the `InfoCallback` output
   when a `SplitIntegrationCallback` is used (#1194).
 
+### Performance
+
+- Improved multithreaded TLSPH performance on NUMA systems by initializing runtime
+  arrays in parallel (#1294).
+
 ### Important Bugfixes
 
 - Fixed signed-distance constraints in `ParticlePackingSystem` when using a separate
@@ -57,6 +72,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Fixed Bernoulli pressure extrapolation for moving wall boundaries and wall boundary
   restarts with `ContinuityDensity` (#1201).
 - Fixed `StepsizeCallback` for inviscid simulations (#1244).
+- Fixed unnecessary right-hand-side evaluations after state-mutating callbacks when using
+  `SymplecticPositionVerlet` (#1264).
 
 ## Version 0.5.2
 
