@@ -17,6 +17,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Important Bugfixes
 
+- Fixed `RectangularShape` handling of coordinate-dependent density in hydrostatic pressure
+  initialization and prevented coordinate perturbation from changing the global random state (#1196).
 - Fixed asymmetric DEM contact forces near coincidence by using a pair-local
   radius scale for the near-zero distance cutoff (#1347).
 - Fixed the sign of the quadratic term in `ArtificialViscosityMonaghan` (#1295).
