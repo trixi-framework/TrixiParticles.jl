@@ -217,12 +217,12 @@ ode_step3 = semidiscretize(semi_step3, tspan)</code></pre><pre><code class="lang
 │ #threads: ……………………………………………………… 1                                                                │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 
-#timesteps:    100 │ Δt: 2.0000e-03 │ sim. time: 1.9000e-01 (19.000%)  │ run time: 8.4280e+00 s
-#timesteps:    200 │ Δt: 1.8553e-03 │ sim. time: 3.5796e-01 (35.796%)  │ run time: 9.7384e+00 s
-#timesteps:    300 │ Δt: 1.3728e-03 │ sim. time: 4.8782e-01 (48.782%)  │ run time: 1.1157e+01 s
-#timesteps:    400 │ Δt: 1.8523e-03 │ sim. time: 6.4620e-01 (64.620%)  │ run time: 1.2672e+01 s
-#timesteps:    500 │ Δt: 8.6514e-04 │ sim. time: 8.0214e-01 (80.214%)  │ run time: 1.4283e+01 s
-#timesteps:    600 │ Δt: 2.0000e-03 │ sim. time: 9.5789e-01 (95.789%)  │ run time: 1.5980e+01 s
+#timesteps:    100 │ Δt: 2.0000e-03 │ sim. time: 1.9000e-01 (19.000%)  │ run time: 8.0223e+00 s
+#timesteps:    200 │ Δt: 1.8553e-03 │ sim. time: 3.5796e-01 (35.796%)  │ run time: 9.4009e+00 s
+#timesteps:    300 │ Δt: 1.3728e-03 │ sim. time: 4.8782e-01 (48.782%)  │ run time: 1.0859e+01 s
+#timesteps:    400 │ Δt: 1.8523e-03 │ sim. time: 6.4620e-01 (64.620%)  │ run time: 1.2417e+01 s
+#timesteps:    500 │ Δt: 8.6514e-04 │ sim. time: 8.0214e-01 (80.214%)  │ run time: 1.4064e+01 s
+#timesteps:    600 │ Δt: 2.0000e-03 │ sim. time: 9.5789e-01 (95.789%)  │ run time: 1.5801e+01 s
 ────────────────────────────────────────────────────────────────────────────────────────────────────
 Trixi simulation finished.
   Final time:                            1.0
@@ -233,47 +233,47 @@ Trixi simulation finished.
 ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 <span class="sgr1">                                                        Time                             Allocations             </span>
                                           ────────────────────────────────    ──────────────────────────────────
-            Tot / % measured:                      16.5s / 63.3%                       1.36GiB / 86.1%
+            Tot / % measured:                      16.4s / 65.3%                       1.36GiB / 86.1%
  ───────────────────────────────────────  ────────────────────────────────    ──────────────────────────────────
  Section                          ncalls    time    %tot     avg                alloc    %tot      avg
 ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
- kick!                             5.80k   8.34s   79.8%  1.44ms <span class="sgr38_5" style="color:#d70000"> ██████▍  </span>   96.3MiB    8.0%  17.0KiB <span class="sgr38_5" style="color:#5f87af"> ▋        </span>
- ├─ system interaction             5.80k   7.39s   70.7%  1.27ms <span class="sgr38_5" style="color:#d70000"> █████▋   </span>   24.0MiB    2.0%  4.24KiB <span class="sgr38_5" style="color:#5f5faf"> ▏        </span>
- │  ├─ fluid1-fluid1               5.80k   5.31s   50.8%   915μs <span class="sgr38_5" style="color:#d75f00"> ████     </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- │  ├─ fluid1-boundary2            5.80k   657ms    6.3%   113μs <span class="sgr38_5" style="color:#5f87af"> ▌        </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- │  ├─ fluid1-structure3           5.80k   508ms    4.9%  87.5μs <span class="sgr38_5" style="color:#5f5faf"> ▍        </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- │  ├─ fluid1-structure4           5.80k   478ms    4.6%  82.4μs <span class="sgr38_5" style="color:#5f5faf"> ▍        </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- │  ├─ structure3-fluid1           5.80k   111ms    1.1%  19.1μs <span class="sgr38_5" style="color:#005faf"> ▏        </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- │  ├─ structure4-fluid1           5.80k  87.4ms    0.8%  15.1μs <span class="sgr38_5" style="color:#005faf"> ▏        </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- │  ├─ ~system interaction~        5.80k  71.6ms    0.7%  12.3μs <span class="sgr38_5" style="color:#005faf">          </span>   24.0MiB    2.0%  4.24KiB <span class="sgr38_5" style="color:#5f5faf"> ▏        </span>
- │  ├─ structure3-structure4       5.80k  57.1ms    0.5%  9.85μs <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- │  ├─ structure3-boundary2        5.80k  45.5ms    0.4%  7.85μs <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- │  ├─ structure4-structure3       5.80k  34.3ms    0.3%  5.91μs <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- │  ├─ structure4-boundary2        5.80k  30.7ms    0.3%  5.30μs <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- │  ├─ structure3-structure3       5.80k   639μs    0.0%   110ns <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- │  ├─ structure4-structure4       5.80k   557μs    0.0%  96.0ns <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- │  ├─ boundary2-fluid1            5.80k   171μs    0.0%  29.4ns <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- │  ├─ boundary2-boundary2         5.80k   170μs    0.0%  29.4ns <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- │  ├─ boundary2-structure4        5.80k   170μs    0.0%  29.4ns <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- │  └─ boundary2-structure3        5.80k   170μs    0.0%  29.3ns <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- ├─ update systems and nhs         5.80k   941ms    9.0%   162μs <span class="sgr38_5" style="color:#5f87af"> ▊        </span>   72.3MiB    6.0%  12.8KiB <span class="sgr38_5" style="color:#5f5faf"> ▌        </span>
- │  ├─ compute boundary pressure   17.4k   566ms    5.4%  32.5μs <span class="sgr38_5" style="color:#5f5faf"> ▍        </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- │  ├─ update nhs                  5.80k   279ms    2.7%  48.2μs <span class="sgr38_5" style="color:#5f5faf"> ▎        </span>   72.3MiB    6.0%  12.8KiB <span class="sgr38_5" style="color:#5f5faf"> ▌        </span>
- │  ├─ ~update systems and nhs~    5.80k  58.4ms    0.6%  10.1μs <span class="sgr38_5" style="color:#005faf">          </span>      848B    0.0%    0.15B <span class="sgr38_5" style="color:#005faf">          </span>
- │  ├─ inverse state equation      17.4k  37.0ms    0.4%  2.12μs <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- │  └─ update density diffusion    5.80k   182μs    0.0%  31.3ns <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- ├─ ~kick!~                        5.80k  4.98ms    0.0%   859ns <span class="sgr38_5" style="color:#005faf">          </span>      848B    0.0%    0.15B <span class="sgr38_5" style="color:#005faf">          </span>
- ├─ source terms                   17.4k  3.92ms    0.0%   225ns <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- └─ reset ∂v/∂t                    5.80k  2.62ms    0.0%   451ns <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- save solution                        50   1.98s   18.9%  39.6ms  █▌          1.06GiB   91.0%  21.8MiB <span class="sgr38_5" style="color:#d70000"> ███████▎ </span>
- ├─ write to vtk                     200   980ms    9.4%  4.90ms <span class="sgr38_5" style="color:#5f87af"> ▊        </span>   1.03GiB   88.5%  5.29MiB <span class="sgr38_5" style="color:#d70000"> ███████▏ </span>
- ├─ ~save solution~                   50   919ms    8.8%  18.4ms <span class="sgr38_5" style="color:#5f87af"> ▊        </span>   26.0MiB    2.2%   533KiB <span class="sgr38_5" style="color:#5f5faf"> ▏        </span>
- ├─ update dvdu                       50  71.3ms    0.7%  1.43ms <span class="sgr38_5" style="color:#005faf">          </span>   3.74MiB    0.3%  76.6KiB <span class="sgr38_5" style="color:#005faf">          </span>
- └─ update systems                    50  8.04ms    0.1%   161μs <span class="sgr38_5" style="color:#005faf">          </span>    704KiB    0.1%  14.1KiB <span class="sgr38_5" style="color:#005faf">          </span>
- update callback                     631   125ms    1.2%   198μs <span class="sgr38_5" style="color:#5f5faf"> ▏        </span>   11.2MiB    0.9%  18.2KiB <span class="sgr38_5" style="color:#005faf"> ▏        </span>
- ├─ update systems and nhs           631   104ms    1.0%   165μs <span class="sgr38_5" style="color:#005faf"> ▏        </span>   8.68MiB    0.7%  14.1KiB <span class="sgr38_5" style="color:#005faf">          </span>
- └─ ~update callback~                631  21.1ms    0.2%  33.5μs <span class="sgr38_5" style="color:#005faf">          </span>   2.55MiB    0.2%  4.13KiB <span class="sgr38_5" style="color:#005faf">          </span>
- drift!                            5.80k  6.16ms    0.1%  1.06μs <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ kick!                             5.80k   8.57s   80.3%  1.48ms <span class="sgr38_5" style="color:#d70000"> ██████▍  </span>   96.3MiB    8.0%  17.0KiB <span class="sgr38_5" style="color:#5f87af"> ▋        </span>
+ ├─ system interaction             5.80k   7.44s   69.7%  1.28ms <span class="sgr38_5" style="color:#d70000"> █████▋   </span>   24.0MiB    2.0%  4.24KiB <span class="sgr38_5" style="color:#5f5faf"> ▏        </span>
+ │  ├─ fluid1-fluid1               5.80k   5.16s   48.3%   889μs <span class="sgr38_5" style="color:#d75f5f"> ███▉     </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ │  ├─ fluid1-boundary2            5.80k   723ms    6.8%   125μs <span class="sgr38_5" style="color:#5f87af"> ▌        </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ │  ├─ fluid1-structure3           5.80k   548ms    5.1%  94.4μs <span class="sgr38_5" style="color:#5f5faf"> ▍        </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ │  ├─ fluid1-structure4           5.80k   512ms    4.8%  88.3μs <span class="sgr38_5" style="color:#5f5faf"> ▍        </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ │  ├─ structure3-fluid1           5.80k   140ms    1.3%  24.2μs <span class="sgr38_5" style="color:#5f5faf"> ▏        </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ │  ├─ structure4-fluid1           5.80k   101ms    0.9%  17.3μs <span class="sgr38_5" style="color:#005faf"> ▏        </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ │  ├─ ~system interaction~        5.80k  77.0ms    0.7%  13.3μs <span class="sgr38_5" style="color:#005faf">          </span>   24.0MiB    2.0%  4.24KiB <span class="sgr38_5" style="color:#5f5faf"> ▏        </span>
+ │  ├─ structure3-structure4       5.80k  63.1ms    0.6%  10.9μs <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ │  ├─ structure3-boundary2        5.80k  49.2ms    0.5%  8.47μs <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ │  ├─ structure4-structure3       5.80k  37.0ms    0.3%  6.38μs <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ │  ├─ structure4-boundary2        5.80k  33.3ms    0.3%  5.74μs <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ │  ├─ structure3-structure3       5.80k   926μs    0.0%   160ns <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ │  ├─ structure4-structure4       5.80k   649μs    0.0%   112ns <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ │  ├─ boundary2-fluid1            5.80k   150μs    0.0%  25.9ns <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ │  ├─ boundary2-boundary2         5.80k   139μs    0.0%  24.0ns <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ │  ├─ boundary2-structure3        5.80k   138μs    0.0%  23.8ns <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ │  └─ boundary2-structure4        5.80k   134μs    0.0%  23.1ns <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ ├─ update systems and nhs         5.80k   1.08s   10.1%   187μs <span class="sgr38_5" style="color:#5f87af"> ▊        </span>   72.3MiB    6.0%  12.8KiB <span class="sgr38_5" style="color:#5f5faf"> ▌        </span>
+ │  ├─ compute boundary pressure   17.4k   621ms    5.8%  35.7μs <span class="sgr38_5" style="color:#5f5faf"> ▌        </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ │  ├─ update nhs                  5.80k   369ms    3.5%  63.6μs <span class="sgr38_5" style="color:#5f5faf"> ▎        </span>   72.3MiB    6.0%  12.8KiB <span class="sgr38_5" style="color:#5f5faf"> ▌        </span>
+ │  ├─ ~update systems and nhs~    5.80k  57.4ms    0.5%  9.89μs <span class="sgr38_5" style="color:#005faf">          </span>      848B    0.0%    0.15B <span class="sgr38_5" style="color:#005faf">          </span>
+ │  ├─ inverse state equation      17.4k  34.5ms    0.3%  1.98μs <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ │  └─ update density diffusion    5.80k   119μs    0.0%  20.6ns <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ ├─ source terms                   17.4k  37.4ms    0.4%  2.15μs <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ ├─ ~kick!~                        5.80k  4.77ms    0.0%   823ns <span class="sgr38_5" style="color:#005faf">          </span>      848B    0.0%    0.15B <span class="sgr38_5" style="color:#005faf">          </span>
+ └─ reset ∂v/∂t                    5.80k  2.74ms    0.0%   472ns <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ save solution                        50   1.93s   18.1%  38.5ms  █▌          1.06GiB   91.0%  21.8MiB <span class="sgr38_5" style="color:#d70000"> ███████▎ </span>
+ ├─ write to vtk                     200   970ms    9.1%  4.85ms <span class="sgr38_5" style="color:#5f87af"> ▊        </span>   1.03GiB   88.5%  5.29MiB <span class="sgr38_5" style="color:#d70000"> ███████▏ </span>
+ ├─ ~save solution~                   50   869ms    8.1%  17.4ms <span class="sgr38_5" style="color:#5f87af"> ▋        </span>   26.0MiB    2.2%   533KiB <span class="sgr38_5" style="color:#5f5faf"> ▏        </span>
+ ├─ update dvdu                       50  79.6ms    0.7%  1.59ms <span class="sgr38_5" style="color:#005faf">          </span>   3.74MiB    0.3%  76.6KiB <span class="sgr38_5" style="color:#005faf">          </span>
+ └─ update systems                    50  9.22ms    0.1%   184μs <span class="sgr38_5" style="color:#005faf">          </span>    704KiB    0.1%  14.1KiB <span class="sgr38_5" style="color:#005faf">          </span>
+ update callback                     631   143ms    1.3%   226μs <span class="sgr38_5" style="color:#5f5faf"> ▏        </span>   11.2MiB    0.9%  18.2KiB <span class="sgr38_5" style="color:#005faf"> ▏        </span>
+ ├─ update systems and nhs           631   117ms    1.1%   186μs <span class="sgr38_5" style="color:#005faf"> ▏        </span>   8.68MiB    0.7%  14.1KiB <span class="sgr38_5" style="color:#005faf">          </span>
+ └─ ~update callback~                631  25.3ms    0.2%  40.1μs <span class="sgr38_5" style="color:#005faf">          </span>   2.55MiB    0.2%  4.13KiB <span class="sgr38_5" style="color:#005faf">          </span>
+ drift!                            5.80k  33.2ms    0.3%  5.73μs <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
 ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────</code></pre><p>The plot now shows the full simulation. The squares collide with the tank bottom and each other.</p><pre><code class="language-julia hljs">plot(sol_step3)</code></pre><p><img src="../tut_rigid_body_fsi_step3.png" alt="Step 3"/></p><h2 id="Step-4:-Different-geometry"><a class="docs-heading-anchor" href="#Step-4:-Different-geometry">Step 4: Different geometry</a><a id="Step-4:-Different-geometry-1"></a><a class="docs-heading-anchor-permalink" href="#Step-4:-Different-geometry" title="Permalink"></a></h2><p>The same setup can be used with different geometries. Here, we replace the squares with circles.</p><pre><code class="language-julia hljs">circle1_radius = 0.2
 circle2_radius = 0.15
 
@@ -400,12 +400,12 @@ ode_step4 = semidiscretize(semi_step4, tspan)</code></pre><pre><code class="lang
 │ #threads: ……………………………………………………… 1                                                                │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 
-#timesteps:    100 │ Δt: 2.0000e-03 │ sim. time: 1.9000e-01 (19.000%)  │ run time: 7.9422e+00 s
-#timesteps:    200 │ Δt: 2.0000e-03 │ sim. time: 3.9000e-01 (39.000%)  │ run time: 9.3644e+00 s
-#timesteps:    300 │ Δt: 2.0000e-03 │ sim. time: 5.9000e-01 (59.000%)  │ run time: 1.0934e+01 s
-#timesteps:    400 │ Δt: 2.0000e-03 │ sim. time: 7.3170e-01 (73.170%)  │ run time: 1.2512e+01 s
-#timesteps:    500 │ Δt: 5.6735e-04 │ sim. time: 8.4129e-01 (84.129%)  │ run time: 1.4164e+01 s
-#timesteps:    600 │ Δt: 1.4209e-03 │ sim. time: 9.8465e-01 (98.465%)  │ run time: 1.5769e+01 s
+#timesteps:    100 │ Δt: 2.0000e-03 │ sim. time: 1.9000e-01 (19.000%)  │ run time: 7.6018e+00 s
+#timesteps:    200 │ Δt: 2.0000e-03 │ sim. time: 3.9000e-01 (39.000%)  │ run time: 9.0660e+00 s
+#timesteps:    300 │ Δt: 2.0000e-03 │ sim. time: 5.9000e-01 (59.000%)  │ run time: 1.0658e+01 s
+#timesteps:    400 │ Δt: 2.0000e-03 │ sim. time: 7.3170e-01 (73.170%)  │ run time: 1.2259e+01 s
+#timesteps:    500 │ Δt: 5.6735e-04 │ sim. time: 8.4129e-01 (84.129%)  │ run time: 1.3932e+01 s
+#timesteps:    600 │ Δt: 1.4209e-03 │ sim. time: 9.8465e-01 (98.465%)  │ run time: 1.5558e+01 s
 ────────────────────────────────────────────────────────────────────────────────────────────────────
 Trixi simulation finished.
   Final time:                            1.0
@@ -416,47 +416,47 @@ Trixi simulation finished.
 ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 <span class="sgr1">                                                        Time                             Allocations             </span>
                                           ────────────────────────────────    ──────────────────────────────────
-            Tot / % measured:                      15.9s / 63.4%                       1.29GiB / 89.2%
+            Tot / % measured:                      15.7s / 66.1%                       1.29GiB / 89.2%
  ───────────────────────────────────────  ────────────────────────────────    ──────────────────────────────────
  Section                          ncalls    time    %tot     avg                alloc    %tot      avg
 ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
- kick!                             5.53k   8.21s   81.3%  1.48ms <span class="sgr38_5" style="color:#d70000"> ██████▌  </span>   88.0MiB    7.4%  16.3KiB <span class="sgr38_5" style="color:#5f87af"> ▋        </span>
- ├─ system interaction             5.53k   7.28s   72.2%  1.32ms <span class="sgr38_5" style="color:#d70000"> █████▊   </span>   22.9MiB    1.9%  4.24KiB <span class="sgr38_5" style="color:#5f5faf"> ▏        </span>
- │  ├─ fluid1-fluid1               5.53k   5.38s   53.3%   973μs <span class="sgr38_5" style="color:#d75f00"> ████▎    </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- │  ├─ fluid1-boundary2            5.53k   615ms    6.1%   111μs <span class="sgr38_5" style="color:#5f5faf"> ▌        </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- │  ├─ fluid1-structure4           5.53k   505ms    5.0%  91.3μs <span class="sgr38_5" style="color:#5f5faf"> ▍        </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- │  ├─ fluid1-structure3           5.53k   436ms    4.3%  78.8μs <span class="sgr38_5" style="color:#5f5faf"> ▍        </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- │  ├─ structure3-fluid1           5.53k  94.8ms    0.9%  17.1μs <span class="sgr38_5" style="color:#005faf"> ▏        </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- │  ├─ structure4-fluid1           5.53k  71.3ms    0.7%  12.9μs <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- │  ├─ ~system interaction~        5.53k  65.6ms    0.7%  11.9μs <span class="sgr38_5" style="color:#005faf">          </span>   22.9MiB    1.9%  4.24KiB <span class="sgr38_5" style="color:#5f5faf"> ▏        </span>
- │  ├─ structure3-structure4       5.53k  35.6ms    0.4%  6.43μs <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- │  ├─ structure3-boundary2        5.53k  34.1ms    0.3%  6.17μs <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- │  ├─ structure4-structure3       5.53k  23.5ms    0.2%  4.25μs <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- │  ├─ structure4-boundary2        5.53k  21.0ms    0.2%  3.80μs <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- │  ├─ structure3-structure3       5.53k   580μs    0.0%   105ns <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- │  ├─ structure4-structure4       5.53k   458μs    0.0%  82.7ns <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- │  ├─ boundary2-structure4        5.53k   165μs    0.0%  29.8ns <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- │  ├─ boundary2-boundary2         5.53k   163μs    0.0%  29.4ns <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- │  ├─ boundary2-structure3        5.53k   163μs    0.0%  29.4ns <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- │  └─ boundary2-fluid1            5.53k   162μs    0.0%  29.3ns <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- ├─ update systems and nhs         5.53k   912ms    9.0%   165μs <span class="sgr38_5" style="color:#5f87af"> ▊        </span>   65.1MiB    5.5%  12.0KiB <span class="sgr38_5" style="color:#5f5faf"> ▌        </span>
- │  ├─ compute boundary pressure   16.6k   587ms    5.8%  35.4μs <span class="sgr38_5" style="color:#5f5faf"> ▌        </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- │  ├─ update nhs                  5.53k   239ms    2.4%  43.3μs <span class="sgr38_5" style="color:#5f5faf"> ▎        </span>   65.1MiB    5.5%  12.0KiB <span class="sgr38_5" style="color:#5f5faf"> ▌        </span>
- │  ├─ ~update systems and nhs~    5.53k  53.7ms    0.5%  9.70μs <span class="sgr38_5" style="color:#005faf">          </span>      848B    0.0%    0.15B <span class="sgr38_5" style="color:#005faf">          </span>
- │  ├─ inverse state equation      16.6k  31.7ms    0.3%  1.91μs <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- │  └─ update density diffusion    5.53k   162μs    0.0%  29.3ns <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- ├─ ~kick!~                        5.53k  4.68ms    0.0%   846ns <span class="sgr38_5" style="color:#005faf">          </span>      848B    0.0%    0.15B <span class="sgr38_5" style="color:#005faf">          </span>
- ├─ source terms                   16.6k  3.59ms    0.0%   217ns <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- └─ reset ∂v/∂t                    5.53k  2.33ms    0.0%   421ns <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
- save solution                        50   1.76s   17.4%  35.1ms  █▍          1.06GiB   91.7%  21.7MiB <span class="sgr38_5" style="color:#d70000"> ███████▍ </span>
- ├─ ~save solution~                   50   939ms    9.3%  18.8ms <span class="sgr38_5" style="color:#5f87af"> ▊        </span>   25.3MiB    2.1%   519KiB <span class="sgr38_5" style="color:#5f5faf"> ▏        </span>
- ├─ write to vtk                     200   732ms    7.3%  3.66ms <span class="sgr38_5" style="color:#5f87af"> ▋        </span>   1.03GiB   89.2%  5.27MiB <span class="sgr38_5" style="color:#d70000"> ███████▏ </span>
- ├─ update dvdu                       50  77.3ms    0.8%  1.55ms <span class="sgr38_5" style="color:#005faf">          </span>   3.64MiB    0.3%  74.5KiB <span class="sgr38_5" style="color:#005faf">          </span>
- └─ update systems                    50  8.29ms    0.1%   166μs <span class="sgr38_5" style="color:#005faf">          </span>    668KiB    0.1%  13.4KiB <span class="sgr38_5" style="color:#005faf">          </span>
- update callback                     609   119ms    1.2%   195μs <span class="sgr38_5" style="color:#5f5faf"> ▏        </span>   10.4MiB    0.9%  17.4KiB <span class="sgr38_5" style="color:#005faf"> ▏        </span>
- ├─ update systems and nhs           609   103ms    1.0%   170μs <span class="sgr38_5" style="color:#005faf"> ▏        </span>   7.96MiB    0.7%  13.4KiB <span class="sgr38_5" style="color:#005faf">          </span>
- └─ ~update callback~                609  15.6ms    0.2%  25.6μs <span class="sgr38_5" style="color:#005faf">          </span>   2.41MiB    0.2%  4.05KiB <span class="sgr38_5" style="color:#005faf">          </span>
- drift!                            5.53k  5.89ms    0.1%  1.07μs <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ kick!                             5.53k   8.36s   80.5%  1.51ms <span class="sgr38_5" style="color:#d70000"> ██████▌  </span>   88.0MiB    7.4%  16.3KiB <span class="sgr38_5" style="color:#5f87af"> ▋        </span>
+ ├─ system interaction             5.53k   7.30s   70.3%  1.32ms <span class="sgr38_5" style="color:#d70000"> █████▋   </span>   22.9MiB    1.9%  4.24KiB <span class="sgr38_5" style="color:#5f5faf"> ▏        </span>
+ │  ├─ fluid1-fluid1               5.53k   5.19s   50.0%   938μs <span class="sgr38_5" style="color:#d75f00"> ████     </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ │  ├─ fluid1-boundary2            5.53k   686ms    6.6%   124μs <span class="sgr38_5" style="color:#5f87af"> ▌        </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ │  ├─ fluid1-structure4           5.53k   549ms    5.3%  99.2μs <span class="sgr38_5" style="color:#5f5faf"> ▍        </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ │  ├─ fluid1-structure3           5.53k   466ms    4.5%  84.3μs <span class="sgr38_5" style="color:#5f5faf"> ▍        </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ │  ├─ structure3-fluid1           5.53k   121ms    1.2%  21.9μs <span class="sgr38_5" style="color:#5f5faf"> ▏        </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ │  ├─ structure4-fluid1           5.53k  86.8ms    0.8%  15.7μs <span class="sgr38_5" style="color:#005faf"> ▏        </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ │  ├─ ~system interaction~        5.53k  70.3ms    0.7%  12.7μs <span class="sgr38_5" style="color:#005faf">          </span>   22.9MiB    1.9%  4.24KiB <span class="sgr38_5" style="color:#5f5faf"> ▏        </span>
+ │  ├─ structure3-structure4       5.53k  39.9ms    0.4%  7.21μs <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ │  ├─ structure3-boundary2        5.53k  36.4ms    0.4%  6.57μs <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ │  ├─ structure4-structure3       5.53k  26.7ms    0.3%  4.83μs <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ │  ├─ structure4-boundary2        5.53k  21.9ms    0.2%  3.96μs <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ │  ├─ structure3-structure3       5.53k   756μs    0.0%   137ns <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ │  ├─ structure4-structure4       5.53k   688μs    0.0%   124ns <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ │  ├─ boundary2-structure4        5.53k   139μs    0.0%  25.2ns <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ │  ├─ boundary2-boundary2         5.53k   139μs    0.0%  25.2ns <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ │  ├─ boundary2-structure3        5.53k   137μs    0.0%  24.8ns <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ │  └─ boundary2-fluid1            5.53k   137μs    0.0%  24.8ns <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ ├─ update systems and nhs         5.53k   1.02s    9.8%   184μs <span class="sgr38_5" style="color:#5f87af"> ▊        </span>   65.1MiB    5.5%  12.0KiB <span class="sgr38_5" style="color:#5f5faf"> ▌        </span>
+ │  ├─ compute boundary pressure   16.6k   635ms    6.1%  38.2μs <span class="sgr38_5" style="color:#5f5faf"> ▌        </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ │  ├─ update nhs                  5.53k   301ms    2.9%  54.4μs <span class="sgr38_5" style="color:#5f5faf"> ▎        </span>   65.1MiB    5.5%  12.0KiB <span class="sgr38_5" style="color:#5f5faf"> ▌        </span>
+ │  ├─ ~update systems and nhs~    5.53k  53.4ms    0.5%  9.65μs <span class="sgr38_5" style="color:#005faf">          </span>      848B    0.0%    0.15B <span class="sgr38_5" style="color:#005faf">          </span>
+ │  ├─ inverse state equation      16.6k  30.7ms    0.3%  1.85μs <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ │  └─ update density diffusion    5.53k   113μs    0.0%  20.5ns <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ ├─ source terms                   16.6k  35.6ms    0.3%  2.15μs <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ ├─ ~kick!~                        5.53k  4.54ms    0.0%   821ns <span class="sgr38_5" style="color:#005faf">          </span>      848B    0.0%    0.15B <span class="sgr38_5" style="color:#005faf">          </span>
+ └─ reset ∂v/∂t                    5.53k  2.41ms    0.0%   435ns <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
+ save solution                        50   1.86s   17.9%  37.1ms  █▍          1.06GiB   91.7%  21.7MiB <span class="sgr38_5" style="color:#d70000"> ███████▍ </span>
+ ├─ ~save solution~                   50   892ms    8.6%  17.8ms <span class="sgr38_5" style="color:#5f87af"> ▋        </span>   25.3MiB    2.1%   519KiB <span class="sgr38_5" style="color:#5f5faf"> ▏        </span>
+ ├─ write to vtk                     200   880ms    8.5%  4.40ms <span class="sgr38_5" style="color:#5f87af"> ▋        </span>   1.03GiB   89.2%  5.27MiB <span class="sgr38_5" style="color:#d70000"> ███████▏ </span>
+ ├─ update dvdu                       50  75.9ms    0.7%  1.52ms <span class="sgr38_5" style="color:#005faf">          </span>   3.64MiB    0.3%  74.5KiB <span class="sgr38_5" style="color:#005faf">          </span>
+ └─ update systems                    50  9.08ms    0.1%   182μs <span class="sgr38_5" style="color:#005faf">          </span>    668KiB    0.1%  13.4KiB <span class="sgr38_5" style="color:#005faf">          </span>
+ update callback                     609   134ms    1.3%   220μs <span class="sgr38_5" style="color:#5f5faf"> ▏        </span>   10.4MiB    0.9%  17.4KiB <span class="sgr38_5" style="color:#005faf"> ▏        </span>
+ ├─ update systems and nhs           609   115ms    1.1%   189μs <span class="sgr38_5" style="color:#005faf"> ▏        </span>   7.96MiB    0.7%  13.4KiB <span class="sgr38_5" style="color:#005faf">          </span>
+ └─ ~update callback~                609  18.9ms    0.2%  31.1μs <span class="sgr38_5" style="color:#005faf">          </span>   2.41MiB    0.2%  4.05KiB <span class="sgr38_5" style="color:#005faf">          </span>
+ drift!                            5.53k  31.2ms    0.3%  5.64μs <span class="sgr38_5" style="color:#005faf">          </span>         ∅       ∅        ∅ <span class="sgr38_5" style="color:#005faf">          </span>
 ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────</code></pre><p>And here is the final plot with circles instead of squares.</p><pre><code class="language-julia hljs">plot(sol_step4)</code></pre><p><img src="../tut_rigid_body_fsi_step4.png" alt="Step 4"/></p><h2 id="Next-steps"><a class="docs-heading-anchor" href="#Next-steps">Next steps</a><a id="Next-steps-1"></a><a class="docs-heading-anchor-permalink" href="#Next-steps" title="Permalink"></a></h2><p>A natural extension is to add a layer of small rigid spheres on top of the initial water column. If we choose a density of <code>500.0</code>, the spheres are lighter than the surrounding fluid and should mostly float while interacting with the waves and the falling squares. The example file <a href="https://github.com/trixi-framework/TrixiParticles.jl/blob/main/examples/fsi/falling_rotating_rigid_squares_2d.jl"><code>examples/fsi/falling_rotating_rigid_squares_2d.jl</code></a> contains the same idea as a commented-out block.</p><p>One possible implementation is:</p><pre><code class="language-julia hljs">small_sphere_radius = 0.08
 small_sphere_density = 500.0
 small_sphere_y = initial_fluid_size[2] + small_sphere_radius
@@ -520,4 +520,4 @@ mermaid.initialize({
     startOnLoad: true,
     theme: "neutral"
 });
-</script></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../tut_custom_kernel/">« Modifying or extending components of TrixiParticles.jl within a simulation file</a><a class="docs-footer-nextpage" href="../tut_2d_geometry/">Setting up a 2D simulation from geometry files »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.19.0 on <span class="colophon-date" title="Thursday 8 October 2026 08:23">Thursday 8 October 2026</span>. Using Julia version 1.13.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+</script></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../tut_custom_kernel/">« Modifying or extending components of TrixiParticles.jl within a simulation file</a><a class="docs-footer-nextpage" href="../tut_2d_geometry/">Setting up a 2D simulation from geometry files »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.19.0 on <span class="colophon-date" title="Thursday 8 October 2026 11:16">Thursday 8 October 2026</span>. Using Julia version 1.13.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
