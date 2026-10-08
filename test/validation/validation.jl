@@ -185,7 +185,9 @@
                                          joinpath(validation_dir(), "vortex_street_2d",
                                                   "validation_vortex_street_2d.jl"),
                                          resolution_factor=0.2, tspan=(0.0, 5.0),
-                                         update_strategy=SerialUpdate())
+                                         update_strategy=SerialUpdate()) [
+            r"\[ Info: To create the self-interaction neighborhood search.*\n"
+        ]
         @test sol.retcode == ReturnCode.Success
 
         # The vortex shedding is fully developed after about `t = 1.5`, which leaves about

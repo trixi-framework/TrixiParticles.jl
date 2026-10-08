@@ -18,12 +18,15 @@ dp = round(Int, 1 / resolution_factor)
 # ==== Read results
 data = JSON.parsefile(joinpath(directory, "resulting_force_dp$dp.json"))
 
-times = Float64.(data["lift_force_fluid_1"]["time"])
+# The keys contain the system name and index, e.g., `lift_coefficient_structure_4`.
+data_key(name) = only(filter(startswith(name), collect(keys(data))))
 
-f_lift = Float64.(data["lift_force_fluid_1"]["values"])
-f_drag = Float64.(data["drag_force_fluid_1"]["values"])
+times = Float64.(data[data_key("lift_coefficient")]["time"])
+
+f_lift = Float64.(data[data_key("lift_coefficient")]["values"])
+f_drag = Float64.(data[data_key("drag_coefficient")]["values"])
 # Transverse velocity measured by the sensor in the wake of the cylinder
-v_y = Float64.(data["wake_velocity_y_fluid_1"]["values"])
+v_y = Float64.(data[data_key("wake_velocity_y")]["values"])
 
 # ======================================================================================
 # ==== Compute the frequency spectrum
@@ -83,9 +86,9 @@ function dominant_frequency(frequencies, spectrum)
     return f_dominant, band_fraction
 end
 
-# The force coefficients are computed from the pressure at the cylinder surface, which is
-# very noisy at low resolutions. The transverse velocity in the wake of the cylinder yields
-# a much cleaner signal, so the Strouhal number is computed from `v_y`.
+# The force coefficients are very noisy at low resolutions. The transverse velocity in the
+# wake of the cylinder yields a much cleaner signal, so the Strouhal number is computed
+# from `v_y`.
 frequencies_v_y, spectrum_v_y = frequency_spectrum(v_y_cut, dt)
 f_dominant_v_y, band_fraction_v_y = dominant_frequency(frequencies_v_y, spectrum_v_y)
 strouhal_number = f_dominant_v_y * cylinder_diameter / prescribed_velocity
@@ -102,8 +105,14 @@ strouhal_number_lift = f_dominant_lift * cylinder_diameter / prescribed_velocity
 @info "Strouhal number (from the lift coefficient)" round(strouhal_number_lift, digits=3)
 @info "Dominant frequency band fraction of the C_L spectrum" round(band_fraction_lift,
                                                                    digits=3)
+# The maximum values are sensitive to noise, so also report the mean drag coefficient
+# and the lift amplitude computed from the RMS value (exact for a harmonic oscillation).
 @info "C_L_max for the periodic shedding" round(maximum(f_lift_cut), digits=3)
 @info "C_D_max for the periodic shedding" round(maximum(f_drag_cut), digits=3)
+@info "C_L amplitude (sqrt(2) * RMS) for the periodic shedding" round(sqrt(2) *
+                                                                      std(f_lift_cut),
+                                                                      digits=3)
+@info "Mean C_D for the periodic shedding" round(mean(f_drag_cut), digits=3)
 
 # ======================================================================================
 # ==== Plot the results
