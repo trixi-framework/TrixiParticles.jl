@@ -4,6 +4,13 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.6.0
+
+### Important Bugfixes
+
+- Fixed `MixedKernelGradientCorrection` to assemble its matrix from the kernel-corrected
+  raw gradient and preserve matching cache element types (#1288).
+
 ## Version 0.5.4
 
 ### API Changes
