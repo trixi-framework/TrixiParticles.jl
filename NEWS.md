@@ -15,6 +15,11 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   or `RigidBodySystem` must now be the same as the compact support of all fluid systems
   in the simulation (#1348).
 
+### Features
+
+- Added the `ThrustCalculator` custom quantity to calculate the hydrodynamic force exerted by
+  interacting fluid systems on a `TotalLagrangianSPHSystem` along a given `direction` (#1229).
+
 ### Important Bugfixes
 
 - Fixed asymmetric DEM contact forces near coincidence by using a pair-local
