@@ -6,10 +6,11 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ## Version 0.5.5
 
-### API Changes
+### Important Bugfixes
 
-- Replaced `deleteat!` on polygons and triangle meshes with `delete_faces(geometry, indices)`,
-  which returns a new geometry with rebuilt connectivity, normals, and bounding box (#1190).
+- Fixed stale connectivity, normals, and bounding boxes after geometry face deletion.
+  The new `delete_faces(geometry, indices)` function returns a geometry with the selected
+  faces removed and derived data rebuilt (#1190).
 
 ## Version 0.5.4
 
