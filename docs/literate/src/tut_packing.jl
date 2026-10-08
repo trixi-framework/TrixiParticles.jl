@@ -125,7 +125,8 @@ plot!(geometry, linestyle=:dash, label=nothing, showaxis=false, color=:black,
 # ## Particle packing
 
 # In the following, we will essentially follow the same steps described in the fluid tutorials.
-# That means we will generate systems that are then passed to the [`Semidiscretization`](@ref).
+# That means we will generate systems that are then passed to the
+# [`Semidiscretization`](@ref TrixiParticles.Semidiscretization).
 # The difference from a typical physical simulation is that we use [`ParticlePackingSystem`](@ref),
 # which does not represent any physical law. Instead, we only use the simulation framework to time-integrate
 # the packing process.

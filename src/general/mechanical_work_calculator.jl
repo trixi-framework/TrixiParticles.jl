@@ -34,7 +34,7 @@ The accumulated value can be retrieved via [`calculated_mechanical_work`](@ref).
 
 # Arguments
 - `system`: The [`TotalLagrangianSPHSystem`](@ref) whose particles should be monitored.
-- `semi`: The [`Semidiscretization`](@ref) that contains `system`.
+- `semi`: The [`Semidiscretization`](@ref TrixiParticles.Semidiscretization) that contains `system`.
 
 # Keywords
 - `eachparticle=(n_integrated_particles(system) + 1):nparticles(system)`: Iterator
