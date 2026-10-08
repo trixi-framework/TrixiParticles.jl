@@ -17,6 +17,9 @@ Boundary model for [`WallBoundarySystem`](@ref).
                         See [the docs](@ref boundary_models) for more information.
 - `smoothing_kernel`: Smoothing kernel should be the same as for the adjacent fluid system.
 - `smoothing_length`: Smoothing length should be the same as for the adjacent fluid system.
+                      For a [`TotalLagrangianSPHSystem`](@ref) or a [`RigidBodySystem`](@ref),
+                      the compact support of `smoothing_kernel` and `smoothing_length`
+                      must be the same as for all fluid systems in the simulation.
 
 # Keywords
 - `state_equation`:             This should be the same as for the adjacent fluid system
@@ -414,13 +417,22 @@ end
     return boundary_model
 end
 
+@inline function update_density_correction_values!(boundary_model::BoundaryModelDummyParticles,
+                                                   system, v, u, v_ode, u_ode, semi)
+    (; correction) = boundary_model
+    density_correction = correction_density(correction)
+
+    compute_boundary_correction_values!(boundary_model, system, density_correction, u,
+                                        v_ode, u_ode, semi)
+
+    return boundary_model
+end
+
 @inline function update_density_correction!(boundary_model::BoundaryModelDummyParticles,
                                             system, v, u, v_ode, u_ode, semi)
     (; correction, density_calculator) = boundary_model
     density_correction = correction_density(correction)
 
-    compute_boundary_correction_values!(boundary_model, system, density_correction, u,
-                                        v_ode, u_ode, semi)
     kernel_correct_density!(boundary_model, v, u, v_ode, u_ode, semi,
                             density_correction,
                             density_calculator)

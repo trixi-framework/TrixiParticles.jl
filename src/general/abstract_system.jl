@@ -150,9 +150,9 @@ end
     h = smoothing_length(system, particle)
     compact_support_ = compact_support(system_smoothing_kernel(system), h)
 
-    # Note that `sqrt(eps(h^2)) != eps(h)`
+    # See `almostzero` for an explanation of the zero distance check
     if distance >= compact_support_ ||
-       (skip_zero_distance(system) && distance^2 < eps(h^2))
+       (skip_zero_distance(system) && distance < almostzero(h))
         return zero(pos_diff)
     end
 
@@ -180,7 +180,7 @@ end
     compact_support_ = compact_support(smoothing_kernel, h)
 
     if distance >= compact_support_ ||
-       (skip_zero_distance(correction) && distance^2 < eps(h^2))
+       (skip_zero_distance(correction) && distance < almostzero(h))
         return zero(pos_diff)
     end
 
@@ -194,6 +194,10 @@ function update_positions!(system, v, u, v_ode, u_ode, semi, t)
 end
 
 function update_quantities!(system, v, u, v_ode, u_ode, semi, t)
+    return system
+end
+
+function update_density_correction_values!(system, v, u, v_ode, u_ode, semi, t)
     return system
 end
 

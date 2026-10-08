@@ -510,7 +510,8 @@ function calculate_sum_d_ij_pj!(sum_d_ij_pj, system,
     (; time_step) = system
 
     system_coords = current_coordinates(u, system)
-    neighbor_coords = current_coordinates(u, neighbor_system)
+    u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
+    neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
     foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords, semi;
                            points=each_integrated_particle(system)) do particle, neighbor,
@@ -598,12 +599,15 @@ function pressure_update(system, pressure, reference_density, a_ii, sum_term, om
         else
             pressure[particle] = zero(pressure[particle])
         end
-        # Calculate the average density error for the termination condition
-        if (pressure[particle] != 0.0)
+        # Calculate the density error for the termination condition, explicitly
+        # clearing zero-pressure entries (no stale values from previous iterations).
+        if pressure[particle] != 0.0
             new_density = a_ii[particle] * pressure[particle] + sum_term[particle] -
                           iisph_source_term(system, particle) +
                           reference_density
-            density_error[particle] = (new_density - reference_density)
+            density_error[particle] = new_density - reference_density
+        else
+            density_error[particle] = zero(eltype(density_error))
         end
     end
     relative_density_error = sum(density_error) / reference_density
