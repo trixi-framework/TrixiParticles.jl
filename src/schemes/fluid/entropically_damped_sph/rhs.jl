@@ -106,7 +106,7 @@ end
                                                    v_particle_system, v_neighbor_system,
                                                    particle, neighbor, pos_diff, distance,
                                                    grad_kernel, sound_speed, m_a, m_b,
-                                                   p_a, p_b, rho_a, rho_b, v_a, v_b)
+                                                    p_a, p_b, rho_a, rho_b, v_a, v_b)
     (; correction) = particle_system
     gradient_correction = correction_gradient(correction)
     force_correction = correction_force(correction)
