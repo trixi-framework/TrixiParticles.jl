@@ -123,6 +123,8 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
     end
 
     cache = (; create_cache_contact_history(contact_model_, Val(NDIMS), ELTYPE)...,
+             contact_torque_per_particle=zeros(typeof(zero_rotational_quantity),
+                                               nparticles(initial_condition)),
              contact_count=Ref(0),
              max_contact_penetration=Ref(zero(ELTYPE)),
              create_cache_contact_manifold(contact_model_, Val(NDIMS), ELTYPE,
@@ -157,6 +159,7 @@ end
 function create_cache_contact_history(contact_model, ::Val{NDIMS},
                                       ::Type{ELTYPE}) where {NDIMS, ELTYPE}
     return (; contact_tangential_displacement=nothing,
+            contact_sliding=nothing,
             wall_contact_descriptors=nothing,
             next_wall_contact_id=nothing)
 end
@@ -438,6 +441,7 @@ end
 
 function reset_interaction_caches!(system::RigidBodySystem)
     set_zero!(system.force_per_particle)
+    fill!(system.cache.contact_torque_per_particle, zero(system.resultant_torque[]))
     system.cache.contact_count[] = 0
     system.cache.max_contact_penetration[] = zero(eltype(system))
 
@@ -449,6 +453,9 @@ function reset_contact_history!(system::RigidBodySystem)
     # after no descriptor or displacement key can still refer to an old contact.
     contact_map = system.cache.contact_tangential_displacement
     isnothing(contact_map) || empty!(contact_map)
+
+    sliding_map = system.cache.contact_sliding
+    isnothing(sliding_map) || empty!(sliding_map)
 
     descriptor_map = system.cache.wall_contact_descriptors
     isnothing(descriptor_map) || empty!(descriptor_map)

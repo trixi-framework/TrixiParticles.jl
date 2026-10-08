@@ -10,16 +10,18 @@ function create_cache_contact_history(contact_model::RigidContactModel, ::Val{ND
         # arrays in `create_cache_contact_manifold` are rebuilt during every RHS evaluation.
         contact_tangential_displacement = Dict{RigidContactKey,
                                                SVector{NDIMS, ELTYPE}}()
+        contact_sliding = Dict{RigidContactKey, Bool}()
         wall_contact_descriptors = Dict{RigidContactKey,
                                         WallContactDescriptor{NDIMS, ELTYPE}}()
         next_wall_contact_id = Ref(1)
     else
         contact_tangential_displacement = nothing
+        contact_sliding = nothing
         wall_contact_descriptors = nothing
         next_wall_contact_id = nothing
     end
 
-    return (; contact_tangential_displacement, wall_contact_descriptors,
+    return (; contact_tangential_displacement, contact_sliding, wall_contact_descriptors,
             next_wall_contact_id)
 end
 
@@ -64,19 +66,31 @@ end
     return max(elastic_force + damping_force, zero(elastic_force))
 end
 
+@inline function contact_is_sliding(contact_model, force_trial, tangential_velocity,
+                                    normal_force_friction_reference, was_sliding)
+    static_limit = contact_model.static_friction_coefficient *
+                   normal_force_friction_reference
+    # Return mapping places the spring inside the static cone even during sliding. Retain
+    # that mode while slip continues in the restoring-force direction; stopping or reversing
+    # allows the spring to stick and unload before breaking away again.
+    return norm(force_trial) > static_limit ||
+           (was_sliding &&
+            norm(tangential_velocity) > contact_model.stick_velocity_tolerance &&
+            dot(force_trial, tangential_velocity) < 0)
+end
+
 function tangential_contact_force(contact_model,
                                   tangential_displacement,
                                   tangential_velocity,
-                                  normal_force_friction_reference)
+                                  normal_force_friction_reference; sliding=false)
     # First evaluate the tangential spring-dashpot law. It represents sticking while its
     # magnitude remains inside the static Coulomb cone.
     force_trial = -contact_model.tangential_stiffness * tangential_displacement -
                   contact_model.tangential_damping * tangential_velocity
 
     trial_norm = norm(force_trial)
-    static_limit = contact_model.static_friction_coefficient *
-                   normal_force_friction_reference
-    if trial_norm <= static_limit
+    if !contact_is_sliding(contact_model, force_trial, tangential_velocity,
+                           normal_force_friction_reference, sliding)
         return force_trial
     end
 
@@ -103,6 +117,19 @@ function tangential_contact_force(contact_model,
     end
 
     return zero(force_trial)
+end
+
+@inline function rigid_contact_relative_velocity(v_system, v_neighbor, system,
+                                                 neighbor_system, particle, neighbor,
+                                                 pos_diff)
+    # Both bodies exert their contact force at the pair midpoint. Evaluate slip at that
+    # same point so the contact work agrees with the translational and rotational work.
+    half_separation = pos_diff / 2
+    particle_velocity = current_velocity(v_system, system, particle) -
+                        cross_product(system.angular_velocity[], half_separation)
+    neighbor_velocity = current_velocity(v_neighbor, neighbor_system, neighbor) +
+                        cross_product(neighbor_system.angular_velocity[], half_separation)
+    return particle_velocity - neighbor_velocity
 end
 
 update_rigid_contact_eachstep!(system, v_ode, u_ode, semi, t, history_dt) = false
@@ -134,6 +161,7 @@ function update_rigid_contact_eachstep!(system::RigidBodySystem{<:Any, <:Any, ND
     for key in collect(keys(contact_map))
         key in active_contact_keys && continue
         delete!(contact_map, key)
+        delete!(system.cache.contact_sliding, key)
         history_changed = true
     end
 
@@ -358,9 +386,9 @@ function update_contact_history_pair!(system::RigidBodySystem{<:Any, <:Any, NDIM
         penetration_effective <= 0 && return
 
         normal = pos_diff / distance
-        particle_velocity = current_velocity(v_system, system, particle)
-        neighbor_velocity = current_velocity(v_neighbor, neighbor_system, neighbor)
-        relative_velocity = particle_velocity - neighbor_velocity
+        relative_velocity = rigid_contact_relative_velocity(v_system, v_neighbor, system,
+                                                            neighbor_system, particle,
+                                                            neighbor, pos_diff)
         normal_velocity = dot(relative_velocity, normal)
         tangential_velocity = relative_velocity - normal_velocity * normal
 
@@ -388,6 +416,9 @@ function update_contact_tangential_history!(system::RigidBodySystem, contact_key
 
     dt_ = isfinite(dt) && dt > 0 ? convert(eltype(system), dt) : zero(eltype(system))
     old_tangential_displacement = get(contact_map, contact_key, zero_tangential)
+    sliding_map = system.cache.contact_sliding
+    was_sliding = get(sliding_map, contact_key, false)
+    sliding = false
     tangential_displacement = old_tangential_displacement
 
     # Integrate only accepted-step slip, then rotate old history into the current contact
@@ -396,26 +427,35 @@ function update_contact_tangential_history!(system::RigidBodySystem, contact_key
     tangential_displacement += dt_ * tangential_velocity
     tangential_displacement -= dot(tangential_displacement, normal) * normal
 
-    if contact_model.tangential_stiffness > eps(eltype(system))
-        # Cap stored spring extension at the static Coulomb limit. This keeps history
-        # consistent with the force returned by `tangential_contact_force` after sliding.
+    if contact_model.tangential_stiffness > 0
         normal_force_reference = normal_friction_reference_force(contact_model,
                                                                  penetration_effective,
                                                                  normal_velocity)
-        max_displacement = contact_model.static_friction_coefficient *
-                           normal_force_reference /
-                           contact_model.tangential_stiffness
-        displacement_norm = norm(tangential_displacement)
+        force_trial = -contact_model.tangential_stiffness * tangential_displacement -
+                      contact_model.tangential_damping * tangential_velocity
+        sliding = contact_is_sliding(contact_model, force_trial, tangential_velocity,
+                                     normal_force_reference, was_sliding)
 
-        if displacement_norm > max_displacement &&
-           displacement_norm > eps(eltype(system))
-            tangential_displacement *= max_displacement / displacement_norm
+        if sliding && dt_ > 0
+            # Back-calculate the spring extension from the actual kinetic force, including
+            # the dashpot contribution. Keep the sliding flag so the bounded extension does
+            # not incorrectly select static friction on the next RHS evaluation.
+            tangential_force = tangential_contact_force(contact_model,
+                                                        tangential_displacement,
+                                                        tangential_velocity,
+                                                        normal_force_reference;
+                                                        sliding=was_sliding)
+            tangential_displacement = -(tangential_force +
+                                        contact_model.tangential_damping *
+                                        tangential_velocity) /
+                                      contact_model.tangential_stiffness
         end
     else
         tangential_displacement = zero_tangential
     end
 
     contact_map[contact_key] = tangential_displacement
+    sliding_map[contact_key] = sliding
 
-    return tangential_displacement != old_tangential_displacement
+    return tangential_displacement != old_tangential_displacement || sliding != was_sliding
 end

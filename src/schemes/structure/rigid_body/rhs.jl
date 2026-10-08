@@ -54,6 +54,7 @@ function apply_resultant_force_and_torque!(dv, particle_system::RigidBodySystem,
         # Torque is taken about the current center of mass, using the particle's current
         # relative position inside the rigid body.
         total_torque += cross_product(relative_position, particle_force)
+        total_torque += particle_system.cache.contact_torque_per_particle[particle]
     end
 
     translational_acceleration = total_force / total_mass
@@ -112,6 +113,7 @@ function interact!(dv, v_particle_system, u_particle_system,
     ELTYPE = eltype(particle_system)
     zero_tangential = zero(SVector{NDIMS, ELTYPE})
     contact_map = particle_system.cache.contact_tangential_displacement
+    sliding_map = particle_system.cache.contact_sliding
     neighbor_system_index = system_indices(neighbor_system, semi)
     set_zero!(particle_system.cache.contact_count_per_particle)
     set_zero!(particle_system.cache.max_contact_penetration_per_particle)
@@ -184,18 +186,26 @@ function interact!(dv, v_particle_system, u_particle_system,
                         if normal_force_magnitude > 0
                             contact_id = particle_system.cache.contact_manifold_history_id[manifold_index,
                                                                                            particle]
+                            contact_key = wall_contact_key(neighbor_system_index, particle,
+                                                           contact_id)
                             tangential_displacement = isnothing(contact_map) ||
                                                       contact_id == 0 ?
                                                       zero_tangential :
                                                       get(contact_map,
-                                                          wall_contact_key(neighbor_system_index,
-                                                                           particle,
-                                                                           contact_id),
+                                                          contact_key,
                                                           zero_tangential)
+                            # Stage normals can differ from the accepted normal. Project a
+                            # local copy without modifying persistent contact history.
+                            tangential_displacement -= dot(tangential_displacement,
+                                                           normal) *
+                                                       normal
+                            sliding = !isnothing(sliding_map) &&
+                                      get(sliding_map, contact_key, false)
                             tangential_force = tangential_contact_force(contact_model,
                                                                         tangential_displacement,
                                                                         tangential_velocity,
-                                                                        normal_force_magnitude)
+                                                                        normal_force_magnitude;
+                                                                        sliding)
                             interaction_force = normal_force_magnitude * normal +
                                                 tangential_force
 
@@ -361,10 +371,12 @@ function accumulate_contact_manifold_sums!(cache, particle, manifold_index, cont
     return cache
 end
 
+# Static dimension and element type avoid boxed scalar operations in the neighbor closure
+# on Julia 1.10 when the semidiscretization contains different rigid-body system types.
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,
-                   particle_system::RigidBodySystem,
-                   neighbor_system::RigidBodySystem, semi)
+                   particle_system::RigidBodySystem{<:Any, <:Any, NDIMS, ELTYPE},
+                   neighbor_system::RigidBodySystem, semi) where {NDIMS, ELTYPE <: Real}
     contact_model = particle_system.contact_model
     neighbor_contact_model = neighbor_system.contact_model
 
@@ -376,7 +388,6 @@ function interact!(dv, v_particle_system, u_particle_system,
     # We don't need to model self collision
     particle_system === neighbor_system && return dv
 
-    ELTYPE = eltype(particle_system)
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
     set_zero!(particle_system.cache.contact_count_per_particle)
@@ -384,8 +395,9 @@ function interact!(dv, v_particle_system, u_particle_system,
     contact_count_per_particle = particle_system.cache.contact_count_per_particle
     max_contact_penetration_per_particle = particle_system.cache.max_contact_penetration_per_particle
     pair_parameters = rigid_contact_pair_parameters(contact_model, neighbor_contact_model)
-    zero_tangential = zero(SVector{ndims(particle_system), ELTYPE})
+    zero_tangential = zero(SVector{NDIMS, ELTYPE})
     contact_map = particle_system.cache.contact_tangential_displacement
+    sliding_map = particle_system.cache.contact_sliding
     neighbor_system_index = system_indices(neighbor_system, semi)
 
     foreach_point_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
@@ -405,9 +417,11 @@ function interact!(dv, v_particle_system, u_particle_system,
         penetration_effective <= 0 && return dv
 
         normal = pos_diff / distance
-        particle_velocity = current_velocity(v_particle_system, particle_system, particle)
-        neighbor_velocity = current_velocity(v_neighbor_system, neighbor_system, neighbor)
-        relative_velocity = particle_velocity - neighbor_velocity
+        relative_velocity = rigid_contact_relative_velocity(v_particle_system,
+                                                            v_neighbor_system,
+                                                            particle_system,
+                                                            neighbor_system,
+                                                            particle, neighbor, pos_diff)
         normal_velocity = dot(relative_velocity, normal)
 
         elastic_force = pair_parameters.normal_stiffness * penetration_effective
@@ -421,15 +435,24 @@ function interact!(dv, v_particle_system, u_particle_system,
         # the negated displacement under its own key and therefore produces the reaction force.
         tangential_displacement = isnothing(contact_map) ? zero_tangential :
                                   get(contact_map, contact_key, zero_tangential)
+        tangential_displacement -= dot(tangential_displacement, normal) * normal
+        sliding = !isnothing(sliding_map) && get(sliding_map, contact_key, false)
         tangential_force = tangential_contact_force(pair_parameters,
                                                     tangential_displacement,
                                                     tangential_velocity,
-                                                    normal_force_magnitude)
+                                                    normal_force_magnitude; sliding)
         interaction_force = normal_force_magnitude * normal + tangential_force
 
         for dim in 1:ndims(particle_system)
             particle_system.force_per_particle[dim, particle] += interaction_force[dim]
         end
+
+        # The force array applies forces at particle centers. Move the tangential force's
+        # lever arm to the shared midpoint by adding the missing local couple. Each ordered
+        # pass writes only its own particle's torque, preserving race-free accumulation.
+        particle_system.cache.contact_torque_per_particle[particle] += cross_product(-pos_diff /
+                                                                                     2,
+                                                                                     tangential_force)
 
         # `foreach_point_neighbor` parallelizes the outer loop over `points`, i.e. particles.
         # This makes these per-particle reductions race-free under the regular backends.

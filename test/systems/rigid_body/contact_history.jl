@@ -124,6 +124,7 @@
     # Restart files do not serialize path-dependent contact state.
     TrixiParticles.restart_with!(rigid_system, v_rigid, u_rigid)
     @test isempty(rigid_system.cache.contact_tangential_displacement)
+    @test isempty(rigid_system.cache.contact_sliding)
     @test isempty(rigid_system.cache.wall_contact_descriptors)
     @test rigid_system.cache.next_wall_contact_id[] == 1
     TrixiParticles.update_rigid_contact_eachstep!(rigid_system, v_ode, u_ode, semi, 0.0,
@@ -143,11 +144,24 @@
     @test dv[1, 1] < 0.0
     @test dv[2, 1] > 0.0
 
+    # An RHS stage with a rotated wall normal must preserve normal loading and history.
+    history_before_stage = copy(rigid_system.cache.contact_tangential_displacement)
+    normal = normalize(SVector(1.0, 1.0))
+    u_rigid[:, 1] .= 0.05 * normal
+    v_rigid .= 0.0
+    TrixiParticles.update_systems_and_nhs(v_ode, u_ode, semi, 0.0)
+    TrixiParticles.system_interaction!(dv_ode, v_ode, u_ode, semi)
+    wall_normal_force = history_model.normal_stiffness * 0.05
+    @test dot(rigid_system.resultant_force[], normal) ≈ wall_normal_force
+    @test norm(rigid_system.resultant_force[] - wall_normal_force * normal) > 1.0
+    @test rigid_system.cache.contact_tangential_displacement == history_before_stage
+
     # Once contact is lost, its path-dependent displacement must not affect future contacts.
     u_rigid[2, 1] = 0.2
     TrixiParticles.update_rigid_contact_eachstep!(rigid_system, v_ode, u_ode, semi, 0.0,
                                                   1.0e-3)
     @test isempty(rigid_system.cache.contact_tangential_displacement)
+    @test isempty(rigid_system.cache.contact_sliding)
 
     # Both ordered rigid-rigid passes integrate opposite histories and must return an exact
     # action-reaction pair, including tangential force.
@@ -250,6 +264,19 @@
     @test rigid_system_1.cache.max_contact_penetration[] ≈ pair_penetration
     @test rigid_system_2.cache.max_contact_penetration[] ≈ pair_penetration
 
+    # The rigid-pair RHS also projects a local copy when its contact normal changes.
+    history_before_stage = copy(rigid_system_1.cache.contact_tangential_displacement)
+    normal = -normalize(SVector(1.0, 1.0))
+    u_rigid_2[:, 1] .= -0.08 * normal
+    v_rigid_1 .= 0.0
+    v_rigid_2 .= 0.0
+    TrixiParticles.update_systems_and_nhs(v_ode_rigid, u_ode_rigid, semi_rigid, 0.0)
+    TrixiParticles.system_interaction!(dv_ode_rigid, v_ode_rigid, u_ode_rigid, semi_rigid)
+    pair_normal_force = pair_normal_stiffness * pair_penetration
+    @test dot(rigid_system_1.resultant_force[], normal) ≈ pair_normal_force
+    @test norm(rigid_system_1.resultant_force[] - pair_normal_force * normal) > 1.0e-3
+    @test rigid_system_1.cache.contact_tangential_displacement == history_before_stage
+
     # Separating the bodies removes both ordered copies of their shared contact history.
     u_rigid_2[1, 1] = 0.5
     TrixiParticles.update_rigid_contact_eachstep!(rigid_system_1, v_ode_rigid,
@@ -260,6 +287,8 @@
                                                   1.0e-3)
     @test isempty(rigid_system_1.cache.contact_tangential_displacement)
     @test isempty(rigid_system_2.cache.contact_tangential_displacement)
+    @test isempty(rigid_system_1.cache.contact_sliding)
+    @test isempty(rigid_system_2.cache.contact_sliding)
 
     # Offset tangential forces must also produce the expected same-sense body torques.
     torque_coordinates_1 = [-0.05 0.05; 0.0 0.0]
@@ -298,4 +327,52 @@
     @test torque_system_1.resultant_force[] ≈ -torque_system_2.resultant_force[]
     @test torque_system_1.resultant_torque[] < 0
     @test torque_system_2.resultant_torque[] < 0
+
+    # Include orbital angular momentum, not just the signs of the body torques.
+    angular_momentum_rate = torque_system_1.resultant_torque[] +
+                            torque_system_2.resultant_torque[] +
+                            TrixiParticles.cross_product(torque_system_1.center_of_mass[],
+                                                         torque_system_1.resultant_force[]) +
+                            TrixiParticles.cross_product(torque_system_2.center_of_mass[],
+                                                         torque_system_2.resultant_force[])
+    @test isapprox(angular_momentum_rate, 0.0; atol=1.0e-12)
+
+    @testset "Spring-only sliding" begin
+        sliding_model = RigidContactModel(; normal_stiffness=100.0,
+                                          static_friction_coefficient=0.6,
+                                          kinetic_friction_coefficient=0.4,
+                                          tangential_stiffness=100.0,
+                                          contact_distance=0.1,
+                                          stick_velocity_tolerance=0.0)
+        sliding_system = RigidBodySystem(rigid_ic; contact_model=sliding_model,
+                                         acceleration=(0.0, 0.0))
+        sliding_semi = Semidiscretization(sliding_system, boundary_system)
+        sliding_ode = semidiscretize(sliding_semi, (0.0, 1.0))
+        v_sliding, u_sliding = sliding_ode.u0.x
+        dv_sliding = zero(v_sliding)
+
+        # A large slip increment breaks away; a small subsequent increment stays kinetic.
+        for dt in (0.1, 1.0e-4)
+            TrixiParticles.update_rigid_contact_eachstep!(sliding_system, v_sliding,
+                                                          u_sliding, sliding_semi, 0.0, dt)
+            TrixiParticles.system_interaction!(dv_sliding, v_sliding, u_sliding,
+                                               sliding_semi)
+            @test sliding_system.resultant_force[] ≈ SVector(-2.0, 5.0)
+        end
+
+        history_before_stop = copy(sliding_system.cache.contact_tangential_displacement)
+        v = TrixiParticles.wrap_v(v_sliding, sliding_system, sliding_semi)
+        v .= 0.0
+        changed = TrixiParticles.update_rigid_contact_eachstep!(sliding_system, v_sliding,
+                                                                u_sliding, sliding_semi,
+                                                                0.0, 1.0e-4)
+        # A mode-only change still needs FSAL invalidation; reversal unloads the spring.
+        @test changed &&
+              sliding_system.cache.contact_tangential_displacement == history_before_stop
+        v[1, 1] = -1.0
+        TrixiParticles.update_rigid_contact_eachstep!(sliding_system, v_sliding, u_sliding,
+                                                      sliding_semi, 0.0, 1.0e-4)
+        TrixiParticles.system_interaction!(dv_sliding, v_sliding, u_sliding, sliding_semi)
+        @test sliding_system.resultant_force[] ≈ SVector(-1.99, 5.0)
+    end
 end

@@ -479,6 +479,15 @@ function write2vtk!(vtk, v, u, t, system::WallBoundarySystem)
     write2vtk!(vtk, v, u, t, system.boundary_model, system)
 end
 
+function write2vtk!(vtk, v, u, t, system::WallBoundarySystem{Nothing})
+    vtk["velocity"] = [current_velocity(v, system, particle)
+                       for particle in eachparticle(system)]
+    vtk["material_density"] = system.initial_condition.density
+    vtk["mass"] = system.initial_condition.mass
+
+    return vtk
+end
+
 function write2vtk!(vtk, v, u, t, model::Nothing, system)
     return vtk
 end
