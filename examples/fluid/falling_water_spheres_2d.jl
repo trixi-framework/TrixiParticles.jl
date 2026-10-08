@@ -70,11 +70,18 @@ sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1;
                                                      acceleration, surface_tension,
                                                      reference_particle_spacing=fluid_particle_spacing)
 
+# The second sphere has no surface tension model. When a surface tension model is used,
+# it still needs a surface normal method to participate in interface detection
+# (see `check_configuration`).
 sphere = WeaklyCompressibleSPHSystem(sphere2; smoothing_kernel=fluid_smoothing_kernel,
                                      smoothing_length=fluid_smoothing_length,
                                      density_calculator=fluid_density_calculator,
                                      state_equation, viscosity, density_diffusion,
-                                     acceleration)
+                                     acceleration,
+                                     surface_normal_method=surface_tension === nothing ?
+                                                           nothing :
+                                                           ColorfieldSurfaceNormal(),
+                                     reference_particle_spacing=fluid_particle_spacing)
 
 # ==========================================================================================
 # ==== Boundary

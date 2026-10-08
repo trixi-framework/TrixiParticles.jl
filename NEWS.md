@@ -4,6 +4,14 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.5.5
+
+### Important Bugfixes
+
+- Fixed surface-tension configuration checks to inspect neighboring fluid systems and
+  require a surface tension model or surface normal method on all fluids when any fluid
+  uses one, while excluding particle-packing systems (#1214).
+
 ## Version 0.5.4
 
 ### API Changes
@@ -24,6 +32,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   formulas, inconsistent force-vs-acceleration notation, and wrong LaTeX text-mode
   commands (#1086).
 - Fixed restarting with EDAC from solution objects (#1213) and from VTK files (#1297).
+- Fixed the Morris surface tension curvature, which was divided by a reset correction
+  factor when more than one fluid system used a surface normal method (#1214).
 - Fixed characteristic open boundaries to keep fallback values local to each boundary zone
   and reject unsupported bidirectional zones (#1203).
 - Fixed the custom quantities `kinetic_energy`, `total_mass`, `max_pressure`, `min_pressure`,
