@@ -38,6 +38,9 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   zero-pressure particles instead of retaining them in the termination condition (#1215).
 - Fixed the viscous force on structures in fluid-structure interaction, which had the wrong
   sign (#1348).
+- Hardened surface tension model configuration by validating coefficients and surface-normal
+  thresholds, avoiding unnecessary normal allocation for `CohesionForceAkinci`, and stabilizing
+  Akinci cohesion and adhesion kernels across floating-point scales.
 
 ## Version 0.5.3
 

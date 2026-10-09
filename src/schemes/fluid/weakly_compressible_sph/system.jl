@@ -54,9 +54,10 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
                                 gravity-like source terms.
 - `surface_tension`:            Surface tension model used for this SPH system. (default: no surface tension)
 - `surface_normal_method`:      The surface normal method to be used for this SPH system.
-                                (default: no surface normal method or `ColorfieldSurfaceNormal()` if a surface_tension model is used)
+                                (default: no surface normal method or `ColorfieldSurfaceNormal()`
+                                if the surface tension model requires normals)
 - `reference_particle_spacing`: The reference particle spacing used for weighting values at the boundary,
-                                which currently is only needed when using surface tension.
+                                which is needed when using a surface-normal method.
 - `color_value`:                Integer label used for calculation of surface normals.
                                 Currently this is only used together with [`BoundaryModelDummyParticles`](@ref) and
                                 [`ColorfieldSurfaceNormal`](@ref): fluid-boundary normal evaluation
@@ -130,12 +131,11 @@ function WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
         throw(ArgumentError("`ShepardKernelCorrection` cannot be used with `ContinuityDensity`"))
     end
 
-    if surface_tension !== nothing && surface_normal_method === nothing
-        surface_normal_method = ColorfieldSurfaceNormal()
-    end
+    surface_normal_method = default_surface_normal_method(surface_tension,
+                                                          surface_normal_method)
 
     if surface_normal_method !== nothing && reference_particle_spacing < eps()
-        throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using `ColorfieldSurfaceNormal` or a surface tension model"))
+        throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using a surface-normal method"))
     end
 
     pressure_acceleration = choose_pressure_acceleration_formulation(pressure_acceleration,
