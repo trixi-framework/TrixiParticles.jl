@@ -6,6 +6,11 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ## Version 0.5.4
 
+### Features
+
+- Added an optional Makie recipe for rendering two- and three-dimensional particle systems
+  with `plot`, `plot!`, `trixi2makie`, and `trixi2makie!`.
+
 ### API Changes
 
 - Replaced the experimental `MechanicalWorkCalculatorCallback` with
