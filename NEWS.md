@@ -39,6 +39,10 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Fixed the viscous force on structures in fluid-structure interaction, which had the wrong
   sign (#1348).
 
+### Features
+
+- Added GPU support for particle packing (#1296).
+
 ## Version 0.5.3
 
 ### Features
