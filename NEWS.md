@@ -4,6 +4,14 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.6.0
+
+### Important Bugfixes
+
+- Fixed correction-cache updates after open-boundary interpolation and particle transfers
+  so callback-based particle shifting uses current density and gradients for newly
+  activated and reused buffer particles.
+
 ## Version 0.5.4
 
 ### API Changes
