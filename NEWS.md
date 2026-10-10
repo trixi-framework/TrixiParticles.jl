@@ -10,7 +10,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 - Fixed correction-cache updates after open-boundary interpolation and particle transfers
   so callback-based particle shifting uses current density and gradients for newly
-  activated and reused buffer particles.
+  activated and reused buffer particles (#1353).
 
 ## Version 0.5.4
 
