@@ -4,6 +4,7 @@
 include("density_calculators.jl")
 include("corrections.jl")
 include("smoothing_kernels.jl")
+include("gravity.jl")
 include("initial_condition.jl")
 include("buffer.jl")
 include("interpolation.jl")
