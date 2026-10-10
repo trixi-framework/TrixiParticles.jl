@@ -20,6 +20,10 @@ small_sphere_y = initial_fluid_size[2] + small_sphere_radius
 small_sphere_x_positions = 0.2:(3 * small_sphere_radius):1.8
 small_sphere_contact_model = RigidContactModel(; normal_stiffness=2.0e5,
                                                normal_damping=120.0,
+                                               static_friction_coefficient=0.6,
+                                               kinetic_friction_coefficient=0.4,
+                                               tangential_stiffness=1.0e5,
+                                               tangential_damping=150.0,
                                                contact_distance=2.0 *
                                                                 structure_particle_spacing)
 extra_structure_systems = [begin
