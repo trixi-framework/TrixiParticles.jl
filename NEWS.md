@@ -4,6 +4,101 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.6.0
+
+### API Changes
+
+- Replaced the `correction` keyword of `WeaklyCompressibleSPHSystem`,
+  `EntropicallyDampedSPHSystem`, and `BoundaryModelDummyParticles` with
+  `density_correction`, `gradient_correction`, and `force_correction`.
+  Use `density_correction=ShepardKernelCorrection()` for density normalization,
+  `gradient_correction` for kernel/gradient corrections, and `force_correction` for
+  `AkinciFreeSurfaceCorrection` (#1285).
+- Custom functions passed as `pressure_acceleration` must accept both pair gradients
+  (`W_a`, `W_b`) when either interacting system uses an asymmetric gradient correction
+  (#1289).
+
+### Important Bugfixes
+
+- Fixed SPH correction updates to apply density corrections before pressure and update
+  boundary, gradient, and surface quantities in consistent phases across fluid and
+  structure systems (#1284).
+- Fixed Shepard density correction to handle invalid normalization coefficients,
+  finalize corrected density before pressure evaluation, and use evolved continuity
+  density for particle volumes during density reinitialization (#1292).
+- Fixed `KernelCorrection` to fall back to uncorrected gradients for invalid normalization
+  coefficients and preserve Float32 boundary correction caches (#1291).
+- Fixed gradient correction matrices to use raw kernel gradients, scale-independent
+  singularity detection, and identity fallback. Added validation of blended correction
+  factors and preserved boundary cache element types (#1290).
+- Fixed `MixedKernelGradientCorrection` to assemble its matrix from the kernel-corrected
+  raw gradient and preserve matching cache element types (#1288).
+- Fixed linear-momentum conservation for corrected pressure forces, made EDAC
+  average-pressure reduction pair-symmetric, and applied exact fluid-structure pressure
+  reaction forces (#1289).
+
+## Version 0.5.6
+
+### Features
+
+- Added history-dependent static and kinetic friction to `RigidContactModel` for
+  rigid-wall and rigid-rigid contact. Tangential spring history requires
+  `UpdateCallback(interval=1)` and currently supports CPU backends (#1126).
+- Added optional suppression of attractive pressure forces at sparsely wetted boundaries
+  through `AdamiPressureExtrapolation(anti_sticking_threshold=...)`. The default threshold
+  of zero disables this anti-sticking technique (#1315).
+
+## Version 0.5.5
+
+### API Changes
+
+- `load_geometry` now closes 2D `.asc` and `.dxf` curves by default. Use `close_curve=false`
+  for intentional open curves. `ComplexShape`, geometric `intersect` and `setdiff`, and
+  `SignedDistanceField` with `use_for_boundary_packing=true` now require closed
+  geometries (#1187).
+
+### Features
+
+- Added `BoundaryModelDummyParticles(initial_condition; fluid_system, ...)`, which infers
+  kernel, smoothing length, correction, and state equation from the adjacent fluid system.
+  `OpenBoundarySystem` now defaults to `BoundaryModelMirroringTafuni` and infers its
+  buffer size from the fluid system (#1145).
+
+### Important Bugfixes
+
+- Fixed plane interpolation coordinates to match the requested bounds, filtering of
+  tensor-valued interpolation results, and wall-velocity interpolation with
+  `cut_off_bnd=false` (#1183).
+- Fixed matrix point inputs, including non-contiguous views, for winding-number algorithms
+  and `SignedDistanceField`. `WindingNumberJacobson()` now defaults to non-hierarchical
+  winding when no geometry is provided (#1188).
+- Fixed stale connectivity, normals, and bounding boxes after geometry face deletion.
+  The new `delete_faces(geometry, indices)` function returns a geometry with the selected
+  faces removed and derived data rebuilt (#1190).
+- Fixed zero vertex normals in triangle meshes being normalized to `NaN` for degenerate
+  or duplicated faces (#1191).
+- Fixed `RectangularTank` to trim overlapping fluid regions to the tank dimensions,
+  handle empty fluid regions, and validate sizes, boundary layers, and spacing ratio (#1198).
+- Fixed `sample_boundary` to respect `boundary_thickness` and the offset implied by
+  `place_on_shell`. Added a matching `boundary_thickness` keyword to `ParticlePackingSystem`
+  so boundary packing uses the sampled thickness (#1199).
+- Fixed validation of `SphereShape` cutout bounds and `extrude_geometry` direction
+  dimensionality, zero directions, and non-positive extrusion layer counts (#1200).
+- Fixed 3D `BoundaryZone` validation to reject collinear or non-orthogonal face edges
+  and inconsistent face normals before sampling particles (#1202).
+- Fixed surface-tension configuration checks to inspect neighboring fluid systems and
+  require a surface tension model or surface normal method on all fluids when any fluid
+  uses one, while excluding particle-packing systems (#1214).
+- Fixed configuration validation to reject mixing `ImplicitIncompressibleSPHSystem`
+  with `EntropicallyDampedSPHSystem` (#1217).
+- Fixed EDAC kernel and gradient correction cache updates and applied Shepard density
+  correction when using `SummationDensity` (#1218).
+
+### Documentation
+
+- Added a tutorial for setting up 2D simulations from geometry files, including a curved
+  pipe and a coastline dam-break basin (#1094).
+
 ## Version 0.5.4
 
 ### API Changes
@@ -15,13 +110,13 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   or `RigidBodySystem` must now be the same as the compact support of all fluid systems
   in the simulation (#1348).
 
-### Features
-
-- Added the `ThrustCalculator` custom quantity to calculate the hydrodynamic force exerted by
-  interacting fluid systems on a `TotalLagrangianSPHSystem` along a given `direction` (#1229).
-
 ### Important Bugfixes
 
+- Fixed `RectangularShape` handling of coordinate-dependent density in hydrostatic pressure
+  initialization and prevented coordinate perturbation from changing the global random state (#1196).
+- Fixed correction-cache updates after open-boundary interpolation and particle transfers
+  so callback-based particle shifting uses current density and gradients for newly
+  activated and reused buffer particles (#1353).
 - Fixed asymmetric DEM contact forces near coincidence by using a pair-local
   radius scale for the near-zero distance cutoff (#1347).
 - Fixed the sign of the quadratic term in `ArtificialViscosityMonaghan` (#1295).
@@ -29,15 +124,28 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   formulas, inconsistent force-vs-acceleration notation, and wrong LaTeX text-mode
   commands (#1086).
 - Fixed restarting with EDAC from solution objects (#1213) and from VTK files (#1297).
-- Fixed characteristic open boundaries to keep fallback values local to each boundary zone
-  and reject unsupported bidirectional zones (#1203).
 - Fixed the custom quantities `kinetic_energy`, `total_mass`, `max_pressure`, `min_pressure`,
   `avg_pressure`, `max_density`, `min_density` and `avg_density` to only take active particles
   into account (#1184).
+- Fixed the Morris surface tension curvature, which was divided by a reset correction
+  factor when more than one fluid system used a surface normal method (#1214).
+- Fixed characteristic open boundaries to keep fallback values local to each boundary zone
+  and reject unsupported bidirectional zones (#1203).
 - Fixed the IISPH pressure solver to clear stale density error contributions of
   zero-pressure particles instead of retaining them in the termination condition (#1215).
 - Fixed the viscous force on structures in fluid-structure interaction, which had the wrong
   sign (#1348).
+
+- Hardened surface tension model configuration by validating coefficients and surface-normal
+  thresholds, avoiding unnecessary normal allocation for `CohesionForceAkinci`, and stabilizing
+  Akinci cohesion and adhesion kernels across floating-point scales.
+
+### Features
+
+- Added the `ThrustCalculator` custom quantity to calculate the hydrodynamic force exerted by
+  interacting fluid systems on a `TotalLagrangianSPHSystem` along a given `direction` (#1229).
+- Added an optional Makie recipe for rendering two- and three-dimensional particle systems
+  with `plot`, `plot!`, `trixi2makie`, and `trixi2makie!`.
 
 ## Version 0.5.3
 

@@ -224,6 +224,29 @@
             @test_throws ArgumentError(error_str) Semidiscretization(fluid_system,
                                                                      boundary_system)
         end
+
+        @testset verbose=true "Fluid Surface Tension Consistency" begin
+            struct FluidSurfaceMock <: TrixiParticles.AbstractFluidSystem{2}
+                surface_tension::Any
+                surface_normal_method::Any
+            end
+
+            system_with_surface = FluidSurfaceMock(SurfaceTensionMorris(),
+                                                   ColorfieldSurfaceNormal())
+            system_with_normal = FluidSurfaceMock(nothing, ColorfieldSurfaceNormal())
+            system_without_surface = FluidSurfaceMock(nothing, nothing)
+
+            error_str = "either none or all fluid systems in a simulation need " *
+                        "to use a surface tension model or a surface normal method."
+            @test_throws ArgumentError(error_str) TrixiParticles.check_configuration(system_with_surface,
+                                                                                     (system_with_surface,
+                                                                                      system_without_surface),
+                                                                                     nothing)
+            @test_nowarn TrixiParticles.check_configuration(system_with_surface,
+                                                            (system_with_surface,
+                                                             system_with_normal),
+                                                            nothing)
+        end
     end
 
     @testset verbose=true "Interaction Matrix" begin
@@ -289,8 +312,7 @@
                                                          structure_ic.mass,
                                                          SummationDensity(), kernel,
                                                          smoothing_length;
-                                                         state_equation,
-                                                         correction=nothing)
+                                                         state_equation)
             structure = TotalLagrangianSPHSystem(structure_ic;
                                                  smoothing_kernel=kernel,
                                                  smoothing_length,
@@ -325,7 +347,7 @@
                                                  particle_spacing=1.0)
             system = WeaklyCompressibleSPHSystem(initial_condition;
                                                  density_calculator=SummationDensity(),
-                                                 correction=ShepardKernelCorrection(),
+                                                 density_correction=ShepardKernelCorrection(),
                                                  state_equation,
                                                  smoothing_kernel=kernel,
                                                  smoothing_length)
@@ -342,7 +364,7 @@
             u = TrixiParticles.wrap_u(u_ode, system, semi)
 
             TrixiParticles.compute_correction_values!(system,
-                                                      TrixiParticles.system_correction(system),
+                                                      TrixiParticles.correction_density(system.correction),
                                                       u, v_ode, u_ode, semi)
 
             return copy(system.cache.kernel_correction_coefficient), semi

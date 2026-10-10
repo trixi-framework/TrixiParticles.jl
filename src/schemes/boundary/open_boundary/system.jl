@@ -1,7 +1,9 @@
 @doc raw"""
     OpenBoundarySystem(boundary_zone::BoundaryZone;
-                       fluid_system::AbstractFluidSystem, buffer_size::Integer,
-                       boundary_model, calculate_flow_rate=false)
+                       fluid_system::AbstractFluidSystem,
+                       buffer_size=default_open_boundary_buffer_size(fluid_system),
+                       boundary_model=BoundaryModelMirroringTafuni(),
+                       calculate_flow_rate=false)
 
 Open boundary system for in- and outflow particles.
 
@@ -10,7 +12,10 @@ Open boundary system for in- and outflow particles.
 
 # Keywords
 - `fluid_system`: The corresponding fluid system
-- `boundary_model`: Boundary model (see [Open Boundary Models](@ref open_boundary_models))
+- `buffer_size`: Number of buffer particles for the boundary system.
+                 Defaults to the buffer size of `fluid_system`.
+- `boundary_model`: Boundary model (see [Open Boundary Models](@ref open_boundary_models)).
+                    Defaults to [`BoundaryModelMirroringTafuni`](@ref).
 - `calculate_flow_rate=false`: Set to `true` to calculate the volumetric flow rate through each boundary zone.
                                This value is automatically enabled when using [`RCRWindkesselModel`](@ref).
                                Otherwise, it is useful only for postprocessing.
@@ -49,6 +54,18 @@ struct OpenBoundarySystem{BM, ELTYPE, NDIMS, IC, FS, FSI, K, ARRAY1D, BC, FC, BZ
     cache                             :: C
 end
 
+function default_open_boundary_buffer_size(fluid_system)
+    fluid_buffer = buffer(fluid_system)
+
+    if fluid_buffer isa SystemBuffer
+        return fluid_buffer.buffer_size
+    end
+
+    throw(ArgumentError("`buffer_size` could not be inferred for `OpenBoundarySystem` " *
+                        "because `fluid_system` has no buffer. Pass `buffer_size=...` " *
+                        "explicitly or construct `fluid_system` with `buffer_size=...`."))
+end
+
 function OpenBoundarySystem(boundary_model, initial_condition, fluid_system,
                             fluid_system_index, smoothing_kernel, smoothing_length, mass,
                             volume, boundary_candidates, fluid_candidates,
@@ -70,8 +87,10 @@ function OpenBoundarySystem(boundary_model, initial_condition, fluid_system,
 end
 
 function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
-                            fluid_system::AbstractFluidSystem, buffer_size::Integer,
-                            boundary_model, calculate_flow_rate=false,
+                            fluid_system::AbstractFluidSystem,
+                            buffer_size=default_open_boundary_buffer_size(fluid_system),
+                            boundary_model=BoundaryModelMirroringTafuni(),
+                            calculate_flow_rate=false,
                             pressure_acceleration=fluid_system.pressure_acceleration_formulation,
                             shifting_technique=boundary_model isa
                                                BoundaryModelDynamicalPressureZhang ?

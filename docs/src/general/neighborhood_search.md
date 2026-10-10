@@ -8,7 +8,8 @@ different implementations.
 
 !!! note "Usage"
     To run a simulation with a neighborhood search implementation, pass a neighborhood
-    search template to the constructor of the [`Semidiscretization`](@ref).
+    search template to the constructor of the
+    [`Semidiscretization`](@ref TrixiParticles.Semidiscretization).
     A template is just an empty neighborhood search with search radius `0.0`.
     See [`copy_neighborhood_search`](@ref) and the examples below for more details.
     ```jldoctest semi_example; output=false, setup = :(using TrixiParticles; trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing); system1 = fluid_system; system2 = boundary_system)

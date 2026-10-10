@@ -21,7 +21,7 @@ using Polyester: Polyester, @batch
 using Printf: @printf, @sprintf
 using ReadVTK: ReadVTK
 using RecipesBase: RecipesBase, @series
-using Random: seed!
+using Random: Random
 using SciMLBase: SciMLBase, CallbackSet, DiscreteCallback, DynamicalODEProblem,
                  derivative_discontinuity!, get_tmp_cache, set_proposed_dt!,
                  ODESolution, ODEProblem, terminate!, add_tstop!
@@ -68,6 +68,7 @@ include("preprocessing/preprocessing.jl")
 include("io/io.jl")
 include("general/restart.jl")
 include("visualization/recipes_plots.jl")
+include("visualization/makie.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
 export PairsNHSHandler, SharedNHSHandler
@@ -104,14 +105,16 @@ export PrescribedMotion, OscillatingMotion2D
 export RCRWindkesselModel
 export examples_dir, validation_dir
 export trixi2vtk, vtk2trixi
+export trixi2makie, trixi2makie!
 export RectangularTank, RectangularShape, SphereShape, ComplexShape
 export ParticlePackingSystem, SignedDistanceField
 export WindingNumberHormann, WindingNumberJacobson
-export VoxelSphere, RoundSphere, reset_wall!, extrude_geometry, load_geometry,
+export VoxelSphere, RoundSphere, reset_wall!, extrude_geometry, load_geometry, delete_faces,
        sample_boundary, planar_geometry_to_face
 export SourceTermDamping
 export ShepardKernelCorrection, KernelCorrection, AkinciFreeSurfaceCorrection,
-       GradientCorrection, BlendedGradientCorrection, MixedKernelGradientCorrection
+       GradientCorrection, BlendedGradientCorrection, MixedKernelGradientCorrection,
+       CorrectionConfiguration
 export nparticles, eachparticle
 export available_data, kinetic_energy, total_mass, max_pressure, min_pressure, avg_pressure,
        max_density, min_density, avg_density
