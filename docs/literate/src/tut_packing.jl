@@ -75,8 +75,8 @@ plot!(right_margin=5Plots.mm) #hide
 # ## Creating an initial configuration of boundary particles
 
 # To create the initial configuration of the boundary particles,
-# we use the sampled points of the SDF whose signed distance lies between 0
-# and `boundary_thickness`.
+# we use the sampled points of the SDF whose signed distance lies between the
+# geometry offset implied by `place_on_shell` and `boundary_thickness`.
 # Here, we need to specify the `density` of the boundary particles.
 # As an example, we choose `1.0` for all particles.
 # This gives us an [`InitialCondition`](@ref InitialCondition) for the boundary particles.
@@ -125,7 +125,8 @@ plot!(geometry, linestyle=:dash, label=nothing, showaxis=false, color=:black,
 # ## Particle packing
 
 # In the following, we will essentially follow the same steps described in the fluid tutorials.
-# That means we will generate systems that are then passed to the [`Semidiscretization`](@ref).
+# That means we will generate systems that are then passed to the
+# [`Semidiscretization`](@ref TrixiParticles.Semidiscretization).
 # The difference from a typical physical simulation is that we use [`ParticlePackingSystem`](@ref),
 # which does not represent any physical law. Instead, we only use the simulation framework to time-integrate
 # the packing process.
@@ -211,7 +212,7 @@ plot!(geometry, seriestype=:path, color=:black, label=nothing, linewidth=2)
 boundary_system = ParticlePackingSystem(boundary_sampled; is_boundary=true,
                                         smoothing_kernel, smoothing_length,
                                         boundary_compress_factor=0.7, signed_distance_field,
-                                        background_pressure)
+                                        boundary_thickness, background_pressure)
 
 # We can now couple the boundary system with the interior system:
 semi = Semidiscretization(packing_system, boundary_system)
@@ -251,10 +252,12 @@ fixed_system = ParticlePackingSystem(packed_ic; smoothing_kernel, smoothing_leng
 
 # Now we define a rectangular domain that we want to pack.
 # In practice, you could create any `InitialCondition` that encloses your complex geometry.
-tank_domain = RectangularTank(particle_spacing, (4, 4), (0, 0), min_coordinates=(-1, -2),
-                              density)
+domain_size = (4, 4)
+n_particles_per_dimension = round.(Int, domain_size ./ particle_spacing)
+tank_domain = RectangularShape(particle_spacing, n_particles_per_dimension, (-1, -2);
+                               density)
 
-sampled_outer_domain = setdiff(tank_domain.fluid, packed_ic)
+sampled_outer_domain = setdiff(tank_domain, packed_ic)
 
 # If we plot these two `InitialCondition`s, we can see
 # that the geometry interface is not properly represented yet.

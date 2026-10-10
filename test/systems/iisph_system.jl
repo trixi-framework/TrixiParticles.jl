@@ -68,6 +68,7 @@
             @test system.max_iterations == max_iterations
             @test system.time_step == time_step
             @test length(system.density) == size(coordinates, 2)
+            @test TrixiParticles.system_state_equation(system) === nothing
 
             # A too-short acceleration vector triggers dimension validation
             error_str1 = "`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"
@@ -491,5 +492,31 @@
             @test TrixiParticles.minimum_iisph_iterations(system_iters) == 3
             @test TrixiParticles.maximum_iisph_iterations(system_iters) == 7
         end
+    end
+
+    @testset "Reject incompatible fluid systems" begin
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        smoothing_length = 0.5
+        coordinates = [0.0 0.1
+                       0.0 0.2]
+        velocity = zeros(2, 2)
+        mass = [1.0, 1.0]
+        density = [1000.0, 1000.0]
+        pressure = [0.0, 0.0]
+        ic = InitialCondition(; coordinates, velocity, mass, density, pressure)
+
+        iisph_system = ImplicitIncompressibleSPHSystem(ic;
+                                                       smoothing_kernel,
+                                                       smoothing_length,
+                                                       reference_density=1000.0,
+                                                       time_step=0.5)
+        edac_system = EntropicallyDampedSPHSystem(ic; smoothing_kernel,
+                                                  smoothing_length,
+                                                  sound_speed=10.0)
+
+        error_str = "`ImplicitIncompressibleSPHSystem` cannot be used together with " *
+                    "`EntropicallyDampedSPHSystem`"
+        @test_throws ArgumentError(error_str) Semidiscretization(iisph_system,
+                                                                 edac_system)
     end
 end
