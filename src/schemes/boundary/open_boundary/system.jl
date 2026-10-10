@@ -12,7 +12,9 @@ Open boundary system for in- and outflow particles.
 - `fluid_system`: The corresponding fluid system
 - `boundary_model`: Boundary model (see [Open Boundary Models](@ref open_boundary_models))
 - `calculate_flow_rate=false`: Set to `true` to calculate the volumetric flow rate through each boundary zone.
-                               This value is automatically enabled when using [`RCRWindkesselModel`](@ref).
+                               This value is automatically enabled when using a pressure
+                               model like [`RCRWindkesselModel`](@ref) or
+                               [`ImpedanceOutletPressure`](@ref).
                                Otherwise, it is useful only for postprocessing.
                                When enabled, velocities are interpolated at the sampling points
                                defined in each [`BoundaryZone`](@ref) and integrated to compute the flow rate.
@@ -81,6 +83,10 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                                               density_diffusion(fluid_system) : nothing)
     boundary_zones_ = filter(bz -> !isnothing(bz), boundary_zones)
 
+    # Set up pressure models that depend on the boundary model,
+    # like `ImpedanceOutletPressure`.
+    boundary_zones_ = map(bz -> setup_pressure_model(bz, boundary_model), boundary_zones_)
+
     if boundary_model isa BoundaryModelDynamicalPressureZhang &&
        !isnothing(shifting_technique)
         # When dynamical pressure is used with shifting, the shifting is ramped up until
@@ -106,7 +112,8 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                                         density_diffusion, calculate_flow_rate,
                                         boundary_zones_)...)
 
-    if any(pr -> isa(pr, RCRWindkesselModel), cache.pressure_reference_values)
+    # All pressure models compute the pressure from the flow rate
+    if any(pr -> isa(pr, AbstractPressureModel), cache.pressure_reference_values)
         calculate_flow_rate = true
     end
 
@@ -160,7 +167,7 @@ function create_cache_open_boundary(boundary_model, fluid_system, initial_condit
              velocity_reference_values)
 
     if calculate_flow_rate ||
-       any(pr -> isa(pr, RCRWindkesselModel), cache.pressure_reference_values)
+       any(pr -> isa(pr, AbstractPressureModel), cache.pressure_reference_values)
         if any(zone -> isnothing(zone.cache.sample_points), boundary_zones)
             throw(ArgumentError("`sample_points` must be specified for all boundary zones when " *
                                 "`calculate_flow_rate` is true.\n" *

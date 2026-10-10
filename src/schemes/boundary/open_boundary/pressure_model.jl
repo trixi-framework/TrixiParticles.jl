@@ -120,3 +120,182 @@ end
 function (pressure_model::RCRWindkesselModel)(x, t)
     return pressure_model.pressure[]
 end
+
+@doc raw"""
+    ImpedanceOutletPressure(; reference_velocity, impedance, reference_pressure=0.0)
+
+Pressure model for an outlet [`BoundaryZone`](@ref) that lets waves leave the domain
+without reflecting them back, while keeping the pressure level fixed.
+See [Non-reflecting outlet](@ref impedance_outlet) for more details.
+
+In every time step, the pressure in the boundary zone is set to
+```math
+p = p_{\text{ref}} + Z \left( \bar{u} - u_{\text{ref}} \right),
+```
+where ``\bar{u} = Q / A`` is the mean outflow velocity, that is, the volumetric
+flow rate ``Q`` out of the domain divided by the area ``A`` of the boundary face.
+
+With the impedance ``Z = \rho_0 c``, where ``\rho_0`` is the reference density and
+``c`` is the speed of sound of the fluid, sound waves leave the domain without reflection.
+When the fluid leaves the domain with the expected velocity ``u_{\text{ref}}``,
+the pressure is ``p_{\text{ref}}``.
+When it leaves faster, the pressure is increased, which slows it down, and vice versa.
+
+!!! warning
+    Note that `reference_velocity` must be the inflow rate divided by the area of the outlet
+    face. Choosing a different value will cause the pressure level to settle at a different
+    value than ``p_{\text{ref}}``. Even a small deviation from the correct value can cause
+    a large pressure shift, which can make the simulation unstable.
+
+# Keywords
+- `reference_velocity`:     Expected mean outflow velocity ``u_{\text{ref}}``
+                            (positive when the fluid leaves the domain).
+                            When the outflow is fed by an inflow, this is the inflow rate
+                            divided by the area of the outlet face.
+- `impedance`:              Impedance ``Z``. Use `fluid_density * sound_speed` for an
+                            outlet that does not reflect waves.
+- `reference_pressure=0.0`: Pressure ``p_{\text{ref}}`` when the fluid leaves the domain
+                            with the velocity `reference_velocity`.
+
+# Examples
+```jldoctest; output=false
+fluid_density = 1000.0
+sound_speed = 15.0
+
+pressure_model = ImpedanceOutletPressure(; reference_velocity=1.0,
+                                         impedance=fluid_density * sound_speed)
+
+outflow = BoundaryZone(; boundary_face=([2.0, 0.0], [2.0, 1.0]), face_normal=(-1.0, 0.0),
+                       particle_spacing=0.1, density=fluid_density, open_boundary_layers=4,
+                       reference_pressure=pressure_model)
+
+# output
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ BoundaryZone                                                                                     │
+│ ════════════                                                                                     │
+│ boundary type: ………………………………………… bidirectional_flow                                               │
+│ #particles: ………………………………………………… 40                                                               │
+│ width: ……………………………………………………………… 0.4                                                              │
+│ cross sectional area: ……………………… 1.0                                                              │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+"""
+struct ImpedanceOutletPressure{ELTYPE <: Real, A, P, FR} <: AbstractPressureModel
+    reference_pressure   :: ELTYPE
+    reference_velocity   :: ELTYPE
+    impedance            :: ELTYPE
+    cross_sectional_area :: A  # Set when the `OpenBoundarySystem` is created
+    pressure             :: P
+    flow_rate            :: FR
+end
+
+function ImpedanceOutletPressure(; reference_velocity, impedance, reference_pressure=0.0)
+    ELTYPE = typeof(float(impedance))
+
+    return ImpedanceOutletPressure(convert(ELTYPE, reference_pressure),
+                                   convert(ELTYPE, reference_velocity),
+                                   convert(ELTYPE, impedance), nothing,
+                                   Ref(convert(ELTYPE, reference_pressure)),
+                                   Ref(zero(ELTYPE)))
+end
+
+function Base.show(io::IO, ::MIME"text/plain", pressure_model::ImpedanceOutletPressure)
+    @nospecialize pressure_model # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, pressure_model)
+    else
+        summary_header(io, "ImpedanceOutletPressure")
+        summary_line(io, "reference_pressure", pressure_model.reference_pressure)
+        summary_line(io, "reference_velocity", pressure_model.reference_velocity)
+        summary_line(io, "impedance", pressure_model.impedance)
+        summary_footer(io)
+    end
+end
+
+function calculate_pressure!(pressure_model::ImpedanceOutletPressure, system,
+                             current_flow_rate, dt)
+    (; reference_pressure, reference_velocity, impedance, cross_sectional_area,
+     pressure, flow_rate) = pressure_model
+
+    flow_rate[] = current_flow_rate
+    mean_velocity = current_flow_rate / cross_sectional_area
+    pressure[] = reference_pressure + impedance * (mean_velocity - reference_velocity)
+
+    return pressure_model
+end
+
+function (pressure_model::ImpedanceOutletPressure)(x, t)
+    return pressure_model.pressure[]
+end
+
+# Initial pressure of the boundary zone with this pressure model
+function set_initial_pressure!(pressure_model, rest_pressure)
+    pressure_model.pressure[] = rest_pressure
+end
+
+function set_initial_pressure!(pressure_model::ImpedanceOutletPressure, rest_pressure)
+    pressure_model.pressure[] = pressure_model.reference_pressure
+end
+
+# Called when the `OpenBoundarySystem` is created.
+# Returns the boundary zone with the pressure model and the flow-rate sample points
+# set up for this boundary model.
+function setup_pressure_model(boundary_zone, boundary_model)
+    pressure_model = boundary_zone.reference_values.reference_pressure
+
+    return setup_pressure_model(boundary_zone, pressure_model, boundary_model)
+end
+
+setup_pressure_model(boundary_zone, pressure_model, boundary_model) = boundary_zone
+
+function setup_pressure_model(boundary_zone, pressure_model::ImpedanceOutletPressure,
+                              boundary_model)
+    (; face_normal) = boundary_zone
+    (; sample_points) = boundary_zone.cache
+
+    # Without sample points, `create_cache_open_boundary` throws an error
+    isnothing(sample_points) && return boundary_zone
+
+    (; reference_pressure, reference_velocity, impedance, pressure,
+     flow_rate) = pressure_model
+    cross_sectional_area = boundary_zone.cache.cross_sectional_area
+
+    # Create a new pressure model, so that the original one remains unchanged
+    pressure_model_new = ImpedanceOutletPressure(reference_pressure, reference_velocity,
+                                                 impedance, cross_sectional_area,
+                                                 Ref(pressure[]), Ref(flow_rate[]))
+    reference_values_new = (; boundary_zone.reference_values...,
+                            reference_pressure=pressure_model_new)
+    boundary_zone_new = @set boundary_zone.reference_values = reference_values_new
+
+    offset = pressure_application_offset(boundary_model, boundary_zone)
+
+    # The boundary pressure acts at the boundary face, where the sample points are
+    isnothing(offset) && return boundary_zone_new
+
+    # Move the sample points along the face normal to the plane at the distance `offset`
+    # downstream of the boundary face, where the boundary model applies the pressure.
+    # Note that `face_normal` points into the fluid domain and `zone_origin` lies in the
+    # boundary face.
+    # This must be a new array, so that the original boundary zone remains unchanged.
+    sample_points_new = copy(sample_points)
+    for point in axes(sample_points_new, 2)
+        position = extract_svector(sample_points, Val(length(face_normal)), point)
+        distance = dot(boundary_zone.zone_origin - position, face_normal)
+        position_new = position - (offset - distance) * face_normal
+        for dim in eachindex(position_new)
+            sample_points_new[dim, point] = position_new[dim]
+        end
+    end
+
+    return @set boundary_zone_new.cache.sample_points = sample_points_new
+end
+
+# Distance downstream of the boundary face at which the boundary model applies
+# the boundary pressure.
+# The mirroring and characteristics models set the pressure of all particles in the
+# boundary zone, so the boundary pressure acts at the boundary face.
+# Return `nothing` to keep the sample points at the boundary face.
+pressure_application_offset(boundary_model, boundary_zone) = nothing
+# See `dynamical_pressure.jl` for `BoundaryModelDynamicalPressureZhang`
