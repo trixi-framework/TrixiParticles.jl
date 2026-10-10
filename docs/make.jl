@@ -113,6 +113,7 @@ makedocs(sitename="TrixiParticles.jl",
                      "Interpolation" => joinpath("general", "interpolation.md"),
                      "Density Calculators" => joinpath("general", "density_calculators.md"),
                      "Smoothing Kernels" => joinpath("general", "smoothing_kernels.md"),
+                     "Gravity" => joinpath("general", "gravity.md"),
                      "Neighborhood Search" => joinpath("general", "neighborhood_search.md"),
                      "Util" => joinpath("general", "util.md")
                  ],
