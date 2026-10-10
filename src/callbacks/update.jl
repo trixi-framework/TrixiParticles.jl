@@ -116,6 +116,8 @@ function run_update_callback!(callback::UpdateCallback, integrator; initial)
             update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t, integrator)
         end
 
+        update_systems_and_nhs(v_ode, u_ode, semi, t, callback)
+
         foreach_system(semi) do system
             update_particle_packing(system, v_ode, u_ode, semi, integrator)
         end
@@ -180,6 +182,47 @@ function validate_rigid_contact_update_callbacks!(semi, integrator)
     end
 
     return semi
+end
+
+# Callback-only preparation after open-boundary updates. The four-argument RHS
+# preparation remains unconditional; this variant dispatches on cache consumers.
+@inline function update_systems_and_nhs(v_ode, u_ode, semi, t, callback::UpdateCallback)
+    return update_systems_and_nhs(v_ode, u_ode, semi, t, callback, semi.systems)
+end
+
+@inline update_systems_and_nhs(v_ode, u_ode, semi, t, ::UpdateCallback, ::Tuple{}) = nothing
+
+# Find the first open boundary through tuple dispatch. Only then search all shifting
+# strategies for a callback cache consumer.
+@inline function update_systems_and_nhs(v_ode, u_ode, semi, t, callback::UpdateCallback,
+                                        systems::Tuple)
+    return update_systems_and_nhs(v_ode, u_ode, semi, t, callback, Base.tail(systems))
+end
+
+@inline function update_systems_and_nhs(v_ode, u_ode, semi, t, ::UpdateCallback,
+                                        systems::Tuple{<:OpenBoundarySystem, Vararg})
+    shifting = map(shifting_technique, semi.systems)
+    return update_systems_and_nhs(v_ode, u_ode, semi, t, shifting)
+end
+
+@inline update_systems_and_nhs(v_ode, u_ode, semi, t, ::Tuple{}) = nothing
+
+@inline function update_systems_and_nhs(v_ode, u_ode, semi, t, shifting::Tuple)
+    return update_systems_and_nhs(v_ode, u_ode, semi, t, first(shifting),
+                                  Base.tail(shifting))
+end
+
+# A strategy without a callback cache consumer skips to the remaining strategies.
+@inline function update_systems_and_nhs(v_ode, u_ode, semi, t, shifting, remaining::Tuple)
+    return update_systems_and_nhs(v_ode, u_ode, semi, t, remaining)
+end
+
+# The second type parameter selects shifting updated from UpdateCallback. Stop
+# after the first consumer: one global staged pass prepares every interacting system.
+function update_systems_and_nhs(v_ode, u_ode, semi, t,
+                                ::ParticleShiftingTechnique{<:Any, false}, remaining::Tuple)
+    @notimeit timer() update_systems_and_nhs(v_ode, u_ode, semi, t)
+    return nothing
 end
 
 function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:UpdateCallback})

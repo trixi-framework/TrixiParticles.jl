@@ -114,6 +114,9 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 - Fixed `RectangularShape` handling of coordinate-dependent density in hydrostatic pressure
   initialization and prevented coordinate perturbation from changing the global random state (#1196).
+- Fixed correction-cache updates after open-boundary interpolation and particle transfers
+  so callback-based particle shifting uses current density and gradients for newly
+  activated and reused buffer particles (#1353).
 - Fixed asymmetric DEM contact forces near coincidence by using a pair-local
   radius scale for the near-zero distance cutoff (#1347).
 - Fixed the sign of the quadratic term in `ArtificialViscosityMonaghan` (#1295).
@@ -139,6 +142,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Features
 
+- Added the `ThrustCalculator` custom quantity to calculate the hydrodynamic force exerted by
+  interacting fluid systems on a `TotalLagrangianSPHSystem` along a given `direction` (#1229).
 - Added an optional Makie recipe for rendering two- and three-dimensional particle systems
   with `plot`, `plot!`, `trixi2makie`, and `trixi2makie!`.
 
