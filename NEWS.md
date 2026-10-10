@@ -22,6 +22,9 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Important Bugfixes
 
+- Fixed correction-cache updates after open-boundary interpolation and particle transfers
+  so callback-based particle shifting uses current density and gradients for newly
+  activated and reused buffer particles (#1353).
 - Fixed asymmetric DEM contact forces near coincidence by using a pair-local
   radius scale for the near-zero distance cutoff (#1347).
 - Fixed the sign of the quadratic term in `ArtificialViscosityMonaghan` (#1295).

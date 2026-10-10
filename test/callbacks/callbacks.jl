@@ -54,6 +54,7 @@
     include("stepsize.jl")
     include("postprocess.jl")
     include("update.jl")
+    include("open_boundary_shifting.jl")
     include("sorting.jl")
     include("solution_saving.jl")
     include("density_reinit.jl")
