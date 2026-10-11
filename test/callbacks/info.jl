@@ -171,7 +171,8 @@
         # TimerOutputs controls the table layout, which differs between versions.
         @test occursin(r"TrixiParticles\.jl[\s─]*Time\s+Allocations", output)
         # With `bars=true`, there would be extra spacing between "avg" and "alloc".
-        @test occursin("\n Section    ncalls  time  %tot  avg    alloc  %tot  avg\n", output)
+        @test occursin("\n Section    ncalls  time  %tot  avg    alloc  %tot  avg\n",
+                       output)
     end
 
     @testset verbose=true "affect! finished with split integration" begin
