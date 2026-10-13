@@ -135,7 +135,43 @@
                                                            reference_pressure=0,
                                                            open_boundary_layers=2,
                                                            boundary_type=InFlow())
+
+        error_str = "`density` must be a scalar"
+        @test_throws ArgumentError(error_str) BoundaryZone(; boundary_face,
+                                                           particle_spacing=0.1,
+                                                           face_normal=flow_direction,
+                                                           density=x -> 1000 + x[1],
+                                                           rest_pressure=0.0,
+                                                           open_boundary_layers=2,
+                                                           boundary_type=InFlow())
     end
+    @testset verbose=true "Initial Condition With Non-Constant Fields" begin
+        # The third particle is outside the boundary zone
+        coordinates = [-0.05 -0.15 0.5 -0.1
+                       0.5 0.5 0.5 0.2]
+        velocity = [1.0 2.0 3.0 4.0
+                    5.0 6.0 7.0 8.0]
+        density = [1000.0, 1001.0, 1002.0, 1003.0]
+        mass = [1.0, 2.0, 3.0, 4.0]
+        pressure = [10.0, 20.0, 30.0, 40.0]
+        ic = InitialCondition(; coordinates, velocity, density, mass, pressure,
+                              particle_spacing=0.1)
+
+        boundary_zone = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, 1.0]),
+                                     face_normal=(1.0, 0.0), density=999.0,
+                                     particle_spacing=0.1, open_boundary_layers=2,
+                                     initial_condition=ic, boundary_type=InFlow())
+        ic_zone = boundary_zone.initial_condition
+
+        in_zone = [1, 2, 4]
+        @test ic_zone.coordinates == coordinates[:, in_zone]
+        @test ic_zone.velocity == velocity[:, in_zone]
+        @test ic_zone.density == density[in_zone]
+        @test ic_zone.mass == mass[in_zone]
+        @test ic_zone.pressure == pressure[in_zone]
+        @test boundary_zone.rest_density == 999.0
+    end
+
     @testset verbose=true "Boundary Zone 2D" begin
         particle_spacing = 0.2
         open_boundary_layers = 4

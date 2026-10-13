@@ -61,13 +61,14 @@ end
 
 @inline function impose_rest_density!(v, system, particle,
                                       boundary_model::BoundaryModelDynamicalPressureZhang)
-    (; density_rest, pressure_boundary) = system.cache
+    (; pressure_boundary) = system.cache
+    (; rest_density) = current_boundary_zone(system, particle)
 
     state_equation = system_state_equation(system.fluid_system)
     density = current_density(v, system)
 
     # Density of recycled buffer particles is obtained following the EoS (Zhang et al. 2025)
-    inverse_state_equation!(density, density_rest, state_equation, pressure_boundary,
+    inverse_state_equation!(density, rest_density, state_equation, pressure_boundary,
                             particle)
 end
 
@@ -216,14 +217,14 @@ function project_velocity_on_face_normal!(v, system, particle, boundary_zone,
     return v
 end
 
-function inverse_state_equation!(density, density_rest, state_equation::Nothing,
+function inverse_state_equation!(density, rest_density, state_equation::Nothing,
                                  pressure, particle)
     # If no equation of state is provided (e.g. for an `EntropicallyDampedSPHSystem`),
     # set the particle's density to the rest density.
-    @inbounds density[particle] = density_rest
+    @inbounds density[particle] = rest_density
     return density
 end
 
-function inverse_state_equation!(density, density_rest, state_equation, pressure, particle)
+function inverse_state_equation!(density, rest_density, state_equation, pressure, particle)
     return inverse_state_equation!(density, state_equation, pressure, particle)
 end

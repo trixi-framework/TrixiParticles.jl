@@ -167,9 +167,7 @@
         density = [10.0, 50.0, 30.0]
         pressure = [100.0, 500.0, 300.0]
 
-        # The density needs to be constant when using a buffer, so we set it in `v_ode` below
-        ic = InitialCondition(; coordinates, velocity, mass,
-                              density=fill(density[1], 3), particle_spacing=1.0)
+        ic = InitialCondition(; coordinates, velocity, mass, density, particle_spacing=1.0)
         fluid_system = WeaklyCompressibleSPHSystem(ic;
                                                    smoothing_kernel,
                                                    smoothing_length,
@@ -189,9 +187,6 @@
         ode = semidiscretize(semi_active, (0.0, 1.0))
         v_ode, u_ode = ode.u0.x
         dv_ode, du_ode = similar(v_ode), similar(u_ode)
-
-        # Set varying densities in `v_ode` (density is the last row for `ContinuityDensity`)
-        reshape(v_ode, 3, :)[3, 1:3] .= density
 
         @test total_mass(fluid_system, dv_ode, du_ode, v_ode, u_ode, semi_active, t) ==
               5.0
