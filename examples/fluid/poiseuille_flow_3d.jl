@@ -2,8 +2,9 @@
 # 3D Hagen-Poiseuille Flow Simulation (Weakly Compressible SPH)
 #
 # Based on:
-#   Zhan, X., et al. "Dynamical pressure boundary condition for weakly compressible smoothed particle hydrodynamics"
-#   Physics of Fluids, Volume 37
+#   Shuoguo Zhang, Yu Fan, Dong Wu, Chi Zhang, Xiangyu Hu.
+#   "Dynamical pressure boundary condition for weakly compressible smoothed particle hydrodynamics".
+#   Physics of Fluids 37, 027193 (2025).
 #   https://doi.org/10.1063/5.0254575
 #
 # This example sets up a 3D Hagen-Poiseuille flow simulation in a circular pipe
@@ -164,6 +165,22 @@ outlet_zone = BoundaryZone(; boundary_face=outlet_face,
 open_boundary = OpenBoundarySystem(inlet_zone, outlet_zone; fluid_system,
                                    boundary_model=open_boundary_model,
                                    buffer_size=n_buffer_particles)
+
+# The WCSPH system computes the pressure from the density and ignores the pressure of the
+# initial condition. Thus, the fluid would start at zero pressure, which is inconsistent
+# with the pressure prescribed at the open boundaries. The resulting initial pressure wave
+# can push particles out of the domain at high resolutions.
+# TODO set the density in the initial condition once #1340 is merged.
+function initial_pressure_function(pos)
+    return outlet_reference_pressure + imposed_pressure_drop * (1 - pos[1] / channel_length)
+end
+for system in (fluid_system, open_boundary)
+    (; coordinates, density) = system.initial_condition
+    for particle in TrixiParticles.each_integrated_particle(system)
+        pressure = initial_pressure_function(coordinates[:, particle])
+        density[particle] = TrixiParticles.inverse_state_equation(state_equation, pressure)
+    end
+end
 
 # ==========================================================================================
 # ==== Boundary
