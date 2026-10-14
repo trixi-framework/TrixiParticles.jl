@@ -51,22 +51,22 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
     h = initial_smoothing_length(neighbor_system)
+    zero_distance_threshold = almostzero(h)
+    zero_distance_mode = zero_distance_gradient_mode(neighbor_system, particle_system)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     foreach_point_neighbor(particle_system, neighbor_system,
                            system_coords, neighbor_coords, semi;
                            points=eachparticle) do particle, neighbor, pos_diff, distance
-        # Skip neighbors with (almost) the same position because the kernel gradient
-        # is zero, but computing it would divide by zero (see `almostzero`).
+        # Skip neighbors with the same position when both endpoint gradients are zero.
         # Note that `return` only exits the closure, i.e., skips the current neighbor.
-        skip_zero_distance(neighbor_system) && distance < almostzero(h) && return
+        skip_zero_distance(zero_distance_mode, distance, zero_distance_threshold) && return
 
-        # Now that we know that `distance` is not zero, we can safely call the unsafe
-        # version of the kernel gradient to avoid redundant zero checks.
-        # Note that we use the `neighbor_system` to compute the kernel gradient
-        # to obtain the same force as in the fluid-structure interaction.
-        grad_kernel = smoothing_kernel_grad_unsafe(neighbor_system, pos_diff,
-                                                   distance, neighbor)
+        # The structure-oriented gradient is used by the continuity equation below.
+        grad_kernel = local_smoothing_kernel_grad_unsafe(zero_distance_mode,
+                                                         neighbor_system, pos_diff,
+                                                         distance, neighbor,
+                                                         zero_distance_threshold)
 
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
@@ -82,15 +82,21 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
 
         # In fluid-structure interaction, use the "hydrodynamic pressure" of the structure
         # particles corresponding to the chosen boundary model.
-        p_a = current_pressure(v_particle_system, particle_system, particle)
-        p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)
+        p_fluid = current_pressure(v_neighbor_system, neighbor_system, neighbor)
+        p_boundary = neighbor_pressure(v_particle_system, particle_system, particle,
+                                       p_fluid)
 
-        # Compute the acceleration of the fluid particle due to the structure particle
-        # with the exact same function as in the fluid-structure interaction.
-        # Particle and neighbor (and the corresponding systems and particle quantities)
-        # are switched, so we also have to flip `pos_diff` and `grad_kernel`.
-        # By Newton's third law, the structure particle experiences the opposite force.
-        #
+        # Reconstruct the fluid-oriented pair exactly as in the fluid-structure interaction.
+        # Corrected gradients are generally not odd, so evaluating the fluid gradient at the
+        # reversed displacement would not yield the reaction force. Instead, compute the fluid
+        # acceleration with the same orientation and apply its exact negative to the structure.
+        fluid_pos_diff = -pos_diff
+        fluid_grad_kernel = local_smoothing_kernel_grad_unsafe(zero_distance_mode,
+                                                               neighbor_system,
+                                                               fluid_pos_diff,
+                                                               distance, neighbor,
+                                                               zero_distance_threshold)
+
         # Note that the extra terms of shifting techniques in the momentum equation are
         # intentionally not applied to the structure.
         # Shifting makes the fluid particles quasi-Lagrangian, i.e., they don't move
@@ -98,8 +104,9 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
         # for the momentum transported between fluid particles. They are not a force.
         dv_fluid = add_momentum_equation(zero(v_b), neighbor_system, particle_system,
                                          v_neighbor_system, v_particle_system,
-                                         neighbor, particle, -pos_diff, distance,
-                                         -grad_kernel, sound_speed, m_b, m_a, p_b, p_a,
+                                         neighbor, particle, fluid_pos_diff, distance,
+                                         fluid_grad_kernel, sound_speed, m_b, m_a,
+                                         p_fluid, p_boundary,
                                          rho_b, rho_a, v_b, v_a)
         dv_particle = -dv_fluid
 

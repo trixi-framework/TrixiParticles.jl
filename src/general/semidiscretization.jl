@@ -124,6 +124,7 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     # Check e.g. that the boundary systems are using a state equation if EDAC is not used.
     # Other checks might be added here later.
     check_configuration(systems, neighborhood_search)
+    check_pressure_acceleration_configuration(systems, interaction_matrix)
 
     sizes_u = [u_nvariables(system) * n_integrated_particles(system)
                for system in systems]
@@ -252,7 +253,8 @@ end
 Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
 
 # Arguments
-- `semi`: A [`Semidiscretization`](@ref) holding the systems involved in the simulation.
+- `semi`: A [`Semidiscretization`](@ref TrixiParticles.Semidiscretization)
+  holding the systems involved in the simulation.
 - `tspan`: The time span over which the simulation will be run.
 
 # Keywords
@@ -263,11 +265,12 @@ Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
     [trixi-framework/Trixi.jl#1583](https://github.com/trixi-framework/Trixi.jl/issues/1583).
 - `restart_with=nothing`: Restart the simulation from VTK solution files created by
     [`SolutionSavingCallback`](@ref). This can be either `nothing` (default, no restart) or
-    a tuple of filenames, one for each system in the [`Semidiscretization`](@ref). The tuple
-    order must match the system order. When restarting, `semidiscretize` replaces the initial
-    time (`tspan[1]`) with the timestamp read from the VTK files. If the provided `tspan[1]`
-    does not match the restart time, it is adjusted and an info message is logged. Timestamps
-    in multiple files must match.
+     a tuple of filenames, one for each system in the
+     [`Semidiscretization`](@ref TrixiParticles.Semidiscretization). The tuple order must match
+     the system order. When restarting, `semidiscretize` replaces the initial time (`tspan[1]`)
+     with the timestamp read from the VTK files. If the provided `tspan[1]` does not match the
+     restart time, it is adjusted and an info message is logged. Timestamps in multiple files
+     must match.
 
 # Returns
 A `DynamicalODEProblem` (see [the OrdinaryDiffEq.jl docs](https://docs.sciml.ai/DiffEqDocs/stable/types/dynamical_types/))
@@ -292,6 +295,16 @@ u0: ([...], [...]) *this line is ignored by filter*
 """
 function semidiscretize(semi, tspan; reset_threads=true, restart_with=nothing)
     (; systems) = semi
+
+    # Tangential contact uses CPU dictionaries for accepted-step history and persistent wall
+    # descriptors. Reject it before adapting state arrays so GPU runs cannot fail later in an
+    # RHS kernel with an opaque host-container error.
+    if semi.parallelization_backend isa KernelAbstractions.GPU &&
+       any(system -> system isa RigidBodySystem &&
+                     !isnothing(system.contact_model) &&
+                     has_tangential_contact(system.contact_model), systems)
+        throw(ArgumentError("rigid contact friction is not supported on GPU backends"))
+    end
 
     if restart_with isa String
         restart_with = (restart_with,)
@@ -420,7 +433,8 @@ Set the restartable state of all systems in `semi` to the final values in the so
 `sol`. This includes coordinates and velocities as well as integrated state variables such
 as density or pressure where applicable.
 [`semidiscretize`](@ref) has to be called again afterwards, or another
-[`Semidiscretization`](@ref) can be created with the updated systems.
+[`Semidiscretization`](@ref TrixiParticles.Semidiscretization) can be created
+with the updated systems.
 
 # Arguments
 - `semi`: The semidiscretization to update.

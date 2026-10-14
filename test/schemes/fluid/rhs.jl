@@ -107,6 +107,41 @@
         end
     end
 
+    @testset "EDAC average-pressure momentum conservation" begin
+        # A perturbed patch gives nontrivial pair forces while uniform pressure isolates the offset.
+        particle_spacing = 0.1
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        smoothing_length = 1.6particle_spacing
+
+        # Verify conservation both with the raw kernel and with asymmetric corrected gradients.
+        for gradient_correction in (nothing, GradientCorrection())
+            fluid = rectangular_patch(particle_spacing, (4, 3); pressure=1000.0, seed=7)
+            system = EntropicallyDampedSPHSystem(fluid; smoothing_kernel,
+                                                 smoothing_length, sound_speed=10.0,
+                                                 gradient_correction,
+                                                 average_pressure_reduction=true)
+            semi = Semidiscretization(system; parallelization_backend=SerialBackend())
+            ode = semidiscretize(semi, (0.0, 1.0); reset_threads=false)
+            v_ode = Array(ode.u0.x[1])
+            u_ode = Array(ode.u0.x[2])
+            dv_ode = zero(v_ode)
+            TrixiParticles.kick!(dv_ode, v_ode, u_ode,
+                                 (; semi=ode.p.semi, split_integration_data=nothing), 0.0)
+
+            system = first(ode.p.semi.systems)
+            dv = TrixiParticles.wrap_v(dv_ode, system, ode.p.semi)
+            acceleration = view(dv, 1:2, :)
+            net_force = vec(sum(system.mass' .* acceleration; dims=2))
+            force_scale = sum(TrixiParticles.eachparticle(system)) do particle
+                norm(system.mass[particle] * acceleration[:, particle])
+            end
+
+            @test force_scale > eps()
+            @test norm(net_force) / force_scale < 5e-13
+            @test all(isfinite, dv_ode)
+        end
+    end
+
     # The following tests for linear and angular momentum and total energy conservation
     # are based on Sections 3.3.4 and 3.4.2 of
     # Daniel J. Price. "Smoothed Particle Hydrodynamics and Magnetohydrodynamics."

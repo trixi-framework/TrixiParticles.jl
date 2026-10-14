@@ -16,11 +16,15 @@ to this surface.
                               distance of `abs(max_signed_distance)` to the surface of the shape
                               will be sampled.
 - `points`:                   Points on which the signed distance is computed.
+                              Pass a collection of static vectors or an `NDIMS`-by-`N` matrix with
+                              one point per column.
                               When set to `nothing` (default), the bounding box of the shape will be
                               sampled with a uniform grid of points.
 - `use_for_boundary_packing`: Set to `true` if [`SignedDistanceField`] is used to pack
                               a boundary [`ParticlePackingSystem`](@ref).
                               Use the default of `false` when packing without a boundary.
+                              This requires a closed geometry, since boundary packing
+                              needs a well-defined outside region.
 """
 struct SignedDistanceField{ELTYPE, P, N, D}
     positions           :: P
@@ -37,6 +41,11 @@ function SignedDistanceField(geometry, particle_spacing;
                              use_for_boundary_packing=false)
     NDIMS = ndims(geometry)
     ELTYPE = eltype(particle_spacing)
+
+    if use_for_boundary_packing
+        require_closed_geometry(geometry,
+                                "SignedDistanceField with `use_for_boundary_packing=true`")
+    end
 
     sdf_factor = use_for_boundary_packing ? 2 : 1
 
@@ -62,9 +71,11 @@ function SignedDistanceField(geometry, particle_spacing;
                                         min_corner; place_on_shell=true)
 
         points = reinterpret(reshape, SVector{NDIMS, eltype(grid)}, grid)
+    else
+        points = wrap_points(points, Val(NDIMS))
     end
 
-    positions = copy(points)
+    positions = collect(points)
 
     # This gives a performance boost for large geometries
     delete_positions_in_empty_cells!(positions, nhs)

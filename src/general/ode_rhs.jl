@@ -112,7 +112,17 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
 
     update_implicit_sph!(semi, v_ode, u_ode, t)
 
-    # Perform correction and pressure calculation
+    # Correction moments can use densities from every interacting system. Assemble every
+    # coefficient before correcting any density so all systems observe the same state.
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
+        update_density_correction_values!(system, v, u, v_ode, u_ode, semi, t)
+    end
+
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
+        update_density_correction!(system, v, u, v_ode, u_ode, semi, t)
+    end
+
+    # Fluid pressure must be available before boundary pressure interpolation.
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_pressure!(system, v, u, v_ode, u_ode, semi, t)
     end
@@ -121,6 +131,18 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
     # needs to be after `update_quantities!`.
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_boundary_interpolation!(system, v, u, v_ode, u_ode, semi, t)
+    end
+
+    # Boundary interpolation can update boundary density. Assemble all gradient corrections
+    # only after every interacting system exposes its final density.
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
+        update_gradient_correction!(system, v, u, v_ode, u_ode, semi, t)
+    end
+
+    # Surface quantities can depend on corrected gradients and must be complete for every
+    # system before curvature and stress are computed in `update_final!`.
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
+        update_surface_quantities!(system, v, u, v_ode, u_ode, semi, t)
     end
 
     # Final update step for all remaining systems
@@ -339,9 +361,11 @@ end
 end
 
 function check_update_callback(semi)
+    semi.update_callback_used[] && return
+
     foreach_system(semi) do system
         # This check will be optimized away if the system does not require the callback
-        if requires_update_callback(system, semi) && !semi.update_callback_used[]
+        if requires_update_callback(system, semi)
             system_name = system |> typeof |> nameof
             throw(ArgumentError("`UpdateCallback` is required for `$system_name`"))
         end
