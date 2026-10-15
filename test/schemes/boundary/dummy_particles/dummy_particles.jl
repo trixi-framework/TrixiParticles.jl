@@ -1,4 +1,6 @@
 @testset verbose=true "Dummy Particles" begin
+    include("marrone.jl")
+
     @testset "show" begin
         boundary_model = BoundaryModelDummyParticles([1000.0],
                                                      [1.0],
