@@ -23,7 +23,6 @@ tspan = (0, 10)
 
 # `n_particles_beam_y = 5` means that the beam is 5 particles thick.
 # This number is used to set the resolution of the simulation.
-# It has to be odd, so that a particle is exactly in the middle of the tip of the beam.
 # The reference files are available for 5, 9, 17, 33, 65, 129, 257, 513.
 # The reference files for 129, 257, 513 only cover the first swing (`tspan = (0, 0.6)`).
 n_particles_beam_y = 5
