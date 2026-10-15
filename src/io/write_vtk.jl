@@ -488,7 +488,10 @@ function write2vtk!(vtk, v, u, t, model::BoundaryModelMonaghanKajtar, system)
 end
 
 function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system)
-    vtk["hydrodynamic_density"] = current_density(v, system)
+    # Copy element-wise, as for the fluid density above. Passing the (strided) view of `v`
+    # directly writes wrong values when `v` is a `PtrArray` (e.g., after `transfer2cpu`).
+    vtk["hydrodynamic_density"] = [current_density(v, system, particle)
+                                   for particle in eachparticle(system)]
     vtk["pressure"] = model.pressure
 
     if haskey(model.cache, :initial_colorfield)

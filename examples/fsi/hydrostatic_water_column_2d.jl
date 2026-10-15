@@ -122,7 +122,7 @@ boundary_model_structure = BoundaryModelDummyParticles(hydrodynamic_densities,
                                                        hydrodynamic_masses,
                                                        boundary_density_calculator,
                                                        smoothing_kernel,
-                                                       smoothing_length_structure;
+                                                       smoothing_length_fluid;
                                                        state_equation)
 structure_system = TotalLagrangianSPHSystem(structure_geometry;
                                             smoothing_kernel,

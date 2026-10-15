@@ -262,4 +262,220 @@
             end
         end
     end
+
+    # The force that a structure particle experiences from a fluid particle must be
+    # exactly the opposite of the force that the fluid particle experiences from the
+    # structure particle, except for the extra terms of shifting techniques in the momentum
+    # equation, which must not be applied to the structure.
+    # See the comment in `interact_structure_fluid!` for an explanation.
+    @testset verbose=true "Fluid-Structure Interaction Forces" begin
+        # A single fluid particle at the origin and a single structure particle at rest
+        # at `(1.5h, 0)`, where the kernel gradient is nonzero.
+        # This isolates the fluid-structure pair force from all other forces.
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        smoothing_length = 1.0
+        particle_spacing = 1.0
+        fluid_density = 1000.0
+        sound_speed = 10.0
+        state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
+                                           exponent=1)
+
+        function create_fluid_system(scheme, velocity, density, viscosity;
+                                     shifting_technique=nothing)
+            fluid = InitialCondition(; coordinates=zeros(2, 1),
+                                     velocity=reshape(collect(velocity), 2, 1),
+                                     mass=[fluid_density * particle_spacing^2],
+                                     density=[density], pressure=state_equation(density),
+                                     particle_spacing)
+
+            if scheme == "WCSPH"
+                return WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
+                                                   smoothing_length, state_equation,
+                                                   density_calculator=ContinuityDensity(),
+                                                   viscosity, shifting_technique)
+            end
+
+            # Note that the average pressure reduction is enabled by default
+            # when using shifting.
+            average_pressure_reduction = scheme == "EDAC with average pressure reduction"
+            return EntropicallyDampedSPHSystem(fluid; smoothing_kernel, smoothing_length,
+                                               sound_speed, viscosity, shifting_technique,
+                                               average_pressure_reduction,
+                                               density_calculator=ContinuityDensity())
+        end
+
+        function create_structure_system(structure_type, viscosity)
+            # The material mass is twice the hydrodynamic mass, so using the wrong mass
+            # to convert the force on the structure to an acceleration fails the test.
+            structure = InitialCondition(; coordinates=reshape([1.5, 0.0], 2, 1),
+                                         velocity=zeros(2, 1),
+                                         mass=[2 * fluid_density * particle_spacing^2],
+                                         density=[2 * fluid_density], particle_spacing)
+            boundary_model = BoundaryModelDummyParticles([fluid_density],
+                                                         [fluid_density *
+                                                          particle_spacing^2],
+                                                         AdamiPressureExtrapolation(),
+                                                         smoothing_kernel,
+                                                         smoothing_length;
+                                                         state_equation, viscosity)
+
+            if structure_type === TotalLagrangianSPHSystem
+                return TotalLagrangianSPHSystem(structure; smoothing_kernel,
+                                                smoothing_length, young_modulus=1e5,
+                                                poisson_ratio=0.3, boundary_model)
+            end
+
+            return RigidBodySystem(structure; boundary_model)
+        end
+
+        # Run the regular update step to compute the boundary pressure, the wall velocity
+        # for the viscosity, and the average pressure of EDAC. Return the systems
+        # stored in the semidiscretization and the wrapped arrays.
+        function initialize(fluid_system, structure_system)
+            semi = Semidiscretization(fluid_system, structure_system;
+                                      parallelization_backend=SerialBackend())
+            ode = semidiscretize(semi, (0.0, 0.01))
+            v_ode, u_ode = ode.u0.x
+            TrixiParticles.update_systems_and_nhs(v_ode, u_ode, ode.p.semi, 0.0)
+
+            fluid, structure = ode.p.semi.systems
+            semi = ode.p.semi
+            arrays = (TrixiParticles.wrap_v(v_ode, fluid, semi),
+                      TrixiParticles.wrap_u(u_ode, fluid, semi),
+                      TrixiParticles.wrap_v(v_ode, structure, semi),
+                      TrixiParticles.wrap_u(u_ode, structure, semi))
+
+            return fluid, structure, arrays, semi
+        end
+
+        # Force on the fluid particle and force on the structure particle
+        function pair_forces(fluid, structure, arrays, semi)
+            v_fluid, u_fluid, v_structure, u_structure = arrays
+
+            dv_fluid = zero(v_fluid)
+            TrixiParticles.interact!(dv_fluid, v_fluid, u_fluid, v_structure, u_structure,
+                                     fluid, structure, semi)
+            force_fluid = fluid.mass[1] * dv_fluid[1:2, 1]
+
+            if structure isa RigidBodySystem
+                structure.force_per_particle .= 0
+            end
+
+            dv_structure = zero(v_structure)
+            TrixiParticles.interact!(dv_structure, v_structure, u_structure,
+                                     v_fluid, u_fluid, structure, fluid, semi)
+
+            if structure isa RigidBodySystem
+                # The rigid body accumulates the forces per particle
+                force_structure = structure.force_per_particle[:, 1]
+            else
+                # TLSPH accelerations are scaled by the material mass
+                force_structure = structure.mass[1] * dv_structure[1:2, 1]
+            end
+
+            return force_fluid, force_structure
+        end
+
+        # All viscosity models are tested with WCSPH. The EDAC variants differ only
+        # in the pressure term, so they are only tested without viscosity and with one
+        # viscosity model.
+        configurations = [
+            ("WCSPH", nothing),
+            ("WCSPH", ViscosityAdami(nu=0.1)),
+            ("WCSPH", ViscosityMorris(nu=0.1)),
+            ("WCSPH", ArtificialViscosityMonaghan(alpha=0.1, beta=0.2)),
+            ("EDAC", nothing),
+            ("EDAC", ViscosityAdami(nu=0.1)),
+            ("EDAC with average pressure reduction", nothing),
+            ("EDAC with average pressure reduction", ViscosityAdami(nu=0.1))
+        ]
+
+        # The structure lies to the right of the fluid particle, so a positive
+        # x-velocity of the fluid particle approaches the structure.
+        # With the reference density, the pressure is zero, which isolates the viscosity.
+        fluid_states = [
+            (name="approaching, zero pressure", velocity=(1.0, 0.5), density=1000.0),
+            (name="receding, zero pressure", velocity=(-1.0, -0.5), density=1000.0),
+            (name="approaching, positive pressure", velocity=(1.0, 0.5), density=1005.0)
+        ]
+
+        structure_types = (TotalLagrangianSPHSystem, RigidBodySystem)
+
+        @testset "$(config[1]), Viscosity `$(nameof(typeof(config[2])))`" for config in
+                                                                              configurations
+
+            scheme, viscosity = config
+
+            @testset "`$structure_type`" for structure_type in structure_types
+                @testset "$(state.name)" for state in fluid_states
+                    fluid_system = create_fluid_system(scheme, state.velocity,
+                                                       state.density, viscosity)
+                    structure_system = create_structure_system(structure_type, viscosity)
+                    (fluid, structure, arrays,
+                     semi) = initialize(fluid_system, structure_system)
+                    (force_fluid,
+                     force_structure) = pair_forces(fluid, structure, arrays, semi)
+
+                    # Newton's third law
+                    @test isapprox(force_structure, -force_fluid,
+                                   rtol=sqrt(eps()), atol=sqrt(eps()))
+
+                    if state.density == fluid_density
+                        if isnothing(viscosity) ||
+                           (viscosity isa ArtificialViscosityMonaghan &&
+                            state.velocity[1] < 0)
+                            # No pressure, and Monaghan's artificial viscosity is only
+                            # active for approaching particles.
+                            @test iszero(force_structure)
+                        else
+                            # The fluid drags the structure along
+                            @test force_structure[1] * state.velocity[1] > 0
+                        end
+                    elseif isnothing(viscosity)
+                        if scheme == "EDAC with average pressure reduction"
+                            # With a single fluid particle, the average pressure equals
+                            # the pressure of the fluid particle, which is also
+                            # the extrapolated pressure of the structure particle.
+                            @test isapprox(force_structure, zeros(2), atol=sqrt(eps()))
+                        else
+                            # Positive pressure pushes the structure away from the
+                            # fluid particle, in positive x-direction.
+                            @test force_structure[1] > 0
+                        end
+                    end
+                end
+            end
+        end
+
+        # The extra terms of the shifting techniques in the momentum equation act on the
+        # fluid, but must not be applied to the structure.
+        shifting_techniques = (ParticleShiftingTechnique(),
+                               TransportVelocityAdami(background_pressure=1000.0))
+
+        @testset "Shifting `$(nameof(typeof(shifting_technique)))`" for shifting_technique in
+                                                                        shifting_techniques
+
+            @testset "`$structure_type`" for structure_type in structure_types
+                viscosity = ViscosityAdami(nu=0.1)
+                fluid_system = create_fluid_system("WCSPH", (1.0, 0.5), 1005.0,
+                                                   viscosity; shifting_technique)
+                structure_system = create_structure_system(structure_type, viscosity)
+                fluid, structure, arrays, semi = initialize(fluid_system, structure_system)
+
+                # Compare the forces without and with a shifting velocity
+                fluid.cache.delta_v .= 0
+                force_fluid, force_structure = pair_forces(fluid, structure, arrays, semi)
+
+                fluid.cache.delta_v .= [0.5, 0.2]
+                (force_fluid_shifting,
+                 force_structure_shifting) = pair_forces(fluid, structure, arrays, semi)
+
+                # Make sure that the shifting terms act on the fluid.
+                @test !isapprox(force_fluid_shifting, force_fluid)
+
+                # The shifting terms must not be applied to the structure.
+                @test force_structure_shifting == force_structure
+            end
+        end
+    end
 end
