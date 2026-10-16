@@ -22,6 +22,10 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Important Bugfixes
 
+- Fixed EDAC pressure reduction to share a spatially constant reference across connected
+  fluids, preserving affine pressure gradients and reciprocal pressure forces.
+- Fixed viscous momentum conservation for asymmetric corrected fluid gradients and removed
+  the dependence of mirrored ghost reconstruction on unrelated fluid correction caches.
 - Fixed plane interpolation coordinates to match the requested bounds, filtering of
   tensor-valued interpolation results, and wall-velocity interpolation with
   `cut_off_bnd=false` (#1183).
