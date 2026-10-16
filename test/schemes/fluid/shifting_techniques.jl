@@ -1,4 +1,5 @@
 @testset verbose=true "Shifting Techniques" begin
+    include("shifting_self_interaction.jl")
     @testset "Constructors" begin
         @test_nowarn TransportVelocityAdami(background_pressure=1.0)
         @test_nowarn ParticleShiftingTechniqueSun2017()
