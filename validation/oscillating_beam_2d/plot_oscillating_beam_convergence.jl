@@ -51,6 +51,11 @@ p = plot(; xlabel="Particles Across Beam Thickness", ylabel="Max. Tip Y-Deflecti
 hline!(p, [ref_minimum]; color=:black, linestyle=:dot, linewidth=2.5,
        label="Turek & Hron (2006)")
 
+# Add the O'Connor legend entry here to make the label appear second,
+# but plot the markers after the setups below to draw them on top.
+oconnor_style = (markershape=:x, markerstrokewidth=2, markersize=5, markercolor=:black)
+scatter!(p, [NaN], [NaN]; oconnor_style..., label="O'Connor & Rogers (2021)")
+
 for setup in setups
     files = glob("validation_reference_$(setup.name)_*.json",
                  joinpath(validation_dir(), "oscillating_beam_2d"))
@@ -64,5 +69,16 @@ for setup in setups
           markershape=setup.markershape, markersize=4, markercolor=:white,
           markerstrokecolor=setup.color, markerstrokewidth=2.5, label=setup.label)
 end
+
+# Load the O'Connor & Rogers (2021) reference data around the first minimum.
+# The columns `resN` correspond to `thickness / particle_spacing = N`, so with particles
+# on the shell, there are `N + 1` particles across the beam thickness.
+ref_oconnor = CSV.read(joinpath(validation_dir(), "oscillating_beam_2d",
+                                "reference_oconnor.csv"), DataFrame)
+res_columns = filter(name -> startswith(name, "res"), names(ref_oconnor))
+n_particles_oconnor = [parse(Int, chopprefix(name, "res")) + 1 for name in res_columns]
+minima_oconnor = [first_swing_minimum(ref_oconnor.X, ref_oconnor[!, name])
+                  for name in res_columns]
+scatter!(p, n_particles_oconnor, minima_oconnor; oconnor_style..., label="")
 
 p
