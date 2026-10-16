@@ -136,7 +136,7 @@
         sol_restart = solve(ode_restart, VelocityVerlet(), dt=1.0, save_everystep=false,
                             callback=stepsize_callback)
 
-        # Compare the final particle velocities
-        @test isapprox(sol_restart.u[end].x[2], positions_full, rtol=8e-5)
+        # Compare the final particle positions.
+        @test isapprox(sol_restart.u[end].x[2], positions_full, rtol=1e-8)
     end
 end
