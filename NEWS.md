@@ -4,6 +4,57 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.5.5
+
+### API Changes
+
+- `load_geometry` now closes 2D `.asc` and `.dxf` curves by default. Use `close_curve=false`
+  for intentional open curves. `ComplexShape`, geometric `intersect` and `setdiff`, and
+  `SignedDistanceField` with `use_for_boundary_packing=true` now require closed
+  geometries (#1187).
+
+### Features
+
+- Added `BoundaryModelDummyParticles(initial_condition; fluid_system, ...)`, which infers
+  kernel, smoothing length, correction, and state equation from the adjacent fluid system.
+  `OpenBoundarySystem` now defaults to `BoundaryModelMirroringTafuni` and infers its
+  buffer size from the fluid system (#1145).
+
+### Important Bugfixes
+
+- Fixed plane interpolation coordinates to match the requested bounds, filtering of
+  tensor-valued interpolation results, and wall-velocity interpolation with
+  `cut_off_bnd=false` (#1183).
+- Fixed matrix point inputs, including non-contiguous views, for winding-number algorithms
+  and `SignedDistanceField`. `WindingNumberJacobson()` now defaults to non-hierarchical
+  winding when no geometry is provided (#1188).
+- Fixed stale connectivity, normals, and bounding boxes after geometry face deletion.
+  The new `delete_faces(geometry, indices)` function returns a geometry with the selected
+  faces removed and derived data rebuilt (#1190).
+- Fixed zero vertex normals in triangle meshes being normalized to `NaN` for degenerate
+  or duplicated faces (#1191).
+- Fixed `RectangularTank` to trim overlapping fluid regions to the tank dimensions,
+  handle empty fluid regions, and validate sizes, boundary layers, and spacing ratio (#1198).
+- Fixed `sample_boundary` to respect `boundary_thickness` and the offset implied by
+  `place_on_shell`. Added a matching `boundary_thickness` keyword to `ParticlePackingSystem`
+  so boundary packing uses the sampled thickness (#1199).
+- Fixed validation of `SphereShape` cutout bounds and `extrude_geometry` direction
+  dimensionality, zero directions, and non-positive extrusion layer counts (#1200).
+- Fixed 3D `BoundaryZone` validation to reject collinear or non-orthogonal face edges
+  and inconsistent face normals before sampling particles (#1202).
+- Fixed surface-tension configuration checks to inspect neighboring fluid systems and
+  require a surface tension model or surface normal method on all fluids when any fluid
+  uses one, while excluding particle-packing systems (#1214).
+- Fixed configuration validation to reject mixing `ImplicitIncompressibleSPHSystem`
+  with `EntropicallyDampedSPHSystem` (#1217).
+- Fixed EDAC kernel and gradient correction cache updates and applied Shepard density
+  correction when using `SummationDensity` (#1218).
+
+### Documentation
+
+- Added a tutorial for setting up 2D simulations from geometry files, including a curved
+  pipe and a coastline dam-break basin (#1094).
+
 ## Version 0.5.4
 
 ### API Changes
@@ -22,6 +73,11 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Important Bugfixes
 
+- Fixed `RectangularShape` handling of coordinate-dependent density in hydrostatic pressure
+  initialization and prevented coordinate perturbation from changing the global random state (#1196).
+- Fixed correction-cache updates after open-boundary interpolation and particle transfers
+  so callback-based particle shifting uses current density and gradients for newly
+  activated and reused buffer particles (#1353).
 - Fixed asymmetric DEM contact forces near coincidence by using a pair-local
   radius scale for the near-zero distance cutoff (#1347).
 - Fixed the sign of the quadratic term in `ArtificialViscosityMonaghan` (#1295).
@@ -29,6 +85,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   formulas, inconsistent force-vs-acceleration notation, and wrong LaTeX text-mode
   commands (#1086).
 - Fixed restarting with EDAC from solution objects (#1213) and from VTK files (#1297).
+- Fixed the Morris surface tension curvature, which was divided by a reset correction
+  factor when more than one fluid system used a surface normal method (#1214).
 - Fixed characteristic open boundaries to keep fallback values local to each boundary zone
   and reject unsupported bidirectional zones (#1203).
 - Fixed the custom quantities `kinetic_energy`, `total_mass`, `max_pressure`, `min_pressure`,
