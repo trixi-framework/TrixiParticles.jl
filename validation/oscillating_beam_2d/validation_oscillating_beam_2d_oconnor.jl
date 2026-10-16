@@ -81,7 +81,7 @@ deflection_y = StructureMotionCalculator(semi.systems[1], semi, tip_position,
 pp_callback = PostprocessCallback(; deflection_x, deflection_y, dt=0.01,
                                   output_directory="out",
                                   filename="validation_run_oscillating_beam_2d_oconnor_$n_particles_beam_y",
-                                  write_csv=false, write_file_interval=0)
+                                  write_csv=false, write_file_interval=10)
 info_callback = InfoCallback(interval=10000)
 
 callbacks = CallbackSet(info_callback, pp_callback, stepsize_callback)
