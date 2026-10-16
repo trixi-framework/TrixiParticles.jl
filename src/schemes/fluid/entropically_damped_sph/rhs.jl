@@ -13,10 +13,11 @@ function interact!(dv, v_particle_system, u_particle_system,
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     foreach_point_neighbor(particle_system, neighbor_system,
                            system_coords, neighbor_coords, semi;
-                           points=each_integrated_particle(particle_system)) do particle,
-                                                                                neighbor,
-                                                                                pos_diff,
-                                                                                distance
+                           points=each_integrated_particle(particle_system)
+                           ) do particle,
+                                neighbor,
+                                pos_diff,
+                                distance
         # Skip neighbors with (almost) the same position because the kernel gradient
         # is zero, but computing it would divide by zero (see `almostzero`).
         # Note that `return` only exits the closure, i.e., skips the current neighbor.
@@ -109,13 +110,10 @@ end
     surface_tension_a = surface_tension_model(particle_system)
     surface_tension_b = surface_tension_model(neighbor_system)
 
-    # This technique by Basa et al. 2017 (10.1002/fld.1927) aims to reduce numerical
-    # errors due to large pressures by subtracting the average pressure of neighboring
-    # particles.
-    # It results in significant improvement for EDAC, especially with TVF,
-    # but not for WCSPH, according to Ramachandran & Puri (2019), Section 3.2.
-    # Note that the return value is zero when not using average pressure reduction.
-    p_avg = average_pressure(particle_system, particle)
+    # Reduce pressure magnitudes with a spatially constant reference shared by
+    # the interacting fluid component. Both directions must use the same offset.
+    # The reference is zero when neither fluid enables pressure reduction.
+    p_avg = pair_pressure_offset(particle_system, neighbor_system, particle, neighbor)
 
     dv_particle += pressure_acceleration(particle_system, neighbor_system,
                                          particle, neighbor,

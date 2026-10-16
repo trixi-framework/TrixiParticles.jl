@@ -23,12 +23,33 @@ end
                             viscosity_correction)
 end
 
+@inline viscosity_kernel_gradient(system, neighbor_system, particle, neighbor,
+                                  pos_diff, distance, grad_kernel) = grad_kernel
+
+# External boundary/structure forces keep their existing gradient: structure
+# reactions already use the exact opposite fluid force. Reciprocal fluid pairs
+# need one antisymmetric gradient even when only one endpoint is corrected.
+@inline function viscosity_kernel_gradient(system::AbstractFluidSystem,
+                                           neighbor_system::AbstractFluidSystem,
+                                           particle, neighbor, pos_diff, distance,
+                                           grad_kernel)
+    if has_asymmetric_gradient(system_correction(system)) ||
+       has_asymmetric_gradient(system_correction(neighbor_system))
+        other_gradient = smoothing_kernel_grad(neighbor_system, -pos_diff, distance,
+                                               neighbor)
+        return (grad_kernel - other_gradient) / 2
+    end
+    return grad_kernel
+end
+
 @propagate_inbounds function add_dv_viscosity(dv_particle,
                                               viscosity, particle_system, neighbor_system,
                                               v_particle_system, v_neighbor_system,
                                               particle, neighbor, pos_diff, distance,
                                               sound_speed, m_a, m_b, rho_a, rho_b,
                                               v_a, v_b, grad_kernel, viscosity_correction=1)
+    grad_kernel = viscosity_kernel_gradient(particle_system, neighbor_system, particle,
+                                            neighbor, pos_diff, distance, grad_kernel)
     return viscosity(dv_particle, particle_system, neighbor_system,
                      v_particle_system, v_neighbor_system,
                      particle, neighbor, pos_diff, distance,
