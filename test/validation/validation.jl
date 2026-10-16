@@ -111,8 +111,10 @@
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(validation_dir(), "oscillating_beam_2d",
                                                   "plot_oscillating_beam_convergence.jl"))
-        # Turek and Hron reference line plus one line for each setup.
-        @test p.n == 3
+        # Turek and Hron reference line, one line for each setup, and the O'Connor and
+        # Rogers reference markers, which consist of an empty series for the legend entry
+        # and the actual markers drawn on top: 1 + 2 + 2 = 5.
+        @test p.n == 5
     end
 
     @trixi_testset "dam_break_2d" begin
