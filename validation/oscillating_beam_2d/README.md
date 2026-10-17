@@ -33,3 +33,7 @@ The following files are provided:
   `csm3_l4_t0p005.point`, available from the
   [FEATFLOW FSI benchmark](https://wwwold.mathematik.tu-dortmund.de/~featflow/en/benchmarks/cfdbenchmarking/fsi_benchmark/fsi_tests/fsi_csm_tests.html)
   by Turek and Hron (2006).
+- `reference_oconnor.csv` contains reference results from O'Connor and Rogers
+  (2021), *A fluid--structure interaction model for free-surface flows and
+  flexible structures using smoothed particle hydrodynamics on a GPU*,
+  [doi:10.1016/j.jfluidstructs.2021.103312](https://doi.org/10.1016/j.jfluidstructs.2021.103312).
