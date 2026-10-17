@@ -23,6 +23,16 @@ ref_turek = CSV.read(joinpath(validation_dir(), "oscillating_beam_2d",
                               "reference_turek.csv"), DataFrame)
 ref_minimum = first_swing_minimum(ref_turek.time, ref_turek.Uy)
 
+# Load the O'Connor & Rogers (2021) reference data around the first minimum.
+# The columns `resN` correspond to `thickness / particle_spacing = N`, so with particles
+# on the shell, there are `N + 1` particles across the beam thickness.
+ref_oconnor = CSV.read(joinpath(validation_dir(), "oscillating_beam_2d",
+                                "reference_oconnor.csv"), DataFrame)
+res_columns = filter(name -> startswith(name, "res"), names(ref_oconnor))
+n_particles_oconnor = [parse(Int, chopprefix(name, "res")) + 1 for name in res_columns]
+minima_oconnor = [first_swing_minimum(ref_oconnor.X, ref_oconnor[!, name])
+                  for name in res_columns]
+
 function load_first_swing_minimum(file_name)
     json_data = JSON.parsefile(file_name)
     key = only(filter(key -> occursin(r"deflection_y_structure_\d+", key),
@@ -36,11 +46,11 @@ end
 # Note that `thickness / particle_spacing = n_particles_beam_y - 1` for the O'Connor setup
 # (particles on the shell) and `thickness / particle_spacing = n_particles_beam_y` for the
 # Turek setup (cell-centered particles).
-colors = palette(:Set1_5)
+colors = palette(:tab10)
 setups = ((name="oconnor", label="O'Connor setup (on-shell, beam extends into cylinder)",
-           color=colors[1], markershape=:circle),
+           color=colors[1], markershape=:circle, linestyle=:solid),
           (name="turek", label="Turek setup (cell-centered, beam glued to cylinder)",
-           color=colors[2], markershape=:rect))
+           color=colors[2], markershape=:rect, linestyle=:solid))
 
 n_particles = 2 .^ (2:9) .+ 1
 p = plot(; xlabel="Particles Across Beam Thickness", ylabel="Max. Tip Y-Deflection [m]",
@@ -51,13 +61,17 @@ p = plot(; xlabel="Particles Across Beam Thickness", ylabel="Max. Tip Y-Deflecti
 hline!(p, [ref_minimum]; color=:black, linestyle=:dot, linewidth=2.5,
        label="Turek & Hron (2006)")
 
-# Add the O'Connor legend entry here to make the label appear second,
-# but plot the markers after the setups below to draw them on top.
+# Add the O'Connor markers here to make the label appear second in the legend.
+# They are drawn again after the setups below to appear on top of the lines.
+# Note that a series with only `NaN`s as a legend placeholder doesn't work with the
+# PGFPlotsX backend, which skips all-`NaN` series entirely, including their legend entry.
 oconnor_style = (markershape=:x, markerstrokewidth=2, markersize=5, markercolor=:black)
-scatter!(p, [NaN], [NaN]; oconnor_style..., label="O'Connor & Rogers (2021)")
+scatter!(p, n_particles_oconnor, minima_oconnor; oconnor_style...,
+         label="O'Connor & Rogers (2021)")
 
 for setup in setups
-    files = glob("validation_reference_$(setup.name)_*.json",
+    base_name = "validation_reference_"
+    files = glob("$(base_name)$(setup.name)_*.json",
                  joinpath(validation_dir(), "oscillating_beam_2d"))
     isempty(files) && continue
 
@@ -65,20 +79,12 @@ for setup in setups
     n_particles_beam_y = extract_number_from_filename.(files)
     minima = load_first_swing_minimum.(files)
 
-    plot!(p, n_particles_beam_y, minima; color=setup.color, linewidth=2.5,
-          markershape=setup.markershape, markersize=4, markercolor=:white,
+    plot!(p, n_particles_beam_y, minima; color=setup.color, linestyle=setup.linestyle,
+          linewidth=2.5, markershape=setup.markershape, markersize=4, markercolor=:white,
           markerstrokecolor=setup.color, markerstrokewidth=2.5, label=setup.label)
 end
 
-# Load the O'Connor & Rogers (2021) reference data around the first minimum.
-# The columns `resN` correspond to `thickness / particle_spacing = N`, so with particles
-# on the shell, there are `N + 1` particles across the beam thickness.
-ref_oconnor = CSV.read(joinpath(validation_dir(), "oscillating_beam_2d",
-                                "reference_oconnor.csv"), DataFrame)
-res_columns = filter(name -> startswith(name, "res"), names(ref_oconnor))
-n_particles_oconnor = [parse(Int, chopprefix(name, "res")) + 1 for name in res_columns]
-minima_oconnor = [first_swing_minimum(ref_oconnor.X, ref_oconnor[!, name])
-                  for name in res_columns]
+# Draw the O'Connor markers again on top of the setup lines.
 scatter!(p, n_particles_oconnor, minima_oconnor; oconnor_style..., label="")
 
 p
