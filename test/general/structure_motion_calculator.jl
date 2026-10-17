@@ -40,6 +40,12 @@
         distances = [norm(initial_coordinates[:, particle] .- position)
                      for particle in calculator.particles]
         @test issorted(calculator.weights[sortperm(distances)], rev=true)
+
+        # `position` is on the right end of the structure, so all neighbors are at x <= 3
+        # and their weighted centroid lies to the left of `position`.
+        # The grid is symmetric about y = 1, so the centroid lies at the same height.
+        @test calculator.centroid_offset[1] > 0
+        @test isapprox(calculator.centroid_offset[2], 0.0, atol=eps())
     end
 
     @testset "Position outside the kernel support" begin
@@ -91,8 +97,44 @@
 
         motion = TrixiParticles.structure_motion(calculator, system)
 
+        # The rotation about the origin moves `position` to `rotation_matrix * position`.
+        # The Shepard interpolation alone would yield the displacement of the centroid
+        # of the neighbors, which is to the left of `position` (see above).
+        @test isapprox(motion.displacement,
+                       rotation_matrix * collect(position) - collect(position))
         @test isapprox(motion.deformation_gradient, rotation_matrix)
         @test isapprox(motion.rotation, angle)
+    end
+
+    @testset "Affine deformation is reconstructed exactly at the surface" begin
+        calculator = StructureMotionCalculator(system, semi, position)
+
+        # Patch test: the motion `x = F X + b` with a constant deformation gradient `F`
+        # combines rotation, stretch, shear and translation.
+        deformation_grad = [1.2 0.3; -0.1 0.9]
+        offset = [0.3, -1.2]
+        system.current_coordinates .= deformation_grad * system.initial_coordinates .+
+                                      offset
+        for particle in eachparticle(system)
+            system.deformation_grad[:, :, particle] = deformation_grad
+        end
+
+        motion = TrixiParticles.structure_motion(calculator, system)
+
+        # The exact displacement at `position` is `u(X) = x(X) - X = (F - I) X + b`.
+        # `position` is on the surface, where the kernel support is truncated.
+        # The Shepard interpolation alone would yield `(F - I) X̄ + b` for the centroid
+        # `X̄ != X` of the neighbors, so this tests the first-order correction.
+        expected_displacement = (deformation_grad - I) * collect(position) + offset
+        @test isapprox(motion.displacement, expected_displacement)
+        @test isapprox(motion.deformation_gradient, deformation_grad)
+
+        # Interpolating without the correction is not exact
+        shepard_displacement = sum(calculator.weights[i] *
+                                   (system.current_coordinates[:, particle] -
+                                    system.initial_coordinates[:, particle])
+                                   for (i, particle) in enumerate(calculator.particles))
+        @test !isapprox(shepard_displacement, expected_displacement)
     end
 
     @testset "Pure stretch" begin
@@ -112,8 +154,12 @@
         deflection_y = StructureMotionCalculator(system, semi, position,
                                                  quantity=motion -> motion.displacement[2])
 
+        # Rigid translation. Reset the deformation gradients from the previous testsets.
         offset = SVector(0.3, -1.2)
         system.current_coordinates .= system.initial_coordinates .+ offset
+        for particle in eachparticle(system)
+            system.deformation_grad[:, :, particle] = [1.0 0.0; 0.0 1.0]
+        end
 
         @test isapprox(deflection_x(system, nothing, nothing, nothing, nothing, semi, 0.0),
                        offset[1])
@@ -148,5 +194,21 @@
 
         # There is no single rotation angle in 3D
         @test isnan(motion.rotation)
+
+        # Patch test as in 2D: the affine motion `x = F X + b` is reconstructed exactly
+        # at the surface, where the exact displacement is `u(X) = (F - I) X + b`.
+        deformation_grad = [1.2 0.3 0.0
+                            -0.1 0.9 0.2
+                            0.1 0.0 1.1]
+        system_3d.current_coordinates .= deformation_grad * system_3d.initial_coordinates .+
+                                         offset
+        for particle in eachparticle(system_3d)
+            system_3d.deformation_grad[:, :, particle] = deformation_grad
+        end
+
+        motion = TrixiParticles.structure_motion(calculator, system_3d)
+
+        @test isapprox(motion.displacement,
+                       (deformation_grad - I) * [3.0, 1.0, 1.0] + offset)
     end
 end

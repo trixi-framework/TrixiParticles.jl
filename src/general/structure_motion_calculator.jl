@@ -22,13 +22,34 @@ and ``V_a = m_a / \rho_a`` is its volume in the reference configuration.
 The sum in the denominator is a Shepard correction, which is required because the kernel
 support is usually truncated when tracking a point close to the surface of the structure.
 
+However, the Shepard interpolation ``\sum_a w_a \bm{x}_a`` only reproduces constant fields.
+It yields the motion of the weighted centroid ``\bar{\bm{X}} = \sum_a w_a \bm{X}_a``
+of the neighboring particles, which is not equal to ``\bm{X}`` when the neighborhood is
+not symmetric. Close to the surface of the structure, ``\bar{\bm{X}}`` lies inside the
+structure, so that the motion of the surface is systematically underestimated by
+an error of order ``h``.
+We therefore correct the interpolated motion with a first-order Taylor expansion around
+the centroid, using the interpolated deformation gradient
+``\bar{\bm{F}} = \sum_a w_a \bm{F}_a``:
+```math
+\bm{x}(\bm{X}) \approx \sum_a w_a \bm{x}_a + \bar{\bm{F}} (\bm{X} - \bar{\bm{X}}).
+```
+This reconstruction is exact for affine motions (rigid body motions and homogeneous
+deformations), also when the kernel support is truncated.
+Note that this correction assumes a smooth deformation gradient around `position`.
+Therefore, `position` should not be chosen across a jump of the deformation gradient,
+e.g., at the interface between the clamped and the free part of a structure.
+
 Calling the functor returns `nothing` for all systems but the one it was constructed with.
 For this system, it returns `quantity(motion)`, where `motion` is a named tuple with
 the following fields.
-- `displacement`: Interpolated displacement ``\sum_a w_a (\bm{x}_a - \bm{X}_a)``.
-- `deformation_gradient`: Interpolated deformation gradient ``\bm{F} = \sum_a w_a \bm{F}_a``.
+- `displacement`: Reconstructed displacement ``\bm{x}(\bm{X}) - \bm{X}``
+                  with ``\bm{x}(\bm{X})`` as defined above.
+- `deformation_gradient`: Interpolated deformation gradient ``\bar{\bm{F}}``.
+                          Note that this is not corrected and is therefore the
+                          deformation gradient at the centroid ``\bar{\bm{X}}``.
 - `rotation`: In 2D, the rotation angle (in radians) of the proper orthogonal factor
-              ``\bm{R}`` of the polar decomposition ``\bm{F} = \bm{R} \bm{U}``.
+              ``\bm{R}`` of the polar decomposition ``\bar{\bm{F}} = \bm{R} \bm{U}``.
               `NaN` in 3D, where no single rotation angle is defined.
               Use `deformation_gradient` to compute the rotation in 3D.
 
@@ -82,11 +103,14 @@ nothing
 ```
 """
 struct StructureMotionCalculator{NDIMS, ELTYPE, Q}
-    system_index :: Int
-    position     :: SVector{NDIMS, ELTYPE}
-    particles    :: Vector{Int}
-    weights      :: Vector{ELTYPE}
-    quantity     :: Q
+    system_index    :: Int
+    position        :: SVector{NDIMS, ELTYPE}
+    particles       :: Vector{Int}
+    weights         :: Vector{ELTYPE}
+    # Offset `X - X̄` from the weighted centroid of the neighbors to `position`
+    # in the initial configuration
+    centroid_offset :: SVector{NDIMS, ELTYPE}
+    quantity        :: Q
 end
 
 function StructureMotionCalculator(system::TotalLagrangianSPHSystem, semi, position;
@@ -133,7 +157,15 @@ function StructureMotionCalculator(system::TotalLagrangianSPHSystem, semi, posit
     # Apply the Shepard correction once, so that the weights sum up to one
     weights ./= sum_weights
 
-    return StructureMotionCalculator(system_index, position_, particles, weights, quantity)
+    # Weighted centroid of the neighbors. This is the point whose motion is reconstructed
+    # by the Shepard interpolation, which is corrected in `structure_motion`.
+    centroid = sum(weights[i] *
+                   extract_svector(initial_coordinates, Val(NDIMS), particles[i])
+                   for i in eachindex(particles))
+    centroid_offset = position_ - centroid
+
+    return StructureMotionCalculator(system_index, position_, particles, weights,
+                                     centroid_offset, quantity)
 end
 
 function (calculator::StructureMotionCalculator)(system, dv_ode, du_ode, v_ode, u_ode,
@@ -149,7 +181,7 @@ end
 # Note that both callbacks update all systems before calling custom quantities, so the
 # current coordinates and deformation gradients stored in `system` are up to date.
 function structure_motion(calculator::StructureMotionCalculator, system)
-    (; particles, weights) = calculator
+    (; particles, weights, centroid_offset) = calculator
 
     displacement = zero(SVector{ndims(system), eltype(system)})
     deformation_grad = zero(SMatrix{ndims(system), ndims(system), eltype(system)})
@@ -162,6 +194,12 @@ function structure_motion(calculator::StructureMotionCalculator, system)
                          initial_coords(system, particle))
         deformation_grad += weight * deformation_gradient(system, particle)
     end
+
+    # The Shepard interpolation above yields the displacement of the weighted centroid `X̄`.
+    # Extrapolate to `position` with a first-order Taylor expansion of the motion
+    # `x(X) ≈ x(X̄) + F (X - X̄)`, so that `u(X) ≈ u(X̄) + (F - I) (X - X̄)`.
+    # This makes the reconstruction exact for affine motions.
+    displacement += (deformation_grad - I) * centroid_offset
 
     return (; displacement, deformation_gradient=deformation_grad,
             rotation=polar_decomposition_angle(deformation_grad))
