@@ -70,7 +70,7 @@ right_column = (plot_oconnor_legend!, plot_turek!,
 
 for (resolution, color, plot_right_column!) in zip(resolutions, colors, right_column)
     file_name = joinpath(validation_dir(), "oscillating_beam_2d",
-                         "validation_reference_$resolution.json")
+                         "validation_reference_oconnor_$resolution.json")
     times, deflection = load_tip_deflection_y(file_name)
     times, deflection = restrict_to_time_limits(times, deflection)
 
