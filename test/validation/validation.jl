@@ -107,7 +107,7 @@
     end
 
     # Separate testset because Plots.jl and CairoMakie.jl both export `plot`.
-    @trixi_testset "oscillating_beam_2d convergence" begin
+    @trixi_testset "oscillating_beam_2d convergence and O'Connor plots" begin
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(validation_dir(), "oscillating_beam_2d",
                                                   "plot_oscillating_beam_convergence.jl"))
@@ -115,6 +115,13 @@
         # Rogers reference markers, which are plotted twice, once before the setups for the
         # legend order and once after the setups to draw them on top: 1 + 2 + 2 = 5.
         @test p.n == 5
+        
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(validation_dir(), "oscillating_beam_2d",
+                                                  "plot_oscillating_beam_results_oconnor.jl"))
+        # Verify number of plots: for each resolution, one line, one scatter series
+        # and one legend entry of the right column.
+        @test p.n == 3 * length(resolutions)
     end
 
     @trixi_testset "dam_break_2d" begin
