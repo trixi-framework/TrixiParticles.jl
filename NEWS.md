@@ -20,6 +20,12 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Added the `ThrustCalculator` custom quantity to calculate the hydrodynamic force exerted by
   interacting fluid systems on a `TotalLagrangianSPHSystem` along a given `direction` (#1229).
 
+### Features
+
+- Added `StructureMotionCalculator`, a custom quantity for the `PostprocessCallback`
+  that reconstructs displacement, deformation gradient and rotation
+  of a `TotalLagrangianSPHSystem` around a point in the initial configuration (#1318).
+
 ### Important Bugfixes
 
 - Fixed asymmetric DEM contact forces near coincidence by using a pair-local
