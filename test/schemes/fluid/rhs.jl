@@ -447,8 +447,9 @@
                                                                       corrections
 
                 @testset "`$structure_type`, clamped=$clamped, h=$structure_smoothing_length" for (structure_type,
-                                                                                                  clamped,
-                                                                                                  structure_smoothing_length) in structure_configurations
+                                                                                                   clamped,
+                                                                                                   structure_smoothing_length) in
+                                                                                                  structure_configurations
 
                     # TLSPH does not yet support `ContinuityDensity` boundaries.
                     boundary_densities = if structure_type === TotalLagrangianSPHSystem

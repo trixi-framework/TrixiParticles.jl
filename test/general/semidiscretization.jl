@@ -161,9 +161,11 @@
                                        ("nearby smoothing length", smoothing_kernel,
                                         nextfloat(1.0), false))
 
-            @testset "$(nameof(typeof(fluid_system))), $structure_type" for fluid_system in fluid_systems,
-                                                                            structure_type in (TotalLagrangianSPHSystem,
-                                                                                               RigidBodySystem)
+            @testset "$(nameof(typeof(fluid_system))), $structure_type" for fluid_system in
+                                                                            fluid_systems,
+                                                                            structure_type in
+                                                                            (TotalLagrangianSPHSystem,
+                                                                             RigidBodySystem)
 
                 # Missing boundary model.
                 structure = create_structure_system(structure_type, nothing)
@@ -201,6 +203,7 @@
 
                 @testset "$name" for (name, boundary_kernel, boundary_length,
                                       compatible) in boundary_configurations
+
                     boundary_model = BoundaryModelDummyParticles(ic.density, ic.mass,
                                                                  AdamiPressureExtrapolation(),
                                                                  boundary_kernel,
