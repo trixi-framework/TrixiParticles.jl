@@ -120,14 +120,14 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
     return dv
 end
 
-@inline function fluid_reaction_kernel_grad(::Nothing, system, pos_diff, distance, particle,
+@inline function fluid_reaction_kernel_grad(correction, system, pos_diff, distance, particle,
                                             grad_kernel)
     # Reversing the displacement changes only the sign of the uncorrected gradient.
     # Reuse it with the opposite sign to obtain the fluid-first gradient.
     return -grad_kernel
 end
 
-@inline function fluid_reaction_kernel_grad(correction, system, pos_diff, distance,
+@inline function fluid_reaction_kernel_grad(::Union{SomeCorrection, AnotherCorrection}, system, pos_diff, distance,
                                             particle,
                                             grad_kernel)
     # With corrections, reversing the displacement may not be equivalent to negating
