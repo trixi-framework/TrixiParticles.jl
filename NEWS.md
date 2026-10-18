@@ -15,6 +15,11 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   `TotalLagrangianSPHSystem` or `RigidBodySystem` must now be the same as those of all
   fluid systems in the simulation (#1338, #1348).
 
+### Features
+
+- Added the `ThrustCalculator` custom quantity to calculate the hydrodynamic force exerted by
+  interacting fluid systems on a `TotalLagrangianSPHSystem` along a given `direction` (#1229).
+
 ### Important Bugfixes
 
 - Fixed structure-fluid reaction forces with asymmetric corrected fluid kernel
