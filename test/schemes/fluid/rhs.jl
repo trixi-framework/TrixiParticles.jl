@@ -307,7 +307,8 @@
 
         function create_structure_system(structure_type, viscosity;
                                          boundary_density=AdamiPressureExtrapolation(),
-                                         clamped=false)
+                                         clamped=false,
+                                         structure_smoothing_length=smoothing_length)
             # The material mass is twice the hydrodynamic mass, so using the wrong mass
             # to convert the force on the structure to an acceleration fails the test.
             structure = InitialCondition(; coordinates=reshape([1.5, 0.0], 2, 1),
@@ -324,7 +325,8 @@
 
             if structure_type === TotalLagrangianSPHSystem
                 return TotalLagrangianSPHSystem(structure; smoothing_kernel,
-                                                smoothing_length, young_modulus=1e5,
+                                                smoothing_length=structure_smoothing_length,
+                                                young_modulus=1e5,
                                                 poisson_ratio=0.3, boundary_model,
                                                 clamped_particles=clamped ? (1:1) : (1:0))
             end
@@ -423,9 +425,13 @@
         ]
 
         structure_types = (TotalLagrangianSPHSystem, RigidBodySystem)
-        structure_configurations = ((TotalLagrangianSPHSystem, false),
-                                    (TotalLagrangianSPHSystem, true),
-                                    (RigidBodySystem, false))
+        structure_configurations = ((TotalLagrangianSPHSystem, false, smoothing_length),
+                                    (TotalLagrangianSPHSystem, false,
+                                     0.5 * smoothing_length),
+                                    (TotalLagrangianSPHSystem, true, smoothing_length),
+                                    (TotalLagrangianSPHSystem, true,
+                                     0.5 * smoothing_length),
+                                    (RigidBodySystem, false, smoothing_length))
         correction_methods = (nothing, AkinciFreeSurfaceCorrection(fluid_density),
                               KernelCorrection(), GradientCorrection(),
                               BlendedGradientCorrection(0.5),
@@ -440,18 +446,16 @@
             @testset "Correction `$(nameof(typeof(correction)))`" for correction in
                                                                       corrections
 
-                @testset "`$structure_type`, clamped=$clamped" for (structure_type,
-                                                                    clamped) in
-                                                                   structure_configurations
+                @testset "`$structure_type`, clamped=$clamped, h=$structure_smoothing_length" for (structure_type,
+                                                                                                  clamped,
+                                                                                                  structure_smoothing_length) in structure_configurations
 
-                    boundary_densities = if correction isa KernelCorrection ||
-                                            correction isa MixedKernelGradientCorrection
+                    # TLSPH does not yet support `ContinuityDensity` boundaries.
+                    boundary_densities = if structure_type === TotalLagrangianSPHSystem
                         (AdamiPressureExtrapolation(), SummationDensity())
-                    elseif scheme == "WCSPH" && isnothing(correction) &&
-                           structure_type === RigidBodySystem
-                        (AdamiPressureExtrapolation(), ContinuityDensity())
                     else
-                        (AdamiPressureExtrapolation(),)
+                        (AdamiPressureExtrapolation(), SummationDensity(),
+                         ContinuityDensity())
                     end
 
                     @testset "Boundary `$(nameof(typeof(boundary_density)))`" for boundary_density in
@@ -464,14 +468,10 @@
                             structure_system = create_structure_system(structure_type,
                                                                        viscosity;
                                                                        boundary_density,
-                                                                       clamped)
+                                                                       clamped,
+                                                                       structure_smoothing_length)
                             (fluid, structure, arrays,
                              semi, ode) = initialize(fluid_system, structure_system)
-                            # Isolate the pair using the same updated correction and
-                            # boundary-interpolation caches as the full RHS.
-                            v_ode, u_ode = ode.u0.x
-                            dv_ode = zero(v_ode)
-                            TrixiParticles.kick!(dv_ode, v_ode, u_ode, ode.p, 0.0)
                             (force_fluid,
                              force_structure) = pair_forces(fluid, structure, arrays, semi)
                             v_fluid, _, _, _ = arrays
@@ -480,6 +480,7 @@
                                correction isa MixedKernelGradientCorrection
                                 # Verify that reversing the displacement does not just
                                 # change the sign of the corrected gradient in this fixture.
+                                # These corrected kernels are not symmetric.
                                 pos_diff = SVector(1.5, 0.0)
                                 grad_kernel = TrixiParticles.smoothing_kernel_grad_unsafe(fluid,
                                                                                           pos_diff,
@@ -511,11 +512,19 @@
                                 end
                             elseif isnothing(viscosity)
                                 if scheme == "EDAC with average pressure reduction"
-                                    @test TrixiParticles.current_pressure(v_fluid, fluid,
-                                                                          1) ≈
-                                          structure.boundary_model.pressure[1]
-                                    @test isapprox(force_structure, zeros(2),
-                                                   atol=sqrt(eps()))
+                                    if boundary_density isa AdamiPressureExtrapolation
+                                        @test TrixiParticles.current_pressure(v_fluid,
+                                                                              fluid,
+                                                                              1) ≈
+                                              structure.boundary_model.pressure[1]
+                                        @test isapprox(force_structure, zeros(2),
+                                                       atol=sqrt(eps()))
+                                    else
+                                        # The boundary pressure stays zero, so subtracting
+                                        # the fluid's average pressure makes it attractive.
+                                        @test iszero(structure.boundary_model.pressure[1])
+                                        @test force_structure[1] < 0
+                                    end
                                 else
                                     @test force_structure[1] > 0
                                 end
@@ -525,19 +534,28 @@
 
                             # Also check that the normal RHS carries the pair reaction
                             # through to integrated TLSPH particles and rigid-body resultants.
+                            v_ode, u_ode = ode.u0.x
+                            dv_ode = zero(v_ode)
+                            TrixiParticles.kick!(dv_ode, v_ode, u_ode, ode.p, 0.0)
+                            # `kick!` refreshes the correction caches, so compare forces
+                            # from this RHS evaluation rather than the earlier pair call.
+                            dv_fluid = TrixiParticles.wrap_v(dv_ode, fluid, semi)
+                            force_fluid_rhs = fluid.mass[1] * dv_fluid[1:2, 1]
                             dv_structure = TrixiParticles.wrap_v(dv_ode, structure, semi)
                             if structure isa RigidBodySystem
-                                @test isapprox(structure.resultant_force[], -force_fluid,
+                                @test isapprox(structure.resultant_force[],
+                                               -force_fluid_rhs,
                                                rtol=sqrt(eps()), atol=sqrt(eps()))
                             elseif !clamped
                                 @test isapprox(structure.mass[1] * dv_structure[1:2, 1],
-                                               -force_fluid,
+                                               -force_fluid_rhs,
                                                rtol=sqrt(eps()), atol=sqrt(eps()))
                             end
 
                             if boundary_density isa ContinuityDensity
-                                # Independently evaluate the structure-first continuity
-                                # operator using the cubic-spline derivative at r/h = 1.5.
+                                # Evaluate the structure-first continuity equation with
+                                # the boundary's uncorrected cubic-spline gradient,
+                                # independently of the fluid's correction method.
                                 kernel_derivative = -0.75 * (2 - 1.5)^2 * 10 / (7pi)
                                 expected_density_rate = -fluid_density / state.density *
                                                         fluid.mass[1] * state.velocity[1] *
@@ -563,8 +581,8 @@
                 fluid_system = create_fluid_system("WCSPH", (1.0, 0.5), 1005.0,
                                                    viscosity; shifting_technique)
                 structure_system = create_structure_system(structure_type, viscosity)
-                fluid, structure, arrays, semi,
-                _ = initialize(fluid_system, structure_system)
+                (fluid, structure, arrays, semi,
+                 _) = initialize(fluid_system, structure_system)
 
                 # Compare the forces without and with a shifting velocity
                 fluid.cache.delta_v .= 0
