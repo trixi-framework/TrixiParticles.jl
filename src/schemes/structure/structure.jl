@@ -147,8 +147,7 @@ end
                                                   MixedKernelGradientCorrection},
                                           system, pos_diff, distance, particle,
                                           grad_kernel)
-    # These corrections depend on the fluid particle's local neighborhood, so its
-    # gradient cannot be obtained by negating the structure-side gradient.
+    # These corrections produce asymmetric kernels, so we cannot just flip the sign of the gradient.
     return smoothing_kernel_grad_unsafe(system, -pos_diff, distance, particle)
 end
 
