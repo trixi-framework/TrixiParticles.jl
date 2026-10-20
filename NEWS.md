@@ -23,7 +23,9 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 ### Important Bugfixes
 
 - Fixed structure-fluid reaction forces with asymmetric corrected fluid kernel
-  gradients by evaluating the fluid-first gradient directly (#1338).
+  gradients by evaluating the fluid-first gradient directly. The continuity equation
+  of `RigidBodySystem` boundaries with `ContinuityDensity` now uses the kernel gradient
+  of the boundary model instead of the corrected fluid gradient (#1338).
 - Fixed asymmetric DEM contact forces near coincidence by using a pair-local
   radius scale for the near-zero distance cutoff (#1347).
 - Fixed the sign of the quadratic term in `ArtificialViscosityMonaghan` (#1295).

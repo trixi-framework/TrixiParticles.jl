@@ -158,8 +158,8 @@
                                         SchoenbergQuinticSplineKernel{2}(), 2 / 3, false),
                                        ("different smoothing length", smoothing_kernel, 0.8,
                                         false),
-                                       ("nearby smoothing length", smoothing_kernel,
-                                        nextfloat(1.0), false))
+                                       ("smoothing length with rounding error",
+                                        smoothing_kernel, nextfloat(1.0), true))
 
             @testset "$(nameof(typeof(fluid_system))), $structure_type" for fluid_system in
                                                                             fluid_systems,
