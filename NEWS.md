@@ -11,16 +11,25 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Replaced the experimental `MechanicalWorkCalculatorCallback` with
   `MechanicalWorkCalculator`, which can be passed as a custom quantity to
   `PostprocessCallback` (#1228).
-- The compact support of a `BoundaryModelDummyParticles` of a `TotalLagrangianSPHSystem`
-  or `RigidBodySystem` must now be the same as the compact support of all fluid systems
-  in the simulation (#1348).
+- The smoothing kernel and smoothing length of a `BoundaryModelDummyParticles` of a
+  `TotalLagrangianSPHSystem` or `RigidBodySystem` must now be the same as those of all
+  fluid systems in the simulation (#1338, #1348).
+
+### Features
+
+- Added the `ThrustCalculator` custom quantity to calculate the hydrodynamic force exerted by
+  interacting fluid systems on a `TotalLagrangianSPHSystem` along a given `direction` (#1229).
 
 ### Important Bugfixes
 
 - Fixed pressure mirroring for TLSPH and rigid-body neighbors and for EDAC momentum,
   pressure diffusion, and average-pressure reduction at walls and structures (#1341).
 - Fixed structure-fluid reaction forces with asymmetric corrected fluid kernel
-  gradients by evaluating the fluid-first gradient directly (#1338).
+  gradients by evaluating the fluid-first gradient directly. The continuity equation
+  of `RigidBodySystem` boundaries with `ContinuityDensity` now uses the kernel gradient
+  of the boundary model instead of the corrected fluid gradient (#1338).
+- Fixed `RectangularShape` handling of coordinate-dependent density in hydrostatic pressure
+  initialization and prevented coordinate perturbation from changing the global random state (#1196).
 - Fixed asymmetric DEM contact forces near coincidence by using a pair-local
   radius scale for the near-zero distance cutoff (#1347).
 - Fixed the sign of the quadratic term in `ArtificialViscosityMonaghan` (#1295).
