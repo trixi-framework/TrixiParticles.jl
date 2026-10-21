@@ -3,16 +3,16 @@ The following smoothing kernels are currently available:
 
 | Smoothing Kernel                          | Compact Support   | Typ. Smoothing Length | Recommended Application | Stability |
 | :---------------------------------------- | :---------------- | :-------------------- | :---------------------- | :-------- |
-| [`SchoenbergCubicSplineKernel`](@ref)     | $[0, 2h]$         | $1.1$ to $1.3$        | General + sharp waves   | ++        |
-| [`SchoenbergQuarticSplineKernel`](@ref)   | $[0, 2.5h]$       | $1.1$ to $1.5$        | General                 | +++       |
-| [`SchoenbergQuinticSplineKernel`](@ref)   | $[0, 3h]$         | $1.1$ to $1.5$        | General                 | +++       |
-| [`GaussianKernel`](@ref)                  | $[0, 3h]$         | $1.0$ to $1.5$        | Academic                | +++       |
-| [`WendlandC2Kernel`](@ref)                | $[0, 2h]$         | $1.2$ to $2.0$        | General (recommended)   | ++++      |
-| [`WendlandC4Kernel`](@ref)                | $[0, 2h]$         | $1.5$ to $2.3$        | General                 | +++++     |
-| [`WendlandC6Kernel`](@ref)                | $[0, 2h]$         | $1.7$ to $2.5$        | General                 | +++++     |
-| [`Poly6Kernel`](@ref)                     | $[0, 1h]$         | $1.5$ to $2.5$        | Academic                | +         |
-| [`SpikyKernel`](@ref)                     | $[0, 1h]$         | $1.5$ to $3.0$        | Academic                | +         |
-| [`LaguerreGaussKernel`](@ref)             | $[0, 2h]$         | $1.3$ to $1.5$        | General                 | ++++      |
+| [`SchoenbergCubicSplineKernel`](@ref)     | ``[0, 2h]``       | ``1.1`` to ``1.3``    | General + sharp waves   | ++        |
+| [`SchoenbergQuarticSplineKernel`](@ref)   | ``[0, 2.5h]``     | ``1.1`` to ``1.5``    | General                 | +++       |
+| [`SchoenbergQuinticSplineKernel`](@ref)   | ``[0, 3h]``       | ``1.1`` to ``1.5``    | General                 | +++       |
+| [`GaussianKernel`](@ref)                  | ``[0, 3h]``       | ``1.0`` to ``1.5``    | Academic                | +++       |
+| [`WendlandC2Kernel`](@ref)                | ``[0, 2h]``       | ``1.2`` to ``2.0``    | General (recommended)   | ++++      |
+| [`WendlandC4Kernel`](@ref)                | ``[0, 2h]``       | ``1.5`` to ``2.3``    | General                 | +++++     |
+| [`WendlandC6Kernel`](@ref)                | ``[0, 2h]``       | ``1.7`` to ``2.5``    | General                 | +++++     |
+| [`Poly6Kernel`](@ref)                     | ``[0, 1h]``       | ``1.5`` to ``2.5``    | Academic                | +         |
+| [`SpikyKernel`](@ref)                     | ``[0, 1h]``       | ``1.5`` to ``3.0``    | Academic                | +         |
+| [`LaguerreGaussKernel`](@ref)             | ``[0, 2h]``       | ``1.3`` to ``1.5``    | General                 | ++++      |
 
 Any Kernel with a stability rating of more than '+++' doesn't suffer from pairing-instability.
 
@@ -157,7 +157,7 @@ CairoMakie.save("smoothing_kernels.png", fig)
      -0.3762063922043116
      -0.3762063922043116
     ```
-    where `pos_diff` is $r_a - r_b$ and `distance` is $\Vert r_a - r_b \Vert$,
+    where `pos_diff` is ``r_a - r_b`` and `distance` is ``\Vert r_a - r_b \Vert``,
     although in most cases, it is recommended to use
     ```jldoctest kernels; output = false, setup=:(trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing); system = fluid_system; particle = 1)
     TrixiParticles.smoothing_kernel_grad(system, pos_diff, distance, particle)

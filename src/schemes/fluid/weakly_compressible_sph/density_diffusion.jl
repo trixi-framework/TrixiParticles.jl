@@ -216,11 +216,11 @@ end
                                                                           OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}},
                                                    particle, neighbor, pos_diff,
                                                    distance, m_b, rho_a, rho_b, grad_kernel)
-    # Density diffusion terms are all zero for distance zero.
+    # Density diffusion terms are all zero for distance zero (see `almostzero`).
     # If `skip_zero_distance` is `true`, we can assume that this function isn't called
     # for distance zero because these neighbors have already been skipped.
     if !skip_zero_distance(particle_system) &&
-       distance^2 < eps(initial_smoothing_length(particle_system)^2)
+       distance < almostzero(initial_smoothing_length(particle_system))
         return drho_particle
     end
 
