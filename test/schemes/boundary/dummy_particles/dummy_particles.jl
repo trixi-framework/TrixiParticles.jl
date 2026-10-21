@@ -696,6 +696,162 @@
             end
         end
     end
+
+    @testset verbose=true "Pressure Mirroring: No-Slip Wall Velocity" begin
+        # `PressureMirroring` does not extrapolate the boundary pressure, but the no-slip
+        # condition by Adami et al. (2012) requires the same wall velocity
+        # `v_w = 2 * v_boundary - ṽ_fluid` as with `AdamiPressureExtrapolation`.
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        smoothing_length = 1.2
+        fluid_density = 1000.0
+        state_equation = StateEquationCole(; sound_speed=10.0,
+                                           reference_density=fluid_density, exponent=1)
+        viscosity = ViscosityAdami(nu=0.1)
+
+        # Fluid particles with different velocities above a row of boundary particles.
+        # The last boundary particle has no fluid neighbors.
+        fluid_ic = InitialCondition(; coordinates=[-1.0 0.0 -1.0 0.0; 1.0 1.0 2.0 2.0],
+                                    velocity=[1.0 0.0 -1.0 0.5; 0.0 1.0 0.5 -0.5],
+                                    mass=fill(fluid_density, 4),
+                                    density=fill(fluid_density, 4), particle_spacing=1.0)
+        n_boundary = 5
+        boundary_coordinates = [collect(-1.0:3.0)'; zeros(1, n_boundary)]
+
+        function create_systems(boundary_type, density_calculator, boundary_velocity)
+            fluid_system = WeaklyCompressibleSPHSystem(fluid_ic; smoothing_kernel,
+                                                       smoothing_length, state_equation,
+                                                       density_calculator=ContinuityDensity(),
+                                                       viscosity)
+
+            velocity = repeat(collect(boundary_velocity), 1, n_boundary)
+            boundary_ic = InitialCondition(; coordinates=boundary_coordinates,
+                                           velocity, mass=fill(fluid_density, n_boundary),
+                                           density=fill(fluid_density, n_boundary),
+                                           particle_spacing=1.0)
+            boundary_model = BoundaryModelDummyParticles(boundary_ic.density,
+                                                         boundary_ic.mass,
+                                                         density_calculator,
+                                                         smoothing_kernel,
+                                                         smoothing_length;
+                                                         state_equation, viscosity)
+
+            boundary_system = if boundary_type === WallBoundarySystem
+                WallBoundarySystem(boundary_ic, boundary_model)
+            elseif boundary_type === TotalLagrangianSPHSystem
+                TotalLagrangianSPHSystem(boundary_ic; smoothing_kernel, smoothing_length,
+                                         young_modulus=1e5, poisson_ratio=0.3,
+                                         boundary_model)
+            else
+                RigidBodySystem(boundary_ic; boundary_model)
+            end
+
+            return fluid_system, boundary_system
+        end
+
+        # Run the regular update step, which computes the wall velocity
+        function initialize(fluid_system, boundary_system)
+            semi = if boundary_system isa TotalLagrangianSPHSystem
+                @test_logs (:info,
+                            r"^To create the self-interaction neighborhood search") Semidiscretization(fluid_system,
+                                                                                                       boundary_system;
+                                                                                                       parallelization_backend=SerialBackend())
+            else
+                Semidiscretization(fluid_system, boundary_system;
+                                   parallelization_backend=SerialBackend())
+            end
+            ode = semidiscretize(semi, (0.0, 0.01))
+            v_ode, u_ode = ode.u0.x
+            TrixiParticles.update_systems_and_nhs(v_ode, u_ode, ode.p.semi, 0.0)
+
+            return ode.p.semi, v_ode, u_ode
+        end
+
+        # Walls are at rest, structures move
+        boundary_configurations = ((WallBoundarySystem, (0.0, 0.0)),
+                                   (TotalLagrangianSPHSystem, (0.2, -0.1)),
+                                   (RigidBodySystem, (0.2, -0.1)))
+
+        @testset "`$boundary_type`" for (boundary_type,
+                                         boundary_velocity) in boundary_configurations
+
+            semi, _,
+            _ = initialize(create_systems(boundary_type,
+                                          AdamiPressureExtrapolation(),
+                                          boundary_velocity)...)
+            wall_velocity_adami = semi.systems[2].boundary_model.cache.wall_velocity
+
+            # The wall velocity is only computed for boundary particles with fluid neighbors
+            for particle in 1:(n_boundary - 1)
+                @test !iszero(wall_velocity_adami[:, particle])
+            end
+            @test iszero(wall_velocity_adami[:, n_boundary])
+
+            semi, _,
+            _ = initialize(create_systems(boundary_type, PressureMirroring(),
+                                          boundary_velocity)...)
+            wall_velocity = semi.systems[2].boundary_model.cache.wall_velocity
+
+            @test wall_velocity ≈ wall_velocity_adami
+        end
+
+        # A structure moving through fluid at rest must drag the fluid along.
+        # The fluid pressure is zero, so both models have the reference density and zero
+        # pressure. Therefore, the pair force is purely viscous and must be the same.
+        @testset "Viscous Force of a Moving `$structure_type`" for structure_type in
+                                                                   (TotalLagrangianSPHSystem,
+                                                                    RigidBodySystem)
+            # A single fluid particle at rest and a single structure particle at `(1.5h, 0)`
+            fluid_ic_ = InitialCondition(; coordinates=zeros(2, 1), velocity=zeros(2, 1),
+                                         mass=[fluid_density], density=[fluid_density],
+                                         particle_spacing=1.0)
+            structure_velocity = SVector(1.0, 0.5)
+            structure_ic = InitialCondition(;
+                                            coordinates=reshape([1.5 * smoothing_length,
+                                                                    0.0], 2, 1),
+                                            velocity=reshape(collect(structure_velocity),
+                                                             2, 1),
+                                            mass=[2 * fluid_density],
+                                            density=[2 * fluid_density],
+                                            particle_spacing=1.0)
+
+            function viscous_force(density_calculator)
+                fluid_system = WeaklyCompressibleSPHSystem(fluid_ic_; smoothing_kernel,
+                                                           smoothing_length, state_equation,
+                                                           density_calculator=ContinuityDensity(),
+                                                           viscosity)
+                boundary_model = BoundaryModelDummyParticles([fluid_density],
+                                                             [fluid_density],
+                                                             density_calculator,
+                                                             smoothing_kernel,
+                                                             smoothing_length;
+                                                             state_equation, viscosity)
+                structure_system = if structure_type === TotalLagrangianSPHSystem
+                    TotalLagrangianSPHSystem(structure_ic; smoothing_kernel,
+                                             smoothing_length, young_modulus=1e5,
+                                             poisson_ratio=0.3, boundary_model)
+                else
+                    RigidBodySystem(structure_ic; boundary_model)
+                end
+
+                semi, v_ode, u_ode = initialize(fluid_system, structure_system)
+                fluid, structure = semi.systems
+                v_fluid = TrixiParticles.wrap_v(v_ode, fluid, semi)
+                u_fluid = TrixiParticles.wrap_u(u_ode, fluid, semi)
+                v_structure = TrixiParticles.wrap_v(v_ode, structure, semi)
+                u_structure = TrixiParticles.wrap_u(u_ode, structure, semi)
+
+                dv_fluid = zero(v_fluid)
+                TrixiParticles.interact!(dv_fluid, v_fluid, u_fluid, v_structure,
+                                         u_structure, fluid, structure, semi)
+
+                return fluid.mass[1] * dv_fluid[1:2, 1]
+            end
+
+            force_adami = viscous_force(AdamiPressureExtrapolation())
+            @test dot(force_adami, structure_velocity) > 0
+            @test viscous_force(PressureMirroring()) ≈ force_adami
+        end
+    end
 end
 
 include("rhs.jl")
