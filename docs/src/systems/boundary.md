@@ -69,6 +69,8 @@ We provide six options to compute the boundary density and pressure, determined 
    penetrations.
 3. With [`SummationDensity`](@ref), the density is calculated by summation over the neighboring particles,
    and the pressure is computed from the density with the state equation.
+   This option is not yet supported for the boundary models of a [`TotalLagrangianSPHSystem`](@ref)
+   or a [`RigidBodySystem`](@ref) in fluid-structure interaction.
 4. With [`ContinuityDensity`](@ref), the density is integrated from the continuity equation,
    and the pressure is computed from the density with the state equation.
    Note that this causes a gap between fluid and boundary where the boundary is initialized

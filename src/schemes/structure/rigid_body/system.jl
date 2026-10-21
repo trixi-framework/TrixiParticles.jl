@@ -631,6 +631,7 @@ function check_configuration(system::RigidBodySystem, systems, nhs)
         end
 
         check_smoothing_kernel_fsi(system, boundary_model, neighbor)
+        check_boundary_density_fsi(system, boundary_model, neighbor)
 
         if neighbor isa AbstractFluidSystem &&
            neighbor.surface_normal_method isa ColorfieldSurfaceNormal

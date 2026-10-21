@@ -201,6 +201,22 @@
                                                                              neighborhood_search=nothing)
                 end
 
+                # The summation density is never computed for structure boundaries
+                boundary_model = BoundaryModelDummyParticles(ic.density, ic.mass,
+                                                             SummationDensity(),
+                                                             smoothing_kernel,
+                                                             smoothing_length)
+                structure = create_structure_system(structure_type, boundary_model)
+                error_str = "`BoundaryModelDummyParticles` with density calculator " *
+                            "`SummationDensity` is not yet supported for a " *
+                            "`$structure_type` in a fluid-structure interaction"
+                @test_throws ArgumentError(error_str) Semidiscretization(structure,
+                                                                         fluid_system;
+                                                                         neighborhood_search=nothing)
+
+                # Without a fluid, the boundary density is not used
+                @test_nowarn TrixiParticles.check_configuration((structure,), nothing)
+
                 @testset "$name" for (name, boundary_kernel, boundary_length,
                                       compatible) in boundary_configurations
 
@@ -306,7 +322,7 @@
                                             particle_spacing=1.0)
             boundary_model = BoundaryModelDummyParticles(structure_ic.density,
                                                          structure_ic.mass,
-                                                         SummationDensity(), kernel,
+                                                         PressureZeroing(), kernel,
                                                          smoothing_length;
                                                          state_equation,
                                                          correction=nothing)
