@@ -65,11 +65,9 @@ pipe_setup = (; wall=setdiff(pipe_outer.solid, pipe_channel),
               outer_geometry=pipe_outer.geometry,
               channel_geometry=pipe_channel)
 
-p_pipe = plot(pipe_setup.wall, label="wall", title="Curved pipe",
-              markerstrokewidth=0, markersize=4, size=(450, 450))
-plot!(p_pipe, showaxis=false, aspect_ratio=:equal,
-      xlims=(-0.03, 1.23), ylims=(-0.03, 1.23))
-plot!(p_pipe, dpi=200) # hide
+p_pipe = plot(pipe_setup.wall, label="wall", size=(450, 450), showaxis=false,
+              xlims=(-0.03, 1.23), ylims=(-0.03, 1.23))
+plot!(p_pipe, dpi=300) # hide
 savefig(p_pipe, "tut_2d_geometry_pipe.png"); # hide
 # ![Curved pipe wall particles](tut_2d_geometry_pipe.png)
 
@@ -94,11 +92,8 @@ coast_setup = (; geometry=coast.geometry,
                wall=union(coast.solid, left_wall),
                fluid=setdiff(reservoir, coast.geometry))
 
-p_coast = plot(coast_setup.fluid, coast_setup.wall,
-               labels=["fluid" "wall"], title="Coastline dam break",
-               markerstrokewidth=0, markersize=3, size=(700, 360))
-plot!(p_coast, showaxis=false, aspect_ratio=:equal,
-      xlims=(0.0, 2.75), ylims=(-0.15, 1.35))
+p_coast = plot(coast_setup.fluid, coast_setup.wall, labels=["fluid" "wall"],
+               size=(700, 360), showaxis=false, xlims=(0.0, 2.75), ylims=(-0.15, 1.35))
 plot!(p_coast, dpi=200) # hide
 savefig(p_coast, "tut_2d_geometry_coast.png"); # hide
 # ![Coastline dam-break initial conditions](tut_2d_geometry_coast.png)
@@ -109,7 +104,6 @@ savefig(p_coast, "tut_2d_geometry_coast.png"); # hide
 # integration described in [Setting up your simulation from scratch](@ref tut_setup).
 setup = coast_setup
 tspan = (0.0, 1.0)
-nothing # hide
 
 smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
@@ -124,28 +118,22 @@ fluid_system = WeaklyCompressibleSPHSystem(setup.fluid;
                                            smoothing_length, viscosity=viscosity,
                                            density_diffusion=density_diffusion,
                                            acceleration=(0.0, -gravity))
-nothing # hide
 
 boundary_model = BoundaryModelDummyParticles(setup.wall.density, setup.wall.mass,
                                              state_equation=state_equation,
                                              AdamiPressureExtrapolation(),
                                              smoothing_kernel, smoothing_length)
 boundary_system = WallBoundarySystem(setup.wall, boundary_model)
-nothing # hide
 
 semi = Semidiscretization(fluid_system, boundary_system)
 ode = semidiscretize(semi, tspan)
-nothing # hide
 
 callbacks = CallbackSet(InfoCallback(interval=10))
-nothing # hide
 
 sol = solve(ode, RDPK3SpFSAL35(), save_everystep=false, callback=callbacks)
-nothing # hide
 
 plot(sol, title="Coastline dam break at t = $(sol.t[end])",
-     markerstrokewidth=0, markersize=3, size=(700, 360),
-     showaxis=false, aspect_ratio=:equal, legend=:topleft)
+     size=(700, 360), showaxis=false, legend=:topleft)
 plot!(dpi=200) # hide
 savefig("tut_2d_geometry_solution.png"); # hide
 # ![Coastline dam-break final result](tut_2d_geometry_solution.png)
