@@ -541,6 +541,21 @@
                                     end
                                 else
                                     @test force_structure[1] > 0
+
+                                    if scheme == "EDAC" &&
+                                       boundary_density isa PressureMirroring
+                                        # `inter_particle_averaged_pressure` with the
+                                        # mirrored pressure `p_b = p_a`. The hydrodynamic
+                                        # mass and density of the structure particle give
+                                        # a volume of 1.
+                                        p_a = TrixiParticles.current_pressure(v_fluid,
+                                                                              fluid, 1)
+                                        volume_a = fluid.mass[1] / state.density
+                                        grad_kernel = SVector(0.75 * (2 - 1.5)^2 * 10 /
+                                                              (7pi), 0.0)
+                                        @test force_fluid ≈
+                                              -(volume_a^2 + 1) * p_a * grad_kernel
+                                    end
                                 end
                             else
                                 @test !iszero(force_fluid)
@@ -553,6 +568,24 @@
                                                         fluid.mass[1] * state.velocity[1] *
                                                         kernel_derivative
                                 @test dv_structure[end, 1] ≈ expected_density_rate
+                            end
+
+                            if scheme != "WCSPH" && boundary_density isa PressureMirroring
+                                # The mirrored pressure `p_b = p_a` makes the pressure
+                                # diffusion of this pair vanish, so only the divergence
+                                # term of the EDAC pressure evolution remains.
+                                # The structure is at rest, and its hydrodynamic mass and
+                                # density give a volume of 1.
+                                _, u_fluid, v_structure, u_structure = arrays
+                                dv_pair = zero(v_fluid)
+                                TrixiParticles.interact!(dv_pair, v_fluid, u_fluid,
+                                                         v_structure, u_structure,
+                                                         fluid, structure, semi)
+                                grad_kernel = SVector(0.75 * (2 - 1.5)^2 * 10 / (7pi), 0.0)
+                                expected_pressure_rate = state.density * sound_speed^2 *
+                                                         dot(SVector(state.velocity),
+                                                             grad_kernel)
+                                @test dv_pair[3, 1] ≈ expected_pressure_rate
                             end
 
                             # Also check that the normal RHS carries the pair reaction

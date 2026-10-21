@@ -852,6 +852,86 @@
             @test viscous_force(PressureMirroring()) ≈ force_adami
         end
     end
+
+    @testset verbose=true "Pressure Mirroring with EDAC" begin
+        # Two fluid particles with different pressures next to a wall particle.
+        # With pressure mirroring, fluid particle `a` sees the wall pressure `p_a`.
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        smoothing_length = 1.0
+        fluid_density = 1000.0
+        pressures = [500.0, 100.0]
+
+        # Both fluid particles are neighbors of each other and of the wall particle
+        fluid_ic = InitialCondition(; coordinates=[0.0 0.5; 0.0 0.0], velocity=zeros(2, 2),
+                                    mass=fill(fluid_density, 2),
+                                    density=fill(fluid_density, 2), pressure=pressures,
+                                    particle_spacing=1.0)
+        distances = (1.5, 1.0)
+        wall_ic = InitialCondition(; coordinates=reshape([1.5, 0.0], 2, 1),
+                                   mass=[fluid_density], density=[fluid_density],
+                                   particle_spacing=1.0)
+
+        # Independent cubic-spline gradient ∇_a W_ab for `b` to the right of `a`
+        function grad_kernel(distance)
+            derivative = 10 / (7pi) *
+                         (distance < 1 ? -3distance + 2.25distance^2 :
+                          -0.75 * (2 - distance)^2)
+            return SVector(-derivative, 0.0)
+        end
+
+        @testset "average_pressure_reduction=$average_pressure_reduction" for average_pressure_reduction in
+                                                                              (false,
+                                                                               true)
+            fluid_system = EntropicallyDampedSPHSystem(fluid_ic; smoothing_kernel,
+                                                       smoothing_length, sound_speed=10.0,
+                                                       density_calculator=ContinuityDensity(),
+                                                       average_pressure_reduction)
+            boundary_model = BoundaryModelDummyParticles(wall_ic.density, wall_ic.mass,
+                                                         PressureMirroring(),
+                                                         smoothing_kernel, smoothing_length)
+            wall_system = WallBoundarySystem(wall_ic, boundary_model)
+            semi = Semidiscretization(fluid_system, wall_system;
+                                      parallelization_backend=SerialBackend())
+            ode = semidiscretize(semi, (0.0, 0.01))
+            v_ode, u_ode = ode.u0.x
+            TrixiParticles.update_systems_and_nhs(v_ode, u_ode, ode.p.semi, 0.0)
+
+            semi = ode.p.semi
+            fluid, wall = semi.systems
+
+            if average_pressure_reduction
+                # Each particle averages over itself, the other fluid particle and the wall
+                # particle, which has the mirrored pressure of the particle itself.
+                @test fluid.cache.pressure_average ≈
+                      [2 * pressures[1] + pressures[2], pressures[1] + 2 * pressures[2]] /
+                      3
+            end
+
+            v_fluid = TrixiParticles.wrap_v(v_ode, fluid, semi)
+            u_fluid = TrixiParticles.wrap_u(u_ode, fluid, semi)
+            v_wall = TrixiParticles.wrap_v(v_ode, wall, semi)
+            u_wall = TrixiParticles.wrap_u(u_ode, wall, semi)
+            dv = zero(v_fluid)
+            TrixiParticles.interact!(dv, v_fluid, u_fluid, v_wall, u_wall, fluid, wall,
+                                     semi)
+
+            for particle in 1:2
+                # `inter_particle_averaged_pressure` with the mirrored wall pressure
+                # `p_b = p_a` and the volumes `m_a / rho_a = m_b / rho_b = 1`.
+                # Without average pressure reduction, `average_pressure` returns zero.
+                reduced_pressure = pressures[particle] -
+                                   TrixiParticles.average_pressure(fluid, particle)
+                expected = -2 / fluid_density * reduced_pressure *
+                           grad_kernel(distances[particle])
+
+                @test dv[1:2, particle] ≈ expected
+            end
+
+            # The divergence term of the pressure evolution is zero for particles at rest,
+            # and the mirrored wall pressure makes the pressure diffusion term zero.
+            @test iszero(dv[3, :])
+        end
+    end
 end
 
 include("rhs.jl")
