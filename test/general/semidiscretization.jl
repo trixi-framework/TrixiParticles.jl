@@ -188,34 +188,27 @@
                                                                          fluid_system;
                                                                          neighborhood_search=nothing)
 
-                if structure_type === TotalLagrangianSPHSystem
+                unsupported_densities = structure_type === TotalLagrangianSPHSystem ?
+                                        (ContinuityDensity(), SummationDensity()) :
+                                        (SummationDensity(),)
+                for density_calculator in unsupported_densities
                     boundary_model = BoundaryModelDummyParticles(ic.density, ic.mass,
-                                                                 ContinuityDensity(),
+                                                                 density_calculator,
                                                                  smoothing_kernel,
                                                                  smoothing_length)
                     structure = create_structure_system(structure_type, boundary_model)
                     error_str = "`BoundaryModelDummyParticles` with density calculator " *
-                                "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"
+                                "`$(nameof(typeof(density_calculator)))` is not yet supported " *
+                                "for a `$structure_type`"
+                    if density_calculator isa SummationDensity
+                        error_str *= " in a fluid-structure interaction"
+                        @test_nowarn TrixiParticles.check_configuration((structure,),
+                                                                        nothing)
+                    end
                     @test_throws ArgumentError(error_str) Semidiscretization(structure,
                                                                              fluid_system;
                                                                              neighborhood_search=nothing)
                 end
-
-                # The summation density is never computed for structure boundaries
-                boundary_model = BoundaryModelDummyParticles(ic.density, ic.mass,
-                                                             SummationDensity(),
-                                                             smoothing_kernel,
-                                                             smoothing_length)
-                structure = create_structure_system(structure_type, boundary_model)
-                error_str = "`BoundaryModelDummyParticles` with density calculator " *
-                            "`SummationDensity` is not yet supported for a " *
-                            "`$structure_type` in a fluid-structure interaction"
-                @test_throws ArgumentError(error_str) Semidiscretization(structure,
-                                                                         fluid_system;
-                                                                         neighborhood_search=nothing)
-
-                # Without a fluid, the boundary density is not used
-                @test_nowarn TrixiParticles.check_configuration((structure,), nothing)
 
                 @testset "$name" for (name, boundary_kernel, boundary_length,
                                       compatible) in boundary_configurations
