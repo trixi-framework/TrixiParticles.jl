@@ -92,8 +92,6 @@ Pressure mirroring also applies to TLSPH and rigid-body boundary models. In EDAC
 the mirrored pressure is used in the momentum equation, the pressure evolution
 equation, and the average-pressure reduction. Mirroring makes the pressure
 diffusion contribution from a fluid-boundary pair zero.
-With a viscosity model, the wall velocity of the no-slip condition (see below)
-is computed in the same way as with [`AdamiPressureExtrapolation`](@ref).
 
 #### 1. [`AdamiPressureExtrapolation`](@ref)
 
@@ -174,6 +172,7 @@ velocity ``v_a`` and the smoothed velocity field
 v_w = 2 v_a - \frac{\sum_b v_b W_{ab}}{\sum_b W_{ab}},
 ```
 where the sum is over all fluid particles.
+The wall velocity is computed in this way for all density calculators.
 
 By choosing the viscosity model [`ViscosityAdami`](@ref) for `viscosity`, a no-slip
 condition is imposed. It is recommended to choose `nu` in the order of either the kinematic

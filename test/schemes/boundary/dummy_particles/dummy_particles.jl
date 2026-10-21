@@ -697,16 +697,19 @@
         end
     end
 
-    @testset verbose=true "Pressure Mirroring: No-Slip Wall Velocity" begin
-        # `PressureMirroring` does not extrapolate the boundary pressure, but the no-slip
-        # condition by Adami et al. (2012) requires the same wall velocity
-        # `v_w = 2 * v_boundary - ṽ_fluid` as with `AdamiPressureExtrapolation`.
+    @testset verbose=true "No-Slip Wall Velocity" begin
+        # The no-slip condition by Adami et al. (2012) does not depend on how the boundary
+        # pressure is computed. All density calculators must yield the same wall velocity
+        # `v_w = 2 * v_boundary - ṽ_fluid` as `AdamiPressureExtrapolation`.
         smoothing_kernel = SchoenbergCubicSplineKernel{2}()
         smoothing_length = 1.2
         fluid_density = 1000.0
         state_equation = StateEquationCole(; sound_speed=10.0,
                                            reference_density=fluid_density, exponent=1)
         viscosity = ViscosityAdami(nu=0.1)
+        # Parameters of IISPH, which `PressureBoundaries` must match
+        time_step = 1e-3
+        omega = 0.5
 
         # Fluid particles with different velocities above a row of boundary particles.
         # The last boundary particle has no fluid neighbors.
@@ -718,10 +721,18 @@
         boundary_coordinates = [collect(-1.0:3.0)'; zeros(1, n_boundary)]
 
         function create_systems(boundary_type, density_calculator, boundary_velocity)
-            fluid_system = WeaklyCompressibleSPHSystem(fluid_ic; smoothing_kernel,
-                                                       smoothing_length, state_equation,
-                                                       density_calculator=ContinuityDensity(),
-                                                       viscosity)
+            # `PressureBoundaries` can only be used with IISPH
+            fluid_system = if density_calculator isa PressureBoundaries
+                ImplicitIncompressibleSPHSystem(fluid_ic; smoothing_kernel,
+                                                smoothing_length,
+                                                reference_density=fluid_density,
+                                                viscosity, time_step, omega)
+            else
+                WeaklyCompressibleSPHSystem(fluid_ic; smoothing_kernel, smoothing_length,
+                                            state_equation,
+                                            density_calculator=ContinuityDensity(),
+                                            viscosity)
+            end
 
             velocity = repeat(collect(boundary_velocity), 1, n_boundary)
             boundary_ic = InitialCondition(; coordinates=boundary_coordinates,
@@ -736,7 +747,12 @@
                                                          state_equation, viscosity)
 
             boundary_system = if boundary_type === WallBoundarySystem
-                WallBoundarySystem(boundary_ic, boundary_model)
+                # Walls move with a prescribed constant velocity
+                prescribed_velocity = SVector(boundary_velocity)
+                prescribed_motion = iszero(prescribed_velocity) ? nothing :
+                                    PrescribedMotion((x, t) -> x + prescribed_velocity * t,
+                                                     t -> true)
+                WallBoundarySystem(boundary_ic, boundary_model; prescribed_motion)
             elseif boundary_type === TotalLagrangianSPHSystem
                 TotalLagrangianSPHSystem(boundary_ic; smoothing_kernel, smoothing_length,
                                          young_modulus=1e5, poisson_ratio=0.3,
@@ -766,13 +782,32 @@
             return ode.p.semi, v_ode, u_ode
         end
 
-        # Walls are at rest, structures move
+        # TLSPH does not yet support `ContinuityDensity` boundaries, structures don't
+        # support `SummationDensity` boundaries, and `PressureBoundaries` is only
+        # implemented for walls.
+        function density_calculators(boundary_type)
+            if boundary_type === WallBoundarySystem
+                return (BernoulliPressureExtrapolation(), SummationDensity(),
+                        ContinuityDensity(), PressureZeroing(), PressureMirroring(),
+                        PressureBoundaries(; time_step, omega))
+            elseif boundary_type === TotalLagrangianSPHSystem
+                return (BernoulliPressureExtrapolation(), PressureZeroing(),
+                        PressureMirroring())
+            end
+
+            return (BernoulliPressureExtrapolation(), ContinuityDensity(),
+                    PressureZeroing(), PressureMirroring())
+        end
+
+        # Walls at rest and moving walls and structures
         boundary_configurations = ((WallBoundarySystem, (0.0, 0.0)),
+                                   (WallBoundarySystem, (0.2, -0.1)),
                                    (TotalLagrangianSPHSystem, (0.2, -0.1)),
                                    (RigidBodySystem, (0.2, -0.1)))
 
-        @testset "`$boundary_type`" for (boundary_type,
-                                         boundary_velocity) in boundary_configurations
+        @testset "`$boundary_type` with velocity $boundary_velocity" for (boundary_type,
+                                                                          boundary_velocity) in
+                                                                         boundary_configurations
 
             semi, _,
             _ = initialize(create_systems(boundary_type,
@@ -786,17 +821,20 @@
             end
             @test iszero(wall_velocity_adami[:, n_boundary])
 
-            semi, _,
-            _ = initialize(create_systems(boundary_type, PressureMirroring(),
-                                          boundary_velocity)...)
-            wall_velocity = semi.systems[2].boundary_model.cache.wall_velocity
+            @testset "`$(nameof(typeof(density_calculator)))`" for density_calculator in
+                                                                   density_calculators(boundary_type)
+                semi, _,
+                _ = initialize(create_systems(boundary_type, density_calculator,
+                                              boundary_velocity)...)
+                wall_velocity = semi.systems[2].boundary_model.cache.wall_velocity
 
-            @test wall_velocity ≈ wall_velocity_adami
+                @test wall_velocity ≈ wall_velocity_adami
+            end
         end
 
         # A structure moving through fluid at rest must drag the fluid along.
-        # The fluid pressure is zero, so both models have the reference density and zero
-        # pressure. Therefore, the pair force is purely viscous and must be the same.
+        # The fluid pressure is zero, so all these models have the reference density and
+        # zero pressure. Therefore, the pair force is purely viscous and must be the same.
         @testset "Viscous Force of a Moving `$structure_type`" for structure_type in
                                                                    (TotalLagrangianSPHSystem,
                                                                     RigidBodySystem)
@@ -849,7 +887,16 @@
 
             force_adami = viscous_force(AdamiPressureExtrapolation())
             @test dot(force_adami, structure_velocity) > 0
-            @test viscous_force(PressureMirroring()) ≈ force_adami
+
+            density_calculators_ = structure_type === TotalLagrangianSPHSystem ?
+                                   (PressureZeroing(), PressureMirroring()) :
+                                   (ContinuityDensity(), PressureZeroing(),
+                                    PressureMirroring())
+            @testset "`$(nameof(typeof(density_calculator)))`" for density_calculator in
+                                                                   density_calculators_
+
+                @test viscous_force(density_calculator) ≈ force_adami
+            end
         end
     end
 
