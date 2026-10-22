@@ -313,6 +313,8 @@
 
         function create_structure_system(structure_type, viscosity;
                                          boundary_density=AdamiPressureExtrapolation(),
+                                         initial_boundary_density=[fluid_density],
+                                         boundary_state_equation=state_equation,
                                          boundary_correction=nothing,
                                          clip_negative_pressure=false,
                                          clamped=false,
@@ -324,13 +326,14 @@
                                          velocity=reshape(collect(velocity), 2, 1),
                                          mass=[2 * fluid_density * particle_spacing^2],
                                          density=[2 * fluid_density], particle_spacing)
-            boundary_model = BoundaryModelDummyParticles([fluid_density],
+            boundary_model = BoundaryModelDummyParticles(initial_boundary_density,
                                                          [fluid_density *
                                                           particle_spacing^2],
                                                          boundary_density,
                                                          smoothing_kernel,
                                                          smoothing_length;
-                                                         state_equation, viscosity,
+                                                         state_equation=boundary_state_equation,
+                                                         viscosity,
                                                          clip_negative_pressure,
                                                          correction=boundary_correction)
 
@@ -614,7 +617,8 @@
         end
 
         no_slip_densities = (ContinuityDensity(), PressureZeroing(), PressureMirroring())
-        iisph_densities = (no_slip_densities...,
+        iisph_densities = (AdamiPressureExtrapolation(), BernoulliPressureExtrapolation(),
+                           no_slip_densities...,
                            PressureBoundaries(time_step=1e-3, omega=0.5))
         no_slip_configurations = (("WCSPH", WallBoundarySystem, false,
                                    (SummationDensity(), no_slip_densities...)),
@@ -632,11 +636,14 @@
                                                                                                            boundary_densities
 
             viscosity = ViscosityAdami(nu=0.1)
-            velocity = SVector(1.0, 0.5)
+            velocity = SVector(0.0, 1.0) # Tangential motion keeps Bernoulli pressure zero.
             fluid_system = create_fluid_system(scheme, (0.0, 0.0), fluid_density,
                                                viscosity)
             boundary = create_structure_system(boundary_type, viscosity;
                                                boundary_density, velocity,
+                                               boundary_state_equation=scheme == "IISPH" ?
+                                                                       nothing :
+                                                                       state_equation,
                                                clip_negative_pressure=true)
             fluid, boundary, arrays, semi,
             ode = initialize(fluid_system, boundary;
@@ -660,6 +667,18 @@
                           v[1:2, 1] + fluid.time_step * dv[1:2, 1]
                 end
             end
+        end
+
+        @testset "No-slip weight storage: $scheme, $T" for scheme in ("WCSPH", "EDAC"),
+                                                           T in (Int, Float32, Float64)
+            viscosity = ViscosityAdami(nu=0.1)
+            velocity = SVector(1.0, 0.5)
+            fluid = create_fluid_system(scheme, velocity, fluid_density, viscosity)
+            wall = create_structure_system(WallBoundarySystem, viscosity;
+                                           boundary_density=PressureZeroing(),
+                                           initial_boundary_density=T[fluid_density])
+            _, wall, _, _, _ = initialize(fluid, wall)
+            @test wall.boundary_model.cache.wall_velocity[:, 1] ≈ -velocity
         end
 
         @testset "No-slip with Zhang buffers: $boundary_density" for boundary_density in

@@ -99,8 +99,9 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
 
     # Mirroring and pressure extrapolation already provide their interpolation weights.
     # Other density calculators need additional weights only for the no-slip condition.
+    # Use floating-point velocity storage even when the initial densities are integers.
     if !isnothing(viscosity) && !haskey(cache, :volume)
-        cache = (; cache..., volume=similar(initial_density))
+        cache = (; cache..., volume=similar(cache.wall_velocity, n_particles))
     end
 
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
@@ -598,7 +599,9 @@ end
     return boundary_model
 end
 
-function interpolate_wall_velocity!(boundary_model::BoundaryModelDummyParticles{<:Union{SummationDensity,
+function interpolate_wall_velocity!(boundary_model::BoundaryModelDummyParticles{<:Union{AdamiPressureExtrapolation,
+                                                                                        BernoulliPressureExtrapolation,
+                                                                                        SummationDensity,
                                                                                         ContinuityDensity,
                                                                                         PressureMirroring,
                                                                                         PressureZeroing,
@@ -608,6 +611,14 @@ function interpolate_wall_velocity!(boundary_model::BoundaryModelDummyParticles{
 
     # Without a viscosity model, the wall velocity is not used.
     isnothing(viscosity) && return boundary_model
+
+    # Explicit fluids interpolate this velocity together with the extrapolated pressure.
+    # IISPH needs it before prediction, when the pressure cannot yet be extrapolated.
+    if boundary_model.density_calculator isa Union{AdamiPressureExtrapolation,
+             BernoulliPressureExtrapolation} &&
+       !any(neighbor -> neighbor isa ImplicitIncompressibleSPHSystem, semi.systems)
+        return boundary_model
+    end
 
     # For the no-slip condition, interpolate the fluid velocity as in the pressure
     # extrapolation of `AdamiPressureExtrapolation` (see `boundary_pressure_inner!`).
