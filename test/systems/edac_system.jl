@@ -219,15 +219,24 @@
         smoothing_length = 1.6particle_spacing
 
         fluid = rectangular_patch(particle_spacing, (3, 3), seed=1)
+        wall = InitialCondition(; coordinates=zeros(2, 1), density=1000.0, particle_spacing)
+        model = BoundaryModelDummyParticles(wall.density, wall.mass, PressureMirroring(),
+                                            smoothing_kernel, smoothing_length)
+        wall_system = WallBoundarySystem(wall, model)
 
         transport_velocity = [nothing, TransportVelocityAdami(background_pressure=10000.0)]
         names = ["No TVF", "TransportVelocityAdami"]
-        @testset "$(names[i])" for i in eachindex(transport_velocity)
+        @testset "$(names[i]), mirrored wall=$mirrored_wall" for i in
+                                                                 eachindex(transport_velocity),
+                                                                 mirrored_wall in
+                                                                 (false, true)
+
             system = EntropicallyDampedSPHSystem(fluid; smoothing_kernel,
                                                  smoothing_length, sound_speed=0.0,
                                                  shifting_technique=transport_velocity[i],
                                                  average_pressure_reduction=true)
-            semi = Semidiscretization(system)
+            semi = mirrored_wall ? Semidiscretization(system, wall_system) :
+                   Semidiscretization(system)
 
             TrixiParticles.initialize_neighborhood_searches!(semi)
 
@@ -238,10 +247,14 @@
                                                     system.average_pressure_reduction,
                                                     v_ode, u_ode, semi)
 
-            @test all(i -> system.cache.neighbor_counter[i] == nparticles(system),
+            n_neighbors = nparticles(system) + mirrored_wall
+            @test all(i -> system.cache.neighbor_counter[i] == n_neighbors,
                       nparticles(system))
-            @test all(i -> isapprox(system.cache.pressure_average[i], -50.968532955185964),
-                      nparticles(system))
+            # The wall contributes each fluid particle's own pressure, not its zero cache.
+            expected = mirrored_wall ?
+                       (sum(fluid.pressure) .+ fluid.pressure) / n_neighbors :
+                       fill(-50.968532955185964, nparticles(system))
+            @test system.cache.pressure_average ≈ expected
         end
     end
 

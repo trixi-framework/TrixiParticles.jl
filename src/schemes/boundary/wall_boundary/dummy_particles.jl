@@ -461,8 +461,6 @@ function compute_density!(boundary_model, ::PressureBoundaries, system, v, u, v_
     (; density) = cache # Density is in the cache for `SummationDensity`
 
     summation_density!(system, semi, u, u_ode, density; particles=eachparticle(system))
-
-    predict_advection!(system, v, u, v_ode, u_ode, semi)
 end
 
 function compute_pressure!(boundary_model, ::Union{SummationDensity, ContinuityDensity},
@@ -471,8 +469,6 @@ function compute_pressure!(boundary_model, ::Union{SummationDensity, ContinuityD
         @inbounds apply_state_equation!(boundary_model,
                                         current_density(v, system, particle), particle)
     end
-
-    interpolate_wall_velocity!(boundary_model, system, v, u, v_ode, u_ode, semi)
 
     return boundary_model
 end
@@ -585,19 +581,25 @@ function compute_pressure!(boundary_model,
                            system, v, u, v_ode, u_ode, semi)
     # No pressure update needed with `PressureMirroring` and `PressureZeroing`.
     # Pressure update for `PressureBoundaries` is done by the PPE solver in IISPH.
-    interpolate_wall_velocity!(boundary_model, system, v, u, v_ode, u_ode, semi)
-
     return boundary_model
 end
 
-# Wall velocity for the no-slip condition with all density calculators that don't
-# extrapolate the pressure. `AdamiPressureExtrapolation` and
-# `BernoulliPressureExtrapolation` interpolate the fluid velocity together with
-# the pressure (see `boundary_pressure_inner!`), which is done here without the pressure.
-function interpolate_wall_velocity!(boundary_model, system, v, u, v_ode, u_ode, semi)
+@inline function interpolate_wall_velocity!(boundary_model, system, v, u, v_ode, u_ode,
+                                            semi)
+    return boundary_model
+end
+
+# The pressure extrapolation computes its own wall velocity. Other density calculators
+# interpolate the velocity separately during `update_quantities!`, before IISPH prediction.
+function interpolate_wall_velocity!(boundary_model::BoundaryModelDummyParticles{<:Union{SummationDensity,
+                                                                                        ContinuityDensity,
+                                                                                        PressureMirroring,
+                                                                                        PressureZeroing,
+                                                                                        PressureBoundaries}},
+                                    system, v, u, v_ode, u_ode, semi)
     (; cache, viscosity) = boundary_model
 
-    # Without a viscosity model, the wall velocity is not used (free-slip condition)
+    # Without a viscosity model, the wall velocity is not used.
     isnothing(viscosity) && return boundary_model
 
     # Set `volume` and `wall_velocity` to zero
@@ -605,37 +607,35 @@ function interpolate_wall_velocity!(boundary_model, system, v, u, v_ode, u_ode, 
 
     system_coords = current_coordinates(u, system)
 
-    @trixi_timeit timer() "interpolate wall velocity" begin
-        foreach_system(semi) do neighbor_system
-            # Only fluid particles contribute, as in the pressure extrapolation
-            neighbor_system isa Union{AbstractFluidSystem,
-                  OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}} ||
-                return
-            has_system_interaction(system, neighbor_system, semi) || return
+    foreach_system(semi) do neighbor_system
+        # Include dynamical-pressure buffer particles, as in the pressure extrapolation.
+        neighbor_system isa Union{AbstractFluidSystem,
+              OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}} ||
+            return
+        has_system_interaction(system, neighbor_system, semi) || return
 
-            v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
-            u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
-            neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
+        v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
+        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
+        neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-            foreach_point_neighbor(system, neighbor_system, system_coords,
-                                   neighbor_coords, semi;
-                                   points=eachparticle(system)) do particle, neighbor,
-                                                                   pos_diff, distance
-                kernel_weight = smoothing_kernel(boundary_model, distance, particle)
-                cache.volume[particle] += kernel_weight
+        foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
+                               semi;
+                               points=eachparticle(system)) do particle, neighbor,
+                                                               pos_diff, distance
+            kernel_weight = smoothing_kernel(boundary_model, distance, particle)
+            cache.volume[particle] += kernel_weight
 
-                interpolate_fluid_velocity!(cache, viscosity, neighbor_system,
-                                            v_neighbor_system, kernel_weight, particle,
-                                            neighbor)
-            end
+            interpolate_fluid_velocity!(cache, viscosity, neighbor_system,
+                                        v_neighbor_system, kernel_weight, particle,
+                                        neighbor)
         end
+    end
 
-        @threaded semi for particle in eachparticle(system)
-            # The volume stays zero for boundary particles without fluid neighbors,
-            # whose wall velocity is not used.
-            if cache.volume[particle] > eps()
-                compute_wall_velocity!(viscosity, system, v, particle)
-            end
+    @threaded semi for particle in eachparticle(system)
+        # The volume stays zero for boundary particles without fluid neighbors,
+        # whose wall velocity is not used.
+        if cache.volume[particle] > eps()
+            compute_wall_velocity!(viscosity, system, v, particle)
         end
     end
 
