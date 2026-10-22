@@ -21,7 +21,7 @@ using Polyester: Polyester, @batch
 using Printf: @printf, @sprintf
 using ReadVTK: ReadVTK
 using RecipesBase: RecipesBase, @series
-using Random: seed!
+using Random: Random
 using SciMLBase: SciMLBase, CallbackSet, DiscreteCallback, DynamicalODEProblem,
                  derivative_discontinuity!, get_tmp_cache, set_proposed_dt!,
                  ODESolution, ODEProblem, terminate!, add_tstop!
@@ -59,8 +59,10 @@ include("general/neighborhood_search.jl")
 include("callbacks/callbacks.jl")
 
 # Note that `semidiscretization.jl` depends on the system types and has to be
-# included separately. `gpu.jl` in turn depends on the semidiscretization type.
+# included separately. The following files in turn depend on the semidiscretization type.
 include("general/semidiscretization.jl")
+include("general/time_integration.jl")
+include("general/ode_rhs.jl")
 include("general/gpu.jl")
 include("preprocessing/preprocessing.jl")
 include("io/io.jl")
@@ -78,6 +80,7 @@ export BoundaryZone, InFlow, OutFlow, BidirectionalFlow
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
        PostprocessCallback, StepsizeCallback, UpdateCallback, SteadyStateReachedCallback,
        SplitIntegrationCallback, MechanicalWorkCalculator, calculated_mechanical_work,
+       ThrustCalculator, calculated_thrust,
        SortingCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller, TransportVelocityAdami, ParticleShiftingTechnique,
