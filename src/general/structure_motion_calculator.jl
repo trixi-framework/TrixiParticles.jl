@@ -146,7 +146,7 @@ function StructureMotionCalculator(system::TotalLagrangianSPHSystem, semi, posit
     M = sum(weights[i] * pos_diffs[i] * pos_diffs[i]' for i in eachindex(particles))
     error_degenerate = ArgumentError("the particles in the kernel support of `position` " *
                                      "must not all lie on a line (in 2D) or plane (in 3D)")
-    cond(M) > 1 / sqrt(eps(search_radius)) && throw(error_degenerate)
+    cond(M) > 1 / sqrt(eps(ELTYPE)) && throw(error_degenerate)
 
     beta = -(M \ sum(weights .* pos_diffs))
     for i in eachindex(weights)
@@ -154,7 +154,7 @@ function StructureMotionCalculator(system::TotalLagrangianSPHSystem, semi, posit
     end
 
     inv_alpha = sum(weights)
-    inv_alpha <= sqrt(eps(search_radius)) * sum_weights && throw(error_degenerate)
+    inv_alpha <= sqrt(eps(ELTYPE)) * sum_weights && throw(error_degenerate)
     weights ./= inv_alpha
 
     return StructureMotionCalculator(system_index, position_, particles, weights, quantity)
