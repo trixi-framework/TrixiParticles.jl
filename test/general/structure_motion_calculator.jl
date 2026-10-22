@@ -32,20 +32,15 @@
         end
         @test calculator.particles == expected_particles
 
-        # Weights are normalized (Shepard correction)
+        # The corrected weights reproduce constant and linear fields
         @test isapprox(sum(calculator.weights), 1.0)
-        @test all(>(0), calculator.weights)
+        @test isapprox(sum(calculator.weights[i] * initial_coordinates[:, particle]
+                           for (i, particle) in enumerate(calculator.particles)),
+                       collect(position))
 
-        # Particles closer to `position` have larger weights
-        distances = [norm(initial_coordinates[:, particle] .- position)
-                     for particle in calculator.particles]
-        @test issorted(calculator.weights[sortperm(distances)], rev=true)
-
-        # `position` is on the right end of the structure, so all neighbors are at x <= 3
-        # and their weighted centroid lies to the left of `position`.
-        # The grid is symmetric about y = 1, so the centroid lies at the same height.
-        @test calculator.centroid_offset[1] > 0
-        @test isapprox(calculator.centroid_offset[2], 0.0, atol=eps())
+        # `position` is on the right end of the structure, so the kernel support is
+        # truncated, and the weights of the particles furthest to the left are negative.
+        @test any(<(0), calculator.weights)
     end
 
     @testset "Position outside the kernel support" begin
@@ -53,6 +48,24 @@
                        "of the system in the initial configuration"
         @test_throws ArgumentError(error_string) StructureMotionCalculator(system, semi,
                                                                            (100.0, 0.0))
+    end
+
+    @testset "Collinear neighbors" begin
+        # A single row of particles cannot reconstruct the motion in y-direction
+        initial_condition_row = RectangularShape(particle_spacing, (4, 1), (0.0, 0.0),
+                                                 density=2.0, place_on_shell=true)
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        system_row_ = TotalLagrangianSPHSystem(initial_condition_row; smoothing_kernel,
+                                               smoothing_length, young_modulus=1.0,
+                                               poisson_ratio=0.4)
+        semi_row = Semidiscretization(system_row_)
+        system_row = semi_row.systems[1]
+
+        error_string = "the particles in the kernel support of `position` " *
+                       "must not all lie on a line (in 2D) or plane (in 3D)"
+        @test_throws ArgumentError(error_string) StructureMotionCalculator(system_row,
+                                                                           semi_row,
+                                                                           (3.0, 0.0))
     end
 
     @testset "Rigid translation" begin
@@ -99,7 +112,7 @@
 
         # The rotation about the origin moves `position` to `rotation_matrix * position`.
         # The Shepard interpolation alone would yield the displacement of the centroid
-        # of the neighbors, which is to the left of `position` (see above).
+        # of the neighbors, which is to the left of `position`.
         @test isapprox(motion.displacement,
                        rotation_matrix * collect(position) - collect(position))
         @test isapprox(motion.deformation_gradient, rotation_matrix)
@@ -129,8 +142,14 @@
         @test isapprox(motion.displacement, expected_displacement)
         @test isapprox(motion.deformation_gradient, deformation_grad)
 
-        # Interpolating without the correction is not exact
-        shepard_displacement = sum(calculator.weights[i] *
+        # Interpolating with Shepard-corrected weights only is not exact
+        # All particles have the same volume, so it cancels out in the Shepard weights.
+        distances = [norm(system.initial_coordinates[:, particle] .- position)
+                     for particle in calculator.particles]
+        shepard_weights = TrixiParticles.kernel.(Ref(system.smoothing_kernel), distances,
+                                                 system.smoothing_length)
+        shepard_weights ./= sum(shepard_weights)
+        shepard_displacement = sum(shepard_weights[i] *
                                    (system.current_coordinates[:, particle] -
                                     system.initial_coordinates[:, particle])
                                    for (i, particle) in enumerate(calculator.particles))
