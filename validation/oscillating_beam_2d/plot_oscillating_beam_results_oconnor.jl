@@ -12,7 +12,7 @@ using TrixiParticles
 
 # Number of particles over the plate thickness. Note that `t_s / dp = resolution - 1`.
 resolutions = (5, 9, 17, 33, 65)
-colors = palette(:Set1_5)[[1, 5, 4, 3, 2]]
+colors = palette(:tab10)
 time_limits = (0.35, 0.55)
 deflection_limits = (-0.135, -0.105)
 
@@ -49,7 +49,7 @@ p = plot(; xlabel="Time [s]", ylabel="Tip Y-Deflection [m]",
 # so these are interleaved with the resolutions to end up in the right column.
 function plot_oconnor_legend!(p)
     # Don't use NaN, as this messes up the legend with PGFPlotsX.
-    scatter!(p, [0], [0]; label="O'Connor and Rogers (2021)",
+    scatter!(p, [0], [0]; label="O'Connor & Rogers (2021)",
              markershape=:circle, markersize=4, markercolor=:white,
              markerstrokecolor=:black, markerstrokewidth=2.5)
 end
