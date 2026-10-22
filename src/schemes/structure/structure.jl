@@ -17,29 +17,29 @@ end
     end
 end
 
-# The structure-fluid interaction computes the opposite of the force that the fluid
-# experiences in the fluid-structure interaction. Therefore, both interactions must find
-# the same pairs of particles, so the neighborhood search of the structure must use
-# the compact support of the fluid.
+# Both FSI directions must find the same particle pairs and use matching boundary and
+# fluid kernels. The TLSPH kernel for solid mechanics may differ.
 # Note that this is only a restriction for `BoundaryModelDummyParticles`, since
 # `BoundaryModelMonaghanKajtar` always uses the compact support of the fluid.
-function check_compact_support_fsi(system, ::BoundaryModelDummyParticles,
-                                   neighbor_system::AbstractFluidSystem)
-    compact_support_structure = compact_support(system, neighbor_system)
-    compact_support_fluid = compact_support(neighbor_system, system)
+function check_smoothing_kernel_fsi(system, boundary_model::BoundaryModelDummyParticles,
+                                    neighbor_system::AbstractFluidSystem)
+    smoothing_kernel_structure = boundary_model.smoothing_kernel
+    smoothing_kernel_fluid = system_smoothing_kernel(neighbor_system)
+    smoothing_length_structure = initial_smoothing_length(boundary_model)
+    smoothing_length_fluid = initial_smoothing_length(neighbor_system)
 
-    if !isapprox(compact_support_structure, compact_support_fluid)
-        throw(ArgumentError("the compact support of the boundary model of the " *
-                            "`$(nameof(typeof(system)))` ($compact_support_structure) " *
-                            "must be the same as the compact support of the fluid system " *
-                            "($compact_support_fluid). Use the same smoothing kernel and " *
-                            "smoothing length for the boundary model as for the fluid."))
+    # Allow rounding differences, e.g., from computing the smoothing lengths separately
+    if smoothing_kernel_structure != smoothing_kernel_fluid ||
+       !isapprox(smoothing_length_structure, smoothing_length_fluid)
+        throw(ArgumentError("the smoothing kernel and smoothing length of the boundary " *
+                            "model of the `$(nameof(typeof(system)))` must be the same " *
+                            "as those of the fluid system `$(nameof(typeof(neighbor_system)))`."))
     end
 
     return system
 end
 
-check_compact_support_fsi(system, boundary_model, neighbor_system) = system
+check_smoothing_kernel_fsi(system, boundary_model, neighbor_system) = system
 
 function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
                                    v_neighbor_system, u_neighbor_system,
@@ -63,10 +63,13 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
 
         # Now that we know that `distance` is not zero, we can safely call the unsafe
         # version of the kernel gradient to avoid redundant zero checks.
-        # Note that we use the `neighbor_system` to compute the kernel gradient
-        # to obtain the same force as in the fluid-structure interaction.
-        grad_kernel = smoothing_kernel_grad_unsafe(neighbor_system, pos_diff,
-                                                   distance, neighbor)
+        # Evaluate the gradient exactly as in the fluid-structure interaction, i.e.,
+        # with the fluid particle's kernel and correction and the fluid-first displacement.
+        # Note that we cannot just flip the sign of the structure-first gradient, since
+        # corrections like `KernelCorrection` add a term that keeps its sign
+        # when the displacement is reversed.
+        grad_kernel_fluid = smoothing_kernel_grad_unsafe(neighbor_system, -pos_diff,
+                                                         distance, neighbor)
 
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
@@ -88,7 +91,7 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
         # Compute the acceleration of the fluid particle due to the structure particle
         # with the exact same function as in the fluid-structure interaction.
         # Particle and neighbor (and the corresponding systems and particle quantities)
-        # are switched, so we also have to flip `pos_diff` and `grad_kernel`.
+        # are switched, so we use the fluid-first displacement and gradient.
         # By Newton's third law, the structure particle experiences the opposite force.
         #
         # Note that the extra terms of shifting techniques in the momentum equation are
@@ -99,7 +102,7 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
         dv_fluid = add_momentum_equation(zero(v_b), neighbor_system, particle_system,
                                          v_neighbor_system, v_particle_system,
                                          neighbor, particle, -pos_diff, distance,
-                                         -grad_kernel, sound_speed, m_b, m_a, p_b, p_a,
+                                         grad_kernel_fluid, sound_speed, m_b, m_a, p_b, p_a,
                                          rho_b, rho_a, v_b, v_a)
         dv_particle = -dv_fluid
 
@@ -108,7 +111,8 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
         drho_particle = add_continuity_equation(zero(rho_a),
                                                 particle_system, neighbor_system,
                                                 particle, neighbor, pos_diff, distance,
-                                                m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+                                                m_b, rho_a, rho_b, v_a, v_b,
+                                                grad_kernel_fluid)
 
         @inbounds write_drho_particle!(dv, particle_system, drho_particle, particle)
     end
@@ -120,7 +124,7 @@ end
                                          particle_system::AbstractStructureSystem,
                                          neighbor_system::AbstractFluidSystem,
                                          particle, neighbor, pos_diff, distance,
-                                         m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+                                         m_b, rho_a, rho_b, v_a, v_b, grad_kernel_fluid)
     return drho_particle
 end
 
@@ -129,10 +133,42 @@ end
                                                                 TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}}},
                                          neighbor_system::AbstractFluidSystem,
                                          particle, neighbor, pos_diff, distance,
-                                         m_b, rho_a, rho_b, v_a, v_b, grad_kernel)
+                                         m_b, rho_a, rho_b, v_a, v_b, grad_kernel_fluid)
+    (; boundary_model) = particle_system
+
+    # As for a `WallBoundarySystem`, the density of the boundary particles evolves with
+    # the boundary model's kernel gradient and not with the corrected fluid gradient.
+    grad_kernel = boundary_continuity_kernel_grad(system_correction(neighbor_system),
+                                                  boundary_model.correction,
+                                                  boundary_model, pos_diff, distance,
+                                                  particle, grad_kernel_fluid)
+
     return add_continuity_equation(drho_particle,
                                    density_calculator(neighbor_system),
                                    m_b, rho_a, rho_b, v_a, v_b, grad_kernel, particle)
+end
+
+@inline function boundary_continuity_kernel_grad(fluid_correction, boundary_correction,
+                                                 boundary_model, pos_diff, distance,
+                                                 particle, grad_kernel_fluid)
+    # Use the boundary model's kernel and smoothing length, which may differ from
+    # the TLSPH kernel for solid mechanics.
+    # The safe version also returns zero for coincident particles.
+    return smoothing_kernel_grad(boundary_model, pos_diff, distance, particle)
+end
+
+@inline function boundary_continuity_kernel_grad(::Union{Nothing,
+                                                         AkinciFreeSurfaceCorrection,
+                                                         ShepardKernelCorrection},
+                                                 ::Union{Nothing,
+                                                         AkinciFreeSurfaceCorrection,
+                                                         ShepardKernelCorrection},
+                                                 boundary_model, pos_diff, distance,
+                                                 particle, grad_kernel_fluid)
+    # Neither correction changes the gradient, and the boundary model's kernel and
+    # smoothing length match the fluid's (see `check_smoothing_kernel_fsi`).
+    # Reversing the displacement only flips the sign of the uncorrected gradient.
+    return -grad_kernel_fluid
 end
 
 @inline function write_drho_particle!(dv, ::AbstractSystem, drho_particle, particle)
