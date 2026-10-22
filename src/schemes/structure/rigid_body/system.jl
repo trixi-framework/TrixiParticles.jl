@@ -360,6 +360,11 @@ function restart_with!(system::RigidBodySystem, v, u)
     return system
 end
 
+function update_quantities!(system::RigidBodySystem, v, u, v_ode, u_ode, semi, t)
+    interpolate_wall_velocity!(system.boundary_model, system, v, u, v_ode, u_ode, semi)
+    return system
+end
+
 function update_boundary_interpolation!(system::RigidBodySystem, v, u, v_ode, u_ode,
                                         semi, t)
     return update_boundary_interpolation!(system.boundary_model, system, v, u, v_ode,
@@ -631,7 +636,6 @@ function check_configuration(system::RigidBodySystem, systems, nhs)
         end
 
         check_smoothing_kernel_fsi(system, boundary_model, neighbor)
-        check_boundary_density_fsi(system, boundary_model, neighbor)
 
         if neighbor isa AbstractFluidSystem &&
            neighbor.surface_normal_method isa ColorfieldSurfaceNormal

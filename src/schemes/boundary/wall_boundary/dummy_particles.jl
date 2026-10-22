@@ -268,7 +268,7 @@ function create_cache_model(initial_density::AbstractVector, ::PressureMirroring
     density = copy(initial_density)
 
     # Sum of the kernel weights of the fluid neighbors to interpolate the fluid velocity
-    # for the no-slip condition (see `compute_pressure!`)
+    # for the no-slip condition (see `interpolate_wall_velocity!`)
     volume = similar(initial_density)
 
     return (; density, volume)
@@ -464,8 +464,6 @@ function compute_density!(boundary_model, ::PressureBoundaries, system, v, u, v_
     (; density) = cache # Density is in the cache for `SummationDensity`
 
     summation_density!(system, semi, u, u_ode, density; particles=eachparticle(system))
-
-    predict_advection!(system, v, u, v_ode, u_ode, semi)
 end
 
 function compute_pressure!(boundary_model, ::Union{SummationDensity, ContinuityDensity},
@@ -581,19 +579,24 @@ function compute_adami_density!(boundary_model, system, v, particle)
     inverse_state_equation!(density, state_equation, pressure, particle)
 end
 
-function compute_pressure!(boundary_model, ::Union{PressureZeroing, PressureBoundaries},
+function compute_pressure!(boundary_model,
+                           ::Union{PressureMirroring, PressureZeroing, PressureBoundaries},
                            system, v, u, v_ode, u_ode, semi)
-    # No pressure update needed with `PressureZeroing`.
+    # No pressure update needed with `PressureMirroring` and `PressureZeroing`.
     # Pressure update for `PressureBoundaries` is be done by the PPE solver in IISPH
     return boundary_model
 end
 
-function compute_pressure!(boundary_model, ::PressureMirroring,
-                           system, v, u, v_ode, u_ode, semi)
+@inline function interpolate_wall_velocity!(boundary_model, system, v, u, v_ode, u_ode,
+                                            semi)
+    return boundary_model
+end
+
+function interpolate_wall_velocity!(boundary_model::BoundaryModelDummyParticles{PressureMirroring},
+                                    system, v, u, v_ode, u_ode, semi)
     (; cache, viscosity) = boundary_model
 
-    # No pressure update needed, since the fluid pressure is mirrored in the momentum
-    # equation. Without a viscosity model, the wall velocity is not used either.
+    # Without a viscosity model, the wall velocity is not used.
     isnothing(viscosity) && return boundary_model
 
     # For the no-slip condition, interpolate the fluid velocity as in the pressure

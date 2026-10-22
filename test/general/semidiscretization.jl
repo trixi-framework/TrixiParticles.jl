@@ -195,7 +195,8 @@
                     boundary_model = BoundaryModelDummyParticles(ic.density, ic.mass,
                                                                  density_calculator,
                                                                  smoothing_kernel,
-                                                                 smoothing_length)
+                                                                 smoothing_length;
+                                                                 state_equation)
                     structure = create_structure_system(structure_type, boundary_model)
                     error_str = "`BoundaryModelDummyParticles` with density calculator " *
                                 "`$(nameof(typeof(density_calculator)))` is not yet supported " *
@@ -204,6 +205,20 @@
                         error_str *= " in a fluid-structure interaction"
                         @test_nowarn TrixiParticles.check_configuration((structure,),
                                                                         nothing)
+                        for systems in
+                            ((structure, fluid_system), (fluid_system, structure))
+                            @test_nowarn Semidiscretization(systems...;
+                                                            neighborhood_search=nothing,
+                                                            interaction_matrix=[true false;
+                                                                                false true])
+                        end
+                        for interaction_matrix in
+                            ([true true; false true], [true false; true true])
+                            @test_throws ArgumentError(error_str) Semidiscretization(structure,
+                                                                                     fluid_system;
+                                                                                     neighborhood_search=nothing,
+                                                                                     interaction_matrix)
+                        end
                     end
                     @test_throws ArgumentError(error_str) Semidiscretization(structure,
                                                                              fluid_system;
