@@ -97,6 +97,12 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
              create_cache_model(initial_density, density_calculator, NDIMS)...,
              create_cache_model(correction, initial_density, NDIMS, n_particles)...)
 
+    # Mirroring and pressure extrapolation already provide their interpolation weights.
+    # Other density calculators need additional weights only for the no-slip condition.
+    if !isnothing(viscosity) && !haskey(cache, :volume)
+        cache = (; cache..., volume=similar(initial_density))
+    end
+
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
     if reference_particle_spacing > 0
         # `reference_particle_spacing` has to be set for surface normals to be determined
@@ -258,11 +264,20 @@ function create_cache_model(::MixedKernelGradientCorrection, density, NDIMS, n_p
 end
 
 function create_cache_model(initial_density::AbstractVector,
-                            ::Union{SummationDensity, PressureMirroring, PressureZeroing},
-                            NDIMS)
+                            ::Union{SummationDensity, PressureZeroing}, NDIMS)
     density = copy(initial_density)
 
     return (; density)
+end
+
+function create_cache_model(initial_density::AbstractVector, ::PressureMirroring, NDIMS)
+    density = copy(initial_density)
+
+    # Sum of the kernel weights of the fluid neighbors to interpolate the fluid velocity
+    # for the no-slip condition (see `interpolate_wall_velocity!`)
+    volume = similar(initial_density)
+
+    return (; density, volume)
 end
 
 function create_cache_model(initial_density::AbstractVector,
@@ -307,13 +322,7 @@ function create_cache_model(viscosity, n_particles, n_dims)
 
     wall_velocity = zeros(ELTYPE, n_dims, n_particles)
 
-    # Sum of the kernel weights of the fluid neighbors to interpolate the fluid velocity
-    # for the no-slip condition (see `interpolate_wall_velocity!`).
-    # The cache of `AdamiPressureExtrapolation` and `BernoulliPressureExtrapolation`
-    # replaces this with its own `volume`, which is the same sum.
-    volume = zeros(ELTYPE, n_particles)
-
-    return (; wall_velocity, volume)
+    return (; wall_velocity)
 end
 
 @inline reset_cache!(cache, viscosity::Nothing) = set_zero!(cache.volume)
@@ -580,7 +589,7 @@ function compute_pressure!(boundary_model,
                            ::Union{PressureMirroring, PressureZeroing, PressureBoundaries},
                            system, v, u, v_ode, u_ode, semi)
     # No pressure update needed with `PressureMirroring` and `PressureZeroing`.
-    # Pressure update for `PressureBoundaries` is done by the PPE solver in IISPH.
+    # Pressure update for `PressureBoundaries` is be done by the PPE solver in IISPH
     return boundary_model
 end
 
@@ -589,8 +598,6 @@ end
     return boundary_model
 end
 
-# The pressure extrapolation computes its own wall velocity. Other density calculators
-# interpolate the velocity separately during `update_quantities!`, before IISPH prediction.
 function interpolate_wall_velocity!(boundary_model::BoundaryModelDummyParticles{<:Union{SummationDensity,
                                                                                         ContinuityDensity,
                                                                                         PressureMirroring,
@@ -602,7 +609,9 @@ function interpolate_wall_velocity!(boundary_model::BoundaryModelDummyParticles{
     # Without a viscosity model, the wall velocity is not used.
     isnothing(viscosity) && return boundary_model
 
-    # Set `volume` and `wall_velocity` to zero
+    # For the no-slip condition, interpolate the fluid velocity as in the pressure
+    # extrapolation of `AdamiPressureExtrapolation` (see `boundary_pressure_inner!`).
+    # Set `volume` and `wall_velocity` to zero.
     reset_cache!(cache, viscosity)
 
     system_coords = current_coordinates(u, system)
