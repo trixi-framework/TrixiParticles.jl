@@ -29,7 +29,10 @@
                               boundary_type=OutFlow(), face_normal=[-1.0, 0.0],
                               open_boundary_layers=10, initial_condition=ic,
                               density=1.0, particle_spacing)
-            bz.initial_condition.mass .= ic.mass
+
+            # The boundary pressure term does not conserve momentum, so we set the pressure
+            # of the boundary zone to zero (it is otherwise taken from `ic`).
+            bz.initial_condition.pressure .= 0
 
             system_wcsph = WeaklyCompressibleSPHSystem(ic; smoothing_kernel,
                                                        smoothing_length,
@@ -167,5 +170,59 @@
 
         # Integrated: velocity + pressure + density (`BoundaryModelDynamicalPressureZhang` always uses `ContinuityDensity`)
         @test TrixiParticles.v_nvariables(open_boundary_edac_2) == n_dims + 2
+    end
+
+    @testset verbose=true "Rest Density of Recycled Particles" begin
+        particle_spacing = 0.1
+        fluid_ic = rectangular_patch(particle_spacing, (4, 4), perturbation_factor=0.0,
+                                     offset=(0.5, 0.5))
+
+        # Two boundary zones with different rest densities.
+        inflow = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, 1.0]),
+                              face_normal=(1.0, 0.0), open_boundary_layers=2,
+                              density=1.0, particle_spacing)
+        outflow = BoundaryZone(; boundary_face=([1.0, 0.0], [1.0, 1.0]),
+                               face_normal=(-1.0, 0.0), open_boundary_layers=2,
+                               density=2.0, particle_spacing)
+
+        # Without an equation of state, recycled particles get the rest density of the zone.
+        fluid_system = EntropicallyDampedSPHSystem(fluid_ic;
+                                                   smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
+                                                   smoothing_length=1.2 * particle_spacing,
+                                                   sound_speed=1.0, buffer_size=2)
+        system = OpenBoundarySystem(inflow, outflow; fluid_system, buffer_size=1,
+                                    boundary_model=BoundaryModelDynamicalPressureZhang())
+
+        n_inflow = nparticles(inflow.initial_condition)
+        system.boundary_zone_indices[1:n_inflow] .= 1
+        system.boundary_zone_indices[(n_inflow + 1):(end - 1)] .= 2
+
+        # The first particle of each zone has crossed the boundary face into the fluid domain.
+        crossed_particles = ((zone_id=1, particle=1, x_new=0.05),
+                             (zone_id=2, particle=n_inflow + 1, x_new=0.95))
+        @testset "Zone $zone_id" for (; zone_id, particle, x_new) in crossed_particles
+            boundary_zone = system.boundary_zones[zone_id]
+            particle_new = nparticles(fluid_ic) + zone_id
+
+            u = copy(system.initial_condition.coordinates)
+            v = fill(5.0, TrixiParticles.v_nvariables(system), nparticles(system))
+            u_fluid = copy(fluid_system.initial_condition.coordinates)
+            v_fluid = zeros(TrixiParticles.v_nvariables(fluid_system),
+                            nparticles(fluid_system))
+            u[1, particle] = x_new
+
+            TrixiParticles.convert_particle!(system, fluid_system, boundary_zone,
+                                             particle, particle_new, v, u, v_fluid,
+                                             u_fluid, nothing)
+
+            # The particle has been transferred to the fluid and recycled in its zone.
+            @test fluid_system.buffer.active_particle[particle_new]
+            @test TrixiParticles.is_in_boundary_zone(boundary_zone,
+                                                     TrixiParticles.current_coords(u,
+                                                                                   system,
+                                                                                   particle))
+            @test TrixiParticles.current_density(v, system, particle) ==
+                  boundary_zone.rest_density
+        end
     end
 end
