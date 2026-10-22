@@ -67,7 +67,7 @@ Use the keyword argument `quantity` to select a single component of the motion
                        extract the value that is returned by the functor.
 
 # Examples
-```jldoctest; output = false, setup = :(system = TotalLagrangianSPHSystem(RectangularShape(0.1, (3, 4), (0.0, 0.0), density=1.0); smoothing_kernel=WendlandC2Kernel{2}(), smoothing_length=1.0, young_modulus=1.0, poisson_ratio=1.0); semi = (; systems=(system,), parallelization_backend=SerialBackend()))
+```jldoctest; output = false, setup = :(system = TotalLagrangianSPHSystem(RectangularShape(0.1, (3, 4), (0.0, 0.0), density=1.0); smoothing_kernel=WendlandC2Kernel{2}(), smoothing_length=1.0, young_modulus=1.0, poisson_ratio=1.0); semi = (; systems=(system,), parallelization_backend=SerialBackend())), filter = [r"output directory:.*", r"custom quantities:.*", r"\s+│"]
 semi = Semidiscretization(system)
 
 # Note that `Semidiscretization` creates a deep copy of the system,
@@ -90,7 +90,17 @@ saving_callback = SolutionSavingCallback(dt=0.1; deflection_x, deflection_y)
 
 # output
 [ Info: To create the self-interaction neighborhood search of a `TotalLagrangianSPHSystem`, a deep copy of the system is created inside the `Semidiscretization`. Use `system = semi.systems[i]` to access simulation data.
-0.0
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ SolutionSavingCallback                                                                           │
+│ ══════════════════════                                                                           │
+│ dt: ……………………………………………………………………… 0.1                                                              │
+│ custom quantities: ……………………………… *ignored with filter regex above*                               │
+│ save initial solution: …………………… yes                                                              │
+│ save final solution: ………………………… yes                                                              │
+│ overwrite solution: …………………………… no                                                               │
+│ output directory: ………………………………… *path ignored with filter regex above*                           │
+│ prefix: ……………………………………………………………                                                                  │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
 struct StructureMotionCalculator{NDIMS, ELTYPE, Q}
@@ -183,7 +193,7 @@ function structure_motion(calculator::StructureMotionCalculator, system)
         weight = weights[i]
 
         displacement += weight * (current_coords(system, particle) -
-                                  initial_coords(system, particle))
+                         initial_coords(system, particle))
         deformation_grad += weight * deformation_gradient(system, particle)
     end
 
