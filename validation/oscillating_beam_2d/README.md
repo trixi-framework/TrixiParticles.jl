@@ -23,6 +23,9 @@ The following files are provided:
 - `plot_oscillating_beam_convergence.jl` plots the maximum tip y-deflection of the
   first swing over the resolution for both setups and compares it with Turek and Hron
   (2006).
+- `plot_oscillating_beam_results_oconnor.jl` plots the tip y-deflection of the O'Connor
+  setup and compares it with the results of O'Connor and Rogers (2021)
+  and Turek and Hron (2006).
 - `validation_reference_{oconnor,turek}_{5,9,17,33,65,129,257,513}.json` contains
   TrixiParticles.jl reference results. The number in the filename is the number of
   particles across the beam thickness. Thus, for a beam thickness `t_s` and particle
