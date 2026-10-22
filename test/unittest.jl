@@ -3,6 +3,9 @@
 @testset verbose=true "Unit Tests" begin
     include("callbacks/callbacks.jl")
     include("general/general.jl")
+    include("custom_quantities/custom_quantities.jl")
+    include("custom_quantities/mechanical_work_calculator.jl")
+    include("custom_quantities/structure_motion_calculator.jl")
     include("setups/setups.jl")
     include("systems/systems.jl")
     include("schemes/schemes.jl")
