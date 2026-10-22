@@ -97,6 +97,13 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
              create_cache_model(initial_density, density_calculator, NDIMS)...,
              create_cache_model(correction, initial_density, NDIMS, n_particles)...)
 
+    # Mirroring and pressure extrapolation already provide their interpolation weights.
+    # Other density calculators need additional weights only for the no-slip condition.
+    # Use floating-point velocity storage even when the initial densities are integers.
+    if !isnothing(viscosity) && !haskey(cache, :volume)
+        cache = (; cache..., volume=similar(cache.wall_velocity, n_particles))
+    end
+
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
     if reference_particle_spacing > 0
         # `reference_particle_spacing` has to be set for surface normals to be determined
@@ -592,12 +599,26 @@ end
     return boundary_model
 end
 
-function interpolate_wall_velocity!(boundary_model::BoundaryModelDummyParticles{PressureMirroring},
+function interpolate_wall_velocity!(boundary_model::BoundaryModelDummyParticles{<:Union{AdamiPressureExtrapolation,
+                                                                                        BernoulliPressureExtrapolation,
+                                                                                        SummationDensity,
+                                                                                        ContinuityDensity,
+                                                                                        PressureMirroring,
+                                                                                        PressureZeroing,
+                                                                                        PressureBoundaries}},
                                     system, v, u, v_ode, u_ode, semi)
     (; cache, viscosity) = boundary_model
 
     # Without a viscosity model, the wall velocity is not used.
     isnothing(viscosity) && return boundary_model
+
+    # Explicit fluids interpolate this velocity together with the extrapolated pressure.
+    # IISPH needs it before prediction, when the pressure cannot yet be extrapolated.
+    if boundary_model.density_calculator isa Union{AdamiPressureExtrapolation,
+             BernoulliPressureExtrapolation} &&
+       !any(neighbor -> neighbor isa ImplicitIncompressibleSPHSystem, semi.systems)
+        return boundary_model
+    end
 
     # For the no-slip condition, interpolate the fluid velocity as in the pressure
     # extrapolation of `AdamiPressureExtrapolation` (see `boundary_pressure_inner!`).
@@ -607,8 +628,10 @@ function interpolate_wall_velocity!(boundary_model::BoundaryModelDummyParticles{
     system_coords = current_coordinates(u, system)
 
     foreach_system(semi) do neighbor_system
-        # Only fluid particles contribute to the interpolated fluid velocity
-        neighbor_system isa AbstractFluidSystem || return
+        # Include dynamical-pressure buffer particles, as in the pressure extrapolation.
+        neighbor_system isa Union{AbstractFluidSystem,
+              OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}} ||
+            return
         has_system_interaction(system, neighbor_system, semi) || return
 
         v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)

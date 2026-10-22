@@ -313,7 +313,10 @@
 
         function create_structure_system(structure_type, viscosity;
                                          boundary_density=AdamiPressureExtrapolation(),
+                                         initial_boundary_density=[fluid_density],
+                                         boundary_state_equation=state_equation,
                                          boundary_correction=nothing,
+                                         clip_negative_pressure=false,
                                          clamped=false,
                                          velocity=(0.0, 0.0),
                                          structure_smoothing_length=smoothing_length)
@@ -323,13 +326,15 @@
                                          velocity=reshape(collect(velocity), 2, 1),
                                          mass=[2 * fluid_density * particle_spacing^2],
                                          density=[2 * fluid_density], particle_spacing)
-            boundary_model = BoundaryModelDummyParticles([fluid_density],
+            boundary_model = BoundaryModelDummyParticles(initial_boundary_density,
                                                          [fluid_density *
                                                           particle_spacing^2],
                                                          boundary_density,
                                                          smoothing_kernel,
                                                          smoothing_length;
-                                                         state_equation, viscosity,
+                                                         state_equation=boundary_state_equation,
+                                                         viscosity,
+                                                         clip_negative_pressure,
                                                          correction=boundary_correction)
 
             if structure_type === WallBoundarySystem
@@ -611,46 +616,94 @@
             end
         end
 
-        no_slip_configurations = (("WCSPH", WallBoundarySystem, false),
-                                  ("WCSPH", TotalLagrangianSPHSystem, false),
-                                  ("WCSPH", RigidBodySystem, false),
-                                  ("IISPH", WallBoundarySystem, false),
-                                  ("IISPH", WallBoundarySystem, true))
-        @testset "Mirrored no-slip velocity: $scheme, $boundary_type, boundary_first=$boundary_first" for (scheme,
-                                                                                                           boundary_type,
-                                                                                                           boundary_first) in
-                                                                                                          no_slip_configurations
+        no_slip_densities = (ContinuityDensity(), PressureZeroing(), PressureMirroring())
+        iisph_densities = (AdamiPressureExtrapolation(), BernoulliPressureExtrapolation(),
+                           no_slip_densities...,
+                           PressureBoundaries(time_step=1e-3, omega=0.5))
+        no_slip_configurations = (("WCSPH", WallBoundarySystem, false,
+                                   (SummationDensity(), no_slip_densities...)),
+                                  ("WCSPH", TotalLagrangianSPHSystem, false,
+                                   (PressureZeroing(), PressureMirroring())),
+                                  ("WCSPH", RigidBodySystem, false, no_slip_densities),
+                                  ("IISPH", WallBoundarySystem, false, iisph_densities),
+                                  ("IISPH", WallBoundarySystem, true, iisph_densities))
+        @testset "No-slip: $scheme, $boundary_type, $boundary_density, boundary_first=$boundary_first" for (scheme,
+                                                                                                            boundary_type,
+                                                                                                            boundary_first,
+                                                                                                            boundary_densities) in
+                                                                                                           no_slip_configurations,
+                                                                                                           boundary_density in
+                                                                                                           boundary_densities
 
             viscosity = ViscosityAdami(nu=0.1)
-            velocity = SVector(1.0, 0.5)
+            velocity = SVector(0.0, 1.0) # Tangential motion keeps Bernoulli pressure zero.
             fluid_system = create_fluid_system(scheme, (0.0, 0.0), fluid_density,
                                                viscosity)
             boundary = create_structure_system(boundary_type, viscosity;
-                                               boundary_density=PressureMirroring(),
-                                               velocity)
+                                               boundary_density, velocity,
+                                               boundary_state_equation=scheme == "IISPH" ?
+                                                                       nothing :
+                                                                       state_equation,
+                                               clip_negative_pressure=true)
             fluid, boundary, arrays, semi,
             ode = initialize(fluid_system, boundary;
                              boundary_first)
             v, u, v_boundary, u_boundary = arrays
-            @test boundary.boundary_model.cache.wall_velocity[:, 1] ≈ 2 * velocity
             dv = zero(v)
-            TrixiParticles.interact!(dv, v, u, v_boundary, u_boundary, fluid, boundary,
-                                     semi)
-            @test dot(dv[1:2, 1], velocity) > 0 # Moving boundary drags fluid at rest.
-            if scheme == "IISPH"
-                # The pressure predictor must use the same no-slip force as the RHS,
-                # both initially and after changing the fluid velocity.
-                # Pressure is zero in this one-pair setup, isolating viscosity.
-                @test fluid.advection_velocity[:, 1] ≈
-                      v[1:2, 1] + fluid.time_step * dv[1:2, 1]
-                v[1:2, 1] .= velocity / 2
-                TrixiParticles.update_systems_and_nhs(ode.u0.x..., semi, 0.0)
+            for fraction in (0.0, 0.5)
+                if fraction > 0
+                    v[1:2, 1] .= fraction * velocity
+                    TrixiParticles.update_systems_and_nhs(ode.u0.x..., semi, 0.0)
+                end
+                @test boundary.boundary_model.cache.wall_velocity[:, 1] ≈
+                      2 * velocity - v[1:2, 1]
                 fill!(dv, 0)
                 TrixiParticles.interact!(dv, v, u, v_boundary, u_boundary, fluid, boundary,
                                          semi)
-                @test fluid.advection_velocity[:, 1] ≈
-                      v[1:2, 1] + fluid.time_step * dv[1:2, 1]
+                @test dot(dv[1:2, 1], velocity) > 0 # Boundary drags the slower fluid.
+                if scheme == "IISPH"
+                    # Zero pressure isolates viscosity: prediction and RHS must agree.
+                    @test fluid.advection_velocity[:, 1] ≈
+                          v[1:2, 1] + fluid.time_step * dv[1:2, 1]
+                end
             end
+        end
+
+        @testset "No-slip weight storage: $scheme, $T" for scheme in ("WCSPH", "EDAC"),
+                                                           T in (Int, Float32, Float64)
+            viscosity = ViscosityAdami(nu=0.1)
+            velocity = SVector(1.0, 0.5)
+            fluid = create_fluid_system(scheme, velocity, fluid_density, viscosity)
+            wall = create_structure_system(WallBoundarySystem, viscosity;
+                                           boundary_density=PressureZeroing(),
+                                           initial_boundary_density=T[fluid_density])
+            _, wall, _, _, _ = initialize(fluid, wall)
+            @test wall.boundary_model.cache.wall_velocity[:, 1] ≈ -velocity
+        end
+
+        @testset "No-slip with Zhang buffers: $boundary_density" for boundary_density in
+                                                                     (SummationDensity(),
+                                                                      no_slip_densities...)
+            viscosity = ViscosityAdami(nu=0.1)
+            fluid = create_fluid_system("WCSPH", (0.0, 0.0), fluid_density, viscosity)
+            wall = create_structure_system(WallBoundarySystem, viscosity; boundary_density)
+            buffer = InitialCondition(; coordinates=zeros(2, 1),
+                                      velocity=reshape([1.0, 0.5], 2, 1),
+                                      density=fluid_density, particle_spacing)
+            zone = BoundaryZone(; initial_condition=buffer, boundary_type=InFlow(),
+                                boundary_face=([0.5, -1.0], [0.5, 1.0]),
+                                face_normal=[1.0, 0.0], open_boundary_layers=3,
+                                density=fluid_density, particle_spacing,
+                                reference_velocity=[1.0, 0.5])
+            open_boundary = OpenBoundarySystem(zone; fluid_system=fluid, buffer_size=0,
+                                               boundary_model=BoundaryModelDynamicalPressureZhang())
+            ode = semidiscretize(Semidiscretization(fluid, wall, open_boundary;
+                                                    parallelization_backend=SerialBackend()),
+                                 (0.0, 0.01))
+            TrixiParticles.update_systems_and_nhs(ode.u0.x..., ode.p.semi, 0.0)
+            # Equal kernel weights for the coincident fluid and buffer particles.
+            @test ode.p.semi.systems[2].boundary_model.cache.wall_velocity[:, 1] ≈
+                  -SVector(1.0, 0.5) / 2
         end
 
         @testset "Mirrored EDAC wall: $scheme" for scheme in
