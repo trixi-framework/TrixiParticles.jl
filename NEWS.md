@@ -48,6 +48,11 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Fixed the viscous force on structures in fluid-structure interaction, which had the wrong
   sign (#1348).
 
+### Documentation
+
+- Added a tutorial for setting up 2D simulations from geometry files, including a curved
+  pipe and a coastline dam-break basin (#1094).
+
 ## Version 0.5.3
 
 ### Features
