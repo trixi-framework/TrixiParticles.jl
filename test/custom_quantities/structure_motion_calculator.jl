@@ -79,7 +79,7 @@
 
         motion = TrixiParticles.structure_motion(calculator, system)
 
-        # The Shepard-corrected interpolation is exact for a constant displacement
+        # The corrected interpolation is exact for a constant displacement.
         @test isapprox(motion.displacement, offset)
         @test isapprox(motion.deformation_gradient, [1.0 0.0; 0.0 1.0])
         @test isapprox(motion.rotation, 0.0)
@@ -142,7 +142,7 @@
         @test isapprox(motion.displacement, expected_displacement)
         @test isapprox(motion.deformation_gradient, deformation_grad)
 
-        # Interpolating with Shepard-corrected weights only is not exact
+        # Interpolating with Shepard-corrected weights only is not exact.
         # All particles have the same volume, so it cancels out in the Shepard weights.
         distances = [norm(system.initial_coordinates[:, particle] .- position)
                      for particle in calculator.particles]

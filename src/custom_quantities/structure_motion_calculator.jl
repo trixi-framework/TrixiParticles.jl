@@ -37,7 +37,7 @@ and
 ```
 This interpolation is exact for affine motions (rigid body motions and homogeneous
 deformations). In contrast, a Shepard interpolation (``\bm{\beta} = \bm{0}``)
-only reproduces constant fields and is incorrect for close to the surface of the structure.
+only reproduces constant fields and is inaccurate close to the surface of the structure.
 
 Calling the functor returns `nothing` for all systems but the one it was constructed with.
 For this system, it returns `quantity(motion)`, where `motion` is a named tuple with
@@ -117,6 +117,12 @@ function StructureMotionCalculator(system::TotalLagrangianSPHSystem, semi, posit
     ELTYPE = eltype(system)
 
     system_index = system_indices(system, semi)
+
+    # Check vector length before converting to `SVector` to avoid extremely long
+    # compile times when accidentally passing large vectors.
+    if length(position) != ndims(system)
+        throw(ArgumentError("length of `position` must match the number of dimensions"))
+    end
     position_ = SVector{NDIMS, ELTYPE}(Tuple(position))
 
     # Transfer to CPU if data is on the GPU. Do nothing if already on CPU.
@@ -132,7 +138,7 @@ function StructureMotionCalculator(system::TotalLagrangianSPHSystem, semi, posit
 
     for particle in eachparticle(system)
         pos_diff = extract_svector(initial_coordinates, Val(NDIMS), particle) - position_
-        distance = norm(pos_diff)
+        distance = norm(convert.(eltype(system), pos_diff))
         distance >= search_radius && continue
 
         volume = mass[particle] / material_density[particle]
@@ -153,12 +159,12 @@ function StructureMotionCalculator(system::TotalLagrangianSPHSystem, semi, posit
     # constant and linear fields.
     pos_diffs = [position_ - extract_svector(initial_coordinates, Val(NDIMS), particle)
                  for particle in particles]
-    M = sum(weights[i] * pos_diffs[i] * pos_diffs[i]' for i in eachindex(particles))
+    L = sum(weights[i] * pos_diffs[i] * pos_diffs[i]' for i in eachindex(particles))
     error_degenerate = ArgumentError("the particles in the kernel support of `position` " *
                                      "must not all lie on a line (in 2D) or plane (in 3D)")
-    cond(M) > 1 / sqrt(eps(ELTYPE)) && throw(error_degenerate)
+    cond(L) > 1 / sqrt(eps(ELTYPE)) && throw(error_degenerate)
 
-    beta = -(M \ sum(weights .* pos_diffs))
+    beta = -(L \ sum(weights .* pos_diffs))
     for i in eachindex(weights)
         weights[i] *= 1 + dot(beta, pos_diffs[i])
     end
@@ -192,8 +198,8 @@ function structure_motion(calculator::StructureMotionCalculator, system)
         particle = particles[i]
         weight = weights[i]
 
-        displacement += weight * (current_coords(system, particle) -
-                         initial_coords(system, particle))
+        pos_diff = current_coords(system, particle) - initial_coords(system, particle)
+        displacement += weight * convert.(eltype(system), pos_diff)
         deformation_grad += weight * deformation_gradient(system, particle)
     end
 
@@ -201,9 +207,9 @@ function structure_motion(calculator::StructureMotionCalculator, system)
             rotation=polar_decomposition_angle(deformation_grad))
 end
 
-# Rotation angle of the proper orthogonal factor `R` of the polar decomposition `F = R U`.
-# This follows from `R = F (F^T F)^(-1/2)` being the closest rotation to `F`, which in 2D
-# maximizes `tr(R^T F) = cos(θ) (F11 + F22) + sin(θ) (F21 - F12)`.
+# Rotation angle `θ` of the polar decomposition `F = R U`, which splits `F` into
+# a rotation `R` around `θ`, and a pure stretch `U`, which is symmetric.
+# Standard formula for 2D: `θ = atan2(F[2, 1] - F[1, 2], F[1, 1] + F[2, 2])`.
 @inline function polar_decomposition_angle(F::SMatrix{2, 2})
     return atan(F[2, 1] - F[1, 2], F[1, 1] + F[2, 2])
 end
