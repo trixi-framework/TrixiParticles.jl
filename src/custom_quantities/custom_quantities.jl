@@ -142,3 +142,6 @@ function avg_density(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
 end
 
 @inline active_values(values, system) = view(values, each_active_particle(system))
+
+include("mechanical_work_calculator.jl")
+include("structure_motion_calculator.jl")
