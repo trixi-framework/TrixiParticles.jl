@@ -623,6 +623,42 @@ end
         end
     end
 
+    @testset verbose=true "Preprocessing" begin
+        @trixi_testset "preprocessing/packing_2d.jl" begin
+            particle_spacing = 0.1f0
+            boundary_thickness = 5 * particle_spacing
+            filename = "circle"
+            file = pkgdir(TrixiParticles, "examples", "preprocessing", "data",
+                          filename * ".asc")
+            geometry = load_geometry(file)
+
+            # Neighborhood search with `FullGridCellList` for GPU compatibility
+            search_radius = 2 * boundary_thickness
+            min_corner = Float32.(geometry.min_corner .- search_radius)
+            max_corner = Float32.(geometry.max_corner .+ search_radius)
+            cell_list = FullGridCellList(; min_corner, max_corner)
+            neighborhood_search = GridNeighborhoodSearch{2}(; cell_list)
+
+            @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
+                                                             joinpath(examples_dir(),
+                                                                      "preprocessing",
+                                                                      "packing_2d.jl"),
+                                                             neighborhood_search,
+                                                             parallelization_backend=Main.parallelization_backend,
+                                                             tspan=(0.0f0, 0.1f0)) [
+                r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
+            ]
+            @test sol.retcode == ReturnCode.Success
+            v_ode, u_ode = sol.u[end].x
+            backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
+            @test backend == Main.parallelization_backend
+            @test eltype(v_ode) == Float32
+            @test eltype(u_ode) == Float32
+            @test packed_ic.coordinates isa Matrix{Float32}
+            @test packed_boundary_ic.coordinates isa Matrix{Float32}
+        end
+    end
+
     @testset verbose=true "FSI" begin
         @trixi_testset "fsi/dam_break_gate_2d.jl" begin
             # Import variables into scope
