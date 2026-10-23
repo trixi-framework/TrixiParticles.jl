@@ -28,7 +28,7 @@ Pages = ["custom_quantities/mechanical_work_calculator.jl"]
 # Structure Motion Calculator
 
 The `StructureMotionCalculator` is a special custom quantity to be used with the
- [`PostprocessCallback`](@ref).
+[`PostprocessCallback`](@ref) and [`SolutionSavingCallback`](@ref).
 
 ```@autodocs
 Modules = [TrixiParticles]
