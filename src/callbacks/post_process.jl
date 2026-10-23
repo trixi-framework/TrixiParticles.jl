@@ -127,11 +127,21 @@ function initialize_postprocess_callback!(cb::PostprocessCallback, u, t, integra
 
     cb.git_hash[] = compute_git_hash()
 
+    empty!(cb.data)
+    empty!(cb.times)
+
+    for quantity in values(cb.func)
+        reset_custom_quantity!(quantity)
+    end
+
     # Apply the callback
     cb(integrator)
 
     return cb
 end
+
+# Internal hook for custom quantities that require resetting their state between solves.
+reset_custom_quantity!(quantity) = quantity
 
 # `condition` with interval
 function (pp::PostprocessCallback)(u, t, integrator)

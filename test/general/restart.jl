@@ -1,4 +1,30 @@
 @trixi_testset "Restart" begin
+    @trixi_testset "EDAC v_ode" begin
+        coordinates = [0.0 1.0; 0.0 1.0]
+        velocity = [1.0 2.0; 3.0 4.0]
+        pressure = [5.0, 6.0]
+        density = [7.0, 8.0]
+        initial_condition = InitialCondition(; coordinates, velocity, pressure, density,
+                                             mass=ones(2), particle_spacing=1.0)
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+
+        for density_calculator in (SummationDensity(), ContinuityDensity())
+            system = EntropicallyDampedSPHSystem(initial_condition;
+                                                 smoothing_kernel,
+                                                 smoothing_length=1.0,
+                                                 sound_speed=10.0,
+                                                 density_calculator)
+            restart_data = (; velocity, pressure, density)
+            v_restart = TrixiParticles.restart_v(system, restart_data)
+
+            @test TrixiParticles.current_velocity(v_restart, system) == velocity
+            @test TrixiParticles.current_pressure(v_restart, system) == pressure
+            if density_calculator isa ContinuityDensity
+                @test TrixiParticles.current_density(v_restart, system) == density
+            end
+        end
+    end
+
     @trixi_testset "Poiseuille Flow Half-Simulation Restart" begin
         # Run full simulation
         trixi_include(@__MODULE__,

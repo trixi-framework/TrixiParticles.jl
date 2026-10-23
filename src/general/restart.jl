@@ -60,7 +60,7 @@ end
 function write_density_and_pressure!(v_restart, system,
                                      density_calculator::ContinuityDensity,
                                      pressure, density)
-    v_restart[size(v_restart, 1), :] = density
+    v_restart[end, :] = density
 
     return v_restart
 end
@@ -68,8 +68,8 @@ end
 function write_density_and_pressure!(v_restart, system::EntropicallyDampedSPHSystem,
                                      density_calculator::ContinuityDensity,
                                      pressure, density)
-    v_restart[size(v_restart, 1), :] = density
-    v_restart[size(v_restart, 1) - 1, :] = pressure
+    v_restart[end, :] = density
+    v_restart[ndims(system) + 1, :] = pressure
 
     return v_restart
 end
@@ -77,7 +77,7 @@ end
 function write_density_and_pressure!(v_restart, system::EntropicallyDampedSPHSystem,
                                      density_calculator::SummationDensity,
                                      pressure, density)
-    v_restart[size(v_restart, 1) - 1, :] = pressure
+    v_restart[ndims(system) + 1, :] = pressure
 
     return v_restart
 end
