@@ -7,7 +7,7 @@
 #    the coastline wall and the seawall on the right.
 #
 # We use 2D geometry formats such as `.asc` or `.dxf` for 2D setups.
-# STL files describe surfaces and are therefore better suited to 3D setups.
+# STL files are supported only for 3D geometries.
 
 # First, we import TrixiParticles.jl together with
 # `OrdinaryDiffEqLowStorageRK` of
@@ -17,7 +17,7 @@ using TrixiParticles
 using OrdinaryDiffEqLowStorageRK
 using Plots
 
-# ## Resolution
+# ## Building the geometry
 
 # We use the same particle spacing for the fluid and for the wall geometries.
 particle_spacing = 0.03
@@ -28,13 +28,15 @@ state_equation = StateEquationCole(; sound_speed, reference_density=fluid_densit
                                    exponent=7)
 nothing # hide
 
-# ## Loading 2D geometry files
+# ### Loading the 2D geometry files
 
 # The following helper loads a closed 2D geometry file and samples particles in its interior:
 # 1. load the polygon with [`load_geometry`](@ref),
 # 2. fill the polygon with [`ComplexShape`](@ref).
 #
 # This creates a filled 2D solid region rather than particles only along the polygon edges.
+# The half-spacing `grid_offset` shifts the sampling grid in each coordinate direction
+# to avoid placing particles directly on the grid-aligned edges of these geometries.
 function solid_from_geometry_file(file; particle_spacing, density)
     geometry = load_geometry(file)
     solid = ComplexShape(geometry; particle_spacing, density,
@@ -42,8 +44,9 @@ function solid_from_geometry_file(file; particle_spacing, density)
 
     return (; geometry, solid)
 end
+nothing # hide
 
-# ## A curved pipe from two filled geometries
+# ### A curved pipe from two filled geometries
 
 # The pipe wall is an L-shaped solid region with a channel cut out of it:
 # 1. one geometry file describes the outer pipe envelope,
@@ -62,13 +65,20 @@ pipe_setup = (; wall=setdiff(pipe_outer.solid, pipe_channel),
               outer_geometry=pipe_outer.geometry,
               channel_geometry=pipe_channel)
 
-# ## A dam-break basin with a coastline profile
+p_pipe = plot(pipe_setup.wall, label="wall", size=(450, 450), showaxis=false,
+              xlims=(-0.03, 1.23), ylims=(-0.03, 1.23))
+plot!(p_pipe, dpi=300) # hide
+savefig(p_pipe, "tut_2d_geometry_pipe.png"); # hide
+# ![Curved pipe wall particles](tut_2d_geometry_pipe.png)
+
+# ### A dam-break basin with a coastline profile
 
 # In the second setup, one 2D geometry file defines the coastline wall:
 # the beach profile, a finite wall thickness below it, and the seawall on the right.
 coast_file = pkgdir(TrixiParticles, "examples", "preprocessing", "data",
                     "coastline_profile_2d.asc")
 coast = solid_from_geometry_file(coast_file; particle_spacing, density=fluid_density)
+nothing # hide
 
 # The geometry file defines the coastline bed and right wall as a solid region.
 # We add the left wall as a rectangular particle block and place a rectangular
@@ -82,31 +92,19 @@ coast_setup = (; geometry=coast.geometry,
                wall=union(coast.solid, left_wall),
                fluid=setdiff(reservoir, coast.geometry))
 
-p_pipe = plot(pipe_setup.wall, label="wall", title="Curved pipe",
-              markerstrokewidth=0, markersize=4)
-plot!(p_pipe, showaxis=false, aspect_ratio=:equal,
-      xlims=(-0.03, 1.23), ylims=(-0.03, 1.23))
+p_coast = plot(coast_setup.fluid, coast_setup.wall, labels=["fluid" "wall"],
+               size=(700, 360), showaxis=false, xlims=(0.0, 2.75), ylims=(-0.15, 1.35))
+plot!(p_coast, dpi=200) # hide
+savefig(p_coast, "tut_2d_geometry_coast.png"); # hide
+# ![Coastline dam-break initial conditions](tut_2d_geometry_coast.png)
 
-p_coast = plot(coast_setup.fluid, coast_setup.wall,
-               labels=["fluid" "wall"], title="Coastline dam break",
-               markerstrokewidth=0, markersize=3)
-plot!(p_coast, showaxis=false, aspect_ratio=:equal,
-      xlims=(0.0, 2.75), ylims=(-0.15, 1.35))
+# ## Running a coastline simulation
 
-plot(p_pipe, p_coast, layout=(1, 2), size=(900, 360))
-savefig("tut_2d_geometry_plot.png"); # hide
-# ![2D geometry based initial conditions](tut_2d_geometry_plot.png)
-
-# ## Building the simulation systems
-
-# We continue with the coastline setup. The remaining steps are the same as for
-# other 2D simulations.
+# We continue with the coastline setup using the systems, semidiscretization, and time
+# integration described in [Setting up your simulation from scratch](@ref tut_setup).
 setup = coast_setup
-tspan = (0.0, 0.03)
-nothing # hide
+tspan = (0.0, 1.0)
 
-# We define the state equation, smoothing kernel, and viscosity for the
-# weakly compressible SPH simulation.
 smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
@@ -120,32 +118,25 @@ fluid_system = WeaklyCompressibleSPHSystem(setup.fluid;
                                            smoothing_length, viscosity=viscosity,
                                            density_diffusion=density_diffusion,
                                            acceleration=(0.0, -gravity))
-nothing # hide
 
-# The boundary system uses the combined wall particles created above.
 boundary_model = BoundaryModelDummyParticles(setup.wall.density, setup.wall.mass,
                                              state_equation=state_equation,
                                              AdamiPressureExtrapolation(),
                                              smoothing_kernel, smoothing_length)
 boundary_system = WallBoundarySystem(setup.wall, boundary_model)
-nothing # hide
 
-# ## Semidiscretization
-
-# We construct the [`Semidiscretization`](@ref TrixiParticles.Semidiscretization)
-# from the fluid and boundary systems.
 semi = Semidiscretization(fluid_system, boundary_system)
 ode = semidiscretize(semi, tspan)
-nothing # hide
 
-# ## Time integration
-
-# We can now solve the problem. An [`InfoCallback`](@ref) prints progress during
-# the simulation.
 callbacks = CallbackSet(InfoCallback(interval=10))
-nothing # hide
 
-sol = solve(ode, RDPK3SpFSAL35(), save_everystep=false, callback=callbacks) #!md
+sol = solve(ode, RDPK3SpFSAL35(), save_everystep=false, callback=callbacks)
+
+plot(sol, title="Coastline dam break at t = $(sol.t[end])",
+     size=(700, 360), showaxis=false, legend=:topleft)
+plot!(dpi=200) # hide
+savefig("tut_2d_geometry_solution.png"); # hide
+# ![Coastline dam-break final result](tut_2d_geometry_solution.png)
 
 # For more accurate body-fitted particles around sharper features, you can also
 # apply the [particle packing workflow](@ref tut_packing) to the 2D geometry files

@@ -62,9 +62,9 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Replaced the experimental `MechanicalWorkCalculatorCallback` with
   `MechanicalWorkCalculator`, which can be passed as a custom quantity to
   `PostprocessCallback` (#1228).
-- The compact support of a `BoundaryModelDummyParticles` of a `TotalLagrangianSPHSystem`
-  or `RigidBodySystem` must now be the same as the compact support of all fluid systems
-  in the simulation (#1348).
+- The smoothing kernel and smoothing length of a `BoundaryModelDummyParticles` of a
+  `TotalLagrangianSPHSystem` or `RigidBodySystem` must now be the same as those of all
+  fluid systems in the simulation (#1338, #1348).
 
 ### Features
 
@@ -73,6 +73,10 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Important Bugfixes
 
+- Fixed structure-fluid reaction forces with asymmetric corrected fluid kernel
+  gradients by evaluating the fluid-first gradient directly. The continuity equation
+  of `RigidBodySystem` boundaries with `ContinuityDensity` now uses the kernel gradient
+  of the boundary model instead of the corrected fluid gradient (#1338).
 - Fixed `RectangularShape` handling of coordinate-dependent density in hydrostatic pressure
   initialization and prevented coordinate perturbation from changing the global random state (#1196).
 - Fixed correction-cache updates after open-boundary interpolation and particle transfers
