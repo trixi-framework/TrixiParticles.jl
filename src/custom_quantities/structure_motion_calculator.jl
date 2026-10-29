@@ -2,20 +2,19 @@
     StructureMotionCalculator(system::TotalLagrangianSPHSystem, semi, position;
                               quantity=identity)
 
-Functor that reconstructs the motion of a [`TotalLagrangianSPHSystem`](@ref) around a point
-`position` in the initial (reference) configuration from the surrounding particles.
+Functor that reconstructs the motion of a [`TotalLagrangianSPHSystem`](@ref) at `position`
+in the initial (reference) configuration by interpolating data from neighboring particles.
 It can be passed as a custom quantity to [`SolutionSavingCallback`](@ref) and
 [`PostprocessCallback`](@ref).
 
-In contrast to tracking a single particle, the motion is obtained by an SPH interpolation
-over all particles in the kernel support of `position`, which makes it less sensitive to
-the discretization and allows tracking points that are not particle positions.
-Since the kernel support is usually truncated when tracking a point close to the surface
-of the structure, we use the corrected kernel by [Bonet and Lok (1999)](@cite Bonet1999),
-which exactly reproduces linear fields also when the kernel support is truncated.
+The calculator uses SPH interpolation over all particles within the kernel support of
+`position`. This allows tracking points that do not coincide with particle positions and
+can reduce sensitivity to individual particle motion compared to tracking a single particle.
+Near the surface of the structure, the kernel support is generally truncated. We therefore
+use the corrected kernel of [Bonet and Lok (1999)](@cite Bonet1999), which reproduces linear
+fields exactly even when the kernel support is truncated.
 
-A field ``A`` is interpolated at a point ``\bm{X}`` (here `position`) in the initial
-configuration as
+A field ``A`` is interpolated at the reference point ``\bm{X}`` (`position`) as
 ```math
 A(\bm{X}) = \sum_b V_b A_b \tilde{W}_b(\bm{X}),
 ```
@@ -123,7 +122,7 @@ function StructureMotionCalculator(system::TotalLagrangianSPHSystem, semi, posit
     if length(position) != ndims(system)
         throw(ArgumentError("length of `position` must match the number of dimensions"))
     end
-    position_ = SVector{NDIMS, ELTYPE}(Tuple(position))
+    position_ = SVector{NDIMS, eltype(position)}(Tuple(position))
 
     # Transfer to CPU if data is on the GPU. Do nothing if already on CPU.
     initial_coordinates = transfer2cpu(system.initial_coordinates)
@@ -185,8 +184,8 @@ function (calculator::StructureMotionCalculator)(system, dv_ode, du_ode, v_ode, 
     return calculator.quantity(structure_motion(calculator, system))
 end
 
-# Interpolate displacement and deformation gradient at the tracked point.
-# Note that both callbacks update all systems before calling custom quantities, so the
+# Interpolate the displacement and deformation gradient at the tracked point.
+# Note that both callbacks update all systems before evaluating custom quantities, so the
 # current coordinates and deformation gradients stored in `system` are up to date.
 function structure_motion(calculator::StructureMotionCalculator, system)
     (; particles, weights) = calculator

@@ -27,7 +27,8 @@ Pages = ["custom_quantities/mechanical_work_calculator.jl"]
 
 # Structure Motion Calculator
 
-The `StructureMotionCalculator` is a special custom quantity to be used with the
+Use `StructureMotionCalculator` to reconstruct the motion of a structure at a point in the
+reference configuration. It can be passed as a custom quantity to
 [`PostprocessCallback`](@ref) and [`SolutionSavingCallback`](@ref).
 
 ```@autodocs
