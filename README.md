@@ -38,7 +38,7 @@ It offers intuitive configuration, robust pre- and post-processing, and vendor-a
     </td>
     <td align="center" width="50%">
       <b>JuliaCon 2026</b><br>
-      <a href="https://www.youtube.com/watch?v=_1HKnl1Jngw&t=3607s">
+      <a href="https://www.youtube.com/watch?v=oo75NelKMho">
         <img src="https://github.com/user-attachments/assets/ccf4e567-0adb-490e-9c2c-f36217dd5ca3" style="width: 90%;"/>
       </a>
     </td>
