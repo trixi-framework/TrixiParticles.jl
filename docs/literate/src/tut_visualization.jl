@@ -14,6 +14,10 @@ Plots.closeall() # hide
 # the discrete particles and the interpolated field in the next section clear.
 # To remove visual clutter, we disable the info callback.
 # Since we visualize with Plots.jl, we also disable the saving callback.
+#
+# We run the example with `trixi_include`, which also makes all global variables defined
+# in the example file, such as `sol`, `semi`, `fluid_system`, and `particle_spacing`,
+# available here.
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "vortex_street_2d.jl");
               particle_spacing_factor=0.2,
@@ -36,7 +40,7 @@ particle_velocity_magnitude = vec(sqrt.(sum(abs2, particle_velocity; dims=1)))
 particle_plot = plot(fluid_system, sol; zcolor=particle_velocity_magnitude, color=:viridis,
                      xlims=(0.25, 1.8), ylims=(0.1, 0.9), legend=false,
                      xlabel="x", ylabel="y", colorbar=true, colorbar_title="|v|",
-                     size=(900, 450))
+                     size=(900, 450), left_margin=3 * Plots.mm)
 plot!(particle_plot; dpi=200) # hide
 savefig(particle_plot, "tut_visualization_particles.png") # hide
 nothing # hide
