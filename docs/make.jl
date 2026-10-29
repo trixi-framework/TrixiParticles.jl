@@ -46,6 +46,8 @@ Literate.markdown(joinpath("docs", "literate", "src", "tut_rigid_body_fsi.jl"),
                   tutorials_output_dir)
 Literate.markdown(joinpath("docs", "literate", "src", "tut_packing.jl"),
                   tutorials_output_dir)
+Literate.markdown(joinpath("docs", "literate", "src", "tut_2d_geometry.jl"),
+                  tutorials_output_dir)
 Literate.markdown(joinpath("docs", "literate", "src", "tut_visualization.jl"),
                   tutorials_output_dir)
 
@@ -102,6 +104,8 @@ makedocs(sitename="TrixiParticles.jl",
                                                                                  "tut_rigid_body_fsi.md")
                  ],
                  "Preprocessing" => [
+                     "Setting up a 2D simulation from geometry files" => joinpath("tutorials",
+                                                                                  "tut_2d_geometry.md"),
                      "Particle packing tutorial" => joinpath("tutorials",
                                                              "tut_packing.md")
                  ]
@@ -152,6 +156,10 @@ makedocs(sitename="TrixiParticles.jl",
              "License" => "license.md",
              "References" => "references.md"
          ])
+
+# Simulations in the doctests and literate tutorials generate VTK and other output files
+# in `docs/build/tutorials/out`. Do not commit these files to `gh-pages`.
+rm(joinpath("docs", "build", "tutorials", "out"); recursive=true, force=true)
 
 deploydocs(repo="github.com/trixi-framework/TrixiParticles.jl",
            devbranch="main", push_preview=true)

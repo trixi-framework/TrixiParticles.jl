@@ -16,21 +16,27 @@ The step size is therefore only applied once at the beginning of the simulation.
 
 The step size ``\Delta t`` is chosen as the minimum
 ```math
-    \Delta t = \min(\Delta t_\nu, \Delta t_a, \Delta t_c),
+    \Delta t = \min(\Delta t_\nu, \Delta t_a, \Delta t_c, \Delta t_\sigma),
 ```
 where
 ```math
     \Delta t_\nu = 0.125 \, h^2 / \nu, \quad \Delta t_a = 0.25 \sqrt{h / \lVert g \rVert},
-    \quad \Delta t_c = \text{CFL} \, h / c,
+    \quad \Delta t_c = \text{CFL} \, h / c, \quad
+    \Delta t_\sigma = \sqrt{\frac{\bar{\rho} h^3}{2 \pi \sigma}},
 ```
 with ``\nu = \alpha h c / (2n + 4)``, where ``\alpha`` is the parameter of the viscosity
 and ``n`` is the number of dimensions.
+The capillary restriction ``\Delta t_\sigma`` is applied when using [`SurfaceTensionMorris`](@ref)
+or [`SurfaceTensionMomentumMorris`](@ref). For an interaction between two fluid systems,
+both systems must use the same model. Then ``\bar{\rho} = (\rho_a + \rho_b) / 2``, ``h``
+is the smaller smoothing length, and ``\sigma`` is the larger surface tension coefficient.
 
 !!! warning "Experimental implementation"
     This is an experimental feature and may change in future releases.
 
 ## References
-[Antuono2012](@cite), [Adami2012](@cite), [Sun2017](@cite), [Antuono2015](@cite)
+[Antuono2012](@cite), [Adami2012](@cite), [Sun2017](@cite), [Antuono2015](@cite),
+[Brackbill1992](@cite), [Morris2000](@cite)
 """
 function StepsizeCallback(; cfl::Real)
     # TODO adapt for non-constant CFL conditions
