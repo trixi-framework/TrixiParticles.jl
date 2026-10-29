@@ -19,6 +19,10 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 - Added the `ThrustCalculator` custom quantity to calculate the hydrodynamic force exerted by
   interacting fluid systems on a `TotalLagrangianSPHSystem` along a given `direction` (#1229).
+- Added `plot(system, sol)` and `plot(system, v_ode, u_ode, semi)` to plot the particles
+  of a single system, which allows coloring by per-particle quantities via `zcolor` (#1298).
+- Added a tutorial on visualizing particle data and fields interpolated with
+  `interpolate_plane_2d` using Plots.jl (#1298).
 
 ### Important Bugfixes
 
