@@ -91,7 +91,8 @@
                                     semi_2, 0.0))
     end
 
-    @testset "Rigid rotation by $(angle)° is exact at the surface" for angle in [17, -70, 170]
+    @testset "Rigid rotation by $(angle)° is exact at the surface" for angle in
+                                                                       [17, -70, 170]
         calculator = StructureMotionCalculator(system, semi, position)
 
         angle_rad = deg2rad(angle)
