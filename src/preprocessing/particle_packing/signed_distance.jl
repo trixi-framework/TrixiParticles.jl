@@ -64,8 +64,8 @@ function SignedDistanceField(geometry, particle_spacing;
                                         min_corner; place_on_shell=true)
 
         points = reinterpret(reshape, SVector{NDIMS, eltype(grid)}, grid)
-    else
-        points = wrap_points(points, Val(NDIMS))
+    elseif points isa AbstractMatrix
+        points = reinterpret(reshape, SVector{NDIMS, eltype(points)}, points)
     end
 
     positions = collect(points)
