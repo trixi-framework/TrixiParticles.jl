@@ -48,6 +48,9 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   zero-pressure particles instead of retaining them in the termination condition (#1215).
 - Fixed the viscous force on structures in fluid-structure interaction, which had the wrong
   sign (#1348).
+- Fixed matrix point inputs, including non-contiguous views, for winding-number algorithms
+  and `SignedDistanceField`. `WindingNumberJacobson()` now defaults to non-hierarchical
+  winding when no geometry is provided (#1188).
 
 ### Documentation
 

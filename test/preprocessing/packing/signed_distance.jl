@@ -135,4 +135,15 @@
             end
         end
     end
+
+    @testset verbose=true "Point Matrix Input" begin
+        data_dir = pkgdir(TrixiParticles, "examples", "preprocessing", "data")
+        geometry = load_geometry(joinpath(data_dir, "hexagon.asc"))
+
+        point = first(geometry.vertices)
+        signed_distance_field = SignedDistanceField(geometry, 0.1; points=hcat(point))
+
+        @test signed_distance_field.positions == [point]
+        @test signed_distance_field.distances == [0.0]
+    end
 end
