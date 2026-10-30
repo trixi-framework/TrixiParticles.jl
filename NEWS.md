@@ -14,6 +14,10 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - The smoothing kernel and smoothing length of a `BoundaryModelDummyParticles` of a
   `TotalLagrangianSPHSystem` or `RigidBodySystem` must now be the same as those of all
   fluid systems in the simulation (#1338, #1348).
+- A `BoundaryModelDummyParticles` with `SummationDensity` is no longer accepted for a
+  `TotalLagrangianSPHSystem` or `RigidBodySystem` interacting with a fluid. The boundary
+  density was never computed for structures, so this combination behaved like
+  `PressureZeroing`, which can be used instead (#1341).
 
 ### Features
 
@@ -26,6 +30,10 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Important Bugfixes
 
+- Fixed pressure mirroring for TLSPH and rigid-body neighbors and for EDAC momentum,
+  pressure diffusion, and average-pressure reduction at walls and structures.
+  With a boundary viscosity, `PressureMirroring` now computes the wall velocity of the
+  no-slip condition, which was zero before (#1341).
 - Fixed structure-fluid reaction forces with asymmetric corrected fluid kernel
   gradients by evaluating the fluid-first gradient directly. The continuity equation
   of `RigidBodySystem` boundaries with `ContinuityDensity` now uses the kernel gradient

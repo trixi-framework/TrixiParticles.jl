@@ -492,6 +492,7 @@ end
 function update_quantities!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
     # Precompute PK1 stress tensor
     @trixi_timeit timer() "stress tensor" compute_pk1_corrected!(system, semi)
+    interpolate_wall_velocity!(system.boundary_model, system, v, u, v_ode, u_ode, semi)
 
     return system
 end
