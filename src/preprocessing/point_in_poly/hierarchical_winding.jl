@@ -36,8 +36,8 @@ struct BoundingBoxTree{MC, NDIMS}
 
         uvec = (1:ndims(geometry)) .== split_direction
 
-        max_corner_left = max_corner - 0.5box_edges[split_direction] * uvec
-        min_corner_right = min_corner + 0.5box_edges[split_direction] * uvec
+        max_corner_left = max_corner - box_edges[split_direction] / 2 * uvec
+        min_corner_right = min_corner + box_edges[split_direction] / 2 * uvec
 
         faces_left = is_in_box(geometry, face_ids, min_corner, max_corner_left)
         faces_right = is_in_box(geometry, face_ids, min_corner_right, max_corner)
@@ -51,6 +51,65 @@ struct BoundingBoxTree{MC, NDIMS}
                    ndims(geometry)}(faces(face_ids, geometry), closing_faces,
                                     min_corner, max_corner, false, child_left, child_right)
     end
+end
+
+struct BoundingBoxNode{VOT, MC}
+    faces         :: VOT
+    closing_faces :: VOT
+    min_corner    :: MC
+    max_corner    :: MC
+    is_leaf       :: Bool
+    child_left    :: Int  # Index for vector, -1 if leaf
+    child_right   :: Int  # Index for vector, -1 if leaf
+end
+
+function build_tree!(nodes, geometry, face_ids, directed_edges, min_corner, max_corner)
+    closing_faces = Vector{NTuple{ndims(geometry), Int}}()
+
+    max_faces_in_box = ndims(geometry) == 3 ? 100 : 20
+    if length(face_ids) < max_faces_in_box
+        node = BoundingBoxNode(faces(face_ids, geometry), closing_faces,
+                               min_corner, max_corner, true, -1, -1)
+        push!(nodes, node)
+
+        return length(nodes) # Index of the new node
+    end
+
+    determine_closure!(closing_faces, min_corner, max_corner, geometry, face_ids,
+                       directed_edges)
+
+    if length(closing_faces) >= length(face_ids)
+        node = BoundingBoxNode(faces(face_ids, geometry), closing_faces,
+                               min_corner, max_corner, true, -1, -1)
+        push!(nodes, node)
+
+        return length(nodes) # Index of the new node
+    end
+
+    # Bisect the box splitting its longest side
+    box_edges = max_corner - min_corner
+
+    split_direction = argmax(box_edges)
+
+    uvec = (1:ndims(geometry)) .== split_direction
+
+    max_corner_left = max_corner - box_edges[split_direction] / 2 * uvec
+    min_corner_right = min_corner + box_edges[split_direction] / 2 * uvec
+
+    faces_left = is_in_box(geometry, face_ids, min_corner, max_corner_left)
+    faces_right = is_in_box(geometry, face_ids, min_corner_right, max_corner)
+
+    left_index = build_tree!(nodes, geometry, faces_left, directed_edges,
+                             min_corner, max_corner_left)
+    right_index = build_tree!(nodes, geometry, faces_right, directed_edges,
+                              min_corner_right, max_corner)
+
+    node = BoundingBoxNode(faces(face_ids, geometry), closing_faces,
+                           min_corner, max_corner, false, left_index, right_index)
+
+    push!(nodes, node)
+
+    return length(nodes) # Index of the new node
 end
 
 function faces(edge_ids, geometry::Polygon)
@@ -68,7 +127,7 @@ end
 struct HierarchicalWinding{BB}
     bounding_box::BB
 
-    function HierarchicalWinding(geometry)
+    function HierarchicalWinding(geometry; vector_of_nodes=false)
         # Note that overlapping bounding boxes are perfectly fine
         min_corner = geometry.min_corner .- sqrt(eps())
         max_corner = geometry.max_corner .+ sqrt(eps())
@@ -79,32 +138,68 @@ struct HierarchicalWinding{BB}
             directed_edges = zeros(Int, length(geometry.vertices))
         end
 
-        bounding_box = BoundingBoxTree(geometry, eachface(geometry), directed_edges,
-                                       min_corner, max_corner)
+        if vector_of_nodes
+            bounding_box = BoundingBoxNode[]
+            build_tree!(bounding_box, geometry, eachface(geometry), directed_edges,
+                        min_corner, max_corner)
+        else
+            bounding_box = BoundingBoxTree(geometry, eachface(geometry), directed_edges,
+                                           min_corner, max_corner)
+        end
 
         return new{typeof(bounding_box)}(bounding_box)
     end
 end
 
-@inline function (winding::HierarchicalWinding)(mesh, query_point)
+@inline function (winding::HierarchicalWinding)(geometry, query_point)
     (; bounding_box) = winding
 
-    return hierarchical_winding(bounding_box, mesh, query_point)
+    return hierarchical_winding(last(bounding_box), bounding_box, geometry, query_point)
 end
 
-function hierarchical_winding(bounding_box, mesh, query_point)
+@inline function (winding::HierarchicalWinding{<:BoundingBoxTree})(geometry, query_point)
+    (; bounding_box) = winding
+
+    return hierarchical_winding(bounding_box, geometry, query_point)
+end
+
+function hierarchical_winding(bounding_box::BoundingBoxTree, geometry, query_point)
     (; min_corner, max_corner) = bounding_box
 
     if bounding_box.is_leaf
-        return naive_winding(mesh, bounding_box.faces, query_point)
+        return naive_winding(geometry, bounding_box.faces, query_point)
 
     elseif !is_in_box(query_point, min_corner, max_corner)
         # `query_point` is outside bounding box
-        return -naive_winding(mesh, bounding_box.closing_faces, query_point)
+        return -naive_winding(geometry, bounding_box.closing_faces, query_point)
     end
 
-    winding_number_left = hierarchical_winding(bounding_box.child_left, mesh, query_point)
-    winding_number_right = hierarchical_winding(bounding_box.child_right, mesh, query_point)
+    winding_number_left = hierarchical_winding(bounding_box.child_left, geometry,
+                                               query_point)
+    winding_number_right = hierarchical_winding(bounding_box.child_right, geometry,
+                                                query_point)
+
+    return winding_number_left + winding_number_right
+end
+
+function hierarchical_winding(bounding_box::BoundingBoxNode, nodes, geometry, query_point)
+    (; min_corner, max_corner) = bounding_box
+
+    if bounding_box.is_leaf
+        return naive_winding(geometry, bounding_box.faces, query_point)
+
+    elseif !is_in_box(query_point, min_corner, max_corner)
+        # `query_point` is outside bounding box
+        return -naive_winding(geometry, bounding_box.closing_faces, query_point)
+    end
+
+    left_bounding_box = nodes[bounding_box.child_left]
+    right_bounding_box = nodes[bounding_box.child_right]
+
+    winding_number_left = hierarchical_winding(left_bounding_box, nodes,
+                                               geometry, query_point)
+    winding_number_right = hierarchical_winding(right_bounding_box, nodes,
+                                                geometry, query_point)
 
     return winding_number_left + winding_number_right
 end
