@@ -978,6 +978,6 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
     end
 
     foreach_system(systems) do neighbor
-        check_compact_support_fsi(system, boundary_model, neighbor)
+        check_smoothing_kernel_fsi(system, boundary_model, neighbor)
     end
 end

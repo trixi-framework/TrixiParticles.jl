@@ -69,9 +69,6 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Fixed plane interpolation coordinates to match the requested bounds, filtering of
   tensor-valued interpolation results, and wall-velocity interpolation with
   `cut_off_bnd=false` (#1183).
-- Fixed matrix point inputs, including non-contiguous views, for winding-number algorithms
-  and `SignedDistanceField`. `WindingNumberJacobson()` now defaults to non-hierarchical
-  winding when no geometry is provided (#1188).
 - Fixed stale connectivity, normals, and bounding boxes after geometry face deletion.
   The new `delete_faces(geometry, indices)` function returns a geometry with the selected
   faces removed and derived data rebuilt (#1190).
@@ -106,12 +103,27 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Replaced the experimental `MechanicalWorkCalculatorCallback` with
   `MechanicalWorkCalculator`, which can be passed as a custom quantity to
   `PostprocessCallback` (#1228).
-- The compact support of a `BoundaryModelDummyParticles` of a `TotalLagrangianSPHSystem`
-  or `RigidBodySystem` must now be the same as the compact support of all fluid systems
-  in the simulation (#1348).
+- The smoothing kernel and smoothing length of a `BoundaryModelDummyParticles` of a
+  `TotalLagrangianSPHSystem` or `RigidBodySystem` must now be the same as those of all
+  fluid systems in the simulation (#1338, #1348).
+
+### Features
+
+- Added the `ThrustCalculator` custom quantity to calculate the hydrodynamic force exerted by
+  interacting fluid systems on a `TotalLagrangianSPHSystem` along a given `direction` (#1229).
+- Added `plot(system, sol)` and `plot(system, v_ode, u_ode, semi)` to plot the particles
+  of a single system, which allows coloring by per-particle quantities via `zcolor` (#1298).
+- Added a tutorial on visualizing particle data and fields interpolated with
+  `interpolate_plane_2d` using Plots.jl (#1298).
+- Added an optional Makie recipe for rendering two- and three-dimensional particle systems
+  with `plot`, `plot!`, `trixi2makie`, and `trixi2makie!`.
 
 ### Important Bugfixes
 
+- Fixed structure-fluid reaction forces with asymmetric corrected fluid kernel
+  gradients by evaluating the fluid-first gradient directly. The continuity equation
+  of `RigidBodySystem` boundaries with `ContinuityDensity` now uses the kernel gradient
+  of the boundary model instead of the corrected fluid gradient (#1338).
 - Fixed `RectangularShape` handling of coordinate-dependent density in hydrostatic pressure
   initialization and prevented coordinate perturbation from changing the global random state (#1196).
 - Fixed correction-cache updates after open-boundary interpolation and particle transfers
@@ -135,17 +147,12 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   zero-pressure particles instead of retaining them in the termination condition (#1215).
 - Fixed the viscous force on structures in fluid-structure interaction, which had the wrong
   sign (#1348).
-
 - Hardened surface tension model configuration by validating coefficients and surface-normal
   thresholds, avoiding unnecessary normal allocation for `CohesionForceAkinci`, and stabilizing
   Akinci cohesion and adhesion kernels across floating-point scales.
-
-### Features
-
-- Added the `ThrustCalculator` custom quantity to calculate the hydrodynamic force exerted by
-  interacting fluid systems on a `TotalLagrangianSPHSystem` along a given `direction` (#1229).
-- Added an optional Makie recipe for rendering two- and three-dimensional particle systems
-  with `plot`, `plot!`, `trixi2makie`, and `trixi2makie!`.
+- Fixed matrix point inputs, including non-contiguous views, for winding-number algorithms
+  and `SignedDistanceField`. `WindingNumberJacobson()` now defaults to non-hierarchical
+  winding when no geometry is provided (#1188).
 
 ## Version 0.5.3
 
