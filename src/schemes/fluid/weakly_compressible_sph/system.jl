@@ -399,10 +399,12 @@ function reinit_density!(system::WeaklyCompressibleSPHSystem, ::ContinuityDensit
                          v_ode, u_ode, semi)
     # Compute density with `SummationDensity` and store the result in `v`,
     # overwriting the previous integrated density.
-    summation_density!(system, semi, u, u_ode, v[end, :])
+    density = view(v, size(v, 1), :)
+
+    summation_density!(system, semi, u, u_ode, density)
 
     # Apply `ShepardKernelCorrection`
-    kernel_correction_coefficient = zeros(size(v[end, :]))
+    kernel_correction_coefficient = similar(density)
     compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode, semi,
                            kernel_correction_coefficient)
     @threaded semi for particle in eachparticle(system)
