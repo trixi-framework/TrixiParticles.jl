@@ -6,6 +6,11 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ## Version 0.5.4
 
+### Features
+
+- Added validation cases for the 2D Poiseuille flow and the 3D Hagen-Poiseuille flow
+  with pressure-driven open boundaries against Zhang et al. (2025).
+
 ### API Changes
 
 - Replaced the experimental `MechanicalWorkCalculatorCallback` with

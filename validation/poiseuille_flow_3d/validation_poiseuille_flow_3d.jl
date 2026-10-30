@@ -1,0 +1,54 @@
+# This file computes the velocity profiles of the 3D Hagen-Poiseuille flow setup described in
+#
+# Shuoguo Zhang, Yu Fan, Dong Wu, Chi Zhang, Xiangyu Hu.
+# "Dynamical pressure boundary condition for weakly compressible smoothed particle hydrodynamics".
+# Physics of Fluids 37, 027193 (2025).
+# https://doi.org/10.1063/5.0254575
+
+include("../validation_util.jl")
+
+using TrixiParticles
+
+# `particle_spacing_factor` is the number of particles across the pipe diameter.
+# Use 10, 20, 30, 40 or 50 for validation.
+# Use `particle_spacing_factor = 50` to match the resolution used by Zhang et al. (2025).
+particle_spacing_factor = 30
+
+tspan = (0.0, 1.0)
+
+function v_x_interpolated(system::TrixiParticles.AbstractFluidSystem{3},
+                          dv_ode, du_ode, v_ode, u_ode, semi, t)
+    start_point = [channel_length / 2, -channel_radius, 0.0]
+    end_point = [channel_length / 2, channel_radius, 0.0]
+
+    values = interpolate_line(start_point, end_point, 100, semi, system, v_ode, u_ode;
+                              cut_off_bnd=true, clip_negative_pressure=false,
+                              include_wall_velocity=true)
+
+    return values.velocity[1, :]
+end
+v_x_interpolated(system, dv_ode, du_ode, v_ode, u_ode, semi, t) = nothing
+
+pp_callback = PostprocessCallback(; dt=0.01, output_directory="out",
+                                  v_x=v_x_interpolated,
+                                  filename="validation_run_poiseuille_flow_3d_$particle_spacing_factor",
+                                  write_csv=false, write_file_interval=0)
+
+trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "poiseuille_flow_3d.jl"),
+              saving_callback=nothing, tspan=tspan, extra_callback=pp_callback,
+              particle_spacing_factor=particle_spacing_factor)
+
+reference_file_name = joinpath(validation_dir(), "poiseuille_flow_3d",
+                               "validation_reference_$particle_spacing_factor.json")
+run_file_name = joinpath("out",
+                         "validation_run_poiseuille_flow_3d_$particle_spacing_factor.json")
+
+reference_data = TrixiParticles.JSON.parsefile(reference_file_name,
+                                               allownan=true)["v_x_fluid_1"]
+run_data = TrixiParticles.JSON.parsefile(run_file_name, allownan=true)["v_x_fluid_1"]
+
+error_v_x = profile_mse(reference_data["time"], reference_data["values"],
+                        run_data["time"], run_data["values"])
+
+println("Validation results for Poiseuille flow 3D with $particle_spacing_factor particles:")
+println("  MSE v_x: $error_v_x")
