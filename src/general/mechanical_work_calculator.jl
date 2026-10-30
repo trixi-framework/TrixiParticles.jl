@@ -1,0 +1,365 @@
+"""
+    MechanicalWorkCalculator(system::TotalLagrangianSPHSystem, semi;
+                             eachparticle=(n_integrated_particles(system) + 1):nparticles(system),
+                             only_compute_force_on_fluid=false)
+
+Functor that accumulates the work done by a set of particles in a
+[`TotalLagrangianSPHSystem`](@ref) by integrating the instantaneous power over time.
+It can be passed as a custom quantity to [`PostprocessCallback`](@ref), which controls
+when the work is sampled and whether it is written to a file.
+
+With the default arguments it tracks the work done by the clamped particles
+that follow a [`PrescribedMotion`](@ref). By selecting a different particle set, it can also
+be used to measure the work done by the structure on the surrounding fluid.
+
+- **Prescribed/clamped motion work** (default) -- monitor only the clamped particles by
+    leaving `eachparticle` at its default range
+    `(n_integrated_particles(system) + 1):nparticles(system)`.
+- **Fluid energy transfer** -- set `eachparticle=eachparticle(system)` together with
+    `only_compute_force_on_fluid=true` to accumulate the work that the entire structure
+    exerts on the surrounding fluid.
+
+Internally the calculator integrates the instantaneous power, i.e. the dot product between
+the force exerted by the particle and its prescribed velocity, which is then integrated
+in time using the trapezoidal rule.
+Therefore, the evaluation interval of the [`PostprocessCallback`](@ref) does not only
+control when data is written, but also determines the time step used for this integration.
+The interval should usually be chosen below `interval=100`, depending on the smoothness of
+the power signal.
+
+The accumulated value can be retrieved via [`calculated_mechanical_work`](@ref).
+
+!!! warning "Experimental implementation"
+    This is an experimental feature and may change in future releases.
+
+# Arguments
+- `system`: The [`TotalLagrangianSPHSystem`](@ref) whose particles should be monitored.
+- `semi`: The [`Semidiscretization`](@ref TrixiParticles.Semidiscretization) that contains `system`.
+
+# Keywords
+- `eachparticle=(n_integrated_particles(system) + 1):nparticles(system)`: Iterator
+                selecting which particles contribute. The default includes all clamped
+                particles in the system; pass `eachparticle(system)` to include every particle.
+- `only_compute_force_on_fluid=false`: When `true`, only interactions with
+                fluid systems are accounted for. Combined with
+                `eachparticle=eachparticle(system)`, this accumulates the work that the
+                entire structure exerts on the fluid.
+
+# Examples
+```jldoctest; output = false, setup = :(system = TotalLagrangianSPHSystem(RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0); smoothing_kernel=WendlandC2Kernel{2}(), smoothing_length=1.0, young_modulus=1.0, poisson_ratio=1.0); semi = (; systems=(system,), parallelization_backend=SerialBackend()))
+semi = Semidiscretization(system)
+ode = semidiscretize(semi, (0.0, 1.0))
+
+# Note that `Semidiscretization` might create a deep copy of the system,
+# which means we have to extract the new system from `semi`.
+# When working with GPUs, `semidiscretize` also creates a deep copy of `semi` and another
+# copy of the system, so the clean way to get the correct new system is this:
+semi_new = ode.p.semi
+system_new = semi_new.systems[1]
+
+# Create a mechanical work calculator that is called every 2 time steps.
+mechanical_work_calculator = MechanicalWorkCalculator(system_new, semi_new)
+postprocess_cb = PostprocessCallback(; interval=2, mechanical_work_calculator)
+
+# Now pass the callback to the `solve` function:
+# sol = solve(ode, ..., callback=postprocess_cb)
+
+# After the simulation, retrieve the accumulated mechanical work.
+mechanical_work = calculated_mechanical_work(mechanical_work_calculator)
+
+# output
+[ Info: To create the self-interaction neighborhood search of a `TotalLagrangianSPHSystem`, a deep copy of the system is created inside the `Semidiscretization`. Use `system = semi.systems[i]` to access simulation data.
+0.0
+```
+"""
+mutable struct MechanicalWorkCalculator{ELTYPE, DV, EP}
+    t                           :: Float64 # Time of last call
+    work                        :: ELTYPE
+    power                       :: ELTYPE
+    initialized                 :: Bool
+    system_index                :: Int
+    dv                          :: DV
+    eachparticle                :: EP
+    only_compute_force_on_fluid :: Bool
+end
+
+function MechanicalWorkCalculator(system::TotalLagrangianSPHSystem, semi;
+                                  eachparticle=(n_integrated_particles(system) + 1):nparticles(system),
+                                  only_compute_force_on_fluid=false)
+    ELTYPE = eltype(system)
+    system_index = system_indices(system, semi)
+
+    # Allocate buffer to write accelerations for all particles (including clamped ones).
+    # `PostprocessCallback` transfers data to the CPU before calling custom quantities,
+    # so this can be a regular `Array` even when the simulation is running on a GPU.
+    dv = Array{ELTYPE, 2}(undef, (v_nvariables(system), nparticles(system)))
+
+    return MechanicalWorkCalculator(0.0, zero(ELTYPE), zero(ELTYPE), false,
+                                    system_index, dv, eachparticle,
+                                    only_compute_force_on_fluid)
+end
+
+function reset_custom_quantity!(calculator::MechanicalWorkCalculator)
+    calculator.t = zero(calculator.t)
+    calculator.work = zero(calculator.work)
+    calculator.power = zero(calculator.power)
+    calculator.initialized = false
+
+    return calculator
+end
+
+"""
+    calculated_mechanical_work(calculator::MechanicalWorkCalculator)
+
+Get the accumulated mechanical work from a [`MechanicalWorkCalculator`](@ref).
+
+# Arguments
+- `calculator`: The [`MechanicalWorkCalculator`](@ref) functor.
+
+# Examples
+```jldoctest; output = false, setup = :(system = TotalLagrangianSPHSystem(RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0); smoothing_kernel=WendlandC2Kernel{2}(), smoothing_length=1.0, young_modulus=1.0, poisson_ratio=1.0); semi = (; systems=(system,), parallelization_backend=SerialBackend()))
+# Create a mechanical work calculator
+mechanical_work_calculator = MechanicalWorkCalculator(system, semi)
+
+# After the simulation, retrieve the accumulated mechanical work
+mechanical_work = calculated_mechanical_work(mechanical_work_calculator)
+
+# output
+0.0
+```
+"""
+function calculated_mechanical_work(calculator::MechanicalWorkCalculator)
+    return calculator.work
+end
+
+function (calculator::MechanicalWorkCalculator)(system, dv_ode, du_ode, v_ode, u_ode,
+                                                semi, t)
+    if system_indices(system, semi) != calculator.system_index
+        return nothing
+    end
+
+    dt = t - calculator.t
+    calculator.t = Float64(t)
+
+    @trixi_timeit timer() "calculate mechanical work" begin
+        current_power = calculate_mechanical_power(system,
+                                                   calculator.eachparticle,
+                                                   calculator.only_compute_force_on_fluid,
+                                                   calculator.dv,
+                                                   v_ode, u_ode, semi, t)
+    end
+
+    if calculator.initialized
+        # Integrate the instantaneous power using the trapezoidal rule to get the
+        # accumulated mechanical work.
+        calculator.work = update_mechanical_work(calculator.work, calculator.power,
+                                                 current_power, dt)
+    else
+        # Initialize
+        calculator.work = zero(calculator.work)
+        calculator.initialized = true
+    end
+
+    # Update previous power for next call
+    calculator.power = current_power
+
+    return calculator.work
+end
+
+function update_mechanical_work(work, previous_power, current_power, dt)
+    return work + (previous_power + current_power) * dt / 2
+end
+
+function calculate_mechanical_power(system, eachparticle,
+                                    only_compute_force_on_fluid, dv,
+                                    v_ode, u_ode, semi, t)
+    v = wrap_v(v_ode, system, semi)
+    u = wrap_u(u_ode, system, semi)
+
+    compute_structure_acceleration!(dv, v, u, system, eachparticle,
+                                    only_compute_force_on_fluid,
+                                    v_ode, u_ode, semi, t)
+
+    power = zero(eltype(system))
+
+    # Note that this is a reduction, so we cannot use `@threaded` here.
+    for particle in eachparticle
+        velocity = current_velocity(v, system, particle)
+        acceleration_from_loads = extract_svector(dv, system, particle)
+        prescribed_acceleration = if only_compute_force_on_fluid
+            zero(acceleration_from_loads)
+        else
+            current_acceleration(system, particle)
+        end
+
+        # For prescribed motion, the force required to accelerate the particle is
+        # `mass * (prescribed_acceleration - acceleration_from_loads)`. For integrated
+        # particles, `prescribed_acceleration` is zero and this reduces to the force exerted
+        # by the particle on its surroundings. When only fluid forces are requested, the
+        # prescribed acceleration is intentionally omitted.
+        force_exerted_by_particle = system.mass[particle] *
+                                    (prescribed_acceleration - acceleration_from_loads)
+
+        power += dot(force_exerted_by_particle, velocity)
+    end
+
+    return power
+end
+
+function compute_structure_acceleration!(dv, v, u, system, eachparticle,
+                                         only_compute_force_on_fluid,
+                                         v_ode, u_ode, semi, t)
+    set_zero!(dv)
+
+    foreach_system_wrapped(semi, v_ode, u_ode) do neighbor_system, v_neighbor, u_neighbor
+        if only_compute_force_on_fluid && !(neighbor_system isa AbstractFluidSystem)
+            # Not a fluid system, ignore this system.
+            return dv
+        end
+
+        if !has_system_interaction(system, neighbor_system, semi)
+            # No interaction between these systems.
+            return dv
+        end
+
+        apply_system_interaction!(dv, v, u, v_neighbor, u_neighbor,
+                                  system, neighbor_system, semi,
+                                  integrate_tlsph=true, # Required when using split integration
+                                  eachparticle=eachparticle)
+
+        return nothing
+    end
+
+    if !only_compute_force_on_fluid
+        @threaded semi for particle in eachparticle
+            add_acceleration!(dv, system, particle)
+            add_source_terms_inner!(dv, v, u, particle, system, source_terms(system), t)
+        end
+    end
+
+    return dv
+end
+
+"""
+    ThrustCalculator(system::TotalLagrangianSPHSystem, semi;
+                     direction,
+                     eachparticle=eachparticle(system))
+
+Functor that computes the instantaneous hydrodynamic force along `direction` exerted by
+interacting fluid systems on a [`TotalLagrangianSPHSystem`](@ref).
+It can be passed as a custom quantity to [`PostprocessCallback`](@ref).
+
+For a fixed structure in a channel-flow propulsion test, `T * U_ref` defines a reference
+propulsive power, where `T` is the recorded thrust and `U_ref` is the reference translation
+speed along `direction`.
+
+!!! warning "Experimental implementation"
+    This is an experimental feature and may change in future releases.
+
+# Arguments
+- `system`: The [`TotalLagrangianSPHSystem`](@ref) whose hydrodynamic force should be
+            monitored.
+- `semi`: The [`Semidiscretization`](@ref) that contains `system`.
+
+# Keywords
+- `direction`: Nonzero vector defining the projection direction. Its length must
+               equal the number of spatial dimensions. It is normalized internally.
+- `eachparticle=eachparticle(system)`: Iterator selecting the particles whose hydrodynamic
+               forces are summed. The default includes all particles, including clamped ones.
+
+# Examples
+```jldoctest; output = false, setup = :(system = TotalLagrangianSPHSystem(RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0); smoothing_kernel=WendlandC2Kernel{2}(), smoothing_length=1.0, young_modulus=1.0, poisson_ratio=1.0); semi = (; systems=(system,), parallelization_backend=SerialBackend()))
+# Create a thrust calculator in x-direction
+thrust_calculator = ThrustCalculator(system, semi; direction=SVector(1.0, 0.0))
+
+# Retrieve the latest thrust value. This is zero until the calculator has been
+# evaluated by a `PostprocessCallback`.
+thrust = calculated_thrust(thrust_calculator)
+
+# output
+0.0
+```
+"""
+mutable struct ThrustCalculator{ELTYPE, DV, EP, D}
+    thrust       :: ELTYPE
+    system_index :: Int
+    dv           :: DV
+    eachparticle :: EP
+    direction    :: D
+end
+
+function ThrustCalculator(system::TotalLagrangianSPHSystem, semi;
+                          direction, eachparticle=eachparticle(system))
+    ELTYPE = eltype(system)
+    system_index = system_indices(system, semi)
+
+    # Check vector length before converting to `SVector` to avoid extremely long
+    # compile times when accidentally passing large vectors.
+    if length(direction) != ndims(system)
+        throw(ArgumentError("length of `direction` must match the number of dimensions"))
+    end
+    direction_ = SVector{ndims(system), ELTYPE}(Tuple(direction))
+    if iszero(direction_)
+        throw(ArgumentError("`direction` must not be zero"))
+    end
+    direction_ = normalize(direction_)
+
+    # Allocate buffer to write hydrodynamic accelerations for all particles.
+    # `PostprocessCallback` transfers data to the CPU before calling custom quantities,
+    # so this can be a regular `Array` even when the simulation is running on a GPU.
+    dv = Array{ELTYPE, 2}(undef, (v_nvariables(system), nparticles(system)))
+
+    return ThrustCalculator(zero(ELTYPE), system_index, dv, eachparticle, direction_)
+end
+
+function reset_custom_quantity!(calculator::ThrustCalculator)
+    calculator.thrust = zero(calculator.thrust)
+
+    return calculator
+end
+
+"""
+    calculated_thrust(calculator::ThrustCalculator)
+
+Get the projected hydrodynamic force from the last evaluation of a
+[`ThrustCalculator`](@ref).
+"""
+function calculated_thrust(calculator::ThrustCalculator)
+    return calculator.thrust
+end
+
+function (calculator::ThrustCalculator)(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
+    if system_indices(system, semi) != calculator.system_index
+        return nothing
+    end
+
+    @trixi_timeit timer() "calculate thrust" begin
+        calculator.thrust = compute_thrust(system, calculator.eachparticle,
+                                           calculator.direction,
+                                           calculator.dv, v_ode, u_ode, semi, t)
+    end
+
+    return calculator.thrust
+end
+
+function compute_thrust(system, eachparticle, direction, dv, v_ode, u_ode, semi, t)
+    v = wrap_v(v_ode, system, semi)
+    u = wrap_u(u_ode, system, semi)
+    compute_structure_acceleration!(dv, v, u, system, eachparticle, true,
+                                    v_ode, u_ode, semi, t)
+
+    return projected_force(dv, system, eachparticle, direction)
+end
+
+function projected_force(dv, system, eachparticle, direction)
+    force = zero(eltype(system))
+
+    # Note that this is a reduction, so we cannot use `@threaded` here.
+    for particle in eachparticle
+        dv_particle = extract_svector(dv, system, particle)
+        force_particle = system.mass[particle] * dv_particle
+        force += dot(force_particle, direction)
+    end
+
+    return force
+end

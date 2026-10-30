@@ -2,15 +2,24 @@ abstract type AbstractSmoothingKernel{NDIMS} end
 
 @inline Base.ndims(::AbstractSmoothingKernel{NDIMS}) where {NDIMS} = NDIMS
 
+# Threshold below which a `distance` is considered zero, where `h` is the length scale
+# of the coordinates (e.g., the smoothing length or the compact support).
+# For `distance == 0`, the analytical kernel gradient is zero, but the code divides by zero.
+# To account for rounding errors, we check if `distance` is almost zero.
+# Since the coordinates are in the order of `h`, `distance^2` is in the order of `h^2`,
+# so the rounding error of `distance^2` is in the order of `eps(h^2) ≈ eps(typeof(h)) * h^2`.
+# Hence, we consider `distance` almost zero if `distance^2 < eps(typeof(h)) * h^2`,
+# or, equivalently, `distance < sqrt(eps(typeof(h))) * h`.
+# Note that `sqrt(eps(h^2)) != eps(h)`.
+# Since `sqrt(eps(typeof(h)))` is constant-propagated, this is only a multiplication
+# and can be used inside hot loops without precomputing the threshold.
+@inline almostzero(h) = sqrt(eps(typeof(h))) * h
+
 @inline function kernel_grad(kernel, pos_diff, distance, h)
     # For `distance == 0`, the analytical gradient is zero, but the code divides by zero.
-    # To account for rounding errors, we check if `distance` is almost zero.
-    # Since the coordinates are in the order of the smoothing length `h`,
-    # `distance^2` is in the order of `h^2`, hence the comparison `distance^2 < eps(h^2)`.
-    # Note that this is faster than `distance < sqrt(eps(h^2))`.
-    # Also note that `sqrt(eps(h^2)) != eps(h)`.
+    # See `almostzero` for an explanation of this check.
     compact_support_ = compact_support(kernel, h)
-    nonzero = distance < compact_support_ && distance^2 > eps(h^2)
+    nonzero = distance < compact_support_ && distance >= almostzero(h)
     nonzero || return zero(pos_diff)
 
     # Now we can use `kernel_grad_unsafe` without worrying about division by zero
@@ -35,9 +44,9 @@ end
 
 @inline function kernel_deriv(kernel, r::Real, h)
     # Zero out result if outside of compact support or if `r` is almost zero
-    # (to avoid division by zero in the unsafe version).
+    # to avoid division by zero in the unsafe version (see `almostzero`).
     compact_support_ = compact_support(kernel, h)
-    if r < compact_support_ && r^2 > eps(h^2)
+    if r < compact_support_ && r >= almostzero(h)
         # The unsafe version returns the kernel derivative divided by `r`,
         # so we multiply it by `r` to get the actual derivative.
         return kernel_deriv_div_r_unsafe(kernel, r, h) * r
@@ -54,6 +63,61 @@ end
                                             MixedKernelGradientCorrection})
     # For these corrections, the kernel gradient between a particle and itself is not zero
     return false
+end
+
+# Pressure formulations with asymmetric corrections use both endpoint gradients. Select the
+# zero-distance behavior once per system pair so common interaction loops keep their original
+# unsafe, branch-free gradient evaluation after the skip guard.
+struct SkipInteractionAtZeroDistance end
+struct EvaluateLocalGradientAtZeroDistance end
+struct ZeroLocalGradientAtZeroDistance end
+
+const NonzeroGradientAtZeroCorrection = Union{KernelCorrection,
+                                              MixedKernelGradientCorrection}
+
+@inline zero_distance_gradient_mode(correction,
+                                    neighbor_correction) = SkipInteractionAtZeroDistance()
+
+@inline function zero_distance_gradient_mode(::NonzeroGradientAtZeroCorrection,
+                                             neighbor_correction)
+    return EvaluateLocalGradientAtZeroDistance()
+end
+
+@inline function zero_distance_gradient_mode(correction,
+                                             ::NonzeroGradientAtZeroCorrection)
+    return ZeroLocalGradientAtZeroDistance()
+end
+
+@inline function zero_distance_gradient_mode(::NonzeroGradientAtZeroCorrection,
+                                             ::NonzeroGradientAtZeroCorrection)
+    return EvaluateLocalGradientAtZeroDistance()
+end
+
+@inline function skip_zero_distance(::SkipInteractionAtZeroDistance, distance, almostzero)
+    return distance < almostzero
+end
+
+@inline function skip_zero_distance(::Union{EvaluateLocalGradientAtZeroDistance,
+                                            ZeroLocalGradientAtZeroDistance},
+                                    distance, almostzero)
+    return false
+end
+
+@inline function local_smoothing_kernel_grad_unsafe(::Union{SkipInteractionAtZeroDistance,
+                                                            EvaluateLocalGradientAtZeroDistance},
+                                                    system, pos_diff, distance, particle,
+                                                    almostzero)
+    return smoothing_kernel_grad_unsafe(system, pos_diff, distance, particle)
+end
+
+@inline function local_smoothing_kernel_grad_unsafe(::ZeroLocalGradientAtZeroDistance,
+                                                    system, pos_diff, distance, particle,
+                                                    almostzero)
+    if distance < almostzero
+        return zero(pos_diff)
+    end
+
+    return smoothing_kernel_grad_unsafe(system, pos_diff, distance, particle)
 end
 
 @inline function corrected_kernel_grad_unsafe(kernel, pos_diff, distance, h, correction,

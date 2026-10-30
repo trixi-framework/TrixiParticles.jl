@@ -6,46 +6,43 @@ end
 # Unpack the neighboring systems viscosity to dispatch on the viscosity type.
 # This function is only necessary to allow `nothing` as viscosity.
 # Otherwise, we could just apply the viscosity as a function directly.
-@propagate_inbounds function dv_viscosity!(dv_particle,
-                                           particle_system::AbstractSystem, neighbor_system,
-                                           v_particle_system, v_neighbor_system,
-                                           particle, neighbor, pos_diff, distance,
-                                           sound_speed, m_a, m_b, rho_a, rho_b,
-                                           v_a, v_b, grad_kernel,
-                                           viscosity_correction=1)
+@propagate_inbounds function add_dv_viscosity(dv_particle,
+                                              particle_system::AbstractSystem,
+                                              neighbor_system,
+                                              v_particle_system, v_neighbor_system,
+                                              particle, neighbor, pos_diff, distance,
+                                              sound_speed, m_a, m_b, rho_a, rho_b,
+                                              v_a, v_b, grad_kernel, viscosity_correction=1)
     viscosity = viscosity_model(particle_system, neighbor_system)
 
-    return dv_viscosity!(dv_particle, viscosity,
-                         particle_system, neighbor_system,
-                         v_particle_system, v_neighbor_system,
-                         particle, neighbor, pos_diff, distance,
-                         sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b, grad_kernel,
-                         viscosity_correction)
+    return add_dv_viscosity(dv_particle, viscosity,
+                            particle_system, neighbor_system,
+                            v_particle_system, v_neighbor_system,
+                            particle, neighbor, pos_diff, distance,
+                            sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b, grad_kernel,
+                            viscosity_correction)
 end
 
-@propagate_inbounds function dv_viscosity!(dv_particle,
-                                           viscosity, particle_system, neighbor_system,
-                                           v_particle_system, v_neighbor_system,
-                                           particle, neighbor, pos_diff, distance,
-                                           sound_speed, m_a, m_b, rho_a, rho_b,
-                                           v_a, v_b, grad_kernel,
-                                           viscosity_correction=1)
-    viscosity(dv_particle, particle_system, neighbor_system,
-              v_particle_system, v_neighbor_system,
-              particle, neighbor, pos_diff, distance,
-              sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b, grad_kernel,
-              viscosity_correction)
-
-    return dv_particle
+@propagate_inbounds function add_dv_viscosity(dv_particle,
+                                              viscosity, particle_system, neighbor_system,
+                                              v_particle_system, v_neighbor_system,
+                                              particle, neighbor, pos_diff, distance,
+                                              sound_speed, m_a, m_b, rho_a, rho_b,
+                                              v_a, v_b, grad_kernel, viscosity_correction=1)
+    return viscosity(dv_particle, particle_system, neighbor_system,
+                     v_particle_system, v_neighbor_system,
+                     particle, neighbor, pos_diff, distance,
+                     sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b, grad_kernel,
+                     viscosity_correction)
 end
 
-@inline function dv_viscosity!(dv_particle,
-                               viscosity::Nothing,
-                               particle_system, neighbor_system,
-                               v_particle_system, v_neighbor_system,
-                               particle, neighbor, pos_diff, distance,
-                               sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b,
-                               grad_kernel, viscosity_correction=1)
+@inline function add_dv_viscosity(dv_particle,
+                                  viscosity::Nothing,
+                                  particle_system, neighbor_system,
+                                  v_particle_system, v_neighbor_system,
+                                  particle, neighbor, pos_diff, distance,
+                                  sound_speed, m_a, m_b, rho_a, rho_b, v_a, v_b,
+                                  grad_kernel, viscosity_correction=1)
     return dv_particle
 end
 
@@ -123,9 +120,9 @@ end
         mu = div_fast(h * vr, distance^2 + epsilon * h^2)
         c = sound_speed
         # TODO why is m_b inside the `div_fast` faster on H100 than `m_b * div_fast(...)`?
-        dv_viscosity = div_fast(m_b * alpha * c * mu + m_b * beta * mu^2, rho_mean) *
+        dv_viscosity = div_fast(m_b * alpha * c * mu - m_b * beta * mu^2, rho_mean) *
                        grad_kernel
-        dv_particle[] += viscosity_correction * dv_viscosity
+        dv_particle += viscosity_correction * dv_viscosity
     end
 
     return dv_particle
@@ -192,7 +189,7 @@ end
     # See the docs page "Development" for more details on `div_fast`.
     dv_viscosity = div_fast(m_b * (mu_a + mu_b) * dot(pos_diff, grad_kernel),
                             rho_a * rho_b * (distance^2 + epsilon * h^2)) * v_diff
-    dv_particle[] += viscosity_correction * dv_viscosity
+    dv_particle += viscosity_correction * dv_viscosity
 
     return dv_particle
 end
@@ -217,7 +214,7 @@ struct ViscosityAdami{ELTYPE}
     end
 end
 
-@inline function adami_viscosity_force!(dv_particle, h, pos_diff, distance,
+@inline function add_dv_adami_viscosity(dv_particle, h, pos_diff, distance,
                                         grad_kernel, m_a, m_b, rho_a, rho_b,
                                         v_diff, nu_a, nu_b, epsilon,
                                         viscosity_correction=1)
@@ -245,7 +242,7 @@ end
     # See issue: https://github.com/trixi-framework/TrixiParticles.jl/issues/394
     visc = (volume_a^2 + volume_b^2) * dot(grad_kernel, pos_diff) * tmp
 
-    dv_particle[] += viscosity_correction * visc * v_diff
+    dv_particle += viscosity_correction * visc * v_diff
 
     return dv_particle
 end
@@ -274,7 +271,7 @@ end
     v_b = viscous_velocity(v_neighbor_system, neighbor_system, neighbor, v_b)
     v_diff = v_a - v_b
 
-    return adami_viscosity_force!(dv_particle, smoothing_length_average, pos_diff,
+    return add_dv_adami_viscosity(dv_particle, smoothing_length_average, pos_diff,
                                   distance, grad_kernel, m_a, m_b, rho_a, rho_b,
                                   v_diff, nu_a, nu_b, epsilon, viscosity_correction)
 end
@@ -285,7 +282,7 @@ end
 end
 
 @doc raw"""
-    ViscosityAdamiSGS(; nu, C_S=0.1, epsilon=0.01)
+    ViscosityAdamiSGS(; nu, C_S=0.1, epsilon=0.001)
 
 Viscosity model that extends the standard [Adami formulation](@ref ViscosityAdami)
 by incorporating a subgrid-scale (SGS) eddy viscosity via a Smagorinsky-type [Smagorinsky (1963)](@cite Smagorinsky1963) closure.
@@ -325,7 +322,7 @@ This model is appropriate for turbulent flows where unresolved scales contribute
 # Keywords
 - `nu`:      Standard kinematic viscosity.
 - `C_S`:     Smagorinsky constant.
-- `epsilon=0.01`: Parameter to prevent singularities
+- `epsilon=0.001`: Parameter to prevent singularities
 """
 struct ViscosityAdamiSGS{ELTYPE}
     nu      :: ELTYPE # Kinematic viscosity [e.g., 1e-6 m²/s]
@@ -396,7 +393,7 @@ end
     nu_a = nu_a + nu_SGS
     nu_b = nu_b + nu_SGS
 
-    return adami_viscosity_force!(dv_particle, smoothing_length_average, pos_diff,
+    return add_dv_adami_viscosity(dv_particle, smoothing_length_average, pos_diff,
                                   distance, grad_kernel, m_a, m_b, rho_a, rho_b,
                                   v_diff, nu_a, nu_b, epsilon, viscosity_correction)
 end
@@ -447,7 +444,7 @@ This model is appropriate for turbulent flows where unresolved scales contribute
 # Keywords
 - `nu`:      Standard kinematic viscosity.
 - `C_S`:     Smagorinsky constant.
-- `epsilon=0.01`: Parameter to prevent singularities
+- `epsilon=0.001`: Parameter to prevent singularities
 """
 struct ViscosityMorrisSGS{ELTYPE}
     nu      :: ELTYPE # Kinematic viscosity [e.g., 1e-6 m²/s]
@@ -507,7 +504,7 @@ end
     # See the docs page "Development" for more details on `div_fast`.
     dv_viscosity = div_fast(m_b * (mu_a + mu_b) * dot(pos_diff, grad_kernel),
                             rho_a * rho_b * (distance^2 + epsilon * h^2)) * v_diff
-    dv_particle[] += viscosity_correction * dv_viscosity
+    dv_particle += viscosity_correction * dv_viscosity
 
     return dv_particle
 end
@@ -518,7 +515,8 @@ end
 end
 
 @doc raw"""
-    ViscosityCarreauYasuda(; nu0, nu_inf, lambda, a, n, epsilon=0.01)
+    ViscosityCarreauYasuda(; nu0, nu_inf, lambda, a, n, epsilon=0.01,
+                           shear_rate_epsilon=eps())
 
 Non-Newtonian viscosity model based on the Carreau–Yasuda law [Carreau (1972)](@cite Carreau1972), [Yasuda et al. (1981)](@cite Yasuda1981).
 
@@ -527,22 +525,27 @@ See [the docs on viscosity](@ref viscosity_sph) for an overview and comparison o
 # Keywords
 - `nu0`:     Zero-shear kinematic viscosity.
 - `nu_inf`:  Infinite-shear kinematic viscosity.
-- `lambda`:  Time constant of the Carreau–Yasuda law.
+- `lambda`:  Time constant of the Carreau-Yasuda law.
 - `a`:       Yasuda parameter controlling the transition shape.
 - `n`:       Power-law index (shear-thinning/thickening behavior).
-- `epsilon`: Parameter to prevent singularities in the shear-rate approximation.
+- `epsilon`: Dimensionless regularization in the Adami viscous-force denominator.
+- `shear_rate_epsilon`: Dimensionless lower bound for the distance used in the
+                        pairwise shear-rate estimate, scaled by the smoothing length.
 """
 struct ViscosityCarreauYasuda{ELTYPE}
-    nu0     :: ELTYPE  # zero-shear kinematic viscosity
-    nu_inf  :: ELTYPE  # infinite-shear kinematic viscosity
-    lambda  :: ELTYPE  # time constant
-    a       :: ELTYPE  # Yasuda parameter
-    n       :: ELTYPE  # power-law index
-    epsilon :: ELTYPE  # regularization
+    nu0                :: ELTYPE  # zero-shear kinematic viscosity
+    nu_inf             :: ELTYPE  # infinite-shear kinematic viscosity
+    lambda             :: ELTYPE  # time constant
+    a                  :: ELTYPE  # Yasuda parameter
+    n                  :: ELTYPE  # power-law index
+    epsilon            :: ELTYPE  # Adami force regularization
+    shear_rate_epsilon :: ELTYPE  # shear-rate distance regularization
 end
 
-function ViscosityCarreauYasuda(; nu0, nu_inf, lambda, a, n, epsilon=0.01)
-    ViscosityCarreauYasuda{typeof(nu0)}(nu0, nu_inf, lambda, a, n, epsilon)
+function ViscosityCarreauYasuda(; nu0, nu_inf, lambda, a, n, epsilon=0.01,
+                                shear_rate_epsilon=eps(typeof(nu0)))
+    ViscosityCarreauYasuda{typeof(nu0)}(nu0, nu_inf, lambda, a, n, epsilon,
+                                        shear_rate_epsilon)
 end
 
 @propagate_inbounds function (viscosity::ViscosityCarreauYasuda)(dv_particle,
@@ -566,10 +569,15 @@ end
     v_b = viscous_velocity(v_neighbor_system, neighbor_system, neighbor, v_b)
     v_diff = v_a - v_b
 
+    # Approximate the shear-rate magnitude from the pairwise velocity difference.
+    # Bound the denominator below by shear_rate_epsilon times the average smoothing length.
+    shear_rate_distance = max(distance,
+                              viscosity.shear_rate_epsilon *
+                              smoothing_length_average)
     # Since this is one of the most performance critical functions, using fast divisions
     # here gives a significant speedup on GPUs.
     # See the docs page "Development" for more details on `div_fast`.
-    gamma_dot = div_fast(sqrt(dot(v_diff, v_diff)), (distance + epsilon))
+    gamma_dot = div_fast(sqrt(dot(v_diff, v_diff)), shear_rate_distance)
 
     # Compute Carreau-Yasuda effective viscosity
     (; nu0, nu_inf, lambda, a, n) = viscosity
@@ -577,7 +585,7 @@ end
     nu_a = nu_eff
     nu_b = nu_eff
 
-    return adami_viscosity_force!(dv_particle, smoothing_length_average, pos_diff,
+    return add_dv_adami_viscosity(dv_particle, smoothing_length_average, pos_diff,
                                   distance, grad_kernel, m_a, m_b, rho_a, rho_b,
                                   v_diff, nu_a, nu_b, epsilon, viscosity_correction)
 end

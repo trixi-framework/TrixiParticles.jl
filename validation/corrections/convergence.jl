@@ -48,7 +48,9 @@ function setup_operator(n, correction; density_calculator=ContinuityDensity())
                                        exponent=1)
     system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel, smoothing_length,
                                          density_calculator,
-                                         state_equation, correction)
+                                         state_equation,
+                                         density_correction=TrixiParticles.correction_density(correction),
+                                         gradient_correction=TrixiParticles.correction_gradient(correction))
     semi = Semidiscretization(system; parallelization_backend=SerialBackend())
     ode = semidiscretize(semi, (0.0, 1.0); reset_threads=false)
     v_ode = Array(ode.u0.x[1])
@@ -164,7 +166,9 @@ function setup_summation_density(n, correction)
                                        exponent=1)
     system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel, smoothing_length,
                                          density_calculator=SummationDensity(),
-                                         state_equation, correction)
+                                         state_equation,
+                                         density_correction=TrixiParticles.correction_density(correction),
+                                         gradient_correction=TrixiParticles.correction_gradient(correction))
     semi = Semidiscretization(system; parallelization_backend=SerialBackend())
     ode = semidiscretize(semi, (0.0, 1.0); reset_threads=false)
     v_ode = Array(ode.u0.x[1])

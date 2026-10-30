@@ -6,8 +6,8 @@
                                 pressure_acceleration=nothing,
                                 shifting_technique=nothing,
                                 buffer_size=nothing,
-                                correction=nothing, density_correction=nothing,
-                                gradient_correction=nothing, source_terms=nothing,
+                                 density_correction=nothing, gradient_correction=nothing,
+                                 force_correction=nothing, source_terms=nothing,
                                 surface_tension=nothing, surface_normal_method=nothing,
                                 reference_particle_spacing=0.0, color_value=1))
 
@@ -42,11 +42,11 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
                                 with this system. Default is no shifting.
 - `buffer_size`:                Number of buffer particles.
                                 This is needed when simulating with [`OpenBoundarySystem`](@ref).
-- `correction`:                 Legacy keyword for configuring one correction method. Cannot be
-                                combined with `density_correction` or `gradient_correction`.
 - `density_correction`:         Density correction method. Currently supports
-                                [`ShepardKernelCorrection`](@ref) with [`SummationDensity`](@ref).
+                                 [`ShepardKernelCorrection`](@ref) with [`SummationDensity`](@ref).
 - `gradient_correction`:        Gradient correction method. See [Corrections](@ref corrections).
+- `force_correction`:           Force correction method. Currently supports
+                                 [`AkinciFreeSurfaceCorrection`](@ref).
 - `source_terms`:               Additional source terms for this system. Has to be either `nothing`
                                 (by default), or a function of `(coords, velocity, density, pressure, t)`
                                 (which are the quantities of a single particle), returning a `Tuple`
@@ -101,8 +101,9 @@ function WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
                                      pressure_acceleration=nothing,
                                      shifting_technique=nothing,
                                      buffer_size=nothing,
-                                     correction=nothing, density_correction=nothing,
-                                     gradient_correction=nothing, source_terms=nothing,
+                                     density_correction=nothing,
+                                     gradient_correction=nothing,
+                                     force_correction=nothing, source_terms=nothing,
                                      surface_tension=nothing, surface_normal_method=nothing,
                                      reference_particle_spacing=0, color_value=1)
     buffer = isnothing(buffer_size) ? nothing :
@@ -118,8 +119,8 @@ function WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
     ELTYPE = eltype(initial_condition)
     n_particles = nparticles(initial_condition)
 
-    correction = resolve_correction_configuration(correction, density_correction,
-                                                  gradient_correction)
+    correction = resolve_correction_configuration(density_correction, gradient_correction,
+                                                  force_correction)
     density_correction_ = correction_density(correction)
     gradient_correction_ = correction_gradient(correction)
 
@@ -333,12 +334,21 @@ end
     return system
 end
 
+function update_density_correction_values!(system::WeaklyCompressibleSPHSystem, v, u,
+                                           v_ode, u_ode, semi, t)
+    (; correction) = system
+    density_correction = correction_density(correction)
+
+    compute_correction_values!(system, density_correction, u, v_ode, u_ode, semi)
+
+    return system
+end
+
 function update_density_correction!(system::WeaklyCompressibleSPHSystem, v, u, v_ode,
                                     u_ode, semi, t)
     (; density_calculator, correction) = system
     density_correction = correction_density(correction)
 
-    compute_correction_values!(system, density_correction, u, v_ode, u_ode, semi)
     kernel_correct_density!(system, v, u, v_ode, u_ode, semi, density_correction,
                             density_calculator)
 
@@ -414,11 +424,39 @@ end
 function reinit_density!(vu_ode, semi)
     v_ode, u_ode = vu_ode.x
 
-    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
-        reinit_density!(system, v, u, v_ode, u_ode, semi)
-    end
+    reinit_density!(semi.systems, v_ode, u_ode, semi)
 
     return vu_ode
+end
+
+function reinit_density!(systems, v_ode, u_ode, semi)
+    coefficients = prepare_reinit_density!(systems, v_ode, u_ode, semi)
+    apply_reinit_density!(systems, coefficients, v_ode, u_ode, semi)
+
+    return systems
+end
+
+prepare_reinit_density!(::Tuple{}, v_ode, u_ode, semi) = ()
+
+function prepare_reinit_density!(systems, v_ode, u_ode, semi)
+    system = first(systems)
+    v = wrap_v(v_ode, system, semi)
+    u = wrap_u(u_ode, system, semi)
+    coefficient = prepare_reinit_density!(system, v, u, v_ode, u_ode, semi)
+
+    return (coefficient, prepare_reinit_density!(Base.tail(systems), v_ode, u_ode, semi)...)
+end
+
+apply_reinit_density!(::Tuple{}, ::Tuple{}, v_ode, u_ode, semi) = nothing
+
+function apply_reinit_density!(systems, coefficients, v_ode, u_ode, semi)
+    system = first(systems)
+    v = wrap_v(v_ode, system, semi)
+    u = wrap_u(u_ode, system, semi)
+    apply_reinit_density!(system, first(coefficients), v, u, v_ode, u_ode, semi)
+
+    return apply_reinit_density!(Base.tail(systems), Base.tail(coefficients), v_ode, u_ode,
+                                 semi)
 end
 
 function reinit_density!(system::WeaklyCompressibleSPHSystem, v, u,
@@ -430,18 +468,56 @@ end
 
 function reinit_density!(system::WeaklyCompressibleSPHSystem, ::ContinuityDensity, v, u,
                          v_ode, u_ode, semi)
-    # Use the independently evolved density to determine particle volumes before replacing it
-    # with the reinitialized summation density.
-    kernel_correction_coefficient = similar(v, size(v, 2))
+    coefficient = prepare_reinit_density!(system, v, u, v_ode, u_ode, semi)
+    apply_reinit_density!(system, coefficient, v, u, v_ode, u_ode, semi)
+
+    return system
+end
+
+prepare_reinit_density!(system, v, u, v_ode, u_ode, semi) = nothing
+
+function prepare_reinit_density!(system::WeaklyCompressibleSPHSystem, v, u,
+                                 v_ode, u_ode, semi)
+    return prepare_reinit_density!(system, system.density_calculator, v, u, v_ode, u_ode,
+                                   semi)
+end
+
+prepare_reinit_density!(system, density_calculator, v, u, v_ode, u_ode, semi) = nothing
+
+function prepare_reinit_density!(system::WeaklyCompressibleSPHSystem, ::ContinuityDensity,
+                                 v, u, v_ode, u_ode, semi)
+    # Compute all coefficients before any reinitialization overwrites continuity density.
+    coefficient = similar(v, size(v, 2))
     compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode, semi,
-                           kernel_correction_coefficient)
+                           coefficient)
+
+    return coefficient
+end
+
+apply_reinit_density!(system, coefficient, v, u, v_ode, u_ode, semi) = system
+
+function apply_reinit_density!(system::WeaklyCompressibleSPHSystem, coefficient, v, u,
+                               v_ode, u_ode, semi)
+    return apply_reinit_density!(system, system.density_calculator, coefficient, v, u,
+                                 v_ode,
+                                 u_ode, semi)
+end
+
+function apply_reinit_density!(system, density_calculator, coefficient, v, u, v_ode, u_ode,
+                               semi)
+    system
+end
+
+function apply_reinit_density!(system::WeaklyCompressibleSPHSystem, ::ContinuityDensity,
+                               coefficient, v, u, v_ode, u_ode, semi)
+    isnothing(coefficient) && return system
 
     # Compute density with `SummationDensity` and store the result in `v`,
     # overwriting the previous integrated density.
-    summation_density!(system, semi, u, u_ode, v[end, :])
+    summation_density!(system, semi, u, u_ode, current_density(v, system))
 
     @threaded semi for particle in eachparticle(system)
-        v[end, particle] /= kernel_correction_coefficient[particle]
+        v[end, particle] /= coefficient[particle]
     end
 
     compute_pressure!(system, v, semi)

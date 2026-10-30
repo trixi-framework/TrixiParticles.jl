@@ -4,6 +4,92 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.6.0
+
+### API Changes
+
+- Replaced the `correction` keyword of `WeaklyCompressibleSPHSystem`,
+  `EntropicallyDampedSPHSystem`, and `BoundaryModelDummyParticles` with
+  `density_correction`, `gradient_correction`, and `force_correction`.
+  Use `density_correction=ShepardKernelCorrection()` for density normalization,
+  `gradient_correction` for kernel/gradient corrections, and `force_correction` for
+  `AkinciFreeSurfaceCorrection` (#1285).
+- Custom functions passed as `pressure_acceleration` must accept both pair gradients
+  (`W_a`, `W_b`) when either interacting system uses an asymmetric gradient correction
+  (#1289).
+
+### Important Bugfixes
+
+- Fixed SPH correction updates to apply density corrections before pressure and update
+  boundary, gradient, and surface quantities in consistent phases across fluid and
+  structure systems (#1284).
+- Fixed Shepard density correction to handle invalid normalization coefficients,
+  finalize corrected density before pressure evaluation, and use evolved continuity
+  density for particle volumes during density reinitialization (#1292).
+- Fixed `KernelCorrection` to fall back to uncorrected gradients for invalid normalization
+  coefficients and preserve Float32 boundary correction caches (#1291).
+- Fixed gradient correction matrices to use raw kernel gradients, scale-independent
+  singularity detection, and identity fallback. Added validation of blended correction
+  factors and preserved boundary cache element types (#1290).
+- Fixed `MixedKernelGradientCorrection` to assemble its matrix from the kernel-corrected
+  raw gradient and preserve matching cache element types (#1288).
+- Fixed linear-momentum conservation for corrected pressure forces, made EDAC
+  average-pressure reduction pair-symmetric, and applied exact fluid-structure pressure
+  reaction forces (#1289).
+
+## Version 0.5.4
+
+### API Changes
+
+- Replaced the experimental `MechanicalWorkCalculatorCallback` with
+  `MechanicalWorkCalculator`, which can be passed as a custom quantity to
+  `PostprocessCallback` (#1228).
+- The smoothing kernel and smoothing length of a `BoundaryModelDummyParticles` of a
+  `TotalLagrangianSPHSystem` or `RigidBodySystem` must now be the same as those of all
+  fluid systems in the simulation (#1338, #1348).
+
+### Features
+
+- Added the `ThrustCalculator` custom quantity to calculate the hydrodynamic force exerted by
+  interacting fluid systems on a `TotalLagrangianSPHSystem` along a given `direction` (#1229).
+- Added `plot(system, sol)` and `plot(system, v_ode, u_ode, semi)` to plot the particles
+  of a single system, which allows coloring by per-particle quantities via `zcolor` (#1298).
+- Added a tutorial on visualizing particle data and fields interpolated with
+  `interpolate_plane_2d` using Plots.jl (#1298).
+
+### Important Bugfixes
+
+- Fixed structure-fluid reaction forces with asymmetric corrected fluid kernel
+  gradients by evaluating the fluid-first gradient directly. The continuity equation
+  of `RigidBodySystem` boundaries with `ContinuityDensity` now uses the kernel gradient
+  of the boundary model instead of the corrected fluid gradient (#1338).
+- Fixed `RectangularShape` handling of coordinate-dependent density in hydrostatic pressure
+  initialization and prevented coordinate perturbation from changing the global random state (#1196).
+- Fixed asymmetric DEM contact forces near coincidence by using a pair-local
+  radius scale for the near-zero distance cutoff (#1347).
+- Fixed the sign of the quadratic term in `ArtificialViscosityMonaghan` (#1295).
+- Fixed mathematical inconsistencies in the SPH documentation, including incorrect
+  formulas, inconsistent force-vs-acceleration notation, and wrong LaTeX text-mode
+  commands (#1086).
+- Fixed restarting with EDAC from solution objects (#1213) and from VTK files (#1297).
+- Fixed characteristic open boundaries to keep fallback values local to each boundary zone
+  and reject unsupported bidirectional zones (#1203).
+- Fixed the custom quantities `kinetic_energy`, `total_mass`, `max_pressure`, `min_pressure`,
+  `avg_pressure`, `max_density`, `min_density` and `avg_density` to only take active particles
+  into account (#1184).
+- Fixed the IISPH pressure solver to clear stale density error contributions of
+  zero-pressure particles instead of retaining them in the termination condition (#1215).
+- Fixed the viscous force on structures in fluid-structure interaction, which had the wrong
+  sign (#1348).
+- Fixed matrix point inputs, including non-contiguous views, for winding-number algorithms
+  and `SignedDistanceField`. `WindingNumberJacobson()` now defaults to non-hierarchical
+  winding when no geometry is provided (#1188).
+
+### Documentation
+
+- Added a tutorial for setting up 2D simulations from geometry files, including a curved
+  pipe and a coastline dam-break basin (#1094).
+
 ## Version 0.5.3
 
 ### Features
@@ -18,6 +104,11 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Added the number of split integration time steps to the `InfoCallback` output
   when a `SplitIntegrationCallback` is used (#1194).
 
+### Performance
+
+- Improved multithreaded TLSPH performance on NUMA systems by initializing runtime
+  arrays in parallel (#1294).
+
 ### Important Bugfixes
 
 - Fixed signed-distance constraints in `ParticlePackingSystem` when using a separate
@@ -26,6 +117,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Fixed Bernoulli pressure extrapolation for moving wall boundaries and wall boundary
   restarts with `ContinuityDensity` (#1201).
 - Fixed `StepsizeCallback` for inviscid simulations (#1244).
+- Fixed unnecessary right-hand-side evaluations after state-mutating callbacks when using
+  `SymplecticPositionVerlet` (#1264).
 
 ## Version 0.5.2
 

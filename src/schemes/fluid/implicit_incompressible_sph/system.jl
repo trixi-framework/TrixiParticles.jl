@@ -5,8 +5,8 @@
                                     acceleration=ntuple(_ -> 0.0, ndims(smoothing_kernel)),
                                     omega=0.5, max_error=0.1, min_iterations=2,
                                     max_iterations=20, time_step,
-                                    correction=nothing, density_correction=nothing,
-                                    gradient_correction=nothing)
+                                     density_correction=nothing, gradient_correction=nothing,
+                                     force_correction=nothing)
 
 System for particles of a fluid.
 The system employs implicit incompressible SPH (IISPH), iteratively solving a linear system
@@ -32,10 +32,9 @@ See [Implicit Incompressible SPH](@ref iisph) for more details on the method.
 - `min_iterations = 2`:         Minimum number of iterations in the relaxed Jacobi scheme, independent from the termination condition
 - `max_iterations = 20`:        Maximum number of iterations in the relaxed Jacobi scheme, independent from the termination condition
 - `time_step`:                  Time step size used for the simulation
-- `correction`:                 Corrections are currently unsupported and passing a non-`nothing`
-                                value throws an error.
 - `density_correction`:         Currently unsupported.
 - `gradient_correction`:        Currently unsupported.
+- `force_correction`:           Currently unsupported.
 """
 struct ImplicitIncompressibleSPHSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ARRAY2D,
                                        IC, K, V, PF, C} <: AbstractFluidSystem{NDIMS}
@@ -78,13 +77,14 @@ function ImplicitIncompressibleSPHSystem(initial_condition; smoothing_kernel,
                                          omega=0.5, max_error=0.1, min_iterations=2,
                                          max_iterations=20, time_step,
                                          artificial_sound_speed=1000.0,
-                                         correction=nothing, density_correction=nothing,
-                                         gradient_correction=nothing)
+                                         density_correction=nothing,
+                                         gradient_correction=nothing,
+                                         force_correction=nothing)
     particle_refinement = nothing # TODO
     surface_tension = nothing # TODO
 
-    if correction !== nothing || density_correction !== nothing ||
-       gradient_correction !== nothing
+    if density_correction !== nothing || gradient_correction !== nothing ||
+       force_correction !== nothing
         throw(ArgumentError("corrections are not supported by `ImplicitIncompressibleSPHSystem`"))
     end
 
@@ -304,16 +304,17 @@ function calculate_predicted_velocity_and_d_ii_values!(system::ImplicitIncompres
 
             grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
-            dv_viscosity_ = Ref(zero(pos_diff))
-            @inbounds dv_viscosity!(dv_viscosity_, system, neighbor_system,
-                                    v_particle_system, v_neighbor_system,
-                                    particle, neighbor, pos_diff, distance,
-                                    sound_speed, m_a, m_b, rho_a, rho_b,
-                                    v_a, v_b, grad_kernel)
+            dv_viscosity_ = @inbounds add_dv_viscosity(zero(pos_diff), system,
+                                                       neighbor_system,
+                                                       v_particle_system, v_neighbor_system,
+                                                       particle, neighbor, pos_diff,
+                                                       distance,
+                                                       sound_speed, m_a, m_b, rho_a, rho_b,
+                                                       v_a, v_b, grad_kernel)
             # Add all other non-pressure forces
             for i in 1:ndims(system)
                 @inbounds advection_velocity[i,
-                                             particle] += time_step * dv_viscosity_[][i]
+                                             particle] += time_step * dv_viscosity_[i]
             end
             # Calculate d_ii with eq. 9 in Ihmsen et al. (2013)
             for i in 1:ndims(system)
@@ -509,7 +510,8 @@ function calculate_sum_d_ij_pj!(sum_d_ij_pj, system,
     (; time_step) = system
 
     system_coords = current_coordinates(u, system)
-    neighbor_coords = current_coordinates(u, neighbor_system)
+    u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
+    neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
     foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords, semi;
                            points=each_integrated_particle(system)) do particle, neighbor,
@@ -597,12 +599,15 @@ function pressure_update(system, pressure, reference_density, a_ii, sum_term, om
         else
             pressure[particle] = zero(pressure[particle])
         end
-        # Calculate the average density error for the termination condition
-        if (pressure[particle] != 0.0)
+        # Calculate the density error for the termination condition, explicitly
+        # clearing zero-pressure entries (no stale values from previous iterations).
+        if pressure[particle] != 0.0
             new_density = a_ii[particle] * pressure[particle] + sum_term[particle] -
                           iisph_source_term(system, particle) +
                           reference_density
-            density_error[particle] = (new_density - reference_density)
+            density_error[particle] = new_density - reference_density
+        else
+            density_error[particle] = zero(eltype(density_error))
         end
     end
     relative_density_error = sum(density_error) / reference_density
@@ -765,13 +770,17 @@ function check_configuration(system::ImplicitIncompressibleSPHSystem, systems, n
             `WeaklyCompressibleSPHSystem`"))
         end
         if neighbor isa WallBoundarySystem
-            if (neighbor.boundary_model isa BoundaryModelDummyParticles &&
-                neighbor.boundary_model.density_calculator isa PressureBoundaries)
-                time_step_boundary = neighbor.boundary_model.density_calculator.time_step
-                omega_boundary = neighbor.boundary_model.density_calculator.omega
-                if !(time_step==time_step_boundary && omega==omega_boundary)
-                    throw(ArgumentError("`PressureBoundaries` parameters have to be the same as the
-                    `ImplicitIncompressibleSPHSystem` parameters"))
+            if neighbor.boundary_model isa BoundaryModelDummyParticles
+                if neighbor.boundary_model.correction !== nothing
+                    throw(ArgumentError("`ImplicitIncompressibleSPHSystem` cannot be used with corrected dummy boundaries"))
+                end
+                if neighbor.boundary_model.density_calculator isa PressureBoundaries
+                    time_step_boundary = neighbor.boundary_model.density_calculator.time_step
+                    omega_boundary = neighbor.boundary_model.density_calculator.omega
+                    if !(time_step==time_step_boundary && omega==omega_boundary)
+                        throw(ArgumentError("`PressureBoundaries` parameters have to be the same as the
+                        `ImplicitIncompressibleSPHSystem` parameters"))
+                    end
                 end
             end
         end
