@@ -15,6 +15,8 @@ on:
       - '.github/workflows/TagBot.yml'
       - 'docs/**'
   pull_request:
+    # Also run when a draft PR is marked as ready for review.
+    types: [opened, synchronize, reopened, ready_for_review]
     paths-ignore:
       - 'AUTHORS.md'
       - 'CITATION.bib'
@@ -36,6 +38,8 @@ concurrency:
 jobs:
   build:
     name: Run Tests (Julia ${{ matrix.version }} - ${{ matrix.os }})
+    # Skip CI for draft PRs.
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ${{ matrix.os }}
     strategy:
       # Don't cancel all running jobs when one job fails
