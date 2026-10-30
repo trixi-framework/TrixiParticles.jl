@@ -25,9 +25,6 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Fixed plane interpolation coordinates to match the requested bounds, filtering of
   tensor-valued interpolation results, and wall-velocity interpolation with
   `cut_off_bnd=false` (#1183).
-- Fixed matrix point inputs, including non-contiguous views, for winding-number algorithms
-  and `SignedDistanceField`. `WindingNumberJacobson()` now defaults to non-hierarchical
-  winding when no geometry is provided (#1188).
 - Fixed stale connectivity, normals, and bounding boxes after geometry face deletion.
   The new `delete_faces(geometry, indices)` function returns a geometry with the selected
   faces removed and derived data rebuilt (#1190).
@@ -70,6 +67,10 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 - Added the `ThrustCalculator` custom quantity to calculate the hydrodynamic force exerted by
   interacting fluid systems on a `TotalLagrangianSPHSystem` along a given `direction` (#1229).
+- Added `plot(system, sol)` and `plot(system, v_ode, u_ode, semi)` to plot the particles
+  of a single system, which allows coloring by per-particle quantities via `zcolor` (#1298).
+- Added a tutorial on visualizing particle data and fields interpolated with
+  `interpolate_plane_2d` using Plots.jl (#1298).
 
 ### Important Bugfixes
 
@@ -100,6 +101,9 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   zero-pressure particles instead of retaining them in the termination condition (#1215).
 - Fixed the viscous force on structures in fluid-structure interaction, which had the wrong
   sign (#1348).
+- Fixed matrix point inputs, including non-contiguous views, for winding-number algorithms
+  and `SignedDistanceField`. `WindingNumberJacobson()` now defaults to non-hierarchical
+  winding when no geometry is provided (#1188).
 
 ## Version 0.5.3
 
