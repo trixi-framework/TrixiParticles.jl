@@ -105,8 +105,7 @@
             tests = Dict(
                 "all particles clamped" => eachparticle(structure),
                 # Clamp everything but the top two layers of the beam
-                "some particles clamped" => 1:(nparticles(structure) -
-                                               2 * n_particles_per_dimension[1])
+                "some particles clamped" => 1:(nparticles(structure) - 2 * n_particles_per_dimension[1])
             )
             rtol = Dict(
                 "all particles clamped" => sqrt(eps()),
