@@ -15,6 +15,10 @@ struct WindingNumberHormann end
 function (point_in_poly::WindingNumberHormann)(geometry, points; store_winding_number=false)
     (; edge_vertices) = geometry
 
+    if points isa AbstractMatrix
+        points = reinterpret(reshape, SVector{ndims(geometry), eltype(points)}, points)
+    end
+
     # We cannot use a `BitVector` here, as writing to a `BitVector` is not thread-safe
     inpoly = fill(false, length(points))
 

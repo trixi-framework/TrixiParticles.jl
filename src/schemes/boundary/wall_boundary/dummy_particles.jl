@@ -16,10 +16,11 @@ Boundary model for [`WallBoundarySystem`](@ref).
 - `density_calculator`: Strategy to compute the hydrodynamic density of the boundary particles.
                         See [the docs](@ref boundary_models) for more information.
 - `smoothing_kernel`: Smoothing kernel should be the same as for the adjacent fluid system.
+                      For a [`TotalLagrangianSPHSystem`](@ref) or a [`RigidBodySystem`](@ref),
+                      it must be the same as for all fluid systems in the simulation.
 - `smoothing_length`: Smoothing length should be the same as for the adjacent fluid system.
                       For a [`TotalLagrangianSPHSystem`](@ref) or a [`RigidBodySystem`](@ref),
-                      the compact support of `smoothing_kernel` and `smoothing_length`
-                      must be the same as for all fluid systems in the simulation.
+                      it must be the same as for all fluid systems in the simulation.
 
 # Keywords
 - `state_equation`:             This should be the same as for the adjacent fluid system
