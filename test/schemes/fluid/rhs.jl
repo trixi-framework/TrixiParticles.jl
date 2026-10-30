@@ -329,9 +329,9 @@
                                    nothing
                 return WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
                                                    smoothing_length, state_equation,
-                                                    density_calculator=ContinuityDensity(),
-                                                    viscosity, shifting_technique,
-                                                    gradient_correction, force_correction)
+                                                   density_calculator=ContinuityDensity(),
+                                                   viscosity, shifting_technique,
+                                                   gradient_correction, force_correction)
             end
 
             # Note that the average pressure reduction is enabled by default
@@ -352,8 +352,8 @@
             # to convert the force on the structure to an acceleration fails the test.
             structure = InitialCondition(; coordinates=reshape([1.5, 0.0], 2, 1),
                                          velocity=zeros(2, 1),
-                                          mass=[2 * fluid_density * particle_spacing^2],
-                                          density=[2 * fluid_density], particle_spacing)
+                                         mass=[2 * fluid_density * particle_spacing^2],
+                                         density=[2 * fluid_density], particle_spacing)
             gradient_correction = TrixiParticles.correction_gradient(boundary_correction)
             force_correction = boundary_correction isa AkinciFreeSurfaceCorrection ?
                                boundary_correction : nothing
@@ -362,10 +362,10 @@
                                                           particle_spacing^2],
                                                          boundary_density,
                                                          smoothing_kernel,
-                                                          smoothing_length;
-                                                          state_equation, viscosity,
-                                                          gradient_correction,
-                                                          force_correction)
+                                                         smoothing_length;
+                                                         state_equation, viscosity,
+                                                         gradient_correction,
+                                                         force_correction)
 
             if structure_type === TotalLagrangianSPHSystem
                 return TotalLagrangianSPHSystem(structure; smoothing_kernel,
@@ -635,7 +635,7 @@
             fluid_system = WeaklyCompressibleSPHSystem(fluid_ic; smoothing_kernel,
                                                        smoothing_length, state_equation,
                                                        density_calculator=SummationDensity(),
-                                                        density_correction=ShepardKernelCorrection(),
+                                                       density_correction=ShepardKernelCorrection(),
                                                        viscosity)
             structure_system = create_structure_system(structure_type, viscosity;
                                                        boundary_density)
