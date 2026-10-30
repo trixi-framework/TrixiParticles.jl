@@ -4,6 +4,19 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.6.0
+
+### Important Bugfixes
+
+- Fixed SPH correction updates to apply density corrections before pressure and update
+  boundary, gradient, and surface quantities in consistent phases across fluid and
+  structure systems (#1284).
+- Fixed Shepard density correction to handle invalid normalization coefficients,
+  finalize corrected density before pressure evaluation, and use evolved continuity
+  density for particle volumes during density reinitialization (#1292).
+- Fixed `KernelCorrection` to fall back to uncorrected gradients for invalid normalization
+  coefficients and preserve Float32 boundary correction caches (#1291).
+
 ## Version 0.5.4
 
 ### API Changes

@@ -615,9 +615,9 @@
             end
         end
 
-        # Without a fluid correction, the pair force only uses the fluid's kernel,
-        # so a correction of the structure's boundary model must not change it.
-        # The continuity equation of the boundary particles must use the boundary model.
+        # Rigid-body boundary corrections are unsupported. Exercise the shared continuity
+        # helper directly with a TLSPH boundary model, as in the TLSPH tests below.
+        # The continuity equation must use the boundary model's kernel.
         boundary_corrections = (AkinciFreeSurfaceCorrection(fluid_density),
                                 KernelCorrection())
 
@@ -627,28 +627,25 @@
             viscosity = ViscosityAdami(nu=0.1)
             velocity = (1.0, 0.5)
             density = 1005.0
-            forces = map((nothing, boundary_correction)) do boundary_correction_
-                fluid_system = create_fluid_system("WCSPH", velocity, density, viscosity)
-                structure_system = create_structure_system(RigidBodySystem, viscosity;
-                                                           boundary_density=ContinuityDensity(),
-                                                           boundary_correction=boundary_correction_)
-                (fluid, structure, arrays,
-                 semi, _) = initialize(fluid_system, structure_system)
-
-                return (pair_forces(fluid, structure, arrays, semi)..., fluid, structure)
-            end
-            force_fluid_uncorrected = forces[1][1]
-            (force_fluid, force_structure, dv_structure, fluid, structure) = forces[2]
-
-            @test force_fluid == force_fluid_uncorrected
-            @test isapprox(force_structure, -force_fluid,
-                           rtol=sqrt(eps()), atol=sqrt(eps()))
-
+            fluid = create_fluid_system("WCSPH", velocity, density, viscosity)
+            structure = create_structure_system(TotalLagrangianSPHSystem, viscosity;
+                                                boundary_density=ContinuityDensity(),
+                                                boundary_correction)
+            pos_diff = SVector(1.5, 0.0)
+            grad_kernel_fluid = TrixiParticles.smoothing_kernel_grad_unsafe(fluid,
+                                                                            -pos_diff,
+                                                                            1.5, 1)
+            drho = TrixiParticles.add_continuity_equation(0.0, structure, fluid, 1, 1,
+                                                          pos_diff, 1.5, fluid.mass[1],
+                                                          fluid_density, density,
+                                                          SVector(0.0, 0.0),
+                                                          SVector(velocity),
+                                                          grad_kernel_fluid)
             grad_kernel = TrixiParticles.smoothing_kernel_grad(structure.boundary_model,
                                                                SVector(1.5, 0.0), 1.5, 1)
             expected_density_rate = -fluid_density / density * fluid.mass[1] *
                                     velocity[1] * grad_kernel[1]
-            @test dv_structure[end, 1] ≈ expected_density_rate
+            @test drho ≈ expected_density_rate
         end
 
         # TLSPH does not support `ContinuityDensity` boundaries yet. However, the continuity
