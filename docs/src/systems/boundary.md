@@ -59,7 +59,7 @@ of the boundary particle ``b``.
 
 ### Hydrodynamic density of dummy particles
 
-We provide six options to compute the boundary density and pressure, determined by the `density_calculator`:
+We provide seven options to compute the boundary density and pressure, determined by the `density_calculator`:
 1. (Recommended) With [`AdamiPressureExtrapolation`](@ref), the pressure is extrapolated from the pressure of the
    fluid according to [Adami et al., 2012](@cite Adami2012), and the density is obtained by applying the inverse of the state equation.
    This option usually yields the best results of the options listed here.
@@ -85,6 +85,9 @@ We provide six options to compute the boundary density and pressure, determined 
    momentum equation.
    This option is not recommended due to stability issues. See [`PressureMirroring`](@ref)
    for more details.
+7. With [`MarronePressureExtrapolation`](@ref), pressure is extrapolated with the
+   first-order moving least-squares fixed ghost particle method of
+   [Marrone et al. (2011)](@cite Marrone2011).
 
 #### 1. [`AdamiPressureExtrapolation`](@ref)
 
@@ -152,6 +155,42 @@ This approach was first mentioned by [Akinci et al. (2012)](@cite Akinci2012) an
 by [Band et al. (2018)](@cite Band2018a).
 ```@docs
     PressureMirroring
+```
+
+#### 7. [`MarronePressureExtrapolation`](@ref)
+
+For each boundary particle at ``r_G``, this method constructs an interpolation point
+``r_I`` by reflecting the particle across the wall. The boundary pressure is
+
+```math
+p_G = \sum_{f} \phi_f
+      \left[p_f + \rho_f (\bm{g}_f - \bm{a}_G) \cdot (\bm{r}_G-\bm{r}_I)\right],
+```
+
+where ``\phi_f`` are first-order, volume-weighted moving least-squares shape functions
+evaluated at ``r_I``. A singular local moment matrix falls back to volume-weighted
+Shepard interpolation.
+
+The boundary initial condition must provide distance vectors in `normals`, pointing
+from the wall surface to each boundary particle. The interpolation points are then
+constructed as `coordinates - 2 * normals`. [`RectangularTank`](@ref) provides normals
+with this convention, including corners and edges. When the wall uses
+[`PrescribedMotion`](@ref), the interpolation points follow the same motion map, so
+translated and rotating walls are supported.
+
+```julia
+boundary_model = BoundaryModelDummyParticles(boundary.density, boundary.mass,
+                                             MarronePressureExtrapolation(),
+                                             smoothing_kernel, smoothing_length;
+                                             state_equation)
+boundary_system = WallBoundarySystem(boundary, boundary_model)
+```
+
+The neighborhood search must support queries at arbitrary points, as
+[`GridNeighborhoodSearch`](@ref) and [`TrivialNeighborhoodSearch`](@ref) do.
+
+```@docs
+    MarronePressureExtrapolation
 ```
 
 ### No-slip conditions
