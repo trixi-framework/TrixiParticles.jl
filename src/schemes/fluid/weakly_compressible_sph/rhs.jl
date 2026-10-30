@@ -142,7 +142,8 @@ end
     # Determine correction factors.
     # This can usually be ignored, as these are all 1 when no correction is used.
     (viscosity_correction, pressure_correction,
-     surface_tension_correction) = free_surface_correction(force_correction, particle_system,
+     surface_tension_correction) = free_surface_correction(force_correction,
+                                                           particle_system,
                                                            rho_a, rho_b)
 
     # For `ContinuityDensity` without correction, this is equivalent to
