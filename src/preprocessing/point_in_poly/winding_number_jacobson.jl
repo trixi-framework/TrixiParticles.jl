@@ -107,10 +107,7 @@ end
 function (point_in_poly::WindingNumberJacobson)(geometry, points;
                                                 store_winding_number=false)
     (; winding_number_factor, winding) = point_in_poly
-
-    if points isa AbstractMatrix
-        points = reinterpret(reshape, SVector{ndims(geometry), eltype(points)}, points)
-    end
+    points = wrap_points(points, Val(ndims(geometry)))
 
     # We cannot use a `BitVector` here, as writing to a `BitVector` is not thread-safe
     inpoly = fill(false, length(points))

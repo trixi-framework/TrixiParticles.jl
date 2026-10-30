@@ -5,10 +5,13 @@
 
 System for boundaries modeled by boundary particles.
 The interaction between fluid and boundary particles is specified by the boundary model.
+For rigid-wall contact without fluid coupling, pass `nothing` as the boundary model.
+Contact forces are specified by the [`RigidContactModel`](@ref) of the rigid body.
 
 # Arguments
 - `initial_condition`: Initial condition (see [`InitialCondition`](@ref))
-- `boundary_model`: Boundary model (see [Boundary Models](@ref boundary_models))
+- `boundary_model`: Boundary model (see [Boundary Models](@ref boundary_models)), or `nothing`
+                    for contact-only walls. A boundary model is required when simulating fluids.
 
 # Keywords
 - `prescribed_motion`: For moving boundaries, a [`PrescribedMotion`](@ref) can be passed.
@@ -166,6 +169,8 @@ end
     return current_density(v, system.boundary_model, system)
 end
 
+@inline system_boundary_model(system::WallBoundarySystem) = system.boundary_model
+
 @inline function current_pressure(v, system::WallBoundarySystem)
     return current_pressure(v, system.boundary_model, system)
 end
@@ -213,7 +218,24 @@ end
 function update_quantities!(system::WallBoundarySystem, v, u, v_ode, u_ode, semi, t)
     (; boundary_model) = system
 
+    isnothing(boundary_model) && return system
+
     update_density!(boundary_model, system, v, u, v_ode, u_ode, semi)
+
+    return system
+end
+
+function update_density_correction_values!(system::WallBoundarySystem{<:BoundaryModelDummyParticles},
+                                           v, u, v_ode, u_ode, semi, t)
+    update_density_correction_values!(system.boundary_model, system, v, u, v_ode, u_ode,
+                                      semi)
+
+    return system
+end
+
+function update_density_correction!(system::WallBoundarySystem{<:BoundaryModelDummyParticles},
+                                    v, u, v_ode, u_ode, semi, t)
+    update_density_correction!(system.boundary_model, system, v, u, v_ode, u_ode, semi)
 
     return system
 end
@@ -224,9 +246,18 @@ function update_boundary_interpolation!(system::WallBoundarySystem, v, u, v_ode,
                                         semi, t)
     (; boundary_model) = system
 
+    isnothing(boundary_model) && return system
+
     # Note that `update_pressure!(::WallBoundarySystem, ...)` is empty,
     # so no pressure is updated in the previous update steps.
     update_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi)
+
+    return system
+end
+
+function update_gradient_correction!(system::WallBoundarySystem{<:BoundaryModelDummyParticles},
+                                     v, u, v_ode, u_ode, semi, t)
+    update_gradient_correction!(system.boundary_model, system, v, u, v_ode, u_ode, semi)
 
     return system
 end
@@ -329,12 +360,14 @@ function system_smoothing_kernel(system::WallBoundarySystem{<:BoundaryModelDummy
 end
 
 function system_correction(system::WallBoundarySystem{<:BoundaryModelDummyParticles})
-    return system.boundary_model.correction
+    return correction_gradient(system.boundary_model.correction)
 end
 
 @inline function density_calculator(system::WallBoundarySystem)
     return density_calculator(system.boundary_model)
 end
+
+@inline density_calculator(::WallBoundarySystem{Nothing}) = nothing
 
 function system_data(system::WallBoundarySystem, dv_ode, du_ode, v_ode, u_ode, semi)
     dv = [current_acceleration(system, particle) for particle in eachparticle(system)]
@@ -343,8 +376,9 @@ function system_data(system::WallBoundarySystem, dv_ode, du_ode, v_ode, u_ode, s
 
     coordinates = current_coordinates(u, system)
     velocity = [current_velocity(v, system, particle) for particle in eachparticle(system)]
-    density = current_density(v, system)
-    pressure = current_pressure(v, system)
+    density = system.boundary_model === nothing ? system.initial_condition.density :
+              current_density(v, system)
+    pressure = system.boundary_model === nothing ? nothing : current_pressure(v, system)
 
     return (; coordinates, velocity, density, pressure, acceleration=dv)
 end
@@ -385,14 +419,21 @@ end
 function check_configuration(system::WallBoundarySystem, systems, nhs)
     (; boundary_model) = system
 
-    n_particles_model = length(system.boundary_model.hydrodynamic_mass)
-    if n_particles_model != nparticles(system)
-        throw(ArgumentError("the boundary model was initialized with $n_particles_model " *
-                            "particles, but the `WallBoundarySystem` has " *
-                            "$(nparticles(system)) particles."))
+    if !isnothing(boundary_model)
+        n_particles_model = length(boundary_model.hydrodynamic_mass)
+        if n_particles_model != nparticles(system)
+            throw(ArgumentError("the boundary model was initialized with $n_particles_model " *
+                                "particles, but the `WallBoundarySystem` has " *
+                                "$(nparticles(system)) particles."))
+        end
     end
 
     foreach_system(systems) do neighbor
+        if neighbor isa AbstractFluidSystem && boundary_model === nothing
+            throw(ArgumentError("a boundary model for `WallBoundarySystem` must be specified " *
+                                "when simulating a fluid-boundary interaction"))
+        end
+
         if neighbor isa WeaklyCompressibleSPHSystem &&
            boundary_model isa BoundaryModelDummyParticles &&
            isnothing(boundary_model.state_equation)

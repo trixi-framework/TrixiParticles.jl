@@ -225,7 +225,13 @@ function add_system_data!(system_data, contact_model::RigidContactModel)
     system_data["contact_model"]["model"] = type2string(contact_model)
     system_data["contact_model"]["normal_stiffness"] = contact_model.normal_stiffness
     system_data["contact_model"]["normal_damping"] = contact_model.normal_damping
+    system_data["contact_model"]["static_friction_coefficient"] = contact_model.static_friction_coefficient
+    system_data["contact_model"]["kinetic_friction_coefficient"] = contact_model.kinetic_friction_coefficient
+    system_data["contact_model"]["tangential_stiffness"] = contact_model.tangential_stiffness
+    system_data["contact_model"]["tangential_damping"] = contact_model.tangential_damping
     system_data["contact_model"]["contact_distance"] = contact_model.contact_distance
+    system_data["contact_model"]["stick_velocity_tolerance"] = contact_model.stick_velocity_tolerance
+    system_data["contact_model"]["penetration_slop"] = contact_model.penetration_slop
 end
 
 function add_system_data!(system_data, state_equation::StateEquationCole)
@@ -304,6 +310,20 @@ function add_system_data!(system_data,
                                             ShepardKernelCorrection})
     system_data["correction_method"] = Dict{String, Any}()
     system_data["correction_method"]["model"] = type2string(correction)
+end
+
+correction_metadata(correction) = Dict{String, Any}("model" => type2string(correction))
+
+function correction_metadata(correction::AkinciFreeSurfaceCorrection)
+    return Dict{String, Any}("model" => type2string(correction), "rho0" => correction.rho0)
+end
+
+function add_system_data!(system_data, correction::CorrectionConfiguration)
+    system_data["correction_method"] = Dict{String, Any}()
+    system_data["correction_method"]["model"] = type2string(correction)
+    system_data["correction_method"]["density"] = correction_metadata(correction.density)
+    system_data["correction_method"]["gradient"] = correction_metadata(correction.gradient)
+    system_data["correction_method"]["force"] = correction_metadata(correction.force)
 end
 
 function add_system_data!(system_data,
