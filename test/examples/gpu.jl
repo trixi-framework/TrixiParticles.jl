@@ -642,7 +642,7 @@ end
             @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
                                                              joinpath(examples_dir(),
                                                                       "preprocessing",
-                                                                      "packing_2d.jl"),
+                                                                      "packing_2d.jl");
                                                              neighborhood_search,
                                                              parallelization_backend=Main.parallelization_backend,
                                                              tspan=(0.0f0, 0.1f0)) [
