@@ -124,6 +124,7 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     # Check e.g. that the boundary systems are using a state equation if EDAC is not used.
     # Other checks might be added here later.
     check_configuration(systems, neighborhood_search)
+    check_pressure_acceleration_configuration(systems, interaction_matrix)
 
     sizes_u = [u_nvariables(system) * n_integrated_particles(system)
                for system in systems]

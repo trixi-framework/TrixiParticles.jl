@@ -107,6 +107,41 @@
         end
     end
 
+    @testset "EDAC average-pressure momentum conservation" begin
+        # A perturbed patch gives nontrivial pair forces while uniform pressure isolates the offset.
+        particle_spacing = 0.1
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        smoothing_length = 1.6particle_spacing
+
+        # Verify conservation both with the raw kernel and with asymmetric corrected gradients.
+        for correction in (nothing, GradientCorrection())
+            fluid = rectangular_patch(particle_spacing, (4, 3); pressure=1000.0, seed=7)
+            system = EntropicallyDampedSPHSystem(fluid; smoothing_kernel,
+                                                 smoothing_length, sound_speed=10.0,
+                                                 correction,
+                                                 average_pressure_reduction=true)
+            semi = Semidiscretization(system; parallelization_backend=SerialBackend())
+            ode = semidiscretize(semi, (0.0, 1.0); reset_threads=false)
+            v_ode = Array(ode.u0.x[1])
+            u_ode = Array(ode.u0.x[2])
+            dv_ode = zero(v_ode)
+            TrixiParticles.kick!(dv_ode, v_ode, u_ode,
+                                 (; semi=ode.p.semi, split_integration_data=nothing), 0.0)
+
+            system = first(ode.p.semi.systems)
+            dv = TrixiParticles.wrap_v(dv_ode, system, ode.p.semi)
+            acceleration = view(dv, 1:2, :)
+            net_force = vec(sum(system.mass' .* acceleration; dims=2))
+            force_scale = sum(TrixiParticles.eachparticle(system)) do particle
+                norm(system.mass[particle] * acceleration[:, particle])
+            end
+
+            @test force_scale > eps()
+            @test norm(net_force) / force_scale < 5e-13
+            @test all(isfinite, dv_ode)
+        end
+    end
+
     # The following tests for linear and angular momentum and total energy conservation
     # are based on Sections 3.3.4 and 3.4.2 of
     # Daniel J. Price. "Smoothed Particle Hydrodynamics and Magnetohydrodynamics."
@@ -615,9 +650,9 @@
             end
         end
 
-        # Without a fluid correction, the pair force only uses the fluid's kernel,
-        # so a correction of the structure's boundary model must not change it.
-        # The continuity equation of the boundary particles must use the boundary model.
+        # Rigid-body boundary corrections are unsupported. Exercise the shared continuity
+        # helper directly with a TLSPH boundary model, as in the TLSPH tests below.
+        # The continuity equation must use the boundary model's kernel.
         boundary_corrections = (AkinciFreeSurfaceCorrection(fluid_density),
                                 KernelCorrection())
 
@@ -627,28 +662,25 @@
             viscosity = ViscosityAdami(nu=0.1)
             velocity = (1.0, 0.5)
             density = 1005.0
-            forces = map((nothing, boundary_correction)) do boundary_correction_
-                fluid_system = create_fluid_system("WCSPH", velocity, density, viscosity)
-                structure_system = create_structure_system(RigidBodySystem, viscosity;
-                                                           boundary_density=ContinuityDensity(),
-                                                           boundary_correction=boundary_correction_)
-                (fluid, structure, arrays,
-                 semi, _) = initialize(fluid_system, structure_system)
-
-                return (pair_forces(fluid, structure, arrays, semi)..., fluid, structure)
-            end
-            force_fluid_uncorrected = forces[1][1]
-            (force_fluid, force_structure, dv_structure, fluid, structure) = forces[2]
-
-            @test force_fluid == force_fluid_uncorrected
-            @test isapprox(force_structure, -force_fluid,
-                           rtol=sqrt(eps()), atol=sqrt(eps()))
-
+            fluid = create_fluid_system("WCSPH", velocity, density, viscosity)
+            structure = create_structure_system(TotalLagrangianSPHSystem, viscosity;
+                                                boundary_density=ContinuityDensity(),
+                                                boundary_correction)
+            pos_diff = SVector(1.5, 0.0)
+            grad_kernel_fluid = TrixiParticles.smoothing_kernel_grad_unsafe(fluid,
+                                                                            -pos_diff,
+                                                                            1.5, 1)
+            drho = TrixiParticles.add_continuity_equation(0.0, structure, fluid, 1, 1,
+                                                          pos_diff, 1.5, fluid.mass[1],
+                                                          fluid_density, density,
+                                                          SVector(0.0, 0.0),
+                                                          SVector(velocity),
+                                                          grad_kernel_fluid)
             grad_kernel = TrixiParticles.smoothing_kernel_grad(structure.boundary_model,
                                                                SVector(1.5, 0.0), 1.5, 1)
             expected_density_rate = -fluid_density / density * fluid.mass[1] *
                                     velocity[1] * grad_kernel[1]
-            @test dv_structure[end, 1] ≈ expected_density_rate
+            @test drho ≈ expected_density_rate
         end
 
         # TLSPH does not support `ContinuityDensity` boundaries yet. However, the continuity
