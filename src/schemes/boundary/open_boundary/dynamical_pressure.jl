@@ -124,6 +124,15 @@ end
     end
 end
 
+# Used by `ImpedanceOutletPressure`. This model applies the boundary pressure only to
+# particles with truncated kernel support, which are at the downstream end of the
+# boundary zone. We use the last particle layer.
+function pressure_application_offset(::BoundaryModelDynamicalPressureZhang, boundary_zone)
+    (; zone_width, initial_condition) = boundary_zone
+
+    return zone_width - initial_condition.particle_spacing
+end
+
 function update_boundary_model!(system, boundary_model::BoundaryModelDynamicalPressureZhang,
                                 v, u, v_ode, u_ode, semi, t)
     (; pressure_boundary) = system.cache

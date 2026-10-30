@@ -156,3 +156,101 @@
         @test isapprox(pressures_ref, pressures[1:50:end], rtol=5e-3)
     end
 end
+
+@testset verbose=true "`ImpedanceOutletPressure`" begin
+    @testset verbose=true "Show" begin
+        pressure_model = ImpedanceOutletPressure(; reference_velocity=1.0,
+                                                 impedance=15000.0,
+                                                 reference_pressure=10.0)
+
+        show_box = """
+            ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+            │ ImpedanceOutletPressure                                                                          │
+            │ ═══════════════════════                                                                          │
+            │ reference_pressure: …………………………… 10.0                                                             │
+            │ reference_velocity: …………………………… 1.0                                                              │
+            │ impedance: …………………………………………………… 15000.0                                                          │
+            └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
+
+        @test repr("text/plain", pressure_model) == show_box
+    end
+
+    # Outlet face at `x = 2` of height `0.5` with the boundary zone in `2 <= x <= 2.4`
+    function impedance_outflow(pressure_model)
+        return BoundaryZone(; boundary_face=([2.0, 0.0], [2.0, 0.5]),
+                            face_normal=(-1.0, 0.0), particle_spacing=0.1, density=1000.0,
+                            open_boundary_layers=4, reference_pressure=pressure_model,
+                            rest_pressure=3.0)
+    end
+
+    @testset verbose=true "Initial Pressure" begin
+        pressure_model = ImpedanceOutletPressure(; reference_velocity=1.0,
+                                                 impedance=15000.0,
+                                                 reference_pressure=10.0)
+        boundary_zone = impedance_outflow(pressure_model)
+
+        # The reference pressure is used instead of the rest pressure
+        @test all(==(10.0), boundary_zone.initial_condition.pressure)
+    end
+
+    @testset verbose=true "Sample Points" begin
+        pressure_model = ImpedanceOutletPressure(; reference_velocity=1.0,
+                                                 impedance=15000.0)
+        boundary_zone = impedance_outflow(pressure_model)
+        sample_points = copy(boundary_zone.cache.sample_points)
+
+        boundary_models = (BoundaryModelMirroringTafuni(),
+                           BoundaryModelCharacteristicsLastiwka(),
+                           BoundaryModelDynamicalPressureZhang())
+
+        @testset "$(nameof(typeof(boundary_model)))" for boundary_model in boundary_models
+            boundary_zone_new = TrixiParticles.setup_pressure_model(boundary_zone,
+                                                                    boundary_model)
+            sample_points_new = boundary_zone_new.cache.sample_points
+            pressure_model_new = boundary_zone_new.reference_values.reference_pressure
+
+            if boundary_model isa BoundaryModelDynamicalPressureZhang
+                # Last particle layer of the boundary zone
+                @test all(isapprox(2.3), sample_points_new[1, :])
+            else
+                @test sample_points_new == sample_points
+            end
+            @test sample_points_new[2, :] == sample_points[2, :]
+            @test isapprox(pressure_model_new.cross_sectional_area, 0.5)
+
+            # The original boundary zone and pressure model are unchanged
+            @test boundary_zone.cache.sample_points == sample_points
+            @test isnothing(pressure_model.cross_sectional_area)
+        end
+    end
+
+    @testset verbose=true "Pressure" begin
+        # Mock fluid system
+        struct FluidSystemMockImpedance <: TrixiParticles.AbstractFluidSystem{2}
+            pressure_acceleration_formulation::Nothing
+            density_diffusion::Nothing
+        end
+        TrixiParticles.initial_smoothing_length(system::FluidSystemMockImpedance) = 1.0
+        TrixiParticles.nparticles(system::FluidSystemMockImpedance) = 1
+        TrixiParticles.system_smoothing_kernel(system::FluidSystemMockImpedance) = nothing
+
+        pressure_model = ImpedanceOutletPressure(; reference_velocity=1.0,
+                                                 impedance=15000.0,
+                                                 reference_pressure=10.0)
+        boundary_zone = impedance_outflow(pressure_model)
+        system = OpenBoundarySystem(boundary_zone; buffer_size=0, boundary_model=nothing,
+                                    fluid_system=FluidSystemMockImpedance(nothing, nothing))
+        system.boundary_zone_indices .= 1
+        v = system.initial_condition.velocity
+
+        # The flow rate is computed automatically for pressure models
+        @test system.calculate_flow_rate
+
+        # Mean outflow velocity `Q / A = 1.1` through the face of area `A = 0.5`
+        system.cache.boundary_zones_flow_rate[1][] = 0.55
+        TrixiParticles.calculate_pressure!(system, 1e-3)
+
+        p = TrixiParticles.reference_pressure(system.boundary_zones[1], v, system, 1, 0, 0)
+        @test isapprox(p, 10.0 + 15000.0 * (1.1 - 1.0))
+    end
+end

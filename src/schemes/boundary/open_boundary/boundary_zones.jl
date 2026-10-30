@@ -95,6 +95,9 @@ There are three ways to specify the actual shape of the boundary zone:
     Note: Each sampling point represents an area element of size
     `particle_spacing^(ndims-1)`. Therefore, the discretized
     sampled area is `npoints * particle_spacing^(ndims-1)`.
+    Note: With an [`ImpedanceOutletPressure`](@ref), the sampling points are moved
+    downstream to where the boundary model applies the pressure
+    (see [Non-reflecting outlet](@ref impedance_outlet)).
 
 !!! note "Note"
     The reference values (`reference_velocity`, `reference_pressure`, `reference_density`)
@@ -233,7 +236,7 @@ function BoundaryZone(; boundary_face, face_normal, density, particle_spacing,
             pressure_ref = reference_pressure
         elseif reference_pressure isa AbstractPressureModel
             pressure_ref = reference_pressure
-            pressure_ref.pressure[] = rest_pressure
+            set_initial_pressure!(pressure_ref, rest_pressure)
         else
             # We need this dummy for type stability reasons
             pressure_dummy = convert(ELTYPE, Inf)
