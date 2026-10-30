@@ -21,7 +21,7 @@ using Polyester: Polyester, @batch
 using Printf: @printf, @sprintf
 using ReadVTK: ReadVTK
 using RecipesBase: RecipesBase, @series
-using Random: seed!
+using Random: Random
 using SciMLBase: SciMLBase, CallbackSet, DiscreteCallback, DynamicalODEProblem,
                  derivative_discontinuity!, get_tmp_cache, set_proposed_dt!,
                  ODESolution, ODEProblem, terminate!, add_tstop!
@@ -80,6 +80,7 @@ export BoundaryZone, InFlow, OutFlow, BidirectionalFlow
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
        PostprocessCallback, StepsizeCallback, UpdateCallback, SteadyStateReachedCallback,
        SplitIntegrationCallback, MechanicalWorkCalculator, calculated_mechanical_work,
+       ThrustCalculator, calculated_thrust,
        SortingCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller, TransportVelocityAdami, ParticleShiftingTechnique,
