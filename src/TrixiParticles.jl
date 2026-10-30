@@ -16,7 +16,7 @@ using ForwardDiff: ForwardDiff
 using GPUArraysCore: AbstractGPUArray
 using JSON: JSON
 using KernelAbstractions: KernelAbstractions, @kernel, @index
-using LinearAlgebra: norm, normalize, cross, dot, I, tr, inv, pinv, det
+using LinearAlgebra: norm, normalize, cross, dot, I, tr, inv, pinv, det, cond
 using Polyester: Polyester, @batch
 using Printf: @printf, @sprintf
 using ReadVTK: ReadVTK
@@ -51,8 +51,8 @@ include("general/abstract_system.jl")
 include("general/general.jl")
 include("setups/setups.jl")
 include("schemes/schemes.jl")
-# `mechanical_work_calculator.jl` requires `TotalLagrangianSPHSystem` to be defined.
-include("general/mechanical_work_calculator.jl")
+# The custom quantities require the system types to be defined.
+include("custom_quantities/custom_quantities.jl")
 # `neighborhood_search.jl` requires the system types to be defined
 include("general/neighborhood_search.jl")
 # `callbacks.jl` requires the system types to be defined
@@ -80,8 +80,7 @@ export BoundaryZone, InFlow, OutFlow, BidirectionalFlow
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
        PostprocessCallback, StepsizeCallback, UpdateCallback, SteadyStateReachedCallback,
        SplitIntegrationCallback, MechanicalWorkCalculator, calculated_mechanical_work,
-       ThrustCalculator, calculated_thrust,
-       SortingCallback
+       ThrustCalculator, calculated_thrust, StructureMotionCalculator, SortingCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller, TransportVelocityAdami, ParticleShiftingTechnique,
        ParticleShiftingTechniqueSun2017, ConsistentShiftingSun2019,
