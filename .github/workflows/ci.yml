@@ -15,6 +15,8 @@ on:
       - '.github/workflows/TagBot.yml'
       - 'docs/**'
   pull_request:
+    # Also run when a draft PR is marked as ready for review.
+    types: [opened, synchronize, reopened, ready_for_review]
     paths-ignore:
       - 'AUTHORS.md'
       - 'CITATION.bib'
@@ -36,24 +38,21 @@ concurrency:
 jobs:
   build:
     name: Run Tests (Julia ${{ matrix.version }} - ${{ matrix.os }})
+    # Skip CI for draft PRs.
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ${{ matrix.os }}
     strategy:
       # Don't cancel all running jobs when one job fails
       fail-fast: false
       matrix:
         version:
+          # Don't use 'min' version, which will ignore hotfixes, i.e. 1.10.0 will be used instead of e.g. 1.10.8.
           - '1.10'
-          - '1.11'
           - '1.12'
         os:
           - ubuntu-latest
         include:
-          # Also run tests on Windows and macOS-ARM, but only with the latest Julia release and minimum supported version.
-          # Don't use 'min' version, which will ignore hotfixes, i.e. 1.10.0 will be used instead of e.g. 1.10.8.
-          - version: '1.10'
-            os: windows-latest
-          - version: '1.10'
-            os: macos-14
+          # Also run tests on Windows and macOS-ARM, but only with the latest tested Julia release.
           - version: '1.12'
             os: windows-latest
           - version: '1.12'
@@ -81,20 +80,20 @@ jobs:
         with:
           annotate: true
           # Only run coverage in one Job (Ubuntu and latest Julia version)
-          coverage: ${{ matrix.os == 'ubuntu-latest' && matrix.version == '1.11' }}
+          coverage: ${{ matrix.os == 'ubuntu-latest' && matrix.version == '1.12' }}
         env:
           TRIXIPARTICLES_TEST: unit
 
       - name: Process unit coverage results
         # Only run coverage in one Job (Ubuntu and latest Julia version)
-        if: matrix.os == 'ubuntu-latest' && matrix.version == '1.11'
+        if: matrix.os == 'ubuntu-latest' && matrix.version == '1.12'
         uses: julia-actions/julia-processcoverage@v1
         with:
           directories: src,test
 
       - name: Upload unit coverage report to Codecov
         # Only run coverage in one Job (Ubuntu and latest Julia version)
-        if: matrix.os == 'ubuntu-latest' && matrix.version == '1.11'
+        if: matrix.os == 'ubuntu-latest' && matrix.version == '1.12'
         uses: codecov/codecov-action@v7
         with:
           files: lcov.info
@@ -108,20 +107,20 @@ jobs:
         with:
           annotate: true
           # Only run coverage in one Job (Ubuntu and latest Julia version)
-          coverage: ${{ matrix.os == 'ubuntu-latest' && matrix.version == '1.11' }}
+          coverage: ${{ matrix.os == 'ubuntu-latest' && matrix.version == '1.12' }}
         env:
           TRIXIPARTICLES_TEST: examples
 
       - name: Process total coverage results
         # Only run coverage in one Job (Ubuntu and latest Julia version)
-        if: matrix.os == 'ubuntu-latest' && matrix.version == '1.11'
+        if: matrix.os == 'ubuntu-latest' && matrix.version == '1.12'
         uses: julia-actions/julia-processcoverage@v1
         with:
           directories: src,test
 
       - name: Upload total coverage report to Codecov
         # Only run coverage in one Job (Ubuntu and latest Julia version)
-        if: matrix.os == 'ubuntu-latest' && matrix.version == '1.11'
+        if: matrix.os == 'ubuntu-latest' && matrix.version == '1.12'
         uses: codecov/codecov-action@v7
         with:
           files: lcov.info
