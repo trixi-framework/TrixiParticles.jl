@@ -112,6 +112,9 @@ function WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
     ELTYPE = eltype(initial_condition)
     n_particles = nparticles(initial_condition)
 
+    density_correction_ = correction_density(correction)
+    gradient_correction_ = correction_gradient(correction)
+
     mass = copy(initial_condition.mass)
     pressure = similar(initial_condition.pressure)
 
@@ -125,7 +128,7 @@ function WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
         throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
     end
 
-    if correction isa ShepardKernelCorrection &&
+    if density_correction_ isa ShepardKernelCorrection &&
        density_calculator isa ContinuityDensity
         throw(ArgumentError("`ShepardKernelCorrection` cannot be used with `ContinuityDensity`"))
     end
@@ -141,7 +144,7 @@ function WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
     pressure_acceleration = choose_pressure_acceleration_formulation(pressure_acceleration,
                                                                      density_calculator,
                                                                      NDIMS, ELTYPE,
-                                                                     correction)
+                                                                     gradient_correction_)
 
     cache = (; create_cache_density(initial_condition, density_calculator)...,
              create_cache_correction(correction, initial_condition.density, NDIMS,
@@ -243,7 +246,9 @@ end
 
 @inline buffer(system::WeaklyCompressibleSPHSystem) = system.buffer
 
-system_correction(system::WeaklyCompressibleSPHSystem) = system.correction
+function system_correction(system::WeaklyCompressibleSPHSystem)
+    correction_gradient(system.correction)
+end
 
 @propagate_inbounds function current_velocity(v, system::WeaklyCompressibleSPHSystem)
     return current_velocity(v, system.density_calculator, system)
@@ -320,17 +325,46 @@ end
     return system
 end
 
-function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t)
-    (; density_calculator, correction, surface_normal_method, surface_tension) = system
+function update_density_correction_values!(system::WeaklyCompressibleSPHSystem, v, u,
+                                           v_ode, u_ode, semi, t)
+    (; correction) = system
+    density_correction = correction_density(correction)
 
+    compute_correction_values!(system, density_correction, u, v_ode, u_ode, semi)
+
+    return system
+end
+
+function update_density_correction!(system::WeaklyCompressibleSPHSystem, v, u, v_ode,
+                                    u_ode, semi, t)
+    (; density_calculator, correction) = system
+    density_correction = correction_density(correction)
+
+    kernel_correct_density!(system, v, u, v_ode, u_ode, semi, density_correction,
+                            density_calculator)
+
+    return system
+end
+
+function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t)
     compute_pressure!(system, v, semi)
 
-    # These are only computed when using corrections
-    compute_correction_values!(system, correction, u, v_ode, u_ode, semi)
-    compute_gradient_correction_matrix!(correction, system, u, v_ode, u_ode, semi)
-    # `kernel_correct_density!` only performed for `SummationDensity`
-    kernel_correct_density!(system, v, u, v_ode, u_ode, semi, correction,
-                            density_calculator)
+    return system
+end
+
+function update_gradient_correction!(system::WeaklyCompressibleSPHSystem, v, u, v_ode,
+                                     u_ode, semi, t)
+    gradient_correction = correction_gradient(system.correction)
+
+    compute_correction_values!(system, gradient_correction, u, v_ode, u_ode, semi)
+    compute_gradient_correction_matrix!(gradient_correction, system, u, v_ode, u_ode, semi)
+
+    return system
+end
+
+function update_surface_quantities!(system::WeaklyCompressibleSPHSystem, v, u, v_ode,
+                                    u_ode, semi, t)
+    (; surface_normal_method, surface_tension) = system
 
     # These are only computed when using surface tension
     compute_surface_normal!(system, surface_normal_method, v, u, v_ode, u_ode, semi, t)
@@ -369,13 +403,13 @@ function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
                                                          MixedKernelGradientCorrection},
                                              system::WeaklyCompressibleSPHSystem, u,
                                              v_ode, u_ode, semi)
-    (; cache, correction, smoothing_kernel) = system
+    (; cache, smoothing_kernel) = system
     (; correction_matrix) = cache
 
     system_coords = current_coordinates(u, system)
 
     compute_gradient_correction_matrix!(correction_matrix, system, system_coords,
-                                        v_ode, u_ode, semi, correction, smoothing_kernel)
+                                        v_ode, u_ode, semi, corr, smoothing_kernel)
 end
 
 function reinit_density!(vu_ode, semi)
