@@ -97,7 +97,7 @@ if use_edac
                                                smoothing_length=smoothing_length_fluid,
                                                sound_speed,
                                                acceleration=(0.0, -gravity),
-                                               correction=ShepardKernelCorrection(),
+                                               density_correction=ShepardKernelCorrection(),
                                                source_terms=SourceTermDamping(;
                                                                               damping_coefficient=0.05))
 else

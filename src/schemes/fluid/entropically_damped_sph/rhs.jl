@@ -4,11 +4,14 @@ function interact!(dv, v_particle_system, u_particle_system,
                    particle_system::EntropicallyDampedSPHSystem,
                    neighbor_system, semi)
     (; sound_speed, density_calculator, correction, nu_edac) = particle_system
+    gradient_correction = correction_gradient(correction)
 
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
     h = initial_smoothing_length(particle_system)
+    zero_distance_threshold = almostzero(h)
+    zero_distance_mode = zero_distance_gradient_mode(particle_system, neighbor_system)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     foreach_point_neighbor(particle_system, neighbor_system,
@@ -17,15 +20,14 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                                                 neighbor,
                                                                                 pos_diff,
                                                                                 distance
-        # Skip neighbors with (almost) the same position because the kernel gradient
-        # is zero, but computing it would divide by zero (see `almostzero`).
+        # Skip neighbors with the same position when both endpoint gradients are zero.
         # Note that `return` only exits the closure, i.e., skips the current neighbor.
-        skip_zero_distance(particle_system) && distance < almostzero(h) && return
+        skip_zero_distance(zero_distance_mode, distance, zero_distance_threshold) && return
 
-        # Now that we know that `distance` is not zero, we can safely call the unsafe
-        # version of the kernel gradient to avoid redundant zero checks.
-        grad_kernel = smoothing_kernel_grad_unsafe(particle_system, pos_diff,
-                                                   distance, particle)
+        grad_kernel = local_smoothing_kernel_grad_unsafe(zero_distance_mode,
+                                                         particle_system, pos_diff,
+                                                         distance, particle,
+                                                         zero_distance_threshold)
 
         # `foreach_point_neighbor` makes sure that `particle` and `neighbor` are
         # in bounds of the respective system. For performance reasons, we use `@inbounds`
@@ -60,7 +62,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                 v_particle_system, v_neighbor_system,
                                                 particle, neighbor, m_a, m_b, rho_a, rho_b,
                                                 v_a, v_b,
-                                                pos_diff, distance, grad_kernel, correction)
+                                                pos_diff, distance, grad_kernel,
+                                                gradient_correction)
 
         for i in 1:ndims(particle_system)
             @inbounds dv[i, particle] += dv_particle[i]
@@ -105,6 +108,8 @@ end
                                                    grad_kernel, sound_speed, m_a, m_b,
                                                    p_a, p_b, rho_a, rho_b, v_a, v_b)
     (; correction) = particle_system
+    gradient_correction = correction_gradient(correction)
+    force_correction = correction_force(correction)
 
     surface_tension_a = surface_tension_model(particle_system)
     surface_tension_b = surface_tension_model(neighbor_system)
@@ -115,24 +120,31 @@ end
     # It results in significant improvement for EDAC, especially with TVF,
     # but not for WCSPH, according to Ramachandran & Puri (2019), Section 3.2.
     # Note that the return value is zero when not using average pressure reduction.
-    p_avg = average_pressure(particle_system, particle)
+    p_avg = pair_pressure_offset(particle_system, neighbor_system, particle, neighbor)
 
-    dv_particle += pressure_acceleration(particle_system, neighbor_system,
+    (viscosity_correction, pressure_correction,
+     surface_tension_correction) = free_surface_correction(force_correction,
+                                                           particle_system,
+                                                           rho_a, rho_b)
+
+    dv_particle += pressure_correction *
+                   pressure_acceleration(particle_system, neighbor_system,
                                          particle, neighbor,
                                          m_a, m_b, p_a - p_avg, p_b - p_avg, rho_a,
                                          rho_b, pos_diff, distance, grad_kernel,
-                                         correction)
+                                         gradient_correction)
 
     dv_particle = add_dv_viscosity(dv_particle, particle_system, neighbor_system,
                                    v_particle_system, v_neighbor_system,
                                    particle, neighbor, pos_diff, distance,
                                    sound_speed, m_a, m_b, rho_a, rho_b,
-                                   v_a, v_b, grad_kernel)
+                                   v_a, v_b, grad_kernel, viscosity_correction)
 
     dv_particle = add_dv_surface_tension(dv_particle, surface_tension_a, surface_tension_b,
                                          particle_system, neighbor_system,
                                          particle, neighbor, pos_diff, distance,
-                                         rho_a, rho_b, grad_kernel, 1)
+                                         rho_a, rho_b, grad_kernel,
+                                         surface_tension_correction)
 
     dv_particle = add_dv_adhesion(dv_particle, surface_tension_a,
                                   particle_system, neighbor_system,
