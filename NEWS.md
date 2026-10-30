@@ -60,6 +60,10 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Added a tutorial for setting up 2D simulations from geometry files, including a curved
   pipe and a coastline dam-break basin (#1094).
 
+### Features
+
+- Added GPU support for particle packing (#1296).
+
 ## Version 0.5.3
 
 ### Features
