@@ -355,6 +355,11 @@ function update_density_correction!(system::WeaklyCompressibleSPHSystem, v, u, v
     return system
 end
 
+function requires_density_boundary_prediction(system::WeaklyCompressibleSPHSystem)
+    return system.density_calculator isa SummationDensity &&
+           correction_density(system.correction) isa ShepardKernelCorrection
+end
+
 function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t)
     compute_pressure!(system, v, semi)
 
