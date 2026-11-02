@@ -459,7 +459,7 @@
         @test_throws ArgumentError Semidiscretization(fluid_system, rigid_system)
 
         rigid_boundary_model = BoundaryModelDummyParticles(density, mass,
-                                                           SummationDensity(),
+                                                           PressureZeroing(),
                                                            smoothing_kernel,
                                                            smoothing_length)
         rigid_system_with_dummy = RigidBodySystem(rigid_ic;
