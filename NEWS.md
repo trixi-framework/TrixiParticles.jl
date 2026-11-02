@@ -20,6 +20,9 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Important Bugfixes
 
+- Removed RHS-history dependence from Shepard-filtered WCSPH summation density at
+  EOS-backed pressure boundaries by predicting boundary densities from current raw
+  fluid pressure before normalization.
 - Fixed SPH correction updates to apply density corrections before pressure and update
   boundary, gradient, and surface quantities in consistent phases across fluid and
   structure systems (#1284).
