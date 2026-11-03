@@ -161,10 +161,35 @@ end
                                                          GradientCorrection,
                                                          BlendedGradientCorrection,
                                                          MixedKernelGradientCorrection})
+    return pressure_acceleration(particle_system, neighbor_system, particle, neighbor,
+                                 m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff, distance,
+                                 W_a, correction,
+                                 pressure_acceleration_formulation(particle_system))
+end
+
+@inline function pressure_acceleration(particle_system, neighbor_system, particle, neighbor,
+                                       m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
+                                       distance, W_a, correction, formulation)
     W_b = smoothing_kernel_grad(neighbor_system, -pos_diff, distance, neighbor)
 
     # With correction, the kernel gradient is not necessarily symmetric, so call the
     # asymmetric version of the pressure acceleration formulation.
-    return pressure_acceleration_formulation(particle_system)(m_a, m_b, rho_a, rho_b,
-                                                              p_a, p_b, W_a, W_b)
+    return formulation(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a, W_b)
+end
+
+# Adami and Bernoulli boundary pressures are extrapolated from the fluid. Use the
+# fluid's corrected gradient for both pressure terms to avoid spurious forces at
+# constant pressure. The structure-fluid interaction reuses the same pair force.
+@inline function pressure_acceleration(particle_system::WeaklyCompressibleSPHSystem,
+                                       neighbor_system::Union{WallBoundarySystem{<:BoundaryModelDummyParticles{DC}},
+                                                              RigidBodySystem{<:BoundaryModelDummyParticles{DC}},
+                                                              TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{DC}}},
+                                       particle, neighbor, m_a, m_b, p_a, p_b, rho_a, rho_b,
+                                       pos_diff, distance, W_a, correction,
+                                       formulation::Union{typeof(pressure_acceleration_summation_density),
+                                                          typeof(pressure_acceleration_continuity_density),
+                                                          typeof(inter_particle_averaged_pressure)}) where {DC <:
+                                                                                                            Union{AdamiPressureExtrapolation,
+                                                                                                                  BernoulliPressureExtrapolation}}
+    return formulation(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a)
 end

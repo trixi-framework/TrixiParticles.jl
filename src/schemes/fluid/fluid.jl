@@ -349,7 +349,6 @@ function available_data(::AbstractFluidSystem)
     return (:coordinates, :velocity, :mass, :density, :pressure, :acceleration)
 end
 
-include("pressure_acceleration.jl")
 include("viscosity.jl")
 include("shifting_techniques.jl")
 include("surface_tension.jl")
