@@ -1,18 +1,3 @@
-# Extrapolated dummy pressure is reconstructed from the fluid, rather than an
-# independent pressure DOF. Close its pressure flux with the fluid-side gradient;
-# a ghost-side correction on the truncated wall/plate support creates spurious
-# constant-pressure forces. Structural reactions reuse this fluid-oriented force.
-@inline function use_fluid_boundary_pressure_gradient(::WeaklyCompressibleSPHSystem,
-                                                      neighbor_system,
-                                                      ::Union{typeof(pressure_acceleration_summation_density),
-                                                              typeof(pressure_acceleration_continuity_density),
-                                                              typeof(inter_particle_averaged_pressure)})
-    return hasproperty(neighbor_system, :boundary_model) &&
-           neighbor_system.boundary_model isa BoundaryModelDummyParticles &&
-           neighbor_system.boundary_model.density_calculator isa
-           Union{AdamiPressureExtrapolation, BernoulliPressureExtrapolation}
-end
-
 # Computes the forces that particles in `particle_system` experience from particles
 # in `neighbor_system` and updates `dv` accordingly.
 # It takes into account pressure forces, viscosity, and for `ContinuityDensity` updates
