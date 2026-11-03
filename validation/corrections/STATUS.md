@@ -24,7 +24,7 @@ from demonstrating hydrostatic accuracy or full-discretization convergence.
 The validation branch contains the stack-compatible support changes needed by these
 checks. The boundary-density history fix is isolated in
 [PR #1368](https://github.com/trixi-framework/TrixiParticles.jl/pull/1368); the WCSPH
-reconstructed-boundary pressure-force fix is isolated on `main` in
+reconstructed-boundary pressure-force fix is submitted separately against `main` in
 [PR #1369](https://github.com/trixi-framework/TrixiParticles.jl/pull/1369).
 These fixes do not by themselves establish stability of every correction variant.
 
@@ -74,6 +74,15 @@ the benchmark reference. The good `n=3` agreement is not evidence of structural
 resolution. The archived coupled study also retains declaration-order bound
 exceedances and late pressure peaks. Local affine consistency and interface momentum
 balance do not imply full-solver convergence or a stationary late-time solution.
+
+## Implementation verification
+
+The cleaned validation checkpoint passes **29,495 unit assertions**, **720 validation
+assertions** across the seven correction/hydrostatic validation test files, repository
+Aqua checks in their default configuration, and JuliaFormatter 2.1.1 checks for the
+47 changed Julia files. The validation tests include reduced operator, coupled,
+initialization, structural, reporting and resumption checks. Their passing result
+does not replace the long-run numerical outcomes above.
 
 ## Protocol and reference provenance
 
