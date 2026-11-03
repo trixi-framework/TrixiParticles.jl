@@ -328,6 +328,10 @@ function write2vtk!(vtk, v, u, t, system::AbstractFluidSystem)
     # Indexing the pressure is a workaround for slicing issue (see https://github.com/JuliaSIMD/StrideArrays.jl/issues/88)
     vtk["pressure"] = [current_pressure(v, system, particle)
                        for particle in eachparticle(system)]
+    if requires_initial_density_reference(system)
+        vtk["initial_density_offset"] = system.cache.initial_density_offset
+        vtk["initial_filtered_density_offset"] = system.cache.initial_filtered_density_offset
+    end
 
     if system.surface_normal_method !== nothing
         vtk["surf_normal"] = [surface_normal(system, particle)

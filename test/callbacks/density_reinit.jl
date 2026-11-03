@@ -218,6 +218,62 @@
                                                                          systems=(MockNoDensityReinitSystem(:boundary),)))
     end
 
+    @testset "moving-neighbor reinitialization (EDAC=$edac)" for edac in (false, true)
+        kernel = WendlandC6Kernel{2}()
+        equation = StateEquationCole(; sound_speed=10.0, reference_density=1000.0,
+                                     exponent=1)
+        function make_system(corner)
+            initial = RectangularShape(0.1, (2, 2), corner; density=1000.0)
+            return edac ?
+                   EntropicallyDampedSPHSystem(initial; smoothing_kernel=kernel,
+                                               smoothing_length=0.2, sound_speed=10.0,
+                                               density_calculator=ContinuityDensity()) :
+                   WeaklyCompressibleSPHSystem(initial; smoothing_kernel=kernel,
+                                               smoothing_length=0.2,
+                                               state_equation=equation,
+                                               density_calculator=ContinuityDensity())
+        end
+        semi = Semidiscretization(make_system((0.0, 0.0)), make_system((2.0, 0.0));
+                                  neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=SerialUpdate()),
+                                  parallelization_backend=SerialBackend())
+        ode = semidiscretize(semi, (0.0, 1.0); reset_threads=false)
+        semi = ode.p.semi
+        first_system, second_system = semi.systems
+        state = deepcopy(ode.u0)
+        v_ode, u_ode = state.x
+        v1,
+        v2 = TrixiParticles.wrap_v(v_ode, first_system, semi),
+             TrixiParticles.wrap_v(v_ode, second_system, semi)
+        u1,
+        u2 = TrixiParticles.wrap_u(u_ode, first_system, semi),
+             TrixiParticles.wrap_u(u_ode, second_system, semi)
+        v1[end, :] .= 1200
+        v2[end, :] .= 2000
+        # Move the second cloud across grid cells without refreshing its search.
+        u2[1, :] .-= 1.95
+        expected = zeros(size(v1, 2))
+        for a in axes(u1, 2)
+            numerator = 0.0
+            denominator = 0.0
+            for (system, v, u) in ((first_system, v1, u1), (second_system, v2, u2)),
+                b in axes(u, 2)
+                distance = norm(u1[:, a] - u[:, b])
+                weight = TrixiParticles.hydrodynamic_mass(system, b) *
+                         TrixiParticles.smoothing_kernel(first_system, distance, a)
+                numerator += weight
+                denominator += weight / v[end, b]
+            end
+            expected[a] = numerator / denominator
+        end
+        callback = DensityReinitializationCallback(first_system, semi; interval=1,
+                                                   reinit_initial_solution=false)
+        integrator = MockDensityReinitIntegrator((; semi), state, 0.05, nothing)
+        callback.affect!(integrator)
+        @test v1[end, :] ≈ expected rtol=1e-13
+        @test all(>(1200), v1[end, :])
+        @test all(==(2000), v2[end, :])
+    end
+
     @testset "nonuniform multi-system reinitialization with buffer" begin
         # Reinitialize one buffered system from a second interacting system without changing it.
         spacing = 0.1
@@ -292,7 +348,15 @@
         @test any(>(0), cross_contribution[active1])
     end
 
-    @testset "simultaneous interacting reinitialization" begin
+    @testset "simultaneous interacting reinitialization ($edac1, $edac2)" for (edac1,
+                                                                               edac2) in
+                                                                              ((false,
+                                                                                false),
+                                                                               (true, true),
+                                                                               (false,
+                                                                                true),
+                                                                               (true,
+                                                                                false))
         # Two callbacks must use the same pre-reinitialization state, independent of callback order.
         spacing = 0.1
         kernel = WendlandC6Kernel{2}()
@@ -300,11 +364,19 @@
                                            reference_density=1000.0, exponent=1)
         initial1 = RectangularShape(spacing, (2, 2), (0.0, 0.0); density=1000.0)
         initial2 = RectangularShape(spacing, (2, 2), (0.1, 0.0); density=1000.0)
-        system1 = WeaklyCompressibleSPHSystem(initial1; smoothing_kernel=kernel,
+        system1 = edac1 ?
+                  EntropicallyDampedSPHSystem(initial1; smoothing_kernel=kernel,
+                                              smoothing_length=2spacing, sound_speed=10.0,
+                                              density_calculator=ContinuityDensity()) :
+                  WeaklyCompressibleSPHSystem(initial1; smoothing_kernel=kernel,
                                               smoothing_length=2spacing,
                                               density_calculator=ContinuityDensity(),
                                               state_equation)
-        system2 = WeaklyCompressibleSPHSystem(initial2; smoothing_kernel=kernel,
+        system2 = edac2 ?
+                  EntropicallyDampedSPHSystem(initial2; smoothing_kernel=kernel,
+                                              smoothing_length=2spacing, sound_speed=10.0,
+                                              density_calculator=ContinuityDensity()) :
+                  WeaklyCompressibleSPHSystem(initial2; smoothing_kernel=kernel,
                                               smoothing_length=2spacing,
                                               density_calculator=ContinuityDensity(),
                                               state_equation)
@@ -321,6 +393,10 @@
         u2 = TrixiParticles.wrap_u(u_ode, system2, semi)
         v1[end, :] .= range(800.0, 1200.0; length=size(v1, 2))
         v2[end, :] .= range(1600.0, 2400.0; length=size(v2, 2))
+        edac1 && (v1[3, :] .= range(2.0, 3.0; length=size(v1, 2)))
+        edac2 && (v2[3, :] .= range(4.0, 5.0; length=size(v2, 2)))
+        pressure1_before = edac1 ? copy(v1[3, :]) : nothing
+        pressure2_before = edac2 ? copy(v2[3, :]) : nothing
         TrixiParticles.update_nhs!(semi, u_ode)
 
         # Construct both expected densities before either callback writes to the shared state.
@@ -356,6 +432,8 @@
         @test v1[end, :]≈expected1 rtol=2e-14 atol=2e-14
         @test v2[end, :]≈expected2 rtol=2e-14 atol=2e-14
         @test callback2.last_t == integrator.t
+        edac1 && @test v1[3, :] == pressure1_before
+        edac2 && @test v2[3, :] == pressure2_before
         density_after = copy(v2[end, :])
         callback2(integrator)
         @test v2[end, :] == density_after

@@ -175,20 +175,25 @@ end
 
 # Formulation using both corrected gradients whenever either endpoint uses a correction that
 # breaks pair-gradient symmetry. Both directed evaluations then use the same formulation.
+# Reconstructed boundary pressures can instead use a fluid-side closure, selected by the scheme.
+@inline use_fluid_boundary_pressure_gradient(system, neighbor, formulation) = false
+
 @inline function pressure_acceleration(particle_system, neighbor_system, particle, neighbor,
                                        m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
                                        distance, W_a, correction)
+    formulation = pressure_acceleration_formulation(particle_system)
+    if use_fluid_boundary_pressure_gradient(particle_system, neighbor_system, formulation)
+        return formulation(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a)
+    end
     if has_asymmetric_gradient(correction) ||
        has_asymmetric_gradient(hydrodynamic_correction(neighbor_system))
         W_b = hydrodynamic_smoothing_kernel_grad(neighbor_system, -pos_diff, distance,
                                                  neighbor)
 
-        return pressure_acceleration_formulation(particle_system)(m_a, m_b, rho_a, rho_b,
-                                                                  p_a, p_b, W_a, W_b)
+        return formulation(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a, W_b)
     end
 
-    return pressure_acceleration_formulation(particle_system)(m_a, m_b, rho_a, rho_b,
-                                                              p_a, p_b, W_a)
+    return formulation(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a)
 end
 
 function check_pressure_acceleration_configuration(systems, interaction_matrix)

@@ -72,3 +72,42 @@ end
     # The pressure must be recomputed from the reinitialized density.
     @test maximum(abs, setup.system.pressure) < 2e-10
 end
+
+@testset "Evolved-density impulse reinitialization" begin
+    for edac in (false, true)
+        setup = correction_setup(nothing; edac, density_calculator=ContinuityDensity())
+        (; system, semi, v_ode, u_ode) = setup
+        v = TrixiParticles.wrap_v(v_ode, system, semi)
+        u = TrixiParticles.wrap_u(u_ode, system, semi)
+        particle = cld(nparticles(system), 2)
+        v[end, :] .= 1200.0
+        v[end, particle] = 1600.0
+        if edac
+            v[3, :] .= range(2.0, 5.0; length=size(v, 2))
+        end
+        pressure_before = copy(TrixiParticles.current_pressure(v, system))
+
+        # With one density impulse, Shepard's evolved-volume result has a closed
+        # harmonic-mean expression. A no-op or initial-density volumes cannot satisfy it.
+        numerator = Ref(0.0)
+        coordinates = TrixiParticles.current_coordinates(u, system)
+        TrixiParticles.foreach_point_neighbor(system, system, coordinates, coordinates,
+                                              semi;
+                                              points=particle:particle) do a, b, r, distance
+            numerator[] += TrixiParticles.hydrodynamic_mass(system, b) *
+                           TrixiParticles.smoothing_kernel(system, distance, a)
+        end
+        self_weight = TrixiParticles.hydrodynamic_mass(system, particle) *
+                      TrixiParticles.smoothing_kernel(system, 0.0, particle)
+        expected = numerator[] / (numerator[] / 1200 + self_weight * (1/1600 - 1/1200))
+        TrixiParticles.reinit_density!(system, v, u, v_ode, u_ode, semi)
+        @test v[end, particle] ≈ expected rtol=1e-13
+        @test 1200 < v[end, particle] < 1600
+        if edac
+            @test TrixiParticles.current_pressure(v, system) == pressure_before
+        else
+            @test system.pressure ≈
+                  system.state_equation.(TrixiParticles.current_density(v, system))
+        end
+    end
+end

@@ -66,8 +66,14 @@ where ``V_b = m_b / \rho_b`` is the volume of particle ``b``.
 
 This correction is applied with [`SummationDensity`](@ref) to correct the density and leads
 to an improvement, especially at free surfaces. With summation density, the current one-pass
-implementation uses the density available when each system is processed and therefore reduces
-the free-surface error without guaranteeing convergence for multiple interacting systems.
+implementation forms fluid volumes from raw summation density. For WCSPH, EOS-backed
+pressure-extrapolated boundary densities are first predicted from the current raw fluid
+pressure, avoiding dependence on a previous RHS evaluation. This reduces free-surface
+error without removing a uniform particle-quadrature bias or guaranteeing convergence
+for multiple interacting systems.
+With WCSPH initial-density correction, the filter still uses raw summation volumes;
+its initial error is removed by a fixed density offset. Boundary prediction uses
+the unfiltered reference-corrected density estimate.
 [`DensityReinitializationCallback`](@ref) computes all simultaneously requested corrections
 from the independently evolved continuity density before replacing any density.
 

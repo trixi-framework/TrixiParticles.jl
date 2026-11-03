@@ -31,6 +31,11 @@ end
                                     reinit_initial_solution=true)
 
 Callback to reinitialize the density field when using [`ContinuityDensity`](@ref) [Panizzo2007](@cite).
+WCSPH and EDAC use Shepard normalization with particle volumes from the evolved
+density, computed before any selected density is overwritten. WCSPH recomputes
+equation-of-state pressure afterwards; EDAC preserves its independent pressure state.
+Current geometry and derived neighbor quantities are refreshed at callback execution,
+including when earlier callbacks have moved particles since the last RHS evaluation.
 
 Pass a `system` together with the [`Semidiscretization`](@ref TrixiParticles.Semidiscretization) that contains it.
 The callback stores the system index and retrieves the corresponding system from the
@@ -82,10 +87,6 @@ function initialize_reinit_cb!(cb::DensityReinitializationCallback, u, t, integr
     check_density_reinit_system(current_reinit_system(cb.system_index, semi))
 
     if cb.reinit_initial_solution && cb.last_t != t
-        # Update systems to compute quantities like density and pressure.
-        v_ode, u_ode = u.x
-        update_systems_and_nhs(v_ode, u_ode, semi, t)
-
         callbacks = simultaneous_reinit_callbacks(cb, integrator; initial=true)
         apply_reinitialization!(callbacks, integrator)
     end
@@ -124,6 +125,10 @@ end
 function apply_reinitialization!(callbacks, integrator)
     vu_ode = integrator.u
     semi = integrator.p.semi
+    # Earlier callbacks can move particles after the last RHS. Freeze all volume
+    # coefficients from the same current geometry/state before any density reset.
+    v_ode, u_ode = vu_ode.x
+    update_systems_and_nhs(v_ode, u_ode, semi, integrator.t)
 
     @trixi_timeit timer() "reinit density" begin
         if length(callbacks) == 1

@@ -6,6 +6,16 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ## Version 0.6.0
 
+### Features
+
+- Added opt-in initial-density reference correction for WCSPH summation density,
+  including Shepard-filtered states and restart persistence. The hydrostatic plate
+  benchmark enables it to preserve the prescribed initial density and EOS pressure.
+- Added manufactured SPH correction consistency and coupled hydrostatic plate validation
+  studies, including resumable h-halving refinement, a long-duration scheme/density/
+  correction cross-product with explicit method definitions, evolved-volume audits,
+  multiresolution references, sixteen-panel reports, and interface-force checks (#1286).
+
 ### API Changes
 
 - Replaced the `correction` keyword of `WeaklyCompressibleSPHSystem`,
@@ -20,6 +30,17 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Important Bugfixes
 
+- Fixed corrected WCSPH pressure fluxes at Adami/Bernoulli dummy boundaries to use the
+  fluid-side gradient, removing spurious constant-pressure forces while retaining
+  the exact opposite structural reaction (#1369).
+- Removed RHS-history dependence from Shepard-filtered WCSPH summation density at
+  EOS-backed pressure boundaries by predicting boundary densities from current raw
+  fluid pressure before normalization (#1368).
+- Implemented continuity-density reinitialization for EDAC, including evolved-density
+  particle volumes and simultaneous mixed-scheme updates, while preserving EDAC pressure.
+  Density resets now refresh current geometry and neighbor quantities before computing volumes.
+- Fixed spurious corrected EDAC pressure loads at Adami dummy boundaries by using the
+  fluid-side pressure gradient and retaining the exact opposite fluid-structure reaction.
 - Fixed SPH correction updates to apply density corrections before pressure and update
   boundary, gradient, and surface quantities in consistent phases across fluid and
   structure systems (#1284).

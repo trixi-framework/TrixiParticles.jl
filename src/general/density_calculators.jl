@@ -7,6 +7,11 @@ Density calculator to use the summation formula
 ```
 for the density estimation,
 where ``r_b`` denotes the coordinates and ``m_b`` the mass of particle ``b``.
+
+For a prescribed reference state, [`WeaklyCompressibleSPHSystem`](@ref) supports
+`initial_density_correction=true`. If ``R`` denotes the raw or Shepard-filtered
+density operator, this option uses ``\rho_a(t)=\rho_a(0)+R_a(t)-R_a(0)``.
+The per-particle reference offsets are fixed while density continues to respond to motion.
 """
 struct SummationDensity end
 

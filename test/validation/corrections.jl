@@ -1,6 +1,9 @@
-@testset "Analytical operator scaling" begin
-    include(joinpath(validation_dir(), "corrections", "convergence.jl"))
-    results = CorrectionConvergence.run_convergence(; resolutions=(12, 24, 48))
+@trixi_testset "Correction operator scaling" begin
+    using Base64: base64decode
+    @trixi_test_nowarn trixi_include(@__MODULE__,
+                                     joinpath(validation_dir(), "corrections",
+                                              "validation_corrections.jl");
+                                     resolutions=(12, 24, 48), output_directory=mktempdir())
     @test all(result -> isfinite(result.error), results)
 
     function finest(method, operator, region)
@@ -69,4 +72,47 @@
         continuity = finest(:none, :pressure_continuity, region)
         @test tensile.error ≈ continuity.error rtol = 5e-13
     end
+
+    saved_results = CSV.read(csv_file, DataFrame)
+    @test saved_results.l2_error == getproperty.(results, :error)
+    @test saved_results.resolution == getproperty.(results, :resolution)
+    @test occursin("not full-discretization convergence orders", read(report_file, String))
+
+    @trixi_test_nowarn trixi_include(@__MODULE__,
+                                     joinpath(validation_dir(), "corrections",
+                                              "plot_correction_results.jl");
+                                     output_directory, hydrostatic_directories=()) [
+        r"GKS: cannot open display - headless operation mode active\n"
+    ]
+    @test Set(keys(report.figures)) == Set(["operators"])
+    @test length(report.figures["operators"].subplots) == 4
+    @test sum(envelope -> envelope.count, report.operator_envelopes) == length(results)
+    @test all(eachrow(saved_results)) do row
+        matches = filter(envelope -> envelope.method == row.method &&
+                                     envelope.region == row.region &&
+                                     row.operator in envelope.operators,
+                         report.operator_envelopes)
+        length(matches) == 1 || return false
+        envelope = only(matches)
+        index = only(findall(==(row.resolution), envelope.resolution))
+        return envelope.lower[index] <= row.l2_error <= envelope.upper[index]
+    end
+    @test report.operator_rows == length(results)
+    @test occursin("zero acceleration", report.html)
+    @test occursin("production one-pass density can retain a floor", report.html)
+    @test !occursin(r"(?:src|href)='https?://", report.html)
+    @test read(report_file, String) == report.html
+    encoded = match(r"download='correction_convergence.csv' href='data:text/csv;base64,([^']+)'",
+                    report.html).captures[1]
+    embedded = CSV.read(IOBuffer(base64decode(encoded)), DataFrame)
+    @test embedded.l2_error == saved_results.l2_error
+    @test embedded.operator == saved_results.operator
+    for (order, name) in ((1, "O(h) guide"), (2, "O(h²) guide"))
+        reference = only(filter(series -> series[:label] == name,
+                                report.figures["operators"].subplots[1].series_list))
+        x, y = reference[:x], reference[:y]
+        @test log(first(y) / last(y)) / log(last(x) / first(x)) ≈ order
+    end
+    @test length(collect(eachmatch(r"<img ", report.html))) == 1
+    @test !any(endswith(".png"), readdir(output_directory))
 end

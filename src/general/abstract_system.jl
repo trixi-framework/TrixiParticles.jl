@@ -52,6 +52,15 @@ end
 
 initialize!(system, semi) = system
 
+requires_density_boundary_prediction(system) = false
+requires_initial_density_reference(system) = false
+density_reference_initialized(system) = true
+initialize_density_reference!(system, u, u_ode, semi) = system
+initialize_shepard_reference!(system) = system
+finalize_density_reference!(system) = system
+prepare_density_predictor!(system) = system
+restore_density_predictor!(system) = system
+
 # This should not be dispatched by system type. We always expect the first index of `A`
 # to enumerate spatial dimensions.
 @propagate_inbounds function extract_svector(A, system, i...)

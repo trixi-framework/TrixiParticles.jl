@@ -482,6 +482,36 @@ function write_v0!(v0, system::EntropicallyDampedSPHSystem, ::ContinuityDensity)
     return v0
 end
 
+function reinit_density!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, semi)
+    coefficient = prepare_reinit_density!(system, v, u, v_ode, u_ode, semi)
+    apply_reinit_density!(system, coefficient, v, u, v_ode, u_ode, semi)
+    return system
+end
+
+function prepare_reinit_density!(system::EntropicallyDampedSPHSystem, v, u,
+                                 v_ode, u_ode, semi)
+    return prepare_reinit_density!(system, system.density_calculator, v, u, v_ode, u_ode,
+                                   semi)
+end
+
+function prepare_reinit_density!(system::EntropicallyDampedSPHSystem, ::ContinuityDensity,
+                                 v, u, v_ode, u_ode, semi)
+    return prepare_shepard_reinit_density(system, v, u, v_ode, u_ode, semi)
+end
+
+function apply_reinit_density!(system::EntropicallyDampedSPHSystem, coefficient,
+                               v, u, v_ode, u_ode, semi)
+    return apply_reinit_density!(system, system.density_calculator, coefficient,
+                                 v, u, v_ode, u_ode, semi)
+end
+
+function apply_reinit_density!(system::EntropicallyDampedSPHSystem, ::ContinuityDensity,
+                               coefficient, v, u, v_ode, u_ode, semi)
+    isnothing(coefficient) && return system
+    # EDAC pressure is an independent ODE variable, not an equation-of-state value.
+    return apply_shepard_reinit_density!(system, coefficient, v, u, v_ode, u_ode, semi)
+end
+
 function restart_with!(system::EntropicallyDampedSPHSystem, v, u)
     for particle in each_integrated_particle(system)
         system.initial_condition.coordinates[:, particle] .= u[:, particle]

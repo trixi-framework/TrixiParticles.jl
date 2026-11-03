@@ -212,7 +212,7 @@ Pages = [joinpath("schemes", "fluid", "viscosity.jl")]
 ## [Corrections](@id corrections)
 
 Gradient corrections generally make the two kernel gradients of a particle pair asymmetric.
-The corresponding eight-argument pressure formulations are therefore selected when either
+For fluid-fluid pairs, the corresponding eight-argument pressure formulations are selected when either
 particle's hydrodynamic correction can produce an asymmetric gradient, even when a particular
 pair happens to satisfy
 ``\nabla W_b = -\nabla W_a``. In that symmetric case, the asymmetric formulation reduces to
@@ -233,8 +233,26 @@ construction.
 
 For fluid-structure interaction, a `TotalLagrangianSPHSystem` keeps its structural smoothing
 kernel independent from the hydrodynamic kernel stored in its boundary model. Hydrodynamic
-correction caches and fluid pressure interactions use the boundary-model kernel and smoothing
-length.
+correction caches and evaluations of boundary-side gradients use the boundary-model kernel
+and smoothing length.
+
+EDAC's default inter-particle pressure formulation uses a fluid-side closure at
+[`AdamiPressureExtrapolation`](@ref) dummy boundaries. The boundary pressure is reconstructed
+from the fluid rather than evolved by a second pressure equation. Its pressure flux therefore
+uses the fluid's local corrected gradient, without adding a second gradient reconstructed on
+the truncated dummy-particle support:
+
+```math
+\bm{a}_{a\leftarrow b} = -\frac{V_a^2+V_b^2}{m_a}
+\frac{\rho_b p_a+\rho_a p_b}{\rho_a+\rho_b}\,
+\widetilde{\nabla} W_{ab}^{(a)}.
+```
+
+For a rigid or deformable structure, the reaction is still computed from the same fluid-oriented
+flux and applied as ``\bm{F}_{b\leftarrow a}=-m_a\bm{a}_{a\leftarrow b}``. Thus this boundary
+closure preserves interface linear momentum while avoiding a spurious load from the dummy
+correction matrix. Independent fluid pairs and other pressure formulations retain their
+two-endpoint conservative formulation.
 
 ### Configuration
 
@@ -265,6 +283,29 @@ IISPH relies on antisymmetric raw kernel gradients throughout its pressure matri
 asymmetric corrected gradient would require rederiving every projection term, so corrections are
 intentionally not exposed for IISPH.
 
+### Prescribed initial density with WCSPH summation density
+
+For a prescribed reference state, such as a hydrostatic water column, enable
+`initial_density_correction=true` in [`WeaklyCompressibleSPHSystem`](@ref).
+If ``R_a`` is the raw or Shepard-filtered density operator, the physical density becomes
+
+```math
+\rho_a(t) = \rho_a(0) + R_a(t) - R_a(0).
+```
+
+The reference offsets are computed once by [`semidiscretize`](@ref), using the actual
+particle configuration and interacting boundaries. Particle masses are retained, and
+density continues to respond to particle motion. With Shepard filtering, the existing
+raw summation volumes are used in the normalizer, while boundary prediction uses an
+unfiltered reference-corrected density estimate. The filtered reference offset is
+applied before the final EOS pressure and boundary updates.
+
+This option requires a fixed particle set without a particle buffer. The reference
+arrays are retained during in-memory restart and stored in VTK restart files.
+The hydrostatic plate example enables this option for WCSPH summation density through
+`initialize_summation_density=true`; use `false` to reproduce its earlier initialization.
+Gradient consistency and subsequent stability remain properties of the selected SPH operators.
+
 The default pressure acceleration is selected to match the density evolution law. When passing a
 formulation explicitly, the caller is responsible for choosing the corresponding pairing:
 
@@ -282,6 +323,12 @@ gradient is antisymmetric and give equal-and-opposite pair forces for arbitrary 
 gradients. Tensile instability control has no such extension and is therefore rejected with
 `KernelCorrection`, `GradientCorrection`, `BlendedGradientCorrection`, and
 `MixedKernelGradientCorrection`.
+
+At Adami/Bernoulli dummy boundaries, the three built-in WCSPH pressure forms use the
+fluid-side corrected gradient. Their reconstructed ghost pressure is not an independent
+pressure degree of freedom; a second correction on the truncated ghost support can
+create constant-pressure forces. Structural reactions reuse the same fluid-oriented
+pair force with the opposite sign. Fluid-fluid interactions retain both endpoint gradients.
 
 ### Consistency validation
 
@@ -339,6 +386,21 @@ ideal normalized interpolation and the production summation-density update as se
 The continuity-density reinitialization uses the evolved density as an independent volume source
 and therefore recovers the expected Shepard scaling.
 
+With WCSPH, particle quadrature bias is also amplified by the equation of state:
+near the reference density, ``\delta p\approx c^2\delta\rho``. For example, a square
+Wendland C2 lattice at ``h/\Delta x=\sqrt{2}`` has the dimensionless kernel sum
+``1.006347``; at ``\rho_0=1000`` and ``c=50``, this alone produces about ``16.2`` kPa
+of pressure at nominal rest. The bias persists at fixed ``h/\Delta x``. Free-surface
+support truncation instead lowers density and can create large negative pressures.
+Pressure clipping can suppress attraction but does not remove the interior quadrature
+bias or establish hydrostatic accuracy.
+
+For Shepard-filtered WCSPH with EOS-backed pressure-extrapolated boundaries, boundary
+densities are predicted from the current **raw** fluid pressure before normalization.
+The final boundary pass uses the corrected fluid pressure. This staging keeps repeated
+RHS evaluations independent of previous boundary caches; it does not solve the separate
+density-consistent-initialization and free-surface approximation problems.
+
 These are local operator scalings on self-similar regular particle patches with
 ``h\propto\Delta x``; they are not convergence rates of the complete SPH scheme. Classical SPH
 also has a particle quadrature error depending on ``\Delta x/h`` and the particle distribution.
@@ -346,13 +408,22 @@ Formal convergence without consistency correction generally requires the joint l
 ``h\to0``, ``\Delta x/h\to0``, and an increasing neighbor count
 ([Quinlan et al. (2006)](@cite Quinlan2006); [Zhu et al. (2015)](@cite Zhu2015)).
 
-The reproducible study reports boundary and interior scalings separately. It prints a Markdown
-table and writes its complete data to
-`out/correction_convergence.csv`:
+The reproducible study reports boundary and interior scalings separately. Its validation runner
+prints a Markdown table and saves the complete data and report to
+`out/correction_convergence.csv` and `out/correction_convergence.md`:
 
 ```bash
-julia --project=. validation/corrections/convergence.jl
+julia --project=. validation/corrections/validation_corrections.jl
 ```
+
+Like the other validation cases, the runner supports `trixi_include` overrides for
+`resolutions` and `output_directory`. `validation/corrections/plot_correction_results.jl`
+builds one self-contained `correction_validation.html` report. Its default expanded
+hydrostatic layout has four four-panel figures; compact mode (`expanded=false`) has two.
+All operator variants are represented
+by curves or min–max bands, with boundary/interior styles and theoretical slope guides.
+Figures and full-precision source data are embedded for offline viewing; printing produces
+one multipanel figure per page.
 
 #### Measured operator scaling
 
@@ -407,6 +478,38 @@ constrain one particle's gradient operator, but do not impose consistency on a c
 assembled from two differently truncated neighborhoods. This limitation is reported rather than
 hidden by applying a non-conservative one-sided pressure difference. The complete boundary and
 interior data for every variation are written to `out/correction_convergence.csv`.
+
+#### Coupled hydrostatic validation
+
+`validation/hydrostatic_water_column_2d/validation_corrections.jl` complements the local
+operator study with correction-enabled variants of the elastic-plate hydrostatic benchmark.
+It compares uncorrected, Shepard density-only, mixed-gradient-only, and combined configurations
+with continuity density for WCSPH and summation density for EDAC, plus periodic
+Shepard density reinitialization where continuity density is evolved. The wall and plate
+boundary models use matching gradient corrections. The hydrostatic reference includes the
+tank's coordinate translation and the compressible Cole profile for WCSPH.
+
+The runner records density and hydrostatic-pressure errors, plate-deflection histories and their
+analytical comparison, and an interface action/reaction residual including clamped particles.
+WCSPH additionally checks pressure against the equation of state evaluated at the updated density;
+EDAC pressure is assessed against the hydrostatic reference through its independent evolution.
+Repeating the combined case with reversed fluid/structure declaration order checks the update
+lifecycle. Per-case JSON/CSV histories, a parameter record, refinement summaries, and system-order
+comparisons are saved under `out_hydrostatic_corrections`. The adjacent README and
+`plot_correction_results.jl` describe and visualize these outputs. Reduced versions of both studies
+run with the other validation cases in CI.
+The validation [status and limitations](https://github.com/trixi-framework/TrixiParticles.jl/pull/1286)
+remain separate from the regression results: neither local consistency nor a completed
+trajectory establishes full-solver convergence or universal stability.
+
+Initial-state diagnostics separately measure local affine-gradient consistency and the
+gravity/pressure force balance of the assembled momentum equation. A mixed gradient can
+reproduce the affine pressure gradient exactly while a conservative pair formulation retains
+a free-surface force defect; successful moment and action/reaction checks alone do not establish
+hydrostatic accuracy of the complete scheme. The fluid-side EDAC/Adami closure removes the
+additional dummy-boundary contribution and is checked against matched uncorrected runs.
+Matched baseline/corrected error ratios are saved
+in `hydrostatic_correction_comparisons.csv`.
 
 ```@autodocs
 Modules = [TrixiParticles]

@@ -112,6 +112,8 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
 
     update_implicit_sph!(semi, v_ode, u_ode, t)
 
+    prepare_density_boundary_values!(semi, v_ode, u_ode, t)
+
     # Correction moments can use densities from every interacting system. Assemble every
     # coefficient before correcting any density so all systems observe the same state.
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
@@ -149,6 +151,74 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_final!(system, v, u, v_ode, u_ode, semi, t)
     end
+end
+
+function initialize_density_references!(v_ode, u_ode, semi, t)
+    any(system -> !density_reference_initialized(system), semi.systems) || return semi
+
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
+        update_positions!(system, v, u, v_ode, u_ode, semi, t)
+    end
+    update_nhs!(semi, u_ode)
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
+        initialize_density_reference!(system, u, u_ode, semi)
+    end
+
+    # Measure only the density operator. Its uncorrected intermediate value may
+    # produce an inadmissible EOS boundary pressure before the offset is known.
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
+        update_quantities!(system, v, u, v_ode, u_ode, semi, t)
+    end
+    update_implicit_sph!(semi, v_ode, u_ode, t)
+    prepare_density_boundary_values!(semi, v_ode, u_ode, t)
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
+        update_density_correction_values!(system, v, u, v_ode, u_ode, semi, t)
+    end
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
+        update_density_correction!(system, v, u, v_ode, u_ode, semi, t)
+    end
+    foreach_system(semi) do system
+        initialize_shepard_reference!(system)
+    end
+    update_systems_and_nhs(v_ode, u_ode, semi, t)
+    foreach_system(finalize_density_reference!, semi)
+    return semi
+end
+
+function pressure_density_boundary(system)
+    hasproperty(system, :boundary_model) || return false
+    model = system.boundary_model
+    return model isa BoundaryModelDummyParticles &&
+           model.density_calculator isa Union{AdamiPressureExtrapolation,
+                 BernoulliPressureExtrapolation} &&
+           !isnothing(model.state_equation)
+end
+
+function needs_density_boundary_prediction(system, semi)
+    pressure_density_boundary(system) || return false
+    return any(neighbor -> requires_density_boundary_prediction(neighbor) &&
+                           has_system_interaction(neighbor, system, semi), semi.systems)
+end
+
+function prepare_density_boundary_values!(semi, v_ode, u_ode, t)
+    any(requires_density_boundary_prediction, semi.systems) || return semi
+    any(system -> needs_density_boundary_prediction(system, semi), semi.systems) ||
+        return semi
+
+    # Shepard volumes include m_b/ρ_b of pressure-extrapolated boundaries. Derive
+    # those densities from the current raw fluid state, not a previous RHS call.
+    # The normal pressure/boundary pass below still uses the corrected fluid density.
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
+        system isa WeaklyCompressibleSPHSystem || return
+        prepare_density_predictor!(system)
+        update_pressure!(system, v, u, v_ode, u_ode, semi, t)
+    end
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
+        needs_density_boundary_prediction(system, semi) || return
+        update_boundary_interpolation!(system, v, u, v_ode, u_ode, semi, t)
+    end
+    foreach_system(restore_density_predictor!, semi)
+    return semi
 end
 
 # Some systems accumulate pairwise interaction state outside `dv_ode`. Reset that state once
