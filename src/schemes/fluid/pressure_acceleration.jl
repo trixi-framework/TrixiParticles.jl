@@ -143,6 +143,9 @@ end
 
 @inline pressure_acceleration_formulation(system) = system.pressure_acceleration_formulation
 
+# Reconstructed boundary pressures can use a fluid-side closure, selected by the scheme.
+@inline use_fluid_boundary_pressure_gradient(system, neighbor_system, formulation) = false
+
 # Formulation using symmetric gradient formulation for corrections not depending on local neighborhood.
 @inline function pressure_acceleration(particle_system, neighbor_system, particle, neighbor,
                                        m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
@@ -161,10 +164,13 @@ end
                                                          GradientCorrection,
                                                          BlendedGradientCorrection,
                                                          MixedKernelGradientCorrection})
+    formulation = pressure_acceleration_formulation(particle_system)
+    if use_fluid_boundary_pressure_gradient(particle_system, neighbor_system, formulation)
+        return formulation(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a)
+    end
     W_b = smoothing_kernel_grad(neighbor_system, -pos_diff, distance, neighbor)
 
     # With correction, the kernel gradient is not necessarily symmetric, so call the
     # asymmetric version of the pressure acceleration formulation.
-    return pressure_acceleration_formulation(particle_system)(m_a, m_b, rho_a, rho_b,
-                                                              p_a, p_b, W_a, W_b)
+    return formulation(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a, W_b)
 end

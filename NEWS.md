@@ -29,6 +29,9 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Important Bugfixes
 
+- Fixed corrected WCSPH pressure forces at Adami/Bernoulli dummy boundaries to use the
+  fluid-side gradient, removing spurious constant-pressure forces while retaining
+  the exact opposite structural reaction.
 - Fixed structure-fluid reaction forces with asymmetric corrected fluid kernel
   gradients by evaluating the fluid-first gradient directly. The continuity equation
   of `RigidBodySystem` boundaries with `ContinuityDensity` now uses the kernel gradient
