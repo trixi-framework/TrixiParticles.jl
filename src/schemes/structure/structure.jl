@@ -17,6 +17,21 @@ end
     end
 end
 
+@inline function pressure_acceleration(particle_system,
+                                       neighbor_system::Union{TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles},
+                                                              RigidBodySystem{<:BoundaryModelDummyParticles}},
+                                       particle, neighbor, m_a, m_b, p_a, p_b, rho_a, rho_b,
+                                       pos_diff, distance, W_a,
+                                       correction::Union{KernelCorrection,
+                                                         GradientCorrection,
+                                                         BlendedGradientCorrection,
+                                                         MixedKernelGradientCorrection})
+    # Use the boundary model's kernel and correction data for fluid pressure.
+    return pressure_acceleration(particle_system, neighbor_system.boundary_model,
+                                 particle, neighbor, m_a, m_b, p_a, p_b, rho_a, rho_b,
+                                 pos_diff, distance, W_a, correction)
+end
+
 # Both FSI directions must find the same particle pairs and use matching boundary and
 # fluid kernels. The TLSPH kernel for solid mechanics may differ.
 # Note that this is only a restriction for `BoundaryModelDummyParticles`, since
