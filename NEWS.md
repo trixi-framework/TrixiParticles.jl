@@ -4,6 +4,15 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.5.5
+
+### Features
+
+- Added `BoundaryModelDummyParticles(initial_condition; fluid_system, ...)`, which infers
+  kernel, smoothing length, correction, and state equation from the adjacent fluid system.
+  `OpenBoundarySystem` now defaults to `BoundaryModelMirroringTafuni` and infers its
+  buffer size from the fluid system (#1145).
+
 ## Version 0.5.4
 
 ### API Changes
