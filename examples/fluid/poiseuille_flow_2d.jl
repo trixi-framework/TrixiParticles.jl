@@ -2,8 +2,9 @@
 # 2D Poiseuille Flow Simulation (Weakly Compressible SPH)
 #
 # Based on:
-#   Zhan, X., et al. "Dynamical pressure boundary condition for weakly compressible smoothed particle hydrodynamics"
-#   Physics of Fluids, Volume 37
+#   Shuoguo Zhang, Yu Fan, Dong Wu, Chi Zhang, Xiangyu Hu.
+#   "Dynamical pressure boundary condition for weakly compressible smoothed particle hydrodynamics".
+#   Physics of Fluids 37, 027193 (2025).
 #   https://doi.org/10.1063/5.0254575
 #
 # This example sets up a 2D Poiseuille flow simulation in a rectangular channel
@@ -18,7 +19,8 @@ using OrdinaryDiffEqLowStorageRK
 channel_height = 0.001 # distance between top and bottom walls
 channel_length = 0.004 # distance between inlet and outlet
 
-particle_spacing = channel_height / 30
+particle_spacing_factor = 30
+particle_spacing = channel_height / particle_spacing_factor
 
 # Make sure that the kernel support of fluid particles at a boundary is always fully sampled
 boundary_layers = 4
@@ -41,8 +43,8 @@ reynolds_number = 50
 imposed_pressure_drop = 0.1
 outlet_pressure = 0.1
 inlet_pressure = outlet_pressure + imposed_pressure_drop
-const dynamic_viscosity = sqrt(fluid_density * channel_height^3 * imposed_pressure_drop /
-                               (8 * channel_length * reynolds_number))
+dynamic_viscosity = sqrt(fluid_density * channel_height^3 * imposed_pressure_drop /
+                         (8 * channel_length * reynolds_number))
 
 v_max = channel_height^2 * imposed_pressure_drop / (8 * dynamic_viscosity * channel_length)
 
@@ -51,10 +53,13 @@ sound_speed = sound_speed_factor * v_max
 
 flow_direction = (1.0, 0.0)
 
+# Linear pressure distribution of the steady-state solution
+function initial_pressure_function(pos)
+    return outlet_pressure + imposed_pressure_drop * (1 - pos[1] / channel_length)
+end
+
 channel = RectangularTank(particle_spacing, domain_size, domain_size, fluid_density,
-                          pressure=(pos) -> outlet_pressure +
-                                            imposed_pressure_drop *
-                                            (1 - (pos[1] / channel_length)),
+                          pressure=initial_pressure_function,
                           n_layers=boundary_layers, faces=(false, false, true, true),
                           coordinates_eltype=Float64)
 
@@ -147,6 +152,22 @@ open_boundary = OpenBoundarySystem(inlet_boundary_zone, outlet_boundary_zone; fl
                                    boundary_model=open_boundary_model,
                                    calculate_flow_rate=true,
                                    buffer_size=n_buffer_particles)
+
+# The WCSPH system computes the pressure from the density and ignores the pressure of the
+# initial condition. Thus, the fluid would start at zero pressure, which is inconsistent
+# with the pressure prescribed at the open boundaries. The resulting initial pressure wave
+# can push particles out of the domain at high resolutions.
+# TODO set the density in the initial condition once #1340 is merged.
+if use_wcsph
+    for system in (fluid_system, open_boundary)
+        (; coordinates, density) = system.initial_condition
+        for particle in TrixiParticles.each_integrated_particle(system)
+            pressure = initial_pressure_function(coordinates[:, particle])
+            density[particle] = TrixiParticles.inverse_state_equation(state_equation,
+                                                                      pressure)
+        end
+    end
+end
 
 # ==========================================================================================
 # ==== Boundary
