@@ -101,7 +101,8 @@
         velocity = [13.0 11.0 14.0 12.0
                     23.0 21.0 24.0 22.0]
         density = [103.0, 101.0, 104.0, 102.0]
-        mass = ones(4)
+        # Use different masses to check that masses are sorted as well
+        mass = [1.3, 1.1, 1.4, 1.2]
         state_equation = Val(:state_equation)
         smoothing_kernel = SchoenbergCubicSplineKernel{2}()
         smoothing_length = 0.1
@@ -124,6 +125,7 @@
         @test v == velocity[:, perm]
         @test system.cache.density == density[perm]
         @test system.pressure == [203.0, 201.0, 204.0, 202.0][perm]
+        @test system.mass == mass[perm]
     end
 
     @testset "Illegal Input" begin

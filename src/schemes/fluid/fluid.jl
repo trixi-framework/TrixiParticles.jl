@@ -314,6 +314,19 @@ function restart_v(system::AbstractFluidSystem, data)
     return velocity_total
 end
 
+function restore_previous_state!(system::AbstractFluidSystem, restart_file)
+    data = vtk2trixi(restart_file; create_initial_condition=false)
+
+    # Restore the per-particle masses, which might not be constant.
+    # Older restart files don't contain masses, so we keep the initial masses in this case.
+    if haskey(data, :mass)
+        n_active_particles = length(data.mass)
+        system.mass[1:n_active_particles] .= data.mass
+    end
+
+    return system
+end
+
 function check_configuration(fluid_system::AbstractFluidSystem, systems, nhs)
     if !(fluid_system isa ParticlePackingSystem) && !isnothing(fluid_system.surface_tension)
         foreach_system(systems) do neighbor

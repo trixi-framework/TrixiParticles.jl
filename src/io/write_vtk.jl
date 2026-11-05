@@ -328,6 +328,8 @@ function write2vtk!(vtk, v, u, t, system::AbstractFluidSystem)
     # Indexing the pressure is a workaround for slicing issue (see https://github.com/JuliaSIMD/StrideArrays.jl/issues/88)
     vtk["pressure"] = [current_pressure(v, system, particle)
                        for particle in eachparticle(system)]
+    vtk["mass"] = [hydrodynamic_mass(system, particle)
+                   for particle in eachparticle(system)]
 
     if system.surface_normal_method !== nothing
         vtk["surf_normal"] = [surface_normal(system, particle)

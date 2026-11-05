@@ -25,6 +25,40 @@
         end
     end
 
+    @trixi_testset "Non-Constant Particle Masses" begin
+        # Two fluid particles with different masses
+        coordinates = [0.0 1.0; 0.0 0.0]
+        initial_condition = InitialCondition(; coordinates, density=1000.0,
+                                             particle_spacing=1.0, mass=[1.0, 2.0])
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        state_equation = StateEquationCole(sound_speed=10.0, reference_density=1000.0,
+                                           exponent=7)
+        system = WeaklyCompressibleSPHSystem(initial_condition; state_equation,
+                                             smoothing_kernel, smoothing_length=1.0,
+                                             density_calculator=SummationDensity())
+        semi = Semidiscretization(system)
+        ode = semidiscretize(semi, (0.0, 1.0))
+
+        # Write the state to a VTK file, which is then used as restart file
+        output_directory = mktempdir()
+        trixi2vtk(ode.u0, semi, 0.0; output_directory, iter=0)
+        restart_file = joinpath(output_directory, "fluid_1_0.vtu")
+
+        # Create the same system again, but with equal masses for both particles
+        initial_condition_restart = InitialCondition(; coordinates, density=1000.0,
+                                                     particle_spacing=1.0,
+                                                     mass=[1.5, 1.5])
+        system_restart = WeaklyCompressibleSPHSystem(initial_condition_restart;
+                                                     state_equation, smoothing_kernel,
+                                                     smoothing_length=1.0,
+                                                     density_calculator=SummationDensity())
+        semi_restart = Semidiscretization(system_restart)
+        ode_restart = semidiscretize(semi_restart, (0.0, 1.0); restart_with=restart_file)
+
+        # After the restart, the masses from the restart file must be used
+        @test ode_restart.p.semi.systems[1].mass == [1.0, 2.0]
+    end
+
     @trixi_testset "Poiseuille Flow Half-Simulation Restart" begin
         # Run full simulation
         trixi_include(@__MODULE__,
