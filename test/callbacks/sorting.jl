@@ -101,7 +101,7 @@
         velocity = [13.0 11.0 14.0 12.0
                     23.0 21.0 24.0 22.0]
         density = [103.0, 101.0, 104.0, 102.0]
-        # Use different masses to check that masses are sorted as well
+        # Use different masses to check that masses are sorted as well.
         mass = [1.3, 1.1, 1.4, 1.2]
         state_equation = Val(:state_equation)
         smoothing_kernel = SchoenbergCubicSplineKernel{2}()
