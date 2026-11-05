@@ -39,6 +39,20 @@
                 @test isapprox(expected_data.pressure, data.pressure, rtol=1e-5)
             end
 
+            @testset verbose=true "Non-Constant Masses" begin
+                # Masses that differ from `density * particle_spacing^ndims`.
+                # These must be read from the file and not be recomputed.
+                mass = collect(range(1.0, 2.0; length=size(coordinates, 2)))
+                ic = InitialCondition(; coordinates, velocity, density=1000.0,
+                                      particle_spacing=0.1, mass)
+                trixi2vtk(ic; filename="tmp_initial_condition_mass",
+                          output_directory=tmp_dir)
+                file = joinpath(tmp_dir, "tmp_initial_condition_mass.vtu")
+                data = vtk2trixi(file)
+
+                @test isapprox(data.initial_condition.mass, mass, rtol=1e-5)
+            end
+
             @testset verbose=true "Variable Particle Spacing" begin
                 spacing = collect(range(0.1, 0.2; length=size(coordinates, 2)))
                 trixi2vtk(coordinates; filename="tmp_coordinates_variable_spacing",

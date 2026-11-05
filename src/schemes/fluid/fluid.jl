@@ -319,6 +319,7 @@ function restore_previous_state!(system::AbstractFluidSystem, restart_file)
 
     # Restore the per-particle masses, which might not be constant.
     # Older restart files don't contain masses, so we keep the initial masses in this case.
+    # TODO: Remove this backwards compatibility check in the future.
     if haskey(data, :mass)
         n_active_particles = length(data.mass)
         system.mass[1:n_active_particles] .= data.mass
