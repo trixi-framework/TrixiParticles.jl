@@ -327,4 +327,41 @@
         @test all(isfinite, v[end, :])
         @test all(iszero, v[end, inactive_particles])
     end
+
+    @testset verbose=true "Particle Setters and Smoothing Length Getter" begin
+        coordinates = [0.0 0.1
+                       0.0 0.0]
+        mass = [1.0, 1.0]
+        density = [1000.0, 1000.0]
+        state_equation = StateEquationCole(; sound_speed=10.0, reference_density=1000.0,
+                                           exponent=1)
+
+        initial_condition = InitialCondition(; coordinates, mass, density,
+                                             particle_spacing=0.1)
+        system = WeaklyCompressibleSPHSystem(initial_condition;
+                                             smoothing_kernel=WendlandC2Kernel{2}(),
+                                             smoothing_length=0.2,
+                                             density_calculator=ContinuityDensity(),
+                                             state_equation)
+
+        @test TrixiParticles.smoothing_length(system) == 0.2
+
+        # With `ContinuityDensity`, the density is stored in the last row of `v`
+        v = [0.0 0.0
+             0.0 0.0
+             1000.0 1000.0]
+        u = copy(coordinates)
+
+        TrixiParticles.set_particle_velocity!(v, system, 2, (1.0, 2.0))
+        @test v == [0.0 1.0
+                    0.0 2.0
+                    1000.0 1000.0]
+
+        TrixiParticles.set_particle_position!(u, system, 2, (3.0, 4.0))
+        @test u == [0.0 3.0
+                    0.0 4.0]
+
+        TrixiParticles.set_particle_mass!(system, 2, 0.5)
+        @test system.mass == [1.0, 0.5]
+    end
 end

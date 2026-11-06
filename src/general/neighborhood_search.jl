@@ -12,14 +12,17 @@
                            points, parallelization_backend)
 end
 
-deactivate_out_of_bounds_particles!(system, buffer, nhs, v, u, semi) = system
+deactivate_out_of_bounds_particles!(system, buffer, nhs, v_ode, u_ode, semi) = system
 
 function deactivate_out_of_bounds_particles!(system, buffer::SystemBuffer,
-                                             nhs::GridNeighborhoodSearch, v, u, semi)
-    deactivate_out_of_bounds_particles!(system, buffer, nhs, nhs.cell_list, v, u, semi)
+                                             nhs::GridNeighborhoodSearch, v_ode, u_ode,
+                                             semi)
+    deactivate_out_of_bounds_particles!(system, buffer, nhs, nhs.cell_list, v_ode, u_ode,
+                                        semi)
 end
 
-function deactivate_out_of_bounds_particles!(system, buffer, nhs, cell_list, v, u, semi)
+function deactivate_out_of_bounds_particles!(system, buffer, nhs, cell_list, v_ode, u_ode,
+                                             semi)
     return system
 end
 
@@ -28,7 +31,11 @@ end
 # simulation crashes.
 # Note that deactivating particles is only possible in combination with a 'SystemBuffer'.
 function deactivate_out_of_bounds_particles!(system, ::SystemBuffer, nhs,
-                                             cell_list::FullGridCellList, v, u, semi)
+                                             cell_list::FullGridCellList, v_ode, u_ode,
+                                             semi)
+    u = wrap_u(u_ode, system, semi)
+    v = wrap_v(v_ode, system, semi)
+
     @trixi_timeit timer() "deactivate out of bounds particle" begin
         @threaded semi for particle in each_integrated_particle(system)
             particle_position = current_coords(u, system, particle)

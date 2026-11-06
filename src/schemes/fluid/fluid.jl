@@ -20,6 +20,41 @@ end
     return v
 end
 
+# WARNING!
+# These functions are intended to be used internally to set the velocity
+# of newly activated particles in a callback.
+# DO NOT use outside a callback. OrdinaryDiffEq does not allow changing `v` and `u`
+# outside of callbacks.
+@inline function set_particle_velocity!(v, system::AbstractFluidSystem, particle,
+                                        particle_velocity)
+    velocity = current_velocity(v, system) # Needed e.g. when using `ContinuityDensity`
+
+    for dim in 1:ndims(system)
+        velocity[dim, particle] = particle_velocity[dim]
+    end
+
+    return v
+end
+
+# WARNING!
+# These functions are intended to be used internally to set the position
+# of newly activated particles in a callback.
+# DO NOT use outside a callback. OrdinaryDiffEq does not allow changing `v` and `u`
+# outside of callbacks.
+@inline function set_particle_position!(u, system::AbstractFluidSystem, particle, position)
+    for dim in 1:ndims(system)
+        u[dim, particle] = position[dim]
+    end
+
+    return u
+end
+
+@inline function set_particle_mass!(system::AbstractFluidSystem, particle, mass)
+    system.mass[particle] = mass
+
+    return system
+end
+
 function create_cache_density(initial_condition, ::SummationDensity)
     density = similar(initial_condition.density)
 
@@ -45,12 +80,14 @@ end
     return system.mass[particle]
 end
 
+smoothing_length(system::AbstractFluidSystem) = system.cache.smoothing_length
+
 function smoothing_length(system::AbstractFluidSystem, particle)
     return smoothing_length(system, system.particle_refinement, particle)
 end
 
 function smoothing_length(system::AbstractFluidSystem, ::Nothing, particle)
-    return system.cache.smoothing_length
+    return smoothing_length(system)
 end
 
 function initial_smoothing_length(system::AbstractFluidSystem)
@@ -122,7 +159,7 @@ function update_positions!(system::AbstractFluidSystem, v, u, v_ode, u_ode, semi
     # This function deactivates particles that move outside the bounding box to prevent
     # simulation crashes.
     # Note that deactivating particles is only possible in combination with a 'SystemBuffer'.
-    deactivate_out_of_bounds_particles!(system, buffer(system), nhs, v, u, semi)
+    deactivate_out_of_bounds_particles!(system, buffer(system), nhs, v_ode, u_ode, semi)
 end
 
 function compute_density!(system, u, u_ode, semi, ::ContinuityDensity)
