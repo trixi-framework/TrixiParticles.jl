@@ -87,6 +87,34 @@ end
     return (hydrodynamic_mass(system, particle) / reference_density)^(1 / ndims(system))
 end
 
+# Kernel gradient shared by both particles of a pair
+@inline function symmetric_kernel_grad(particle_system, neighbor_system,
+                                       pos_diff, distance, particle, neighbor)
+    return symmetric_kernel_grad(Val(has_variable_smoothing_length(particle_system,
+                                                                   neighbor_system)),
+                                 particle_system, neighbor_system,
+                                 pos_diff, distance, particle, neighbor)
+end
+
+@inline function symmetric_kernel_grad(::Val{false}, particle_system, neighbor_system,
+                                       pos_diff, distance, particle, neighbor)
+    # Now that we know that `distance` is not zero, we can safely call the unsafe
+    # version of the kernel gradient to avoid redundant zero checks.
+    return smoothing_kernel_grad_unsafe(particle_system, pos_diff, distance, particle)
+end
+
+# With variable smoothing lengths, the average of the gradients of both particles keeps
+# the pair interaction antisymmetric. Pairs up to the larger of both compact supports reach
+# this point, so we need the safe version, which is zero outside of the compact support.
+@inline function symmetric_kernel_grad(::Val{true}, particle_system, neighbor_system,
+                                       pos_diff, distance, particle, neighbor)
+    kernel = system_smoothing_kernel(particle_system)
+    h_a, h_b = pair_smoothing_lengths(particle_system, neighbor_system, particle, neighbor)
+
+    return (kernel_grad(kernel, pos_diff, distance, h_a) +
+            kernel_grad(kernel, pos_diff, distance, h_b)) / 2
+end
+
 function write_u0!(u0, system::AbstractFluidSystem)
     (; initial_condition) = system
 
@@ -326,6 +354,17 @@ function restart_v(system::AbstractFluidSystem, data)
 end
 
 function check_configuration(fluid_system::AbstractFluidSystem, systems, nhs)
+    if !isnothing(get_refinement(fluid_system))
+        foreach_system(systems) do system
+            if !isnothing(system_correction(system))
+                throw(ArgumentError("corrections are not supported with particle " *
+                                    "refinement, but the system " *
+                                    "`$(nameof(typeof(system)))` uses " *
+                                    "`$(nameof(typeof(system_correction(system))))`."))
+            end
+        end
+    end
+
     if !(fluid_system isa ParticlePackingSystem) && !isnothing(fluid_system.surface_tension)
         foreach_system(systems) do neighbor
             if neighbor isa AbstractFluidSystem &&

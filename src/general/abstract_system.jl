@@ -196,6 +196,11 @@ end
 # Whether the system stores one smoothing length per particle
 @inline has_variable_smoothing_length(system) = false
 
+@inline function has_variable_smoothing_length(system, neighbor_system)
+    return has_variable_smoothing_length(system) |
+           has_variable_smoothing_length(neighbor_system)
+end
+
 @inline function initial_smoothing_length(system)
     return initial_smoothing_length(system, Val(has_variable_smoothing_length(system)))
 end

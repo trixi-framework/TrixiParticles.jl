@@ -1,4 +1,3 @@
-# TODO: If refinement is not `Nothing` and `correction` is not `Nothing`, then throw an error
 struct ParticleRefinement{ELTYPE}
     spacing_ratio           :: ELTYPE # Ratio between spacings of different refinement bands
     min_spacing             :: ELTYPE # The smallest particle spacing in the simulation
