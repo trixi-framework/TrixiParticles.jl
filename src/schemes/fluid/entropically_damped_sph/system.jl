@@ -62,7 +62,7 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
 """
 struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, COR, PF, TV,
                                    AVGP, ST, SRFT, SRFN, B, PR,
-                                   C} <: AbstractFluidSystem{NDIMS}
+                                   C, SL} <: AbstractFluidSystem{NDIMS}
     initial_condition                 :: IC
     mass                              :: M # Vector{ELTYPE}: [particle]
     density_calculator                :: DC
@@ -81,6 +81,7 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V, COR, 
     buffer                            :: B
     particle_refinement               :: PR
     cache                             :: C
+    smoothing_length                  :: SL # Scalar or `Vector` with refinement
 end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
@@ -96,11 +97,10 @@ function EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel, smooth
                                      correction=nothing,
                                      source_terms=nothing, surface_tension=nothing,
                                      surface_normal_method=nothing, buffer_size=nothing,
-                                     reference_particle_spacing=0.0, color_value=1)
+                                     reference_particle_spacing=0.0, color_value=1,
+                                     particle_refinement=nothing)
     buffer = isnothing(buffer_size) ? nothing :
              SystemBuffer(nparticles(initial_condition), buffer_size)
-
-    particle_refinement = nothing # TODO
 
     initial_condition = allocate_buffer(initial_condition, buffer)
 
@@ -149,8 +149,6 @@ function EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel, smooth
                                          n_particles)...,
              create_cache_surface_tension(surface_tension, ELTYPE, NDIMS,
                                           n_particles)...,
-             create_cache_refinement(initial_condition, particle_refinement,
-                                     smoothing_length)...,
              create_cache_correction(correction, initial_condition.density, NDIMS,
                                      n_particles)...,
              # Per-system color tag for colorfield surface-normal logic and VTK output.
@@ -163,21 +161,36 @@ function EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel, smooth
         cache = (; cache..., reference_particle_spacing)
     end
 
+    if !isnothing(particle_refinement)
+        smoothing_length = fill(convert(ELTYPE, smoothing_length), n_particles)
+    end
+
     EntropicallyDampedSPHSystem{NDIMS, ELTYPE, typeof(initial_condition), typeof(mass),
                                 typeof(density_calculator), typeof(smoothing_kernel),
                                 typeof(viscosity), typeof(correction),
                                 typeof(pressure_acceleration), typeof(shifting_technique),
                                 typeof(avg_pressure_reduction), typeof(source_terms),
                                 typeof(surface_tension), typeof(surface_normal_method),
-                                typeof(buffer), Nothing,
-                                typeof(cache)}(initial_condition, mass, density_calculator,
-                                               smoothing_kernel, sound_speed, viscosity,
-                                               nu_edac, acceleration_, correction,
-                                               pressure_acceleration, shifting_technique,
-                                               avg_pressure_reduction,
-                                               source_terms, surface_tension,
-                                               surface_normal_method, buffer,
-                                               particle_refinement, cache)
+                                typeof(buffer), typeof(particle_refinement),
+                                typeof(cache), typeof(smoothing_length)}(initial_condition,
+                                                                         mass,
+                                                                         density_calculator,
+                                                                         smoothing_kernel,
+                                                                         sound_speed,
+                                                                         viscosity,
+                                                                         nu_edac,
+                                                                         acceleration_,
+                                                                         correction,
+                                                                         pressure_acceleration,
+                                                                         shifting_technique,
+                                                                         avg_pressure_reduction,
+                                                                         source_terms,
+                                                                         surface_tension,
+                                                                         surface_normal_method,
+                                                                         buffer,
+                                                                         particle_refinement,
+                                                                         cache,
+                                                                         smoothing_length)
 end
 
 create_cache_avg_pressure_reduction(initial_condition, ::Val{false}) = (;)

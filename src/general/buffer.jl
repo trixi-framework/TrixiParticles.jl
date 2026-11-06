@@ -113,6 +113,7 @@ function sort_system!(system, v, u, perm, buffer::SystemBuffer)
     system_velocity .= system_velocity[:, combined_perm]
     system_pressure .= system_pressure[combined_perm]
     system_density .= system_density[combined_perm]
+    sort_variable_particle_data!(system, combined_perm)
 
     # Update buffer
     buffer.active_particle_count[] = count(active_particle)
