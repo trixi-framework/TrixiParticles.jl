@@ -1,3 +1,18 @@
+# Extrapolated dummy pressure is reconstructed from the fluid, rather than an
+# independent pressure DOF. Close its pressure flux with the fluid-side gradient;
+# a ghost-side correction on the truncated wall/plate support creates spurious
+# constant-pressure forces. Structural reactions reuse this fluid-oriented force.
+@inline function use_fluid_boundary_pressure_gradient(::WeaklyCompressibleSPHSystem,
+                                                      neighbor_system,
+                                                      ::Union{typeof(pressure_acceleration_summation_density),
+                                                              typeof(pressure_acceleration_continuity_density),
+                                                              typeof(inter_particle_averaged_pressure)})
+    return hasproperty(neighbor_system, :boundary_model) &&
+           neighbor_system.boundary_model isa BoundaryModelDummyParticles &&
+           neighbor_system.boundary_model.density_calculator isa
+           Union{AdamiPressureExtrapolation, BernoulliPressureExtrapolation}
+end
+
 # Computes the forces that particles in `particle_system` experience from particles
 # in `neighbor_system` and updates `dv` accordingly.
 # It takes into account pressure forces, viscosity, and for `ContinuityDensity` updates
@@ -8,6 +23,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                    eachparticle=each_integrated_particle(particle_system),
                    kwargs...)
     (; density_calculator, correction) = particle_system
+    gradient_correction = correction_gradient(correction)
 
     sound_speed = system_sound_speed(particle_system)
 
@@ -17,6 +33,8 @@ function interact!(dv, v_particle_system, u_particle_system,
     backend = semi.parallelization_backend
 
     h = initial_smoothing_length(particle_system)
+    zero_distance_threshold = almostzero(h)
+    zero_distance_mode = zero_distance_gradient_mode(particle_system, neighbor_system)
 
     @threaded semi for particle in eachparticle
         # We are looping over the particles of `particle_system`, so it is guaranteed
@@ -46,17 +64,16 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                         backend, particle;
                                                         init) do particle, neighbor,
                                                                  pos_diff, distance
-            # Skip neighbors with (almost) the same position because the kernel gradient
-            # is zero, but computing it would divide by zero (see `almostzero`).
+            # Skip neighbors with the same position when both endpoint gradients are zero.
             # Note that `return` only exits the closure, i.e., skips the current neighbor.
-            if skip_zero_distance(particle_system) && distance < almostzero(h)
+            if skip_zero_distance(zero_distance_mode, distance, zero_distance_threshold)
                 return init
             end
 
-            # Now that we know that `distance` is not zero, we can safely call the unsafe
-            # version of the kernel gradient to avoid redundant zero checks.
-            grad_kernel = smoothing_kernel_grad_unsafe(particle_system, pos_diff,
-                                                       distance, particle)
+            grad_kernel = local_smoothing_kernel_grad_unsafe(zero_distance_mode,
+                                                             particle_system, pos_diff,
+                                                             distance, particle,
+                                                             zero_distance_threshold)
 
             # `foreach_neighbor` makes sure that `neighbor` is in bounds of `neighbor_system`
             m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
@@ -90,7 +107,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                     v_particle_system, v_neighbor_system,
                                                     particle, neighbor, m_a, m_b, rho_a,
                                                     rho_b, v_a, v_b, pos_diff, distance,
-                                                    grad_kernel, correction)
+                                                    grad_kernel, gradient_correction)
 
             drho_particle = zero(rho_a)
 
@@ -132,6 +149,8 @@ end
                                                    grad_kernel, sound_speed, m_a, m_b,
                                                    p_a, p_b, rho_a, rho_b, v_a, v_b)
     (; correction) = particle_system
+    gradient_correction = correction_gradient(correction)
+    force_correction = correction_force(correction)
 
     surface_tension_a = surface_tension_model(particle_system)
     surface_tension_b = surface_tension_model(neighbor_system)
@@ -139,7 +158,8 @@ end
     # Determine correction factors.
     # This can usually be ignored, as these are all 1 when no correction is used.
     (viscosity_correction, pressure_correction,
-     surface_tension_correction) = free_surface_correction(correction, particle_system,
+     surface_tension_correction) = free_surface_correction(force_correction,
+                                                           particle_system,
                                                            rho_a, rho_b)
 
     # For `ContinuityDensity` without correction, this is equivalent to
@@ -147,7 +167,7 @@ end
     dv_pressure = pressure_acceleration(particle_system, neighbor_system,
                                         particle, neighbor,
                                         m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
-                                        distance, grad_kernel, correction)
+                                        distance, grad_kernel, gradient_correction)
     dv_particle += dv_pressure * pressure_correction
 
     dv_particle = add_dv_viscosity(dv_particle, particle_system, neighbor_system,

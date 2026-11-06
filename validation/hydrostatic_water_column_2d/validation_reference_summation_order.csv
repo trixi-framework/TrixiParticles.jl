@@ -1,0 +1,5 @@
+method,resolution,density_difference,pressure_difference,deflection_difference
+wcsph,3,3.4106051e-16,1.0198208e-14,1.511296e-11
+edac,3,1.7053026e-15,2.1527489e-13,1.2159287e-11
+wcsph,5,5.6843419e-16,2.7257028e-14,3.0718199e-11
+edac,5,9.094947e-16,1.7624357e-13,3.303191e-11

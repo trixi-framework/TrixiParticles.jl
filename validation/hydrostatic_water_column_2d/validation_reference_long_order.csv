@@ -1,0 +1,5 @@
+method,resolution,density_difference,pressure_difference,deflection_difference,acceptance_bound,passed
+wcsph,3,3.740297e-14,4.8740943e-12,1.1219035e-10,1e-6,true
+edac,3,5.570655e-14,6.5452097e-12,1.1632549e-10,1e-6,true
+wcsph,5,2.4247129e-12,3.1794396e-10,5.0552114e-10,1e-6,true
+edac,5,2.4019421e-6,6.1455072e-5,1.4383214e-5,1e-6,false

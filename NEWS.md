@@ -4,6 +4,60 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.6.0
+
+### Features
+
+- Added opt-in initial-density reference correction for WCSPH summation density,
+  including Shepard-filtered states and restart persistence. The hydrostatic plate
+  benchmark enables it to preserve the prescribed initial density and EOS pressure.
+- Added manufactured SPH correction consistency and coupled hydrostatic plate validation
+  studies, including resumable h-halving refinement, a long-duration scheme/density/
+  correction cross-product with explicit method definitions, evolved-volume audits,
+  multiresolution references, sixteen-panel reports, and interface-force checks (#1286).
+
+### API Changes
+
+- Replaced the `correction` keyword of `WeaklyCompressibleSPHSystem`,
+  `EntropicallyDampedSPHSystem`, and `BoundaryModelDummyParticles` with
+  `density_correction`, `gradient_correction`, and `force_correction`.
+  Use `density_correction=ShepardKernelCorrection()` for density normalization,
+  `gradient_correction` for kernel/gradient corrections, and `force_correction` for
+  `AkinciFreeSurfaceCorrection` (#1285).
+- Custom functions passed as `pressure_acceleration` must accept both pair gradients
+  (`W_a`, `W_b`) when either interacting system uses an asymmetric gradient correction
+  (#1289).
+
+### Important Bugfixes
+
+- Fixed corrected WCSPH pressure fluxes at Adami/Bernoulli dummy boundaries to use the
+  fluid-side gradient, removing spurious constant-pressure forces while retaining
+  the exact opposite structural reaction (#1369).
+- Removed RHS-history dependence from Shepard-filtered WCSPH summation density at
+  EOS-backed pressure boundaries by predicting boundary densities from current raw
+  fluid pressure before normalization (#1368).
+- Implemented continuity-density reinitialization for EDAC, including evolved-density
+  particle volumes and simultaneous mixed-scheme updates, while preserving EDAC pressure.
+  Density resets now refresh current geometry and neighbor quantities before computing volumes.
+- Fixed spurious corrected EDAC pressure loads at Adami dummy boundaries by using the
+  fluid-side pressure gradient and retaining the exact opposite fluid-structure reaction.
+- Fixed SPH correction updates to apply density corrections before pressure and update
+  boundary, gradient, and surface quantities in consistent phases across fluid and
+  structure systems (#1284).
+- Fixed Shepard density correction to handle invalid normalization coefficients,
+  finalize corrected density before pressure evaluation, and use evolved continuity
+  density for particle volumes during density reinitialization (#1292).
+- Fixed `KernelCorrection` to fall back to uncorrected gradients for invalid normalization
+  coefficients and preserve Float32 boundary correction caches (#1291).
+- Fixed gradient correction matrices to use raw kernel gradients, scale-independent
+  singularity detection, and identity fallback. Added validation of blended correction
+  factors and preserved boundary cache element types (#1290).
+- Fixed `MixedKernelGradientCorrection` to assemble its matrix from the kernel-corrected
+  raw gradient and preserve matching cache element types (#1288).
+- Fixed linear-momentum conservation for corrected pressure forces, made EDAC
+  average-pressure reduction pair-symmetric, and applied exact fluid-structure pressure
+  reaction forces (#1289).
+
 ## Version 0.5.4
 
 ### API Changes
