@@ -213,6 +213,57 @@
         @test v0 == vcat(velocity, [0.8, 1.0]')
     end
 
+    @trixi_testset "Correction cache updates" begin
+        coordinates = [0.0 0.1 0.0
+                       0.0 0.0 0.1]
+        velocity = zeros(2, 3)
+        mass = ones(3)
+        density = fill(1000.0, 3)
+        pressure = zeros(3)
+        initial_condition = InitialCondition(; coordinates, velocity, mass, density,
+                                             pressure)
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        smoothing_length = 0.5
+
+        corrections = (ShepardKernelCorrection(), KernelCorrection(), GradientCorrection(),
+                       MixedKernelGradientCorrection())
+
+        @testset "$(typeof(correction))" for correction in corrections
+            system = EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel,
+                                                 smoothing_length, sound_speed=10.0,
+                                                 correction, pressure_acceleration=nothing)
+            semi = Semidiscretization(system)
+
+            TrixiParticles.initialize_neighborhood_searches!(semi)
+
+            u_ode = vec(coordinates)
+            v0 = zeros(TrixiParticles.v_nvariables(system),
+                       TrixiParticles.n_integrated_particles(system))
+            TrixiParticles.write_v0!(v0, system)
+            v_ode = vec(v0)
+
+            v = TrixiParticles.wrap_v(v_ode, system, semi)
+            u = TrixiParticles.wrap_u(u_ode, system, semi)
+
+            for cache_key in (:kernel_correction_coefficient, :dw_gamma,
+                              :correction_matrix)
+                hasproperty(system.cache, cache_key) || continue
+
+                fill!(getproperty(system.cache, cache_key), NaN)
+            end
+
+            TrixiParticles.update_quantities!(system, v, u, v_ode, u_ode, semi, 0.0)
+            TrixiParticles.update_pressure!(system, v, u, v_ode, u_ode, semi, 0.0)
+
+            for cache_key in (:kernel_correction_coefficient, :dw_gamma,
+                              :correction_matrix)
+                hasproperty(system.cache, cache_key) || continue
+
+                @test all(isfinite, getproperty(system.cache, cache_key))
+            end
+        end
+    end
+
     @trixi_testset "Average Pressure" begin
         particle_spacing = 0.1
         smoothing_kernel = SchoenbergCubicSplineKernel{2}()
