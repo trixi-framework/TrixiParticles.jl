@@ -126,6 +126,84 @@
         @test system.pressure == [203.0, 201.0, 204.0, 202.0][perm]
     end
 
+    @testset verbose=true "sort_system! With Buffer" begin
+        coordinates = [3.0 1.0 4.0 2.0
+                       30.0 10.0 40.0 20.0]
+        velocity = [13.0 11.0 14.0 12.0
+                    23.0 21.0 24.0 22.0]
+        density = fill(100.0, 4)
+        mass = ones(4)
+        initial_condition = InitialCondition(; coordinates, velocity, mass, density,
+                                             particle_spacing=0.1)
+        create_system(;
+                      kwargs...) = WeaklyCompressibleSPHSystem(initial_condition;
+                                                               smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
+                                                               smoothing_length=0.1,
+                                                               density_calculator=SummationDensity(),
+                                                               state_equation=Val(:state_equation),
+                                                               buffer_size=2, kwargs...)
+
+        # The two inactive buffer particles are moved to the end
+        perm = [6, 5, 4, 3, 2, 1]
+        expected_perm = [4, 3, 2, 1, 6, 5]
+
+        @testset "Without Refinement" begin
+            system = create_system()
+            v = copy(system.initial_condition.velocity)
+            u = copy(system.initial_condition.coordinates)
+
+            TrixiParticles.sort_system!(system, v, u, perm, system.buffer)
+
+            @test u[:, 1:4] == coordinates[:, expected_perm[1:4]]
+            @test v[:, 1:4] == velocity[:, expected_perm[1:4]]
+            @test TrixiParticles.smoothing_length(system) == 0.1
+        end
+
+        @testset "With Refinement" begin
+            refinement = TrixiParticles.ParticleRefinement(; spacing_ratio=0.5,
+                                                           min_spacing=0.05,
+                                                           max_spacing=0.1,
+                                                           reference_density=1000.0)
+            system = create_system(; particle_refinement=refinement)
+            v = copy(system.initial_condition.velocity)
+            u = copy(system.initial_condition.coordinates)
+            system.mass .= [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+            system.smoothing_length .= [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
+
+            TrixiParticles.sort_system!(system, v, u, perm, system.buffer)
+
+            @test system.mass == [4.0, 3.0, 2.0, 1.0, 6.0, 5.0]
+            @test system.smoothing_length == [0.4, 0.3, 0.2, 0.1, 0.6, 0.5]
+        end
+    end
+
+    @testset verbose=true "sort_system! Without Buffer With Refinement" begin
+        coordinates = [3.0 1.0 4.0
+                       30.0 10.0 40.0]
+        velocity = [13.0 11.0 14.0
+                    23.0 21.0 24.0]
+        density = [103.0, 101.0, 104.0]
+        mass = [1.0, 2.0, 3.0]
+        initial_condition = InitialCondition(; coordinates, velocity, mass, density)
+        refinement = TrixiParticles.ParticleRefinement(; spacing_ratio=0.5,
+                                                       min_spacing=0.05, max_spacing=0.1,
+                                                       reference_density=1000.0)
+        system = WeaklyCompressibleSPHSystem(initial_condition;
+                                             smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
+                                             smoothing_length=0.1,
+                                             density_calculator=SummationDensity(),
+                                             state_equation=Val(:state_equation),
+                                             particle_refinement=refinement)
+        v = copy(velocity)
+        u = copy(coordinates)
+        system.smoothing_length .= [0.1, 0.2, 0.3]
+
+        TrixiParticles.sort_system!(system, v, u, [3, 1, 2], nothing)
+
+        @test system.mass == [3.0, 1.0, 2.0]
+        @test system.smoothing_length == [0.3, 0.1, 0.2]
+    end
+
     @testset "Illegal Input" begin
         error_str = "setting both `interval` and `dt` is not supported"
         @test_throws ArgumentError(error_str) SortingCallback(dt=0.1, interval=1)

@@ -20,6 +20,41 @@ end
     return v
 end
 
+# WARNING!
+# These functions are intended to be used internally to set the velocity
+# of newly activated particles in a callback.
+# DO NOT use outside a callback. OrdinaryDiffEq does not allow changing `v` and `u`
+# outside of callbacks.
+@inline function set_particle_velocity!(v, system::AbstractFluidSystem, particle,
+                                        particle_velocity)
+    velocity = current_velocity(v, system) # Needed e.g. when using `ContinuityDensity`
+
+    for dim in 1:ndims(system)
+        velocity[dim, particle] = particle_velocity[dim]
+    end
+
+    return v
+end
+
+# WARNING!
+# These functions are intended to be used internally to set the position
+# of newly activated particles in a callback.
+# DO NOT use outside a callback. OrdinaryDiffEq does not allow changing `v` and `u`
+# outside of callbacks.
+@inline function set_particle_position!(u, system::AbstractFluidSystem, particle, position)
+    for dim in 1:ndims(system)
+        u[dim, particle] = position[dim]
+    end
+
+    return u
+end
+
+@inline function set_particle_mass!(system::AbstractFluidSystem, particle, mass)
+    system.mass[particle] = mass
+
+    return system
+end
+
 function create_cache_density(initial_condition, ::SummationDensity)
     density = similar(initial_condition.density)
 
@@ -31,49 +66,53 @@ function create_cache_density(ic, ::ContinuityDensity)
     return (;)
 end
 
-function create_cache_refinement(initial_condition, ::Nothing, smoothing_length)
-    smoothing_length_factor = smoothing_length / initial_condition.particle_spacing
-    return (; smoothing_length, smoothing_length_factor)
-end
-
-# TODO
-function create_cache_refinement(initial_condition, refinement, smoothing_length)
-    # TODO: If refinement is not `Nothing` and `correction` is not `Nothing`, then throw an error
-end
-
 @propagate_inbounds function hydrodynamic_mass(system::AbstractFluidSystem, particle)
     return system.mass[particle]
 end
 
-function smoothing_length(system::AbstractFluidSystem, particle)
-    return smoothing_length(system, system.particle_refinement, particle)
+@inline get_refinement(system::AbstractFluidSystem) = system.particle_refinement
+
+@inline function has_variable_smoothing_length(system::AbstractFluidSystem)
+    return !isnothing(get_refinement(system))
 end
 
-function smoothing_length(system::AbstractFluidSystem, ::Nothing, particle)
-    return system.cache.smoothing_length
+@inline function spacing_to_smoothing_length(system::AbstractFluidSystem, particle_spacing)
+    return get_refinement(system).smoothing_length_factor * particle_spacing
 end
 
-function initial_smoothing_length(system::AbstractFluidSystem)
-    return initial_smoothing_length(system, system.particle_refinement)
-end
-
-initial_smoothing_length(system, ::Nothing) = system.cache.smoothing_length
-
-function initial_smoothing_length(system, refinement)
-    # TODO
-    return system.cache.initial_smoothing_length_factor *
-           system.initial_condition.particle_spacing
-end
-
-@inline function particle_spacing(system::AbstractFluidSystem, particle)
-    return particle_spacing(system, system.particle_refinement, particle)
-end
-
-@inline particle_spacing(system, ::Nothing, _) = system.initial_condition.particle_spacing
-
+# With refinement, the particle spacing follows from the mass of the particle
 @inline function particle_spacing(system, refinement, particle)
-    (; smoothing_length_factor) = system.cache
-    return smoothing_length(system, particle) / smoothing_length_factor
+    (; reference_density) = refinement
+
+    return (hydrodynamic_mass(system, particle) / reference_density)^(1 / ndims(system))
+end
+
+# Kernel gradient shared by both particles of a pair
+@inline function symmetric_kernel_grad(particle_system, neighbor_system,
+                                       pos_diff, distance, particle, neighbor)
+    return symmetric_kernel_grad(Val(has_variable_smoothing_length(particle_system,
+                                                                   neighbor_system)),
+                                 particle_system, neighbor_system,
+                                 pos_diff, distance, particle, neighbor)
+end
+
+@inline function symmetric_kernel_grad(::Val{false}, particle_system, neighbor_system,
+                                       pos_diff, distance, particle, neighbor)
+    # Now that we know that `distance` is not zero, we can safely call the unsafe
+    # version of the kernel gradient to avoid redundant zero checks.
+    return smoothing_kernel_grad_unsafe(particle_system, pos_diff, distance, particle)
+end
+
+# With variable smoothing lengths, the average of the gradients of both particles keeps
+# the pair interaction antisymmetric. Pairs up to the larger of both compact supports reach
+# this point, so we need the safe version, which is zero outside of the compact support.
+@inline function symmetric_kernel_grad(::Val{true}, particle_system, neighbor_system,
+                                       pos_diff, distance, particle, neighbor)
+    kernel = system_smoothing_kernel(particle_system)
+    h_a, h_b = pair_smoothing_lengths(particle_system, neighbor_system, particle, neighbor)
+
+    return (kernel_grad(kernel, pos_diff, distance, h_a) +
+            kernel_grad(kernel, pos_diff, distance, h_b)) / 2
 end
 
 function write_u0!(u0, system::AbstractFluidSystem)
@@ -122,7 +161,7 @@ function update_positions!(system::AbstractFluidSystem, v, u, v_ode, u_ode, semi
     # This function deactivates particles that move outside the bounding box to prevent
     # simulation crashes.
     # Note that deactivating particles is only possible in combination with a 'SystemBuffer'.
-    deactivate_out_of_bounds_particles!(system, buffer(system), nhs, v, u, semi)
+    deactivate_out_of_bounds_particles!(system, buffer(system), nhs, v_ode, u_ode, semi)
 end
 
 function compute_density!(system, u, u_ode, semi, ::ContinuityDensity)
@@ -315,6 +354,17 @@ function restart_v(system::AbstractFluidSystem, data)
 end
 
 function check_configuration(fluid_system::AbstractFluidSystem, systems, nhs)
+    if !isnothing(get_refinement(fluid_system))
+        foreach_system(systems) do system
+            if !isnothing(system_correction(system))
+                throw(ArgumentError("corrections are not supported with particle " *
+                                    "refinement, but the system " *
+                                    "`$(nameof(typeof(system)))` uses " *
+                                    "`$(nameof(typeof(system_correction(system))))`."))
+            end
+        end
+    end
+
     if !(fluid_system isa ParticlePackingSystem) && !isnothing(fluid_system.surface_tension)
         foreach_system(systems) do neighbor
             if neighbor isa AbstractFluidSystem &&
