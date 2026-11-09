@@ -27,9 +27,13 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
 - `viscosity`:                  Viscosity model for this system (default: no viscosity).
                                 Recommended: [`ViscosityAdami`](@ref).
 - `acceleration`:               Acceleration vector for the system. (default: zero vector)
-- `pressure_acceleration`:      Pressure acceleration formulation (default: inter-particle averaged pressure).
+- `pressure_acceleration`:      Pressure acceleration formulation (default: inter-particle averaged pressure,
+                                or `pressure_acceleration_summation_density` with particle refinement).
                                 When set to `nothing`, the pressure acceleration formulation for the
                                 corresponding [density calculator](@ref density_calculator) is chosen.
+                                With particle refinement, the formulation must provide a version with
+                                the arguments `m_a, m_b, rho_a, rho_b, p_a, p_b, W_a, W_b`.
+                                It also selects the pressure evolution equation in this case.
 - `density_calculator`:         [Density calculator](@ref density_calculator) (default: [`SummationDensity`](@ref))
 - `shifting_technique`:         [Shifting technique](@ref shifting) or [transport velocity
                                 formulation](@ref transport_velocity_formulation) to use
@@ -88,7 +92,8 @@ end
 # See the comments in general/gpu.jl for more details.
 function EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel, smoothing_length,
                                      sound_speed, density_calculator=SummationDensity(),
-                                     pressure_acceleration=inter_particle_averaged_pressure,
+                                     particle_refinement=nothing,
+                                     pressure_acceleration=default_pressure_acceleration(particle_refinement),
                                      shifting_technique=nothing,
                                      average_pressure_reduction=(!isnothing(shifting_technique)),
                                      alpha=0.5, viscosity=nothing,
@@ -97,8 +102,7 @@ function EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel, smooth
                                      correction=nothing,
                                      source_terms=nothing, surface_tension=nothing,
                                      surface_normal_method=nothing, buffer_size=nothing,
-                                     reference_particle_spacing=0.0, color_value=1,
-                                     particle_refinement=nothing)
+                                     reference_particle_spacing=0.0, color_value=1)
     buffer = isnothing(buffer_size) ? nothing :
              SystemBuffer(nparticles(initial_condition), buffer_size)
 
@@ -137,12 +141,16 @@ function EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel, smooth
                                                                      NDIMS, ELTYPE,
                                                                      correction)
 
+    check_pressure_acceleration_variable_h(pressure_acceleration, particle_refinement,
+                                           NDIMS, ELTYPE)
+
     avg_pressure_reduction = Val(average_pressure_reduction)
 
     nu_edac = (alpha * smoothing_length * sound_speed) / 8
 
     cache = (; create_cache_density(initial_condition, density_calculator)...,
              create_cache_shifting(initial_condition, shifting_technique)...,
+             create_cache_beta(initial_condition, particle_refinement)...,
              create_cache_avg_pressure_reduction(initial_condition,
                                                  avg_pressure_reduction)...,
              create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS,
@@ -191,6 +199,19 @@ function EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel, smooth
                                                                          particle_refinement,
                                                                          cache,
                                                                          smoothing_length)
+end
+
+default_pressure_acceleration(::Nothing) = inter_particle_averaged_pressure
+
+# Eq. 8 in Haftu et al.
+default_pressure_acceleration(refinement) = pressure_acceleration_summation_density
+
+create_cache_beta(initial_condition, ::Nothing) = (;)
+
+function create_cache_beta(initial_condition, refinement)
+    beta = ones(eltype(initial_condition), nparticles(initial_condition))
+
+    return (; beta)
 end
 
 create_cache_avg_pressure_reduction(initial_condition, ::Val{false}) = (;)
@@ -325,8 +346,68 @@ function update_final!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, 
     compute_curvature!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
     compute_stress_tensors!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
     update_average_pressure!(system, system.average_pressure_reduction, v_ode, u_ode, semi)
+    update_beta!(system, get_refinement(system), v, u, v_ode, u_ode, semi)
     update_shifting!(system, shifting_technique(system), v, u, v_ode, u_ode, semi)
 end
+
+update_beta!(system, ::Nothing, v, u, v_ode, u_ode, semi) = system
+
+# Correction term of the variable smoothing length formulation (Eq. 7, Haftu et al.)
+function update_beta!(system, refinement, v, u, v_ode, u_ode, semi)
+    (; smoothing_kernel, cache) = system
+    (; beta) = cache
+
+    set_zero!(beta)
+
+    @trixi_timeit timer() "compute beta" begin
+        foreach_system_wrapped(semi, v_ode,
+                               u_ode) do neighbor_system, v_neighbor_system,
+                                         u_neighbor_system
+            if !has_system_interaction(system, neighbor_system, semi)
+                # No interaction between these systems.
+                return
+            end
+
+            system_coords = current_coordinates(u, system)
+            neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
+
+            # Loop over all pairs of particles and neighbors within the kernel cutoff.
+            # The neighborhood search can return neighbors outside of the compact support
+            # of `particle`, but the safe kernel derivative is zero for these neighbors.
+            foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
+                                   semi;
+                                   points=each_integrated_particle(system)) do particle,
+                                                                               neighbor,
+                                                                               pos_diff,
+                                                                               distance
+                m_b = hydrodynamic_mass(neighbor_system, neighbor)
+                h_a = smoothing_length(system, particle)
+
+                beta[particle] += m_b * distance *
+                                  kernel_deriv(smoothing_kernel, distance, h_a)
+            end
+        end
+
+        @threaded semi for particle in each_integrated_particle(system)
+            rho_a = current_density(v, system, particle)
+            beta_ = -beta[particle] / (rho_a * ndims(system))
+
+            # A particle without neighbors has `beta = 0`. Avoid dividing by zero.
+            beta[particle] = ifelse(iszero(beta_), one(beta_), beta_)
+        end
+    end
+
+    return system
+end
+
+@inline get_beta(system, particle) = one(eltype(system))
+
+@propagate_inbounds function get_beta(system::EntropicallyDampedSPHSystem, particle)
+    return get_beta(system, get_refinement(system), particle)
+end
+
+@inline get_beta(system, ::Nothing, particle) = one(eltype(system))
+@propagate_inbounds get_beta(system, refinement, particle) = system.cache.beta[particle]
 
 # No average pressure reduction is used
 function update_average_pressure!(system, ::Val{false}, v_ode, u_ode, semi)
