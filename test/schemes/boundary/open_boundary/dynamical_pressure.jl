@@ -168,4 +168,110 @@
         # Integrated: velocity + pressure + density (`BoundaryModelDynamicalPressureZhang` always uses `ContinuityDensity`)
         @test TrixiParticles.v_nvariables(open_boundary_edac_2) == n_dims + 2
     end
+
+    # A wall with `PressureMirroring` has no pressure of its own. Instead, each fluid
+    # particle sees its own pressure at the wall. The buffer particles of the open
+    # boundary are part of the fluid and must do the same, i.e., they must not read the
+    # (unused) pressure stored in the wall.
+    @testset verbose=true "Mirrored Wall Neighbor: $scheme" for scheme in ("WCSPH", "EDAC")
+        particle_spacing = 0.1
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        smoothing_length = 1.2 * particle_spacing
+        sound_speed = 20.0
+        fluid_density = 1020.0
+        wall_density = 1000.0
+        pressure = 8000.0
+
+        # Fluid, buffer and wall particle, all within the kernel support of each other
+        fluid_ic = InitialCondition(; coordinates=reshape([particle_spacing, 0.0], 2, 1),
+                                    density=fluid_density, particle_spacing)
+        buffer_ic = InitialCondition(; coordinates=zeros(2, 1), density=fluid_density,
+                                     particle_spacing)
+        wall_ic = InitialCondition(; coordinates=reshape([0.0, -particle_spacing], 2, 1),
+                                   density=wall_density, particle_spacing)
+
+        if scheme == "WCSPH"
+            # The pressure of the fluid is `sound_speed^2 * (ρ - ρ_0) = pressure`
+            state_equation = StateEquationCole(; sound_speed, exponent=1,
+                                               reference_density=wall_density)
+            fluid = WeaklyCompressibleSPHSystem(fluid_ic; smoothing_kernel,
+                                                smoothing_length, state_equation,
+                                                density_calculator=ContinuityDensity())
+        else
+            state_equation = nothing
+            fluid = EntropicallyDampedSPHSystem(fluid_ic; smoothing_kernel,
+                                                smoothing_length, sound_speed,
+                                                density_calculator=ContinuityDensity())
+        end
+
+        wall_model = BoundaryModelDummyParticles(wall_ic.density, wall_ic.mass,
+                                                 PressureMirroring(), smoothing_kernel,
+                                                 smoothing_length; state_equation)
+        wall_system = WallBoundarySystem(wall_ic, wall_model)
+
+        zone = BoundaryZone(; initial_condition=buffer_ic, boundary_type=InFlow(),
+                            boundary_face=([0.5particle_spacing, -1.0],
+                                           [0.5particle_spacing, 1.0]),
+                            face_normal=[1.0, 0.0], open_boundary_layers=3,
+                            density=fluid_density, particle_spacing,
+                            reference_velocity=[0.0, 0.0])
+        open_boundary_system = OpenBoundarySystem(zone; fluid_system=fluid, buffer_size=0,
+                                                  boundary_model=BoundaryModelDynamicalPressureZhang())
+
+        semi = Semidiscretization(fluid, wall_system, open_boundary_system;
+                                  parallelization_backend=SerialBackend())
+        ode = semidiscretize(semi, (0.0, 1.0))
+        v_ode, u_ode = ode.u0.x
+        _, wall, open_boundary = semi.systems
+        v_open = TrixiParticles.wrap_v(v_ode, open_boundary, semi)
+        u_open = TrixiParticles.wrap_u(u_ode, open_boundary, semi)
+        v_wall = TrixiParticles.wrap_v(v_ode, wall, semi)
+        u_wall = TrixiParticles.wrap_u(u_ode, wall, semi)
+
+        # The pressure of the EDAC buffer particle is an integrated variable
+        scheme == "EDAC" &&
+            (TrixiParticles.current_pressure(v_open, open_boundary) .= pressure)
+        TrixiParticles.update_systems_and_nhs(v_ode, u_ode, semi, 0.0)
+
+        p_a = TrixiParticles.current_pressure(v_open, open_boundary, 1)
+        @test p_a ≈ pressure
+
+        # Interaction of the buffer particle with the wall particle
+        function interact_buffer_wall(wall_pressure)
+            # The pressure stored in a mirrored wall is not used
+            wall.boundary_model.pressure .= wall_pressure
+
+            dv_buffer = zero(v_open)
+            TrixiParticles.interact!(dv_buffer, v_open, u_open, v_wall, u_wall,
+                                     open_boundary, wall, semi)
+
+            return dv_buffer
+        end
+
+        dv = interact_buffer_wall(0.0)
+        @test dv ≈ interact_buffer_wall(1234.0)
+        @test dv ≈ interact_buffer_wall(pressure)
+
+        # The pressure force equals the force of a wall particle with pressure `p_a`.
+        # The buffer particle is at rest, so there is no viscosity and no continuity term.
+        m_a = TrixiParticles.hydrodynamic_mass(open_boundary, 1)
+        m_b = TrixiParticles.hydrodynamic_mass(wall, 1)
+        pos_diff = SVector(0.0, particle_spacing)
+        grad_kernel = TrixiParticles.kernel_grad(smoothing_kernel, pos_diff,
+                                                 particle_spacing, smoothing_length)
+        if scheme == "WCSPH"
+            # -m_b * (p_a + p_b) / (ρ_a * ρ_b) * ∇W_ab with `p_b = p_a`
+            expected = -m_b * (p_a + p_a) / (fluid_density * wall_density) * grad_kernel
+        else
+            # -(V_a^2 + V_b^2) / m_a * p̃ * ∇W_ab, where `p̃ = p_a` for `p_b = p_a`
+            volume_term = ((m_a / fluid_density)^2 + (m_b / wall_density)^2) / m_a
+            expected = -volume_term * p_a * grad_kernel
+
+            # The pressure difference between the buffer particle and the wall is zero,
+            # so there is no pressure diffusion.
+            @test dv[3, 1] == 0
+        end
+        @test dv[1:2, 1] ≈ expected
+        @test !iszero(expected)
+    end
 end
