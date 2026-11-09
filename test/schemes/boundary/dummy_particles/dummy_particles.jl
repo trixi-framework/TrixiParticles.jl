@@ -208,7 +208,8 @@
 
                 @testset "Wall Velocity $v_fluid, $parallel" for v_fluid in velocities,
                                                                  parallel in (Val(true),
-                                                                 Val(false))
+                                                                  Val(false))
+
                     viscosity = boundary_model.viscosity
                     pressure = boundary_model.pressure
                     volume = boundary_model.cache.volume
@@ -250,9 +251,11 @@
                 # the wall velocity is `v_wall = -v_fluid` (see eq. 22 in Adami_2012).
                 # With a staggered velocity profile, we can test the smoothed velocity field
                 # for a variable velocity profile.
-                @testset "Wall Velocity Staggered: Factor $scale, $parallel" for scale in scale_factors,
-                                                                                 parallel in (Val(true),
-                                                                                              Val(false))
+                @testset "Wall Velocity Staggered: Factor $scale, $parallel" for scale in
+                                                                                 scale_factors,
+                                                                                 parallel in
+                                                                                 (Val(true),
+                                                                                  Val(false))
 
                     viscosity = boundary_model.viscosity
                     pressure = boundary_model.pressure

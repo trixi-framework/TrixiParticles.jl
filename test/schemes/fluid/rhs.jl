@@ -367,8 +367,9 @@
             v_ode, u_ode = ode.u0.x
             TrixiParticles.update_systems_and_nhs(v_ode, u_ode, ode.p.semi, 0.0)
 
-            (fluid, structure) = boundary_first ? reverse(ode.p.semi.systems) :
-                                 ode.p.semi.systems
+            (fluid,
+             structure) = boundary_first ? reverse(ode.p.semi.systems) :
+                          ode.p.semi.systems
             semi = ode.p.semi
             arrays = (TrixiParticles.wrap_v(v_ode, fluid, semi),
                       TrixiParticles.wrap_u(u_ode, fluid, semi),
