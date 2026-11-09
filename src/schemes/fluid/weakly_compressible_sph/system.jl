@@ -288,6 +288,11 @@ end
 
 @inline density_diffusion(system::WeaklyCompressibleSPHSystem) = system.density_diffusion
 
+@inline function requires_update_callback(system::WeaklyCompressibleSPHSystem, semi)
+    return requires_update_callback(shifting_technique(system)) ||
+           requires_update_callback(density_diffusion(system))
+end
+
 function update_quantities!(system::WeaklyCompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
     (; density_calculator, density_diffusion, correction) = system

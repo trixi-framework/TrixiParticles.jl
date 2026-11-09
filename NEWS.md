@@ -27,6 +27,11 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Added a tutorial on visualizing particle data and fields interpolated with
   `interpolate_plane_2d` using Plots.jl (#1298).
 
+### Features
+
+- Added option to update `DensityDiffusionAntuono` between time steps instead of updating
+  in every stage of the time integration scheme (#1301).
+
 ### Important Bugfixes
 
 - Fixed structure-fluid reaction forces with asymmetric corrected fluid kernel
