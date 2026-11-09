@@ -66,6 +66,15 @@ function create_cache_density(ic, ::ContinuityDensity)
     return (;)
 end
 
+function resize_cache_density!(cache, ::SummationDensity, n, density)
+    resize_and_fill!(cache.density, n, density)
+
+    return cache
+end
+
+# The density is stored in `v` and resized together with `v`
+resize_cache_density!(cache, ::ContinuityDensity, n, density) = cache
+
 @propagate_inbounds function hydrodynamic_mass(system::AbstractFluidSystem, particle)
     return system.mass[particle]
 end

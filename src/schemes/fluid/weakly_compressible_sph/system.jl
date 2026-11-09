@@ -288,6 +288,14 @@ end
     return system.pressure
 end
 
+# Resize the data that only WCSPH stores per particle (see `resize_system!`).
+# The pressure is computed from the density in every time step.
+function resize_scheme_data!(system::WeaklyCompressibleSPHSystem, n)
+    resize_and_fill!(system.pressure, n, zero(eltype(system)))
+
+    return system
+end
+
 @inline system_sound_speed(system::WeaklyCompressibleSPHSystem) = sound_speed(system.state_equation)
 
 @inline shifting_technique(system::WeaklyCompressibleSPHSystem) = system.shifting_technique

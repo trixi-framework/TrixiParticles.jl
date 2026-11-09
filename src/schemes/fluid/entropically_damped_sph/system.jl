@@ -214,6 +214,14 @@ function create_cache_beta(initial_condition, refinement)
     return (; beta)
 end
 
+resize_cache_beta!(cache, ::Nothing, n) = cache
+
+function resize_cache_beta!(cache, refinement, n)
+    resize_and_fill!(cache.beta, n, one(eltype(cache.beta)))
+
+    return cache
+end
+
 create_cache_avg_pressure_reduction(initial_condition, ::Val{false}) = (;)
 
 function create_cache_avg_pressure_reduction(initial_condition, ::Val{true})
@@ -221,6 +229,25 @@ function create_cache_avg_pressure_reduction(initial_condition, ::Val{true})
     neighbor_counter = Vector{Int}(undef, nparticles(initial_condition))
 
     return (; pressure_average, neighbor_counter)
+end
+
+resize_cache_avg_pressure_reduction!(cache, ::Val{false}, n) = cache
+
+function resize_cache_avg_pressure_reduction!(cache, ::Val{true}, n)
+    resize_and_fill!(cache.pressure_average, n, zero(eltype(cache.pressure_average)))
+    resize_and_fill!(cache.neighbor_counter, n, 0)
+
+    return cache
+end
+
+# Resize the data that only EDAC stores per particle (see `resize_system!`)
+function resize_scheme_data!(system::EntropicallyDampedSPHSystem, n)
+    (; cache, particle_refinement, average_pressure_reduction) = system
+
+    resize_cache_beta!(cache, particle_refinement, n)
+    resize_cache_avg_pressure_reduction!(cache, average_pressure_reduction, n)
+
+    return system
 end
 
 function Base.show(io::IO, system::EntropicallyDampedSPHSystem)

@@ -54,6 +54,19 @@ end
     return buffer
 end
 
+# Add inactive particles to the end of the buffer until it has `n` particles
+function resize_buffer!(buffer::SystemBuffer, n)
+    (; active_particle, eachparticle) = buffer
+
+    resize_and_fill!(active_particle, n, false)
+
+    n_old = length(eachparticle)
+    resize!(eachparticle, n)
+    eachparticle[(n_old + 1):n] .= (n_old + 1):n
+
+    return buffer
+end
+
 @inline each_integrated_particle(system, buffer) = each_active_particle(system, buffer)
 
 @inline function active_coordinates(u, system, buffer)

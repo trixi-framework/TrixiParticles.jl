@@ -11,3 +11,5 @@ function ParticleRefinement(; spacing_ratio, min_spacing, max_spacing, reference
     return ParticleRefinement(spacing_ratio, min_spacing, max_spacing,
                               smoothing_length_factor, reference_density)
 end
+
+include("resize.jl")
