@@ -1,4 +1,43 @@
 @testset verbose=true "Validation" begin
+    @trixi_testset "poiseuille_carreau_2d" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(validation_dir(), "poiseuille_carreau_2d",
+                                                  "validation_poiseuille_carreau_2d.jl"),
+                                         nu0=40.0, reynolds_number=0.05,
+                                         ny=8, t_end_factor=0.0002,
+                                         relative_l2_error_bounds=Dict(1.0 => 0.06,
+                                                                       0.5 => 0.06),
+                                         n_values=(1.0, 0.5), output_root=mktempdir()) [
+            r"WARNING: Method definition linear_interpolation_clamped.*\n",
+            r"WARNING: Method definition carreau_yasuda_kinematic_viscosity.*\n",
+            r"WARNING: Method definition solve_shear_rate_from_stress.*\n",
+            r"WARNING: Method definition analytical_ux_profile.*\n",
+            r"WARNING: Method definition velocity_profile_errors.*\n",
+            r"WARNING: Method definition newtonian_ux.*\n"
+        ]
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol) == 0
+        @test all(isfinite, values(final_relative_l2_errors))
+        @test all(error <= relative_l2_error_bounds[n]
+                  for (n, error) in final_relative_l2_errors)
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(validation_dir(), "poiseuille_carreau_2d",
+                                                  "plot_carreau_comparison.jl"),
+                                         output_directory=output_root) [
+            r"WARNING: Method definition linear_interpolation_clamped.*\n",
+            r"WARNING: Method definition carreau_yasuda_kinematic_viscosity.*\n",
+            r"WARNING: Method definition solve_shear_rate_from_stress.*\n",
+            r"WARNING: Method definition analytical_ux_profile.*\n",
+            r"WARNING: Method definition velocity_profile_errors.*\n",
+            r"WARNING: Method definition newtonian_ux.*\n",
+            r"GKS: cannot open display - headless operation mode active\n"
+        ]
+        @test profile_plot.n == 4
+        @test error_plot.n == 2
+        @test !any(endswith(file, ".png") for (_, _, files) in walkdir(output_root)
+                   for file in files)
+    end
+
     @trixi_testset "general" begin
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(validation_dir(), "general",

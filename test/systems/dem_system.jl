@@ -72,6 +72,31 @@ end
 # Define ndims for DummySystem so that any call to ndims returns 2 (for 2D systems).
 Base.ndims(::DummySystem) = 2
 
+@testset "DEM near-zero pair symmetry" begin
+    ic = InitialCondition(; coordinates=zeros(Float32, 2, 1), mass=Float32[1],
+                          density=1.0f0, particle_spacing=1.0f0)
+    model = LinearContactModel(1.0f0)
+    system_a = DEMSystem(ic; contact_model=model, radius=0.3f0,
+                         damping_coefficient=0.0f0, acceleration=(0.0f0, 0.0f0))
+    system_b = DEMSystem(ic; contact_model=model, radius=1.0f0,
+                         damping_coefficient=0.0f0, acceleration=(0.0f0, 0.0f0))
+    v = zeros(Float32, 2, 1)
+    u_a, u_b = ic.coordinates, copy(ic.coordinates)
+    semi = DummySemidiscretization()
+
+    # The first separation is between the old cutoffs; the second retains the contact.
+    for factor in (0.75f0, 1.5f0)
+        u_b[1, 1] = factor * sqrt(eps(Float32))
+        dv_a, dv_b = zero(v), zero(v)
+        TrixiParticles.interact!(dv_a, v, u_a, v, u_b,
+                                 system_a, system_b, semi)
+        TrixiParticles.interact!(dv_b, v, u_b, v, u_a,
+                                 system_b, system_a, semi)
+        @test system_a.mass[1] * dv_a ≈ -system_b.mass[1] * dv_b
+        @test iszero(dv_a) == (factor < 1)
+    end
+end
+
 @testset "ContactModels Physical Behavior" begin
 
     # === HertzContactModel Tests ===
