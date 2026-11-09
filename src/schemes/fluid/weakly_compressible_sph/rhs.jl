@@ -144,12 +144,14 @@ end
      surface_tension_correction) = free_surface_correction(correction, particle_system,
                                                            rho_a, rho_b)
 
-    # For `ContinuityDensity` without correction, this is equivalent to
+    # For `ContinuityDensity` without correction and without variable smoothing lengths,
+    # this is equivalent to
     # dv_pressure = -m_b * (p_a + p_b) / (rho_a * rho_b) * grad_kernel.
-    dv_pressure = pressure_acceleration(particle_system, neighbor_system,
-                                        particle, neighbor,
-                                        m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
-                                        distance, grad_kernel, correction)
+    dv_pressure = pressure_acceleration_variable_h(particle_system, neighbor_system,
+                                                   particle, neighbor,
+                                                   m_a, m_b, p_a, p_b, rho_a, rho_b,
+                                                   pos_diff, distance, grad_kernel,
+                                                   correction)
     dv_particle += dv_pressure * pressure_correction
 
     dv_particle = add_dv_viscosity(dv_particle, particle_system, neighbor_system,

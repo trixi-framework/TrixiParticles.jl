@@ -141,6 +141,27 @@ function choose_pressure_acceleration_formulation(pressure_acceleration::Nothing
     return pressure_acceleration_continuity_density
 end
 
+# With variable smoothing lengths, each pressure is multiplied by the kernel gradient of its
+# own particle, so the formulation needs a version with two kernel gradients
+# (see `pressure_acceleration_variable_h`).
+function check_pressure_acceleration_variable_h(pressure_acceleration, ::Nothing, NDIMS,
+                                                ELTYPE)
+    nothing
+end
+
+function check_pressure_acceleration_variable_h(pressure_acceleration, particle_refinement,
+                                                NDIMS, ELTYPE)
+    if isempty(methods(pressure_acceleration,
+                       (ELTYPE, ELTYPE, ELTYPE, ELTYPE, ELTYPE, ELTYPE,
+                        SVector{NDIMS, ELTYPE}, SVector{NDIMS, ELTYPE})))
+        throw(ArgumentError("when using particle refinement, the passed pressure " *
+                            "acceleration formulation must provide a version with the " *
+                            "arguments `m_a, m_b, rho_a, rho_b, p_a, p_b, W_a, W_b`"))
+    end
+
+    return nothing
+end
+
 @inline pressure_acceleration_formulation(system) = system.pressure_acceleration_formulation
 
 # Formulation using symmetric gradient formulation for corrections not depending on local neighborhood.

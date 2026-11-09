@@ -104,15 +104,77 @@ end
 end
 
 # With variable smoothing lengths, the average of the gradients of both particles keeps
-# the pair interaction antisymmetric. Pairs up to the larger of both compact supports reach
-# this point, so we need the safe version, which is zero outside of the compact support.
+# the pair interaction antisymmetric.
 @inline function symmetric_kernel_grad(::Val{true}, particle_system, neighbor_system,
                                        pos_diff, distance, particle, neighbor)
+    grad_kernel_a,
+    grad_kernel_b = pair_kernel_grads(particle_system, neighbor_system,
+                                      pos_diff, distance, particle, neighbor)
+
+    return (grad_kernel_a + grad_kernel_b) / 2
+end
+
+# The kernel gradients with the smoothing lengths of both particles of a pair.
+# Pairs up to the larger of both compact supports can reach this function, so we need
+# the safe version, which is zero outside of the compact support.
+@inline function pair_kernel_grads(particle_system, neighbor_system,
+                                   pos_diff, distance, particle, neighbor)
     kernel = system_smoothing_kernel(particle_system)
     h_a, h_b = pair_smoothing_lengths(particle_system, neighbor_system, particle, neighbor)
 
-    return (kernel_grad(kernel, pos_diff, distance, h_a) +
-            kernel_grad(kernel, pos_diff, distance, h_b)) / 2
+    return kernel_grad(kernel, pos_diff, distance, h_a),
+           kernel_grad(kernel, pos_diff, distance, h_b)
+end
+
+# Pressure acceleration of `particle` due to `neighbor`. With variable smoothing lengths,
+# each pressure is multiplied by the kernel gradient of its own particle,
+# `p_a ∇W(h_a) + p_b ∇W(h_b)` (Eq. 8 in Haftu et al.), instead of using `grad_kernel`.
+@propagate_inbounds function pressure_acceleration_variable_h(particle_system,
+                                                              neighbor_system,
+                                                              particle, neighbor,
+                                                              m_a, m_b, p_a, p_b,
+                                                              rho_a, rho_b, pos_diff,
+                                                              distance, grad_kernel,
+                                                              correction)
+    return pressure_acceleration_variable_h(Val(has_variable_smoothing_length(particle_system,
+                                                                              neighbor_system)),
+                                            particle_system, neighbor_system,
+                                            particle, neighbor, m_a, m_b, p_a, p_b,
+                                            rho_a, rho_b, pos_diff, distance,
+                                            grad_kernel, correction)
+end
+
+@propagate_inbounds function pressure_acceleration_variable_h(::Val{false},
+                                                              particle_system,
+                                                              neighbor_system,
+                                                              particle, neighbor,
+                                                              m_a, m_b, p_a, p_b,
+                                                              rho_a, rho_b, pos_diff,
+                                                              distance, grad_kernel,
+                                                              correction)
+    return pressure_acceleration(particle_system, neighbor_system, particle, neighbor,
+                                 m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff, distance,
+                                 grad_kernel, correction)
+end
+
+# Corrections are rejected with variable smoothing lengths (see `check_configuration`),
+# so `correction` is not needed here. The asymmetric version of the formulation expects
+# `W_b` to be evaluated at `-pos_diff`.
+@propagate_inbounds function pressure_acceleration_variable_h(::Val{true},
+                                                              particle_system,
+                                                              neighbor_system,
+                                                              particle, neighbor,
+                                                              m_a, m_b, p_a, p_b,
+                                                              rho_a, rho_b, pos_diff,
+                                                              distance, grad_kernel,
+                                                              correction)
+    grad_kernel_a,
+    grad_kernel_b = pair_kernel_grads(particle_system, neighbor_system,
+                                      pos_diff, distance, particle, neighbor)
+
+    return pressure_acceleration_formulation(particle_system)(m_a, m_b, rho_a, rho_b,
+                                                              p_a, p_b, grad_kernel_a,
+                                                              -grad_kernel_b)
 end
 
 function write_u0!(u0, system::AbstractFluidSystem)

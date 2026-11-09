@@ -36,6 +36,8 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
                                 density calculator and the correction method.
                                 To use [Tensile Instability Control](@ref tic), pass
                                 [`tensile_instability_control`](@ref) here.
+                                With particle refinement, the formulation must provide a version with
+                                the arguments `m_a, m_b, rho_a, rho_b, p_a, p_b, W_a, W_b`.
 - `shifting_technique`:         [Shifting technique](@ref shifting) or [transport velocity
                                 formulation](@ref transport_velocity_formulation) to use
                                 with this system. Default is no shifting.
@@ -142,6 +144,8 @@ function WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
                                                                      density_calculator,
                                                                      NDIMS, ELTYPE,
                                                                      correction)
+    check_pressure_acceleration_variable_h(pressure_acceleration, particle_refinement,
+                                           NDIMS, ELTYPE)
 
     cache = (; create_cache_density(initial_condition, density_calculator)...,
              create_cache_correction(correction, initial_condition.density, NDIMS,

@@ -113,6 +113,58 @@
             # The neighborhood search returns this pair, but it must not interact
             @test iszero(pair_dv(0.06, 0.06))
         end
+
+        @testset "Each Pressure Uses the Kernel Gradient of Its Own Particle" begin
+            # Different densities give different pressures
+            rho_a, rho_b = 1100.0, 1050.0
+            pair = InitialCondition(; coordinates, mass, density=[rho_a, rho_b],
+                                    particle_spacing=0.1)
+            fluid_system = WeaklyCompressibleSPHSystem(pair; smoothing_kernel,
+                                                       smoothing_length=0.12,
+                                                       density_calculator=ContinuityDensity(),
+                                                       state_equation,
+                                                       particle_refinement=refinement)
+            semi = Semidiscretization(fluid_system;
+                                      parallelization_backend=SerialBackend())
+            ode = semidiscretize(semi, (0.0, 0.1))
+            system = ode.p.semi.systems[1]
+            h_a, h_b = 0.1, 0.12
+            TrixiParticles.set_particle_smoothing_length!(system, 1, h_a)
+            TrixiParticles.set_particle_smoothing_length!(system, 2, h_b)
+
+            v_ode, u_ode = ode.u0.x
+            dv_ode = zero(v_ode)
+            TrixiParticles.kick!(dv_ode, v_ode, u_ode, ode.p, 0.0)
+            dv = TrixiParticles.wrap_v(dv_ode, system, ode.p.semi)
+
+            pos_diff = SVector(-0.15, 0.0)
+            grad_a = TrixiParticles.kernel_grad(smoothing_kernel, pos_diff, 0.15, h_a)
+            grad_b = TrixiParticles.kernel_grad(smoothing_kernel, pos_diff, 0.15, h_b)
+            p_a, p_b = state_equation(rho_a), state_equation(rho_b)
+
+            # `pressure_acceleration_continuity_density` with `p_a ∇W(h_a) + p_b ∇W(h_b)`
+            expected = -mass[2] / (rho_a * rho_b) * (p_a * grad_a + p_b * grad_b)
+            averaged = -mass[2] * (p_a + p_b) / (rho_a * rho_b) * (grad_a + grad_b) / 2
+
+            @test !isapprox(expected[1], averaged[1])
+            @test isapprox(dv[1, 1], expected[1], rtol=1e-12)
+            @test isapprox(mass[1] * dv[1, 1], -mass[2] * dv[1, 2], rtol=1e-12)
+        end
+    end
+
+    @testset "Formulation Without Two Gradients is Rejected" begin
+        tank = RectangularTank(0.1, (0.5, 0.5), (1.0, 1.0), 1000.0; n_layers=3)
+        error_str = "when using particle refinement, the passed pressure " *
+                    "acceleration formulation must provide a version with the " *
+                    "arguments `m_a, m_b, rho_a, rho_b, p_a, p_b, W_a, W_b`"
+
+        @test_throws ArgumentError(error_str) WeaklyCompressibleSPHSystem(tank.fluid;
+                                                                          smoothing_kernel,
+                                                                          smoothing_length=0.12,
+                                                                          density_calculator=ContinuityDensity(),
+                                                                          state_equation,
+                                                                          pressure_acceleration=tensile_instability_control,
+                                                                          particle_refinement=refinement)
     end
 
     @testset verbose=true "Wall Next to Fluid With Larger Smoothing Length" begin
@@ -262,7 +314,9 @@
 
         @testset "Rigid Body Forces Are Opposite" begin
             function forces(h_fluid)
-                boundary_model = BoundaryModelDummyParticles([1000.0], [10.0],
+                # A density above the reference density gives a non-zero rigid body pressure,
+                # which is what remains outside of the compact support of the fluid particle.
+                boundary_model = BoundaryModelDummyParticles([1100.0], [10.0],
                                                              ContinuityDensity(),
                                                              smoothing_kernel, 0.12;
                                                              state_equation)
