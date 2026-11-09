@@ -3,4 +3,6 @@
     include("interactions.jl")
     include("edac.jl")
     include("resize.jl")
+    include("refinement_criteria.jl")
+    include("spacing.jl")
 end

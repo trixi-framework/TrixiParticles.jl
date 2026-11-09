@@ -156,6 +156,7 @@ function WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
                                           n_particles)...,
              create_cache_density_diffusion(initial_condition, density_diffusion)...,
              create_cache_shifting(initial_condition, shifting_technique)...,
+             create_cache_refinement(initial_condition, particle_refinement)...,
              # Per-system color tag for colorfield surface-normal logic and VTK output.
              color=Int(color_value))
 

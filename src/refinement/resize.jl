@@ -147,14 +147,17 @@ end
 function resize_system!(system::AbstractFluidSystem, n)
     (; mass, smoothing_length, cache, density_calculator, buffer,
      initial_condition) = system
-    (; reference_density) = get_refinement(system)
+    refinement = get_refinement(system)
+    (; reference_density) = refinement
 
     # The new particles are initialized like the buffer particles in `allocate_buffer`.
     # Their values are set when they are activated.
-    mass_new = reference_density * initial_condition.particle_spacing^ndims(system)
+    spacing_new = initial_condition.particle_spacing
+    mass_new = reference_density * spacing_new^ndims(system)
     resize_and_fill!(mass, n, mass_new)
     resize_and_fill!(smoothing_length, n, initial_smoothing_length(system))
 
+    resize_cache_refinement!(cache, refinement, n, spacing_new)
     resize_cache_density!(cache, density_calculator, n, reference_density)
     resize_scheme_data!(system, n)
     resize_buffer!(buffer, n)

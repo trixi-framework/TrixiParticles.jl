@@ -157,7 +157,7 @@ function sort_system!(system, v, u, perm, buffer::Nothing)
     return system
 end
 
-# With refinement, masses and smoothing lengths differ between particles
+# With refinement, masses, smoothing lengths and target spacings differ between particles
 @inline function sort_variable_particle_data!(system, perm)
     return sort_variable_particle_data!(system, get_refinement(system), perm)
 end
@@ -167,6 +167,10 @@ end
 function sort_variable_particle_data!(system, refinement, perm)
     system.mass .= system.mass[perm]
     system.smoothing_length .= system.smoothing_length[perm]
+
+    # The target spacing persists between refinement calls.
+    # All other refinement data is recomputed in every refinement call.
+    system.cache.target_spacing .= system.cache.target_spacing[perm]
 
     return system
 end
