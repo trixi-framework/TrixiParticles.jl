@@ -633,7 +633,6 @@ function check_configuration(system::RigidBodySystem, systems, nhs)
                                 "when simulating a fluid-structure interaction."))
         end
 
-        check_boundary_density_fsi(system, boundary_model, neighbor)
         check_smoothing_kernel_fsi(system, boundary_model, neighbor)
 
         if neighbor isa AbstractFluidSystem &&

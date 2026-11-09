@@ -876,7 +876,6 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
     end
 
     foreach_system(systems) do neighbor
-        check_boundary_density_fsi(system, boundary_model, neighbor)
         check_smoothing_kernel_fsi(system, boundary_model, neighbor)
     end
 end
