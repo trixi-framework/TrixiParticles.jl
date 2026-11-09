@@ -247,9 +247,9 @@
                                                     system.average_pressure_reduction,
                                                     v_ode, u_ode, semi)
 
+            # Every particle has all particles (including itself) and the wall as neighbors
             n_neighbors = nparticles(system) + mirrored_wall
-            @test all(i -> system.cache.neighbor_counter[i] == n_neighbors,
-                      nparticles(system))
+            @test all(==(n_neighbors), system.cache.neighbor_counter)
             # The wall contributes each fluid particle's own pressure, not its zero cache.
             expected = mirrored_wall ?
                        (sum(fluid.pressure) .+ fluid.pressure) / n_neighbors :

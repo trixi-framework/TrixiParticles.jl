@@ -372,9 +372,9 @@
             v_ode, u_ode = ode.u0.x
             TrixiParticles.update_systems_and_nhs(v_ode, u_ode, ode.p.semi, 0.0)
 
-            fluid,
-            structure = boundary_first ? reverse(ode.p.semi.systems) :
-                        ode.p.semi.systems
+            (fluid,
+             structure) = boundary_first ? reverse(ode.p.semi.systems) :
+                          ode.p.semi.systems
             semi = ode.p.semi
             arrays = (TrixiParticles.wrap_v(v_ode, fluid, semi),
                       TrixiParticles.wrap_u(u_ode, fluid, semi),
@@ -586,17 +586,30 @@
                             dv_fluid = TrixiParticles.wrap_v(dv_ode, fluid, semi)
                             force_fluid_rhs = fluid.mass[1] * dv_fluid[1:2, 1]
                             if scheme != "WCSPH" && boundary_density isa PressureMirroring
-                                # Mirroring removes pressure diffusion; boundary volume is 1.
-                                @test dv_fluid[3, 1] ≈
-                                      state.density * sound_speed^2 *
-                                      dot(SVector(state.velocity), pair_gradient)
+                                # Row 3 is the EDAC pressure derivative. Mirroring gives
+                                # p_b = p_a, so pressure diffusion vanishes. With the
+                                # boundary at rest, only rho_a * c^2 * V_b * v_a ⋅ ∇W_ab remains.
+                                # The boundary's hydrodynamic mass is rho_b * particle_spacing^2.
+                                boundary_volume = particle_spacing^2
+                                expected_pressure_rate = state.density * sound_speed^2 *
+                                                         boundary_volume *
+                                                         dot(SVector(state.velocity),
+                                                             pair_gradient)
+                                @test dv_fluid[3, 1] ≈ expected_pressure_rate
                                 if isnothing(viscosity)
-                                    p = TrixiParticles.current_pressure(v_fluid, fluid, 1) -
-                                        TrixiParticles.average_pressure(fluid, 1)
-                                    expected = -((fluid.mass[1] / state.density)^2 + 1) *
-                                               p *
-                                               pair_gradient
-                                    @test isapprox(force_fluid_rhs, expected,
+                                    # Equal mirrored pressures reduce the density-weighted
+                                    # pressure average to p_a - p_avg. Multiplying the
+                                    # acceleration by m_a gives F_a = -(V_a^2 + V_b^2) *
+                                    # (p_a - p_avg) * ∇W_ab.
+                                    fluid_volume = fluid.mass[1] / state.density
+                                    effective_pressure = TrixiParticles.current_pressure(v_fluid,
+                                                                                         fluid,
+                                                                                         1) -
+                                                         TrixiParticles.average_pressure(fluid,
+                                                                                         1)
+                                    expected_force = -(fluid_volume^2 + boundary_volume^2) *
+                                                     effective_pressure * pair_gradient
+                                    @test isapprox(force_fluid_rhs, expected_force,
                                                    atol=sqrt(eps()))
                                 end
                             end
@@ -616,6 +629,12 @@
             end
         end
 
+        # The no-slip wall velocity is `2 * v_boundary - v_fluid` for all density calculators
+        # (see Adami et al. 2012).
+        # Check that a moving boundary drags the slower fluid along, both initially and
+        # after a fluid-velocity change.
+        # For IISPH, check that the predictor and RHS use the same viscous force
+        # for both system orderings.
         no_slip_densities = (ContinuityDensity(), PressureZeroing(), PressureMirroring())
         iisph_densities = (AdamiPressureExtrapolation(), BernoulliPressureExtrapolation(),
                            no_slip_densities...,
@@ -706,6 +725,29 @@
                   -SVector(1.0, 0.5) / 2
         end
 
+        # The `SplitIntegrationCallback` updates the structure in a semidiscretization
+        # without fluid. This must not reset the wall velocity of the no-slip condition.
+        @testset "Mirrored no-slip velocity: update without fluid" begin
+            viscosity = ViscosityAdami(nu=0.1)
+            fluid_system = create_fluid_system("WCSPH", (0.0, 0.0), fluid_density,
+                                               viscosity)
+            structure = create_structure_system(TotalLagrangianSPHSystem, viscosity;
+                                                boundary_density=PressureMirroring(),
+                                                velocity=SVector(1.0, 0.5))
+            _, structure, _, _, _ = initialize(fluid_system, structure)
+            wall_velocity = copy(structure.boundary_model.cache.wall_velocity)
+            @test !iszero(wall_velocity)
+
+            semi_split = Semidiscretization(structure;
+                                            parallelization_backend=SerialBackend())
+            v_ode, u_ode = semidiscretize(semi_split, (0.0, 1.0)).u0.x
+            TrixiParticles.update_systems_split!(semi_split, v_ode, u_ode, 0.0)
+            @test structure.boundary_model.cache.wall_velocity == wall_velocity
+        end
+
+        # Check mirrored wall pressure in EDAC's acceleration and pressure derivative,
+        # both with and without average-pressure reduction. Since p_b = p_a, pressure
+        # diffusion vanishes and the pressure force uses p_a - p_avg on both sides.
         @testset "Mirrored EDAC wall: $scheme" for scheme in
                                                    ("EDAC",
                                                     "EDAC with average pressure reduction")

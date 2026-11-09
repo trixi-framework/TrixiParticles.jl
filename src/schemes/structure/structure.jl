@@ -48,7 +48,7 @@ function check_boundary_density_fsi(system::Union{TotalLagrangianSPHSystem{<:Bou
                                                   RigidBodySystem{<:BoundaryModelDummyParticles{SummationDensity}}},
                                     neighbor_system::AbstractFluidSystem)
     throw(ArgumentError("`BoundaryModelDummyParticles` with density calculator " *
-                        "`SummationDensity` is not yet supported for a " *
+                        "`SummationDensity` is not supported for a " *
                         "`$(nameof(typeof(system)))` in a fluid-structure interaction"))
 end
 
