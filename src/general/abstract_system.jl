@@ -139,19 +139,14 @@ end
     return skip_zero_distance(system_correction(system))
 end
 
+@inline skip_zero_distance(system, neighbor_system) = skip_zero_distance(system)
+
 # Robust/safe version of the function below. In performance-critical code, manually check
 # the kernel support, call `skip_zero_distance` and then `smoothing_kernel_grad_unsafe`.
 @inline function smoothing_kernel_grad(system, pos_diff, distance, particle)
-    h = smoothing_length(system, particle)
-    compact_support_ = compact_support(system_smoothing_kernel(system), h)
-
-    # See `almostzero` for an explanation of the zero distance check
-    if distance >= compact_support_ ||
-       (skip_zero_distance(system) && distance < almostzero(h))
-        return zero(pos_diff)
-    end
-
-    return smoothing_kernel_grad_unsafe(system, pos_diff, distance, particle)
+    return corrected_kernel_grad(system_smoothing_kernel(system), pos_diff, distance,
+                                 smoothing_length(system, particle),
+                                 system_correction(system), system, particle)
 end
 
 # Skip the zero distance and compact support checks for maximum performance.
@@ -160,6 +155,16 @@ end
     return corrected_kernel_grad_unsafe(system_smoothing_kernel(system), pos_diff,
                                         distance, smoothing_length(system, particle),
                                         system_correction(system), system, particle)
+end
+
+# A neighbor's correction may keep a coincident pair active even though this
+# system's gradient vanishes. Use the safe gradient for those interactions.
+@inline function interaction_kernel_grad(system, neighbor_system, pos_diff, distance,
+                                         particle)
+    if skip_zero_distance(system) && !skip_zero_distance(system, neighbor_system)
+        return smoothing_kernel_grad(system, pos_diff, distance, particle)
+    end
+    return smoothing_kernel_grad_unsafe(system, pos_diff, distance, particle)
 end
 
 # System updates do nothing by default, but can be dispatched if needed

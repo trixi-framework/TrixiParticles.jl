@@ -46,17 +46,15 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                         backend, particle;
                                                         init) do particle, neighbor,
                                                                  pos_diff, distance
-            # Skip neighbors with (almost) the same position because the kernel gradient
-            # is zero, but computing it would divide by zero (see `almostzero`).
+            # Skip coincident pairs only when the active pressure gradients both vanish.
             # Note that `return` only exits the closure, i.e., skips the current neighbor.
-            if skip_zero_distance(particle_system) && distance < almostzero(h)
+            if skip_zero_distance(particle_system, neighbor_system) &&
+               distance < almostzero(h)
                 return init
             end
 
-            # Now that we know that `distance` is not zero, we can safely call the unsafe
-            # version of the kernel gradient to avoid redundant zero checks.
-            grad_kernel = smoothing_kernel_grad_unsafe(particle_system, pos_diff,
-                                                       distance, particle)
+            grad_kernel = interaction_kernel_grad(particle_system, neighbor_system,
+                                                  pos_diff, distance, particle)
 
             # `foreach_neighbor` makes sure that `neighbor` is in bounds of `neighbor_system`
             m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)

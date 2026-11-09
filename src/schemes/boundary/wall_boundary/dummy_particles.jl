@@ -117,10 +117,22 @@ end
     return ndims(boundary_model.smoothing_kernel)
 end
 
-# Evaluate fluid-pressure gradients with the boundary model's kernel and correction data.
-# The TLSPH self-interaction kernel and correction matrix belong to the structure.
-@inline system_correction(model::BoundaryModelDummyParticles) = model.correction
-@inline skip_zero_distance(model::BoundaryModelDummyParticles) = skip_zero_distance(model.correction)
+# Evaluate the structure-side FSI pressure-acceleration gradient with the boundary
+# model's kernel and correction data. The TLSPH self-interaction kernel and correction
+# matrix are used separately for solid mechanics.
+@inline function smoothing_kernel_grad(model::BoundaryModelDummyParticles, pos_diff,
+                                       distance, particle)
+    (; smoothing_kernel, smoothing_length, correction) = model
+    return corrected_kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length,
+                                 correction, model, particle)
+end
+
+@inline function smoothing_kernel_grad_unsafe(model::BoundaryModelDummyParticles, pos_diff,
+                                              distance, particle)
+    (; smoothing_kernel, smoothing_length, correction) = model
+    return corrected_kernel_grad_unsafe(smoothing_kernel, pos_diff, distance,
+                                        smoothing_length, correction, model, particle)
+end
 
 @propagate_inbounds function kernel_correction_coefficient(model::BoundaryModelDummyParticles,
                                                            particle)
@@ -420,7 +432,7 @@ end
     compute_pressure!(boundary_model, density_calculator, system, v, u, v_ode, u_ode, semi)
 
     # These are only computed when using corrections
-    compute_correction_values!(system, correction, u, v_ode, u_ode, semi)
+    compute_correction_values!(boundary_model, system, correction, u, v_ode, u_ode, semi)
     compute_gradient_correction_matrix!(correction, boundary_model, system, u, v_ode, u_ode,
                                         semi)
     # `kernel_correct_density!` only performed for `SummationDensity`
@@ -428,6 +440,31 @@ end
                             density_calculator)
 
     return boundary_model
+end
+
+# Use the system for coordinates and neighbor traversal, and the boundary model for
+# the hydrodynamic kernel and correction cache.
+function compute_correction_values!(boundary_model::BoundaryModelDummyParticles, system,
+                                    correction, u, v_ode, u_ode, semi)
+    return system
+end
+
+function compute_correction_values!(boundary_model::BoundaryModelDummyParticles, system,
+                                    ::ShepardKernelCorrection, u, v_ode, u_ode, semi)
+    (; cache) = boundary_model
+    return compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode,
+                                  semi, cache.kernel_correction_coefficient, boundary_model)
+end
+
+function compute_correction_values!(boundary_model::BoundaryModelDummyParticles, system,
+                                    correction::Union{KernelCorrection,
+                                                      MixedKernelGradientCorrection}, u,
+                                    v_ode, u_ode, semi)
+    (; cache, smoothing_kernel) = boundary_model
+    return compute_correction_values!(system, correction, current_coordinates(u, system),
+                                      v_ode, u_ode, semi,
+                                      cache.kernel_correction_coefficient,
+                                      cache.dw_gamma, smoothing_kernel, boundary_model)
 end
 
 function kernel_correct_density!(boundary_model, v, u, v_ode, u_ode, semi,
@@ -456,7 +493,8 @@ function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
     system_coords = current_coordinates(u, system)
 
     compute_gradient_correction_matrix!(correction_matrix, system, system_coords,
-                                        v_ode, u_ode, semi, correction, smoothing_kernel)
+                                        v_ode, u_ode, semi, correction, smoothing_kernel,
+                                        boundary_model)
 end
 
 function compute_density!(boundary_model, ::SummationDensity, system, v, u, v_ode, u_ode,

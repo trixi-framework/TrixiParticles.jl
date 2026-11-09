@@ -130,9 +130,11 @@ In these cases, artificial viscosity is effective at stabilizing the fluid close
 structure, and we recommend using it in combination with penalty force to both
 prevent hourglass modes and stabilize the fluid close to the fluid-structure interface.
 
-For dummy-particle fluid coupling, corrected pressure uses the boundary model's
-kernel for the structure-side gradient, independently of the TLSPH self-interaction
-kernel. The boundary model and fluid must use the same smoothing kernel and smoothing length.
+For dummy-particle fluid coupling with kernel or gradient correction, the structure-side
+kernel gradient in the pressure acceleration is evaluated using the boundary model's
+smoothing kernel, smoothing length, and correction data, independently of the TLSPH
+self-interaction kernel. The boundary model and fluid must use the same smoothing
+kernel and smoothing length.
 
 ## [Velocity Averaging](@id velocity_averaging)
 

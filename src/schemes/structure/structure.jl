@@ -26,10 +26,25 @@ end
                                                          GradientCorrection,
                                                          BlendedGradientCorrection,
                                                          MixedKernelGradientCorrection})
-    # Use the boundary model's kernel and correction data for fluid pressure.
-    return pressure_acceleration(particle_system, neighbor_system.boundary_model,
-                                 particle, neighbor, m_a, m_b, p_a, p_b, rho_a, rho_b,
-                                 pos_diff, distance, W_a, correction)
+    W_b = smoothing_kernel_grad(neighbor_system.boundary_model, -pos_diff, distance,
+                                neighbor)
+
+    # With correction, the kernel gradient is not necessarily symmetric, so call the
+    # asymmetric version of the pressure acceleration formulation.
+    return pressure_acceleration_formulation(particle_system)(m_a, m_b, rho_a, rho_b,
+                                                              p_a, p_b, W_a, W_b)
+end
+
+@inline function skip_zero_distance(particle_system::AbstractFluidSystem,
+                                    neighbor_system::Union{TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles},
+                                                           RigidBodySystem{<:BoundaryModelDummyParticles}})
+    correction = system_correction(particle_system)
+    # Gradient corrections use the asymmetric pressure operator. Its boundary-side
+    # gradient can remain nonzero at coincidence even when the fluid gradient is zero.
+    if correction isa Union{GradientCorrection, BlendedGradientCorrection}
+        return skip_zero_distance(neighbor_system.boundary_model.correction)
+    end
+    return skip_zero_distance(correction)
 end
 
 # Both FSI directions must find the same particle pairs and use matching boundary and
@@ -71,20 +86,18 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
     foreach_point_neighbor(particle_system, neighbor_system,
                            system_coords, neighbor_coords, semi;
                            points=eachparticle) do particle, neighbor, pos_diff, distance
-        # Skip neighbors with (almost) the same position because the kernel gradient
-        # is zero, but computing it would divide by zero (see `almostzero`).
+        # Skip coincident pairs only when the active pressure gradients both vanish.
         # Note that `return` only exits the closure, i.e., skips the current neighbor.
-        skip_zero_distance(neighbor_system) && distance < almostzero(h) && return
+        skip_zero_distance(neighbor_system, particle_system) &&
+            distance < almostzero(h) && return
 
-        # Now that we know that `distance` is not zero, we can safely call the unsafe
-        # version of the kernel gradient to avoid redundant zero checks.
         # Evaluate the gradient exactly as in the fluid-structure interaction, i.e.,
         # with the fluid particle's kernel and correction and the fluid-first displacement.
         # Note that we cannot just flip the sign of the structure-first gradient, since
         # corrections like `KernelCorrection` add a term that keeps its sign
         # when the displacement is reversed.
-        grad_kernel_fluid = smoothing_kernel_grad_unsafe(neighbor_system, -pos_diff,
-                                                         distance, neighbor)
+        grad_kernel_fluid = interaction_kernel_grad(neighbor_system, particle_system,
+                                                    -pos_diff, distance, neighbor)
 
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
@@ -168,7 +181,7 @@ end
                                                  particle, grad_kernel_fluid)
     # Use the boundary model's kernel and smoothing length, which may differ from
     # the TLSPH kernel for solid mechanics.
-    # The safe version also returns zero for coincident particles.
+    # The safe version handles coincident particles, including kernel normalization.
     return smoothing_kernel_grad(boundary_model, pos_diff, distance, particle)
 end
 
