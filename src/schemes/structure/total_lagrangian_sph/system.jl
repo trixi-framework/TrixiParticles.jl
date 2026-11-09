@@ -492,7 +492,9 @@ end
 function update_quantities!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
     # Precompute PK1 stress tensor
     @trixi_timeit timer() "stress tensor" compute_pk1_corrected!(system, semi)
-    interpolate_wall_velocity!(system.boundary_model, system, v, u, v_ode, u_ode, semi)
+    @trixi_timeit timer() "interpolate wall velocity" begin
+        interpolate_wall_velocity!(system.boundary_model, system, v, u, v_ode, u_ode, semi)
+    end
 
     return system
 end
@@ -871,6 +873,7 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
     end
 
     foreach_system(systems) do neighbor
+        check_boundary_density_fsi(system, boundary_model, neighbor)
         check_smoothing_kernel_fsi(system, boundary_model, neighbor)
     end
 end

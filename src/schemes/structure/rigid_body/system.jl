@@ -361,7 +361,9 @@ function restart_with!(system::RigidBodySystem, v, u)
 end
 
 function update_quantities!(system::RigidBodySystem, v, u, v_ode, u_ode, semi, t)
-    interpolate_wall_velocity!(system.boundary_model, system, v, u, v_ode, u_ode, semi)
+    @trixi_timeit timer() "interpolate wall velocity" begin
+        interpolate_wall_velocity!(system.boundary_model, system, v, u, v_ode, u_ode, semi)
+    end
     return system
 end
 
@@ -635,6 +637,7 @@ function check_configuration(system::RigidBodySystem, systems, nhs)
                                 "when simulating a fluid-structure interaction."))
         end
 
+        check_boundary_density_fsi(system, boundary_model, neighbor)
         check_smoothing_kernel_fsi(system, boundary_model, neighbor)
 
         if neighbor isa AbstractFluidSystem &&

@@ -367,9 +367,8 @@
             v_ode, u_ode = ode.u0.x
             TrixiParticles.update_systems_and_nhs(v_ode, u_ode, ode.p.semi, 0.0)
 
-            fluid,
-            structure = boundary_first ? reverse(ode.p.semi.systems) :
-                        ode.p.semi.systems
+            (fluid, structure) = boundary_first ? reverse(ode.p.semi.systems) :
+                                 ode.p.semi.systems
             semi = ode.p.semi
             arrays = (TrixiParticles.wrap_v(v_ode, fluid, semi),
                       TrixiParticles.wrap_u(u_ode, fluid, semi),
@@ -581,17 +580,30 @@
                             dv_fluid = TrixiParticles.wrap_v(dv_ode, fluid, semi)
                             force_fluid_rhs = fluid.mass[1] * dv_fluid[1:2, 1]
                             if scheme != "WCSPH" && boundary_density isa PressureMirroring
-                                # Mirroring removes pressure diffusion; boundary volume is 1.
-                                @test dv_fluid[3, 1] ≈
-                                      state.density * sound_speed^2 *
-                                      dot(SVector(state.velocity), pair_gradient)
+                                # Row 3 is the EDAC pressure derivative. Mirroring gives
+                                # p_b = p_a, so pressure diffusion vanishes. With the
+                                # boundary at rest, only rho_a * c^2 * V_b * v_a ⋅ ∇W_ab remains.
+                                # The boundary's hydrodynamic mass is rho_b * particle_spacing^2.
+                                boundary_volume = particle_spacing^2
+                                expected_pressure_rate = state.density * sound_speed^2 *
+                                                         boundary_volume *
+                                                         dot(SVector(state.velocity),
+                                                             pair_gradient)
+                                @test dv_fluid[3, 1] ≈ expected_pressure_rate
                                 if isnothing(viscosity)
-                                    p = TrixiParticles.current_pressure(v_fluid, fluid, 1) -
-                                        TrixiParticles.average_pressure(fluid, 1)
-                                    expected = -((fluid.mass[1] / state.density)^2 + 1) *
-                                               p *
-                                               pair_gradient
-                                    @test isapprox(force_fluid_rhs, expected,
+                                    # Equal mirrored pressures reduce the density-weighted
+                                    # pressure average to p_a - p_avg. Multiplying the
+                                    # acceleration by m_a gives F_a = -(V_a^2 + V_b^2) *
+                                    # (p_a - p_avg) * ∇W_ab.
+                                    fluid_volume = fluid.mass[1] / state.density
+                                    effective_pressure = TrixiParticles.current_pressure(v_fluid,
+                                                                                         fluid,
+                                                                                         1) -
+                                                         TrixiParticles.average_pressure(fluid,
+                                                                                         1)
+                                    expected_force = -(fluid_volume^2 + boundary_volume^2) *
+                                                     effective_pressure * pair_gradient
+                                    @test isapprox(force_fluid_rhs, expected_force,
                                                    atol=sqrt(eps()))
                                 end
                             end
@@ -611,6 +623,10 @@
             end
         end
 
+        # For fluid at rest, the no-slip ghost velocity is 2 * v_boundary.
+        # Check that a moving mirrored-pressure boundary drags the fluid along.
+        # For IISPH, check that the predictor and RHS use the same viscous force,
+        # including after a fluid-velocity change and for both system orderings.
         no_slip_configurations = (("WCSPH", WallBoundarySystem, false),
                                   ("WCSPH", TotalLagrangianSPHSystem, false),
                                   ("WCSPH", RigidBodySystem, false),
@@ -653,6 +669,9 @@
             end
         end
 
+        # Check mirrored wall pressure in EDAC's acceleration and pressure derivative,
+        # both with and without average-pressure reduction. Since p_b = p_a, pressure
+        # diffusion vanishes and the pressure force uses p_a - p_avg on both sides.
         @testset "Mirrored EDAC wall: $scheme" for scheme in
                                                    ("EDAC",
                                                     "EDAC with average pressure reduction")

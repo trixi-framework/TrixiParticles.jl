@@ -41,18 +41,17 @@ end
 
 check_smoothing_kernel_fsi(system, boundary_model, neighbor_system) = system
 
-# The density of a structure boundary is computed by the pressure extrapolation or
-# integrated with the continuity equation. The summation density is only computed for
-# a `WallBoundarySystem`, so the density of a structure would stay at its initial value.
-function check_boundary_density_fsi(system::Union{TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{SummationDensity}},
-                                                  RigidBodySystem{<:BoundaryModelDummyParticles{SummationDensity}}},
+# Summation density is only computed for wall boundary systems. Structures would
+# retain their initial boundary density during fluid-structure interaction.
+function check_boundary_density_fsi(system,
+                                    boundary_model::BoundaryModelDummyParticles{SummationDensity},
                                     neighbor_system::AbstractFluidSystem)
     throw(ArgumentError("`BoundaryModelDummyParticles` with density calculator " *
-                        "`SummationDensity` is not yet supported for a " *
+                        "`SummationDensity` is not supported for a " *
                         "`$(nameof(typeof(system)))` in a fluid-structure interaction"))
 end
 
-check_boundary_density_fsi(system, neighbor_system) = system
+check_boundary_density_fsi(system, boundary_model, neighbor_system) = system
 
 function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
                                    v_neighbor_system, u_neighbor_system,
