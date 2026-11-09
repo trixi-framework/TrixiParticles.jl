@@ -8,7 +8,8 @@
 2. [Modifying or extending components of TrixiParticles.jl within a simulation file](tutorials/tut_custom_kernel.md): replace selected parts of an existing setup without cloning the package.
 3. [Setting up a 2D simulation from geometry files](tutorials/tut_2d_geometry.md): load 2D geometry files, create wall regions, and combine them with a rectangular fluid region.
 4. [Particle packing tutorial](tutorials/tut_packing.md): build a body-fitted particle configuration for complex geometries.
-5. [Fluid-structure interaction with rigid bodies](tutorials/tut_rigid_body_fsi.md): simulate objects moving in a fluid.
+5. [Visualizing particle data with Plots.jl](tutorials/tut_visualization.md): compare discrete particle plots with interpolated fields on a Cartesian grid.
+6. [Fluid-structure interaction with rigid bodies](tutorials/tut_rigid_body_fsi.md): simulate objects moving in a fluid.
 
 ## Tutorials
 
@@ -67,6 +68,20 @@ together with boundary and interior sampling.
 
 - Focus: geometry import, signed distance fields, boundary sampling, `ParticlePackingSystem`
 - Choose this if: you need body-fitted particles for complex geometries
+
+### [Visualizing particle data with Plots.jl](tutorials/tut_visualization.md)
+
+```@raw html
+<img src="../tutorials/tut_visualization_interpolated_velocity.png"
+     alt="Velocity from a coarse vortex-street simulation interpolated onto a regular grid"
+     style="max-width: 360px; width: 100%; border-radius: 12px;" />
+```
+
+Compare the velocity carried by moving SPH particles with its kernel reconstruction on a
+Cartesian grid in a deliberately coarse vortex-street simulation.
+
+- Focus: particle plots, plane interpolation, regular-grid visualization
+- Choose this if: you want to postprocess particle data or export a smooth field for plotting
 
 ### [Fluid-structure interaction with rigid bodies](tutorials/tut_rigid_body_fsi.md)
 
