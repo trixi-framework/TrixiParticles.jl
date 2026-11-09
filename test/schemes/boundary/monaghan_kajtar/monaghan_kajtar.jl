@@ -65,5 +65,29 @@
 
         # The middle column of fluid particles should experience weaker accelerations
         @test isapprox(dv[1, [2, 5, 8]], [-26.052449, -95.162888, -26.052449])
+
+        @testset "EDAC" begin
+            fluid_system = EntropicallyDampedSPHSystem(fluid; smoothing_kernel,
+                                                       smoothing_length, sound_speed=10.0,
+                                                       density_calculator=ContinuityDensity())
+
+            # The boundary model has zero pressure, so a positive fluid pressure
+            # gives a non-zero damping term in the pressure evolution.
+            # Pressure and density are integrated with `ContinuityDensity`.
+            pressure = ones(1, TrixiParticles.nparticles(fluid_system))
+            v_edac = vcat(fluid.velocity, pressure, fluid.density')
+
+            dv_edac = zero(v_edac)
+            TrixiParticles.interact!(dv_edac, v_edac, u, v_neighbor, u_neighbor,
+                                     fluid_system, boundary_system, semi)
+
+            # The repulsive force does not depend on the fluid system
+            @test isapprox(dv_edac[1:2, :], dv, atol=1e-12)
+
+            # Without a velocity, the damping term is the only term in the pressure
+            # evolution. It reduces the fluid pressure towards the boundary pressure.
+            @test iszero(dv_edac[3, [1, 4, 7]])
+            @test all(dv_edac[3, [2, 3, 5, 6, 8, 9]] .< 0)
+        end
     end
 end
