@@ -360,13 +360,6 @@ function restart_with!(system::RigidBodySystem, v, u)
     return system
 end
 
-function update_quantities!(system::RigidBodySystem, v, u, v_ode, u_ode, semi, t)
-    @trixi_timeit timer() "interpolate wall velocity" begin
-        interpolate_wall_velocity!(system.boundary_model, system, v, u, v_ode, u_ode, semi)
-    end
-    return system
-end
-
 function update_boundary_interpolation!(system::RigidBodySystem, v, u, v_ode, u_ode,
                                         semi, t)
     return update_boundary_interpolation!(system.boundary_model, system, v, u, v_ode,
@@ -380,6 +373,9 @@ end
 
 function update_boundary_interpolation!(boundary_model, system::RigidBodySystem, v, u,
                                         v_ode, u_ode, semi, t)
+    @trixi_timeit timer() "interpolate wall velocity" begin
+        interpolate_wall_velocity!(boundary_model, system, v, u, v_ode, u_ode, semi)
+    end
     update_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi)
     return system
 end

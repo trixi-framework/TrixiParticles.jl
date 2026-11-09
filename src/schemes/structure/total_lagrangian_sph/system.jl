@@ -492,9 +492,6 @@ end
 function update_quantities!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
     # Precompute PK1 stress tensor
     @trixi_timeit timer() "stress tensor" compute_pk1_corrected!(system, semi)
-    @trixi_timeit timer() "interpolate wall velocity" begin
-        interpolate_wall_velocity!(system.boundary_model, system, v, u, v_ode, u_ode, semi)
-    end
 
     return system
 end
@@ -503,7 +500,13 @@ function update_boundary_interpolation!(system::TotalLagrangianSPHSystem, v, u,
                                         v_ode, u_ode, semi, t)
     (; boundary_model) = system
 
-    # Only update boundary model
+    # Only update boundary model.
+    # The wall velocity of the no-slip condition is interpolated from the fluid and must
+    # therefore be updated here and not in `update_quantities!`, which is also called
+    # by the `SplitIntegrationCallback` without any fluid systems.
+    @trixi_timeit timer() "interpolate wall velocity" begin
+        interpolate_wall_velocity!(boundary_model, system, v, u, v_ode, u_ode, semi)
+    end
     update_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi)
 end
 

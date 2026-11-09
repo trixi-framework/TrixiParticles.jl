@@ -214,6 +214,10 @@ function update_quantities!(system::WallBoundarySystem, v, u, v_ode, u_ode, semi
     (; boundary_model) = system
 
     update_density!(boundary_model, system, v, u, v_ode, u_ode, semi)
+
+    # The wall velocity of the no-slip condition only depends on the fluid velocity,
+    # so it can be interpolated here. This makes it available for the advection
+    # prediction of IISPH, which is computed after all `update_quantities!`.
     interpolate_wall_velocity!(boundary_model, system, v, u, v_ode, u_ode, semi)
 
     return system

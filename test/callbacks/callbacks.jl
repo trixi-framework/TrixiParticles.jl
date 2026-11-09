@@ -58,4 +58,5 @@
     include("solution_saving.jl")
     include("density_reinit.jl")
     include("steady_state_reached.jl")
+    include("split_integration.jl")
 end
