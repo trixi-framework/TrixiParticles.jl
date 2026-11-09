@@ -501,9 +501,8 @@ function update_boundary_interpolation!(system::TotalLagrangianSPHSystem, v, u,
     (; boundary_model) = system
 
     # Only update boundary model.
-    # The wall velocity of the no-slip condition is interpolated from the fluid and must
-    # therefore be updated here and not in `update_quantities!`, which is also called
-    # by the `SplitIntegrationCallback` without any fluid systems.
+    # Not in `update_quantities!`, which the `SplitIntegrationCallback` also calls
+    # without any fluid systems to interpolate the wall velocity from.
     @trixi_timeit timer() "interpolate wall velocity" begin
         interpolate_wall_velocity!(boundary_model, system, v, u, v_ode, u_ode, semi)
     end

@@ -662,12 +662,34 @@
                       v[1:2, 1] + fluid.time_step * dv[1:2, 1]
                 v[1:2, 1] .= velocity / 2
                 TrixiParticles.update_systems_and_nhs(ode.u0.x..., semi, 0.0)
+                @test boundary.boundary_model.cache.wall_velocity[:, 1] ≈
+                      2 * velocity - v[1:2, 1]
                 fill!(dv, 0)
                 TrixiParticles.interact!(dv, v, u, v_boundary, u_boundary, fluid, boundary,
                                          semi)
                 @test fluid.advection_velocity[:, 1] ≈
                       v[1:2, 1] + fluid.time_step * dv[1:2, 1]
             end
+        end
+
+        # The `SplitIntegrationCallback` updates the structure in a semidiscretization
+        # without fluid. This must not reset the wall velocity of the no-slip condition.
+        @testset "Mirrored no-slip velocity: update without fluid" begin
+            viscosity = ViscosityAdami(nu=0.1)
+            fluid_system = create_fluid_system("WCSPH", (0.0, 0.0), fluid_density,
+                                               viscosity)
+            structure = create_structure_system(TotalLagrangianSPHSystem, viscosity;
+                                                boundary_density=PressureMirroring(),
+                                                velocity=SVector(1.0, 0.5))
+            _, structure, _, _, _ = initialize(fluid_system, structure)
+            wall_velocity = copy(structure.boundary_model.cache.wall_velocity)
+            @test !iszero(wall_velocity)
+
+            semi_split = Semidiscretization(structure;
+                                            parallelization_backend=SerialBackend())
+            v_ode, u_ode = semidiscretize(semi_split, (0.0, 1.0)).u0.x
+            TrixiParticles.update_systems_split!(semi_split, v_ode, u_ode, 0.0)
+            @test structure.boundary_model.cache.wall_velocity == wall_velocity
         end
 
         # Check mirrored wall pressure in EDAC's acceleration and pressure derivative,

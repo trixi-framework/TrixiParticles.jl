@@ -42,10 +42,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
 
         p_a = @inbounds current_pressure(v_particle_system, particle_system, particle)
-        # The following call is equivalent to
-        #     `p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)`
-        # For boundaries and structures using `PressureMirroring`, this returns
-        # `p_b = p_a`, which is the pressure of the buffer particle.
+        # Equivalent to `current_pressure(v_neighbor_system, neighbor_system, neighbor)`,
+        # but returns `p_a` for boundaries and structures using `PressureMirroring`
         p_b = @inbounds neighbor_pressure(v_neighbor_system, neighbor_system,
                                           neighbor, p_a)
 
