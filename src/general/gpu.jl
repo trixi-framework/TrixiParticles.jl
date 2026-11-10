@@ -35,6 +35,11 @@ function adapt_neighborhood_search_handler(to, handler::SharedNHSHandler)
     return SharedNHSHandler(handler.search_radii, searches)
 end
 
+function adapt_neighborhood_search_handler(to, handler::CombinedNHSHandler)
+    return CombinedNHSHandler(Adapt.adapt(to, handler.neighborhood_search),
+                              handler.systems_moving)
+end
+
 # This makes `@threaded semi for ...` use `semi.parallelization_backend` for parallelization
 @inline function PointNeighbors.parallel_foreach(f, iterator, semi::Semidiscretization)
     PointNeighbors.parallel_foreach(f, iterator, semi.parallelization_backend)
