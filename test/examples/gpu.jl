@@ -95,9 +95,8 @@ end
                 # next test, but not in the other tests in this file.
                 # Perhaps because this is inside an `if` block?
                 semi_ = @invokelatest (@__MODULE__).semi
-                @test TrixiParticles.get_neighborhood_search(first(semi_.systems),
-                                                             semi_).cell_list isa
-                      FullGridCellList
+                nhs = TrixiParticles.get_neighborhood_search(first(semi_.systems), semi_)
+                @test nhs_cell_list(nhs) isa FullGridCellList
                 @test (@invokelatest (@__MODULE__).sol).retcode ==
                       (@invokelatest (@__MODULE__).ReturnCode).Success
                 v_ode, u_ode = (@invokelatest (@__MODULE__).sol).u[end].x
@@ -129,9 +128,8 @@ end
                 ]
                 # See the comment in the previous test about `@invokelatest`
                 semi_ = @invokelatest (@__MODULE__).semi
-                @test TrixiParticles.get_neighborhood_search(first(semi_.systems),
-                                                             semi_).cell_list isa
-                      FullGridCellList
+                nhs = TrixiParticles.get_neighborhood_search(first(semi_.systems), semi_)
+                @test nhs_cell_list(nhs) isa FullGridCellList
                 @test (@invokelatest (@__MODULE__).sol).retcode ==
                       (@invokelatest (@__MODULE__).ReturnCode).Success
                 v_ode, u_ode = (@invokelatest (@__MODULE__).sol).u[end].x
@@ -182,9 +180,8 @@ end
                         r"┌ Info: The desired tank length in y-direction.*\n",
                         r"└ New tank length in y-direction.*\n"
                     ]
-                    @test TrixiParticles.get_neighborhood_search(first(semi.systems),
-                                                                 semi).cell_list isa
-                          FullGridCellList
+                    nhs = TrixiParticles.get_neighborhood_search(first(semi.systems), semi)
+                    @test nhs_cell_list(nhs) isa FullGridCellList
                     @test sol.retcode == ReturnCode.Success
                     v_ode, u_ode = sol.u[end].x
                     backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
@@ -208,9 +205,8 @@ end
                 r"┌ Info: The desired tank length in y-direction.*\n",
                 r"└ New tank length in y-direction.*\n"
             ]
-            @test TrixiParticles.get_neighborhood_search(first(semi.systems),
-                                                         semi).cell_list isa
-                  FullGridCellList
+            nhs = TrixiParticles.get_neighborhood_search(first(semi.systems), semi)
+            @test nhs_cell_list(nhs) isa FullGridCellList
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
@@ -244,9 +240,8 @@ end
                 r"┌ Info: The desired tank length in y-direction.*\n",
                 r"└ New tank length in y-direction.*\n"
             ]
-            @test TrixiParticles.get_neighborhood_search(first(semi.systems),
-                                                         semi).cell_list isa
-                  FullGridCellList
+            nhs = TrixiParticles.get_neighborhood_search(first(semi.systems), semi)
+            @test nhs_cell_list(nhs) isa FullGridCellList
             @test sol.retcode == ReturnCode.Success
             backend = TrixiParticles.KernelAbstractions.get_backend(sol.u[end].x[1])
             @test backend == Main.parallelization_backend
