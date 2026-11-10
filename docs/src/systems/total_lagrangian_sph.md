@@ -136,10 +136,12 @@ In these cases, artificial viscosity is effective at stabilizing the fluid close
 structure, and we recommend using it in combination with penalty force to both
 prevent hourglass modes and stabilize the fluid close to the fluid-structure interface.
 
-
 Boundary-model correction caches are assembled with hydrodynamic particle volumes
 over the current hydrodynamic neighborhood, including structure self-neighbors.
 The elastic self-interaction retains its frozen neighborhood and correction matrix.
+
+TVF transport operators also use the boundary model's kernel gradient for dummy-particle
+fluid coupling, independently of the TLSPH self-interaction kernel.
 
 ## [Velocity Averaging](@id velocity_averaging)
 
