@@ -25,6 +25,9 @@ Boundary model for [`WallBoundarySystem`](@ref).
 - `state_equation`:             This should be the same as for the adjacent fluid system
                                 (see e.g. [`StateEquationCole`](@ref)).
 - `correction`:                 Correction method of the adjacent fluid system (see [Corrections](@ref corrections)).
+                                It determines the kernel gradient at the boundary particles when the fluid
+                                uses a correction with an asymmetric kernel gradient
+                                (see [Corrections](@ref boundary_corrections)).
 - `viscosity`:                  Slip (default) or no-slip condition. See description below for further
                                 information.
 - `clip_negative_pressure=false`: Clip negative boundary pressures to avoid sticking
@@ -171,6 +174,31 @@ end
 
 @inline function Base.ndims(boundary_model::BoundaryModelDummyParticles)
     return ndims(boundary_model.smoothing_kernel)
+end
+
+# Kernel gradient at a boundary particle with the kernel, smoothing length, correction and
+# correction values of the boundary model. This is used for the interaction with fluids,
+# e.g., in the asymmetric pressure acceleration of a fluid with a corrected kernel gradient
+# and in the continuity equation of the boundary particles.
+# A `TotalLagrangianSPHSystem` has its own kernel and correction matrix for solid mechanics.
+@inline function smoothing_kernel_grad(model::BoundaryModelDummyParticles, pos_diff,
+                                       distance, particle)
+    (; smoothing_kernel, smoothing_length, correction) = model
+    return corrected_kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length,
+                                 correction, model, particle)
+end
+
+@propagate_inbounds function kernel_correction_coefficient(model::BoundaryModelDummyParticles,
+                                                           particle)
+    return model.cache.kernel_correction_coefficient[particle]
+end
+
+@propagate_inbounds function dw_gamma(model::BoundaryModelDummyParticles, particle)
+    return extract_svector(model.cache.dw_gamma, Val(ndims(model)), particle)
+end
+
+@propagate_inbounds function correction_matrix(model::BoundaryModelDummyParticles, particle)
+    return extract_smatrix(model.cache.correction_matrix, Val(ndims(model)), particle)
 end
 
 @inline function clip_negative_pressure(::BoundaryModelDummyParticles{<:Any, <:Any, CLIP}) where {CLIP}
@@ -458,7 +486,7 @@ end
     compute_pressure!(boundary_model, density_calculator, system, v, u, v_ode, u_ode, semi)
 
     # These are only computed when using corrections
-    compute_correction_values!(system, correction, u, v_ode, u_ode, semi)
+    compute_correction_values!(boundary_model, system, correction, u, v_ode, u_ode, semi)
     compute_gradient_correction_matrix!(correction, boundary_model, system, u, v_ode, u_ode,
                                         semi)
     # `kernel_correct_density!` only performed for `SummationDensity`
@@ -466,6 +494,31 @@ end
                             density_calculator)
 
     return boundary_model
+end
+
+# Use the system for the coordinates and the neighbor search, and the boundary model for
+# the kernel, the smoothing length and the correction values.
+function compute_correction_values!(boundary_model::BoundaryModelDummyParticles, system,
+                                    correction, u, v_ode, u_ode, semi)
+    return system
+end
+
+function compute_correction_values!(boundary_model::BoundaryModelDummyParticles, system,
+                                    ::ShepardKernelCorrection, u, v_ode, u_ode, semi)
+    (; cache) = boundary_model
+    return compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode,
+                                  semi, cache.kernel_correction_coefficient, boundary_model)
+end
+
+function compute_correction_values!(boundary_model::BoundaryModelDummyParticles, system,
+                                    correction::Union{KernelCorrection,
+                                                      MixedKernelGradientCorrection}, u,
+                                    v_ode, u_ode, semi)
+    (; cache, smoothing_kernel) = boundary_model
+    return compute_correction_values!(system, correction, current_coordinates(u, system),
+                                      v_ode, u_ode, semi,
+                                      cache.kernel_correction_coefficient,
+                                      cache.dw_gamma, smoothing_kernel, boundary_model)
 end
 
 function kernel_correct_density!(boundary_model, v, u, v_ode, u_ode, semi,
@@ -494,7 +547,8 @@ function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
     system_coords = current_coordinates(u, system)
 
     compute_gradient_correction_matrix!(correction_matrix, system, system_coords,
-                                        v_ode, u_ode, semi, correction, smoothing_kernel)
+                                        v_ode, u_ode, semi, correction, smoothing_kernel,
+                                        boundary_model)
 end
 
 function compute_density!(boundary_model, ::SummationDensity, system, v, u, v_ode, u_ode,
