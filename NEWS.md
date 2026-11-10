@@ -4,6 +4,13 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.5.5
+
+### Important Bugfixes
+
+- Fixed validation of `SphereShape` cutout bounds and `extrude_geometry` direction
+  dimensionality, zero directions, and non-positive extrusion layer counts (#1200).
+
 ## Version 0.5.4
 
 ### API Changes
