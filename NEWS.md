@@ -82,6 +82,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Important Bugfixes
 
+- Fixed structure boundary-correction caches to use their own kernel, raw gradients,
+  and complete current neighborhoods (#1351).
 - Fixed kernel gradients at structure particles in fluid–structure pressure acceleration
   to use the boundary model's kernel and corrections (#1342).
 - Fixed correction-matrix assembly for `GradientCorrection` and

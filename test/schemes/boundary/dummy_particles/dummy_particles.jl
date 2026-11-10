@@ -102,6 +102,130 @@
         @test dynamic_pressure == 24.0
     end
 
+    @testset "Structure correction caches" begin
+        kernel = SchoenbergCubicSplineKernel{2}()
+        state_equation = StateEquationCole(; sound_speed=10.0, reference_density=1000.0,
+                                           exponent=1.0)
+
+        function correction_setup(structure_type, correction, neighborhood_search,
+                                  handler; coordinates=[1.5 2.5 1.5; 0.0 0.0 1.0])
+            fluid_ic = InitialCondition(; coordinates=zeros(2, 1), mass=1100.0,
+                                        density=1005.0, particle_spacing=1.0)
+            fluid = WeaklyCompressibleSPHSystem(fluid_ic; smoothing_kernel=kernel,
+                                                smoothing_length=1.0, state_equation,
+                                                density_calculator=ContinuityDensity())
+            n = size(coordinates, 2)
+            structure_ic = InitialCondition(; coordinates, density=2000.0,
+                                            mass=2100.0 .+ 300.0 .* (0:(n - 1)),
+                                            particle_spacing=1.0)
+            model = BoundaryModelDummyParticles(fill(950.0, n),
+                                                700.0 .+ 50.0 .* (0:(n - 1)),
+                                                PressureMirroring(), kernel, 1.0;
+                                                state_equation, correction)
+            structure = if structure_type === TotalLagrangianSPHSystem
+                TotalLagrangianSPHSystem(structure_ic; boundary_model=model,
+                                         smoothing_kernel=WendlandC2Kernel{2}(),
+                                         smoothing_length=0.4, young_modulus=1e5,
+                                         poisson_ratio=0.3)
+            else
+                RigidBodySystem(structure_ic; boundary_model=model)
+            end
+            options = (; neighborhood_search, neighborhood_search_handler=handler,
+                       parallelization_backend=SerialBackend())
+            semi = if structure_type === TotalLagrangianSPHSystem
+                @test_logs (:info, r"^To create the self-interaction neighborhood search") Semidiscretization(fluid,
+                                                                                                              structure;
+                                                                                                              options...)
+            else
+                Semidiscretization(fluid, structure; options...)
+            end
+            return semi, semidiscretize(semi, (0.0, 0.01); reset_threads=false)
+        end
+
+        # Independent cubic-spline formulas at h=1. Check the first structure
+        # particle, whose current neighborhood is non-collinear and differs from
+        # the frozen elastic neighborhood and rigid-body contact searches.
+        W(r) = 10 / (7pi) * (r < 1 ? 1 - 1.5r^2 + 0.75r^3 :
+                             r < 2 ? 0.25(2 - r)^3 : 0.0)
+        function grad_W(pos_diff)
+            r = norm(pos_diff)
+            (iszero(r) || r >= 2) && return zero(pos_diff)
+            derivative = 10 / (7pi) * (r < 1 ? -3r + 2.25r^2 : -0.75(2 - r)^2)
+            return derivative / r * pos_diff
+        end
+        configurations = ((ShepardKernelCorrection(), nothing, PairsNHSHandler),
+                          (KernelCorrection(), GridNeighborhoodSearch{2}(),
+                           SharedNHSHandler),
+                          (GradientCorrection(), GridNeighborhoodSearch{2}(),
+                           PairsNHSHandler),
+                          (BlendedGradientCorrection(0.5), GridNeighborhoodSearch{2}(),
+                           SharedNHSHandler),
+                          (MixedKernelGradientCorrection(),
+                           PrecomputedNeighborhoodSearch{2}(), PairsNHSHandler))
+        @testset "$structure_type / $(nameof(typeof(correction)))" for structure_type in
+                                                                       (TotalLagrangianSPHSystem,
+                                                                        RigidBodySystem),
+                                                                       (correction, search,
+                                                                        handler) in
+                                                                       configurations
+
+            semi, ode = correction_setup(structure_type, correction, search, handler)
+            structure = semi.systems[2]
+            v_ode, u_ode = ode.u0.x
+            u = TrixiParticles.wrap_u(u_ode, structure, semi)
+            cache = structure.boundary_model.cache
+            # Move a neighbor outside and back inside hydrodynamic support, then
+            # disable the fluid contribution. Every update starts with poisoned caches.
+            for (x, include_fluid) in ((2.5, true), (3.75, true), (1.8, true), (1.8, false))
+                u[1, 2] = x
+                semi.interaction_matrix[2, 1] = include_fluid
+                for field in (:kernel_correction_coefficient, :dw_gamma, :correction_matrix)
+                    haskey(cache, field) && fill!(getproperty(cache, field), NaN)
+                end
+                TrixiParticles.update_systems_and_nhs(v_ode, u_ode, semi, 0.0)
+                displacements = [SVector(1.5, 0.0), SVector(0.0, 0.0),
+                    SVector(1.5 - x, 0.0), SVector(0.0, -1.0)]
+                volumes = [include_fluid ? 1100.0 / 1005.0 : 0.0;
+                           [700.0, 750.0, 800.0] / 950.0]
+                values = W.(norm.(displacements))
+                gradients = grad_W.(displacements)
+                gamma = dot(volumes, values)
+                dw = sum(volumes .* gradients) / gamma
+                haskey(cache, :kernel_correction_coefficient) &&
+                    @test cache.kernel_correction_coefficient[1] ≈ gamma
+                haskey(cache, :dw_gamma) && @test cache.dw_gamma[:, 1] ≈ dw
+                if haskey(cache, :correction_matrix)
+                    if correction isa MixedKernelGradientCorrection
+                        gradients = [(g - value * dw) / gamma
+                                     for (g, value) in zip(gradients, values)]
+                    end
+                    moment = -sum(volume * g * d'
+                                  for (volume, g, d) in
+                                      zip(volumes, gradients, displacements))
+                    @test cache.correction_matrix[:, :, 1] ≈ inv(moment)
+                end
+            end
+        end
+
+        @testset "Periodic self-neighbors" begin
+            box = PeriodicBox(; min_corner=[-4.0, -4.0], max_corner=[4.0, 4.0])
+            for search in (GridNeighborhoodSearch{2}(; periodic_box=box),
+                 PrecomputedNeighborhoodSearch{2}(; periodic_box=box))
+                semi,
+                ode = correction_setup(TotalLagrangianSPHSystem, KernelCorrection(),
+                                       search,
+                                       TrixiParticles.default_neighborhood_search_handler(search);
+                                       coordinates=[3.5 -3.5; 0.0 0.0])
+                TrixiParticles.update_systems_and_nhs(ode.u0.x[1], ode.u0.x[2], semi, 0.0)
+                # The fluid is outside support; the structure particles are one unit
+                # apart across the periodic boundary, with unequal hydrodynamic masses.
+                @test semi.systems[2].boundary_model.cache.kernel_correction_coefficient ≈
+                      [700.0 * W(0.0) + 750.0 * W(1.0),
+                    750.0 * W(0.0) + 700.0 * W(1.0)] / 950.0
+            end
+        end
+    end
+
     @testset verbose=true "Viscosity Adami/Bernoulli: Wall Velocity" begin
         particle_spacing = 0.1
 
