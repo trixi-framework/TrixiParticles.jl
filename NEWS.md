@@ -62,6 +62,10 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - The smoothing kernel and smoothing length of a `BoundaryModelDummyParticles` of a
   `TotalLagrangianSPHSystem` or `RigidBodySystem` must now be the same as those of all
   fluid systems in the simulation (#1338, #1348).
+- A `BoundaryModelDummyParticles` with `SummationDensity` is no longer accepted for a
+  `TotalLagrangianSPHSystem` or `RigidBodySystem` interacting with a fluid. The boundary
+  density was never computed for structures, so this combination behaved like
+  `PressureZeroing`, which can be used instead (#1341).
 
 ### Features
 
@@ -81,6 +85,14 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Fixed corrected WCSPH pressure forces at Adami/Bernoulli dummy boundaries to use the
   fluid-side gradient, removing spurious constant-pressure forces while retaining
   the exact opposite structural reaction.
+- Fixed pressure mirroring for TLSPH and rigid-body neighbors and for EDAC momentum,
+  pressure diffusion, and average-pressure reduction at walls and structures.
+  With a boundary viscosity, `PressureMirroring` now computes the wall velocity of the
+  no-slip condition, which was zero before (#1341).
+- Fixed the advection prediction of `ImplicitIncompressibleSPHSystem` depending on the
+  order of the systems in the `Semidiscretization`. The densities and predicted velocities
+  of systems that are updated later in the same step were taken from the previous update.
+  This affected `PressureBoundaries` and simulations with multiple IISPH systems (#1341).
 - Fixed structure-fluid reaction forces with asymmetric corrected fluid kernel
   gradients by evaluating the fluid-first gradient directly. The continuity equation
   of `RigidBodySystem` boundaries with `ContinuityDensity` now uses the kernel gradient
