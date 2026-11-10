@@ -99,6 +99,7 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
 
     # The pressure extrapolation already provides the sum of the kernel weights to interpolate
     # the fluid velocity for the no-slip condition. Other density calculators need it as well.
+    # Use floating-point velocity storage even when the initial densities are integers.
     if !isnothing(viscosity) && !haskey(cache, :volume)
         cache = (; cache..., volume=similar(cache.wall_velocity, n_particles))
     end
@@ -592,15 +593,32 @@ end
     return boundary_model
 end
 
-function interpolate_wall_velocity!(boundary_model::BoundaryModelDummyParticles{PressureMirroring},
+function interpolate_wall_velocity!(boundary_model::BoundaryModelDummyParticles{<:Union{AdamiPressureExtrapolation,
+                                                                                        BernoulliPressureExtrapolation,
+                                                                                        SummationDensity,
+                                                                                        ContinuityDensity,
+                                                                                        PressureMirroring,
+                                                                                        PressureZeroing,
+                                                                                        PressureBoundaries}},
                                     system, v, u, v_ode, u_ode, semi)
     (; cache, viscosity) = boundary_model
 
     # Without a viscosity model, the wall velocity is not used.
     isnothing(viscosity) && return boundary_model
 
+    # Explicit fluids interpolate this velocity together with the extrapolated pressure.
+    # IISPH needs it before prediction, when the pressure cannot yet be extrapolated.
+    if boundary_model.density_calculator isa Union{AdamiPressureExtrapolation,
+             BernoulliPressureExtrapolation} &&
+       !any(neighbor -> neighbor isa ImplicitIncompressibleSPHSystem, semi.systems)
+        return boundary_model
+    end
+
     # For the no-slip condition, interpolate the fluid velocity like the pressure extrapolation
-    # of `AdamiPressureExtrapolation`, but without extrapolating the pressure.
+    # of `AdamiPressureExtrapolation`. Calculators that don't extrapolate the pressure only
+    # interpolate the fluid velocity. With IISPH, the extrapolated pressure of
+    # `AdamiPressureExtrapolation` and `BernoulliPressureExtrapolation` is overwritten
+    # in `compute_pressure!`, since the pressure of the fluid is not available yet.
     # Set `volume` and `wall_velocity` to zero.
     reset_cache!(cache, viscosity)
 
@@ -723,9 +741,16 @@ end
                                 kernel_weight, particle, neighbor)
 end
 
-# With `PressureMirroring`, the fluid pressure is used directly in the pair interaction.
-# Only the fluid velocity is interpolated to the boundary particles for the no-slip condition.
-@propagate_inbounds function boundary_pressure_inner!(boundary_model, ::PressureMirroring,
+# Only `AdamiPressureExtrapolation` and `BernoulliPressureExtrapolation` extrapolate the
+# pressure. With `PressureMirroring`, the fluid pressure is used directly in the pair
+# interaction. For all density calculators, the fluid velocity is interpolated to the
+# boundary particles for the no-slip condition.
+@propagate_inbounds function boundary_pressure_inner!(boundary_model,
+                                                      ::Union{SummationDensity,
+                                                              ContinuityDensity,
+                                                              PressureMirroring,
+                                                              PressureZeroing,
+                                                              PressureBoundaries},
                                                       system,
                                                       neighbor_system::Union{AbstractFluidSystem,
                                                                              OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}},
