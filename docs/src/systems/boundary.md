@@ -209,6 +209,12 @@ be the same as the correction of the fluid system.
 With [`ContinuityDensity`](@ref), the density of the boundary particles also evolves with the
 corrected kernel gradient of the boundary particles.
 
+For WCSPH with [`AdamiPressureExtrapolation`](@ref) or
+[`BernoulliPressureExtrapolation`](@ref), the built-in pressure formulations instead use
+the fluid's corrected gradient for both pressure terms. This preserves equilibrium at
+uniform pressure. The boundary gradient is still used for boundary continuity and the
+transport-velocity operators.
+
 For a [`TotalLagrangianSPHSystem`](@ref) or a [`RigidBodySystem`](@ref), the kernel gradient
 at each boundary particle uses the smoothing kernel, smoothing length and correction of
 the boundary model. Its smoothing kernel and smoothing length must match those of the

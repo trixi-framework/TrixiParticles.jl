@@ -955,7 +955,8 @@
 
             for structure_type in structure_types,
                 correction in (KernelCorrection(), GradientCorrection(),
-                 BlendedGradientCorrection(0.3), MixedKernelGradientCorrection())
+                 BlendedGradientCorrection(0.3), MixedKernelGradientCorrection()),
+                boundary_density in (AdamiPressureExtrapolation(), PressureMirroring())
 
                 kernel_correction = correction isa Union{KernelCorrection,
                                           MixedKernelGradientCorrection}
@@ -976,6 +977,8 @@
                 # model (2) and outside the compact support of the smoothing kernel of the
                 # `TotalLagrangianSPHSystem` (2 * 0.4).
                 structure_system = create_structure_system(structure_type, nothing;
+                                                           boundary_density,
+                                                           initial_boundary_density=[1005.0],
                                                            boundary_correction=correction,
                                                            structure_smoothing_kernel=WendlandC2Kernel{2}(),
                                                            structure_smoothing_length=0.4)
@@ -1026,7 +1029,12 @@
                         boundary_gradient = (1 - lambda) * boundary_gradient +
                                             lambda * boundary_matrix * boundary_gradient
                     end
-                    500.0 * volume^2 * (boundary_gradient - fluid_gradient)
+                    # Extrapolated WCSPH pressure uses the fluid gradient for both
+                    # terms (#1369); mirrored pressure retains the asymmetric operator.
+                    pressure_gradient = boundary_density isa AdamiPressureExtrapolation ?
+                                        -2 * fluid_gradient :
+                                        boundary_gradient - fluid_gradient
+                    500.0 * volume^2 * pressure_gradient
                 end
                 @test force_fluid ≈ first(expected_forces)
                 @test force_structure ≈ -sum(expected_forces)
@@ -1061,13 +1069,16 @@
 
             for structure_type in structure_types,
                 config in near_zero_configurations,
-                distance in distances
+                distance in distances,
+                boundary_density in (AdamiPressureExtrapolation(), PressureMirroring())
                 scheme, correction = config
                 fluid_coordinates = reshape([1.5 + distance, 0.0], 2, 1)
                 fluid_system = create_fluid_system(scheme, (1.0, -0.5), 1005.0, nothing;
                                                    correction,
                                                    coordinates=fluid_coordinates)
                 structure_system = create_structure_system(structure_type, nothing;
+                                                           boundary_density,
+                                                           initial_boundary_density=[1005.0],
                                                            boundary_correction=KernelCorrection())
                 fluid, structure, arrays, semi,
                 _ = initialize(fluid_system, structure_system)
@@ -1080,7 +1091,10 @@
                  _) = pair_forces(fluid, structure, arrays, semi)
 
                 pressure = scheme == "EDAC with average pressure reduction" ? 0.0 : 500.0
-                expected = isnothing(correction) ? zero(boundary_gradient) :
+                fluid_gradient_only = scheme == "WCSPH" &&
+                                      boundary_density isa AdamiPressureExtrapolation
+                expected = isnothing(correction) || fluid_gradient_only ?
+                           zero(boundary_gradient) :
                            pressure * volume^2 * boundary_gradient
                 @test isapprox(force_fluid, expected, atol=sqrt(eps()))
                 @test isapprox(force_structure, -expected, atol=sqrt(eps()))
