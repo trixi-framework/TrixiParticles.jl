@@ -146,6 +146,15 @@ function rebuild_polygon_from_edges(edge_vertices, edge_normals)
         return (id1, id2)
     end
 
+    # Preserve the repeated closing vertex used by the polygon constructor, but only
+    # when the retained edges still form a continuous closed traversal.
+    if all(i -> isapprox(edge_vertices[i][2],
+                         edge_vertices[mod1(i + 1, length(edge_vertices))][1]),
+           eachindex(edge_vertices))
+        push!(vertices, first(vertices))
+        edge_vertices_ids[end] = (edge_vertices_ids[end][1], length(vertices))
+    end
+
     min_corner = SVector([minimum(v[i] for v in vertices) for i in 1:NDIMS]...)
     max_corner = SVector([maximum(v[i] for v in vertices) for i in 1:NDIMS]...)
     vertex_normals = vertex_normals_from_edges(edge_vertices, edge_normals)

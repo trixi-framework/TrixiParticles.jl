@@ -68,6 +68,25 @@
         @test edge_only.vertex_normals[1] == (edge_only.edge_normals[1],
                edge_only.edge_normals[1])
 
+        square = TrixiParticles.Polygon([0.0 0.0 1.0 1.0 0.0;
+                                         0.0 1.0 1.0 0.0 0.0])
+        unchanged = delete_faces(square, Int[])
+        @test first(unchanged.vertices) == last(unchanged.vertices)
+        @test unchanged.vertices == square.vertices
+        @test unchanged.edge_vertices == square.edge_vertices
+        @test all(unchanged.vertices[a] == edge[1] && unchanged.vertices[b] == edge[2]
+                  for ((a, b), edge) in zip(unchanged.edge_vertices_ids,
+                          unchanged.edge_vertices))
+        @test TrixiParticles.volume(unchanged) ≈ TrixiParticles.volume(square)
+        sampled = ComplexShape(unchanged; particle_spacing=0.1, density=1.0)
+        reference = ComplexShape(square; particle_spacing=0.1, density=1.0)
+        @test sampled.coordinates == reference.coordinates
+
+        # A gap created by deleting an edge must not acquire a closing vertex.
+        partial = delete_faces(square, 2)
+        @test first(partial.vertices) != last(partial.vertices)
+        @test TrixiParticles.nfaces(partial) == 3
+
         A = SVector(0.0, 0.0, 0.0)
         B = SVector(1.0, 0.0, 0.0)
         C = SVector(0.0, 1.0, 0.0)
