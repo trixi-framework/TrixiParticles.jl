@@ -111,6 +111,41 @@
         end
     end
 
+    @testset verbose=true "Intentional Open Curves" begin
+        bend = [1.0 1.0 2.0; 1.0 2.0 2.0]
+        shape = RectangularShape(0.1, (10, 10), (1.0, 1.0); density=1.0)
+
+        for coordinates in (bend, reverse(bend; dims=2))
+            geometry = TrixiParticles.Polygon(coordinates; close_curve=false)
+            @test TrixiParticles.nfaces(geometry) == 2
+            @test !TrixiParticles.is_closed_geometry(geometry)
+            @test all(all(isfinite, normal) for normals in geometry.vertex_normals
+                      for normal in normals)
+            @test_throws ArgumentError ComplexShape(geometry; particle_spacing=0.1,
+                                                    density=1.0)
+            @test_throws ArgumentError intersect(shape, geometry)
+            @test_throws ArgumentError setdiff(shape, geometry)
+        end
+
+        # Closing the same points still produces a valid three-edge region.
+        closed = TrixiParticles.Polygon(bend)
+        @test TrixiParticles.nfaces(closed) == 3
+        @test TrixiParticles.is_closed_geometry(closed)
+
+        mktempdir() do dir
+            filename = joinpath(dir, "open_bend.asc")
+            open(filename, "w") do io
+                println(io, "# ASCII")
+                for point in eachcol(bend)
+                    println(io, point[1], " ", point[2])
+                end
+            end
+            geometry = load_geometry(filename; close_curve=false)
+            @test TrixiParticles.nfaces(geometry) == 2
+            @test !TrixiParticles.is_closed_geometry(geometry)
+        end
+    end
+
     @testset verbose=true "Closed Geometry Detection" begin
         open_square = [1.0 2.0 2.0 1.0;
                        1.0 1.0 2.0 2.0]
