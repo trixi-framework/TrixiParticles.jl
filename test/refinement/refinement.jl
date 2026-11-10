@@ -6,4 +6,5 @@
     include("refinement_criteria.jl")
     include("spacing.jl")
     include("splitting.jl")
+    include("merging.jl")
 end

@@ -7,20 +7,22 @@ struct ParticleRefinement{ELTYPE, RC, SP}
     criteria                :: RC     # Tuple of refinement criteria
     splitting_pattern       :: SP
     max_mass_factor         :: ELTYPE # Particles above `max_mass_factor * m_ref` are split
+    min_mass_factor         :: ELTYPE # Merge limit after splitting, see `merge_particles!`
 end
 
 function ParticleRefinement(; spacing_ratio, min_spacing, max_spacing, reference_density,
                             smoothing_length_factor=1.2,
                             refinement_criteria=SpatialRefinementCriterion(),
                             splitting_pattern=HexagonalSplitting(),
-                            max_mass_factor=1.05)
+                            max_mass_factor=1.05, min_mass_factor=0.5)
     if !(refinement_criteria isa Tuple)
         refinement_criteria = (refinement_criteria,)
     end
 
     return ParticleRefinement(spacing_ratio, min_spacing, max_spacing,
                               smoothing_length_factor, reference_density,
-                              refinement_criteria, splitting_pattern, max_mass_factor)
+                              refinement_criteria, splitting_pattern, max_mass_factor,
+                              min_mass_factor)
 end
 
 create_cache_refinement(initial_condition, ::Nothing) = (;)
@@ -43,19 +45,23 @@ function create_cache_refinement(initial_condition, refinement)
     # Particles that are split in this refinement call
     split_candidate = zeros(Bool, n_particles)
 
-    return (; target_spacing, target_spacing_tmp, is_fixed, split_candidate)
+    # The merge partner of each particle in the current merge round, 0 without a partner
+    merge_partner = zeros(Int, n_particles)
+
+    return (; target_spacing, target_spacing_tmp, is_fixed, split_candidate, merge_partner)
 end
 
 resize_cache_refinement!(cache, ::Nothing, n, spacing) = cache
 
 # The new particles get the target spacing `spacing`
 function resize_cache_refinement!(cache, refinement, n, spacing)
-    (; target_spacing, target_spacing_tmp, is_fixed, split_candidate) = cache
+    (; target_spacing, target_spacing_tmp, is_fixed, split_candidate, merge_partner) = cache
 
     resize_and_fill!(target_spacing, n, spacing)
     resize_and_fill!(target_spacing_tmp, n, spacing)
     resize_and_fill!(is_fixed, n, false)
     resize_and_fill!(split_candidate, n, false)
+    resize_and_fill!(merge_partner, n, 0)
 
     return cache
 end
@@ -71,4 +77,5 @@ include("refinement_criteria.jl")
 include("spacing.jl")
 include("split_pattern.jl")
 include("splitting.jl")
+include("merging.jl")
 include("resize.jl")
