@@ -139,6 +139,10 @@ prevent hourglass modes and stabilize the fluid close to the fluid-structure int
 TVF transport operators also use the boundary model's kernel gradient for dummy-particle
 fluid coupling, independently of the TLSPH self-interaction kernel.
 
+Boundary-model correction caches are assembled with hydrodynamic particle volumes
+over the current hydrodynamic neighborhood, including structure self-neighbors.
+The elastic self-interaction retains its frozen neighborhood and correction matrix.
+
 ## [Velocity Averaging](@id velocity_averaging)
 
 In FSI cases with very stiff structures, the two techniques above might not be
