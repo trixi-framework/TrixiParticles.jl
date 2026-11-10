@@ -12,6 +12,17 @@
                            points, parallelization_backend)
 end
 
+# Return the `PeriodicBox` of a neighborhood search, or `nothing` for a non-periodic one.
+# `neighborhood_search = nothing` creates a `TrivialNeighborhoodSearch` without periodicity.
+extract_periodic_box(::Nothing) = nothing
+extract_periodic_box(nhs) = nhs.periodic_box
+
+# The `CombinedNHSHandler` returns a `GridNHSPair`.
+# Both searches of the pair are created from the same template with the same periodic box.
+function extract_periodic_box(nhs::PointNeighbors.GridNHSPair)
+    return extract_periodic_box(nhs.neighbor_search)
+end
+
 deactivate_out_of_bounds_particles!(system, buffer, nhs, v, u, semi) = system
 
 function deactivate_out_of_bounds_particles!(system, buffer::SystemBuffer,
@@ -616,6 +627,12 @@ function update_nhs!(semi, handler, u_ode)
         u_system = wrap_u(u_ode, system, semi)
 
         foreach_system(semi) do neighbor
+            points_moving_ = points_moving(system, neighbor)
+
+            # Skip the update if no points are moving. This also skips pairs whose NHS
+            # is never updated, like the frozen TLSPH self-interaction NHS.
+            any(points_moving_) || return nothing
+
             u_neighbor = wrap_u(u_ode, neighbor, semi)
             neighborhood_search = get_neighborhood_search(system, neighbor, semi)
             neighbor_coords = current_coordinates(u_neighbor, neighbor)
@@ -623,7 +640,6 @@ function update_nhs!(semi, handler, u_ode)
             eachindex_y = each_active_particle(neighbor)
             if eachindex_y != axes(neighbor_coords, 2) &&
                !PointNeighbors.supports_inactive_points(neighborhood_search)
-
                 if PointNeighbors.supports_infinite_domain(neighborhood_search)
                     # If the neighborhood search supports an infinite domain,
                     # we can update it for inactive points as well, which will not interfere
@@ -638,7 +654,7 @@ function update_nhs!(semi, handler, u_ode)
             update!(neighborhood_search,
                     current_coordinates(u_system, system),
                     current_coordinates(u_neighbor, neighbor),
-                    semi; points_moving=points_moving(system, neighbor), eachindex_y)
+                    semi; points_moving=points_moving_, eachindex_y)
         end
     end
 end
