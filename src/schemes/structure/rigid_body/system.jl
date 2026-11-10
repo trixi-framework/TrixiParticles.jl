@@ -124,6 +124,7 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
              create_cache_contact_manifold(contact_model_, Val(NDIMS), ELTYPE,
                                            nparticles(initial_condition),
                                            max_manifolds_)...,
+             create_cache_structure_boundary(boundary_model, initial_condition)...,
              color=Int(color_value))
 
     system = RigidBodySystem(initial_condition, initial_velocity, mass,

@@ -1,6 +1,7 @@
 @trixi_testset "Correction Consistency" begin
     include("corrections/common.jl")
     include("corrections/lifecycle.jl")
+    include("corrections/rigid_density.jl")
 end
 
 @testset verbose=true "Corrections" begin
