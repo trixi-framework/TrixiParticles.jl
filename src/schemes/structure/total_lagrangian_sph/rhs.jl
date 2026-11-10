@@ -47,7 +47,7 @@ end
             # Skip neighbors with (almost) the same position because the kernel gradient
             # is zero, but computing it would divide by zero (see `almostzero`).
             # Note that `return` only exits the closure, i.e., skips the current neighbor.
-            if initial_distance < almostzero(h)
+            if skip_zero_distance(system) && initial_distance < almostzero(h)
                 return zero(initial_pos_diff)
             end
 

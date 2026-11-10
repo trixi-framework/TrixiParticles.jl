@@ -39,6 +39,21 @@ end
                                                               p_a, p_b, W_a, W_b)
 end
 
+# The interaction of a fluid particle with a structure particle evaluates the kernel
+# gradient of the fluid and the kernel gradient of the boundary model of the structure
+# (in the asymmetric pressure acceleration and in the continuity equation of the boundary
+# particles). The gradient of a corrected kernel vanishes at zero distance for no correction,
+# `ShepardKernelCorrection`, `AkinciFreeSurfaceCorrection`, `GradientCorrection` and
+# `BlendedGradientCorrection`, but not for `KernelCorrection` and
+# `MixedKernelGradientCorrection` (see `skip_zero_distance(correction)`).
+# Particles at the same position can therefore only be skipped if both gradients vanish.
+@inline function skip_zero_distance(particle_system::AbstractFluidSystem,
+                                    neighbor_system::Union{TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles},
+                                                           RigidBodySystem{<:BoundaryModelDummyParticles}})
+    return skip_zero_distance(particle_system) &&
+           skip_zero_distance(neighbor_system.boundary_model.correction)
+end
+
 # Both FSI directions must find the same particle pairs and use matching boundary and
 # fluid kernels. The TLSPH kernel for solid mechanics may differ.
 # Note that this is only a restriction for `BoundaryModelDummyParticles`, since
@@ -74,29 +89,25 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
 
     h = initial_smoothing_length(neighbor_system)
 
-    # Use the same coincident pairs as in the fluid-to-structure interaction.
-    keep_coincident = system_correction(neighbor_system) isa Union{KernelCorrection,
-                            MixedKernelGradientCorrection} ||
-                      (particle_system.boundary_model isa BoundaryModelDummyParticles &&
-                       particle_system.boundary_model.correction isa
-                       Union{KernelCorrection,
-                             MixedKernelGradientCorrection})
-
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     foreach_point_neighbor(particle_system, neighbor_system,
                            system_coords, neighbor_coords, semi;
                            points=eachparticle) do particle, neighbor, pos_diff, distance
-        # Skip coincident pairs only when neither correction needs them.
+        # Skip neighbors with (almost) the same position if the kernel gradients of this
+        # pair vanish, because computing them would divide by zero (see `almostzero`).
+        # This depends on the corrections of the fluid and the boundary model of the
+        # structure (see `skip_zero_distance`).
         # Note that `return` only exits the closure, i.e., skips the current neighbor.
-        !keep_coincident && distance < almostzero(h) && return
+        skip_zero_distance(neighbor_system, particle_system) &&
+            distance < almostzero(h) && return
 
         # Evaluate the gradient exactly as in the fluid-structure interaction, i.e.,
         # with the fluid particle's kernel and correction and the fluid-first displacement.
         # Note that we cannot just flip the sign of the structure-first gradient, since
         # corrections like `KernelCorrection` add a term that keeps its sign
         # when the displacement is reversed.
-        grad_kernel_fluid = smoothing_kernel_grad(neighbor_system, -pos_diff, distance,
-                                                  neighbor)
+        grad_kernel_fluid = interaction_kernel_grad(neighbor_system, particle_system,
+                                                    -pos_diff, distance, neighbor)
 
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
