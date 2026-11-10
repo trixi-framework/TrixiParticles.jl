@@ -38,6 +38,31 @@
                             boundary_packing=false, max_signed_distance=0.3)
         @test_throws ArgumentError sample_boundary(not_boundary_sdf; boundary_density=1.0,
                                                    boundary_thickness=0.2)
+
+        @testset "Single-layer roundoff" begin
+            for T in (Float32, Float64), place_on_shell in (false, true)
+                spacing = T(0.1)
+                offset = place_on_shell ? spacing : spacing / 2
+                gap = spacing / 100
+                distances = [offset - gap, prevfloat(offset), nextfloat(offset),
+                    offset + gap]
+                positions = [SVector(T(i), zero(T)) for i in eachindex(distances)]
+                sdf = (; positions, distances, particle_spacing=spacing,
+                       boundary_packing=true, max_signed_distance=3spacing)
+                boundary = sample_boundary(sdf; boundary_density=one(T),
+                                           boundary_thickness=offset, place_on_shell)
+                @test boundary.coordinates == stack(positions[2:3])
+            end
+
+            square = TrixiParticles.Polygon([0.0 0.0 1.0 1.0 0.0;
+                                             0.0 1.0 1.0 0.0 0.0])
+            sdf = SignedDistanceField(square, 0.1; use_for_boundary_packing=true,
+                                      max_signed_distance=0.3)
+            boundary = sample_boundary(sdf; boundary_density=1.0,
+                                       boundary_thickness=0.1, place_on_shell=true)
+            # Eleven grid points per side, one spacing outside the square.
+            @test nparticles(boundary) == 44
+        end
     end
 
     @testset verbose=true "2D" begin

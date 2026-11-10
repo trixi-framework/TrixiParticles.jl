@@ -142,7 +142,11 @@ function sample_boundary(signed_distance_field;
                             "half `particle_spacing` for `place_on_shell=false`."))
     end
 
-    keep_indices = (distance_to_boundary .<= distances .<= boundary_thickness)
+    # Distances reconstructed from grid coordinates can differ from the requested
+    # limits by roundoff. This also matters for a single layer, where both limits agree.
+    distance_tolerance = sqrt(eps(typeof(particle_spacing))) * particle_spacing
+    keep_indices = (distance_to_boundary - distance_tolerance .<= distances .<=
+                    boundary_thickness + distance_tolerance)
     boundary_positions = positions[keep_indices]
 
     if isempty(boundary_positions)
