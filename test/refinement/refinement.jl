@@ -5,4 +5,5 @@
     include("resize.jl")
     include("refinement_criteria.jl")
     include("spacing.jl")
+    include("splitting.jl")
 end
