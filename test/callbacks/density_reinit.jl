@@ -68,7 +68,8 @@
 
         system = MockDensityReinitSystem(nothing, :fluid)
         vu_ode = (; x=(:v_ode, :u_ode))
-        semi = (; systems=(system,))
+        # `update_nhs!` requires a handler, which is not used by the mocked methods below.
+        semi = (; systems=(system,), neighborhood_search_handler=nothing)
         integrator = MockDensityReinitIntegrator((; semi), vu_ode, 0.0)
 
         TrixiParticles.get_neighborhood_search(system::MockDensityReinitSystem,

@@ -19,6 +19,11 @@ function deactivate_out_of_bounds_particles!(system, buffer::SystemBuffer,
     deactivate_out_of_bounds_particles!(system, buffer, nhs, nhs.cell_list, v, u, semi)
 end
 
+function deactivate_out_of_bounds_particles!(system, buffer::SystemBuffer,
+                                             nhs::PointNeighbors.GridNHSPair, v, u, semi)
+    deactivate_out_of_bounds_particles!(system, buffer, nhs.neighbor_search, v, u, semi)
+end
+
 function deactivate_out_of_bounds_particles!(system, buffer, nhs, cell_list, v, u, semi)
     return system
 end
@@ -410,6 +415,89 @@ function get_neighborhood_search(handler::SharedNHSHandler, system_index, neighb
     return handler.neighborhood_searches[neighbor_index][radius_index]
 end
 
+"""
+    CombinedNHSHandler
+
+Neighborhood search handler that stores the particles of all systems in the same grid.
+
+`CombinedNHSHandler` stores one cell list per system, like the [`SharedNHSHandler`](@ref),
+but all cell lists use the same grid with the same search radius
+(see [`PointNeighbors.CombinedGridNeighborhoodSearch`](@ref)).
+The cell list of each system is updated only once per update of the neighborhood searches.
+Because the particles of both systems of an interaction are stored in the same grid,
+neighbor loops can traverse the particles of both systems cell by cell.
+
+!!! warning
+    This handler requires a [`GridNeighborhoodSearch`](@ref) and the same search radius
+    for all pairs of systems that interact with each other.
+
+# Examples
+```jldoctest semi_example; output=false, setup = :(using TrixiParticles; trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing); system1 = fluid_system; system2 = boundary_system)
+semi = Semidiscretization(system1, system2;
+                          neighborhood_search=GridNeighborhoodSearch{2}(),
+                          neighborhood_search_handler=CombinedNHSHandler)
+
+# output
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ Semidiscretization                                                                               │
+│ ══════════════════                                                                               │
+│ #spatial dimensions: ………………………… 2                                                                │
+│ #systems: ……………………………………………………… 2                                                                │
+│ neighborhood search: ………………………… CombinedGridNeighborhoodSearch                                   │
+│ total #particles: ………………………………… 636                                                              │
+│ eltype: …………………………………………………………… Float64                                                          │
+│ coordinates eltype: …………………………… Float64                                                          │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+"""
+struct CombinedNHSHandler{NHS} <: AbstractNHSHandler
+    neighborhood_search::NHS
+    # Buffer for `update_nhs!` to store which cell lists have to be updated.
+    systems_moving::Vector{Bool}
+end
+
+function CombinedNHSHandler(neighborhood_search::GridNeighborhoodSearch, systems)
+    # A compact support of zero means that this neighborhood search is never used.
+    # TLSPH self-interaction is using a specialized neighborhood search.
+    search_radii = [compact_support(system, neighbor)
+                    for system in systems, neighbor in systems
+                    if !(system === neighbor && system isa TotalLagrangianSPHSystem)]
+    search_radius = maximum(search_radii)
+
+    if !all(radius -> iszero(radius) || isapprox(radius, search_radius), search_radii)
+        throw(ArgumentError("`CombinedNHSHandler` requires the same search radius " *
+                            "for all pairs of systems, but got the search radii " *
+                            "$(unique(search_radii))"))
+    end
+
+    combined_nhs = PointNeighbors.CombinedGridNeighborhoodSearch(neighborhood_search,
+                                                                 search_radius,
+                                                                 map(nparticles, systems))
+
+    return CombinedNHSHandler(combined_nhs, fill(false, length(systems)))
+end
+
+function CombinedNHSHandler(neighborhood_search, systems)
+    throw(ArgumentError("`CombinedNHSHandler` requires a `GridNeighborhoodSearch`"))
+end
+
+function neighborhood_search_name(handler::CombinedNHSHandler)
+    return nameof(typeof(handler.neighborhood_search))
+end
+
+@inline function get_neighborhood_search(handler::CombinedNHSHandler, system_index,
+                                         neighbor_index, search_radius)
+    (; neighborhood_search) = handler
+
+    # Subtract `eps` to avoid an error due to rounding errors.
+    @boundscheck if search_radius - eps(search_radius) >
+                    PointNeighbors.search_radius(neighborhood_search)
+        throw(ArgumentError("no combined neighborhood search with radius >= $search_radius"))
+    end
+
+    return PointNeighbors.grid_nhs_pair(neighborhood_search, system_index, neighbor_index)
+end
+
 # === Neighborhood search lookup ===
 @inline function get_neighborhood_search(system, semi)
     return get_neighborhood_search(system, system, semi)
@@ -458,10 +546,35 @@ function initialize_neighborhood_searches!(semi, u0_ode, restart_with::Nothing)
 end
 
 function initialize_neighborhood_searches!(semi)
+    initialize_neighborhood_searches!(semi, semi.neighborhood_search_handler)
+end
+
+function initialize_neighborhood_searches!(semi, handler)
     foreach_system(semi) do system
         foreach_system(semi) do neighbor
             initialize_neighborhood_search!(semi, system, neighbor)
         end
+    end
+
+    return semi
+end
+
+function initialize_neighborhood_searches!(semi, handler::CombinedNHSHandler)
+    return initialize_combined_neighborhood_search!(initial_coordinates, semi, handler)
+end
+
+# `coordinates(system)` returns the coordinates to initialize the cell list of `system` with.
+function initialize_combined_neighborhood_search!(coordinates, semi,
+                                                  handler::CombinedNHSHandler)
+    foreach_system(semi) do system
+        # TODO Initialize after adapting to the GPU.
+        # Currently, this cannot use `semi.parallelization_backend`
+        # because data is still on the CPU.
+        PointNeighbors.initialize!(handler.neighborhood_search,
+                                   system_indices(system, semi),
+                                   coordinates(system),
+                                   eachindex=each_active_particle(system),
+                                   parallelization_backend=PolyesterBackend())
     end
 
     return semi
@@ -494,6 +607,10 @@ end
 
 # === Neighborhood search updates (per-system) ===
 function update_nhs!(semi, u_ode)
+    update_nhs!(semi, semi.neighborhood_search_handler, u_ode)
+end
+
+function update_nhs!(semi, handler, u_ode)
     # Update NHS for each pair of systems
     foreach_system(semi) do system
         u_system = wrap_u(u_ode, system, semi)
@@ -524,6 +641,44 @@ function update_nhs!(semi, u_ode)
                     semi; points_moving=points_moving(system, neighbor), eachindex_y)
         end
     end
+end
+
+function update_nhs!(semi, handler::CombinedNHSHandler, u_ode)
+    (; neighborhood_search, systems_moving) = handler
+
+    # The per-pair `points_moving` methods define which systems have to be updated.
+    # Instead of updating the neighborhood search of each pair, we set a system as moving
+    # if it appears as moving in at least one pair.
+    # Note that a `GridNHSPair` requires up-to-date cell lists of both systems
+    # (see `PointNeighbors.requires_update`), not only of the neighbor system.
+    # The systems flagged as moving are then updated only once.
+    systems_moving .= false
+    foreach_system(semi) do system
+        system_index = system_indices(system, semi)
+
+        foreach_system(semi) do neighbor
+            neighbor_index = system_indices(neighbor, semi)
+            system_moving, neighbor_moving = points_moving(system, neighbor)
+
+            systems_moving[system_index] |= system_moving
+            systems_moving[neighbor_index] |= neighbor_moving
+        end
+    end
+
+    # Update the NHS of each moving system only once.
+    foreach_system(semi) do system
+        system_index = system_indices(system, semi)
+
+        if systems_moving[system_index]
+            u_system = wrap_u(u_ode, system, semi)
+            PointNeighbors.update!(neighborhood_search, system_index,
+                                   current_coordinates(u_system, system),
+                                   eachindex=each_active_particle(system),
+                                   parallelization_backend=semi.parallelization_backend)
+        end
+    end
+
+    return semi
 end
 
 # === Which points move between updates (per-pair dispatch) ===
