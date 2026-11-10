@@ -207,6 +207,58 @@
             end
         end
 
+        @testset "Contact-only neighbors" begin
+            coordinates = [0.0 0.1 0.0; 0.0 0.0 0.1]
+            ic = InitialCondition(; coordinates, density=1000.0, particle_spacing=0.1)
+            contact_ic = InitialCondition(; coordinates=coordinates .+ [0.05, 0.0],
+                                          density=2000.0, particle_spacing=0.1)
+            contact_model = RigidContactModel(; normal_stiffness=100.0,
+                                              contact_distance=0.08)
+            searches = ((GridNeighborhoodSearch{2}(), PairsNHSHandler),
+                        (GridNeighborhoodSearch{2}(), SharedNHSHandler),
+                        (PrecomputedNeighborhoodSearch{2}(), PairsNHSHandler))
+            corrections = (ShepardKernelCorrection(), KernelCorrection(),
+                           GradientCorrection(), BlendedGradientCorrection(0.5),
+                           MixedKernelGradientCorrection())
+
+            for correction in corrections, (search, handler) in searches
+                model = BoundaryModelDummyParticles(ic.density, ic.mass,
+                                                    PressureMirroring(), kernel, 0.2;
+                                                    correction)
+                body = RigidBodySystem(ic; boundary_model=model, contact_model)
+                contact_body = RigidBodySystem(contact_ic; contact_model)
+                options = (; neighborhood_search=search,
+                           neighborhood_search_handler=handler,
+                           parallelization_backend=SerialBackend())
+
+                # A mechanical neighbor has no hydrodynamic volume. Correction moments
+                # must therefore agree with the same body in isolation.
+                reference = semidiscretize(Semidiscretization(deepcopy(body); options...),
+                                           (0.0, 0.01); reset_threads=false)
+                TrixiParticles.update_systems_and_nhs(reference.u0.x..., reference.p.semi,
+                                                      0.0)
+                reference_cache = reference.p.semi.systems[1].boundary_model.cache
+                ode = semidiscretize(Semidiscretization(body, contact_body; options...),
+                                     (0.0, 0.01); reset_threads=false)
+                semi = ode.p.semi
+                v, u = ode.u0.x
+                dv = zero(v)
+                TrixiParticles.kick!(dv, v, u, ode.p, 0.0)
+
+                for field in (:kernel_correction_coefficient, :dw_gamma, :correction_matrix)
+                    haskey(model.cache, field) || continue
+                    @test getproperty(model.cache, field) ≈ getproperty(reference_cache,
+                                      field)
+                end
+
+                # Filtering correction contributions must retain the contact force.
+                @test TrixiParticles.has_system_interaction(body, contact_body, semi)
+                @test !iszero(body.resultant_force[])
+                @test body.resultant_force[] ≈ -contact_body.resultant_force[]
+                @test all(isfinite, dv)
+            end
+        end
+
         @testset "Periodic self-neighbors" begin
             box = PeriodicBox(; min_corner=[-4.0, -4.0], max_corner=[4.0, 4.0])
             for search in (GridNeighborhoodSearch{2}(; periodic_box=box),

@@ -522,7 +522,7 @@ function initialize_boundary_correction_searches!(semi, coordinates)
     foreach_system(semi) do system
         has_boundary_correction(system) || return
         foreach_system(semi) do neighbor
-            has_system_interaction(system, neighbor, semi) || return
+            has_correction_interaction(system, neighbor, semi) || return
             search = get_boundary_correction_neighborhood_search(system, neighbor, semi)
             PointNeighbors.initialize!(search, coordinates(system), coordinates(neighbor);
                                        eachindex_y=each_active_particle(neighbor),
@@ -576,7 +576,7 @@ function update_nhs!(semi, u_ode)
         has_boundary_correction(system) || return
         system_coords = current_coordinates(wrap_u(u_ode, system, semi), system)
         foreach_system(semi) do neighbor
-            has_system_interaction(system, neighbor, semi) || return
+            has_correction_interaction(system, neighbor, semi) || return
             neighbor_coords = current_coordinates(wrap_u(u_ode, neighbor, semi), neighbor)
             search = get_boundary_correction_neighborhood_search(system, neighbor, semi)
             update!(search, system_coords, neighbor_coords, semi;
