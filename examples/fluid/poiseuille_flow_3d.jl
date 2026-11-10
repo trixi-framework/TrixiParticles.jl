@@ -135,7 +135,8 @@ inlet_face = ([
                   -channel_diameter,
                   channel_diameter
               ],
-              [open_boundary_layers * particle_spacing, channel_diameter, channel_diameter])
+              [open_boundary_layers * particle_spacing, channel_diameter,
+                  -channel_diameter])
 inlet_reference_velocity = nothing
 inlet_reference_pressure = 0.2
 
@@ -149,7 +150,7 @@ inlet_zone = BoundaryZone(; boundary_face=inlet_face, face_normal=flow_direction
 outlet_boundary_type = BidirectionalFlow()
 outlet_face = ([outlet_offset[1], -channel_diameter, -channel_diameter],
                [outlet_offset[1], -channel_diameter, channel_diameter],
-               [outlet_offset[1], channel_diameter, channel_diameter])
+               [outlet_offset[1], channel_diameter, -channel_diameter])
 outlet_reference_velocity = nothing
 outlet_reference_pressure = 0.1
 
