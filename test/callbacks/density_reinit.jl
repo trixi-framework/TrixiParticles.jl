@@ -68,19 +68,11 @@
 
         system = MockDensityReinitSystem(nothing, :fluid)
         vu_ode = (; x=(:v_ode, :u_ode))
-        # `update_nhs!` requires a handler, which is not used by the mocked methods below.
+        # The NHS update is mocked below, so the handler is not used.
         semi = (; systems=(system,), neighborhood_search_handler=nothing)
         integrator = MockDensityReinitIntegrator((; semi), vu_ode, 0.0)
 
-        TrixiParticles.get_neighborhood_search(system::MockDensityReinitSystem,
-                                               neighbor::MockDensityReinitSystem,
-                                               semi) = nothing
-        TrixiParticles.current_coordinates(u, system::MockDensityReinitSystem) = nothing
-        TrixiParticles.each_active_particle(system::MockDensityReinitSystem) = nothing
-        TrixiParticles.points_moving(system::MockDensityReinitSystem,
-                                     neighbor::MockDensityReinitSystem) = (true, true)
-        TrixiParticles.update!(neighborhood_search::Nothing, x, y, semi;
-                               points_moving=(true, true), eachindex_y=nothing) = nothing
+        TrixiParticles.update_nhs!(semi, handler::Nothing, u_ode) = semi
         TrixiParticles.derivative_discontinuity!(integrator::MockDensityReinitIntegrator,
                                                  is_modified) = nothing
 
