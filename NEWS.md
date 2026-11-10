@@ -4,6 +4,13 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.5.5
+
+### Important Bugfixes
+
+- Fixed zero vertex normals in triangle meshes being normalized to `NaN` for degenerate
+  or duplicated faces (#1191).
+
 ## Version 0.5.4
 
 ### API Changes
