@@ -57,6 +57,12 @@ are the Lamé coefficients, where ``E`` is the Young's modulus and ``\nu`` is th
 
 The term ``\bm{f}_a^{PF}`` is an optional penalty force. See e.g. [`PenaltyForceGanzenmueller`](@ref).
 
+The smoothing kernel, the smoothing length and the correction matrix ``\bm{L}_{0a}`` above
+are only used for the solid mechanics of the structure.
+The interaction with fluids is determined by the `boundary_model`, which has its own
+smoothing kernel, smoothing length and correction
+(see [Boundary Models](@ref boundary_models)).
+
 ```@autodocs
 Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "structure", "total_lagrangian_sph", "system.jl")]
@@ -130,9 +136,6 @@ In these cases, artificial viscosity is effective at stabilizing the fluid close
 structure, and we recommend using it in combination with penalty force to both
 prevent hourglass modes and stabilize the fluid close to the fluid-structure interface.
 
-For dummy-particle fluid coupling, corrected pressure uses the boundary model's
-kernel for the structure-side gradient, independently of the TLSPH self-interaction
-kernel. The boundary model's kernel and fluid kernel must have equal compact support.
 
 ## [Velocity Averaging](@id velocity_averaging)
 

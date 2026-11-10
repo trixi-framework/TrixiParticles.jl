@@ -19,7 +19,6 @@ tspan = (0, 10)
 
 # `n_particles_beam_y = 5` means that the beam is 5 particles thick.
 # This number is used to set the resolution of the simulation.
-# It has to be odd, so that a particle is exactly in the middle of the tip of the beam.
 # Use 5, 9, 21, 35 for validation.
 # Note: 35 takes a very long time!
 n_particles_beam_y = 5
@@ -29,8 +28,22 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "structure", "oscillating_be
               n_particles_y=n_particles_beam_y, sol=nothing, tspan,
               penalty_force=PenaltyForceGanzenmueller(alpha=0.01))
 
-pp_callback = PostprocessCallback(; deflection_x, deflection_y, dt=0.01,
-                                  output_directory="out",
+# Track the deflection with a `StructureMotionCalculator`, which reconstructs
+# the motion around the center of the tip by an SPH interpolation over the surrounding
+# particles. This is less sensitive to the resolution than tracking a single particle.
+tip_position = (clamp_radius + elastic_beam.length, elastic_beam.thickness / 2)
+
+# Note that `Semidiscretization` creates a deep copy of the structure system,
+# which means we have to extract the new system from `semi`.
+structure_system_new = semi.systems[1]
+
+deflection_x = StructureMotionCalculator(structure_system_new, semi, tip_position,
+                                         quantity=motion -> motion.displacement[1])
+deflection_y = StructureMotionCalculator(structure_system_new, semi, tip_position,
+                                         quantity=motion -> motion.displacement[2])
+
+pp_callback = PostprocessCallback(; deflection_x, deflection_y,
+                                  dt=0.01, output_directory="out",
                                   filename="validation_run_oscillating_beam_2d_$n_particles_beam_y",
                                   write_csv=false, write_file_interval=0)
 info_callback = InfoCallback(interval=2500)
