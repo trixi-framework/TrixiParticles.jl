@@ -203,9 +203,6 @@ at each boundary particle uses the smoothing kernel, smoothing length and correc
 the boundary model. Its smoothing kernel and smoothing length must match those of the
 fluid systems. The smoothing kernel of the [`TotalLagrangianSPHSystem`](@ref) is used for
 solid mechanics instead.
-Correction assembly still uses the existing system neighborhood searches; complete
-current-configuration neighborhoods for structure corrections are addressed separately
-in [#1351](https://github.com/trixi-framework/TrixiParticles.jl/pull/1351).
 
 ## Repulsive Particles
 

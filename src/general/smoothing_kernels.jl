@@ -55,28 +55,29 @@ end
     return zero(r)
 end
 
-@inline function skip_zero_distance(correction)
-    return true
-end
-
-@inline function skip_zero_distance(::Union{KernelCorrection,
-                                            MixedKernelGradientCorrection})
-    # For these corrections, the kernel gradient between a particle and itself is not zero
-    return false
-end
-
 # Safe kernel gradient with an explicit kernel and smoothing length `h`.
 # `kernel_data` stores the correction values of `particle` (a system or a boundary model).
 @inline function corrected_kernel_grad(kernel, pos_diff, distance, h, correction,
                                        kernel_data, particle)
     compact_support_ = compact_support(kernel, h)
 
-    # See `almostzero` for an explanation of the zero distance check
-    if distance >= compact_support_ ||
-       (skip_zero_distance(correction) && distance < almostzero(h))
+    # See `almostzero` for an explanation of the zero distance check.
+    if distance >= compact_support_ || distance < almostzero(h)
         return zero(pos_diff)
     end
 
+    return corrected_kernel_grad_unsafe(kernel, pos_diff, distance, h, correction,
+                                        kernel_data, particle)
+end
+
+@inline function corrected_kernel_grad(kernel, pos_diff, distance, h,
+                                       correction::Union{KernelCorrection,
+                                                         MixedKernelGradientCorrection},
+                                       kernel_data, particle)
+    distance >= compact_support(kernel, h) && return zero(pos_diff)
+
+    # At zero distance, ∇W vanishes but the normalization term -W(0) * dw_gamma / c
+    # need not. Mixed correction also multiplies this term by its correction matrix.
     return corrected_kernel_grad_unsafe(kernel, pos_diff, distance, h, correction,
                                         kernel_data, particle)
 end

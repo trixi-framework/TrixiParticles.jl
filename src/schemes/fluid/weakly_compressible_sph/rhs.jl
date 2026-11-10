@@ -18,6 +18,19 @@ function interact!(dv, v_particle_system, u_particle_system,
 
     h = initial_smoothing_length(particle_system)
 
+    # KernelCorrection gives ∇W_c(0) = -W(0) * dw_gamma / c, which need not vanish.
+    # MixedKernelGradientCorrection multiplies this gradient by its correction matrix.
+    # Keep coincident pairs when either the fluid or the structure's boundary model
+    # uses these corrections, so their pressure or boundary-density terms are not lost.
+    keep_coincident = correction isa
+                      Union{KernelCorrection, MixedKernelGradientCorrection} ||
+                      (neighbor_system isa
+                       Union{TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles},
+                             RigidBodySystem{<:BoundaryModelDummyParticles}} &&
+                       neighbor_system.boundary_model.correction isa
+                       Union{KernelCorrection,
+                             MixedKernelGradientCorrection})
+
     @threaded semi for particle in eachparticle
         # We are looping over the particles of `particle_system`, so it is guaranteed
         # that `particle` is in bounds of `particle_system`.
@@ -46,17 +59,14 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                         backend, particle;
                                                         init) do particle, neighbor,
                                                                  pos_diff, distance
-            # Skip neighbors with (almost) the same position if the kernel gradients of this
-            # pair vanish, because computing them would divide by zero (see `almostzero`).
-            # This depends on the corrections of both systems (see `skip_zero_distance`).
+            # Skip coincident pairs only when neither correction needs them.
             # Note that `return` only exits the closure, i.e., skips the current neighbor.
-            if skip_zero_distance(particle_system, neighbor_system) &&
-               distance < almostzero(h)
+            if !keep_coincident && distance < almostzero(h)
                 return init
             end
 
-            grad_kernel = interaction_kernel_grad(particle_system, neighbor_system,
-                                                  pos_diff, distance, particle)
+            grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance,
+                                                particle)
 
             # `foreach_neighbor` makes sure that `neighbor` is in bounds of `neighbor_system`
             m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)

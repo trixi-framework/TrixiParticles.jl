@@ -22,7 +22,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         # Skip neighbors with (almost) the same position because the kernel gradient
         # is zero, but computing it would divide by zero (see `almostzero`).
         # Note that `return` only exits the closure, i.e., skips the current neighbor.
-        skip_zero_distance(particle_system) && distance < almostzero(h) && return
+        distance < almostzero(h) && return
 
         # Now that we know that `distance` is not zero, we can safely call the unsafe
         # version of the kernel gradient to avoid redundant zero checks.
