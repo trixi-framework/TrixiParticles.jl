@@ -72,7 +72,7 @@ struct Polygon{NDIMS, ELTYPE}
             push!(edge_normals, edge_normal)
         end
 
-        if length(edge_vertices) < 3
+        if length(edge_vertices) < 3 && isapprox(first(vertices), last(vertices))
             throw(ArgumentError("polygon requires at least three non-degenerate edges"))
         end
 
