@@ -344,20 +344,4 @@ end
     @test TrixiParticles.smoothing_kernel_grad(gradient.system, pos_diff, distance,
                                                particle) ≈ raw_gradient
     @test hydrodynamic_gradient ≈ correction_matrix * raw_gradient
-
-    # Rigid-body correction caches are not implemented. Reject both density and gradient
-    # corrections at construction instead of allowing a later crash or stale normalization.
-    error_message = "corrections in `BoundaryModelDummyParticles` are not supported " *
-                    "for `RigidBodySystem`"
-    for correction in (ShepardKernelCorrection(), GradientCorrection())
-        density_correction = TrixiParticles.correction_density(correction)
-        gradient_correction = TrixiParticles.correction_gradient(correction)
-        boundary_model = BoundaryModelDummyParticles(particles.density, particles.mass,
-                                                     SummationDensity(), smoothing_kernel,
-                                                     smoothing_length;
-                                                     state_equation, density_correction,
-                                                     gradient_correction)
-        @test_throws ArgumentError(error_message) RigidBodySystem(particles;
-                                                                  boundary_model)
-    end
 end

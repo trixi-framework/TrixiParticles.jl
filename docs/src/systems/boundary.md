@@ -204,7 +204,7 @@ for [`ContinuityDensity`](@ref),
 ```
 where ``\tilde{\nabla}_{r_a} W_{ab}`` is the corrected kernel gradient of the fluid particle ``a``
 and ``\tilde{\nabla}_{r_b} W_{ba}`` is the corrected kernel gradient of the boundary particle ``b``.
-The latter is computed with the `correction` of the boundary model, which should therefore
+The latter is computed with the `gradient_correction` of the boundary model, which should therefore
 be the same as the correction of the fluid system.
 With [`ContinuityDensity`](@ref), the density of the boundary particles also evolves with the
 corrected kernel gradient of the boundary particles.

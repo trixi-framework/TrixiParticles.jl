@@ -1098,9 +1098,8 @@
             # vanishes at zero distance (`GradientCorrection` and `BlendedGradientCorrection`),
             # and the average pressure reduction, which removes the pressure of a single
             # fluid particle.
-            # Note that EDAC does not support corrections yet (this is not part of this
-            # test), so only the pairs at the same position, where the fluid gradient
-            # vanishes, are evaluated for EDAC with correction.
+            # Coincident and near-coincident pairs isolate the boundary correction because
+            # these fluid corrections have a vanishing local gradient at zero distance.
             near_zero_configurations = (("WCSPH", GradientCorrection()),
                                         ("EDAC", BlendedGradientCorrection(0.3)),
                                         ("WCSPH", nothing),

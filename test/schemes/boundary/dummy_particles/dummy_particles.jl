@@ -107,6 +107,10 @@
         state_equation = StateEquationCole(; sound_speed=10.0, reference_density=1000.0,
                                            exponent=1.0)
 
+        correction_kwargs(correction) = correction isa ShepardKernelCorrection ?
+                                        (; density_correction=correction) :
+                                        (; gradient_correction=correction)
+
         function correction_setup(structure_type, correction, neighborhood_search,
                                   handler; coordinates=[1.5 2.5 1.5; 0.0 0.0 1.0])
             fluid_ic = InitialCondition(; coordinates=zeros(2, 1), mass=1100.0,
@@ -121,7 +125,8 @@
             model = BoundaryModelDummyParticles(fill(950.0, n),
                                                 700.0 .+ 50.0 .* (0:(n - 1)),
                                                 PressureMirroring(), kernel, 1.0;
-                                                state_equation, correction)
+                                                state_equation,
+                                                correction_kwargs(correction)...)
             structure = if structure_type === TotalLagrangianSPHSystem
                 TotalLagrangianSPHSystem(structure_ic; boundary_model=model,
                                          smoothing_kernel=WendlandC2Kernel{2}(),
@@ -224,7 +229,7 @@
             for correction in corrections, (search, handler) in searches
                 model = BoundaryModelDummyParticles(ic.density, ic.mass,
                                                     PressureMirroring(), kernel, 0.2;
-                                                    correction)
+                                                    correction_kwargs(correction)...)
                 body = RigidBodySystem(ic; boundary_model=model, contact_model)
                 contact_body = RigidBodySystem(contact_ic; contact_model)
                 options = (; neighborhood_search=search,

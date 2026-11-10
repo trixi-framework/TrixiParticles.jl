@@ -14,8 +14,8 @@ end
 end
 
 @inline function hydrodynamic_smoothing_kernel_grad(system::Union{TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles},
-                                                                 RigidBodySystem{<:BoundaryModelDummyParticles}},
-                                                   pos_diff, distance, particle)
+                                                                  RigidBodySystem{<:BoundaryModelDummyParticles}},
+                                                    pos_diff, distance, particle)
     return smoothing_kernel_grad(system.boundary_model, pos_diff, distance, particle)
 end
 
@@ -27,13 +27,13 @@ function update_density_correction_values!(system::RigidBodySystem{<:BoundaryMod
 end
 
 function update_density_correction!(system::RigidBodySystem{<:BoundaryModelDummyParticles},
-                                     v, u, v_ode, u_ode, semi, t)
+                                    v, u, v_ode, u_ode, semi, t)
     update_density_correction!(system.boundary_model, system, v, u, v_ode, u_ode, semi)
     return system
 end
 
 function update_gradient_correction!(system::RigidBodySystem{<:BoundaryModelDummyParticles},
-                                      v, u, v_ode, u_ode, semi, t)
+                                     v, u, v_ode, u_ode, semi, t)
     update_gradient_correction!(system.boundary_model, system, v, u, v_ode, u_ode, semi)
     return system
 end

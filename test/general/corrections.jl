@@ -60,7 +60,7 @@ end
             system = WeaklyCompressibleSPHSystem(ic; smoothing_kernel=kernel,
                                                  smoothing_length=1.0, state_equation,
                                                  density_calculator=ContinuityDensity(),
-                                                  gradient_correction=correction)
+                                                 gradient_correction=correction)
             semi = Semidiscretization(system; parallelization_backend=SerialBackend())
             ode = semidiscretize(semi, (0.0, 0.01))
             v_ode, u_ode = ode.u0.x
