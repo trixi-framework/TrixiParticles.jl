@@ -1,61 +1,31 @@
-# Wrapper for any neighborhood search that forwards `foreach_point_neighbor` to the wrapped
-# neighborhood search, but doesn't do anything in the update step.
+# Wrapper for any neighborhood search handler that forwards `get_neighborhood_search`
+# to the wrapped handler, but doesn't do anything in the update step.
 # This is used in the example tests to test for zero allocations in the `kick!` function.
-struct NoUpdateNeighborhoodSearch{NHS}
-    nhs::NHS
+struct NoUpdateNHSHandler{H} <: TrixiParticles.AbstractNHSHandler
+    handler::H
 end
 
-@inline Base.ndims(nhs::NoUpdateNeighborhoodSearch) = ndims(nhs.nhs)
-TrixiParticles.extract_periodic_box(::NoUpdateNeighborhoodSearch) = nothing
+@inline function TrixiParticles.get_neighborhood_search(handler::NoUpdateNHSHandler,
+                                                        system_index, neighbor_index,
+                                                        search_radius)
+    return TrixiParticles.get_neighborhood_search(handler.handler, system_index,
+                                                  neighbor_index, search_radius)
+end
 
-# Copy a `Semidiscretization`, but wrap the neighborhood searches with
-# `NoUpdateNeighborhoodSearch`.
+# No update.
+function TrixiParticles.update_nhs!(semi, handler::NoUpdateNHSHandler, u_ode)
+    return semi
+end
+
+# Copy a `Semidiscretization`, but wrap the neighborhood search handler with
+# `NoUpdateNHSHandler`.
 function copy_semi_with_no_update_nhs(semi)
-    neighborhood_search_handler = no_update_nhs_handler(semi.neighborhood_search_handler)
+    neighborhood_search_handler = NoUpdateNHSHandler(semi.neighborhood_search_handler)
 
+    # Also make sure to use a `SerialBackend` to avoid allocations from multithreading.
     return Semidiscretization(semi.systems, semi.ranges_u, semi.ranges_v,
                               neighborhood_search_handler, semi.interaction_matrix,
-                              SerialBackend(), Ref(true),
-                              Ref(true))
-end
-
-function no_update_nhs_handler(handler::TrixiParticles.PairsNHSHandler)
-    return TrixiParticles.PairsNHSHandler(map(NoUpdateNeighborhoodSearch,
-                                              handler.neighborhood_searches))
-end
-
-function no_update_nhs_handler(handler::TrixiParticles.SharedNHSHandler)
-    return TrixiParticles.SharedNHSHandler(handler.search_radii,
-                                           map(searches -> map(NoUpdateNeighborhoodSearch,
-                                                               searches),
-                                               handler.neighborhood_searches))
-end
-
-# Forward `foreach_neighbor` to wrapped neighborhood search
-@inline function PointNeighbors.foreach_neighbor(f, system_coords, neighbor_coords,
-                                                 neighborhood_search::NoUpdateNeighborhoodSearch,
-                                                 particle;
-                                                 search_radius=PointNeighbors.search_radius(neighborhood_search.nhs))
-    PointNeighbors.foreach_neighbor(f, system_coords, neighbor_coords,
-                                    neighborhood_search.nhs, particle; search_radius)
-end
-
-# Forward `mapreduce_neighbor` to wrapped neighborhood search
-@inline function PointNeighbors.mapreduce_neighbor(f, op, system_coords, neighbor_coords,
-                                                   neighborhood_search::NoUpdateNeighborhoodSearch,
-                                                   particle; init,
-                                                   search_radius=PointNeighbors.search_radius(neighborhood_search.nhs))
-    PointNeighbors.mapreduce_neighbor(f, op, system_coords, neighbor_coords,
-                                      neighborhood_search.nhs, particle;
-                                      init, search_radius)
-end
-
-# No update
-@inline function PointNeighbors.update!(search::NoUpdateNeighborhoodSearch, x, y;
-                                        points_moving=(true, true),
-                                        eachindex_y=eachindex(y),
-                                        parallelization_backend=SerialBackend())
-    return search
+                              SerialBackend(), Ref(true), Ref(true))
 end
 
 mutable struct MockIntegrator
@@ -68,7 +38,7 @@ function count_rhs_allocations(sol; split_integration=nothing)
     t = sol.t[end]
     v_ode_, u_ode_ = sol.u[end].x
 
-    # Wrap neighborhood searches to avoid counting allocations in the NHS update.
+    # Wrap the NHS handler to avoid counting allocations in the NHS update.
     p = sol.prob.p
     p = TrixiParticles.@set p.semi = copy_semi_with_no_update_nhs(p.semi)
 
@@ -95,7 +65,7 @@ function count_rhs_allocations(sol; split_integration=nothing)
     dv_ode = similar(v_ode)
     du_ode = similar(u_ode)
 
-    # Wrap neighborhood searches to avoid counting allocations in the NHS update.
+    # Wrap the NHS handler to avoid counting allocations in the NHS update.
     # Note that `p.split_integration_data.integrator.p.semi_large` is still the old
     # semidiscretization with the original NHS.
     # However, we call `kick!` twice with the same `t` below, so in the second call,

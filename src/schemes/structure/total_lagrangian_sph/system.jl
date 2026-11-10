@@ -258,9 +258,6 @@ function initialize_self_interaction_nhs(system::TotalLagrangianSPHSystem,
                                     system.cache)
 end
 
-extract_periodic_box(::Nothing) = nothing
-extract_periodic_box(nhs) = nhs.periodic_box
-
 create_cache_tlsph(::Nothing, initial_condition) = (;)
 
 function create_cache_tlsph(::PrescribedMotion, initial_condition)

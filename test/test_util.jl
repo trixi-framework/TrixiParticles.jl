@@ -89,5 +89,10 @@ end
     return TrixiParticles.get_neighborhood_search(system, system, semi)
 end
 
+# Cell list of a grid NHS. With the `CombinedNHSHandler`, `get_neighborhood_search`
+# returns a `GridNHSPair` for a `GridNeighborhoodSearch` (see `CombinedNHSHandler`).
+nhs_cell_list(nhs::GridNeighborhoodSearch) = nhs.cell_list
+nhs_cell_list(nhs::PointNeighbors.GridNHSPair) = nhs_cell_list(nhs.neighbor_search)
+
 include("count_allocations.jl")
 include("rectangular_patch.jl")
