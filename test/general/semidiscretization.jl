@@ -62,15 +62,23 @@
         nhs = [nhs1 nhs2; nhs1 nhs2]
         @test semi.neighborhood_search_handler.neighborhood_searches == nhs
 
-        # `GridNeighborhoodSearch` with default `PairsNHSHandler`.
+        # `GridNeighborhoodSearch` with the default handler. All pairs of systems use the
+        # same search radius, so the `CombinedNHSHandler` is selected automatically.
         semi_grid_default = Semidiscretization(system1, system2,
                                                neighborhood_search=GridNeighborhoodSearch{3}())
-        @test !PointNeighbors.requires_update(GridNeighborhoodSearch{3}())[1]
         @test semi_grid_default.neighborhood_search_handler isa
-              TrixiParticles.SharedNHSHandler
+              TrixiParticles.CombinedNHSHandler
         @test TrixiParticles.get_neighborhood_search(system1, system2,
                                                      semi_grid_default) isa
-              GridNeighborhoodSearch
+              PointNeighbors.GridNHSPair
+
+        # Default handler for other neighborhood search implementations.
+        @test TrixiParticles.default_neighborhood_search_handler(TrixiParticles.TrivialNeighborhoodSearch{3}(),
+                                                                 (system1, system2)) ==
+              TrixiParticles.PairsNHSHandler
+        @test TrixiParticles.default_neighborhood_search_handler(PrecomputedNeighborhoodSearch{3}(),
+                                                                 (system1, system2)) ==
+              TrixiParticles.PairsNHSHandler
 
         # `GridNeighborhoodSearch` with `SharedNHSHandler`.
         semi_grid = Semidiscretization(system1, system2,
@@ -108,7 +116,7 @@
         # `GridNeighborhoodSearch` with `CombinedNHSHandler`.
         semi_combined = Semidiscretization(system1, system2,
                                            neighborhood_search=GridNeighborhoodSearch{3}(),
-                                           neighborhood_search_handler=CombinedNHSHandler)
+                                           neighborhood_search_handler=TrixiParticles.CombinedNHSHandler)
         handler = semi_combined.neighborhood_search_handler
         @test handler isa TrixiParticles.CombinedNHSHandler
         @test handler.neighborhood_search isa PointNeighbors.CombinedGridNeighborhoodSearch
@@ -126,7 +134,7 @@
         # Only `GridNeighborhoodSearch` is supported.
         @test_throws ArgumentError Semidiscretization(system1, system2,
                                                       neighborhood_search=nothing,
-                                                      neighborhood_search_handler=CombinedNHSHandler)
+                                                      neighborhood_search_handler=TrixiParticles.CombinedNHSHandler)
 
         # Need to pass a type, not an NHS handler object.
         nhs = TrixiParticles.TrivialNeighborhoodSearch{3}()

@@ -261,14 +261,39 @@ function create_neighborhood_search_handler(handler, neighborhood_search, system
                         "for example `PairsNHSHandler` or `SharedNHSHandler`."))
 end
 
+# `neighborhood_search_handler = nothing` selects the default handler,
+# see `default_neighborhood_search_handler`.
+function create_neighborhood_search_handler(::Nothing, neighborhood_search, systems)
+    handler = default_neighborhood_search_handler(neighborhood_search, systems)
+    return create_neighborhood_search_handler(handler, neighborhood_search, systems)
+end
+
 # `neighborhood_search = nothing` creates a `TrivialNeighborhoodSearch`.
-function default_neighborhood_search_handler(::Union{Nothing, TrivialNeighborhoodSearch})
+function default_neighborhood_search_handler(::Union{Nothing, TrivialNeighborhoodSearch},
+                                             systems)
     # Prefer the `PairsNHSHandler` for `TrivialNeighborhoodSearch` because it allows for
     # infinite search radius, which the `SharedNHSHandler` does not support.
     return PairsNHSHandler
 end
 
-function default_neighborhood_search_handler(neighborhood_search::AbstractNeighborhoodSearch)
+function default_neighborhood_search_handler(neighborhood_search::GridNeighborhoodSearch,
+                                             systems)
+    # Use the `CombinedNHSHandler` when all systems interact with the same search radius.
+    # This enables the full performance optimizations of the neighborhood search,
+    # since the particles of all systems are stored in the same grid.
+    if !isnothing(uniform_search_radius(systems))
+        return CombinedNHSHandler
+    end
+
+    return default_neighborhood_search_handler_(neighborhood_search)
+end
+
+function default_neighborhood_search_handler(neighborhood_search::AbstractNeighborhoodSearch,
+                                             systems)
+    return default_neighborhood_search_handler_(neighborhood_search)
+end
+
+function default_neighborhood_search_handler_(neighborhood_search)
     # If the neighborhood search does not require updates when the first system moves,
     # we can query neighbors of arbitrary particles without updating the neighborhood search.
     # In this case, we can use a single neighborhood search per neighbor system,
@@ -278,6 +303,27 @@ function default_neighborhood_search_handler(neighborhood_search::AbstractNeighb
     end
 
     return PairsNHSHandler
+end
+
+# Return the search radius if all pairs of systems use the same search radius
+# and `nothing` otherwise.
+function uniform_search_radius(systems)
+    # A compact support of zero means that this neighborhood search is never used.
+    # TLSPH self-interaction is using a specialized neighborhood search.
+    search_radii = [compact_support(system, neighbor)
+                    for system in systems, neighbor in systems
+                    if !(system === neighbor && system isa TotalLagrangianSPHSystem)]
+    isempty(search_radii) && return nothing
+
+    search_radius = maximum(search_radii)
+    if iszero(search_radius) ||
+       !all(radius -> iszero(radius) || isapprox(radius, search_radius), search_radii)
+        # The search radius is zero or there are pairs of systems that require different
+        # non-zero search radii.
+        return nothing
+    end
+
+    return search_radius
 end
 
 first_neighborhood_search(searches::AbstractMatrix) = first(searches)
@@ -357,6 +403,9 @@ stored neighbors are tied to the specific query particles used during initializa
 
 The `SharedNHSHandler` is the default handler for compatible neighborhood search
 implementations because it avoids storing and updating redundant neighborhood searches.
+For a [`GridNeighborhoodSearch`](@ref) where all pairs of systems use the same
+search radius, a more efficient internal handler is chosen by default instead
+(see [neighborhood search performance](@ref neighborhood_search_performance)).
 
 !!! warning
     This handler is only compatible with neighborhood searches that can query
@@ -426,41 +475,19 @@ function get_neighborhood_search(handler::SharedNHSHandler, system_index, neighb
     return handler.neighborhood_searches[neighbor_index][radius_index]
 end
 
-"""
-    CombinedNHSHandler
-
-Neighborhood search handler that stores the particles of all systems in the same grid.
-
-`CombinedNHSHandler` stores one cell list per system, like the [`SharedNHSHandler`](@ref),
-but all cell lists use the same grid with the same search radius
-(see [`PointNeighbors.CombinedGridNeighborhoodSearch`](@ref)).
-The cell list of each system is updated only once per update of the neighborhood searches.
-Because the particles of both systems of an interaction are stored in the same grid,
-neighbor loops can traverse the particles of both systems cell by cell.
-
-!!! warning
-    This handler requires a [`GridNeighborhoodSearch`](@ref) and the same search radius
-    for all pairs of systems that interact with each other.
-
-# Examples
-```jldoctest semi_example; output=false, setup = :(using TrixiParticles; trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing); system1 = fluid_system; system2 = boundary_system)
-semi = Semidiscretization(system1, system2;
-                          neighborhood_search=GridNeighborhoodSearch{2}(),
-                          neighborhood_search_handler=CombinedNHSHandler)
-
-# output
-┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ Semidiscretization                                                                               │
-│ ══════════════════                                                                               │
-│ #spatial dimensions: ………………………… 2                                                                │
-│ #systems: ……………………………………………………… 2                                                                │
-│ neighborhood search: ………………………… CombinedGridNeighborhoodSearch                                   │
-│ total #particles: ………………………………… 636                                                              │
-│ eltype: …………………………………………………………… Float64                                                          │
-│ coordinates eltype: …………………………… Float64                                                          │
-└──────────────────────────────────────────────────────────────────────────────────────────────────┘
-```
-"""
+# Neighborhood search handler that stores the particles of all systems in the same grid.
+#
+# `CombinedNHSHandler` wraps a `CombinedGridNeighborhoodSearch`, which stores one cell list
+# per system, but all cell lists use the same grid with the same search radius
+# (see `PointNeighbors.CombinedGridNeighborhoodSearch`).
+# The cell list of each system is updated only once per update of the neighborhood searches.
+# Because the particles of both systems of an interaction are stored in the same grid,
+# neighbor loops can traverse the particles of both systems cell by cell, which allows for
+# advanced performance optimizations and SIMD vectorization.
+#
+# This handler is not public API. It is selected automatically when no handler is passed
+# to the `Semidiscretization`, a `GridNeighborhoodSearch` is used, and all pairs of
+# systems interact with the same search radius (see `default_neighborhood_search_handler`).
 struct CombinedNHSHandler{NHS} <: AbstractNHSHandler
     neighborhood_search::NHS
     # Buffer for `update_nhs!` to store which cell lists have to be updated.
@@ -468,17 +495,14 @@ struct CombinedNHSHandler{NHS} <: AbstractNHSHandler
 end
 
 function CombinedNHSHandler(neighborhood_search::GridNeighborhoodSearch, systems)
-    # A compact support of zero means that this neighborhood search is never used.
-    # TLSPH self-interaction is using a specialized neighborhood search.
-    search_radii = [compact_support(system, neighbor)
-                    for system in systems, neighbor in systems
-                    if !(system === neighbor && system isa TotalLagrangianSPHSystem)]
-    search_radius = maximum(search_radii)
+    search_radius = uniform_search_radius(systems)
 
-    if !all(radius -> iszero(radius) || isapprox(radius, search_radius), search_radii)
-        throw(ArgumentError("`CombinedNHSHandler` requires the same search radius " *
-                            "for all pairs of systems, but got the search radii " *
-                            "$(unique(search_radii))"))
+    if isnothing(search_radius)
+        search_radii = unique(compact_support(system, neighbor)
+                              for system in systems, neighbor in systems)
+        throw(ArgumentError("`CombinedNHSHandler` requires the same nonzero search " *
+                            "radius for all pairs of systems, but got the search radii " *
+                            "$search_radii"))
     end
 
     combined_nhs = PointNeighbors.CombinedGridNeighborhoodSearch(neighborhood_search,

@@ -138,7 +138,7 @@ end
         end
 
         dv_expected, _ = rhs(SharedNHSHandler)
-        dv, semi = rhs(CombinedNHSHandler)
+        dv, semi = rhs(TrixiParticles.CombinedNHSHandler)
 
         @test count(semi.systems[1].buffer.active_particle) ==
               nparticles(semi.systems[1]) - 8
