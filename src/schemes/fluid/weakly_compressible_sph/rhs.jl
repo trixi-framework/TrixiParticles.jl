@@ -46,7 +46,9 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                         backend, particle;
                                                         init) do particle, neighbor,
                                                                  pos_diff, distance
-            # Skip coincident pairs only when the active pressure gradients both vanish.
+            # Skip neighbors with (almost) the same position if the kernel gradients of this
+            # pair vanish, because computing them would divide by zero (see `almostzero`).
+            # This depends on the corrections of both systems (see `skip_zero_distance`).
             # Note that `return` only exits the closure, i.e., skips the current neighbor.
             if skip_zero_distance(particle_system, neighbor_system) &&
                distance < almostzero(h)

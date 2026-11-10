@@ -25,6 +25,9 @@ Boundary model for [`WallBoundarySystem`](@ref).
 - `state_equation`:             This should be the same as for the adjacent fluid system
                                 (see e.g. [`StateEquationCole`](@ref)).
 - `correction`:                 Correction method of the adjacent fluid system (see [Corrections](@ref corrections)).
+                                It determines the kernel gradient at the boundary particles when the fluid
+                                uses a correction with an asymmetric kernel gradient
+                                (see [Corrections](@ref boundary_corrections)).
 - `viscosity`:                  Slip (default) or no-slip condition. See description below for further
                                 information.
 - `clip_negative_pressure=false`: Clip negative boundary pressures to avoid sticking
@@ -117,21 +120,16 @@ end
     return ndims(boundary_model.smoothing_kernel)
 end
 
-# Evaluate the structure-side FSI pressure-acceleration gradient with the boundary
-# model's kernel and correction data. The TLSPH self-interaction kernel and correction
-# matrix are used separately for solid mechanics.
+# Kernel gradient at a boundary particle with the kernel, smoothing length, correction and
+# correction values of the boundary model. This is used for the interaction with fluids,
+# e.g., in the asymmetric pressure acceleration of a fluid with a corrected kernel gradient
+# and in the continuity equation of the boundary particles.
+# A `TotalLagrangianSPHSystem` has its own kernel and correction matrix for solid mechanics.
 @inline function smoothing_kernel_grad(model::BoundaryModelDummyParticles, pos_diff,
                                        distance, particle)
     (; smoothing_kernel, smoothing_length, correction) = model
     return corrected_kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length,
                                  correction, model, particle)
-end
-
-@inline function smoothing_kernel_grad_unsafe(model::BoundaryModelDummyParticles, pos_diff,
-                                              distance, particle)
-    (; smoothing_kernel, smoothing_length, correction) = model
-    return corrected_kernel_grad_unsafe(smoothing_kernel, pos_diff, distance,
-                                        smoothing_length, correction, model, particle)
 end
 
 @propagate_inbounds function kernel_correction_coefficient(model::BoundaryModelDummyParticles,
@@ -442,8 +440,8 @@ end
     return boundary_model
 end
 
-# Use the system for coordinates and neighbor traversal, and the boundary model for
-# the hydrodynamic kernel and correction cache.
+# Use the system for the coordinates and the neighbor search, and the boundary model for
+# the kernel, the smoothing length and the correction values.
 function compute_correction_values!(boundary_model::BoundaryModelDummyParticles, system,
                                     correction, u, v_ode, u_ode, semi)
     return system

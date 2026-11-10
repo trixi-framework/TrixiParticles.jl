@@ -127,14 +127,9 @@ function compute_correction_values!(system, ::ShepardKernelCorrection, u, v_ode,
                                   system.cache.kernel_correction_coefficient)
 end
 
-function compute_correction_values!(system::AbstractBoundarySystem,
-                                    ::ShepardKernelCorrection, u,
-                                    v_ode, u_ode, semi)
-    return compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode,
-                                  semi,
-                                  system.boundary_model.cache.kernel_correction_coefficient)
-end
-
+# The correction values are sums over the neighbors of `system`. `kernel_data` provides the
+# smoothing kernel, the smoothing length and the correction values of the particles of `system`,
+# which are stored in the system itself or in its boundary model (for structures).
 function compute_shepard_coeff!(system, system_coords, v_ode, u_ode, semi,
                                 kernel_correction_coefficient, kernel_data=system)
     set_zero!(kernel_correction_coefficient)
@@ -185,16 +180,6 @@ function compute_correction_values!(system::AbstractFluidSystem,
                                u_ode, semi,
                                system.cache.kernel_correction_coefficient,
                                system.cache.dw_gamma)
-end
-
-function compute_correction_values!(system::AbstractBoundarySystem,
-                                    correction::Union{KernelCorrection,
-                                                      MixedKernelGradientCorrection}, u,
-                                    v_ode, u_ode, semi)
-    compute_correction_values!(system, correction, current_coordinates(u, system), v_ode,
-                               u_ode, semi,
-                               system.boundary_model.cache.kernel_correction_coefficient,
-                               system.boundary_model.cache.dw_gamma)
 end
 
 function compute_correction_values!(system,
@@ -354,8 +339,9 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
                                              kernel_data=system)
     set_zero!(corr_matrix)
 
-    # Mixed correction uses kernel-corrected gradients to assemble the matrix.
-    # The gradient-correction matrix itself is only available after assembly.
+    # The matrix is assembled from kernel gradients without gradient correction, since the
+    # gradient-correction matrix is not available before the assembly is finished.
+    # `MixedKernelGradientCorrection` assembles it from the kernel-corrected gradients.
     kernel_correction = correction isa MixedKernelGradientCorrection ? KernelCorrection() :
                         nothing
 
