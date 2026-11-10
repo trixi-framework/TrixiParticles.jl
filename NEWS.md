@@ -82,6 +82,12 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Important Bugfixes
 
+- Fixed the no-slip condition of `BoundaryModelDummyParticles` with `SummationDensity`,
+  `ContinuityDensity`, `PressureZeroing` and `PressureBoundaries`, whose wall velocity was
+  zero. The velocity of moving walls and structures was ignored, and static walls applied
+  only about half the wall shear. With IISPH, `AdamiPressureExtrapolation` and
+  `BernoulliPressureExtrapolation` now provide the wall velocity before the advection
+  prediction (#1361).
 - Fixed corrected WCSPH pressure forces at Adami/Bernoulli dummy boundaries to use the
   fluid-side gradient, removing spurious constant-pressure forces while retaining
   the exact opposite structural reaction.
