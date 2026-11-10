@@ -55,6 +55,8 @@ Neighborhood search handlers control how neighborhood searches for the interacti
 systems are stored and looked up. This only affects memory use and update cost
 by avoiding redundant neighborhood searches, not the underlying search algorithm.
 
+By default, the handler is chosen automatically (see also
+[neighborhood search performance](@ref neighborhood_search_performance)).
 To choose a handler explicitly, pass the handler type to `Semidiscretization`.
 
 ```jldoctest semi_example; output=false, setup = :(using TrixiParticles; trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing); system1 = fluid_system; system2 = boundary_system)

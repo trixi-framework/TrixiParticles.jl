@@ -397,7 +397,7 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
 
     u_fluid = wrap_u(u_ode, fluid_system, semi)
     v_fluid = wrap_v(v_ode, fluid_system, semi)
-    periodic_box = get_neighborhood_search(fluid_system, system, semi).periodic_box
+    periodic_box = extract_periodic_box(get_neighborhood_search(fluid_system, system, semi))
 
     boundary_candidates .= false
 

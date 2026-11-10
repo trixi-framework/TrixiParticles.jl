@@ -1,7 +1,7 @@
 """
     Semidiscretization(systems...;
                        neighborhood_search=GridNeighborhoodSearch{NDIMS}(),
-                       neighborhood_search_handler=default_neighborhood_search_handler(neighborhood_search),
+                       neighborhood_search_handler=nothing,
                        parallelization_backend=PolyesterBackend(),
                        interaction_matrix=nothing)
 
@@ -17,8 +17,13 @@ The semidiscretization couples the passed systems to one simulation.
     To use another neighborhood search implementation, pass a template of a neighborhood
     search. See [`copy_neighborhood_search`](@ref) and the examples below for more details.
     To use a periodic domain, pass a [`PeriodicBox`](@ref) to the neighborhood search.
-- `neighborhood_search_handler`: The handler type used to store and look up neighborhood
-    searches internally. By default, [`SharedNHSHandler`](@ref) is used whenever possible
+- `neighborhood_search_handler=nothing`: The handler type used to store and look up
+    neighborhood searches internally. By default (`nothing`), the handler is chosen
+    automatically. For a [`GridNeighborhoodSearch`](@ref) where all pairs of systems use
+    the same search radius, an internal handler is used that stores all systems in the
+    same grid and enables the full performance optimizations
+    (see [neighborhood search performance](@ref neighborhood_search_performance)).
+    Otherwise, [`SharedNHSHandler`](@ref) is used whenever possible
     and [`PairsNHSHandler`](@ref) otherwise. See
     [neighborhood search handlers](@ref neighborhood_search_handlers) for more details.
 - `parallelization_backend=PolyesterBackend()`: Backend used for parallel loops. Pass
@@ -105,7 +110,7 @@ end
 
 function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
                             neighborhood_search=GridNeighborhoodSearch{ndims(first(systems))}(),
-                            neighborhood_search_handler=default_neighborhood_search_handler(neighborhood_search),
+                            neighborhood_search_handler=nothing,
                             parallelization_backend=PolyesterBackend(),
                             interaction_matrix=nothing)
     systems = filter(system -> !isnothing(system), systems)

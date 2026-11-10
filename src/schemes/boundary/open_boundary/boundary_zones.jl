@@ -498,7 +498,8 @@ end
 end
 
 function update_boundary_zone_indices!(system, u, boundary_zones, semi)
-    periodic_box = get_neighborhood_search(system.fluid_system, system, semi).periodic_box
+    periodic_box = extract_periodic_box(get_neighborhood_search(system.fluid_system, system,
+                                                                semi))
 
     set_zero!(system.boundary_zone_indices)
 
