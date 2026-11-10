@@ -554,7 +554,7 @@ function compute_tlsph_density_correction_values!(boundary_model::BoundaryModelD
     return compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode,
                                   semi,
                                   boundary_model.cache.kernel_correction_coefficient,
-                                  system.cache.boundary_density_numerator)
+                                  system.cache.boundary_density_numerator, boundary_model)
 end
 
 function update_density_correction!(system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles},

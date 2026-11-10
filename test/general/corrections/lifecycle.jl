@@ -325,16 +325,42 @@ end
                                                particle) ≈ raw_gradient
     @test hydrodynamic_gradient ≈ correction_matrix * raw_gradient
 
-    # Rigid-body correction caches are not implemented. Reject both density and gradient
-    # corrections at construction instead of allowing a later crash or stale normalization.
-    error_message = "corrections in `BoundaryModelDummyParticles` are not supported " *
-                    "for `RigidBodySystem`"
+    # The FSI foundation supports rigid-body boundary correction caches. Poison them before
+    # an update and compare with independent hydrodynamic moments to exercise the new phases.
     for correction in (ShepardKernelCorrection(), GradientCorrection())
         boundary_model = BoundaryModelDummyParticles(particles.density, particles.mass,
-                                                     SummationDensity(), smoothing_kernel,
+                                                     PressureMirroring(), smoothing_kernel,
                                                      smoothing_length;
                                                      state_equation, correction)
-        @test_throws ArgumentError(error_message) RigidBodySystem(particles;
-                                                                  boundary_model)
+        rigid = RigidBodySystem(particles; boundary_model)
+        semi = Semidiscretization(rigid; neighborhood_search=nothing,
+                                  parallelization_backend=SerialBackend())
+        ode = semidiscretize(semi, (0.0, 1.0); reset_threads=false)
+        cache = rigid.boundary_model.cache
+        for name in (:kernel_correction_coefficient, :correction_matrix)
+            haskey(cache, name) && fill!(getproperty(cache, name), NaN)
+        end
+        TrixiParticles.update_systems_and_nhs(ode.u0.x..., semi, 0.0)
+
+        coords = particles.coordinates
+        a = first(TrixiParticles.eachparticle(rigid))
+        displacements = [SVector{2}(coords[:, a] - coords[:, b])
+                         for b in TrixiParticles.eachparticle(rigid)]
+        volumes = particles.mass ./ particles.density
+        if correction isa ShepardKernelCorrection
+            values = [TrixiParticles.kernel(smoothing_kernel, norm(d), smoothing_length)
+                      for d in displacements]
+            @test cache.kernel_correction_coefficient[a] ≈ dot(volumes, values)
+            @test all(isfinite, cache.kernel_correction_coefficient)
+        else
+            gradients = [TrixiParticles.kernel_grad(smoothing_kernel, d, norm(d),
+                                                    smoothing_length)
+                         for d in displacements]
+            moment = -sum(volume * gradient * transpose(d)
+                          for (volume, gradient, d) in zip(volumes, gradients,
+                                  displacements))
+            @test cache.correction_matrix[:, :, a] ≈ inv(moment)
+            @test all(isfinite, cache.correction_matrix)
+        end
     end
 end
