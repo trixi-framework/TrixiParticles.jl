@@ -92,6 +92,7 @@ nothing # hide
 
 # To write the same reconstruction as a VTI image for ParaView, replace the interpolation call
 # above with [`interpolate_plane_2d_vtk`](@ref):
+mkpath("out")
 interpolate_plane_2d_vtk(interpolation_min, interpolation_max, interpolation_spacing,
                          semi, fluid_system, sol; output_directory=".",
                          filename="vortex_street_velocity")

@@ -84,12 +84,6 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
         throw(ArgumentError("`RigidBodySystem` currently supports only 2D and 3D, got $(NDIMS)D"))
     end
 
-    if boundary_model isa BoundaryModelDummyParticles &&
-       !isnothing(boundary_model.correction)
-        throw(ArgumentError("corrections in `BoundaryModelDummyParticles` are not " *
-                            "supported for `RigidBodySystem`"))
-    end
-
     ELTYPE = eltype(initial_condition)
     acceleration_ = SVector(acceleration...)
     if length(acceleration_) != NDIMS
@@ -405,6 +399,9 @@ end
 
 function update_boundary_interpolation!(boundary_model, system::RigidBodySystem, v, u,
                                         v_ode, u_ode, semi, t)
+    @trixi_timeit timer() "interpolate wall velocity" begin
+        interpolate_wall_velocity!(boundary_model, system, v, u, v_ode, u_ode, semi)
+    end
     update_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi)
     return system
 end

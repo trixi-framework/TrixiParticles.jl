@@ -106,11 +106,19 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - The smoothing kernel and smoothing length of a `BoundaryModelDummyParticles` of a
   `TotalLagrangianSPHSystem` or `RigidBodySystem` must now be the same as those of all
   fluid systems in the simulation (#1338, #1348).
+- A `BoundaryModelDummyParticles` with `SummationDensity` is no longer accepted for a
+  `TotalLagrangianSPHSystem` or `RigidBodySystem` interacting with a fluid. The boundary
+  density was never computed for structures, so this combination behaved like
+  `PressureZeroing`, which can be used instead (#1341).
 
 ### Features
 
 - Added the `ThrustCalculator` custom quantity to calculate the hydrodynamic force exerted by
   interacting fluid systems on a `TotalLagrangianSPHSystem` along a given `direction` (#1229).
+- Added `StructureMotionCalculator`, a custom quantity for the `PostprocessCallback`
+  that reconstructs displacement, deformation gradient and rotation
+  of a `TotalLagrangianSPHSystem` around a point in the initial configuration (#1356).
+- Added GPU support for particle packing (#1296).
 - Added `plot(system, sol)` and `plot(system, v_ode, u_ode, semi)` to plot the particles
   of a single system, which allows coloring by per-particle quantities via `zcolor` (#1298).
 - Added a tutorial on visualizing particle data and fields interpolated with
@@ -120,6 +128,33 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Important Bugfixes
 
+- Fixed structure boundary-correction caches to use their own kernel, raw gradients,
+  and complete current neighborhoods (#1351).
+- Fixed double-counted Monaghan-Kajtar repulsion in TVF momentum and
+  background-pressure shifting operators (#1344).
+- Fixed kernel gradients at structure particles in fluid–structure pressure acceleration
+  to use the boundary model's kernel and corrections (#1342).
+- Fixed correction-matrix assembly for `GradientCorrection` and
+  `BlendedGradientCorrection` (#1342).
+- Fixed boundary-density evolution in `RigidBodySystem` with `ContinuityDensity` to
+  use the boundary model's corrected kernel gradient (#1342).
+- Fixed the no-slip condition of `BoundaryModelDummyParticles` with `SummationDensity`,
+  `ContinuityDensity`, `PressureZeroing` and `PressureBoundaries`, whose wall velocity was
+  zero. The velocity of moving walls and structures was ignored, and static walls applied
+  only about half the wall shear. With IISPH, `AdamiPressureExtrapolation` and
+  `BernoulliPressureExtrapolation` now provide the wall velocity before the advection
+  prediction (#1361).
+- Fixed corrected WCSPH pressure forces at Adami/Bernoulli dummy boundaries to use the
+  fluid-side gradient, removing spurious constant-pressure forces while retaining
+  the exact opposite structural reaction.
+- Fixed pressure mirroring for TLSPH and rigid-body neighbors and for EDAC momentum,
+  pressure diffusion, and average-pressure reduction at walls and structures.
+  With a boundary viscosity, `PressureMirroring` now computes the wall velocity of the
+  no-slip condition, which was zero before (#1341).
+- Fixed the advection prediction of `ImplicitIncompressibleSPHSystem` depending on the
+  order of the systems in the `Semidiscretization`. The densities and predicted velocities
+  of systems that are updated later in the same step were taken from the previous update.
+  This affected `PressureBoundaries` and simulations with multiple IISPH systems (#1341).
 - Fixed structure-fluid reaction forces with asymmetric corrected fluid kernel
   gradients by evaluating the fluid-first gradient directly. The continuity equation
   of `RigidBodySystem` boundaries with `ContinuityDensity` now uses the kernel gradient

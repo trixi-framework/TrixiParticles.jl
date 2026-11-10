@@ -123,7 +123,7 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
 
     # Check e.g. that the boundary systems are using a state equation if EDAC is not used.
     # Other checks might be added here later.
-    check_configuration(systems, neighborhood_search)
+    check_configuration(systems, neighborhood_search, interaction_matrix)
     check_pressure_acceleration_configuration(systems, interaction_matrix)
 
     sizes_u = [u_nvariables(system) * n_integrated_particles(system)
@@ -521,10 +521,22 @@ end
     return reshape(view(array, range), Int.(size))
 end
 
-function check_configuration(systems,
-                             nhs::Union{Nothing, AbstractNeighborhoodSearch})
+function check_configuration(systems::Union{Tuple, AbstractVector},
+                             nhs::Union{Nothing, AbstractNeighborhoodSearch},
+                             interaction_matrix=create_interaction_matrix(nothing, systems))
     foreach_system(systems) do system
         check_configuration(system, systems, nhs)
+    end
+
+    for i in eachindex(systems), j in eachindex(systems)
+        # `check_boundary_density_fsi` only checks (structure, fluid) pairs, so we loop over
+        # both orders to be independent of the order of the systems.
+        # The boundary density of a structure is used by the interaction in either direction.
+        # With both directions disabled, this is not a fluid-structure interaction.
+        if is_enabled_interaction(interaction_matrix[i, j]) ||
+           is_enabled_interaction(interaction_matrix[j, i])
+            check_boundary_density_fsi(systems[i], systems[j])
+        end
     end
 
     check_system_color(systems)

@@ -565,7 +565,7 @@ function compute_tlsph_density_correction_values!(boundary_model::BoundaryModelD
     return compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode,
                                   semi,
                                   boundary_model.cache.kernel_correction_coefficient,
-                                  system.cache.boundary_density_numerator)
+                                  system.cache.boundary_density_numerator, boundary_model)
 end
 
 function update_density_correction!(system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles},
@@ -601,7 +601,12 @@ function update_boundary_interpolation!(system::TotalLagrangianSPHSystem, v, u,
                                         v_ode, u_ode, semi, t)
     (; boundary_model) = system
 
-    # Only update boundary model
+    # Only update boundary model.
+    # Not in `update_quantities!`, which the `SplitIntegrationCallback` also calls
+    # without any fluid systems to interpolate the wall velocity from.
+    @trixi_timeit timer() "interpolate wall velocity" begin
+        interpolate_wall_velocity!(boundary_model, system, v, u, v_ode, u_ode, semi)
+    end
     update_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi)
 end
 

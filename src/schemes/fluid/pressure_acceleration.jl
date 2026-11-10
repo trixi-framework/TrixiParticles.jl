@@ -173,11 +173,26 @@ end
     return interaction_pressure_offset(system, particle)
 end
 
-# Formulation using both corrected gradients whenever either endpoint uses a correction that
-# breaks pair-gradient symmetry. Both directed evaluations then use the same formulation.
+# Boundary laws can specialize this wrapper without changing the inter-particle
+# operator used by transport-velocity corrections.
 @inline function pressure_acceleration(particle_system, neighbor_system, particle, neighbor,
                                        m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
                                        distance, W_a, correction)
+    return pressure_acceleration(particle_system, neighbor_system, particle, neighbor,
+                                 m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff, distance,
+                                 W_a, correction,
+                                 pressure_acceleration_formulation(particle_system))
+end
+
+# The inter-particle operator is also used for transport-velocity terms. It must
+# bypass boundary repulsion laws, which are physical forces rather than tensor
+# divergence or background-pressure operators.
+@inline function pressure_acceleration_interparticle(particle_system, neighbor_system,
+                                                     particle, neighbor,
+                                                     m_a, m_b, p_a, p_b, rho_a, rho_b,
+                                                     pos_diff, distance, W_a, correction)
+    # Use both endpoint gradients whenever either correction breaks pair-gradient symmetry.
+    # Both directed interactions must select the same formulation to conserve momentum.
     if has_asymmetric_gradient(correction) ||
        has_asymmetric_gradient(hydrodynamic_correction(neighbor_system))
         W_b = hydrodynamic_smoothing_kernel_grad(neighbor_system, -pos_diff, distance,
@@ -189,6 +204,15 @@ end
 
     return pressure_acceleration_formulation(particle_system)(m_a, m_b, rho_a, rho_b,
                                                               p_a, p_b, W_a)
+end
+
+@inline function pressure_acceleration(particle_system, neighbor_system, particle, neighbor,
+                                       m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
+                                       distance, W_a, correction, formulation)
+    return pressure_acceleration_interparticle(particle_system, neighbor_system,
+                                               particle, neighbor, m_a, m_b, p_a, p_b,
+                                               rho_a, rho_b, pos_diff, distance, W_a,
+                                               correction)
 end
 
 function check_pressure_acceleration_configuration(systems, interaction_matrix)
@@ -223,4 +247,21 @@ function check_pressure_acceleration_configuration(systems, interaction_matrix)
     end
 
     return nothing
+end
+
+# Adami and Bernoulli boundary pressures are extrapolated from the fluid. Use the
+# fluid's corrected gradient for both pressure terms to avoid spurious forces at
+# constant pressure. The structure-fluid interaction reuses the same pair force.
+@inline function pressure_acceleration(particle_system::WeaklyCompressibleSPHSystem,
+                                       neighbor_system::Union{WallBoundarySystem{<:BoundaryModelDummyParticles{DC}},
+                                                              RigidBodySystem{<:BoundaryModelDummyParticles{DC}},
+                                                              TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{DC}}},
+                                       particle, neighbor, m_a, m_b, p_a, p_b, rho_a, rho_b,
+                                       pos_diff, distance, W_a, correction,
+                                       formulation::Union{typeof(pressure_acceleration_summation_density),
+                                                          typeof(pressure_acceleration_continuity_density),
+                                                          typeof(inter_particle_averaged_pressure)}) where {DC <:
+                                                                                                            Union{AdamiPressureExtrapolation,
+                                                                                                                  BernoulliPressureExtrapolation}}
+    return formulation(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a)
 end

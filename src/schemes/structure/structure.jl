@@ -17,6 +17,21 @@ end
     end
 end
 
+# The interaction of a fluid particle with a structure particle evaluates the kernel
+# gradient of the fluid and the kernel gradient of the boundary model of the structure
+# (in the asymmetric pressure acceleration and in the continuity equation of the boundary
+# particles). The gradient of a corrected kernel vanishes at zero distance for no correction,
+# `ShepardKernelCorrection`, `AkinciFreeSurfaceCorrection`, `GradientCorrection` and
+# `BlendedGradientCorrection`, but not for `KernelCorrection` and
+# `MixedKernelGradientCorrection` (see `skip_zero_distance(correction)`).
+# Particles at the same position can therefore only be skipped if both gradients vanish.
+@inline function skip_zero_distance(particle_system::AbstractFluidSystem,
+                                    neighbor_system::Union{TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles},
+                                                           RigidBodySystem{<:BoundaryModelDummyParticles}})
+    return skip_zero_distance(particle_system) &&
+           skip_zero_distance(neighbor_system.boundary_model.correction)
+end
+
 # Both FSI directions must find the same particle pairs and use matching boundary and
 # fluid kernels. The TLSPH kernel for solid mechanics may differ.
 # Note that this is only a restriction for `BoundaryModelDummyParticles`, since
@@ -40,6 +55,26 @@ function check_smoothing_kernel_fsi(system, boundary_model::BoundaryModelDummyPa
 end
 
 check_smoothing_kernel_fsi(system, boundary_model, neighbor_system) = system
+
+# The density of a structure boundary is computed by the pressure extrapolation or
+# integrated with the continuity equation. The summation density is only computed for
+# a `WallBoundarySystem`, so the density of a structure would stay at its initial value.
+function check_boundary_density_fsi(system::Union{TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{SummationDensity}},
+                                                  RigidBodySystem{<:BoundaryModelDummyParticles{SummationDensity}}},
+                                    neighbor_system::AbstractFluidSystem)
+    # The correction lifecycle supplies TLSPH's missing summation numerator when applying
+    # Shepard density normalization. Other structure summation densities remain unsupported.
+    if system isa TotalLagrangianSPHSystem &&
+       correction_density(system.boundary_model.correction) isa ShepardKernelCorrection
+        return system
+    end
+
+    throw(ArgumentError("`BoundaryModelDummyParticles` with density calculator " *
+                        "`SummationDensity` is not supported for a " *
+                        "`$(nameof(typeof(system)))` in a fluid-structure interaction"))
+end
+
+check_boundary_density_fsi(system, neighbor_system) = system
 
 function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
                                    v_neighbor_system, u_neighbor_system,
@@ -135,7 +170,8 @@ end
     (; boundary_model) = particle_system
 
     # As for a `WallBoundarySystem`, the density of the boundary particles evolves with
-    # the boundary model's kernel gradient and not with the corrected fluid gradient.
+    # the kernel gradient of the boundary model (including its correction)
+    # and not with the corrected kernel gradient of the fluid.
     grad_kernel = boundary_continuity_kernel_grad(system_correction(neighbor_system),
                                                   correction_gradient(boundary_model.correction),
                                                   boundary_model, pos_diff, distance,
@@ -149,17 +185,18 @@ end
 @inline function boundary_continuity_kernel_grad(fluid_correction, boundary_correction,
                                                  boundary_model, pos_diff, distance,
                                                  particle, grad_kernel_fluid)
-    # Use the boundary model's kernel and smoothing length, which may differ from
-    # the TLSPH kernel for solid mechanics.
-    # The safe version also returns zero for coincident particles.
+    # Use the kernel, smoothing length and correction of the boundary model. The kernel of
+    # a `TotalLagrangianSPHSystem` for solid mechanics may be different.
+    # Use the safe version, which handles particles at the same position. The gradient of
+    # `KernelCorrection` and `MixedKernelGradientCorrection` does not vanish there.
     return smoothing_kernel_grad(boundary_model, pos_diff, distance, particle)
 end
 
 @inline function boundary_continuity_kernel_grad(::Nothing, ::Nothing,
                                                  boundary_model, pos_diff, distance,
                                                  particle, grad_kernel_fluid)
-    # Neither correction changes the gradient, and the boundary model's kernel and
-    # smoothing length match the fluid's (see `check_smoothing_kernel_fsi`).
+    # Neither correction changes the gradient, and the kernel and smoothing length of the
+    # boundary model match the ones of the fluid (see `check_smoothing_kernel_fsi`).
     # Reversing the displacement only flips the sign of the uncorrected gradient.
     return -grad_kernel_fluid
 end

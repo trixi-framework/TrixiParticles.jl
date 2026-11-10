@@ -78,3 +78,36 @@
         @test all(buffer.active_particle)
     end
 end
+
+@testset "Unequal query and neighbor counts" begin
+    kernel = SchoenbergCubicSplineKernel{2}()
+    initial_conditions = (InitialCondition(; coordinates=[0.0 0.5 4.0; 0.0 0.0 0.0],
+                                           density=1000.0, particle_spacing=1.0),
+                          InitialCondition(; coordinates=reshape([0.75, 0.0], 2, 1),
+                                           density=1000.0, particle_spacing=1.0))
+    systems = map(initial_conditions) do ic
+        WeaklyCompressibleSPHSystem(ic; smoothing_kernel=kernel, smoothing_length=1.0,
+                                    density_calculator=ContinuityDensity(),
+                                    state_equation=nothing)
+    end
+    for template in (PrecomputedNeighborhoodSearch{2}(), GridNeighborhoodSearch{2}(),
+         TrixiParticles.TrivialNeighborhoodSearch{2}()),
+        (system, neighbor, expected) in ((systems[1], systems[2], [1, 1, 0]),
+         (systems[2], systems[1], [2]))
+
+        x,
+        y = TrixiParticles.initial_coordinates(system),
+            TrixiParticles.initial_coordinates(neighbor)
+        search = TrixiParticles.create_neighborhood_search(template, system, neighbor)
+        PointNeighbors.initialize!(search, x, y; parallelization_backend=SerialBackend())
+        counts = zeros(Int, nparticles(system))
+        PointNeighbors.foreach_point_neighbor(x, y, search;
+                                              parallelization_backend=SerialBackend()) do particle,
+                                                                                          neighbor,
+                                                                                          pos_diff,
+                                                                                          distance
+            counts[particle] += 1
+        end
+        @test counts == expected
+    end
+end

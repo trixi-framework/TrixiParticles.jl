@@ -43,7 +43,10 @@ function interact!(dv, v_particle_system, u_particle_system,
         m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
 
         p_a = @inbounds current_pressure(v_particle_system, particle_system, particle)
-        p_b = @inbounds current_pressure(v_neighbor_system, neighbor_system, neighbor)
+        # Equivalent to `current_pressure(v_neighbor_system, neighbor_system, neighbor)`,
+        # but returns `p_a` for boundaries and structures using `PressureMirroring`
+        p_b = @inbounds neighbor_pressure(v_neighbor_system, neighbor_system,
+                                          neighbor, p_a)
 
         dv_pressure = pressure_acceleration(particle_system, neighbor_system,
                                             particle, neighbor,

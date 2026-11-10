@@ -27,6 +27,9 @@ Boundary model for [`WallBoundarySystem`](@ref).
                                 (see e.g. [`StateEquationCole`](@ref)).
 - `density_correction`:         Density correction of the adjacent fluid system.
 - `gradient_correction`:        Gradient correction of the adjacent fluid system.
+                                It determines the kernel gradient at the boundary particles when the fluid
+                                uses a correction with an asymmetric kernel gradient
+                                (see [Corrections](@ref boundary_corrections)).
 - `force_correction`:           Force correction of the adjacent fluid system.
 - `viscosity`:                  Slip (default) or no-slip condition. See description below for further
                                 information.
@@ -149,6 +152,13 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
              create_cache_model(initial_density, density_calculator, NDIMS)...,
              create_cache_model(correction, initial_density, NDIMS, n_particles)...)
 
+    # The pressure extrapolation already provides the sum of the kernel weights to interpolate
+    # the fluid velocity for the no-slip condition. Other density calculators need it as well.
+    # Use floating-point velocity storage even when the initial densities are integers.
+    if !isnothing(viscosity) && !haskey(cache, :volume)
+        cache = (; cache..., volume=similar(cache.wall_velocity, n_particles))
+    end
+
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
     if reference_particle_spacing > 0
         # `reference_particle_spacing` has to be set for surface normals to be determined
@@ -176,6 +186,31 @@ end
 
 @inline function Base.ndims(boundary_model::BoundaryModelDummyParticles)
     return ndims(boundary_model.smoothing_kernel)
+end
+
+# Kernel gradient at a boundary particle with the kernel, smoothing length, correction and
+# correction values of the boundary model. This is used for the interaction with fluids,
+# e.g., in the asymmetric pressure acceleration of a fluid with a corrected kernel gradient
+# and in the continuity equation of the boundary particles.
+# A `TotalLagrangianSPHSystem` has its own kernel and correction matrix for solid mechanics.
+@inline function smoothing_kernel_grad(model::BoundaryModelDummyParticles, pos_diff,
+                                       distance, particle)
+    (; smoothing_kernel, smoothing_length, correction) = model
+    return corrected_kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length,
+                                 correction_gradient(correction), model, particle)
+end
+
+@propagate_inbounds function kernel_correction_coefficient(model::BoundaryModelDummyParticles,
+                                                           particle)
+    return model.cache.kernel_correction_coefficient[particle]
+end
+
+@propagate_inbounds function dw_gamma(model::BoundaryModelDummyParticles, particle)
+    return extract_svector(model.cache.dw_gamma, Val(ndims(model)), particle)
+end
+
+@propagate_inbounds function correction_matrix(model::BoundaryModelDummyParticles, particle)
+    return extract_smatrix(model.cache.correction_matrix, Val(ndims(model)), particle)
 end
 
 @inline function clip_negative_pressure(::BoundaryModelDummyParticles{<:Any, <:Any, CLIP}) where {CLIP}
@@ -552,7 +587,8 @@ function compute_boundary_correction_values!(boundary_model, system,
                                              v_ode, u_ode, semi)
     return compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode,
                                   semi,
-                                  boundary_model.cache.kernel_correction_coefficient)
+                                  boundary_model.cache.kernel_correction_coefficient,
+                                  nothing, boundary_model)
 end
 
 function compute_boundary_correction_values!(boundary_model, system,
@@ -562,7 +598,8 @@ function compute_boundary_correction_values!(boundary_model, system,
     return compute_correction_values!(system, correction, current_coordinates(u, system),
                                       v_ode, u_ode, semi,
                                       boundary_model.cache.kernel_correction_coefficient,
-                                      boundary_model.cache.dw_gamma)
+                                      boundary_model.cache.dw_gamma,
+                                      boundary_model.smoothing_kernel, boundary_model)
 end
 
 function kernel_correct_density!(boundary_model, v, u, v_ode, u_ode, semi,
@@ -591,7 +628,8 @@ function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
     system_coords = current_coordinates(u, system)
 
     compute_gradient_correction_matrix!(correction_matrix, system, system_coords,
-                                        v_ode, u_ode, semi, corr, smoothing_kernel)
+                                        v_ode, u_ode, semi, corr, smoothing_kernel,
+                                        boundary_model)
 end
 
 function compute_density!(boundary_model, ::SummationDensity, system, v, u, v_ode, u_ode,
@@ -609,7 +647,8 @@ function compute_density!(boundary_model, ::PressureBoundaries, system, v, u, v_
 
     summation_density!(system, semi, u, u_ode, density; particles=eachparticle(system))
 
-    predict_advection!(system, v, u, v_ode, u_ode, semi)
+    # The boundary's diagonal elements and predicted density are computed in
+    # `update_implicit_sph!`, after all fluid velocities have been predicted.
 end
 
 function compute_pressure!(boundary_model, ::Union{SummationDensity, ContinuityDensity},
@@ -733,6 +772,65 @@ function compute_pressure!(boundary_model,
     return boundary_model
 end
 
+@inline function interpolate_wall_velocity!(boundary_model, system, v, u, v_ode, u_ode,
+                                            semi)
+    return boundary_model
+end
+
+function interpolate_wall_velocity!(boundary_model::BoundaryModelDummyParticles{<:Union{AdamiPressureExtrapolation,
+                                                                                        BernoulliPressureExtrapolation,
+                                                                                        SummationDensity,
+                                                                                        ContinuityDensity,
+                                                                                        PressureMirroring,
+                                                                                        PressureZeroing,
+                                                                                        PressureBoundaries}},
+                                    system, v, u, v_ode, u_ode, semi)
+    (; cache, viscosity) = boundary_model
+
+    # Without a viscosity model, the wall velocity is not used.
+    isnothing(viscosity) && return boundary_model
+
+    # Explicit fluids interpolate this velocity together with the extrapolated pressure.
+    # IISPH needs it before prediction, when the pressure cannot yet be extrapolated.
+    if boundary_model.density_calculator isa Union{AdamiPressureExtrapolation,
+             BernoulliPressureExtrapolation} &&
+       !any(neighbor -> neighbor isa ImplicitIncompressibleSPHSystem, semi.systems)
+        return boundary_model
+    end
+
+    # For the no-slip condition, interpolate the fluid velocity like the pressure extrapolation
+    # of `AdamiPressureExtrapolation`. Calculators that don't extrapolate the pressure only
+    # interpolate the fluid velocity. With IISPH, the extrapolated pressure of
+    # `AdamiPressureExtrapolation` and `BernoulliPressureExtrapolation` is overwritten
+    # in `compute_pressure!`, since the pressure of the fluid is not available yet.
+    # Set `volume` and `wall_velocity` to zero.
+    reset_cache!(cache, viscosity)
+
+    system_coords = current_coordinates(u, system)
+
+    foreach_system(semi) do neighbor_system
+        has_system_interaction(system, neighbor_system, semi) || return
+
+        v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
+        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
+        neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
+
+        boundary_pressure_extrapolation!(Val(true), boundary_model, system,
+                                         neighbor_system, system_coords, neighbor_coords,
+                                         v, v_neighbor_system, semi)
+    end
+
+    @threaded semi for particle in eachparticle(system)
+        # The volume stays zero for boundary particles without fluid neighbors,
+        # whose wall velocity is not used.
+        if cache.volume[particle] > eps()
+            compute_wall_velocity!(viscosity, system, v, particle)
+        end
+    end
+
+    return boundary_model
+end
+
 @inline function boundary_pressure_extrapolation!(parallel, boundary_model, system,
                                                   neighbor_system, system_coords,
                                                   neighbor_coords, v, v_neighbor_system,
@@ -785,7 +883,6 @@ end
                                                   system_coords, neighbor_coords, v,
                                                   v_neighbor_system, semi)
     (; pressure, cache, viscosity, density_calculator) = boundary_model
-    (; pressure_offset) = density_calculator
 
     @boundscheck checkbounds(pressure, eachparticle(system))
 
@@ -796,7 +893,7 @@ end
         @inbounds boundary_pressure_inner!(boundary_model, density_calculator, system,
                                            neighbor_system, v, v_neighbor_system,
                                            particle, neighbor, pos_diff, distance,
-                                           viscosity, cache, pressure, pressure_offset)
+                                           viscosity, cache, pressure)
     end
 end
 
@@ -811,7 +908,6 @@ end
                                                   system_coords, neighbor_coords,
                                                   v, v_neighbor_system, semi)
     (; pressure, cache, viscosity, density_calculator) = boundary_model
-    (; pressure_offset) = density_calculator
 
     @boundscheck checkbounds(pressure, eachparticle(system))
 
@@ -825,7 +921,7 @@ end
         @inbounds boundary_pressure_inner!(boundary_model, density_calculator, system,
                                            neighbor_system, v, v_neighbor_system,
                                            particle, neighbor, pos_diff, distance,
-                                           viscosity, cache, pressure, pressure_offset)
+                                           viscosity, cache, pressure)
     end
 end
 
@@ -835,8 +931,9 @@ end
                                                                              OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}},
                                                       v, v_neighbor_system, particle,
                                                       neighbor, pos_diff, distance,
-                                                      viscosity, cache, pressure,
-                                                      pressure_offset)
+                                                      viscosity, cache, pressure)
+    (; pressure_offset) = boundary_density_calculator
+
     density_neighbor = current_density(v_neighbor_system, neighbor_system, neighbor)
 
     # Fluid pressure term
@@ -862,6 +959,29 @@ end
     pressure[particle] += sum_pressures * kernel_weight
     cache.volume[particle] += kernel_weight
 
+    interpolate_fluid_velocity!(cache, viscosity, neighbor_system, v_neighbor_system,
+                                kernel_weight, particle, neighbor)
+end
+
+# Only `AdamiPressureExtrapolation` and `BernoulliPressureExtrapolation` extrapolate the
+# pressure. With `PressureMirroring`, the fluid pressure is used directly in the pair
+# interaction. For all density calculators, the fluid velocity is interpolated to the
+# boundary particles for the no-slip condition.
+@propagate_inbounds function boundary_pressure_inner!(boundary_model,
+                                                      ::Union{SummationDensity,
+                                                              ContinuityDensity,
+                                                              PressureMirroring,
+                                                              PressureZeroing,
+                                                              PressureBoundaries},
+                                                      system,
+                                                      neighbor_system::Union{AbstractFluidSystem,
+                                                                             OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}},
+                                                      v, v_neighbor_system, particle,
+                                                      neighbor, pos_diff, distance,
+                                                      viscosity, cache, pressure)
+    kernel_weight = smoothing_kernel(boundary_model, distance, particle)
+
+    cache.volume[particle] += kernel_weight
     interpolate_fluid_velocity!(cache, viscosity, neighbor_system, v_neighbor_system,
                                 kernel_weight, particle, neighbor)
 end
