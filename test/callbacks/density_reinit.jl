@@ -74,10 +74,12 @@
         TrixiParticles.get_neighborhood_search(system::MockDensityReinitSystem,
                                                neighbor::MockDensityReinitSystem,
                                                semi) = nothing
-        TrixiParticles.update_nhs!(neighborhood_search::Nothing,
-                                   system::MockDensityReinitSystem,
-                                   neighbor::MockDensityReinitSystem,
-                                   u_system, u_neighbor, semi) = nothing
+        TrixiParticles.current_coordinates(u, system::MockDensityReinitSystem) = nothing
+        TrixiParticles.each_active_particle(system::MockDensityReinitSystem) = nothing
+        TrixiParticles.points_moving(system::MockDensityReinitSystem,
+                                     neighbor::MockDensityReinitSystem) = (true, true)
+        TrixiParticles.update!(neighborhood_search::Nothing, x, y, semi;
+                               points_moving=(true, true), eachindex_y=nothing) = nothing
         TrixiParticles.derivative_discontinuity!(integrator::MockDensityReinitIntegrator,
                                                  is_modified) = nothing
 

@@ -501,320 +501,193 @@ function update_nhs!(semi, u_ode)
         foreach_system(semi) do neighbor
             u_neighbor = wrap_u(u_ode, neighbor, semi)
             neighborhood_search = get_neighborhood_search(system, neighbor, semi)
+            neighbor_coords = current_coordinates(u_neighbor, neighbor)
 
-            update_nhs!(neighborhood_search, system, neighbor, u_system, u_neighbor, semi)
+            eachindex_y = each_active_particle(neighbor)
+            if eachindex_y != axes(neighbor_coords, 2) &&
+               !PointNeighbors.supports_inactive_points(neighborhood_search)
+
+                if PointNeighbors.supports_infinite_domain(neighborhood_search)
+                    # If the neighborhood search supports an infinite domain,
+                    # we can update it for inactive points as well, which will not interfere
+                    # with active points because their coordinates are 1e16.
+                    eachindex_y = axes(neighbor_coords, 2)
+                else
+                    error("the neighborhood search/update strategy " *
+                          "$(typeof(neighborhood_search)) does not support inactive points")
+                end
+            end
+
+            update!(neighborhood_search,
+                    current_coordinates(u_system, system),
+                    current_coordinates(u_neighbor, neighbor),
+                    semi; points_moving=points_moving(system, neighbor), eachindex_y)
         end
     end
 end
 
-# === Neighborhood search updates (per-pair dispatch) ===
-# To prevent hard-to-find bugs, there is no default version
+# === Which points move between updates (per-pair dispatch) ===
+# Returns `(system_moving, neighbor_moving)`.
+# To prevent hard-to-find bugs, there is no default version.
 # -- Fluid / structure interactions
-function update_nhs!(neighborhood_search,
-                     system::AbstractFluidSystem,
-                     neighbor::Union{AbstractFluidSystem, TotalLagrangianSPHSystem,
-                                     RigidBodySystem},
-                     u_system, u_neighbor, semi)
-    # The current coordinates of fluids and structures change over time
-    update!(neighborhood_search,
-            current_coordinates(u_system, system),
-            current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, true), eachindex_y=each_active_particle(neighbor))
+# The current coordinates of fluids and structures change over time.
+function points_moving(system::AbstractFluidSystem,
+                       neighbor::Union{AbstractFluidSystem, TotalLagrangianSPHSystem,
+                                       RigidBodySystem})
+    return (true, true)
 end
 
 # -- Fluid / wall interactions
-function update_nhs!(neighborhood_search,
-                     system::Union{AbstractFluidSystem,
-                                   OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}},
-                     neighbor::WallBoundarySystem,
-                     u_system, u_neighbor, semi)
-    # Boundary coordinates only change over time when `neighbor.ismoving[]`
-    update!(neighborhood_search,
-            current_coordinates(u_system, system),
-            current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, neighbor.ismoving[]))
+# Boundary coordinates only change over time when `neighbor.ismoving[]`.
+# Open boundary particles only need to see walls with `BoundaryModelDynamicalPressureZhang`.
+function points_moving(system::Union{AbstractFluidSystem,
+                                     OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}},
+                       neighbor::WallBoundarySystem)
+    return (true, neighbor.ismoving[])
 end
 
 # -- Open boundary interactions
-function update_nhs!(neighborhood_search,
-                     system::AbstractFluidSystem, neighbor::OpenBoundarySystem,
-                     u_system, u_neighbor, semi)
-    # The current coordinates of fluids and open boundaries change over time.
-
-    # TODO: Update only `active_coordinates` of open boundaries.
-    # Problem: Removing inactive particles from neighboring lists is necessary.
-    update!(neighborhood_search,
-            current_coordinates(u_system, system),
-            current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, true), eachindex_y=each_active_particle(neighbor))
+# The current coordinates of fluids and open boundaries change over time.
+function points_moving(system::AbstractFluidSystem, neighbor::OpenBoundarySystem)
+    return (true, true)
 end
 
-function update_nhs!(neighborhood_search,
-                     system::OpenBoundarySystem, neighbor::AbstractFluidSystem,
-                     u_system, u_neighbor, semi)
-    # The current coordinates of both open boundaries and fluids change over time.
-
-    # TODO: Update only `active_coordinates` of open boundaries.
-    # Problem: Removing inactive particles from neighboring lists is necessary.
-    update!(neighborhood_search,
-            current_coordinates(u_system, system),
-            current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, true), eachindex_y=each_active_particle(neighbor))
+# The current coordinates of both open boundaries and fluids change over time.
+function points_moving(system::OpenBoundarySystem, neighbor::AbstractFluidSystem)
+    return (true, true)
 end
 
-function update_nhs!(neighborhood_search,
-                     system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
-                     neighbor::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
-                     u_system, u_neighbor, semi)
-    update!(neighborhood_search,
-            current_coordinates(u_system, system),
-            current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, true), eachindex_y=each_active_particle(neighbor))
+# Open boundary particles only have to see each other
+# with `BoundaryModelDynamicalPressureZhang`.
+function points_moving(system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
+                       neighbor::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang})
+    return (true, true)
 end
 
-function update_nhs!(neighborhood_search,
-                     system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
-                     neighbor::TotalLagrangianSPHSystem,
-                     u_system, u_neighbor, semi)
-    update!(neighborhood_search,
-            current_coordinates(u_system, system),
-            current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, true), eachindex_y=each_active_particle(neighbor))
+# Open boundary particles only have to see walls with `BoundaryModelDynamicalPressureZhang`.
+function points_moving(system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
+                       neighbor::TotalLagrangianSPHSystem)
+    return (true, true)
 end
 
-function update_nhs!(neighborhood_search,
-                     system::TotalLagrangianSPHSystem,
-                     neighbor::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
-                     u_system, u_neighbor, semi)
-    update!(neighborhood_search,
-            current_coordinates(u_system, system),
-            current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, true), eachindex_y=each_active_particle(neighbor))
-end
-
-function update_nhs!(neighborhood_search,
-                     system::RigidBodySystem,
-                     neighbor::OpenBoundarySystem,
-                     u_system, u_neighbor, semi)
-    # Don't update. This NHS is never used.
-    return neighborhood_search
-end
-
-# -- Open boundary combinations that are never used
-function update_nhs!(neighborhood_search,
-                     system::OpenBoundarySystem,
-                     neighbor::TotalLagrangianSPHSystem,
-                     u_system, u_neighbor, semi)
-    # Don't update. This NHS is never used.
-    return neighborhood_search
-end
-
-function update_nhs!(neighborhood_search,
-                     system::TotalLagrangianSPHSystem,
-                     neighbor::OpenBoundarySystem,
-                     u_system, u_neighbor, semi)
-    # Don't update. This NHS is never used.
-    return neighborhood_search
+function points_moving(system::TotalLagrangianSPHSystem,
+                       neighbor::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang})
+    return (true, true)
 end
 
 # -- TLSPH interactions
-function update_nhs!(neighborhood_search,
-                     system::TotalLagrangianSPHSystem, neighbor::AbstractFluidSystem,
-                     u_system, u_neighbor, semi)
-    # The current coordinates of fluids and structured change over time
-    update!(neighborhood_search,
-            current_coordinates(u_system, system),
-            current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, true), eachindex_y=each_active_particle(neighbor))
+# The current coordinates of fluids and structures change over time.
+function points_moving(system::TotalLagrangianSPHSystem, neighbor::AbstractFluidSystem)
+    return (true, true)
 end
 
-function update_nhs!(neighborhood_search,
-                     system::TotalLagrangianSPHSystem, neighbor::RigidBodySystem,
-                     u_system, u_neighbor, semi)
-    # Don't update. This NHS is never used.
-    return neighborhood_search
+# Boundary coordinates only change over time when `neighbor.ismoving[]`.
+function points_moving(system::TotalLagrangianSPHSystem, neighbor::WallBoundarySystem)
+    return (true, neighbor.ismoving[])
 end
 
-function update_nhs!(neighborhood_search,
-                     system::TotalLagrangianSPHSystem, neighbor::WallBoundarySystem,
-                     u_system, u_neighbor, semi)
-    # The current coordinates of structured change over time.
-    # Boundary coordinates only change over time when `neighbor.ismoving[]`.
-    update!(neighborhood_search,
-            current_coordinates(u_system, system),
-            current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, neighbor.ismoving[]))
+# -- Rigid body interactions
+function points_moving(system::RigidBodySystem,
+                       neighbor::Union{AbstractFluidSystem, RigidBodySystem})
+    return (true, true)
 end
 
-function update_nhs!(neighborhood_search,
-                     system::TotalLagrangianSPHSystem, neighbor::TotalLagrangianSPHSystem,
-                     u_system, u_neighbor, semi)
-    # Don't update. This NHS is never used.
-    # TLSPH systems have their own self-interaction NHS.
-    return neighborhood_search
-end
-
-function update_nhs!(neighborhood_search,
-                     system::RigidBodySystem,
-                     neighbor::Union{AbstractFluidSystem, RigidBodySystem},
-                     u_system, u_neighbor, semi)
-    # The current coordinates of fluids and structures change over time.
-    update!(neighborhood_search,
-            current_coordinates(u_system, system),
-            current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, true), eachindex_y=each_active_particle(neighbor))
-end
-
-function update_nhs!(neighborhood_search,
-                     system::RigidBodySystem, neighbor::TotalLagrangianSPHSystem,
-                     u_system, u_neighbor, semi)
-    # Don't update. This NHS is never used.
-    return neighborhood_search
-end
-
-function update_nhs!(neighborhood_search,
-                     system::RigidBodySystem, neighbor::WallBoundarySystem,
-                     u_system, u_neighbor, semi)
-    # The current coordinates of structures change over time.
-    # Boundary coordinates only change over time when `neighbor.ismoving[]`.
-    update!(neighborhood_search,
-            current_coordinates(u_system, system),
-            current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, neighbor.ismoving[]))
+function points_moving(system::RigidBodySystem, neighbor::WallBoundarySystem)
+    return (true, neighbor.ismoving[])
 end
 
 # -- Wall dummy particle interactions
-# This function is the same as the one below to avoid ambiguous dispatch when using `Union`
-function update_nhs!(neighborhood_search,
-                     system::WallBoundarySystem{<:BoundaryModelDummyParticles},
-                     neighbor::AbstractFluidSystem, u_system, u_neighbor, semi)
-    # Depending on the density calculator of the boundary model, this NHS is used for
-    # - kernel summation (`SummationDensity`)
-    # - continuity equation (`ContinuityDensity`)
-    # - pressure extrapolation (`AdamiPressureExtrapolation`)
-    #
-    # Boundary coordinates only change over time when `neighbor.ismoving[]`.
-    # The current coordinates of fluids and structured change over time.
-    update!(neighborhood_search,
-            current_coordinates(u_system, system),
-            current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(system.ismoving[], true),
-            eachindex_y=each_active_particle(neighbor))
+# Depending on the density calculator of the boundary model, this NHS is used for
+# - kernel summation (`SummationDensity`)
+# - continuity equation (`ContinuityDensity`)
+# - pressure extrapolation (`AdamiPressureExtrapolation`)
+#
+# Boundary coordinates only change over time when `system.ismoving[]`.
+# The current coordinates of fluids, open boundaries and structures change over time.
+# These functions are the same to avoid ambiguous dispatch when using `Union`.
+function points_moving(system::WallBoundarySystem{<:BoundaryModelDummyParticles},
+                       neighbor::AbstractFluidSystem)
+    return (system.ismoving[], true)
 end
 
-# This function is the same as the one above to avoid ambiguous dispatch when using `Union`
-function update_nhs!(neighborhood_search,
-                     system::WallBoundarySystem{<:BoundaryModelDummyParticles},
-                     neighbor::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
-                     u_system, u_neighbor, semi)
-    # Depending on the density calculator of the boundary model, this NHS is used for
-    # - kernel summation (`SummationDensity`)
-    # - continuity equation (`ContinuityDensity`)
-    # - pressure extrapolation (`AdamiPressureExtrapolation`)
-    #
-    # Boundary coordinates only change over time when `neighbor.ismoving[]`.
-    # The current coordinates of open boundaries change over time.
-    update!(neighborhood_search,
-            current_coordinates(u_system, system),
-            current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(system.ismoving[], true),
-            eachindex_y=each_active_particle(neighbor))
+function points_moving(system::WallBoundarySystem{<:BoundaryModelDummyParticles},
+                       neighbor::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang})
+    return (system.ismoving[], true)
 end
 
-# This function is the same as the one above to avoid ambiguous dispatch when using `Union`
-function update_nhs!(neighborhood_search,
-                     system::WallBoundarySystem{<:BoundaryModelDummyParticles},
-                     neighbor::TotalLagrangianSPHSystem,
-                     u_system, u_neighbor, semi)
-    # Depending on the density calculator of the boundary model, this NHS is used for
-    # - kernel summation (`SummationDensity`)
-    # - continuity equation (`ContinuityDensity`)
-    # - pressure extrapolation (`AdamiPressureExtrapolation`)
-    #
-    # Boundary coordinates only change over time when `neighbor.ismoving[]`.
-    # The current coordinates of fluids and structured change over time.
-    update!(neighborhood_search,
-            current_coordinates(u_system, system),
-            current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(system.ismoving[], true))
-end
-
-# Rigid-wall contact is only computed from the rigid system side. `WallBoundarySystem`
-# does not actively initiate rigid interactions, so keep the reverse-direction NHS idle.
-# Explicitly define this method to avoid ambiguity with the generic no-op method below.
-function update_nhs!(neighborhood_search,
-                     system::WallBoundarySystem{<:BoundaryModelDummyParticles},
-                     neighbor::RigidBodySystem,
-                     u_system, u_neighbor, semi)
-    # Don't update. This NHS is never used.
-    return neighborhood_search
+function points_moving(system::WallBoundarySystem{<:BoundaryModelDummyParticles},
+                       neighbor::TotalLagrangianSPHSystem)
+    return (system.ismoving[], true)
 end
 
 # -- Wall / wall interactions
-function update_nhs!(neighborhood_search,
-                     system::WallBoundarySystem{<:BoundaryModelDummyParticles},
-                     neighbor::WallBoundarySystem,
-                     u_system, u_neighbor, semi)
-    # `system` coordinates only change over time when `system.ismoving[]`.
-    # `neighbor` coordinates only change over time when `neighbor.ismoving[]`.
-    update!(neighborhood_search,
-            current_coordinates(u_system, system),
-            current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(system.ismoving[], neighbor.ismoving[]))
+function points_moving(system::WallBoundarySystem{<:BoundaryModelDummyParticles},
+                       neighbor::WallBoundarySystem)
+    return (system.ismoving[], neighbor.ismoving[])
 end
 
 # -- DEM interactions
-function update_nhs!(neighborhood_search,
-                     system::DEMSystem, neighbor::DEMSystem,
-                     u_system, u_neighbor, semi)
-    # Both coordinates change over time
-    update!(neighborhood_search,
-            current_coordinates(u_system, system),
-            current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, true))
+# Both coordinates change over time.
+function points_moving(system::DEMSystem, neighbor::DEMSystem)
+    return (true, true)
 end
 
-function update_nhs!(neighborhood_search,
-                     system::DEMSystem, neighbor::BoundaryDEMSystem,
-                     u_system, u_neighbor, semi)
-    # DEM coordinates change over time, the boundary coordinates don't
-    update!(neighborhood_search,
-            current_coordinates(u_system, system),
-            current_coordinates(u_neighbor, neighbor),
-            semi, points_moving=(true, false))
+# DEM coordinates change over time, the boundary coordinates don't.
+function points_moving(system::DEMSystem, neighbor::BoundaryDEMSystem)
+    return (true, false)
 end
 
-# -- Combinations that are never used
-function update_nhs!(neighborhood_search,
-                     system::WallBoundarySystem,
-                     neighbor::Union{AbstractFluidSystem, RigidBodySystem},
-                     u_system, u_neighbor, semi)
-    # Don't update. This NHS is never used.
-    return neighborhood_search
+# -- Combinations that are never used.
+# Either neither system moves or this NHS is never used.
+function points_moving(system::RigidBodySystem, neighbor::OpenBoundarySystem)
+    return (false, false)
 end
 
-function update_nhs!(neighborhood_search,
-                     system::BoundaryDEMSystem,
-                     neighbor::Union{DEMSystem, BoundaryDEMSystem},
-                     u_system, u_neighbor, semi)
-    # Don't update. This NHS is never used.
-    return neighborhood_search
+function points_moving(system::OpenBoundarySystem, neighbor::TotalLagrangianSPHSystem)
+    return (false, false)
 end
 
-function update_nhs!(neighborhood_search,
-                     system::Union{WallBoundarySystem, OpenBoundarySystem},
-                     neighbor::Union{WallBoundarySystem, OpenBoundarySystem},
-                     u_system, u_neighbor, semi)
-    # Don't update. This NHS is never used.
-    return neighborhood_search
+function points_moving(system::TotalLagrangianSPHSystem, neighbor::OpenBoundarySystem)
+    return (false, false)
 end
 
-function update_nhs!(neighborhood_search,
-                     system::OpenBoundarySystem,
-                     neighbor::RigidBodySystem,
-                     u_system, u_neighbor, semi)
-    # Don't update. This NHS is never used.
-    return neighborhood_search
+function points_moving(system::TotalLagrangianSPHSystem, neighbor::RigidBodySystem)
+    return (false, false)
+end
+
+# TLSPH systems have their own self-interaction NHS.
+function points_moving(system::TotalLagrangianSPHSystem,
+                       neighbor::TotalLagrangianSPHSystem)
+    return (false, false)
+end
+
+function points_moving(system::RigidBodySystem, neighbor::TotalLagrangianSPHSystem)
+    return (false, false)
+end
+
+# Rigid-wall contact is only computed from the rigid system side.
+function points_moving(system::WallBoundarySystem{<:BoundaryModelDummyParticles},
+                       neighbor::RigidBodySystem)
+    return (false, false)
+end
+
+function points_moving(system::WallBoundarySystem,
+                       neighbor::Union{AbstractFluidSystem, RigidBodySystem})
+    return (false, false)
+end
+
+function points_moving(system::BoundaryDEMSystem,
+                       neighbor::Union{DEMSystem, BoundaryDEMSystem})
+    return (false, false)
+end
+
+function points_moving(system::Union{WallBoundarySystem, OpenBoundarySystem},
+                       neighbor::Union{WallBoundarySystem, OpenBoundarySystem})
+    return (false, false)
+end
+
+function points_moving(system::OpenBoundarySystem, neighbor::RigidBodySystem)
+    return (false, false)
 end
 
 # === PointNeighbors forwarding ===
