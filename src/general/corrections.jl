@@ -124,6 +124,10 @@ end
     return get_neighborhood_search(system, neighbor, semi)
 end
 
+@inline function has_correction_interaction(system, neighbor, semi)
+    return has_system_interaction(system, neighbor, semi)
+end
+
 function compute_correction_values!(system, ::ShepardKernelCorrection, u, v_ode, u_ode,
                                     semi)
     return compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode,
@@ -143,8 +147,8 @@ function compute_shepard_coeff!(system, system_coords, v_ode, u_ode, semi,
         foreach_system_wrapped(semi, v_ode,
                                u_ode) do neighbor_system, v_neighbor_system,
                                          u_neighbor_system
-            if !has_system_interaction(system, neighbor_system, semi)
-                # No interaction between these systems.
+            if !has_correction_interaction(system, neighbor_system, semi)
+                # No hydrodynamic correction contribution from this system.
                 return
             end
 
@@ -207,8 +211,8 @@ function compute_correction_values!(system,
         foreach_system_wrapped(semi, v_ode,
                                u_ode) do neighbor_system, v_neighbor_system,
                                          u_neighbor_system
-            if !has_system_interaction(system, neighbor_system, semi)
-                # No interaction between these systems.
+            if !has_correction_interaction(system, neighbor_system, semi)
+                # No hydrodynamic correction contribution from this system.
                 return
             end
 
@@ -367,8 +371,8 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
         foreach_system_wrapped(semi, v_ode,
                                u_ode) do neighbor_system, v_neighbor_system,
                                          u_neighbor_system
-            if !has_system_interaction(system, neighbor_system, semi)
-                # No interaction between these systems.
+            if !has_correction_interaction(system, neighbor_system, semi)
+                # No hydrodynamic correction contribution from this system.
                 return
             end
 
