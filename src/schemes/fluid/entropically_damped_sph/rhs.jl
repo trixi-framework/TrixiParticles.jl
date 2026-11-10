@@ -17,15 +17,15 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                                                 neighbor,
                                                                                 pos_diff,
                                                                                 distance
-        # Skip neighbors with (almost) the same position because the kernel gradient
-        # is zero, but computing it would divide by zero (see `almostzero`).
+        # Skip neighbors with (almost) the same position if the kernel gradients of this
+        # pair vanish, because computing them would divide by zero (see `almostzero`).
+        # This depends on the corrections of both systems (see `skip_zero_distance`).
         # Note that `return` only exits the closure, i.e., skips the current neighbor.
-        skip_zero_distance(particle_system) && distance < almostzero(h) && return
+        skip_zero_distance(particle_system, neighbor_system) &&
+            distance < almostzero(h) && return
 
-        # Now that we know that `distance` is not zero, we can safely call the unsafe
-        # version of the kernel gradient to avoid redundant zero checks.
-        grad_kernel = smoothing_kernel_grad_unsafe(particle_system, pos_diff,
-                                                   distance, particle)
+        grad_kernel = interaction_kernel_grad(particle_system, neighbor_system,
+                                              pos_diff, distance, particle)
 
         # `foreach_point_neighbor` makes sure that `particle` and `neighbor` are
         # in bounds of the respective system. For performance reasons, we use `@inbounds`

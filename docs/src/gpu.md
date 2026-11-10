@@ -23,7 +23,7 @@ FullGridCellList{PointNeighbors.DynamicVectorOfVectors{...}(...)
 ```
 
 We then need to pass this cell list to the neighborhood search and the neighborhood search
-to the [`Semidiscretization`](@ref).
+to the [`Semidiscretization`](@ref TrixiParticles.Semidiscretization).
 ```jldoctest gpu; output=false
 semi = Semidiscretization(fluid_system, boundary_system,
                           neighborhood_search=GridNeighborhoodSearch{2}(; cell_list))
