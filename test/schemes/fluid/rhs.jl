@@ -355,7 +355,8 @@
                                     nothing
             return EntropicallyDampedSPHSystem(fluid; smoothing_kernel, smoothing_length,
                                                sound_speed, viscosity, shifting_technique,
-                                               average_pressure_reduction, correction,
+                                               average_pressure_reduction,
+                                               correction_kwargs(correction)...,
                                                pressure_acceleration,
                                                density_calculator=ContinuityDensity())
         end
@@ -875,8 +876,6 @@
         end
 
         # The continuity equation uses the boundary model's kernel and correction.
-        # The continuity equation of the boundary particles must use the boundary model
-        # including its correction.
         boundary_corrections = (ShepardKernelCorrection(),
                                 AkinciFreeSurfaceCorrection(fluid_density),
                                 KernelCorrection())
