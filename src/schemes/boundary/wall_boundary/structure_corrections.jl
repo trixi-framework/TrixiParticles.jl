@@ -21,37 +21,3 @@ end
                                                     neighbor, semi)
     return get_boundary_correction_neighborhood_search(system, neighbor, semi)
 end
-
-function compute_correction_values!(system::Union{TotalLagrangianSPHSystem,
-                                                  RigidBodySystem},
-                                    ::ShepardKernelCorrection, u, v_ode, u_ode, semi)
-    model = system.boundary_model
-    return compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode,
-                                  semi, model.cache.kernel_correction_coefficient;
-                                  kernel_system=model)
-end
-
-function compute_correction_values!(system::Union{TotalLagrangianSPHSystem,
-                                                  RigidBodySystem},
-                                    correction::Union{KernelCorrection,
-                                                      MixedKernelGradientCorrection},
-                                    u, v_ode, u_ode, semi)
-    model = system.boundary_model
-    return compute_correction_values!(system, correction, current_coordinates(u, system),
-                                      v_ode, u_ode, semi,
-                                      model.cache.kernel_correction_coefficient,
-                                      model.cache.dw_gamma; kernel_system=model)
-end
-
-function compute_gradient_correction_matrix!(correction::Union{GradientCorrection,
-                                                               BlendedGradientCorrection,
-                                                               MixedKernelGradientCorrection},
-                                             model::BoundaryModelDummyParticles,
-                                             system::Union{TotalLagrangianSPHSystem,
-                                                           RigidBodySystem},
-                                             u, v_ode, u_ode, semi)
-    return compute_gradient_correction_matrix!(model.cache.correction_matrix, system,
-                                               current_coordinates(u, system), v_ode, u_ode,
-                                               semi, correction, model.smoothing_kernel;
-                                               kernel_system=model)
-end

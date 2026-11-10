@@ -21,6 +21,8 @@ Adapt.@adapt_structure OpenBoundarySystem
 Adapt.@adapt_structure DEMSystem
 Adapt.@adapt_structure BoundaryDEMSystem
 Adapt.@adapt_structure RCRWindkesselModel
+Adapt.@adapt_structure SignedDistanceField
+Adapt.@adapt_structure ParticlePackingSystem
 
 function adapt_neighborhood_search_handler(to, handler::PairsNHSHandler)
     correction_searches = map(handler.correction_neighborhood_searches) do searches

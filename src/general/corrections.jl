@@ -120,7 +120,7 @@ function compute_correction_values!(system, correction, u, v_ode, u_ode, semi)
     return system
 end
 
-@inline function get_correction_neighborhood_search(kernel_system, system, neighbor, semi)
+@inline function get_correction_neighborhood_search(kernel_data, system, neighbor, semi)
     return get_neighborhood_search(system, neighbor, semi)
 end
 
@@ -131,16 +131,11 @@ function compute_correction_values!(system, ::ShepardKernelCorrection, u, v_ode,
                                   system.cache.kernel_correction_coefficient)
 end
 
-function compute_correction_values!(system::AbstractBoundarySystem,
-                                    ::ShepardKernelCorrection, u,
-                                    v_ode, u_ode, semi)
-    return compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode,
-                                  semi,
-                                  system.boundary_model.cache.kernel_correction_coefficient)
-end
-
+# The correction values are sums over the neighbors of `system`. `kernel_data` provides the
+# smoothing kernel, the smoothing length and the correction values of the particles of `system`,
+# which are stored in the system itself or in its boundary model (for structures).
 function compute_shepard_coeff!(system, system_coords, v_ode, u_ode, semi,
-                                kernel_correction_coefficient; kernel_system=system)
+                                kernel_correction_coefficient, kernel_data=system)
     set_zero!(kernel_correction_coefficient)
 
     # Use enabled neighbor systems for the correction value.
@@ -154,7 +149,7 @@ function compute_shepard_coeff!(system, system_coords, v_ode, u_ode, semi,
             end
 
             neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
-            neighborhood_search = get_correction_neighborhood_search(kernel_system, system,
+            neighborhood_search = get_correction_neighborhood_search(kernel_data, system,
                                                                      neighbor_system, semi)
 
             # Loop over all pairs of particles and neighbors within the kernel cutoff
@@ -169,7 +164,7 @@ function compute_shepard_coeff!(system, system_coords, v_ode, u_ode, semi,
                 volume = m_b / rho_b
 
                 kernel_correction_coefficient[particle] += volume *
-                                                           smoothing_kernel(kernel_system,
+                                                           smoothing_kernel(kernel_data,
                                                                             distance,
                                                                             particle)
             end
@@ -197,22 +192,13 @@ function compute_correction_values!(system::AbstractFluidSystem,
                                system.cache.dw_gamma)
 end
 
-function compute_correction_values!(system::AbstractBoundarySystem,
-                                    correction::Union{KernelCorrection,
-                                                      MixedKernelGradientCorrection}, u,
-                                    v_ode, u_ode, semi)
-    compute_correction_values!(system, correction, current_coordinates(u, system), v_ode,
-                               u_ode, semi,
-                               system.boundary_model.cache.kernel_correction_coefficient,
-                               system.boundary_model.cache.dw_gamma)
-end
-
 function compute_correction_values!(system,
                                     ::Union{KernelCorrection,
                                             MixedKernelGradientCorrection}, system_coords,
                                     v_ode,
-                                    u_ode, semi, kernel_correction_coefficient, dw_gamma;
-                                    kernel_system=system)
+                                    u_ode, semi, kernel_correction_coefficient, dw_gamma,
+                                    smoothing_kernel=system_smoothing_kernel(system),
+                                    kernel_data=system)
     set_zero!(kernel_correction_coefficient)
     set_zero!(dw_gamma)
 
@@ -228,8 +214,7 @@ function compute_correction_values!(system,
 
             neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-            h = initial_smoothing_length(kernel_system)
-            neighborhood_search = get_correction_neighborhood_search(kernel_system, system,
+            neighborhood_search = get_correction_neighborhood_search(kernel_data, system,
                                                                      neighbor_system, semi)
 
             # Loop over all pairs of particles and neighbors within the kernel cutoff
@@ -239,13 +224,15 @@ function compute_correction_values!(system,
                                                                                             neighbor,
                                                                                             pos_diff,
                                                                                             distance
+                h = smoothing_length(kernel_data, particle)
+                distance >= compact_support(smoothing_kernel, h) && return
+
                 rho_b = current_density(v_neighbor_system, neighbor_system, neighbor)
                 m_b = hydrodynamic_mass(neighbor_system, neighbor)
                 volume = m_b / rho_b
 
                 # Use uncorrected kernel to compute correction coefficients
-                W = kernel(system_smoothing_kernel(kernel_system), distance,
-                           smoothing_length(kernel_system, particle))
+                W = kernel_unsafe(smoothing_kernel, distance, h)
 
                 kernel_correction_coefficient[particle] += volume * W
 
@@ -254,10 +241,7 @@ function compute_correction_values!(system,
                 if distance >= almostzero(h)
                     # Now that we know that `distance` is not zero, we can safely call the
                     # unsafe version of the kernel gradient to avoid redundant zero checks.
-                    grad_W = kernel_grad_unsafe(system_smoothing_kernel(kernel_system),
-                                                pos_diff,
-                                                distance,
-                                                smoothing_length(kernel_system, particle))
+                    grad_W = kernel_grad_unsafe(smoothing_kernel, pos_diff, distance, h)
                     tmp = volume * grad_W
                     for i in axes(dw_gamma, 1)
                         dw_gamma[i, particle] += tmp[i]
@@ -366,24 +350,17 @@ function compute_gradient_correction_matrix!(corr_matrix, system, coordinates, d
     return corr_matrix
 end
 
-@inline function correction_kernel_grad(correction, smoothing_kernel, pos_diff, distance,
-                                        smoothing_length_, system, particle)
-    return smoothing_kernel_grad_unsafe(system, pos_diff, distance, particle)
-end
-
-@inline function correction_kernel_grad(::MixedKernelGradientCorrection, smoothing_kernel,
-                                        pos_diff, distance, smoothing_length_, system,
-                                        particle)
-    return corrected_kernel_grad_unsafe(smoothing_kernel, pos_diff, distance,
-                                        smoothing_length_, KernelCorrection(), system,
-                                        particle)
-end
-
 function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
                                              coordinates, v_ode, u_ode, semi,
-                                             correction, smoothing_kernel;
-                                             kernel_system=system)
+                                             correction, smoothing_kernel,
+                                             kernel_data=system)
     set_zero!(corr_matrix)
+
+    # The matrix is assembled from kernel gradients without gradient correction, since the
+    # gradient-correction matrix is not available before the assembly is finished.
+    # `MixedKernelGradientCorrection` assembles it from the kernel-corrected gradients.
+    kernel_correction = correction isa MixedKernelGradientCorrection ? KernelCorrection() :
+                        nothing
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     @trixi_timeit timer() "compute correction matrix" begin
@@ -396,8 +373,7 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
             end
 
             neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
-            h = initial_smoothing_length(kernel_system)
-            neighborhood_search = get_correction_neighborhood_search(kernel_system, system,
+            neighborhood_search = get_correction_neighborhood_search(kernel_data, system,
                                                                      neighbor_system, semi)
 
             foreach_point_neighbor(coordinates, neighbor_coords, neighborhood_search;
@@ -406,20 +382,11 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
                                                                                             neighbor,
                                                                                             pos_diff,
                                                                                             distance
-                # Skip neighbors with (almost) the same position because the kernel gradient
-                # is zero, but computing it would divide by zero (see `almostzero`).
-                # Note that `return` only exits the closure, i.e., skips the current neighbor.
-                if skip_zero_distance(correction) && distance < almostzero(h)
-                    return
-                end
-
-                # Now that we know that `distance` is not zero, we can safely call the unsafe
-                # version of the kernel gradient to avoid redundant zero checks.
-                smoothing_length_ = smoothing_length(kernel_system, particle)
-                grad_kernel = correction_kernel_grad(correction, smoothing_kernel, pos_diff,
-                                                     distance, smoothing_length_,
-                                                     kernel_system,
-                                                     particle)
+                grad_kernel = corrected_kernel_grad(smoothing_kernel, pos_diff, distance,
+                                                    smoothing_length(kernel_data, particle),
+                                                    kernel_correction, kernel_data,
+                                                    particle)
+                iszero(grad_kernel) && return
 
                 volume = hydrodynamic_mass(neighbor_system, neighbor) /
                          current_density(v_neighbor_system, neighbor_system, neighbor)
