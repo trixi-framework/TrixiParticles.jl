@@ -223,6 +223,47 @@
                     end
                 end
             end
+
+            # Corrections at the boundary particles of structures are not supported yet,
+            # independently of the fluid correction and of whether a fluid is present.
+            boundary_corrections = (ShepardKernelCorrection(),
+                                    AkinciFreeSurfaceCorrection(1000.0),
+                                    KernelCorrection(), GradientCorrection(),
+                                    BlendedGradientCorrection(0.3),
+                                    MixedKernelGradientCorrection())
+            @testset "Corrections, $structure_type" for structure_type in
+                                                        (TotalLagrangianSPHSystem,
+                                                         RigidBodySystem)
+                fluid = WeaklyCompressibleSPHSystem(ic; smoothing_kernel,
+                                                    smoothing_length, state_equation,
+                                                    density_calculator=ContinuityDensity(),
+                                                    correction=KernelCorrection())
+                boundary_model = BoundaryModelDummyParticles(ic.density, ic.mass,
+                                                             AdamiPressureExtrapolation(),
+                                                             smoothing_kernel,
+                                                             smoothing_length;
+                                                             state_equation)
+                structure = create_structure_system(structure_type, boundary_model)
+                @test_nowarn Semidiscretization(fluid, structure;
+                                                neighborhood_search=nothing)
+
+                error_str = "the boundary model of a `$structure_type` does not " *
+                            "support corrections yet. Use `correction=nothing`."
+                for boundary_correction in boundary_corrections
+                    boundary_model = BoundaryModelDummyParticles(ic.density, ic.mass,
+                                                                 AdamiPressureExtrapolation(),
+                                                                 smoothing_kernel,
+                                                                 smoothing_length;
+                                                                 state_equation,
+                                                                 correction=boundary_correction)
+                    structure = create_structure_system(structure_type, boundary_model)
+                    @test_throws ArgumentError(error_str) Semidiscretization(fluid,
+                                                                             structure;
+                                                                             neighborhood_search=nothing)
+                    @test_throws ArgumentError(error_str) Semidiscretization(structure;
+                                                                             neighborhood_search=nothing)
+                end
+            end
         end
 
         @testset verbose=true "WCSPH-Boundary Interaction" begin
