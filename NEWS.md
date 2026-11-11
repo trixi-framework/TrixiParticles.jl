@@ -40,6 +40,18 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Important Bugfixes
 
+- Fixed double-counted Monaghan-Kajtar repulsion in TVF momentum and
+  background-pressure shifting operators (#1344).
+- Fixed pressure mirroring for TLSPH and rigid-body neighbors and for EDAC momentum,
+  pressure diffusion, and average-pressure reduction at walls and structures (#1341).
+- Fixed structure boundary-correction caches to use their own kernel, raw gradients,
+  and complete current neighborhoods (#1351).
+- Fixed kernel gradients at structure particles in fluid–structure pressure acceleration
+  to use the boundary model's kernel and corrections (#1342).
+- Fixed correction-matrix assembly for `GradientCorrection` and
+  `BlendedGradientCorrection` (#1342).
+- Fixed boundary-density evolution in `RigidBodySystem` with `ContinuityDensity` to
+  use the boundary model's corrected kernel gradient (#1342).
 - Fixed structure-fluid reaction forces with asymmetric corrected fluid kernel
   gradients by evaluating the fluid-first gradient directly. The continuity equation
   of `RigidBodySystem` boundaries with `ContinuityDensity` now uses the kernel gradient
@@ -70,6 +82,10 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 - Added a tutorial for setting up 2D simulations from geometry files, including a curved
   pipe and a coastline dam-break basin (#1094).
+
+### Features
+
+- Added GPU support for particle packing (#1296).
 
 ## Version 0.5.3
 

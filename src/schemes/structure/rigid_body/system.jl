@@ -81,12 +81,6 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
         throw(ArgumentError("`RigidBodySystem` currently supports only 2D and 3D, got $(NDIMS)D"))
     end
 
-    if boundary_model isa BoundaryModelDummyParticles &&
-       !isnothing(boundary_model.correction)
-        throw(ArgumentError("corrections in `BoundaryModelDummyParticles` are not " *
-                            "supported for `RigidBodySystem`"))
-    end
-
     ELTYPE = eltype(initial_condition)
     acceleration_ = SVector(acceleration...)
     if length(acceleration_) != NDIMS
@@ -130,6 +124,7 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
              create_cache_contact_manifold(contact_model_, Val(NDIMS), ELTYPE,
                                            nparticles(initial_condition),
                                            max_manifolds_)...,
+             create_cache_structure_boundary(boundary_model, initial_condition)...,
              color=Int(color_value))
 
     system = RigidBodySystem(initial_condition, initial_velocity, mass,
@@ -270,6 +265,10 @@ end
 
 @inline function system_smoothing_kernel(system::RigidBodySystem{<:BoundaryModelDummyParticles})
     return system.boundary_model.smoothing_kernel
+end
+
+@inline function system_correction(system::RigidBodySystem{<:BoundaryModelDummyParticles})
+    return correction_gradient(system.boundary_model.correction)
 end
 
 function initialize!(system::RigidBodySystem, semi)
