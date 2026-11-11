@@ -295,6 +295,58 @@
             end
         end
 
+        # Like contact-only rigid bodies, a `TotalLagrangianSPHSystem` without boundary model
+        # has no hydrodynamic density or mass. It must not contribute to the hydrodynamic
+        # sums, i.e., the correction values and summation density, of a boundary model.
+        @testset "TLSPH neighbors without boundary model" begin
+            coordinates = [0.0 0.1 0.0; 0.0 0.0 0.1]
+            ic = InitialCondition(; coordinates, density=1000.0, particle_spacing=0.1)
+            neighbor_ic = InitialCondition(; coordinates=coordinates .+ [0.05, 0.0],
+                                           density=2000.0, particle_spacing=0.1)
+            self_interaction_log = (:info,
+                                    r"^To create the self-interaction neighborhood search")
+
+            for (density_calculator, correction) in ((SummationDensity(), nothing),
+                 (PressureMirroring(),
+                  KernelCorrection()))
+                model = BoundaryModelDummyParticles(ic.density, ic.mass,
+                                                    density_calculator, kernel, 0.2;
+                                                    correction)
+                body = TotalLagrangianSPHSystem(ic; boundary_model=model,
+                                                smoothing_kernel=kernel,
+                                                smoothing_length=0.2, young_modulus=1e5,
+                                                poisson_ratio=0.3)
+                neighbor = TotalLagrangianSPHSystem(neighbor_ic; smoothing_kernel=kernel,
+                                                    smoothing_length=0.2,
+                                                    young_modulus=1e5, poisson_ratio=0.3)
+                options = (; parallelization_backend=SerialBackend())
+
+                # The hydrodynamic sums must agree with the same body in isolation
+                semi_reference = @test_logs self_interaction_log Semidiscretization(deepcopy(body);
+                                                                                    options...)
+                reference = semidiscretize(semi_reference, (0.0, 0.01);
+                                           reset_threads=false)
+                TrixiParticles.update_systems_and_nhs(reference.u0.x..., semi_reference,
+                                                      0.0)
+                reference_cache = semi_reference.systems[1].boundary_model.cache
+
+                semi = @test_logs self_interaction_log self_interaction_log Semidiscretization(body,
+                                                                                               neighbor;
+                                                                                               options...)
+                ode = semidiscretize(semi, (0.0, 0.01); reset_threads=false)
+                v, u = ode.u0.x
+                dv = zero(v)
+                TrixiParticles.kick!(dv, v, u, ode.p, 0.0)
+                @test all(isfinite, dv)
+
+                cache = semi.systems[1].boundary_model.cache
+                for field in (:density, :kernel_correction_coefficient, :dw_gamma)
+                    haskey(cache, field) || continue
+                    @test getproperty(cache, field) ≈ getproperty(reference_cache, field)
+                end
+            end
+        end
+
         @testset "Periodic self-neighbors" begin
             box = PeriodicBox(; min_corner=[-4.0, -4.0], max_corner=[4.0, 4.0])
             for search in (GridNeighborhoodSearch{2}(; periodic_box=box),

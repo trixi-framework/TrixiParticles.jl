@@ -20,11 +20,14 @@ end
     return compact_support(model.smoothing_kernel, initial_smoothing_length(model))
 end
 
-# Mechanical contact can be enabled without hydrodynamic density or mass on the neighbor.
-# Such bodies must not contribute to the hydrodynamic sums of the boundary model.
+# Structures without boundary model, e.g., rigid bodies with only a contact model, have no
+# hydrodynamic density or mass. They must not contribute to the hydrodynamic sums of the
+# boundary model, even though other interactions like mechanical contact remain enabled.
 @inline function has_hydrodynamic_interaction(system::Union{TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles},
                                                             RigidBodySystem{<:BoundaryModelDummyParticles}},
-                                              neighbor::RigidBodySystem{Nothing}, semi)
+                                              neighbor::Union{TotalLagrangianSPHSystem{Nothing},
+                                                              RigidBodySystem{Nothing}},
+                                              semi)
     return false
 end
 
