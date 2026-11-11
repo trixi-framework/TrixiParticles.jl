@@ -120,40 +120,59 @@ end
     return smoothing_kernel_grad_unsafe(system, pos_diff, distance, particle)
 end
 
+# Safe kernel gradient with an explicit kernel and smoothing length `h`.
+# `kernel_data` stores the correction values of `particle` (a system or a boundary model).
+@inline function corrected_kernel_grad(kernel, pos_diff, distance, h, correction,
+                                       kernel_data, particle)
+    compact_support_ = compact_support(kernel, h)
+
+    # See `almostzero` for an explanation of the zero distance check
+    if distance >= compact_support_ ||
+       (skip_zero_distance(correction) && distance < almostzero(h))
+        return zero(pos_diff)
+    end
+
+    return corrected_kernel_grad_unsafe(kernel, pos_diff, distance, h, correction,
+                                        kernel_data, particle)
+end
+
 @inline function corrected_kernel_grad_unsafe(kernel, pos_diff, distance, h, correction,
-                                              system, particle)
+                                              kernel_data, particle)
     return kernel_grad_unsafe(kernel, pos_diff, distance, h)
 end
 
 @inline function corrected_kernel_grad_unsafe(kernel_, pos_diff, distance, h,
-                                              ::KernelCorrection, system, particle)
+                                              ::KernelCorrection, kernel_data, particle)
     return (kernel_grad(kernel_, pos_diff, distance, h) .-
-            kernel(kernel_, distance, h) * dw_gamma(system, particle)) /
-           kernel_correction_coefficient(system, particle)
+            kernel(kernel_, distance, h) * dw_gamma(kernel_data, particle)) /
+           kernel_correction_coefficient(kernel_data, particle)
 end
 
 @inline function corrected_kernel_grad_unsafe(kernel, pos_diff, distance, h,
-                                              corr::BlendedGradientCorrection, system,
+                                              corr::BlendedGradientCorrection,
+                                              kernel_data,
                                               particle)
     (; blending_factor) = corr
 
     grad = kernel_grad_unsafe(kernel, pos_diff, distance, h)
     return (1 - blending_factor) * grad +
-           blending_factor * correction_matrix(system, particle) * grad
+           blending_factor * correction_matrix(kernel_data, particle) * grad
 end
 
 @inline function corrected_kernel_grad_unsafe(kernel, pos_diff, distance, h,
-                                              ::GradientCorrection, system, particle)
+                                              ::GradientCorrection, kernel_data,
+                                              particle)
     grad = kernel_grad_unsafe(kernel, pos_diff, distance, h)
-    return correction_matrix(system, particle) * grad
+    return correction_matrix(kernel_data, particle) * grad
 end
 
 @inline function corrected_kernel_grad_unsafe(kernel, pos_diff, distance, h,
-                                              ::MixedKernelGradientCorrection, system,
+                                              ::MixedKernelGradientCorrection,
+                                              kernel_data,
                                               particle)
     grad = corrected_kernel_grad_unsafe(kernel, pos_diff, distance, h, KernelCorrection(),
-                                        system, particle)
-    return correction_matrix(system, particle) * grad
+                                        kernel_data, particle)
+    return correction_matrix(kernel_data, particle) * grad
 end
 
 @doc raw"""
