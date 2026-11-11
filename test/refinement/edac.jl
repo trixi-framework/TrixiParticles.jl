@@ -328,6 +328,46 @@
                 @test isapprox(dv[3, 1], eos + damping, rtol=1e-12)
             end
         end
+
+        @testset "Shifting Term in the Pressure Evolution" begin
+            p = 50.0
+
+            function shifting_term(pressure_acceleration)
+                shifting_technique = ParticleShiftingTechnique(update_everystage=true)
+                system = edac_system(pair; pressure_acceleration, shifting_technique,
+                                     average_pressure_reduction=false)
+                _, semi = rhs(system; smoothing_lengths=(h_a, h_b))
+                system = semi.systems[1]
+
+                # Without a velocity difference and a pressure difference,
+                # the shifting term is the only remaining term.
+                # The linear index 1 is the first component of the first particle.
+                system.cache.delta_v .= 0
+                system.cache.delta_v[1] = 0.1
+                dv = zeros(4, 2)
+                grad_avg = (grad_a + grad_b) / 2
+                TrixiParticles.pressure_evolution!(dv, system, system,
+                                                   SVector(0.0, 0.0), grad_avg, 1, 2,
+                                                   pos_diff, 0.15, sound_speed,
+                                                   m_a, m_b, p, p, rho_a, rho_b,
+                                                   system.nu_edac)
+
+                return dv[3, 1]
+            end
+
+            # `EDACEquation2`, which is used for all formulations
+            # except `inter_particle_averaged_pressure`
+            expected_scaled = m_b * 0.1 * p *
+                              (grad_a / (rho_a^2 * beta_a) + grad_b / (rho_b^2 * beta_b))[1]
+            # `EDACEquation`
+            expected_unscaled = volume_term * 0.1 * p *
+                                (rho_b * grad_a + rho_a * grad_b)[1] / (rho_a + rho_b)
+
+            @test !iszero(expected_scaled)
+            @test isapprox(shifting_term(summation_density), expected_scaled, rtol=1e-12)
+            @test isapprox(shifting_term(continuity_density), expected_scaled, rtol=1e-12)
+            @test isapprox(shifting_term(inter_particle), expected_unscaled, rtol=1e-12)
+        end
     end
 
     # As in the code of Haftu et al., the viscosity is not divided by `beta`

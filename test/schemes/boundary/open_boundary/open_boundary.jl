@@ -30,9 +30,12 @@ include("pressure_model.jl")
                                        boundary_model=BoundaryModelDynamicalPressureZhang())
     open_boundary.boundary_zone_indices .= 1
 
+    # `delta_v` is stored as a flat vector with two entries per particle
+    delta_v = reshape(open_boundary.cache.delta_v, 2, :)
+
     unmodified_delta_v = [1.0, -2.0]
-    for particle in axes(open_boundary.cache.delta_v, 2)
-        open_boundary.cache.delta_v[:, particle] .= unmodified_delta_v
+    for particle in axes(delta_v, 2)
+        delta_v[:, particle] .= unmodified_delta_v
     end
 
     TrixiParticles.modify_shifting_at_free_surfaces!(open_boundary,
@@ -41,16 +44,15 @@ include("pressure_model.jl")
 
     kernel_max = TrixiParticles.smoothing_kernel(open_boundary, 0, 1)
 
-    @test iszero(open_boundary.cache.delta_v[:, 1])
-    @test iszero(open_boundary.cache.delta_v[:, 2])
+    @test iszero(delta_v[:, 1])
+    @test iszero(delta_v[:, 2])
 
     dist_from_cutoff = 2 * compact_support - distances_from_free_surface[3]
     shifting_weight = TrixiParticles.smoothing_kernel(open_boundary, dist_from_cutoff,
                                                       3) / kernel_max
-    @test isapprox(open_boundary.cache.delta_v[:, 3],
-                   unmodified_delta_v * shifting_weight)
+    @test isapprox(delta_v[:, 3], unmodified_delta_v * shifting_weight)
 
-    @test open_boundary.cache.delta_v[:, 4] == unmodified_delta_v
+    @test delta_v[:, 4] == unmodified_delta_v
 end
 
 @testset verbose=true "Calculate Flow Rate" begin

@@ -103,13 +103,6 @@ function check_resize(system, n, system_index, semi)
                             "$(nparticles(system)) to $n"))
     end
 
-    # TODO: These caches are matrices, which cannot be resized.
-    # Shifting is reworked in the shifting PR of the refinement PR series.
-    if !isnothing(shifting_technique(system))
-        throw(ArgumentError("resizing a system with a shifting technique is not " *
-                            "supported yet"))
-    end
-
     if !isnothing(system.surface_normal_method) || !isnothing(system.surface_tension)
         throw(ArgumentError("resizing a system with surface normals or surface tension " *
                             "is not supported yet"))
@@ -157,8 +150,9 @@ function resize_system!(system::AbstractFluidSystem, n)
     resize_and_fill!(mass, n, mass_new)
     resize_and_fill!(smoothing_length, n, initial_smoothing_length(system))
 
-    resize_cache_refinement!(cache, refinement, n, spacing_new)
+    resize_cache_refinement!(cache, refinement, ndims(system), n, spacing_new)
     resize_cache_density!(cache, density_calculator, n, reference_density)
+    resize_cache_shifting!(cache, shifting_technique(system), ndims(system), n)
     resize_scheme_data!(system, n)
     resize_buffer!(buffer, n)
 

@@ -7,4 +7,5 @@
     include("spacing.jl")
     include("splitting.jl")
     include("merging.jl")
+    include("shifting.jl")
 end

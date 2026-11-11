@@ -210,8 +210,8 @@ end
     formulation = pressure_acceleration_formulation(particle_system)
 
     grad_kernel_a,
-    _ = pair_kernel_grads(particle_system, neighbor_system,
-                          pos_diff, distance, particle, neighbor)
+    grad_kernel_b = pair_kernel_grads(particle_system, neighbor_system,
+                                      pos_diff, distance, particle, neighbor)
 
     beta_a = get_beta(particle_system, particle)
 
@@ -226,10 +226,47 @@ end
                                      distance, m_a, m_b, p_a, p_b, rho_a, rho_b,
                                      beta_damping, nu_edac)
 
+    # Correction term due to shifting, `(û - u) ⋅ ∇p` in the code of Haftu et al.,
+    # where `û - u` is the shifting velocity `δv`.
+    # As in their code, both `p_a` and `p_b` are reduced by the average pressure of
+    # `particle`, and the `beta` of `particle` follows the same rule as in the damping term.
+    p_avg = average_pressure(particle_system, particle)
+    grad_pressure = edac_shifting_pressure_gradient(formulation, m_a, m_b,
+                                                    p_a - p_avg, p_b - p_avg,
+                                                    rho_a, rho_b, beta_damping,
+                                                    get_beta(neighbor_system, neighbor),
+                                                    grad_kernel_a, grad_kernel_b)
+    shifting_term = dot(delta_v(particle_system, particle), grad_pressure)
+
     # Pressure is stored in `v` right after the velocity
-    dv[ndims(particle_system) + 1, particle] += artificial_eos + damping_term
+    dv[ndims(particle_system) + 1,
+       particle] += artificial_eos + damping_term +
+                    shifting_term
 
     return dv
+end
+
+# Pressure gradient in the shifting term of `EDACEquation2` and `EDACEquationSolids2`
+# in the code of Haftu et al. This is the negative of
+# `pressure_acceleration_summation_density` for all formulations except
+# `inter_particle_averaged_pressure`.
+# The asymmetric version of the formulation expects `W_b` to be evaluated at `-pos_diff`.
+@inline function edac_shifting_pressure_gradient(formulation, m_a, m_b, p_a, p_b,
+                                                 rho_a, rho_b, beta_a, beta_b,
+                                                 grad_kernel_a, grad_kernel_b)
+    return -pressure_acceleration_summation_density(m_a, m_b, rho_a, rho_b,
+                                                    p_a / beta_a, p_b / beta_b,
+                                                    grad_kernel_a, -grad_kernel_b)
+end
+
+# Pressure gradient in the shifting term of `EDACEquation` and `EDACEquationSolids`,
+# which has no `beta`
+@inline function edac_shifting_pressure_gradient(::typeof(inter_particle_averaged_pressure),
+                                                 m_a, m_b, p_a, p_b, rho_a, rho_b,
+                                                 beta_a, beta_b,
+                                                 grad_kernel_a, grad_kernel_b)
+    return -inter_particle_averaged_pressure(m_a, m_b, rho_a, rho_b, p_a, p_b,
+                                             grad_kernel_a, -grad_kernel_b)
 end
 
 # Fluid neighbors use the averaged kernel gradient and the `beta` of `particle` in the

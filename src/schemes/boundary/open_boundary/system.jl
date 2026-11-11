@@ -644,7 +644,8 @@ end
             # free surface. Shifting is disabled there to avoid shifting particles with
             # incomplete support.
             for dim in 1:ndims(system)
-                cache.delta_v[dim, particle] = zero(eltype(system))
+                index = linear_index_vector(dim, particle, ndims(system))
+                cache.delta_v[index] = zero(eltype(system))
             end
         elseif dist_free_surface < free_surface_region_width + ramp_width
             # Between one and two compact supports from the free surface, shifting is
@@ -660,7 +661,8 @@ end
                               kernel_max
             delta_v_ramped = delta_v(system, particle) * shifting_weight
             for dim in 1:ndims(system)
-                cache.delta_v[dim, particle] = delta_v_ramped[dim]
+                index = linear_index_vector(dim, particle, ndims(system))
+                cache.delta_v[index] = delta_v_ramped[dim]
             end
         end
     end
