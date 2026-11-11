@@ -86,6 +86,11 @@ We provide six options to compute the boundary density and pressure, determined 
    This option is not recommended due to stability issues. See [`PressureMirroring`](@ref)
    for more details.
 
+Pressure mirroring also applies to TLSPH and rigid-body boundary models. In EDAC,
+the mirrored pressure is used in the momentum equation, the pressure evolution
+equation, and the average-pressure reduction. Mirroring makes the pressure
+diffusion contribution from a fluid-boundary pair zero.
+
 #### 1. [`AdamiPressureExtrapolation`](@ref)
 
 The pressure of the boundary particles is obtained by extrapolating the pressure of the fluid
@@ -176,6 +181,33 @@ condition is applied.
 !!! warning
     The viscosity model [`ArtificialViscosityMonaghan`](@ref) for [`BoundaryModelDummyParticles`](@ref)
     has not been verified yet.
+
+### [Corrections](@id boundary_corrections)
+
+When the adjacent fluid system uses a [correction](@ref corrections) with a kernel gradient
+that is not antisymmetric, i.e., [`KernelCorrection`](@ref), [`GradientCorrection`](@ref),
+[`BlendedGradientCorrection`](@ref) or [`MixedKernelGradientCorrection`](@ref),
+the pressure acceleration cannot use
+``\nabla_{r_b} W(\Vert r_b - r_a \Vert, h) = -\nabla_{r_a} W(\Vert r_a - r_b \Vert, h)``.
+Instead, each of the two particles uses its own corrected kernel gradient, e.g.,
+for [`ContinuityDensity`](@ref),
+```math
+\bm{f}_{ab}^{p}
+= -\frac{m_a m_b}{\rho_a \rho_b}
+\left( p_a \tilde{\nabla}_{r_a} W_{ab} - p_b \tilde{\nabla}_{r_b} W_{ba} \right),
+```
+where ``\tilde{\nabla}_{r_a} W_{ab}`` is the corrected kernel gradient of the fluid particle ``a``
+and ``\tilde{\nabla}_{r_b} W_{ba}`` is the corrected kernel gradient of the boundary particle ``b``.
+The latter is computed with the `correction` of the boundary model, which should therefore
+be the same as the correction of the fluid system.
+With [`ContinuityDensity`](@ref), the density of the boundary particles also evolves with the
+corrected kernel gradient of the boundary particles.
+
+For a [`TotalLagrangianSPHSystem`](@ref) or a [`RigidBodySystem`](@ref), the kernel gradient
+at each boundary particle uses the smoothing kernel, smoothing length and correction of
+the boundary model. Its smoothing kernel and smoothing length must match those of the
+fluid systems. The smoothing kernel of the [`TotalLagrangianSPHSystem`](@ref) is used for
+solid mechanics instead.
 
 ## Repulsive Particles
 
