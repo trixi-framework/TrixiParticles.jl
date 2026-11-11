@@ -113,8 +113,7 @@ end
 
 @inline function corrected_kernel_grad_unsafe(kernel, pos_diff, distance, h,
                                               ::MixedKernelGradientCorrection,
-                                              kernel_data,
-                                              particle)
+                                              kernel_data, particle)
     grad = corrected_kernel_grad_unsafe(kernel, pos_diff, distance, h, KernelCorrection(),
                                         kernel_data, particle)
     return correction_matrix(kernel_data, particle) * grad
