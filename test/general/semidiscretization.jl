@@ -224,26 +224,32 @@
                 end
             end
 
-            # A boundary may omit the fluid correction, but a nontrivial boundary
-            # correction must match the fluid correction, including its parameters.
-            correction_configurations = ((KernelCorrection(), nothing, true),
-                                         (KernelCorrection(), KernelCorrection(), true),
-                                         (BlendedGradientCorrection(0.3),
-                                          BlendedGradientCorrection(0.3), true),
-                                         (nothing, KernelCorrection(), false),
-                                         (KernelCorrection(), GradientCorrection(), false),
-                                         (BlendedGradientCorrection(0.3),
-                                          BlendedGradientCorrection(0.7), false))
+            # Corrections at the boundary particles of structures are not supported yet,
+            # independently of the fluid correction and of whether a fluid is present.
+            boundary_corrections = (ShepardKernelCorrection(),
+                                    AkinciFreeSurfaceCorrection(1000.0),
+                                    KernelCorrection(), GradientCorrection(),
+                                    BlendedGradientCorrection(0.3),
+                                    MixedKernelGradientCorrection())
             @testset "Corrections, $structure_type" for structure_type in
                                                         (TotalLagrangianSPHSystem,
                                                          RigidBodySystem)
-                for (correction, boundary_correction, compatible) in
-                    correction_configurations
+                fluid = WeaklyCompressibleSPHSystem(ic; smoothing_kernel,
+                                                    smoothing_length, state_equation,
+                                                    density_calculator=ContinuityDensity(),
+                                                    correction=KernelCorrection())
+                boundary_model = BoundaryModelDummyParticles(ic.density, ic.mass,
+                                                             AdamiPressureExtrapolation(),
+                                                             smoothing_kernel,
+                                                             smoothing_length;
+                                                             state_equation)
+                structure = create_structure_system(structure_type, boundary_model)
+                @test_nowarn Semidiscretization(fluid, structure;
+                                                neighborhood_search=nothing)
 
-                    fluid = WeaklyCompressibleSPHSystem(ic; smoothing_kernel,
-                                                        smoothing_length, state_equation,
-                                                        density_calculator=ContinuityDensity(),
-                                                        correction)
+                error_str = "the boundary model of a `$structure_type` does not " *
+                            "support corrections yet. Use `correction=nothing`."
+                for boundary_correction in boundary_corrections
                     boundary_model = BoundaryModelDummyParticles(ic.density, ic.mass,
                                                                  AdamiPressureExtrapolation(),
                                                                  smoothing_kernel,
@@ -251,26 +257,11 @@
                                                                  state_equation,
                                                                  correction=boundary_correction)
                     structure = create_structure_system(structure_type, boundary_model)
-                    error_str = "the correction of the boundary model of the " *
-                                "`$structure_type` must be `nothing` or the same " *
-                                "as that of the fluid system `WeaklyCompressibleSPHSystem`."
-                    if compatible
-                        @test_nowarn Semidiscretization(fluid, structure;
-                                                        neighborhood_search=nothing)
-                    else
-                        @test_throws ArgumentError(error_str) Semidiscretization(fluid,
-                                                                                 structure;
-                                                                                 neighborhood_search=nothing)
-                    end
-
-                    # A correction matching one fluid must also match any other fluid.
-                    if correction isa KernelCorrection &&
-                       boundary_correction isa KernelCorrection
-                        @test_throws ArgumentError(error_str) Semidiscretization(fluid,
-                                                                                 fluid_systems[1],
-                                                                                 structure;
-                                                                                 neighborhood_search=nothing)
-                    end
+                    @test_throws ArgumentError(error_str) Semidiscretization(fluid,
+                                                                             structure;
+                                                                             neighborhood_search=nothing)
+                    @test_throws ArgumentError(error_str) Semidiscretization(structure;
+                                                                             neighborhood_search=nothing)
                 end
             end
         end

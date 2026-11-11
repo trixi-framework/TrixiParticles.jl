@@ -199,12 +199,11 @@ With [`ContinuityDensity`](@ref), the density of the boundary particles also evo
 corrected kernel gradient of the boundary particles.
 
 For a [`TotalLagrangianSPHSystem`](@ref) or a [`RigidBodySystem`](@ref), the kernel gradient
-at each boundary particle uses the smoothing kernel, smoothing length and correction of
-the boundary model. Its smoothing kernel and smoothing length must match those of the
-fluid systems. The smoothing kernel of the [`TotalLagrangianSPHSystem`](@ref) is used for
-solid mechanics instead.
-The boundary model's `correction` must be `nothing` or match the correction of every fluid
-system, including parameters such as the blending factor of [`BlendedGradientCorrection`](@ref).
+at each boundary particle uses the smoothing kernel and smoothing length of the boundary
+model, which must match those of the fluid systems. The smoothing kernel of the
+[`TotalLagrangianSPHSystem`](@ref) is used for solid mechanics instead.
+Corrections at the boundary particles of these structures are not supported yet,
+so the boundary model's `correction` must be `nothing`.
 These requirements are checked when constructing the [`Semidiscretization`](@ref).
 
 ## Repulsive Particles

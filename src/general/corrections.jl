@@ -315,7 +315,11 @@ function compute_gradient_correction_matrix!(corr_matrix, system, coordinates, d
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     foreach_point_neighbor(system, system, coordinates, coordinates,
                            semi) do particle, neighbor, pos_diff, distance
-        grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
+        # Assemble the matrix from the uncorrected kernel gradient. The corrected gradient
+        # of a fluid would use correction values of the fluid that are computed later
+        # in the update and are therefore not yet available.
+        grad_kernel = kernel_grad(system_smoothing_kernel(system), pos_diff, distance,
+                                  smoothing_length(system, particle))
         iszero(grad_kernel) && return
 
         volume = @inbounds mass[neighbor] / density_fun(neighbor)

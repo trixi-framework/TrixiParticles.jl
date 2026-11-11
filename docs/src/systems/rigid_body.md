@@ -6,8 +6,8 @@ keeping the structure kinematics rigid.
 
 Fluid-structure interaction is configured through `boundary_model`. When using
 [`BoundaryModelDummyParticles`](@ref), its smoothing kernel and smoothing length must match
-those of every fluid system. Its `correction` must be `nothing` or match the fluid correction,
-including its parameters (see [Boundary Corrections](@ref boundary_corrections)).
+those of every fluid system. Its `correction` must be `nothing`
+(see [Boundary Corrections](@ref boundary_corrections)).
 
 ## API
 

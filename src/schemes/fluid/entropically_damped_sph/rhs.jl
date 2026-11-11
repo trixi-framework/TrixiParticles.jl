@@ -95,13 +95,16 @@ end
 # Note that this function is also used for the structure-fluid interaction to compute
 # the exact opposite pair force. When adding new terms here, make sure that they are
 # also valid for structure neighbors.
+# `grad_kernel_neighbor` is the kernel gradient of the neighbor for the asymmetric pressure
+# acceleration if it has already been computed, or `nothing` (see `pressure_acceleration`).
 @propagate_inbounds function add_momentum_equation(dv_particle,
                                                    particle_system::EntropicallyDampedSPHSystem,
                                                    neighbor_system,
                                                    v_particle_system, v_neighbor_system,
                                                    particle, neighbor, pos_diff, distance,
                                                    grad_kernel, sound_speed, m_a, m_b,
-                                                   p_a, p_b, rho_a, rho_b, v_a, v_b)
+                                                   p_a, p_b, rho_a, rho_b, v_a, v_b,
+                                                   grad_kernel_neighbor=nothing)
     (; correction) = particle_system
 
     surface_tension_a = surface_tension_model(particle_system)
@@ -119,7 +122,7 @@ end
                                          particle, neighbor,
                                          m_a, m_b, p_a - p_avg, p_b - p_avg, rho_a,
                                          rho_b, pos_diff, distance, grad_kernel,
-                                         correction)
+                                         correction, grad_kernel_neighbor)
 
     dv_particle = add_dv_viscosity(dv_particle, particle_system, neighbor_system,
                                    v_particle_system, v_neighbor_system,
