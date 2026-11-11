@@ -96,4 +96,49 @@
     @test maximum(particle -> norm(moments.first_gradient_moment[:, :, particle] -
                                    identity_matrix),
                   TrixiParticles.eachparticle(combined.system)) < 3e-12
+
+    @testset "Combined structure corrections" for structure_type in
+                                                  (TotalLagrangianSPHSystem,
+                                                   RigidBodySystem)
+        material_particles = RectangularShape(spacing, (n, n), (0.0, 0.0); density=2000.0)
+        model = BoundaryModelDummyParticles(boundary_particles.density,
+                                            boundary_particles.mass,
+                                            SummationDensity(), kernel, 2spacing;
+                                            state_equation,
+                                            density_correction=ShepardKernelCorrection(),
+                                            gradient_correction=MixedKernelGradientCorrection())
+        structure = if structure_type === TotalLagrangianSPHSystem
+            TotalLagrangianSPHSystem(material_particles; boundary_model=model,
+                                     smoothing_kernel=WendlandC2Kernel{2}(),
+                                     smoothing_length=spacing,
+                                     young_modulus=1e6, poisson_ratio=0.3)
+        else
+            RigidBodySystem(material_particles; boundary_model=model)
+        end
+        semi = Semidiscretization(structure;
+                                  neighborhood_search=PrecomputedNeighborhoodSearch{2}(),
+                                  parallelization_backend=SerialBackend())
+        ode = semidiscretize(semi, (0.0, 1.0); reset_threads=false)
+        structure = only(ode.p.semi.systems)
+        v_ode, u_ode = ode.u0.x
+        u = TrixiParticles.wrap_u(u_ode, structure, ode.p.semi)
+        u[1, 2] += spacing / 4
+        TrixiParticles.update_systems_and_nhs(v_ode, u_ode, ode.p.semi, 0.0)
+        @test TrixiParticles.has_boundary_correction(structure)
+        @test structure.boundary_model.cache.density ≈ fill(1000.0, n^2)
+
+        positions = Array(TrixiParticles.current_coordinates(u, structure))
+        for particle in (1, n^2)
+            displacements = [SVector{2}(positions[:, particle] - x)
+                             for x in eachcol(positions)]
+            gradients = [TrixiParticles.hydrodynamic_smoothing_kernel_grad(structure,
+                                                                           d, norm(d),
+                                                                           particle)
+                         for d in displacements]
+            @test norm(spacing^2 * sum(gradients)) < 3e-12
+            @test norm(-spacing^2 *
+                       sum(g * d' for (g, d) in zip(gradients, displacements)) -
+                       I) < 3e-12
+        end
+    end
 end

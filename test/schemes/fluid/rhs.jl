@@ -315,64 +315,93 @@
         state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                            exponent=1)
 
+        correction_kwargs(correction) = correction isa ShepardKernelCorrection ?
+                                        (; density_correction=correction) :
+                                        correction isa AkinciFreeSurfaceCorrection ?
+                                        (; force_correction=correction) :
+                                        (; gradient_correction=correction)
+
         function create_fluid_system(scheme, velocity, density, viscosity;
-                                     shifting_technique=nothing, correction=nothing)
-            fluid = InitialCondition(; coordinates=zeros(2, 1),
-                                     velocity=reshape(collect(velocity), 2, 1),
-                                     mass=[fluid_density * particle_spacing^2],
+                                     shifting_technique=nothing, correction=nothing,
+                                     dimensions=2,
+                                     coordinates=zeros(dimensions, 1),
+                                     mass=fluid_density * particle_spacing^dimensions)
+            local smoothing_kernel = SchoenbergCubicSplineKernel{dimensions}()
+            fluid = InitialCondition(; coordinates,
+                                     velocity=reshape(collect(velocity), dimensions, 1),
+                                     mass=[mass],
                                      density=[density], pressure=state_equation(density),
                                      particle_spacing)
 
             if scheme == "WCSPH"
-                gradient_correction = TrixiParticles.correction_gradient(correction)
-                force_correction = correction isa AkinciFreeSurfaceCorrection ? correction :
-                                   nothing
                 return WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
                                                    smoothing_length, state_equation,
                                                    density_calculator=ContinuityDensity(),
                                                    viscosity, shifting_technique,
-                                                   gradient_correction, force_correction)
+                                                   correction_kwargs(correction)...)
             end
 
             # Note that the average pressure reduction is enabled by default
             # when using shifting.
             average_pressure_reduction = scheme == "EDAC with average pressure reduction"
+            pressure_acceleration = isnothing(correction) ?
+                                    TrixiParticles.inter_particle_averaged_pressure :
+                                    nothing
             return EntropicallyDampedSPHSystem(fluid; smoothing_kernel, smoothing_length,
                                                sound_speed, viscosity, shifting_technique,
                                                average_pressure_reduction,
+                                               correction_kwargs(correction)...,
+                                               pressure_acceleration,
                                                density_calculator=ContinuityDensity())
         end
 
         function create_structure_system(structure_type, viscosity;
                                          boundary_density=AdamiPressureExtrapolation(),
                                          boundary_correction=nothing,
+                                         monaghan_kajtar=false,
                                          clamped=false,
+                                         dimensions=2,
+                                         coordinates=reshape([1.5; zeros(dimensions - 1)],
+                                                             dimensions, 1),
+                                         velocity=zeros(size(coordinates)),
+                                         mass=fill(2 * fluid_density *
+                                                   particle_spacing^dimensions,
+                                                   size(coordinates, 2)),
+                                         hydrodynamic_mass=fill(fluid_density *
+                                                                particle_spacing^dimensions,
+                                                                size(coordinates, 2)),
+                                         hydrodynamic_density=fill(fluid_density,
+                                                                   size(coordinates, 2)),
+                                         structure_smoothing_kernel=SchoenbergCubicSplineKernel{dimensions}(),
                                          structure_smoothing_length=smoothing_length)
-            # The material mass is twice the hydrodynamic mass, so using the wrong mass
-            # to convert the force on the structure to an acceleration fails the test.
-            structure = InitialCondition(; coordinates=reshape([1.5, 0.0], 2, 1),
-                                         velocity=zeros(2, 1),
-                                         mass=[2 * fluid_density * particle_spacing^2],
-                                         density=[2 * fluid_density], particle_spacing)
-            gradient_correction = TrixiParticles.correction_gradient(boundary_correction)
-            force_correction = boundary_correction isa AkinciFreeSurfaceCorrection ?
-                               boundary_correction : nothing
-            boundary_model = BoundaryModelDummyParticles([fluid_density],
-                                                         [fluid_density *
-                                                          particle_spacing^2],
-                                                         boundary_density,
-                                                         smoothing_kernel,
-                                                         smoothing_length;
-                                                         state_equation, viscosity,
-                                                         gradient_correction,
-                                                         force_correction)
+            # By default, the material mass is twice the hydrodynamic mass, so using the
+            # wrong mass to convert the force on the structure to an acceleration fails.
+            structure = InitialCondition(; coordinates, velocity, mass,
+                                         density=fill(2 * fluid_density,
+                                                      size(coordinates, 2)),
+                                         particle_spacing)
+            local smoothing_kernel = SchoenbergCubicSplineKernel{dimensions}()
+            boundary_model = if monaghan_kajtar
+                BoundaryModelMonaghanKajtar(10.0, 1.0, particle_spacing,
+                                            hydrodynamic_mass; viscosity)
+            else
+                BoundaryModelDummyParticles(hydrodynamic_density, hydrodynamic_mass,
+                                            boundary_density, smoothing_kernel,
+                                            smoothing_length; state_equation, viscosity,
+                                            correction_kwargs(boundary_correction)...)
+            end
 
             if structure_type === TotalLagrangianSPHSystem
-                return TotalLagrangianSPHSystem(structure; smoothing_kernel,
+                return TotalLagrangianSPHSystem(structure;
+                                                smoothing_kernel=structure_smoothing_kernel,
                                                 smoothing_length=structure_smoothing_length,
                                                 young_modulus=1e5,
                                                 poisson_ratio=0.3, boundary_model,
                                                 clamped_particles=clamped ? (1:1) : (1:0))
+            end
+
+            if structure_type === WallBoundarySystem
+                return WallBoundarySystem(structure, boundary_model)
             end
 
             return RigidBodySystem(structure; boundary_model)
@@ -381,18 +410,22 @@
         # Run the regular update step to compute the boundary pressure, the wall velocity
         # for the viscosity, and the average pressure of EDAC. Return the systems
         # stored in the semidiscretization and the wrapped arrays.
-        function initialize(fluid_system, structure_system)
+        function initialize(fluid_system, structure_system;
+                            interaction_matrix=nothing,
+                            parallelization_backend=SerialBackend())
             semi = if structure_system isa TotalLagrangianSPHSystem
                 @test_logs (:info,
                             r"^To create the self-interaction neighborhood search of a `TotalLagrangianSPHSystem`") begin
                     Semidiscretization(fluid_system, structure_system;
-                                       parallelization_backend=SerialBackend())
+                                       interaction_matrix,
+                                       parallelization_backend)
                 end
             else
                 @test_logs Semidiscretization(fluid_system, structure_system;
-                                              parallelization_backend=SerialBackend())
+                                              interaction_matrix,
+                                              parallelization_backend)
             end
-            ode = semidiscretize(semi, (0.0, 0.01))
+            ode = semidiscretize(semi, (0.0, 0.01); reset_threads=false)
             v_ode, u_ode = ode.u0.x
             TrixiParticles.update_systems_and_nhs(v_ode, u_ode, ode.p.semi, 0.0)
 
@@ -478,7 +511,7 @@
                                     (RigidBodySystem, false, smoothing_length))
         correction_methods = (nothing, AkinciFreeSurfaceCorrection(fluid_density),
                               KernelCorrection(), GradientCorrection(),
-                              BlendedGradientCorrection(0.5),
+                              BlendedGradientCorrection(0.3),
                               MixedKernelGradientCorrection())
 
         @testset "$(config[1]), Viscosity `$(nameof(typeof(config[2])))`" for config in
@@ -497,10 +530,11 @@
 
                     # TLSPH does not yet support `ContinuityDensity` boundaries.
                     boundary_densities = if structure_type === TotalLagrangianSPHSystem
-                        (AdamiPressureExtrapolation(), SummationDensity())
+                        (AdamiPressureExtrapolation(), SummationDensity(),
+                         PressureMirroring())
                     else
                         (AdamiPressureExtrapolation(), SummationDensity(),
-                         ContinuityDensity())
+                         ContinuityDensity(), PressureMirroring())
                     end
 
                     @testset "Boundary `$(nameof(typeof(boundary_density)))`" for boundary_density in
@@ -567,6 +601,9 @@
                                                                               fluid,
                                                                               1) ≈
                                               structure.boundary_model.pressure[1]
+                                        @test isapprox(force_structure, zeros(2),
+                                                       atol=sqrt(eps()))
+                                    elseif boundary_density isa PressureMirroring
                                         @test isapprox(force_structure, zeros(2),
                                                        atol=sqrt(eps()))
                                     else
@@ -657,10 +694,10 @@
             end
         end
 
-        # Rigid-body boundary corrections are unsupported. Exercise the shared continuity
-        # helper directly with a TLSPH boundary model, as in the TLSPH tests below.
-        # The continuity equation must use the boundary model's kernel.
-        boundary_corrections = (AkinciFreeSurfaceCorrection(fluid_density),
+        # Conservative pressure uses both endpoint gradients when the boundary correction
+        # is asymmetric. The continuity equation also uses the boundary model's gradient.
+        boundary_corrections = (ShepardKernelCorrection(),
+                                AkinciFreeSurfaceCorrection(fluid_density),
                                 KernelCorrection())
 
         @testset "Boundary Model Correction `$(nameof(typeof(boundary_correction)))`" for boundary_correction in
@@ -669,25 +706,63 @@
             viscosity = ViscosityAdami(nu=0.1)
             velocity = (1.0, 0.5)
             density = 1005.0
-            fluid = create_fluid_system("WCSPH", velocity, density, viscosity)
-            structure = create_structure_system(TotalLagrangianSPHSystem, viscosity;
-                                                boundary_density=ContinuityDensity(),
-                                                boundary_correction)
-            pos_diff = SVector(1.5, 0.0)
-            grad_kernel_fluid = TrixiParticles.smoothing_kernel_grad_unsafe(fluid,
-                                                                            -pos_diff,
-                                                                            1.5, 1)
-            drho = TrixiParticles.add_continuity_equation(0.0, structure, fluid, 1, 1,
-                                                          pos_diff, 1.5, fluid.mass[1],
-                                                          fluid_density, density,
-                                                          SVector(0.0, 0.0),
-                                                          SVector(velocity),
-                                                          grad_kernel_fluid)
-            grad_kernel = TrixiParticles.smoothing_kernel_grad(structure.boundary_model,
-                                                               SVector(1.5, 0.0), 1.5, 1)
+
+            # Isolate the fluid contribution; complete structure neighborhoods are
+            # addressed separately in #1351.
+            volume_fluid = fluid_density * particle_spacing^2 / density
+            kernel_value = 5 / (112pi) # `W(1.5)`
+            coefficient = volume_fluid * kernel_value
+            prescribed_coefficient = 2.0
+            prescribed_dw_gamma = SVector(0.2, 0.0)
+
+            forces = map((nothing, boundary_correction)) do boundary_correction_
+                fluid_system = create_fluid_system("WCSPH", velocity, density, viscosity)
+                structure_system = create_structure_system(RigidBodySystem, viscosity;
+                                                           boundary_density=ContinuityDensity(),
+                                                           boundary_correction=boundary_correction_)
+                # Make sure that the correction values are computed
+                cache = structure_system.boundary_model.cache
+                for field in (:kernel_correction_coefficient, :dw_gamma)
+                    haskey(cache, field) && fill!(getproperty(cache, field), NaN)
+                end
+                (fluid, structure, arrays,
+                 semi,
+                 _) = initialize(fluid_system, structure_system;
+                                 interaction_matrix=[true true; true false])
+
+                if boundary_correction_ isa ShepardKernelCorrection
+                    @test structure.boundary_model.cache.kernel_correction_coefficient ≈
+                          [coefficient]
+                elseif boundary_correction_ isa KernelCorrection
+                    # Prescribe nonzero correction data to test continuity independently
+                    # of the single-neighbor normalization, whose gradient vanishes.
+                    structure.boundary_model.cache.kernel_correction_coefficient .= prescribed_coefficient
+                    structure.boundary_model.cache.dw_gamma .= prescribed_dw_gamma
+                end
+
+                return (pair_forces(fluid, structure, arrays, semi)..., fluid, structure)
+            end
+            force_fluid_uncorrected = forces[1][1]
+            (force_fluid, force_structure, dv_structure, fluid, structure) = forces[2]
+
+            # The boundary pressure is zero, so the continuity-density pressure operator
+            # retains only the fluid-gradient term in this fixture.
+            @test force_fluid == force_fluid_uncorrected
+            @test isapprox(force_structure, -force_fluid,
+                           rtol=sqrt(eps()), atol=sqrt(eps()))
+
+            # Gradient of the cubic spline kernel at the displacement `(1.5, 0)`
+            kernel_derivative = -0.75 * (2 - 1.5)^2 * 10 / (7pi)
+            grad_kernel_x = kernel_derivative
+            if boundary_correction isa KernelCorrection
+                # `(∇W - W γ) / c` using the prescribed correction data
+                grad_kernel_x = (kernel_derivative - kernel_value * prescribed_dw_gamma[1]) /
+                                prescribed_coefficient
+                @test !isapprox(grad_kernel_x, kernel_derivative, rtol=0.1)
+            end
             expected_density_rate = -fluid_density / density * fluid.mass[1] *
-                                    velocity[1] * grad_kernel[1]
-            @test drho ≈ expected_density_rate
+                                    velocity[1] * grad_kernel_x
+            @test dv_structure[end, 1] ≈ expected_density_rate
         end
 
         # TLSPH does not support `ContinuityDensity` boundaries yet. However, the continuity
@@ -724,6 +799,241 @@
             @test drho ≈ expected_density_rate
         end
 
+        @testset "Boundary kernel in pressure acceleration with corrected gradients" begin
+            coordinates = [0.0 1.5 2.4; 0.0 -1.0 1.2]
+            displacements = (SVector(1.5, 0.0), SVector(0.0, 1.0), SVector(-0.9, -1.2))
+            kernel_values = (5 / (112pi), 5 / (14pi), 5 / (112pi))
+            gradients = (SVector(-15 / (56pi), 0.0), SVector(0.0, -15 / (14pi)),
+                         SVector(9 / (56pi), 12 / (56pi)))
+            volume = fluid_density / 1005.0
+            # Only fluid neighbors contribute in this test; complete structure
+            # neighborhoods are addressed separately in #1351.
+            coefficient = volume * sum(kernel_values)
+            dw_gamma = volume * sum(gradients) / coefficient
+            normalized_gradients = map(gradients, kernel_values) do gradient, value
+                (gradient - value * dw_gamma) / coefficient
+            end
+
+            for structure_type in structure_types,
+                correction in (KernelCorrection(), GradientCorrection(),
+                 BlendedGradientCorrection(0.3), MixedKernelGradientCorrection())
+
+                kernel_correction = correction isa Union{KernelCorrection,
+                                          MixedKernelGradientCorrection}
+                boundary_gradients = kernel_correction ? normalized_gradients : gradients
+                moment = zeros(2, 2)
+                for (gradient, pos_diff) in zip(boundary_gradients, displacements)
+                    moment .-= volume * gradient * transpose(pos_diff)
+                end
+                boundary_matrix = inv(moment)
+
+                fluid_ic = InitialCondition(; coordinates, density=1005.0,
+                                            mass=fill(fluid_density, 3), particle_spacing)
+                fluid_system = WeaklyCompressibleSPHSystem(fluid_ic; smoothing_kernel,
+                                                           smoothing_length, state_equation,
+                                                           density_calculator=ContinuityDensity(),
+                                                           gradient_correction=correction)
+                # All three fluid neighbors are inside the compact support of the boundary
+                # model (2) and outside the compact support of the smoothing kernel of the
+                # `TotalLagrangianSPHSystem` (2 * 0.4).
+                structure_system = create_structure_system(structure_type, nothing;
+                                                           boundary_correction=correction,
+                                                           structure_smoothing_kernel=WendlandC2Kernel{2}(),
+                                                           structure_smoothing_length=0.4)
+                cache = structure_system.boundary_model.cache
+                cache.density .= 1005.0
+                if kernel_correction
+                    cache.kernel_correction_coefficient .= NaN
+                    cache.dw_gamma .= NaN
+                end
+                if haskey(cache, :correction_matrix)
+                    cache.correction_matrix .= NaN
+                end
+                fluid, structure, arrays, semi,
+                _ = initialize(fluid_system, structure_system;
+                               interaction_matrix=[true true; true false])
+
+                # Prescribe fluid correction data to isolate boundary initialization.
+                fluid_coefficient = 2.0
+                fluid_dw_gamma = SVector(0.2, -0.3)
+                fluid_matrix = [2.0 0.3; 0.4 1.5]
+                if kernel_correction
+                    fluid.cache.kernel_correction_coefficient .= fluid_coefficient
+                    fluid.cache.dw_gamma .= fluid_dw_gamma
+                end
+                if haskey(fluid.cache, :correction_matrix)
+                    for particle in eachparticle(fluid)
+                        fluid.cache.correction_matrix[:, :, particle] .= fluid_matrix
+                    end
+                end
+                force_fluid, force_structure = pair_forces(fluid, structure, arrays, semi)
+
+                # Independent pressure forces from the cubic-spline values above.
+                expected_forces = map(gradients, kernel_values,
+                                      boundary_gradients) do gradient,
+                                                             value,
+                                                             boundary_gradient
+                    fluid_gradient = kernel_correction ?
+                                     (-gradient - value * fluid_dw_gamma) /
+                                     fluid_coefficient : -gradient
+                    if correction isa Union{GradientCorrection,
+                             MixedKernelGradientCorrection}
+                        fluid_gradient = fluid_matrix * fluid_gradient
+                        boundary_gradient = boundary_matrix * boundary_gradient
+                    elseif correction isa BlendedGradientCorrection
+                        lambda = correction.blending_factor
+                        fluid_gradient = (1 - lambda) * fluid_gradient +
+                                         lambda * fluid_matrix * fluid_gradient
+                        boundary_gradient = (1 - lambda) * boundary_gradient +
+                                            lambda * boundary_matrix * boundary_gradient
+                    end
+                    500.0 * volume^2 * (boundary_gradient - fluid_gradient)
+                end
+                @test force_fluid ≈ first(expected_forces)
+                @test force_structure ≈ -sum(expected_forces)
+
+                # The kernel gradient of the boundary model vanishes outside of its compact
+                # support (2), which is larger than the one of the TLSPH kernel (0.8).
+                @test iszero(TrixiParticles.smoothing_kernel_grad(structure.boundary_model,
+                                                                  SVector(2.5, 0.0), 2.5,
+                                                                  1))
+            end
+        end
+
+        @testset "Coincident FSI pressure with boundary correction" begin
+            volume = fluid_density / 1005.0
+            kernel_zero = 10 / (7pi)
+            coefficient = 2.0
+            dw_gamma = SVector(-0.5, -0.5)
+            boundary_gradient = -kernel_zero * dw_gamma / coefficient
+            # Cover WCSPH and EDAC, no correction and the corrections whose kernel gradient
+            # vanishes at zero distance (`GradientCorrection` and `BlendedGradientCorrection`),
+            # and the average pressure reduction, which removes the pressure of a single
+            # fluid particle.
+            # Coincident pairs isolate the boundary correction because these local fluid
+            # gradients vanish, including when the fluid itself has no correction.
+            near_zero_configurations = (("WCSPH", GradientCorrection()),
+                                        ("EDAC", BlendedGradientCorrection(0.3)),
+                                        ("WCSPH", nothing),
+                                        ("EDAC with average pressure reduction",
+                                         GradientCorrection()))
+            distances = (0.0, TrixiParticles.almostzero(smoothing_length) / 2)
+
+            for structure_type in structure_types,
+                config in near_zero_configurations,
+                distance in distances
+                scheme, correction = config
+                fluid_coordinates = reshape([1.5 + distance, 0.0], 2, 1)
+                fluid_system = create_fluid_system(scheme, (1.0, -0.5), 1005.0, nothing;
+                                                   correction,
+                                                   coordinates=fluid_coordinates)
+                structure_system = create_structure_system(structure_type, nothing;
+                                                           boundary_correction=KernelCorrection())
+                fluid, structure, arrays, semi,
+                _ = initialize(fluid_system, structure_system)
+
+                # Cache assembly is covered above; prescribe a nonzero boundary gradient
+                # here to isolate the coincident-pair pressure and safe fluid gradient.
+                structure.boundary_model.cache.kernel_correction_coefficient .= coefficient
+                structure.boundary_model.cache.dw_gamma .= dw_gamma
+                (force_fluid, force_structure,
+                 _) = pair_forces(fluid, structure, arrays, semi)
+
+                pressure = scheme == "EDAC with average pressure reduction" ? 0.0 : 500.0
+                expected = pressure * volume^2 * boundary_gradient
+                @test isapprox(force_fluid, expected, atol=sqrt(eps()))
+                @test isapprox(force_structure, -expected, atol=sqrt(eps()))
+            end
+        end
+
+        # The kernel gradient of `KernelCorrection` does not vanish for particles at the same
+        # position. The continuity equation of the boundary particles must therefore be
+        # continuous when a fluid particle approaches a boundary particle, even if the
+        # correction of the fluid alone would skip pairs at the same position.
+        @testset "Boundary continuity near coincident particles" begin
+            velocity = SVector(1.0, -0.5)
+            density = 1005.0
+            fluid_mass = fluid_density * particle_spacing^2
+            coefficient = 2.0
+            dw_gamma = SVector(-0.5, -0.5)
+            # `(∇W(0) - W(0) γ) / c`
+            grad_kernel = -10 / (7pi) * dw_gamma / coefficient
+            # The density of the boundary particle is the initial density `fluid_density`
+            expected_density_rate = -fluid_density / density * fluid_mass *
+                                    dot(velocity, grad_kernel)
+            almostzero = TrixiParticles.almostzero(smoothing_length)
+
+            for correction in (nothing, GradientCorrection()),
+                distance in (0.0, almostzero / 2, 10 * almostzero)
+                fluid_coordinates = reshape([1.5 + distance, 0.0], 2, 1)
+                fluid_system = create_fluid_system("WCSPH", velocity, density, nothing;
+                                                   correction,
+                                                   coordinates=fluid_coordinates)
+                structure_system = create_structure_system(RigidBodySystem, nothing;
+                                                           boundary_density=ContinuityDensity(),
+                                                           boundary_correction=KernelCorrection())
+                fluid, structure, arrays, semi,
+                _ = initialize(fluid_system,
+                               structure_system)
+
+                # Prescribe a nonzero boundary gradient at zero distance
+                structure.boundary_model.cache.kernel_correction_coefficient .= coefficient
+                structure.boundary_model.cache.dw_gamma .= dw_gamma
+                _, _, dv_structure = pair_forces(fluid, structure, arrays, semi)
+
+                @test isapprox(dv_structure[end, 1], expected_density_rate, rtol=1e-5)
+            end
+        end
+
+        @testset "Boundary kernel in corrected pressure and TVF" begin
+            for structure_type in structure_types,
+                correction in (KernelCorrection(), MixedKernelGradientCorrection()),
+                shifting_technique in (nothing,
+                 TransportVelocityAdami(background_pressure=1000.0))
+
+                fluid_system = create_fluid_system("WCSPH", (1.0, 0.5), 1005.0, nothing;
+                                                   correction, shifting_technique)
+                # The boundary model's kernel and the fluid kernel have compact support 2.0.
+                # For TLSPH, r=1.5 lies outside the self-interaction kernel's support of 2*0.4.
+                structure_system = create_structure_system(structure_type, nothing;
+                                                           boundary_density=PressureMirroring(),
+                                                           structure_smoothing_kernel=WendlandC2Kernel{2}(),
+                                                           structure_smoothing_length=0.4)
+                fluid, structure, arrays, semi,
+                _ = initialize(fluid_system, structure_system)
+                if !isnothing(shifting_technique)
+                    shifting_velocity = TrixiParticles.delta_v(fluid, 1)
+                    fluid.cache.delta_v .= [0.4, -0.3]
+                end
+                force_fluid, force_structure = pair_forces(fluid, structure, arrays, semi)
+                # Independent cubic-spline gradients, including the fluid's kernel
+                # correction. The collinear gradient-correction matrix is the identity.
+                grad_s = SVector(-15 / (56pi), 0.0)
+                gamma_f = fluid_density / 1005.0 * 10 / (7pi) + 5 / (112pi)
+                dw_gamma_f = -grad_s / gamma_f
+                grad_f = (-grad_s - 5 / (112pi) * dw_gamma_f) / gamma_f
+                expected = 500.0 * fluid_density / 1005.0 * (grad_f - grad_s)
+                # The structure remains at rest, so only the fluid's TVF tensor contributes.
+                tensor_force = isnothing(shifting_technique) ? zero(grad_f) :
+                               -fluid.mass[1] * SVector(1.0, 0.5) *
+                               dot(SVector(0.4, -0.3), grad_f)
+                @test force_structure ≈ expected
+                @test force_fluid ≈ -expected + tensor_force
+
+                if !isnothing(shifting_technique)
+                    # Unit pressures use both hydrodynamic gradients in the background
+                    # operator, including the boundary gradient outside elastic support.
+                    expected_shift = -1000.0 / (8 * sound_speed * 1005.0) *
+                                     (grad_f - grad_s)
+                    @test shifting_velocity ≈ expected_shift
+                end
+
+                # The boundary model's kernel and fluid kernel must have equal compact support.
+                structure = TrixiParticles.@set structure.boundary_model.smoothing_length = 0.5
+                @test_throws ArgumentError Semidiscretization(fluid, structure)
+            end
+        end
+
         # The extra terms of the shifting techniques in the momentum equation act on the
         # fluid, but must not be applied to the structure.
         shifting_techniques = (ParticleShiftingTechnique(),
@@ -754,6 +1064,199 @@
 
                 # The shifting terms must not be applied to the structure.
                 @test force_structure_shifting == force_structure
+            end
+        end
+
+        @testset "Physical loads and shifting transport" begin
+            # Zero pressures and no viscosity isolate the prescribed transport term.
+            # Unequal hydrodynamic masses and densities distinguish the EDAC TVF factor
+            # from WCSPH. Pressure mirroring keeps the boundary pressure at zero.
+            for scheme in ("WCSPH", "EDAC"), structure_type in structure_types,
+                shifting_technique in
+                (ConsistentShiftingSun2019(),
+                 TransportVelocityAdami(background_pressure=1000.0))
+
+                fluid_system = create_fluid_system(scheme, (1.0, 0.5), fluid_density,
+                                                   nothing; shifting_technique, mass=1100.0)
+                structure_system = create_structure_system(structure_type, nothing;
+                                                           boundary_density=PressureMirroring(),
+                                                           hydrodynamic_mass=[700.0],
+                                                           hydrodynamic_density=[950.0])
+                fluid, structure, arrays, semi,
+                _ = initialize(fluid_system, structure_system)
+                v_fluid, _, _, _ = arrays
+
+                for scale in (1.0, 7.0)
+                    fluid.cache.delta_v[:, 1] .= scale .* [0.4, -0.3]
+                    force_fluid,
+                    force_structure = pair_forces(fluid, structure, arrays,
+                                                  semi)
+                    # The structure is at rest, so only the fluid's transport tensor
+                    # contributes. Sun gives 2m_s/rho_s, WCSPH TVF gives -m_s/rho_s,
+                    # and EDAC TVF gives -(V_f^2+V_s^2)/m_f * rho_f*rho_s/(rho_f+rho_s).
+                    factor = if shifting_technique isa ParticleShiftingTechnique
+                        2 * 700.0 / 950.0
+                    elseif scheme == "WCSPH"
+                        -700.0 / 950.0
+                    else
+                        -((1100.0 / fluid_density)^2 + (700.0 / 950.0)^2) / 1100.0 *
+                        fluid_density * 950.0 / (fluid_density + 950.0)
+                    end
+                    expected = fluid.mass[1] * factor * v_fluid[1:2, 1] *
+                               dot(scale .* [0.4, -0.3], [15 / (56pi), 0.0])
+                    @test force_fluid ≈ expected
+                    @test iszero(force_structure)
+                end
+            end
+        end
+
+        @testset "3D forces and rigid torque" begin
+            # Noncollinear points and unequal particle weights exercise all force/torque
+            # components. Both backends must preserve the physical pair balance.
+            for scheme in ("WCSPH", "EDAC"), structure_type in structure_types,
+                parallelization_backend in (SerialBackend(), PolyesterBackend())
+                viscosity = ViscosityAdami(nu=0.1)
+                fluid_system = create_fluid_system(scheme, (1.0, 0.5, 0.7), 1005.0,
+                                                   viscosity; dimensions=3, mass=1100.0,
+                                                   shifting_technique=ConsistentShiftingSun2019())
+                structure_system = create_structure_system(structure_type, viscosity;
+                                                           dimensions=3,
+                                                           coordinates=[1.2 1.4 1.6;
+                                                                        -0.4 0.5 0.1;
+                                                                        0.2 -0.3 0.6],
+                                                           velocity=repeat(reshape([0.25,
+                                                                                       -0.4,
+                                                                                       0.2],
+                                                                                   3, 1),
+                                                                           1, 3),
+                                                           mass=[2100.0, 2400.0, 2700.0],
+                                                           hydrodynamic_mass=[700.0, 750.0,
+                                                               800.0])
+                fluid, structure, arrays, semi,
+                ode = initialize(fluid_system, structure_system; parallelization_backend)
+                v_fluid, u_fluid, v_structure, u_structure = arrays
+
+                # Isolate physical acceleration, then restore a prescribed shift before
+                # the structural RHS. Transport must not contribute to structural loads.
+                fluid.cache.delta_v .= 0
+                dv_fluid = zero(v_fluid)
+                TrixiParticles.interact!(dv_fluid, v_fluid, u_fluid, v_structure,
+                                         u_structure, fluid, structure, semi)
+                fluid.cache.delta_v[:, 1] .= [0.4, -0.3, 0.2]
+                dv_structure = zero(v_structure)
+                TrixiParticles.reset_interaction_caches!(structure)
+                TrixiParticles.interact!(dv_structure, v_structure, u_structure, v_fluid,
+                                         u_fluid, structure, fluid, semi)
+                forces = structure isa RigidBodySystem ?
+                         copy(structure.force_per_particle) :
+                         dv_structure[1:3, :] .* reshape(structure.mass, 1, :)
+                @test vec(sum(forces; dims=2)) ≈ -fluid.mass[1] * dv_fluid[1:3, 1]
+
+                if structure isa RigidBodySystem
+                    TrixiParticles.update_final!(structure, v_structure, u_structure,
+                                                 ode.u0.x[1], ode.u0.x[2], semi, 0.0)
+                    # Independently sum world-space lever-arm cross force about the
+                    # material center of mass. Asymmetric geometry gives nonzero torque.
+                    expected_torque = sum(cross(u_structure[:, i] -
+                                                structure.center_of_mass[], forces[:, i])
+                                          for i in eachparticle(structure))
+                    TrixiParticles.apply_resultant_force_and_torque!(dv_structure,
+                                                                     structure, semi)
+                    @test structure.resultant_force[] ≈ vec(sum(forces; dims=2))
+                    @test structure.resultant_torque[] ≈ expected_torque
+                end
+            end
+        end
+
+        @testset "Additional boundary viscosity models" begin
+            # Distinct fluid/boundary models expose incorrect viscosity dispatch.
+            # Zero pressure isolates viscous drag, including SGS and shear dependence.
+            for scheme in ("WCSPH", "EDAC"), structure_type in structure_types,
+                boundary_viscosity in
+                (ViscosityAdamiSGS(nu=0.1), ViscosityMorrisSGS(nu=0.1),
+                 ViscosityCarreauYasuda(nu0=0.1, nu_inf=0.01, lambda=1.0, a=2.0, n=0.5))
+
+                fluid_system = create_fluid_system(scheme, (1.0, 0.5), fluid_density,
+                                                   ViscosityAdami(nu=0.4))
+                structure_system = create_structure_system(structure_type,
+                                                           boundary_viscosity)
+                fluid, structure, arrays, semi,
+                _ = initialize(fluid_system, structure_system)
+                force_fluid, force_structure = pair_forces(fluid, structure, arrays, semi)
+                @test force_structure ≈ -force_fluid
+                # Conservation alone would not catch both sides having the wrong sign.
+                @test force_structure[1] > 0
+            end
+        end
+
+        @testset "TVF and Monaghan-Kajtar repulsion" begin
+            tvf = TransportVelocityAdami(background_pressure=1000.0)
+            # Substitute K=10, beta=1, spacing=1, r=1.5, h=1 in the MK force:
+            # the direction is -x, 1/(r-spacing)=1/0.5, and (2-r/h)^5=0.5^5.
+            repulsion = SVector(-10.0 / 0.5 * (1.77 / 32) *
+                                (1 + 2.5 * 1.5 + 2 * 1.5^2) * 0.5^5, 0.0)
+            grad_f = SVector(15 / (56pi), 0.0)
+
+            for (scheme, structure_type) in (("WCSPH", TotalLagrangianSPHSystem),
+                 ("WCSPH", WallBoundarySystem), ("EDAC", TotalLagrangianSPHSystem))
+                fluid_system = create_fluid_system(scheme, (1.0, 0.5), 1005.0, nothing;
+                                                   shifting_technique=tvf)
+                structure_system = create_structure_system(structure_type, nothing;
+                                                           monaghan_kajtar=true)
+                fluid, structure, arrays, semi,
+                ode = initialize(fluid_system, structure_system)
+                v_fluid, u_fluid, v_structure, u_structure = arrays
+
+                # A zero transport velocity gives zero TVF tensors. Only the physical
+                # repulsion remains; the old boundary dispatch applied it twice.
+                fluid.cache.delta_v .= 0
+                dv_fluid = zero(v_fluid)
+                TrixiParticles.interact!(dv_fluid, v_fluid, u_fluid, v_structure,
+                                         u_structure, fluid, structure, semi)
+                @test dv_fluid[1:2, 1] ≈ repulsion
+
+                TrixiParticles.update_shifting!(fluid, tvf, v_fluid, u_fluid,
+                                                ode.u0.x[1], ode.u0.x[2], semi)
+                # MK gives rho_s=m_s=1000, so V_s=1. Unit pressures select the
+                # background-pressure operator instead of the physical repulsion.
+                # C=2*m_s/(rho_f*rho_s) for WCSPH and (V_f^2+V_s^2)/m_f for EDAC.
+                volume_term = ((1000.0 / 1005.0)^2 + 1.0) / 1000.0
+                expected_shift = -1000.0 / (8 * sound_speed) *
+                                 (scheme == "WCSPH" ? 2 / 1005.0 : volume_term) * grad_f
+                @test TrixiParticles.delta_v(fluid, 1) ≈ expected_shift
+
+                if structure_type === TotalLagrangianSPHSystem
+                    # The nonzero transport velocity must not alter the physical
+                    # structural load, F_s=-m_f*a_f^physical.
+                    _, force_structure = pair_forces(fluid, structure, arrays, semi)
+                    @test force_structure ≈ -fluid.mass[1] * repulsion
+                end
+            end
+
+            @testset "Corrected transport operator does not use an elastic kernel" begin
+                fluid_system = create_fluid_system("WCSPH", (1.0, 0.5), 1005.0, nothing;
+                                                   correction=KernelCorrection(),
+                                                   shifting_technique=tvf)
+                structure_system = create_structure_system(TotalLagrangianSPHSystem,
+                                                           nothing;
+                                                           monaghan_kajtar=true,
+                                                           structure_smoothing_kernel=WendlandC2Kernel{2}(),
+                                                           structure_smoothing_length=0.4)
+                fluid, structure, arrays, semi,
+                _ = initialize(fluid_system, structure_system)
+                fluid.cache.delta_v .= [0.4, -0.3]
+
+                # Independently evaluate the corrected fluid gradient from its updated
+                # single-pair neighborhood. The MK particle has no hydrodynamic kernel,
+                # and r=1.5 is outside the elastic kernel's support of 2*0.4.
+                gamma_f = fluid_density / 1005.0 * 10 / (7pi) + 5 / (112pi)
+                dw_gamma_f = grad_f / gamma_f
+                grad_corrected = (grad_f - 5 / (112pi) * dw_gamma_f) / gamma_f
+                tensor_force = -fluid.mass[1] * SVector(1.0, 0.5) *
+                               dot(SVector(0.4, -0.3), grad_corrected)
+                force_fluid, force_structure = pair_forces(fluid, structure, arrays, semi)
+                @test force_fluid ≈ fluid.mass[1] * repulsion + tensor_force
+                @test force_structure ≈ -fluid.mass[1] * repulsion
             end
         end
     end
