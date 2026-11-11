@@ -211,6 +211,12 @@ Pages = [joinpath("schemes", "fluid", "viscosity.jl")]
 
 ## [Corrections](@id corrections)
 
+For fluid-structure interaction with a [`TotalLagrangianSPHSystem`](@ref) or a
+[`RigidBodySystem`](@ref), the structure's [`BoundaryModelDummyParticles`](@ref) may use
+`correction=nothing` or the same correction as every fluid system, including its parameters.
+See [Boundary Corrections](@ref boundary_corrections) for how the fluid and boundary
+gradients enter the pressure acceleration.
+
 ```@autodocs
 Modules = [TrixiParticles]
 Pages = [joinpath("general", "corrections.jl")]

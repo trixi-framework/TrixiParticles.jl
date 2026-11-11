@@ -20,6 +20,8 @@ torque and applied consistently to all rigid particles.
 # Keywords
 - `boundary_model`: Boundary model for fluid-structure interaction
                     (see [Boundary Models](@ref boundary_models)).
+                    For [`BoundaryModelDummyParticles`](@ref), `correction` must be `nothing`
+                    or match the correction of every fluid system, including its parameters.
 - `contact_model`: Optional rigid contact model.
                    If specified, rigid-wall and rigid-rigid collisions are enabled.
 - `acceleration`: Global acceleration vector applied to all rigid particles.
@@ -630,7 +632,7 @@ function check_configuration(system::RigidBodySystem, systems, nhs)
                                 "when simulating a fluid-structure interaction."))
         end
 
-        check_smoothing_kernel_fsi(system, boundary_model, neighbor)
+        check_boundary_model_fsi(system, boundary_model, neighbor)
 
         if neighbor isa AbstractFluidSystem &&
            neighbor.surface_normal_method isa ColorfieldSurfaceNormal

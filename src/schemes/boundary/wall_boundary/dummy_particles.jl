@@ -24,10 +24,14 @@ Boundary model for [`WallBoundarySystem`](@ref).
 # Keywords
 - `state_equation`:             This should be the same as for the adjacent fluid system
                                 (see e.g. [`StateEquationCole`](@ref)).
-- `correction`:                 Correction method of the adjacent fluid system (see [Corrections](@ref corrections)).
+- `correction`:                 Correction method at the boundary particles (default: `nothing`,
+                                see [Corrections](@ref corrections)).
                                 It determines the kernel gradient at the boundary particles when the fluid
                                 uses a correction with an asymmetric kernel gradient
                                 (see [Corrections](@ref boundary_corrections)).
+                                For a [`TotalLagrangianSPHSystem`](@ref) or a [`RigidBodySystem`](@ref),
+                                it must be `nothing` or match the correction of all fluid systems,
+                                including its parameters.
 - `viscosity`:                  Slip (default) or no-slip condition. See description below for further
                                 information.
 - `clip_negative_pressure=false`: Clip negative boundary pressures to avoid sticking
@@ -451,18 +455,19 @@ function compute_correction_values!(boundary_model::BoundaryModelDummyParticles,
                                     ::ShepardKernelCorrection, u, v_ode, u_ode, semi)
     (; cache) = boundary_model
     return compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode,
-                                  semi, cache.kernel_correction_coefficient, boundary_model)
+                                  semi, cache.kernel_correction_coefficient;
+                                  kernel_data=boundary_model)
 end
 
 function compute_correction_values!(boundary_model::BoundaryModelDummyParticles, system,
                                     correction::Union{KernelCorrection,
                                                       MixedKernelGradientCorrection}, u,
                                     v_ode, u_ode, semi)
-    (; cache, smoothing_kernel) = boundary_model
+    (; cache) = boundary_model
     return compute_correction_values!(system, correction, current_coordinates(u, system),
                                       v_ode, u_ode, semi,
                                       cache.kernel_correction_coefficient,
-                                      cache.dw_gamma, smoothing_kernel, boundary_model)
+                                      cache.dw_gamma; kernel_data=boundary_model)
 end
 
 function kernel_correct_density!(boundary_model, v, u, v_ode, u_ode, semi,
@@ -485,14 +490,14 @@ function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
                                                          MixedKernelGradientCorrection},
                                              boundary_model,
                                              system, u, v_ode, u_ode, semi)
-    (; cache, correction, smoothing_kernel) = boundary_model
+    (; cache, correction) = boundary_model
     (; correction_matrix) = cache
 
     system_coords = current_coordinates(u, system)
 
     compute_gradient_correction_matrix!(correction_matrix, system, system_coords,
-                                        v_ode, u_ode, semi, correction, smoothing_kernel,
-                                        boundary_model)
+                                        v_ode, u_ode, semi, correction;
+                                        kernel_data=boundary_model)
 end
 
 function compute_density!(boundary_model, ::SummationDensity, system, v, u, v_ode, u_ode,

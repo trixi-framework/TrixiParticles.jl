@@ -62,6 +62,9 @@ are only used for the solid mechanics of the structure.
 The interaction with fluids is determined by the `boundary_model`, which has its own
 smoothing kernel, smoothing length and correction
 (see [Boundary Models](@ref boundary_models)).
+When using [`BoundaryModelDummyParticles`](@ref), its smoothing kernel and smoothing length
+must match those of every fluid system. Its `correction` must be `nothing` or match the fluid
+correction, including its parameters (see [Boundary Corrections](@ref boundary_corrections)).
 
 ```@autodocs
 Modules = [TrixiParticles]
