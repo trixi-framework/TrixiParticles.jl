@@ -120,14 +120,6 @@ function compute_correction_values!(system, correction, u, v_ode, u_ode, semi)
     return system
 end
 
-@inline function get_correction_neighborhood_search(kernel_data, system, neighbor, semi)
-    return get_neighborhood_search(system, neighbor, semi)
-end
-
-@inline function has_correction_interaction(system, neighbor, semi)
-    return has_system_interaction(system, neighbor, semi)
-end
-
 function compute_correction_values!(system, ::ShepardKernelCorrection, u, v_ode, u_ode,
                                     semi)
     return compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode,
@@ -147,14 +139,14 @@ function compute_shepard_coeff!(system, system_coords, v_ode, u_ode, semi,
         foreach_system_wrapped(semi, v_ode,
                                u_ode) do neighbor_system, v_neighbor_system,
                                          u_neighbor_system
-            if !has_correction_interaction(system, neighbor_system, semi)
-                # No hydrodynamic correction contribution from this system.
+            if !has_hydrodynamic_interaction(system, neighbor_system, semi)
+                # No hydrodynamic contribution from this system.
                 return
             end
 
             neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
-            neighborhood_search = get_correction_neighborhood_search(kernel_data, system,
-                                                                     neighbor_system, semi)
+            neighborhood_search = get_summation_neighborhood_search(kernel_data, system,
+                                                                    neighbor_system, semi)
 
             # Loop over all pairs of particles and neighbors within the kernel cutoff
             foreach_point_neighbor(system_coords, neighbor_coords, neighborhood_search;
@@ -212,15 +204,15 @@ function compute_correction_values!(system,
         foreach_system_wrapped(semi, v_ode,
                                u_ode) do neighbor_system, v_neighbor_system,
                                          u_neighbor_system
-            if !has_correction_interaction(system, neighbor_system, semi)
-                # No hydrodynamic correction contribution from this system.
+            if !has_hydrodynamic_interaction(system, neighbor_system, semi)
+                # No hydrodynamic contribution from this system.
                 return
             end
 
             neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-            neighborhood_search = get_correction_neighborhood_search(kernel_data, system,
-                                                                     neighbor_system, semi)
+            neighborhood_search = get_summation_neighborhood_search(kernel_data, system,
+                                                                    neighbor_system, semi)
 
             # Loop over all pairs of particles and neighbors within the kernel cutoff
             foreach_point_neighbor(system_coords, neighbor_coords, neighborhood_search;
@@ -377,14 +369,14 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
         foreach_system_wrapped(semi, v_ode,
                                u_ode) do neighbor_system, v_neighbor_system,
                                          u_neighbor_system
-            if !has_correction_interaction(system, neighbor_system, semi)
-                # No hydrodynamic correction contribution from this system.
+            if !has_hydrodynamic_interaction(system, neighbor_system, semi)
+                # No hydrodynamic contribution from this system.
                 return
             end
 
             neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
-            neighborhood_search = get_correction_neighborhood_search(kernel_data, system,
-                                                                     neighbor_system, semi)
+            neighborhood_search = get_summation_neighborhood_search(kernel_data, system,
+                                                                    neighbor_system, semi)
 
             foreach_point_neighbor(coordinates, neighbor_coords, neighborhood_search;
                                    points=eachparticle(system),
