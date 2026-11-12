@@ -18,7 +18,9 @@ function interact!(dv, v_particle_system, u_particle_system,
 
     h = initial_smoothing_length(particle_system)
 
-    @threaded semi for particle in eachparticle
+    # Loop over all particles. `neighbors` is used below to loop over all neighbors.
+    foreach_point(system_coords, neighbor_system_coords, neighborhood_search, backend;
+                  points=eachparticle) do particle, neighbors
         # We are looping over the particles of `particle_system`, so it is guaranteed
         # that `particle` is in bounds of `particle_system`.
         m_a = @inbounds hydrodynamic_mass(particle_system, particle)
@@ -40,12 +42,9 @@ function interact!(dv, v_particle_system, u_particle_system,
         # Make sure that the returned names `dv_particle_` and `drho_particle_`
         # are not used inside the closure to avoid allocations.
         (dv_particle_,
-         drho_particle_) = @inbounds mapreduce_neighbor(dv_drho_sum, system_coords,
-                                                        neighbor_system_coords,
-                                                        neighborhood_search,
-                                                        backend, particle;
-                                                        init) do particle, neighbor,
-                                                                 pos_diff, distance
+         drho_particle_) = mapreduce_neighbor(dv_drho_sum, neighbors;
+                                              init) do particle, neighbor,
+                                                       pos_diff, distance
             # Skip neighbors with (almost) the same position because the kernel gradient
             # is zero, but computing it would divide by zero (see `almostzero`).
             # Note that `return` only exits the closure, i.e., skips the current neighbor.
@@ -58,7 +57,7 @@ function interact!(dv, v_particle_system, u_particle_system,
             grad_kernel = smoothing_kernel_grad_unsafe(particle_system, pos_diff,
                                                        distance, particle)
 
-            # `foreach_neighbor` makes sure that `neighbor` is in bounds of `neighbor_system`
+            # `neighbor` is guaranteed to be in bounds of `neighbor_system`
             m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
             v_b = @inbounds current_velocity(v_neighbor_system, neighbor_system, neighbor)
             rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)

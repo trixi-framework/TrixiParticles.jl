@@ -50,6 +50,29 @@ function deactivate_out_of_bounds_particles!(system, ::SystemBuffer, nhs,
     return system
 end
 
+# Loop over all particles in `points` and call `f(particle, neighbors)`, where `neighbors`
+# can be passed to `mapreduce_neighbor(f, op, neighbors; init)` to loop over all neighbors
+# of `particle` within the search radius.
+@inline function foreach_point(f, system_coords, neighbor_coords, neighborhood_search,
+                               backend; points)
+    PointNeighbors.foreach_point(f, system_coords, neighbor_coords, neighborhood_search;
+                                 points, parallelization_backend=backend)
+end
+
+@inline function foreach_point(f, system_coords, neighbor_coords, neighborhood_search,
+                               backend::KernelAbstractions.GPU; points)
+    # On GPUs, remove all bounds checks for maximum performance.
+    # Note that this is not safe if the neighborhood search was not initialized correctly.
+    # For example, this is unsafe when benchmarking `interact!` with the wrong NHS.
+    PointNeighbors.foreach_point_unsafe(f, system_coords, neighbor_coords,
+                                        neighborhood_search;
+                                        points, parallelization_backend=backend)
+end
+
+@inline function mapreduce_neighbor(f, op, neighbors; init)
+    PointNeighbors.mapreduce_neighbor(f, op, neighbors; init)
+end
+
 @propagate_inbounds function foreach_neighbor(f, system_coords, neighbor_coords,
                                               neighborhood_search, backend, particle)
     PointNeighbors.foreach_neighbor(f, system_coords, neighbor_coords,
