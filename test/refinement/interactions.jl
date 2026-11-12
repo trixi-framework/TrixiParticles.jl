@@ -192,7 +192,10 @@
         @testset "Search Radius" begin
             fluid_system, boundary_system = create_systems(ContinuityDensity())
 
-            @test TrixiParticles.compact_support(boundary_system, fluid_system) ≈ 0.24
+            # The compact support of the largest fluid smoothing length, which is
+            # 1.2 times the spacing of `max_mass_factor` times the mass at `max_spacing`
+            @test TrixiParticles.compact_support(boundary_system, fluid_system) ≈
+                  2 * 1.2 * sqrt(1.05) * 0.1
 
             # Without variable smoothing lengths, the search radius is unchanged
             constant_system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,

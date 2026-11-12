@@ -14,6 +14,10 @@ requires_update_callback(::AbstractShiftingTechnique) = false
 # This is called from the `UpdateCallback`
 particle_shifting_from_callback!(u_ode, shifting, system, v_ode, semi, integrator) = u_ode
 
+# Update the shifting velocity that is only computed in the `UpdateCallback`,
+# without shifting the particles. This is also called from the `ParticleRefinementCallback`.
+update_shifting_from_callback!(system, shifting, v_ode, u_ode, semi) = system
+
 create_cache_shifting(initial_condition, ::Nothing) = (;)
 
 # `delta_v` is stored as a flat vector with `ndims` entries per particle

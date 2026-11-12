@@ -141,10 +141,15 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     # with this set to false.
     integrate_tlsph = Ref(true)
 
-    return Semidiscretization(systems, ranges_u, ranges_v, neighborhood_search_handler,
+    semi = Semidiscretization(systems, ranges_u, ranges_v, neighborhood_search_handler,
                               interaction_matrix,
                               parallelization_backend, update_callback_used,
                               integrate_tlsph)
+
+    # This needs the neighborhood searches, so it cannot be done in `check_configuration`
+    check_refinement_search_radii(semi)
+
+    return semi
 end
 
 # Compute the size of the variables of each system

@@ -100,6 +100,33 @@ end
     return compact_support(smoothing_kernel, initial_smoothing_length(system))
 end
 
+@inline compact_support(system::AbstractFluidSystem,
+                        neighbor) = search_compact_support(system)
+
+@inline function compact_support(system::AbstractFluidSystem,
+                                 neighbor::AbstractFluidSystem)
+    compact_support_ = search_compact_support(system)
+
+    # Fluid-fluid pairs with variable smoothing lengths interact within the compact support
+    # of the larger smoothing length (see `pair_in_support`). So a fluid must find all
+    # particles of a refined fluid within their largest compact support.
+    has_variable_smoothing_length(neighbor) || return compact_support_
+
+    # Don't call `compact_support(neighbor, system)` here, which would call this function
+    # again when both fluids have variable smoothing lengths.
+    return max(compact_support_, search_compact_support(neighbor))
+end
+
+# The compact support of a fluid without its neighbors.
+# With particle refinement, this is the compact support of the largest smoothing length
+# a particle can have, since the search radius is never changed after
+# the neighborhood search is created.
+@inline function search_compact_support(system::AbstractFluidSystem)
+    (; smoothing_kernel) = system
+
+    return compact_support(smoothing_kernel, search_smoothing_length(system))
+end
+
 # -- Open boundary systems
 @inline function compact_support(system::OpenBoundarySystem,
                                  neighbor::OpenBoundarySystem)
