@@ -274,8 +274,11 @@ end
 # kernel gradient of `particle` and no `beta` (`EDACEquationSolids2`).
 # The damping term of `inter_particle_averaged_pressure` (`EDACEquation` and
 # `EDACEquationSolids`) has no `beta` for any neighbor.
-@inline function damping_kernel_grad_and_beta(::AbstractFluidSystem, grad_kernel,
-                                              grad_kernel_a, beta_a)
+# Open boundary particles are fluid neighbors, as in the code of Haftu et al.
+# (`fluids_with_io`).
+@inline function damping_kernel_grad_and_beta(::Union{AbstractFluidSystem,
+                                                      OpenBoundarySystem},
+                                              grad_kernel, grad_kernel_a, beta_a)
     return grad_kernel, beta_a
 end
 

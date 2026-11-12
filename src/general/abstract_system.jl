@@ -193,7 +193,8 @@ end
 
 @inline get_refinement(system::AbstractSystem) = nothing
 
-# Whether the system stores one smoothing length per particle
+# Whether the system stores one smoothing length per particle.
+# This is independent of whether the system itself has a refinement (`get_refinement`).
 @inline has_variable_smoothing_length(system) = false
 
 @inline function has_variable_smoothing_length(system, neighbor_system)
@@ -229,6 +230,21 @@ end
 
 @inline function set_particle_smoothing_length!(system, ::Val{true}, particle, h)
     smoothing_length(system)[particle] = h
+
+    return system
+end
+
+# Particle masses are only allowed to change when using refinement.
+# Otherwise, they are constant and don't need to be restored when restarting a simulation.
+@inline function set_variable_particle_mass!(system, particle, mass)
+    set_variable_particle_mass!(system, Val(has_variable_smoothing_length(system)),
+                                particle, mass)
+end
+
+@inline set_variable_particle_mass!(system, ::Val{false}, particle, mass) = system
+
+@inline function set_variable_particle_mass!(system, ::Val{true}, particle, mass)
+    set_particle_mass!(system, particle, mass)
 
     return system
 end

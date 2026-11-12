@@ -337,4 +337,32 @@
                                                                                                        ])
         end
     end
+
+    @testset verbose=true "Shifting and Open Boundary" begin
+        # With shifting, the zone must be at least two compact supports wide
+        fluid_system = edac(tank.fluid; particle_refinement=refinement, buffer_size=4,
+                            shifting_technique=ParticleShiftingTechnique())
+        boundary_zone = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, 0.5]),
+                                     face_normal=[1.0, 0.0], boundary_type=InFlow(),
+                                     open_boundary_layers=5, density=reference_density,
+                                     particle_spacing)
+        open_boundary = OpenBoundarySystem(boundary_zone; fluid_system, buffer_size=4,
+                                           boundary_model=BoundaryModelDynamicalPressureZhang())
+
+        v_ode, u_ode, p = semidiscretize_systems(fluid_system, open_boundary)
+        fluid_system, open_boundary = p.semi.systems
+
+        n_old = nparticles(fluid_system)
+        fluid_system.cache.delta_v .= 1:length(fluid_system.cache.delta_v)
+        delta_v_old = copy(fluid_system.cache.delta_v)
+
+        n_new = n_old + 7
+        TrixiParticles.resize_systems!(v_ode, u_ode, p.semi,
+                                       [n_new, nparticles(open_boundary)])
+
+        @test length(fluid_system.cache.delta_v) == 2 * n_new
+        @test fluid_system.cache.delta_v[1:(2 * n_old)] == delta_v_old
+        @test iszero(fluid_system.cache.delta_v[(2 * n_old + 1):end])
+        @test length(open_boundary.fluid_candidates) == n_new
+    end
 end

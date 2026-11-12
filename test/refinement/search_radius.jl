@@ -160,4 +160,109 @@
             @test PointNeighbors.search_radius(nhs) ≈ 2 * 1.2 * second_spacing
         end
     end
+
+    @testset verbose=true "Open Boundary" begin
+        # The open boundary particles are finer than the coarsest fluid particles.
+        # They start with the smoothing length `1.2 * 0.05 = 0.06`.
+        open_boundary_spacing = 0.05
+        boundary_zone = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, 0.5]),
+                                     face_normal=[1.0, 0.0], boundary_type=InFlow(),
+                                     open_boundary_layers=5, density=reference_density,
+                                     particle_spacing=open_boundary_spacing)
+
+        function wcsph_system(fluid)
+            return WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
+                                               smoothing_length=1.2 * max_spacing,
+                                               state_equation,
+                                               density_calculator=ContinuityDensity(),
+                                               particle_refinement=refinement,
+                                               buffer_size=4)
+        end
+
+        function edac_system(fluid)
+            return EntropicallyDampedSPHSystem(fluid; smoothing_kernel,
+                                               smoothing_length=1.2 * max_spacing,
+                                               sound_speed,
+                                               density_calculator=ContinuityDensity(),
+                                               particle_refinement=refinement,
+                                               buffer_size=4)
+        end
+
+        # One fluid particle next to the open boundary with the smoothing length
+        # `1.2 * max_spacing = 0.12`. The closest open boundary particles are at
+        # (-0.025, 0.225) and (-0.025, 0.275).
+        function create_open_boundary_systems(position; create_fluid_system=wcsph_system)
+            fluid = InitialCondition(; coordinates=reshape(position, 2, 1),
+                                     velocity=[1.0; 0.0;;], density=reference_density,
+                                     particle_spacing=max_spacing)
+            fluid_system = create_fluid_system(fluid)
+            open_boundary = OpenBoundarySystem(boundary_zone; fluid_system,
+                                               buffer_size=4,
+                                               boundary_model=BoundaryModelDynamicalPressureZhang())
+
+            return fluid_system, open_boundary
+        end
+
+        function semidiscretize_open_boundary(fluid_system, open_boundary)
+            semi = @test_logs Semidiscretization(fluid_system, open_boundary;
+                                                 neighborhood_search=grid_nhs,
+                                                 parallelization_backend=SerialBackend())
+            ode = semidiscretize(semi, (0.0, 0.1))
+
+            return ode.u0.x..., ode.p.semi
+        end
+
+        @testset "Search Radius" begin
+            v_ode, u_ode,
+            semi = semidiscretize_open_boundary(create_open_boundary_systems([0.175, 0.25])...)
+            fluid_system, open_boundary = semi.systems
+
+            nhs = TrixiParticles.get_neighborhood_search(open_boundary, fluid_system, semi)
+            @test PointNeighbors.search_radius(nhs) ≈ 2 * h_max
+
+            # The explicit search radius of the mirroring around the ghost nodes
+            @test TrixiParticles.compact_support(open_boundary, fluid_system, 1) ≈
+                  2 * h_max
+
+            # The free-surface region of the open boundary still uses the support of the
+            # open boundary particles
+            @test TrixiParticles.compact_support(open_boundary, open_boundary, 1) ≈
+                  2 * 1.2 * open_boundary_spacing
+        end
+
+        # The open boundary uses the average smoothing length of a pair. A pair can be
+        # inside of the support of the fluid particle, but outside of the average support.
+        function open_boundary_dv(position, create_fluid_system)
+            systems = create_open_boundary_systems(position; create_fluid_system)
+            v_ode, u_ode, semi = semidiscretize_open_boundary(systems...)
+            fluid_system, open_boundary = semi.systems
+
+            dv = zeros(size(TrixiParticles.wrap_v(v_ode, open_boundary, semi)))
+            TrixiParticles.interact!(dv, TrixiParticles.wrap_v(v_ode, open_boundary, semi),
+                                     TrixiParticles.wrap_u(u_ode, open_boundary, semi),
+                                     TrixiParticles.wrap_v(v_ode, fluid_system, semi),
+                                     TrixiParticles.wrap_u(u_ode, fluid_system, semi),
+                                     open_boundary, fluid_system, semi)
+
+            return dv
+        end
+
+        # EDAC also computes the pressure evolution of the open boundary particles
+        @testset "Pair Outside of the Average Support With $name" for (name,
+                                                                       create_fluid_system) in
+                                                                      (("WCSPH",
+                                                                        wcsph_system),
+                                                                       ("EDAC",
+                                                                        edac_system))
+            # The distance to the closest open boundary particles is about 0.2016.
+            # This is inside of the fluid support `2 * 0.12 = 0.24`, but outside of the
+            # average support `2 * (0.06 + 0.12) / 2 = 0.18`.
+            @test iszero(open_boundary_dv([0.175, 0.25], create_fluid_system))
+
+            # Inside of the average support, the fluid particle contributes
+            dv = open_boundary_dv([0.125, 0.25], create_fluid_system)
+            @test !iszero(dv)
+            @test all(isfinite, dv)
+        end
+    end
 end

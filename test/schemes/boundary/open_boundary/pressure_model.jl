@@ -62,6 +62,7 @@
         TrixiParticles.initial_smoothing_length(system::FluidSystemMockRCR) = 1.0
         TrixiParticles.nparticles(system::FluidSystemMockRCR) = 1
         TrixiParticles.system_smoothing_kernel(system::FluidSystemMockRCR) = nothing
+        TrixiParticles.get_refinement(system::FluidSystemMockRCR) = nothing
 
         # Encapsulated simulation updating only `calculate_flow_rate_and_pressure!`
         function simulate_rcr(R1, R2, C, tspan, dt, p_0, func)

@@ -76,6 +76,7 @@ end
 #   mass. This only exceeds the maximum if the initial particles are coarser than
 #   `max_mass_factor^(1 / ndims) * max_spacing`. The search radius covers this case,
 #   since it also uses the initial particle spacing (see `search_smoothing_length`).
+# - Particles that enter from an open boundary get the spacing of the open boundary.
 # - The smoothing length of a merged particle (Eq. 34) is only replaced by Eq. 35
 #   in `shift_particles!`.
 function check_refinement_search_radii(semi)
@@ -240,6 +241,27 @@ end
     (; reference_density) = get_refinement(system)
 
     return reference_density * system.cache.target_spacing[particle]^ndims(system)
+end
+
+# A particle that is activated in a fluid system, e.g. by an inflow, gets the target spacing
+# that corresponds to its mass. Otherwise, it would keep the values of the buffer slot.
+@inline initialize_refined_particle!(system, particle) = system
+
+@inline function initialize_refined_particle!(system::AbstractFluidSystem, particle)
+    return initialize_refined_particle!(system, get_refinement(system), particle)
+end
+
+@inline initialize_refined_particle!(system, ::Nothing, particle) = system
+
+@inline function initialize_refined_particle!(system, refinement, particle)
+    (; target_spacing, is_fixed) = system.cache
+    (; reference_density) = refinement
+
+    mass = hydrodynamic_mass(system, particle)
+    target_spacing[particle] = (mass / reference_density)^(1 / ndims(system))
+    is_fixed[particle] = false
+
+    return system
 end
 
 include("refinement_criteria.jl")

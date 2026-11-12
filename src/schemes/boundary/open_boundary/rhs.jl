@@ -24,10 +24,17 @@ function interact!(dv, v_particle_system, u_particle_system,
         # Note that `return` only exits the closure, i.e., skips the current neighbor.
         skip_zero_distance(particle_system) && distance < almostzero(h) && return
 
+        # With variable smoothing lengths, the pair is weighted with the average
+        # smoothing length. The neighborhood search uses the largest compact support,
+        # so the pair can be outside of the compact support of the average.
+        h_ab = open_boundary_pair_smoothing_length(particle_system, neighbor_system,
+                                                   particle, neighbor)
+        kernel_ = system_smoothing_kernel(particle_system)
+        distance >= compact_support(kernel_, h_ab) && return
+
         # Now that we know that `distance` is not zero, we can safely call the unsafe
         # version of the kernel gradient to avoid redundant zero checks.
-        grad_kernel = smoothing_kernel_grad_unsafe(particle_system, pos_diff,
-                                                   distance, particle)
+        grad_kernel = kernel_grad_unsafe(kernel_, pos_diff, distance, h_ab)
 
         # `foreach_point_neighbor` makes sure that `particle` and `neighbor` are
         # in bounds of the respective system. For performance reasons, we use `@inbounds`
@@ -106,6 +113,26 @@ function interact!(dv, v_particle_system, u_particle_system,
     return dv
 end
 
+@inline function open_boundary_pair_smoothing_length(particle_system, neighbor_system,
+                                                     particle, neighbor)
+    return open_boundary_pair_smoothing_length(Val(has_variable_smoothing_length(particle_system)),
+                                               particle_system, neighbor_system,
+                                               particle, neighbor)
+end
+
+@inline function open_boundary_pair_smoothing_length(::Val{false}, particle_system,
+                                                     neighbor_system, particle, neighbor)
+    return initial_smoothing_length(particle_system)
+end
+
+@inline function open_boundary_pair_smoothing_length(::Val{true}, particle_system,
+                                                     neighbor_system, particle, neighbor)
+    h_a = smoothing_length(particle_system, particle)
+    h_b = pair_smoothing_length(neighbor_system, neighbor, h_a)
+
+    return (h_a + h_b) / 2
+end
+
 function pressure_evolution!(dv, particle_system, neighbor_system, v_diff, grad_kernel,
                              particle, neighbor, pos_diff, distance,
                              sound_speed, m_a, m_b, p_a, p_b, rho_a, rho_b,
@@ -117,7 +144,10 @@ function pressure_evolution!(dv, particle_system, neighbor_system, v_diff, grad_
                              particle, neighbor, pos_diff, distance,
                              sound_speed, m_a, m_b, p_a, p_b, rho_a, rho_b,
                              fluid_system::EntropicallyDampedSPHSystem)
-    pressure_evolution!(dv, particle_system, neighbor_system, v_diff, grad_kernel,
-                        particle, neighbor, pos_diff, distance,
+    # The open boundary has no refinement of its own. With a refined fluid, its particles
+    # use the form for constant smoothing lengths with the kernel gradient of the average
+    # smoothing length (see `open_boundary_pair_smoothing_length`) and `β = 1`.
+    pressure_evolution!(Val(false), dv, particle_system, neighbor_system, v_diff,
+                        grad_kernel, particle, neighbor, pos_diff, distance,
                         sound_speed, m_a, m_b, p_a, p_b, rho_a, rho_b, fluid_system.nu_edac)
 end

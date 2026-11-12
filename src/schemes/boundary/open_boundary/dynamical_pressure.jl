@@ -69,6 +69,11 @@ end
     # Density of recycled buffer particles is obtained following the EoS (Zhang et al. 2025)
     inverse_state_equation!(density, density_rest, state_equation, pressure_boundary,
                             particle)
+
+    # Ensure mass matches the updated density and boundary particle volume
+    boundary_zone = current_boundary_zone(system, particle)
+    volume = boundary_zone.initial_condition.particle_spacing^ndims(system)
+    set_variable_particle_mass!(system, particle, density[particle] * volume)
 end
 
 @inline impose_rest_pressure!(v, system, particle, boundary_model) = v

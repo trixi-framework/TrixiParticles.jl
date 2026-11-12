@@ -80,7 +80,6 @@ end
 # larger than `Δs_b` for coarse particles, so they can end up at exactly these positions.
 # A safer rule would be a boundary fraction `φ(x) = Σ_b V_b W(x - x_b)` with `V_b = Δs_b^d`,
 # which is about 0.5 at a flat boundary surface and about 1 inside the boundary.
-# TODO: New particles in open boundary zones follow in the open boundary PR.
 function skip_splitting_near_boundary!(system,
                                        neighbor_system::Union{WallBoundarySystem,
                                                               AbstractStructureSystem},
@@ -108,6 +107,41 @@ function skip_splitting_near_boundary!(system,
         for direction in directions
             if norm(pos_diff + offset * direction) < min_distance
                 split_candidate[particle] = false
+            end
+        end
+    end
+
+    return system
+end
+
+# Do not split a particle if one of the new particles would be placed in an open boundary
+# zone, where it would immediately be converted to an open boundary particle.
+function skip_splitting_near_boundary!(system, neighbor_system::OpenBoundarySystem,
+                                       u_ode, semi)
+    # Only the fluid system of the open boundary converts particles
+    neighbor_system.fluid_system_index[] == system_indices(system, semi) || return system
+
+    (; split_candidate) = system.cache
+    (; splitting_pattern) = get_refinement(system)
+    (; epsilon) = splitting_pattern
+    (; boundary_zones) = neighbor_system
+
+    directions = split_directions(splitting_pattern, Val(ndims(system)))
+    u = wrap_u(u_ode, system, semi)
+
+    @threaded semi for particle in each_integrated_particle(system)
+        split_candidate[particle] || return
+
+        position = current_coords(u, system, particle)
+        offset = epsilon * smoothing_length(system, particle)
+
+        for direction in directions
+            new_position = position + offset * direction
+
+            foreach_noalloc(boundary_zones) do boundary_zone
+                if is_in_boundary_zone(boundary_zone, new_position)
+                    split_candidate[particle] = false
+                end
             end
         end
     end

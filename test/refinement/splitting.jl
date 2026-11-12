@@ -332,6 +332,40 @@
         @test fluid_system.buffer.active_particle_count[] == n_active + 6
     end
 
+    @testset verbose=true "No Splitting Into Open Boundary Zones" begin
+        fluid_system = edac(density_calculator=ContinuityDensity())
+
+        # The inflow zone is left of the face at `x = 0`
+        boundary_zone = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, 0.9]),
+                                     face_normal=[1.0, 0.0], boundary_type=InFlow(),
+                                     open_boundary_layers=2, density=reference_density,
+                                     particle_spacing)
+        open_boundary = OpenBoundarySystem(boundary_zone; fluid_system, buffer_size=4,
+                                           boundary_model=BoundaryModelDynamicalPressureZhang())
+
+        semi = Semidiscretization(fluid_system, open_boundary; neighborhood_search,
+                                  parallelization_backend=SerialBackend())
+        ode = semidiscretize(semi, (0.0, 0.1))
+        v_ode, u_ode = ode.u0.x
+        semi = ode.p.semi
+        fluid_system = semi.systems[1]
+        n_active = fluid_system.buffer.active_particle_count[]
+
+        # Move a particle to `x = 0.03`. The new particle in the direction of the face
+        # at `0.4 * h = 0.048` from the particle would be in the zone.
+        near_face = argmin(vec(sum(abs2, coordinates .- [0.05, 0.45], dims=1)))
+        u = TrixiParticles.wrap_u(u_ode, fluid_system, semi)
+        TrixiParticles.set_particle_position!(u, fluid_system, near_face, [0.03, 0.45])
+        TrixiParticles.update_nhs!(semi, u_ode)
+
+        fluid_system.cache.target_spacing[[center, near_face]] .= particle_spacing / 2
+        TrixiParticles.split_particles!(semi, v_ode, u_ode)
+
+        @test fluid_system.buffer.active_particle_count[] == n_active + 6
+        @test fluid_system.mass[near_face] == tank.fluid.mass[near_face]
+        @test fluid_system.mass[center] ≈ tank.fluid.mass[center] / 7
+    end
+
     @testset verbose=true "Splitting Requires a Buffer" begin
         v_ode, u_ode, p = semidiscretize_systems(wcsph(buffer_size=nothing))
         (; semi) = p

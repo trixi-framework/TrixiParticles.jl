@@ -47,6 +47,8 @@ function resize_systems!(v_ode, u_ode, semi, n_particles)
         resized[i] && resize_system!(systems[i], n_particles[i])
     end
 
+    resize_open_boundaries!(semi, resized)
+
     # The particles of each system are stored in a contiguous range with the particle
     # as the last dimension, so the old data is the beginning of the new range.
     ranges_v, ranges_u = ranges_vu(systems)
@@ -110,17 +112,6 @@ function check_resize(system, n, system_index, semi)
 
     check_resize_scheme(system)
 
-    # TODO: The open boundary stores data per fluid particle.
-    # This follows in the open boundary PR of the refinement PR series.
-    foreach_system(semi) do open_boundary
-        open_boundary isa OpenBoundarySystem || return
-
-        if open_boundary.fluid_system_index[] == system_index
-            throw(ArgumentError("resizing a fluid system with an open boundary is not " *
-                                "supported yet"))
-        end
-    end
-
     return system
 end
 
@@ -157,6 +148,21 @@ function resize_system!(system::AbstractFluidSystem, n)
     resize_buffer!(buffer, n)
 
     return system
+end
+
+# The open boundary stores data per particle of its fluid system
+function resize_open_boundaries!(semi, resized)
+    foreach_system(semi) do open_boundary
+        open_boundary isa OpenBoundarySystem || return
+
+        fluid_system_index = open_boundary.fluid_system_index[]
+        resized[fluid_system_index] || return
+
+        n_fluid = nparticles(semi.systems[fluid_system_index])
+        resize_and_fill!(open_boundary.fluid_candidates, n_fluid, false)
+    end
+
+    return semi
 end
 
 function initialize_inactive_particle!(system, v, u, particle)
