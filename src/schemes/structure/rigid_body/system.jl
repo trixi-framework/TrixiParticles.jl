@@ -20,9 +20,11 @@ torque and applied consistently to all rigid particles.
 # Keywords
 - `boundary_model`: Boundary model for fluid-structure interaction
                     (see [Boundary Models](@ref boundary_models)).
-- `contact_model`: Optional [`RigidContactModel`](@ref). If specified, rigid-wall and
-                   rigid-rigid collisions are enabled. Tangential spring history requires
-                   `UpdateCallback(interval=1)` and is currently CPU-only.
+                    For [`BoundaryModelDummyParticles`](@ref), see
+                    [Boundary Corrections](@ref boundary_corrections) for the supported
+                    corrections.
+- `contact_model`: Optional rigid contact model.
+                   If specified, rigid-wall and rigid-rigid collisions are enabled.
 - `acceleration`: Global acceleration vector applied to all rigid particles.
 - `particle_spacing`: Reference particle spacing used for time-step estimation.
 - `max_manifolds`: Maximum number of transient wall-contact manifolds assembled per rigid
@@ -130,6 +132,7 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
              create_cache_contact_manifold(contact_model_, Val(NDIMS), ELTYPE,
                                            nparticles(initial_condition),
                                            max_manifolds_)...,
+             create_cache_structure_boundary(boundary_model, initial_condition)...,
              color=Int(color_value))
 
     system = RigidBodySystem(initial_condition, initial_velocity, mass,
@@ -285,6 +288,10 @@ end
 
 @inline function system_smoothing_kernel(system::RigidBodySystem{<:BoundaryModelDummyParticles})
     return system.boundary_model.smoothing_kernel
+end
+
+@inline function system_correction(system::RigidBodySystem{<:BoundaryModelDummyParticles})
+    return correction_gradient(system.boundary_model.correction)
 end
 
 function initialize!(system::RigidBodySystem, semi)

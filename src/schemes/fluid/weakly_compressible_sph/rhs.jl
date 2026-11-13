@@ -129,8 +129,10 @@ end
     return current_pressure(v_neighbor_system, neighbor_system, neighbor)
 end
 
-@inline function neighbor_pressure(v_neighbor_system, neighbor_system,
-                                   boundary_model::BoundaryModelDummyParticles{PressureMirroring},
+@inline function neighbor_pressure(v_neighbor_system,
+                                   neighbor_system::Union{WallBoundarySystem{<:BoundaryModelDummyParticles{PressureMirroring}},
+                                                          TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{PressureMirroring}},
+                                                          RigidBodySystem{<:BoundaryModelDummyParticles{PressureMirroring}}},
                                    neighbor, p_a)
     return p_a
 end

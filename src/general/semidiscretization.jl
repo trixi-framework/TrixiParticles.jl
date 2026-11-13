@@ -528,17 +528,6 @@ function check_configuration(systems::Union{Tuple, AbstractVector},
         check_configuration(system, systems, nhs)
     end
 
-    for i in eachindex(systems), j in eachindex(systems)
-        # `check_boundary_density_fsi` only checks (structure, fluid) pairs, so we loop over
-        # both orders to be independent of the order of the systems.
-        # The boundary density of a structure is used by the interaction in either direction.
-        # With both directions disabled, this is not a fluid-structure interaction.
-        if is_enabled_interaction(interaction_matrix[i, j]) ||
-           is_enabled_interaction(interaction_matrix[j, i])
-            check_boundary_density_fsi(systems[i], systems[j])
-        end
-    end
-
     check_system_color(systems)
 end
 

@@ -172,31 +172,7 @@ end
 @inline hydrodynamic_smoothing_kernel(system) = system_smoothing_kernel(system)
 
 @inline function hydrodynamic_smoothing_kernel_grad(system, pos_diff, distance, particle)
-    h = hydrodynamic_smoothing_length(system, particle)
-    correction = hydrodynamic_correction(system)
-    smoothing_kernel = hydrodynamic_smoothing_kernel(system)
-    compact_support_ = compact_support(smoothing_kernel, h)
-
-    if distance >= compact_support_ ||
-       (skip_zero_distance(correction) && distance < almostzero(h))
-        return zero(pos_diff)
-    end
-
-    return corrected_kernel_grad_unsafe(smoothing_kernel, pos_diff, distance, h,
-                                        correction, system, particle)
-end
-
-# Kernel gradient of `system` for an interaction with `neighbor_system`.
-# Particles at the same position are skipped if `skip_zero_distance(system, neighbor_system)`.
-# If the correction of `neighbor_system` requires such pairs to be processed
-# (e.g., because its kernel gradient does not vanish there), even though the kernel gradient
-# of `system` vanishes, use the safe gradient, which handles particles at the same position.
-@inline function interaction_kernel_grad(system, neighbor_system, pos_diff, distance,
-                                         particle)
-    if skip_zero_distance(system) && !skip_zero_distance(system, neighbor_system)
-        return smoothing_kernel_grad(system, pos_diff, distance, particle)
-    end
-    return smoothing_kernel_grad_unsafe(system, pos_diff, distance, particle)
+    return smoothing_kernel_grad(system, pos_diff, distance, particle)
 end
 
 # System updates do nothing by default, but can be dispatched if needed

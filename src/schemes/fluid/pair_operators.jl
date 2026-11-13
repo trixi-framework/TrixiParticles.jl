@@ -5,6 +5,7 @@
 # Note that this function is also used for the structure-fluid interaction to compute
 # the exact opposite pair force. When adding new terms here, make sure that they are
 # also valid for structure neighbors.
+# `grad_kernel_neighbor` reuses the boundary gradient computed in structure-fluid pairs.
 @propagate_inbounds function add_momentum_equation(dv_particle,
                                                    particle_system::Union{WeaklyCompressibleSPHSystem,
                                                                           EntropicallyDampedSPHSystem,
@@ -13,7 +14,8 @@
                                                    v_particle_system, v_neighbor_system,
                                                    particle, neighbor, pos_diff, distance,
                                                    grad_kernel, sound_speed, m_a, m_b,
-                                                   p_a, p_b, rho_a, rho_b, v_a, v_b)
+                                                   p_a, p_b, rho_a, rho_b, v_a, v_b,
+                                                   grad_kernel_neighbor=nothing)
     correction = system_correction(particle_system)
     surface_tension_a = surface_tension_model(particle_system)
     surface_tension_b = surface_tension_model(neighbor_system)
@@ -26,7 +28,7 @@
     # Note that the return value is zero when not using average pressure reduction.
     p_avg = pair_pressure_offset(particle_system, neighbor_system, particle, neighbor)
 
-    # Density, gradient, and force corrections are configured independently.
+    # WCSPH and EDAC use their force correction; IISPH keeps unit factors.
     viscosity_correction, pressure_correction,
     surface_tension_correction = interaction_force_correction(particle_system, rho_a, rho_b)
 
@@ -35,7 +37,8 @@
     dv_pressure = pressure_acceleration(particle_system, neighbor_system,
                                         particle, neighbor, m_a, m_b,
                                         p_a - p_avg, p_b - p_avg, rho_a, rho_b,
-                                        pos_diff, distance, grad_kernel, correction)
+                                        pos_diff, distance, grad_kernel, correction,
+                                        grad_kernel_neighbor)
     dv_particle += dv_pressure * pressure_correction
 
     dv_particle = add_dv_viscosity(dv_particle, particle_system, neighbor_system,
@@ -61,13 +64,14 @@ end
     return zero(eltype(system))
 end
 
-@inline function interaction_force_correction(system,
-                                              rho_a, rho_b)
-    correction = correction_force(system.correction)
-    return free_surface_correction(correction, system, rho_a, rho_b)
-end
-
 @inline function interaction_force_correction(system::ImplicitIncompressibleSPHSystem,
                                               rho_a, rho_b)
     return 1, 1, 1
+end
+
+@inline function interaction_force_correction(system::Union{WeaklyCompressibleSPHSystem,
+                                                            EntropicallyDampedSPHSystem},
+                                              rho_a, rho_b)
+    return free_surface_correction(correction_force(system.correction), system, rho_a,
+                                   rho_b)
 end

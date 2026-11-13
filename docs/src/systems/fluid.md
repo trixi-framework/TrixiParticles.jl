@@ -235,6 +235,10 @@ For fluid-structure interaction, a `TotalLagrangianSPHSystem` keeps its structur
 kernel independent from the hydrodynamic kernel stored in its boundary model. Hydrodynamic
 correction caches and fluid pressure interactions use the boundary-model kernel and smoothing
 length.
+For fluid-structure interaction with a [`TotalLagrangianSPHSystem`](@ref) or a
+[`RigidBodySystem`](@ref), the structure's [`BoundaryModelDummyParticles`](@ref) has its own
+`correction`. See [Boundary Corrections](@ref boundary_corrections) for how the fluid and
+boundary gradients enter the pressure acceleration and for the supported combinations.
 
 ```@autodocs
 Modules = [TrixiParticles]
