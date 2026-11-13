@@ -36,6 +36,8 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
                                 density calculator and the correction method.
                                 To use [Tensile Instability Control](@ref tic), pass
                                 [`tensile_instability_control`](@ref) here.
+                                With particle refinement, the formulation must provide a version with
+                                the arguments `m_a, m_b, rho_a, rho_b, p_a, p_b, W_a, W_b`.
 - `shifting_technique`:         [Shifting technique](@ref shifting) or [transport velocity
                                 formulation](@ref transport_velocity_formulation) to use
                                 with this system. Default is no shifting.
@@ -64,7 +66,7 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
 """
 struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K, V, DD, COR,
                                    PF, SC, ST, B, SRFT, SRFN, PR,
-                                   C} <: AbstractFluidSystem{NDIMS}
+                                   C, SL} <: AbstractFluidSystem{NDIMS}
     initial_condition                 :: IC
     mass                              :: MA     # Array{ELTYPE, 1}
     pressure                          :: P      # Array{ELTYPE, 1}
@@ -81,8 +83,9 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K, 
     surface_tension                   :: SRFT
     surface_normal_method             :: SRFN
     buffer                            :: B
-    particle_refinement               :: PR # TODO
+    particle_refinement               :: PR
     cache                             :: C
+    smoothing_length                  :: SL # Scalar or `Vector` with refinement
 end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
@@ -98,11 +101,10 @@ function WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
                                      buffer_size=nothing,
                                      correction=nothing, source_terms=nothing,
                                      surface_tension=nothing, surface_normal_method=nothing,
-                                     reference_particle_spacing=0, color_value=1)
+                                     reference_particle_spacing=0, color_value=1,
+                                     particle_refinement=nothing)
     buffer = isnothing(buffer_size) ? nothing :
              SystemBuffer(nparticles(initial_condition), buffer_size)
-
-    particle_refinement = nothing # TODO
 
     initial_condition,
     density_diffusion = allocate_buffer(initial_condition,
@@ -142,6 +144,8 @@ function WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
                                                                      density_calculator,
                                                                      NDIMS, ELTYPE,
                                                                      correction)
+    check_pressure_acceleration_variable_h(pressure_acceleration, particle_refinement,
+                                           NDIMS, ELTYPE)
 
     cache = (; create_cache_density(initial_condition, density_calculator)...,
              create_cache_correction(correction, initial_condition.density, NDIMS,
@@ -150,8 +154,6 @@ function WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
                                          n_particles)...,
              create_cache_surface_tension(surface_tension, ELTYPE, NDIMS,
                                           n_particles)...,
-             create_cache_refinement(initial_condition, particle_refinement,
-                                     smoothing_length)...,
              create_cache_density_diffusion(initial_condition, density_diffusion)...,
              create_cache_shifting(initial_condition, shifting_technique)...,
              # Per-system color tag for colorfield surface-normal logic and VTK output.
@@ -164,13 +166,17 @@ function WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
         cache = (; cache..., reference_particle_spacing)
     end
 
+    if !isnothing(particle_refinement)
+        smoothing_length = fill(convert(ELTYPE, smoothing_length), n_particles)
+    end
+
     return WeaklyCompressibleSPHSystem(initial_condition, mass, pressure,
                                        density_calculator, state_equation,
                                        smoothing_kernel, acceleration_, viscosity,
                                        density_diffusion, correction, pressure_acceleration,
                                        shifting_technique, source_terms, surface_tension,
                                        surface_normal_method, buffer, particle_refinement,
-                                       cache)
+                                       cache, smoothing_length)
 end
 
 function Base.show(io::IO, system::WeaklyCompressibleSPHSystem)
@@ -280,6 +286,14 @@ end
 
 @inline function current_pressure(v, system::WeaklyCompressibleSPHSystem)
     return system.pressure
+end
+
+# Resize the data that only WCSPH stores per particle (see `resize_system!`).
+# The pressure is computed from the density in every time step.
+function resize_scheme_data!(system::WeaklyCompressibleSPHSystem, n)
+    resize_and_fill!(system.pressure, n, zero(eltype(system)))
+
+    return system
 end
 
 @inline system_sound_speed(system::WeaklyCompressibleSPHSystem) = sound_speed(system.state_equation)
