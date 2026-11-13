@@ -6,6 +6,7 @@
     TrixiParticles.initial_smoothing_length(system::FluidSystemMock3) = 1.0
     TrixiParticles.nparticles(system::FluidSystemMock3) = 1
     TrixiParticles.system_smoothing_kernel(system::FluidSystemMock3) = nothing
+    TrixiParticles.get_refinement(system::FluidSystemMock3) = nothing
 
     zone = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, 1.0]), particle_spacing=0.2,
                         open_boundary_layers=2, density=1.0, face_normal=[1.0, 0.0],

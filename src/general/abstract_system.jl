@@ -191,16 +191,74 @@ function finalize_interaction!(system, dv, v, u, dv_ode, v_ode, u_ode, semi)
     return system
 end
 
-@inline initial_smoothing_length(system) = smoothing_length(system, nothing)
+@inline get_refinement(system::AbstractSystem) = nothing
+
+# Whether the system stores one smoothing length per particle.
+# This is independent of whether the system itself has a refinement (`get_refinement`).
+@inline has_variable_smoothing_length(system) = false
+
+@inline function has_variable_smoothing_length(system, neighbor_system)
+    return has_variable_smoothing_length(system) |
+           has_variable_smoothing_length(neighbor_system)
+end
+
+@inline function initial_smoothing_length(system)
+    return initial_smoothing_length(system, Val(has_variable_smoothing_length(system)))
+end
+
+@inline initial_smoothing_length(system, ::Val{false}) = smoothing_length(system, nothing)
+
+@inline function initial_smoothing_length(system, ::Val{true})
+    return spacing_to_smoothing_length(system, system.initial_condition.particle_spacing)
+end
+
+@inline smoothing_length(system) = system.smoothing_length
 
 @inline function smoothing_length(system, particle)
-    return system.smoothing_length
+    return smoothing_length(system, Val(has_variable_smoothing_length(system)), particle)
+end
+
+@inline smoothing_length(system, ::Val{false}, particle) = smoothing_length(system)
+@inline smoothing_length(system, ::Val{true}, particle) = smoothing_length(system)[particle]
+
+@inline function set_particle_smoothing_length!(system, particle, smoothing_length)
+    set_particle_smoothing_length!(system, Val(has_variable_smoothing_length(system)),
+                                   particle, smoothing_length)
+end
+
+@inline set_particle_smoothing_length!(system, ::Val{false}, particle, h) = system
+
+@inline function set_particle_smoothing_length!(system, ::Val{true}, particle, h)
+    smoothing_length(system)[particle] = h
+
+    return system
+end
+
+# Particle masses are only allowed to change when using refinement.
+# Otherwise, they are constant and don't need to be restored when restarting a simulation.
+@inline function set_variable_particle_mass!(system, particle, mass)
+    set_variable_particle_mass!(system, Val(has_variable_smoothing_length(system)),
+                                particle, mass)
+end
+
+@inline set_variable_particle_mass!(system, ::Val{false}, particle, mass) = system
+
+@inline function set_variable_particle_mass!(system, ::Val{true}, particle, mass)
+    set_particle_mass!(system, particle, mass)
+
+    return system
 end
 
 @inline system_smoothing_kernel(system) = system.smoothing_kernel
 @inline system_correction(system) = nothing
 
-@inline particle_spacing(system, particle) = system.initial_condition.particle_spacing
+@inline function particle_spacing(system, particle)
+    return particle_spacing(system, get_refinement(system), particle)
+end
+
+@inline function particle_spacing(system, ::Nothing, particle)
+    return system.initial_condition.particle_spacing
+end
 
 # Assuming a constant particle spacing one can calculate the number of neighbors within the
 # compact support for an undisturbed particle distribution.

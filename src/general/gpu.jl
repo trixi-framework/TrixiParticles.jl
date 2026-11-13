@@ -18,6 +18,7 @@ Adapt.@adapt_structure TotalLagrangianSPHSystem
 Adapt.@adapt_structure BoundaryZone
 Adapt.@adapt_structure SystemBuffer
 Adapt.@adapt_structure OpenBoundarySystem
+Adapt.@adapt_structure ParticleRefinement
 Adapt.@adapt_structure DEMSystem
 Adapt.@adapt_structure BoundaryDEMSystem
 Adapt.@adapt_structure RCRWindkesselModel

@@ -93,6 +93,19 @@ end
     return -volume_term * pressure_tilde * W_a
 end
 
+# Same as above, but not assuming symmetry of the kernel gradient. To be used with
+# corrections that do not produce a symmetric kernel gradient and with variable
+# smoothing lengths, where each part of the averaged pressure is multiplied by the kernel
+# gradient of its own particle (`MomentumEquationPressureGradient` in Haftu et al.).
+@inline function inter_particle_averaged_pressure(m_a, m_b, rho_a, rho_b, p_a, p_b,
+                                                  W_a, W_b)
+    volume_a = m_a / rho_a
+    volume_b = m_b / rho_b
+    volume_term = (volume_a^2 + volume_b^2) / m_a
+
+    return -volume_term * (rho_b * p_a * W_a - rho_a * p_b * W_b) / (rho_a + rho_b)
+end
+
 function choose_pressure_acceleration_formulation(pressure_acceleration,
                                                   density_calculator, NDIMS, ELTYPE,
                                                   correction)
@@ -139,6 +152,27 @@ function choose_pressure_acceleration_formulation(pressure_acceleration::Nothing
 
     # Choose the pressure acceleration formulation corresponding to the density calculator.
     return pressure_acceleration_continuity_density
+end
+
+# With variable smoothing lengths, each pressure is multiplied by the kernel gradient of its
+# own particle, so the formulation needs a version with two kernel gradients
+# (see `pressure_acceleration_variable_h`).
+function check_pressure_acceleration_variable_h(pressure_acceleration, ::Nothing, NDIMS,
+                                                ELTYPE)
+    nothing
+end
+
+function check_pressure_acceleration_variable_h(pressure_acceleration, particle_refinement,
+                                                NDIMS, ELTYPE)
+    if isempty(methods(pressure_acceleration,
+                       (ELTYPE, ELTYPE, ELTYPE, ELTYPE, ELTYPE, ELTYPE,
+                        SVector{NDIMS, ELTYPE}, SVector{NDIMS, ELTYPE})))
+        throw(ArgumentError("when using particle refinement, the passed pressure " *
+                            "acceleration formulation must provide a version with the " *
+                            "arguments `m_a, m_b, rho_a, rho_b, p_a, p_b, W_a, W_b`"))
+    end
+
+    return nothing
 end
 
 @inline pressure_acceleration_formulation(system) = system.pressure_acceleration_formulation

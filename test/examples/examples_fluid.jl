@@ -486,6 +486,14 @@
         @test sol.retcode == ReturnCode.Terminated
     end
 
+    @trixi_testset "fluid/pipe_flow_2d_refinement.jl" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__, tspan=(0.0, 0.1),
+                                         joinpath(examples_dir(), "fluid",
+                                                  "pipe_flow_2d_refinement.jl"))
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol) == 0
+    end
+
     @trixi_testset "fluid/pipe_flow_3d.jl" begin
         @trixi_test_nowarn trixi_include(@__MODULE__, tspan=(0, 0.1),
                                          joinpath(examples_dir(), "fluid",
@@ -595,6 +603,15 @@
                                          joinpath(examples_dir(), "fluid",
                                                   "taylor_green_vortex_2d.jl"),
                                          tspan=(0.0, 0.1), wcsph=true)
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol) == 0
+    end
+
+    @trixi_testset "fluid/taylor_green_vortex_2d_refinement.jl" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "taylor_green_vortex_2d_refinement.jl"),
+                                         tspan=(0.0, 0.1))
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol) == 0
     end

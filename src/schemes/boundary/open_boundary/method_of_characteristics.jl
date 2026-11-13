@@ -103,8 +103,10 @@ end
 # J2: Propagates downstream to the local flow
 # J3: Propagates upstream to the local flow
 function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
-    (; volume, cache, fluid_system, smoothing_length) = system
+    (; volume, cache, fluid_system) = system
     (; characteristics, previous_characteristics) = cache
+
+    smoothing_length = initial_smoothing_length(system)
 
     @threaded semi for particle in eachparticle(system)
         previous_characteristics[1, particle] = characteristics[1, particle]
@@ -152,7 +154,7 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
         pressure_term = p_b - p_ref
         velocity_term = rho_b * sound_speed * (dot(v_b - v_neighbor_ref, flow_direction))
 
-        kernel_ = smoothing_kernel(fluid_system, distance, particle)
+        kernel_ = smoothing_kernel(system, distance, particle)
 
         characteristics[1, particle] += (density_term + pressure_term) * kernel_
         characteristics[2, particle] += (velocity_term + pressure_term) * kernel_

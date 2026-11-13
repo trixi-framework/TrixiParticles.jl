@@ -28,14 +28,14 @@ Open boundary system for in- and outflow particles.
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in any future releases.
 """
-struct OpenBoundarySystem{BM, ELTYPE, NDIMS, IC, FS, FSI, K, ARRAY1D, BC, FC, BZI, BZ,
+struct OpenBoundarySystem{BM, ELTYPE, NDIMS, IC, FS, FSI, K, SL, ARRAY1D, BC, FC, BZI, BZ,
                           B, PF, ST, C} <: AbstractSystem{NDIMS}
     boundary_model                    :: BM
     initial_condition                 :: IC
     fluid_system                      :: FS
     fluid_system_index                :: FSI
     smoothing_kernel                  :: K
-    smoothing_length                  :: ELTYPE
+    smoothing_length                  :: SL
     mass                              :: ARRAY1D # Array{ELTYPE, 1}: [particle]
     volume                            :: ARRAY1D # Array{ELTYPE, 1}: [particle]
     boundary_candidates               :: BC      # Array{Bool, 1}: [particle]
@@ -57,7 +57,8 @@ function OpenBoundarySystem(boundary_model, initial_condition, fluid_system,
                             cache)
     OpenBoundarySystem{typeof(boundary_model), eltype(mass), ndims(initial_condition),
                        typeof(initial_condition), typeof(fluid_system),
-                       typeof(fluid_system_index), typeof(smoothing_kernel), typeof(mass),
+                       typeof(fluid_system_index), typeof(smoothing_kernel),
+                       typeof(smoothing_length), typeof(mass),
                        typeof(boundary_candidates), typeof(fluid_candidates),
                        typeof(boundary_zone_indices), typeof(boundary_zone), typeof(buffer),
                        typeof(pressure_acceleration), typeof(shifting_technique),
@@ -114,6 +115,12 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
 
     smoothing_kernel = system_smoothing_kernel(fluid_system)
     smoothing_length = initial_smoothing_length(fluid_system)
+
+    if has_variable_smoothing_length(fluid_system)
+        boundary_smoothing_length = spacing_to_smoothing_length(fluid_system,
+                                                                initial_conditions.particle_spacing)
+        smoothing_length = fill(boundary_smoothing_length, nparticles(initial_conditions))
+    end
 
     boundary_candidates = fill(false, nparticles(initial_conditions))
     fluid_candidates = fill(false, nparticles(fluid_system))
@@ -250,10 +257,6 @@ end
 # The `UpdateCallback` is required to update particle positions between time steps
 @inline requires_update_callback(system::OpenBoundarySystem, semi) = true
 
-function smoothing_length(system::OpenBoundarySystem, particle)
-    return system.smoothing_length
-end
-
 @inline acceleration_source(system::OpenBoundarySystem) = system.fluid_system.acceleration
 
 @inline function v_nvariables(system::OpenBoundarySystem)
@@ -294,6 +297,12 @@ end
     return v
 end
 
+@inline function set_particle_mass!(system::OpenBoundarySystem, particle, mass)
+    system.mass[particle] = mass
+
+    return system
+end
+
 function calculate_dt(v_ode, u_ode, cfl_number, system::OpenBoundarySystem, semi)
     # Open boundaries don't affect the timestep calculation
     return Inf
@@ -325,7 +334,7 @@ function update_positions!(system::OpenBoundarySystem, v, u, v_ode, u_ode, semi,
     # This function deactivates particles that move outside the bounding box to prevent
     # simulation crashes.
     # Note that deactivating particles is only possible in combination with a 'SystemBuffer'.
-    deactivate_out_of_bounds_particles!(system, buffer(system), nhs, v, u, semi)
+    deactivate_out_of_bounds_particles!(system, buffer(system), nhs, v_ode, u_ode, semi)
 end
 
 function update_boundary_interpolation!(system::OpenBoundarySystem, v, u, v_ode, u_ode,
@@ -498,6 +507,9 @@ end
     transfer_particle!(fluid_system, system, particle, particle_new,
                        v_fluid, u_fluid, v, u, periodic_box)
 
+    # Set the target spacing of the new fluid particle when using refinement
+    initialize_refined_particle!(fluid_system, particle_new)
+
     # Reset position of boundary particle back to the beginning of the boundary zone.
     # If we translated it by exactly `zone_width` along `-face_normal`, rounding
     # errors could place it just outside the zone. To avoid this, use a slightly
@@ -516,6 +528,10 @@ end
 
         return system
     end
+
+    # In a bidirectional zone, the particle can carry the smoothing length
+    # of a refined fluid particle that left the fluid domain
+    set_particle_smoothing_length!(system, particle, initial_smoothing_length(system))
 
     impose_rest_density!(v, system, particle, system.boundary_model)
 
@@ -550,6 +566,14 @@ end
     # Transfer pressure
     pressure = current_pressure(v_old, system_old, particle_old)
     set_particle_pressure!(v_new, system_new, particle_new, pressure)
+
+    # Transfer mass
+    mass = hydrodynamic_mass(system_old, particle_old)
+    set_variable_particle_mass!(system_new, particle_new, mass)
+
+    # Transfer smoothing length
+    h = smoothing_length(system_old, particle_old)
+    set_particle_smoothing_length!(system_new, particle_new, h)
 
     nonperiodic_coords = current_coords(u_old, system_old, particle_old)
     particle_coords = PointNeighbors.periodic_coords(nonperiodic_coords, periodic_box)
@@ -634,7 +658,7 @@ end
         dist_free_surface = boundary_zone.zone_width - dist_to_transition
 
         # Width of the free-surface region where shifting is disabled.
-        free_surface_region_width = compact_support(fluid_system, fluid_system)
+        free_surface_region_width = compact_support(system, system, particle)
         # Width of the ramp region behind the free-surface region where shifting is ramped
         # from zero to the unmodified value.
         ramp_width = free_surface_region_width
@@ -644,7 +668,8 @@ end
             # free surface. Shifting is disabled there to avoid shifting particles with
             # incomplete support.
             for dim in 1:ndims(system)
-                cache.delta_v[dim, particle] = zero(eltype(system))
+                index = linear_index_vector(dim, particle, ndims(system))
+                cache.delta_v[index] = zero(eltype(system))
             end
         elseif dist_free_surface < free_surface_region_width + ramp_width
             # Between one and two compact supports from the free surface, shifting is
@@ -660,7 +685,8 @@ end
                               kernel_max
             delta_v_ramped = delta_v(system, particle) * shifting_weight
             for dim in 1:ndims(system)
-                cache.delta_v[dim, particle] = delta_v_ramped[dim]
+                index = linear_index_vector(dim, particle, ndims(system))
+                cache.delta_v[index] = delta_v_ramped[dim]
             end
         end
     end
@@ -671,7 +697,7 @@ end
 function interpolate_velocity!(system::OpenBoundarySystem, boundary_zone,
                                v_ode, u_ode, semi)
     (; sample_points, sample_velocity, shepard_coefficient) = boundary_zone.cache
-    smoothing_length = initial_smoothing_length(system)
+    h_a = initial_smoothing_length(system)
     smoothing_kernel = system_smoothing_kernel(system)
 
     set_zero!(shepard_coefficient)
@@ -705,7 +731,11 @@ function interpolate_velocity!(system::OpenBoundarySystem, boundary_zone,
             m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
             rho_b = @inbounds current_density(v_neighbor, neighbor_system, neighbor)
             volume_b = m_b / rho_b
-            W_ab = kernel(smoothing_kernel, distance, smoothing_length)
+
+            # Fetch the neighbor's variable smoothing length and calculate the symmetric average
+            h_b = smoothing_length(neighbor_system, neighbor)
+            h_ab = (h_a + h_b) / 2
+            W_ab = kernel(smoothing_kernel, distance, h_ab)
             @inbounds shepard_coefficient[point] += volume_b * W_ab
 
             velocity_neighbor_ = @inbounds current_velocity(v_neighbor, neighbor_system,
@@ -840,4 +870,19 @@ function check_boundary_zone_widths(boundary_zones, fluid_system)
     end
 
     return nothing
+end
+
+# The open boundary has no refinement of its own, but it carries the per-particle
+# smoothing lengths of the fluid particles that enter it.
+@inline function has_variable_smoothing_length(system::OpenBoundarySystem)
+    return has_variable_smoothing_length(system.fluid_system)
+end
+
+@inline function spacing_to_smoothing_length(system::OpenBoundarySystem, particle_spacing)
+    return spacing_to_smoothing_length(system.fluid_system, particle_spacing)
+end
+
+# Spacing from the mass, using the reference density of the fluid's refinement
+@inline function particle_spacing(system::OpenBoundarySystem, particle)
+    return particle_spacing(system, get_refinement(system.fluid_system), particle)
 end

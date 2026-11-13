@@ -1,6 +1,15 @@
 function drift!(du_ode, v_ode, u_ode, p, t)
     (; semi) = p
 
+    # OrdinaryDiffEq caches may contain uninitialized memory (e.g., NaNs) after
+    # resizing the integrator (e.g., during refinement). Even after informing
+    # OrdinaryDiffEq that the state changed and the cache needs to be recalculated,
+    # this calculation is only done for active particles. As a result, the
+    # uninitialized memory in the inactive particle slots persists. This causes
+    # crashes during the integration step. Zeroing the global array here ensures
+    # inactive particles safely evaluate to zero derivatives instead.
+    set_zero!(du_ode)
+
     @trixi_timeit timer() "drift!" begin
         foreach_system(semi) do system
             du = wrap_u(du_ode, system, semi)

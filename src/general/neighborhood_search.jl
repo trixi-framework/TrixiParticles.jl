@@ -12,14 +12,17 @@
                            points, parallelization_backend)
 end
 
-deactivate_out_of_bounds_particles!(system, buffer, nhs, v, u, semi) = system
+deactivate_out_of_bounds_particles!(system, buffer, nhs, v_ode, u_ode, semi) = system
 
 function deactivate_out_of_bounds_particles!(system, buffer::SystemBuffer,
-                                             nhs::GridNeighborhoodSearch, v, u, semi)
-    deactivate_out_of_bounds_particles!(system, buffer, nhs, nhs.cell_list, v, u, semi)
+                                             nhs::GridNeighborhoodSearch, v_ode, u_ode,
+                                             semi)
+    deactivate_out_of_bounds_particles!(system, buffer, nhs, nhs.cell_list, v_ode, u_ode,
+                                        semi)
 end
 
-function deactivate_out_of_bounds_particles!(system, buffer, nhs, cell_list, v, u, semi)
+function deactivate_out_of_bounds_particles!(system, buffer, nhs, cell_list, v_ode, u_ode,
+                                             semi)
     return system
 end
 
@@ -28,7 +31,11 @@ end
 # simulation crashes.
 # Note that deactivating particles is only possible in combination with a 'SystemBuffer'.
 function deactivate_out_of_bounds_particles!(system, ::SystemBuffer, nhs,
-                                             cell_list::FullGridCellList, v, u, semi)
+                                             cell_list::FullGridCellList, v_ode, u_ode,
+                                             semi)
+    u = wrap_u(u_ode, system, semi)
+    v = wrap_v(v_ode, system, semi)
+
     @trixi_timeit timer() "deactivate out of bounds particle" begin
         @threaded semi for particle in each_integrated_particle(system)
             particle_position = current_coords(u, system, particle)
@@ -93,7 +100,61 @@ end
     return compact_support(smoothing_kernel, initial_smoothing_length(system))
 end
 
+@inline compact_support(system::AbstractFluidSystem,
+                        neighbor) = search_compact_support(system)
+
+@inline function compact_support(system::AbstractFluidSystem,
+                                 neighbor::AbstractFluidSystem)
+    compact_support_ = search_compact_support(system)
+
+    # Fluid-fluid pairs with variable smoothing lengths interact within the compact support
+    # of the larger smoothing length (see `pair_in_support`). So a fluid must find all
+    # particles of a refined fluid within their largest compact support.
+    has_variable_smoothing_length(neighbor) || return compact_support_
+
+    # Don't call `compact_support(neighbor, system)` here, which would call this function
+    # again when both fluids have variable smoothing lengths.
+    return max(compact_support_, search_compact_support(neighbor))
+end
+
+# The compact support of a fluid without its neighbors.
+# With particle refinement, this is the compact support of the largest smoothing length
+# a particle can have, since the search radius is never changed after
+# the neighborhood search is created.
+@inline function search_compact_support(system::AbstractFluidSystem)
+    (; smoothing_kernel) = system
+
+    return compact_support(smoothing_kernel, search_smoothing_length(system))
+end
+
 # -- Open boundary systems
+@inline function compact_support(system::OpenBoundarySystem, neighbor, point)
+    # The open boundary particle always uses the system's global constant smoothing length
+    return compact_support(system.smoothing_kernel, initial_smoothing_length(system))
+end
+
+@inline function compact_support(system::OpenBoundarySystem,
+                                 neighbor::AbstractFluidSystem)
+    compact_support_ = compact_support(system.smoothing_kernel,
+                                       initial_smoothing_length(system))
+
+    # Fluid particles with a variable smoothing length can reach further than the
+    # open boundary particles. The open boundary weights its fluid neighbors with the
+    # average smoothing length of both particles, so it must find all fluid particles
+    # within the compact support of the largest fluid smoothing length.
+    # Open boundary particles can also carry the smoothing length of a fluid particle
+    # that left the fluid domain.
+    has_variable_smoothing_length(neighbor) || return compact_support_
+
+    return max(compact_support_, search_compact_support(neighbor))
+end
+
+@inline function compact_support(system::OpenBoundarySystem,
+                                 neighbor::AbstractFluidSystem, point)
+    # This is also the explicit search radius of the mirroring around the ghost nodes
+    return compact_support(system, neighbor)
+end
+
 @inline function compact_support(system::OpenBoundarySystem,
                                  neighbor::OpenBoundarySystem)
     # This NHS is never used
@@ -153,7 +214,13 @@ end
     # interaction. Dummy particle BC use the model's compact support, which is also used
     # for density summations.
     (; smoothing_kernel, smoothing_length) = model
-    return compact_support(smoothing_kernel, smoothing_length)
+    compact_support_ = compact_support(smoothing_kernel, smoothing_length)
+
+    # Fluid particles with a variable smoothing length can reach further than the model.
+    # The kernels of both particles of a pair vanish beyond their compact support.
+    has_variable_smoothing_length(neighbor) || return compact_support_
+
+    return max(compact_support_, compact_support(neighbor, system))
 end
 
 @inline function compact_support(system::WallBoundarySystem,
@@ -822,4 +889,99 @@ function update!(neighborhood_search, x, y, semi; points_moving=(true, true),
                  eachindex_y=axes(y, 2))
     PointNeighbors.update!(neighborhood_search, x, y; points_moving, eachindex_y,
                            parallelization_backend=semi.parallelization_backend)
+end
+
+# === Neighbor loops for variable smoothing lengths ===
+# With variable smoothing lengths, the neighborhood search can return pairs that are outside
+# of the compact support of both particles. Skip these pairs by returning `skip_value`.
+# Pairs within the larger of both compact supports are kept. Terms using the kernel of the
+# smaller particle vanish beyond its own support, so these terms have to use the safe kernel
+# functions (e.g. `kernel_grad`), which are zero outside of the compact support.
+@inline function skip_unsupported_pairs(f, system, neighbor_system, skip_value)
+    return skip_unsupported_pairs(f,
+                                  Val(has_variable_smoothing_length(system,
+                                                                    neighbor_system)),
+                                  system, neighbor_system, skip_value)
+end
+
+# With a constant smoothing length, this is exactly what the neighborhood search returns
+@inline skip_unsupported_pairs(f, ::Val{false}, system, neighbor_system, skip_value) = f
+
+@inline function skip_unsupported_pairs(f::F, ::Val{true}, system, neighbor_system,
+                                        skip_value) where {F}
+    return @inline function (particle, neighbor, pos_diff, distance)
+        if !pair_in_support(system, neighbor_system, particle, neighbor, distance)
+            return skip_value
+        end
+
+        return f(particle, neighbor, pos_diff, distance)
+    end
+end
+
+# Whether a pair is within the larger of both compact supports
+@inline function pair_in_support(system, neighbor_system, particle, neighbor, distance)
+    return pair_in_support(Val(has_variable_smoothing_length(system, neighbor_system)),
+                           system, neighbor_system, particle, neighbor, distance)
+end
+
+@inline function pair_in_support(::Val{false}, system, neighbor_system,
+                                 particle, neighbor, distance)
+    return true
+end
+
+@inline function pair_in_support(::Val{true}, system, neighbor_system,
+                                 particle, neighbor, distance)
+    h_a, h_b = pair_smoothing_lengths(system, neighbor_system, particle, neighbor)
+
+    return distance <= compact_support(pair_smoothing_kernel(system), max(h_a, h_b))
+end
+
+# The smoothing lengths used for the hydrodynamic interaction of a pair.
+# `system` must be a system with its own smoothing length for this interaction, so pass
+# the fluid system first when the other system is a structure.
+@inline function pair_smoothing_lengths(system, neighbor_system, particle, neighbor)
+    h_a = pair_smoothing_length(system, particle, nothing)
+    h_b = pair_smoothing_length(neighbor_system, neighbor, h_a)
+
+    return h_a, h_b
+end
+
+@inline function pair_smoothing_length(system, particle, h_other)
+    return smoothing_length(system, particle)
+end
+
+# The smoothing length of a TLSPH system is only used for solid mechanics
+@inline function pair_smoothing_length(system::TotalLagrangianSPHSystem, particle, h_other)
+    return smoothing_length(system.boundary_model, particle)
+end
+
+# This model has no smoothing length, so the pair uses the compact support of the fluid
+@inline function pair_smoothing_length(::Union{WallBoundarySystem{<:BoundaryModelMonaghanKajtar},
+                                               RigidBodySystem{<:BoundaryModelMonaghanKajtar},
+                                               TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
+                                       particle, h_other)
+    return h_other
+end
+
+@inline pair_smoothing_kernel(system) = system_smoothing_kernel(system)
+
+@inline function pair_smoothing_kernel(system::TotalLagrangianSPHSystem)
+    return system.boundary_model.smoothing_kernel
+end
+
+@inline function foreach_symmetric_point_neighbor(f, system, neighbor_system,
+                                                  system_coords, neighbor_coords, semi;
+                                                  kwargs...)
+    foreach_point_neighbor(skip_unsupported_pairs(f, system, neighbor_system, nothing),
+                           system, neighbor_system, system_coords, neighbor_coords, semi;
+                           kwargs...)
+end
+
+@propagate_inbounds function mapreduce_symmetric_neighbor(f, op, system, neighbor_system,
+                                                          system_coords, neighbor_coords,
+                                                          neighborhood_search, backend,
+                                                          particle; init)
+    return mapreduce_neighbor(skip_unsupported_pairs(f, system, neighbor_system, init), op,
+                              system_coords, neighbor_coords, neighborhood_search,
+                              backend, particle; init)
 end

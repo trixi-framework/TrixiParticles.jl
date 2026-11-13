@@ -63,6 +63,7 @@ struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C, AV,
     density                        :: D
     particle_spacing               :: ELTYPE
     smoothing_kernel               :: K
+    smoothing_length               :: ELTYPE
     smoothing_length_interpolation :: ELTYPE
     background_pressure            :: ELTYPE
     place_on_shell                 :: Bool
@@ -78,7 +79,8 @@ struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C, AV,
     # This constructor is necessary for Adapt.jl to work with this struct.
     # See the comments in general/gpu.jl for more details.
     function ParticlePackingSystem(initial_condition, mass, density, particle_spacing,
-                                   smoothing_kernel, smoothing_length_interpolation,
+                                   smoothing_kernel, smoothing_length,
+                                   smoothing_length_interpolation,
                                    background_pressure, place_on_shell,
                                    signed_distance_field,
                                    is_boundary, shift_length, neighborhood_search,
@@ -90,7 +92,7 @@ struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C, AV,
                    typeof(density), typeof(smoothing_kernel), typeof(neighborhood_search),
                    typeof(signed_distances)}(initial_condition, advection_velocity,
                                              mass, density, particle_spacing,
-                                             smoothing_kernel,
+                                             smoothing_kernel, smoothing_length,
                                              smoothing_length_interpolation,
                                              background_pressure, place_on_shell,
                                              signed_distance_field, is_boundary,
@@ -155,12 +157,13 @@ function ParticlePackingSystem(shape::InitialCondition;
         shift_length = place_on_shell ? zero(ELTYPE) : shape.particle_spacing / 2
     end
 
-    cache = (; create_cache_refinement(shape, particle_refinement, smoothing_length)...)
+    cache = (;)
 
     advection_velocity = copy(shape.velocity)
 
     return ParticlePackingSystem(shape, mass, density, shape.particle_spacing,
-                                 smoothing_kernel, smoothing_length_interpolation,
+                                 smoothing_kernel, smoothing_length,
+                                 smoothing_length_interpolation,
                                  background_pressure, place_on_shell, signed_distance_field,
                                  is_boundary, shift_length, nhs,
                                  fill(zero(ELTYPE), nparticles(shape)), particle_refinement,
