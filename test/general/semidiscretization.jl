@@ -188,6 +188,32 @@
                                                                          fluid_system;
                                                                          neighborhood_search=nothing)
 
+                # Summation density uses the current hydrodynamic neighborhood of either structure.
+                boundary_model = BoundaryModelDummyParticles(ic.density, ic.mass,
+                                                             SummationDensity(),
+                                                             smoothing_kernel,
+                                                             smoothing_length;
+                                                             state_equation)
+                structure = create_structure_system(structure_type, boundary_model)
+                @test_nowarn TrixiParticles.check_configuration((structure,), nothing)
+                for systems in ((structure, fluid_system), (fluid_system, structure))
+                    # With both directions disabled, this is not a fluid-structure
+                    # interaction, so the boundary density is never used.
+                    @test_nowarn Semidiscretization(systems...;
+                                                    neighborhood_search=nothing,
+                                                    interaction_matrix=[true false;
+                                                                        false true])
+                    # Either direction uses the boundary density of the structure.
+                    for interaction_matrix in ([true true; false true],
+                         [true false; true true])
+                        @test_nowarn Semidiscretization(systems...;
+                                                        neighborhood_search=nothing,
+                                                        interaction_matrix)
+                    end
+                end
+                @test_nowarn Semidiscretization(structure, fluid_system;
+                                                neighborhood_search=nothing)
+
                 @testset "$name" for (name, boundary_kernel, boundary_length,
                                       compatible) in boundary_configurations
 

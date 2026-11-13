@@ -172,12 +172,17 @@ end
                                                   neighbor)
     return interaction_pressure_offset(system, particle)
 end
+@inline use_fluid_boundary_pressure_gradient(system, neighbor, formulation) = false
 
 # Boundary laws can specialize this wrapper without changing the inter-particle
 # operator used by transport-velocity corrections.
 @inline function pressure_acceleration(particle_system, neighbor_system, particle, neighbor,
                                        m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
                                        distance, W_a, correction)
+    formulation = pressure_acceleration_formulation(particle_system)
+    if use_fluid_boundary_pressure_gradient(particle_system, neighbor_system, formulation)
+        return formulation(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a)
+    end
     return pressure_acceleration_interparticle(particle_system, neighbor_system,
                                                particle, neighbor, m_a, m_b, p_a, p_b,
                                                rho_a, rho_b, pos_diff, distance, W_a,
@@ -247,4 +252,19 @@ end
     return pressure_acceleration(particle_system, neighbor_system, particle, neighbor,
                                  m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff, distance,
                                  W_a, correction)
+end
+
+# Adami and Bernoulli boundary pressures are extrapolated from the fluid. Use the
+# fluid's corrected gradient for both pressure terms to avoid spurious forces at
+# constant pressure. The structure-fluid interaction reuses the same pair force.
+@inline function use_fluid_boundary_pressure_gradient(::WeaklyCompressibleSPHSystem,
+                                                      ::Union{WallBoundarySystem{<:BoundaryModelDummyParticles{DC}},
+                                                              RigidBodySystem{<:BoundaryModelDummyParticles{DC}},
+                                                              TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{DC}}},
+                                                      ::Union{typeof(pressure_acceleration_summation_density),
+                                                              typeof(pressure_acceleration_continuity_density),
+                                                              typeof(inter_particle_averaged_pressure)}) where {DC <:
+                                                                                                                Union{AdamiPressureExtrapolation,
+                                                                                                                      BernoulliPressureExtrapolation}}
+    return true
 end

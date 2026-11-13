@@ -44,8 +44,11 @@ end
                                        W_b::AbstractVector)
     # With correction, the kernel gradient is not necessarily symmetric, so call the
     # asymmetric version of the pressure acceleration formulation.
-    return pressure_acceleration_formulation(particle_system)(m_a, m_b, rho_a, rho_b,
-                                                              p_a, p_b, W_a, W_b)
+    formulation = pressure_acceleration_formulation(particle_system)
+    if use_fluid_boundary_pressure_gradient(particle_system, neighbor_system, formulation)
+        return formulation(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a)
+    end
+    return formulation(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a, W_b)
 end
 
 # Kernel gradient at the structure particle that is required by the pressure acceleration
