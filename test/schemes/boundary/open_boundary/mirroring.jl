@@ -1,4 +1,5 @@
 @testset verbose=true "Mirroring" begin
+    include("mirroring_corrections.jl")
     validation_dir = pkgdir(TrixiParticles, "test", "schemes", "boundary", "open_boundary",
                             "data")
 
@@ -537,8 +538,8 @@
         ]
 
         @testset verbose=true "$method" for (i, method) in enumerate(("simple mirroring",
-                                                       "first order mirroring",
-                                                       "zeroth order mirroring"))
+                                                                      "first order mirroring",
+                                                                      "zeroth order mirroring"))
             @test isapprox(pressures[i], pressures_expected[i])
         end
     end

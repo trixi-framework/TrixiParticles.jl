@@ -26,7 +26,7 @@
     # It results in significant improvement for EDAC, especially with TVF,
     # but not for WCSPH, according to Ramachandran & Puri (2019), Section 3.2.
     # Note that the return value is zero when not using average pressure reduction.
-    p_avg = average_pressure(particle_system, particle)
+    p_avg = pair_pressure_offset(particle_system, neighbor_system, particle, neighbor)
 
     # WCSPH uses its free-surface correction; EDAC and IISPH keep unit factors.
     viscosity_correction, pressure_correction,

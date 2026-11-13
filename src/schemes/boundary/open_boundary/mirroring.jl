@@ -139,6 +139,11 @@ function extrapolate_values!(system,
 
     fluid_coords = current_coordinates(u_fluid, fluid_system)
 
+    # Ghost queries have no fluid-particle index. Assemble their own moments with
+    # raw kernels instead of reading a fluid correction cache through a boundary slot.
+    smoothing_kernel = system_smoothing_kernel(system)
+    smoothing_length = initial_smoothing_length(system)
+
     # We cannot use `foreach_point_neighbor` here because we are looking for neighbors
     # of the ghost node positions of each particle.
     # We can do this because we require the neighborhood search to support querying neighbors
@@ -167,16 +172,17 @@ function extrapolate_values!(system,
 
         # TODO: Not public API
         PointNeighbors.foreach_neighbor(fluid_coords, nhs, particle, ghost_node_position,
-                                        nhs.search_radius) do particle, neighbor, pos_diff,
-                                                              distance
+                                        nhs.search_radius
+                                        ) do particle, neighbor, pos_diff,
+                                             distance
             m_b = hydrodynamic_mass(fluid_system, neighbor)
             rho_b = current_density(v_fluid, fluid_system, neighbor)
             pressure_b = current_pressure(v_fluid, fluid_system, neighbor)
             v_b = current_velocity(v_fluid, fluid_system, neighbor)
 
-            kernel_value = smoothing_kernel(fluid_system, distance, particle)
-            grad_kernel = smoothing_kernel_grad(fluid_system, pos_diff, distance,
-                                                particle)
+            kernel_value = kernel(smoothing_kernel, distance, smoothing_length)
+            grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance,
+                                      smoothing_length)
 
             # `pos_diff` corresponds to `x_{kl} = x_k - x_l` in the paper (Tafuni et al., 2018),
             # where `x_k` is the position of the ghost node and `x_l` is the position of the neighbor particle
@@ -307,8 +313,9 @@ function extrapolate_values!(system, mirror_method::ZerothOrderMirroring,
 
         # TODO: Not public API
         PointNeighbors.foreach_neighbor(fluid_coords, nhs, particle, ghost_node_position,
-                                        nhs.search_radius) do particle, neighbor, pos_diff,
-                                                              distance
+                                        nhs.search_radius
+                                        ) do particle, neighbor, pos_diff,
+                                             distance
             m_b = hydrodynamic_mass(fluid_system, neighbor)
             rho_b = current_density(v_fluid, fluid_system, neighbor)
             volume_b = m_b / rho_b
