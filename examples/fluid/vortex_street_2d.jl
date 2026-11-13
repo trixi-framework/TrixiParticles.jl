@@ -91,16 +91,23 @@ density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 
 shifting_technique = ParticleShiftingTechnique(; sound_speed_factor=0.2, v_max_factor=0)
 
+# Note that `tensile_instability_control` is not momentum-conserving for negative pressures.
+# Use the default formulation when forces on the cylinder are measured like in the
+# validation case corresponding to this example file.
 fluid_system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel, smoothing_length,
                                            density_calculator=fluid_density_calculator,
                                            state_equation, density_diffusion, viscosity,
-                                           pressure_acceleration=tensile_instability_control,
                                            shifting_technique,
                                            buffer_size=n_buffer_particles)
 
 # ==========================================================================================
 # ==== Open Boundary
-open_boundary_model = BoundaryModelMirroringTafuni(; mirror_method=ZerothOrderMirroring())
+open_boundary_model = BoundaryModelDynamicalPressureZhang()
+
+# With only the inflow velocity prescribed and all other quantities extrapolated,
+# the pressure level in the domain is not determined by the boundary conditions
+# and can drift. Prescribing the outlet pressure fixes the pressure level.
+outlet_reference_pressure = 0.0
 
 # Note that we use bidirectional flow for both the inlet and outlet.
 # True inflow and outflow zones are only necessary for the Lastiwka model.
@@ -113,6 +120,7 @@ inflow = BoundaryZone(; boundary_face=face_in, face_normal=flow_direction,
 face_out = ([min_coords_outlet[1], 0.0], [min_coords_outlet[1], domain_size[2]])
 outflow = BoundaryZone(; boundary_face=face_out, face_normal=(-flow_direction),
                        open_boundary_layers, density=fluid_density, particle_spacing,
+                       reference_pressure=outlet_reference_pressure,
                        initial_condition=outlet.fluid)
 
 open_boundary = OpenBoundarySystem(inflow, outflow; fluid_system,
@@ -155,12 +163,14 @@ ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=50)
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
+sorting_callback = SortingCallback(interval=1000)
 
 extra_callback = nothing
 
-callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback(), extra_callback)
+callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback(),
+                        sorting_callback, extra_callback)
 
 sol = solve(ode, RDPK3SpFSAL35(),
             abstol=1e-6, # May need tuning to prevent boundary penetration
             reltol=1e-4, # May need tuning to prevent boundary penetration
-            save_everystep=false, callback=callbacks);
+            save_everystep=false, callback=callbacks, maxiters=10^7);
