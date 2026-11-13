@@ -14,9 +14,9 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - The smoothing kernel and smoothing length of a `BoundaryModelDummyParticles` of a
   `TotalLagrangianSPHSystem` or `RigidBodySystem` must now be the same as those of all
   fluid systems in the simulation (#1338, #1348).
-- The `correction` of a `BoundaryModelDummyParticles` of a `TotalLagrangianSPHSystem` or
-  `RigidBodySystem` must now be `nothing`. Previously, it was ignored or caused an error
-  (#1342).
+- A `BoundaryModelDummyParticles` of a `TotalLagrangianSPHSystem` or `RigidBodySystem` with
+  `KernelCorrection` or `MixedKernelGradientCorrection` now requires all fluid systems to
+  use one of these corrections as well (#1342, #1351).
 
 ### Features
 
@@ -32,6 +32,12 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Important Bugfixes
 
+- Fixed the correction values of the `BoundaryModelDummyParticles` of a
+  `TotalLagrangianSPHSystem` or `RigidBodySystem`, which were not computed or computed with
+  the TLSPH kernel, the frozen TLSPH neighborhood or the contact search of rigid bodies.
+  They are now computed over the current hydrodynamic neighborhood, including the
+  structure itself. With `SummationDensity`, the density of these boundary models is now
+  computed in every time step instead of keeping its initial value (#1351).
 - Fixed the fluid–structure pressure acceleration of fluids with `KernelCorrection`,
   `GradientCorrection`, `BlendedGradientCorrection` or `MixedKernelGradientCorrection` to use
   the smoothing kernel and smoothing length of the boundary model at the structure particles

@@ -20,9 +20,9 @@ torque and applied consistently to all rigid particles.
 # Keywords
 - `boundary_model`: Boundary model for fluid-structure interaction
                     (see [Boundary Models](@ref boundary_models)).
-                    For [`BoundaryModelDummyParticles`](@ref), `correction` must be `nothing`,
-                    since corrections at the boundary particles of structures are not
-                    supported yet.
+                    For [`BoundaryModelDummyParticles`](@ref), see
+                    [Boundary Corrections](@ref boundary_corrections) for the supported
+                    corrections.
 - `contact_model`: Optional rigid contact model.
                    If specified, rigid-wall and rigid-rigid collisions are enabled.
 - `acceleration`: Global acceleration vector applied to all rigid particles.
@@ -376,6 +376,7 @@ end
 
 function update_boundary_interpolation!(boundary_model, system::RigidBodySystem, v, u,
                                         v_ode, u_ode, semi, t)
+    update_structure_boundary_density!(boundary_model, system, v, u, v_ode, u_ode, semi)
     update_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi)
     return system
 end
@@ -626,8 +627,6 @@ function check_configuration(system::RigidBodySystem, systems, nhs)
                                 "$(nparticles(system)) particles."))
         end
     end
-
-    check_boundary_model_correction(system, boundary_model)
 
     foreach_system(systems) do neighbor
         if neighbor isa AbstractFluidSystem && boundary_model === nothing

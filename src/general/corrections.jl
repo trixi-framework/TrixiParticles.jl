@@ -139,16 +139,22 @@ function compute_shepard_coeff!(system, system_coords, v_ode, u_ode, semi,
         foreach_system_wrapped(semi, v_ode,
                                u_ode) do neighbor_system, v_neighbor_system,
                                          u_neighbor_system
-            if !has_system_interaction(system, neighbor_system, semi)
-                # No interaction between these systems.
+            if !has_hydrodynamic_interaction(system, neighbor_system, semi)
+                # No hydrodynamic contribution from this system.
                 return
             end
 
             neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
+            neighborhood_search = get_summation_neighborhood_search(kernel_data, system,
+                                                                    neighbor_system, semi)
 
             # Loop over all pairs of particles and neighbors within the kernel cutoff
-            foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
-                                   semi) do particle, neighbor, pos_diff, distance
+            foreach_point_neighbor(system_coords, neighbor_coords, neighborhood_search;
+                                   points=eachparticle(system),
+                                   parallelization_backend=semi.parallelization_backend) do particle,
+                                                                                            neighbor,
+                                                                                            pos_diff,
+                                                                                            distance
                 rho_b = current_density(v_neighbor_system, neighbor_system, neighbor)
                 m_b = hydrodynamic_mass(neighbor_system, neighbor)
                 volume = m_b / rho_b
@@ -198,16 +204,23 @@ function compute_correction_values!(system,
         foreach_system_wrapped(semi, v_ode,
                                u_ode) do neighbor_system, v_neighbor_system,
                                          u_neighbor_system
-            if !has_system_interaction(system, neighbor_system, semi)
-                # No interaction between these systems.
+            if !has_hydrodynamic_interaction(system, neighbor_system, semi)
+                # No hydrodynamic contribution from this system.
                 return
             end
 
             neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
+            neighborhood_search = get_summation_neighborhood_search(kernel_data, system,
+                                                                    neighbor_system, semi)
+
             # Loop over all pairs of particles and neighbors within the kernel cutoff
-            foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
-                                   semi) do particle, neighbor, pos_diff, distance
+            foreach_point_neighbor(system_coords, neighbor_coords, neighborhood_search;
+                                   points=eachparticle(system),
+                                   parallelization_backend=semi.parallelization_backend) do particle,
+                                                                                            neighbor,
+                                                                                            pos_diff,
+                                                                                            distance
                 h = smoothing_length(kernel_data, particle)
                 distance >= compact_support(smoothing_kernel, h) && return
 
@@ -356,14 +369,21 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
         foreach_system_wrapped(semi, v_ode,
                                u_ode) do neighbor_system, v_neighbor_system,
                                          u_neighbor_system
-            if !has_system_interaction(system, neighbor_system, semi)
-                # No interaction between these systems.
+            if !has_hydrodynamic_interaction(system, neighbor_system, semi)
+                # No hydrodynamic contribution from this system.
                 return
             end
 
             neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
-            foreach_point_neighbor(system, neighbor_system, coordinates, neighbor_coords,
-                                   semi) do particle, neighbor, pos_diff, distance
+            neighborhood_search = get_summation_neighborhood_search(kernel_data, system,
+                                                                    neighbor_system, semi)
+
+            foreach_point_neighbor(coordinates, neighbor_coords, neighborhood_search;
+                                   points=eachparticle(system),
+                                   parallelization_backend=semi.parallelization_backend) do particle,
+                                                                                            neighbor,
+                                                                                            pos_diff,
+                                                                                            distance
                 grad_kernel = corrected_kernel_grad(smoothing_kernel, pos_diff, distance,
                                                     smoothing_length(kernel_data, particle),
                                                     kernel_correction, kernel_data,
