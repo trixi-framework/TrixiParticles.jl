@@ -246,7 +246,7 @@
             u = TrixiParticles.wrap_u(u_ode, system, semi)
 
             for cache_key in (:kernel_correction_coefficient, :dw_gamma,
-                :correction_matrix)
+                              :correction_matrix)
                 hasproperty(system.cache, cache_key) || continue
 
                 fill!(getproperty(system.cache, cache_key), NaN)
@@ -256,7 +256,7 @@
             TrixiParticles.update_pressure!(system, v, u, v_ode, u_ode, semi, 0.0)
 
             for cache_key in (:kernel_correction_coefficient, :dw_gamma,
-                :correction_matrix)
+                              :correction_matrix)
                 hasproperty(system.cache, cache_key) || continue
 
                 @test all(isfinite, getproperty(system.cache, cache_key))
@@ -270,15 +270,24 @@
         smoothing_length = 1.6particle_spacing
 
         fluid = rectangular_patch(particle_spacing, (3, 3), seed=1)
+        wall = InitialCondition(; coordinates=zeros(2, 1), density=1000.0, particle_spacing)
+        model = BoundaryModelDummyParticles(wall.density, wall.mass, PressureMirroring(),
+                                            smoothing_kernel, smoothing_length)
+        wall_system = WallBoundarySystem(wall, model)
 
         transport_velocity = [nothing, TransportVelocityAdami(background_pressure=10000.0)]
         names = ["No TVF", "TransportVelocityAdami"]
-        @testset "$(names[i])" for i in eachindex(transport_velocity)
+        @testset "$(names[i]), mirrored wall=$mirrored_wall" for i in
+                                                                 eachindex(transport_velocity),
+                                                                 mirrored_wall in
+                                                                 (false, true)
+
             system = EntropicallyDampedSPHSystem(fluid; smoothing_kernel,
                                                  smoothing_length, sound_speed=0.0,
                                                  shifting_technique=transport_velocity[i],
                                                  average_pressure_reduction=true)
-            semi = Semidiscretization(system)
+            semi = mirrored_wall ? Semidiscretization(system, wall_system) :
+                   Semidiscretization(system)
 
             TrixiParticles.initialize_neighborhood_searches!(semi)
 

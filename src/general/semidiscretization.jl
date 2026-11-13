@@ -123,7 +123,7 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
 
     # Check e.g. that the boundary systems are using a state equation if EDAC is not used.
     # Other checks might be added here later.
-    check_configuration(systems, neighborhood_search)
+    check_configuration(systems, neighborhood_search, interaction_matrix)
 
     sizes_u = [u_nvariables(system) * n_integrated_particles(system)
                for system in systems]
@@ -510,8 +510,9 @@ end
     return reshape(view(array, range), Int.(size))
 end
 
-function check_configuration(systems,
-                             nhs::Union{Nothing, AbstractNeighborhoodSearch})
+function check_configuration(systems::Union{Tuple, AbstractVector},
+                             nhs::Union{Nothing, AbstractNeighborhoodSearch},
+                             interaction_matrix=create_interaction_matrix(nothing, systems))
     foreach_system(systems) do system
         check_configuration(system, systems, nhs)
     end

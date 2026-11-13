@@ -341,13 +341,13 @@ function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
                                                          MixedKernelGradientCorrection},
                                              system::EntropicallyDampedSPHSystem, u,
                                              v_ode, u_ode, semi)
-    (; cache, correction, smoothing_kernel) = system
+    (; cache) = system
     (; correction_matrix) = cache
 
     system_coords = current_coordinates(u, system)
 
     compute_gradient_correction_matrix!(correction_matrix, system, system_coords,
-                                        v_ode, u_ode, semi, correction, smoothing_kernel)
+                                        v_ode, u_ode, semi, corr)
 end
 
 @inline function correction_matrix(system::EntropicallyDampedSPHSystem, particle)
@@ -406,8 +406,9 @@ end
 @inline function component_pressure_sum(systems::Tuple, component, v_ode, semi)
     system = first(systems)
     pressure_sum, count = active_pressure_sum(system, first(component), v_ode, semi)
-    rest_sum, rest_count = component_pressure_sum(Base.tail(systems), Base.tail(component),
-                                                  v_ode, semi)
+    rest_sum,
+    rest_count = component_pressure_sum(Base.tail(systems), Base.tail(component),
+                                        v_ode, semi)
     return pressure_sum + rest_sum, count + rest_count
 end
 

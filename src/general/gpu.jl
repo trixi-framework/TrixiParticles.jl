@@ -21,9 +21,15 @@ Adapt.@adapt_structure OpenBoundarySystem
 Adapt.@adapt_structure DEMSystem
 Adapt.@adapt_structure BoundaryDEMSystem
 Adapt.@adapt_structure RCRWindkesselModel
+Adapt.@adapt_structure SignedDistanceField
+Adapt.@adapt_structure ParticlePackingSystem
 
 function adapt_neighborhood_search_handler(to, handler::PairsNHSHandler)
-    return PairsNHSHandler(Adapt.adapt.(Ref(to), handler.neighborhood_searches))
+    hydrodynamic_searches = map(handler.hydrodynamic_neighborhood_searches) do searches
+        map(search -> Adapt.adapt(to, search), searches)
+    end
+    return PairsNHSHandler(Adapt.adapt.(Ref(to), handler.neighborhood_searches),
+                           hydrodynamic_searches)
 end
 
 function adapt_neighborhood_search_handler(to, handler::SharedNHSHandler)

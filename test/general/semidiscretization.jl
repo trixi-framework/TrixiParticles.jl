@@ -129,81 +129,172 @@
                 hydrodynamic_mass::Any
             end
 
-            # Mock fluid system
-            struct FluidSystemMock <: TrixiParticles.AbstractFluidSystem{2}
-                surface_tension::Nothing
-                surface_normal_method::Nothing
-                FluidSystemMock() = new(nothing, nothing)
-            end
-
-            kernel = Val(:smoothing_kernel)
-            Base.ndims(::Val{:smoothing_kernel}) = 2
-            TrixiParticles.compact_support(::Val{:smoothing_kernel}, h) = h
-
+            smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+            smoothing_length = 1.0
             ic = InitialCondition(; particle_spacing=1.0, coordinates=ones(2, 2),
                                   density=[1.0, 1.0])
+            state_equation = StateEquationCole(; sound_speed=10.0, reference_density=1.0,
+                                               exponent=1)
+            fluid_systems = (WeaklyCompressibleSPHSystem(ic; smoothing_kernel,
+                                                         smoothing_length, state_equation,
+                                                         density_calculator=ContinuityDensity()),
+                             EntropicallyDampedSPHSystem(ic; smoothing_kernel,
+                                                         smoothing_length, sound_speed=10.0,
+                                                         density_calculator=ContinuityDensity()))
 
-            fluid_system = FluidSystemMock()
-            model_a = BoundaryModelMock(zeros(2))
-            model_b = BoundaryModelDummyParticles([1.0, 1.0], [1.0, 1.0],
-                                                  ContinuityDensity(), kernel, 1.0)
-            model_c = BoundaryModelMock(zeros(3))
+            function create_structure_system(structure_type, boundary_model)
+                structure_type === RigidBodySystem &&
+                    return structure_type(ic; boundary_model)
+                return structure_type(ic; smoothing_kernel, smoothing_length,
+                                      young_modulus=1.0, poisson_ratio=1.0, boundary_model,
+                                      self_interaction_nhs=TrixiParticles.TrivialNeighborhoodSearch{2}())
+            end
 
-            # FSI without boundary model
-            structure_system1 = TotalLagrangianSPHSystem(ic;
-                                                         smoothing_kernel=kernel,
-                                                         smoothing_length=1.0,
-                                                         young_modulus=1.0,
-                                                         poisson_ratio=1.0)
+            boundary_configurations = (("matching", smoothing_kernel, smoothing_length,
+                                        true),
+                                       ("different kernel, same support",
+                                        WendlandC2Kernel{2}(), 1.0, false),
+                                       ("different kernel and length, same support",
+                                        SchoenbergQuinticSplineKernel{2}(), 2 / 3, false),
+                                       ("different smoothing length", smoothing_kernel, 0.8,
+                                        false),
+                                       ("smoothing length with rounding error",
+                                        smoothing_kernel, nextfloat(1.0), true))
 
-            error_str = "a boundary model for `TotalLagrangianSPHSystem` must be " *
-                        "specified when simulating a fluid-structure interaction."
-            @test_throws ArgumentError(error_str) Semidiscretization(fluid_system,
-                                                                     structure_system1,
-                                                                     neighborhood_search=nothing)
+            @testset "$(nameof(typeof(fluid_system))), $structure_type" for fluid_system in
+                                                                            fluid_systems,
+                                                                            structure_type in
+                                                                            (TotalLagrangianSPHSystem,
+                                                                             RigidBodySystem)
 
-            # FSI with boundary model
-            structure_system2 = TotalLagrangianSPHSystem(ic;
-                                                         smoothing_kernel=kernel,
-                                                         smoothing_length=1.0,
-                                                         young_modulus=1.0,
-                                                         poisson_ratio=1.0,
-                                                         boundary_model=model_a)
-            structure_system2 = TrixiParticles.initialize_self_interaction_nhs(structure_system2,
-                                                                               nothing,
-                                                                               nothing)
+                # Missing boundary model.
+                structure = create_structure_system(structure_type, nothing)
+                error_str = "a boundary model for `$structure_type` must be specified " *
+                            "when simulating a fluid-structure interaction."
+                @test_throws ArgumentError(error_str) Semidiscretization(fluid_system,
+                                                                         structure;
+                                                                         neighborhood_search=nothing)
 
-            @test_nowarn TrixiParticles.check_configuration((structure_system2,
-                                                             fluid_system),
-                                                            nothing)
+                # User-defined boundary models and particle counts.
+                structure = create_structure_system(structure_type,
+                                                    BoundaryModelMock(zeros(2)))
+                @test_nowarn TrixiParticles.check_configuration((structure, fluid_system),
+                                                                nothing)
+                structure = create_structure_system(structure_type,
+                                                    BoundaryModelMock(zeros(3)))
+                error_str = "the boundary model was initialized with 3 particles, " *
+                            "but the `$structure_type` has 2 particles."
+                @test_throws ArgumentError(error_str) Semidiscretization(structure,
+                                                                         fluid_system;
+                                                                         neighborhood_search=nothing)
 
-            # FSI with wrong boundary model
-            structure_system3 = TotalLagrangianSPHSystem(ic;
-                                                         smoothing_kernel=kernel,
-                                                         smoothing_length=1.0,
-                                                         young_modulus=1.0,
-                                                         poisson_ratio=1.0,
-                                                         boundary_model=model_b)
+                # Summation density uses the current hydrodynamic neighborhood of either structure.
+                boundary_model = BoundaryModelDummyParticles(ic.density, ic.mass,
+                                                             SummationDensity(),
+                                                             smoothing_kernel,
+                                                             smoothing_length;
+                                                             state_equation)
+                structure = create_structure_system(structure_type, boundary_model)
+                @test_nowarn TrixiParticles.check_configuration((structure,), nothing)
+                for systems in ((structure, fluid_system), (fluid_system, structure))
+                    # With both directions disabled, this is not a fluid-structure
+                    # interaction, so the boundary density is never used.
+                    @test_nowarn Semidiscretization(systems...;
+                                                    neighborhood_search=nothing,
+                                                    interaction_matrix=[true false;
+                                                                        false true])
+                    # Either direction uses the boundary density of the structure.
+                    for interaction_matrix in ([true true; false true],
+                         [true false; true true])
+                        @test_nowarn Semidiscretization(systems...;
+                                                        neighborhood_search=nothing,
+                                                        interaction_matrix)
+                    end
+                end
+                @test_nowarn Semidiscretization(structure, fluid_system;
+                                                neighborhood_search=nothing)
 
-            error_str = "`BoundaryModelDummyParticles` with density calculator " *
-                        "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"
-            @test_throws ArgumentError(error_str) Semidiscretization(structure_system3,
-                                                                     fluid_system,
-                                                                     neighborhood_search=nothing)
+                @testset "$name" for (name, boundary_kernel, boundary_length,
+                                      compatible) in boundary_configurations
 
-            # FSI with wrong boundary model
-            structure_system4 = TotalLagrangianSPHSystem(ic;
-                                                         smoothing_kernel=kernel,
-                                                         smoothing_length=1.0,
-                                                         young_modulus=1.0,
-                                                         poisson_ratio=1.0,
-                                                         boundary_model=model_c)
+                    boundary_model = BoundaryModelDummyParticles(ic.density, ic.mass,
+                                                                 AdamiPressureExtrapolation(),
+                                                                 boundary_kernel,
+                                                                 boundary_length;
+                                                                 state_equation)
+                    structure = create_structure_system(structure_type, boundary_model)
+                    if compatible
+                        @test_nowarn Semidiscretization(fluid_system, structure;
+                                                        neighborhood_search=nothing)
+                    else
+                        error_str = "the smoothing kernel and smoothing length of the boundary " *
+                                    "model of the `$structure_type` must be the same " *
+                                    "as those of the fluid system `$(nameof(typeof(fluid_system)))`."
+                        @test_throws ArgumentError(error_str) Semidiscretization(fluid_system,
+                                                                                 structure;
+                                                                                 neighborhood_search=nothing)
+                    end
+                end
+            end
 
-            error_str = "the boundary model was initialized with 3 particles, " *
-                        "but the `TotalLagrangianSPHSystem` has 2 particles."
-            @test_throws ArgumentError(error_str) Semidiscretization(structure_system4,
-                                                                     fluid_system,
-                                                                     neighborhood_search=nothing)
+            # The correction of the boundary model may differ from the fluid correction.
+            # Only a boundary gradient that doesn't vanish at zero distance requires a fluid
+            # gradient that doesn't vanish there either (fluid, boundary, compatible).
+            correction_configurations = ((KernelCorrection(), nothing, true),
+                                         (nothing, GradientCorrection(), true),
+                                         (KernelCorrection(), KernelCorrection(), true),
+                                         (MixedKernelGradientCorrection(),
+                                          KernelCorrection(), true),
+                                         (KernelCorrection(), GradientCorrection(), true),
+                                         (BlendedGradientCorrection(0.3),
+                                          BlendedGradientCorrection(0.7), true),
+                                         (nothing, KernelCorrection(), false),
+                                         (GradientCorrection(),
+                                          MixedKernelGradientCorrection(), false),
+                                         (ShepardKernelCorrection(), KernelCorrection(),
+                                          false))
+            @testset "Corrections, $structure_type" for structure_type in
+                                                        (TotalLagrangianSPHSystem,
+                                                         RigidBodySystem)
+                for (correction, boundary_correction, compatible) in
+                    correction_configurations
+
+                    # `ShepardKernelCorrection` requires `SummationDensity`
+                    density_calculator = correction isa ShepardKernelCorrection ?
+                                         SummationDensity() : ContinuityDensity()
+                    fluid = WeaklyCompressibleSPHSystem(ic; smoothing_kernel,
+                                                        smoothing_length, state_equation,
+                                                        density_calculator, correction)
+                    boundary_model = BoundaryModelDummyParticles(ic.density, ic.mass,
+                                                                 AdamiPressureExtrapolation(),
+                                                                 smoothing_kernel,
+                                                                 smoothing_length;
+                                                                 state_equation,
+                                                                 correction=boundary_correction)
+                    structure = create_structure_system(structure_type, boundary_model)
+                    error_str = "the correction of the boundary model of the " *
+                                "`$structure_type` requires the fluid system " *
+                                "`WeaklyCompressibleSPHSystem` to use `KernelCorrection` " *
+                                "or `MixedKernelGradientCorrection`, since its kernel " *
+                                "gradient does not vanish at zero distance."
+                    if compatible
+                        @test_nowarn Semidiscretization(fluid, structure;
+                                                        neighborhood_search=nothing)
+                    else
+                        @test_throws ArgumentError(error_str) Semidiscretization(fluid,
+                                                                                 structure;
+                                                                                 neighborhood_search=nothing)
+                    end
+
+                    # This requirement applies to every fluid system
+                    if compatible && boundary_correction isa KernelCorrection
+                        @test_throws ArgumentError(error_str) Semidiscretization(fluid,
+                                                                                 fluid_systems[1],
+                                                                                 structure;
+                                                                                 neighborhood_search=nothing)
+                    end
+                end
+            end
         end
 
         @testset verbose=true "WCSPH-Boundary Interaction" begin
@@ -310,7 +401,7 @@
                                             particle_spacing=1.0)
             boundary_model = BoundaryModelDummyParticles(structure_ic.density,
                                                          structure_ic.mass,
-                                                         SummationDensity(), kernel,
+                                                         PressureZeroing(), kernel,
                                                          smoothing_length;
                                                          state_equation,
                                                          correction=nothing)

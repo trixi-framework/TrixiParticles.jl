@@ -112,7 +112,7 @@ end
     # and absent consumers; multiple consumers still share one global pass.
     s = state(actual)
     for (systems, expected_calls) in (((s.fluid,), 0), ((s.boundary,), 0),
-        ((s.boundary, s.fluid, s.fluid), 1))
+         ((s.boundary, s.fluid, s.fluid), 1))
         probe = PostBoundaryRefreshCounter(systems, Ref(0))
         TrixiParticles.update_systems_and_nhs(s.v, s.u, probe, actual.t, callback)
         @test probe.calls[] == expected_calls

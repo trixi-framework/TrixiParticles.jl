@@ -13,11 +13,10 @@ function interact!(dv, v_particle_system, u_particle_system,
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     foreach_point_neighbor(particle_system, neighbor_system,
                            system_coords, neighbor_coords, semi;
-                           points=each_integrated_particle(particle_system)
-                           ) do particle,
-                                neighbor,
-                                pos_diff,
-                                distance
+                           points=each_integrated_particle(particle_system)) do particle,
+                                                                                neighbor,
+                                                                                pos_diff,
+                                                                                distance
         # Skip neighbors with (almost) the same position because the kernel gradient
         # is zero, but computing it would divide by zero (see `almostzero`).
         # Note that `return` only exits the closure, i.e., skips the current neighbor.
@@ -38,7 +37,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         v_b = @inbounds current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
         p_a = @inbounds current_pressure(v_particle_system, particle_system, particle)
-        p_b = @inbounds current_pressure(v_neighbor_system, neighbor_system, neighbor)
+        p_b = @inbounds neighbor_pressure(v_neighbor_system, neighbor_system, neighbor, p_a)
 
         m_a = @inbounds hydrodynamic_mass(particle_system, particle)
         m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
@@ -89,54 +88,6 @@ function interact!(dv, v_particle_system, u_particle_system,
     end
 
     return dv
-end
-
-# Add the acceleration of `particle` due to `neighbor` to `dv_particle`.
-# `particle` must be in `particle_system` and `neighbor` must be in `neighbor_system`.
-# This includes pressure, viscosity, surface tension and adhesion, but not the extra terms
-# from shifting techniques (see `interact_structure_fluid!`).
-# Note that this function is also used for the structure-fluid interaction to compute
-# the exact opposite pair force. When adding new terms here, make sure that they are
-# also valid for structure neighbors.
-@propagate_inbounds function add_momentum_equation(dv_particle,
-                                                   particle_system::EntropicallyDampedSPHSystem,
-                                                   neighbor_system,
-                                                   v_particle_system, v_neighbor_system,
-                                                   particle, neighbor, pos_diff, distance,
-                                                   grad_kernel, sound_speed, m_a, m_b,
-                                                   p_a, p_b, rho_a, rho_b, v_a, v_b)
-    (; correction) = particle_system
-
-    surface_tension_a = surface_tension_model(particle_system)
-    surface_tension_b = surface_tension_model(neighbor_system)
-
-    # Reduce pressure magnitudes with a spatially constant reference shared by
-    # the interacting fluid component. Both directions must use the same offset.
-    # The reference is zero when neither fluid enables pressure reduction.
-    p_avg = pair_pressure_offset(particle_system, neighbor_system, particle, neighbor)
-
-    dv_particle += pressure_acceleration(particle_system, neighbor_system,
-                                         particle, neighbor,
-                                         m_a, m_b, p_a - p_avg, p_b - p_avg, rho_a,
-                                         rho_b, pos_diff, distance, grad_kernel,
-                                         correction)
-
-    dv_particle = add_dv_viscosity(dv_particle, particle_system, neighbor_system,
-                                   v_particle_system, v_neighbor_system,
-                                   particle, neighbor, pos_diff, distance,
-                                   sound_speed, m_a, m_b, rho_a, rho_b,
-                                   v_a, v_b, grad_kernel)
-
-    dv_particle = add_dv_surface_tension(dv_particle, surface_tension_a, surface_tension_b,
-                                         particle_system, neighbor_system,
-                                         particle, neighbor, pos_diff, distance,
-                                         rho_a, rho_b, grad_kernel, 1)
-
-    dv_particle = add_dv_adhesion(dv_particle, surface_tension_a,
-                                  particle_system, neighbor_system,
-                                  particle, neighbor, pos_diff, distance)
-
-    return dv_particle
 end
 
 @inline function pressure_evolution!(dv, particle_system, neighbor_system, v_diff,
