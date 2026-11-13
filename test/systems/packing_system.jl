@@ -97,4 +97,21 @@
         @test isapprox(u[1, 1], -expected_shift)
         @test isapprox(u[2, 1], initial_condition.coordinates[2, 1])
     end
+
+    @testset "Smoothing Length" begin
+        initial_condition = InitialCondition(; coordinates=reshape([0.0, 0.0], 2, 1),
+                                             density=1.0, particle_spacing=0.1)
+        signed_distance_field = TrixiParticles.SignedDistanceField([SVector(2.0, 0.0)],
+                                                                   [SVector(1.0, 0.0)],
+                                                                   [0.0], 1.0, false, 0.1)
+        system = ParticlePackingSystem(initial_condition; signed_distance_field,
+                                       smoothing_length=0.2,
+                                       smoothing_length_interpolation=1.0,
+                                       background_pressure=1.0)
+
+        # The packing rhs uses the initial smoothing length
+        @test TrixiParticles.initial_smoothing_length(system) == 0.2
+        @test TrixiParticles.smoothing_length(system, 1) == 0.2
+        @test TrixiParticles.particle_spacing(system, 1) == 0.1
+    end
 end
