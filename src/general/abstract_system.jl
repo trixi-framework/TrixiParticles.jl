@@ -142,16 +142,9 @@ end
 # Robust/safe version of the function below. In performance-critical code, manually check
 # the kernel support, call `skip_zero_distance` and then `smoothing_kernel_grad_unsafe`.
 @inline function smoothing_kernel_grad(system, pos_diff, distance, particle)
-    h = smoothing_length(system, particle)
-    compact_support_ = compact_support(system_smoothing_kernel(system), h)
-
-    # See `almostzero` for an explanation of the zero distance check
-    if distance >= compact_support_ ||
-       (skip_zero_distance(system) && distance < almostzero(h))
-        return zero(pos_diff)
-    end
-
-    return smoothing_kernel_grad_unsafe(system, pos_diff, distance, particle)
+    return corrected_kernel_grad(system_smoothing_kernel(system), pos_diff, distance,
+                                 smoothing_length(system, particle),
+                                 system_correction(system), system, particle)
 end
 
 # Skip the zero distance and compact support checks for maximum performance.
@@ -160,6 +153,14 @@ end
     return corrected_kernel_grad_unsafe(system_smoothing_kernel(system), pos_diff,
                                         distance, smoothing_length(system, particle),
                                         system_correction(system), system, particle)
+end
+
+# Hydrodynamic corrections of structure systems are stored in their boundary model and are
+# independent of corrections used by the structural scheme itself.
+@inline hydrodynamic_correction(system) = system_correction(system)
+
+@inline function hydrodynamic_smoothing_kernel_grad(system, pos_diff, distance, particle)
+    return smoothing_kernel_grad(system, pos_diff, distance, particle)
 end
 
 # System updates do nothing by default, but can be dispatched if needed
@@ -171,11 +172,27 @@ function update_quantities!(system, v, u, v_ode, u_ode, semi, t)
     return system
 end
 
+function update_density_correction_values!(system, v, u, v_ode, u_ode, semi, t)
+    return system
+end
+
+function update_density_correction!(system, v, u, v_ode, u_ode, semi, t)
+    return system
+end
+
 function update_pressure!(system, v, u, v_ode, u_ode, semi, t)
     return system
 end
 
 function update_boundary_interpolation!(system, v, u, v_ode, u_ode, semi, t)
+    return system
+end
+
+function update_gradient_correction!(system, v, u, v_ode, u_ode, semi, t)
+    return system
+end
+
+function update_surface_quantities!(system, v, u, v_ode, u_ode, semi, t)
     return system
 end
 
