@@ -256,6 +256,24 @@
         end
     end
 
+    @testset verbose=true "Boundary Zone 3D Float32 Tolerance" begin
+        edge1 = Float32[0.6208666, 0.6295315, 0.46713477]
+        edge2 = Float32[-0.48528308, 0.7766439, -0.4016525]
+        boundary_face = (zeros(Float32, 3), edge1, edge2)
+        face_normal = normalize(cross(edge1, edge2))
+
+        # This is orthogonal to Float32 precision, but not to a Float64-based tolerance.
+        @test abs(dot(edge1, edge2)) > sqrt(eps()) * norm(edge1) * norm(edge2)
+        @test abs(dot(edge1, edge2)) <= sqrt(eps(Float32)) * norm(edge1) * norm(edge2)
+
+        boundary_zone = BoundaryZone(; boundary_face, particle_spacing=0.5f0,
+                                     face_normal, density=1.0f0,
+                                     open_boundary_layers=1, boundary_type=InFlow(),
+                                     sample_points=nothing)
+
+        @test size(boundary_zone.initial_condition.coordinates, 2) > 0
+    end
+
     @testset verbose=true "Particle In Boundary Zone 2D" begin
         face_vertices = [[-0.2, -0.5], [0.3, 0.6]]
         face_size = face_vertices[2] - face_vertices[1]
@@ -361,6 +379,26 @@
                                                            boundary_type=InFlow())
         @test_throws ArgumentError(error_str) BoundaryZone(;
                                                            boundary_face=no_rectangular_face,
+                                                           particle_spacing=0.1,
+                                                           face_normal=(-flow_direction),
+                                                           density=1.0,
+                                                           open_boundary_layers=2,
+                                                           boundary_type=OutFlow())
+
+        non_orthogonal_face = [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]]
+        flow_direction = [0.0, 0.0, 1.0]
+
+        error_str = "the vectors `AB` and `AC` must be orthogonal"
+
+        @test_throws ArgumentError(error_str) BoundaryZone(;
+                                                           boundary_face=non_orthogonal_face,
+                                                           particle_spacing=0.1,
+                                                           face_normal=flow_direction,
+                                                           density=1.0,
+                                                           open_boundary_layers=2,
+                                                           boundary_type=InFlow())
+        @test_throws ArgumentError(error_str) BoundaryZone(;
+                                                           boundary_face=non_orthogonal_face,
                                                            particle_spacing=0.1,
                                                            face_normal=(-flow_direction),
                                                            density=1.0,

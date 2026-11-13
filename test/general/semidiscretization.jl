@@ -188,18 +188,31 @@
                                                                          fluid_system;
                                                                          neighborhood_search=nothing)
 
-                if structure_type === TotalLagrangianSPHSystem
-                    boundary_model = BoundaryModelDummyParticles(ic.density, ic.mass,
-                                                                 ContinuityDensity(),
-                                                                 smoothing_kernel,
-                                                                 smoothing_length)
-                    structure = create_structure_system(structure_type, boundary_model)
-                    error_str = "`BoundaryModelDummyParticles` with density calculator " *
-                                "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"
-                    @test_throws ArgumentError(error_str) Semidiscretization(structure,
-                                                                             fluid_system;
-                                                                             neighborhood_search=nothing)
+                # Summation density uses the current hydrodynamic neighborhood of either structure.
+                boundary_model = BoundaryModelDummyParticles(ic.density, ic.mass,
+                                                             SummationDensity(),
+                                                             smoothing_kernel,
+                                                             smoothing_length;
+                                                             state_equation)
+                structure = create_structure_system(structure_type, boundary_model)
+                @test_nowarn TrixiParticles.check_configuration((structure,), nothing)
+                for systems in ((structure, fluid_system), (fluid_system, structure))
+                    # With both directions disabled, this is not a fluid-structure
+                    # interaction, so the boundary density is never used.
+                    @test_nowarn Semidiscretization(systems...;
+                                                    neighborhood_search=nothing,
+                                                    interaction_matrix=[true false;
+                                                                        false true])
+                    # Either direction uses the boundary density of the structure.
+                    for interaction_matrix in ([true true; false true],
+                         [true false; true true])
+                        @test_nowarn Semidiscretization(systems...;
+                                                        neighborhood_search=nothing,
+                                                        interaction_matrix)
+                    end
                 end
+                @test_nowarn Semidiscretization(structure, fluid_system;
+                                                neighborhood_search=nothing)
 
                 @testset "$name" for (name, boundary_kernel, boundary_length,
                                       compatible) in boundary_configurations
@@ -218,6 +231,65 @@
                                     "model of the `$structure_type` must be the same " *
                                     "as those of the fluid system `$(nameof(typeof(fluid_system)))`."
                         @test_throws ArgumentError(error_str) Semidiscretization(fluid_system,
+                                                                                 structure;
+                                                                                 neighborhood_search=nothing)
+                    end
+                end
+            end
+
+            # The correction of the boundary model may differ from the fluid correction.
+            # Only a boundary gradient that doesn't vanish at zero distance requires a fluid
+            # gradient that doesn't vanish there either (fluid, boundary, compatible).
+            correction_configurations = ((KernelCorrection(), nothing, true),
+                                         (nothing, GradientCorrection(), true),
+                                         (KernelCorrection(), KernelCorrection(), true),
+                                         (MixedKernelGradientCorrection(),
+                                          KernelCorrection(), true),
+                                         (KernelCorrection(), GradientCorrection(), true),
+                                         (BlendedGradientCorrection(0.3),
+                                          BlendedGradientCorrection(0.7), true),
+                                         (nothing, KernelCorrection(), false),
+                                         (GradientCorrection(),
+                                          MixedKernelGradientCorrection(), false),
+                                         (ShepardKernelCorrection(), KernelCorrection(),
+                                          false))
+            @testset "Corrections, $structure_type" for structure_type in
+                                                        (TotalLagrangianSPHSystem,
+                                                         RigidBodySystem)
+                for (correction, boundary_correction, compatible) in
+                    correction_configurations
+
+                    # `ShepardKernelCorrection` requires `SummationDensity`
+                    density_calculator = correction isa ShepardKernelCorrection ?
+                                         SummationDensity() : ContinuityDensity()
+                    fluid = WeaklyCompressibleSPHSystem(ic; smoothing_kernel,
+                                                        smoothing_length, state_equation,
+                                                        density_calculator, correction)
+                    boundary_model = BoundaryModelDummyParticles(ic.density, ic.mass,
+                                                                 AdamiPressureExtrapolation(),
+                                                                 smoothing_kernel,
+                                                                 smoothing_length;
+                                                                 state_equation,
+                                                                 correction=boundary_correction)
+                    structure = create_structure_system(structure_type, boundary_model)
+                    error_str = "the correction of the boundary model of the " *
+                                "`$structure_type` requires the fluid system " *
+                                "`WeaklyCompressibleSPHSystem` to use `KernelCorrection` " *
+                                "or `MixedKernelGradientCorrection`, since its kernel " *
+                                "gradient does not vanish at zero distance."
+                    if compatible
+                        @test_nowarn Semidiscretization(fluid, structure;
+                                                        neighborhood_search=nothing)
+                    else
+                        @test_throws ArgumentError(error_str) Semidiscretization(fluid,
+                                                                                 structure;
+                                                                                 neighborhood_search=nothing)
+                    end
+
+                    # This requirement applies to every fluid system
+                    if compatible && boundary_correction isa KernelCorrection
+                        @test_throws ArgumentError(error_str) Semidiscretization(fluid,
+                                                                                 fluid_systems[1],
                                                                                  structure;
                                                                                  neighborhood_search=nothing)
                     end
@@ -242,6 +314,29 @@
                         "`state_equation` for all boundary models"
             @test_throws ArgumentError(error_str) Semidiscretization(fluid_system,
                                                                      boundary_system)
+        end
+
+        @testset verbose=true "Fluid Surface Tension Consistency" begin
+            struct FluidSurfaceMock <: TrixiParticles.AbstractFluidSystem{2}
+                surface_tension::Any
+                surface_normal_method::Any
+            end
+
+            system_with_surface = FluidSurfaceMock(SurfaceTensionMorris(),
+                                                   ColorfieldSurfaceNormal())
+            system_with_normal = FluidSurfaceMock(nothing, ColorfieldSurfaceNormal())
+            system_without_surface = FluidSurfaceMock(nothing, nothing)
+
+            error_str = "either none or all fluid systems in a simulation need " *
+                        "to use a surface tension model or a surface normal method."
+            @test_throws ArgumentError(error_str) TrixiParticles.check_configuration(system_with_surface,
+                                                                                     (system_with_surface,
+                                                                                      system_without_surface),
+                                                                                     nothing)
+            @test_nowarn TrixiParticles.check_configuration(system_with_surface,
+                                                            (system_with_surface,
+                                                             system_with_normal),
+                                                            nothing)
         end
     end
 
@@ -306,7 +401,7 @@
                                             particle_spacing=1.0)
             boundary_model = BoundaryModelDummyParticles(structure_ic.density,
                                                          structure_ic.mass,
-                                                         SummationDensity(), kernel,
+                                                         PressureZeroing(), kernel,
                                                          smoothing_length;
                                                          state_equation,
                                                          correction=nothing)

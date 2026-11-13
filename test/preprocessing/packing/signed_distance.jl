@@ -44,6 +44,16 @@
         @test repr("text/plain", signed_distance_field) == show_box
     end
 
+    @testset verbose=true "Open Geometry Validation" begin
+        open_square = [0.0 1.0 1.0 0.0;
+                       0.0 0.0 1.0 1.0]
+        geometry = TrixiParticles.Polygon(open_square; close_curve=false)
+
+        @test SignedDistanceField(geometry, 0.1) isa SignedDistanceField
+        @test_throws ArgumentError SignedDistanceField(geometry, 0.1;
+                                                       use_for_boundary_packing=true)
+    end
+
     @testset verbose=true "Real World Data" begin
         data_dir = pkgdir(TrixiParticles, "examples", "preprocessing", "data")
         validation_dir = pkgdir(TrixiParticles, "test", "preprocessing", "data")

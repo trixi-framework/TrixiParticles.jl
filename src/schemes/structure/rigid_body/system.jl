@@ -20,6 +20,9 @@ torque and applied consistently to all rigid particles.
 # Keywords
 - `boundary_model`: Boundary model for fluid-structure interaction
                     (see [Boundary Models](@ref boundary_models)).
+                    For [`BoundaryModelDummyParticles`](@ref), see
+                    [Boundary Corrections](@ref boundary_corrections) for the supported
+                    corrections.
 - `contact_model`: Optional rigid contact model.
                    If specified, rigid-wall and rigid-rigid collisions are enabled.
 - `acceleration`: Global acceleration vector applied to all rigid particles.
@@ -373,6 +376,10 @@ end
 
 function update_boundary_interpolation!(boundary_model, system::RigidBodySystem, v, u,
                                         v_ode, u_ode, semi, t)
+    update_structure_boundary_density!(boundary_model, system, v, u, v_ode, u_ode, semi)
+    @trixi_timeit timer() "interpolate wall velocity" begin
+        interpolate_wall_velocity!(boundary_model, system, v, u, v_ode, u_ode, semi)
+    end
     update_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi)
     return system
 end

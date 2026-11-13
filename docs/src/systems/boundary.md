@@ -69,8 +69,11 @@ We provide six options to compute the boundary density and pressure, determined 
    penetrations.
 3. With [`SummationDensity`](@ref), the density is calculated by summation over the neighboring particles,
    and the pressure is computed from the density with the state equation.
+   For the boundary models of a [`TotalLagrangianSPHSystem`](@ref) or a
+   [`RigidBodySystem`](@ref), the sum uses the current hydrodynamic neighborhood.
 4. With [`ContinuityDensity`](@ref), the density is integrated from the continuity equation,
    and the pressure is computed from the density with the state equation.
+   This option is not supported for a [`TotalLagrangianSPHSystem`](@ref).
    Note that this causes a gap between fluid and boundary where the boundary is initialized
    without any contact to the fluid. This is due to overestimation of the boundary density
    as soon as the fluid comes in contact with boundary particles that initially did not have
@@ -85,6 +88,13 @@ We provide six options to compute the boundary density and pressure, determined 
    momentum equation.
    This option is not recommended due to stability issues. See [`PressureMirroring`](@ref)
    for more details.
+
+Pressure mirroring also applies to TLSPH and rigid-body boundary models. In EDAC,
+the mirrored pressure is used in the momentum equation, the pressure evolution
+equation, and the average-pressure reduction. Mirroring makes the pressure
+diffusion contribution from a fluid-boundary pair zero.
+With a viscosity model, the wall velocity of the no-slip condition (see below)
+is computed in the same way as with [`AdamiPressureExtrapolation`](@ref).
 
 #### 1. [`AdamiPressureExtrapolation`](@ref)
 
@@ -165,6 +175,8 @@ velocity ``v_a`` and the smoothed velocity field
 v_w = 2 v_a - \frac{\sum_b v_b W_{ab}}{\sum_b W_{ab}},
 ```
 where the sum is over all fluid particles.
+The wall velocity is computed in this way for all density calculators.
+For IISPH, it is available before the advection prediction and pressure solve.
 
 By choosing the viscosity model [`ViscosityAdami`](@ref) for `viscosity`, a no-slip
 condition is imposed. It is recommended to choose `nu` in the order of either the kinematic
@@ -176,6 +188,53 @@ condition is applied.
 !!! warning
     The viscosity model [`ArtificialViscosityMonaghan`](@ref) for [`BoundaryModelDummyParticles`](@ref)
     has not been verified yet.
+
+### [Corrections](@id boundary_corrections)
+
+When the adjacent fluid system uses a [correction](@ref corrections) with a kernel gradient
+that is not antisymmetric, i.e., [`KernelCorrection`](@ref), [`GradientCorrection`](@ref),
+[`BlendedGradientCorrection`](@ref) or [`MixedKernelGradientCorrection`](@ref),
+the pressure acceleration cannot use
+``\nabla_{r_b} W(\Vert r_b - r_a \Vert, h) = -\nabla_{r_a} W(\Vert r_a - r_b \Vert, h)``.
+Instead, each of the two particles uses its own corrected kernel gradient, e.g.,
+for [`ContinuityDensity`](@ref),
+```math
+\bm{f}_{ab}^{p}
+= -\frac{m_a m_b}{\rho_a \rho_b}
+\left( p_a \tilde{\nabla}_{r_a} W_{ab} - p_b \tilde{\nabla}_{r_b} W_{ba} \right),
+```
+where ``\tilde{\nabla}_{r_a} W_{ab}`` is the corrected kernel gradient of the fluid particle ``a``
+and ``\tilde{\nabla}_{r_b} W_{ba}`` is the corrected kernel gradient of the boundary particle ``b``.
+The latter is computed with the `correction` of the boundary model. With `correction=nothing`,
+the boundary gradient is uncorrected, even when the fluid uses a correction.
+With [`ContinuityDensity`](@ref), the density of the boundary particles also evolves with the
+corrected kernel gradient of the boundary particles.
+
+For WCSPH with [`AdamiPressureExtrapolation`](@ref) or
+[`BernoulliPressureExtrapolation`](@ref), the built-in pressure formulations instead use
+the fluid's corrected gradient for both pressure terms. This preserves equilibrium at
+uniform pressure. The boundary gradient is still used for boundary continuity and the
+transport-velocity operators.
+
+For a [`TotalLagrangianSPHSystem`](@ref) or a [`RigidBodySystem`](@ref), the kernel gradient
+at each boundary particle uses the smoothing kernel, smoothing length and correction of the
+boundary model. Its smoothing kernel and smoothing length must match those of the fluid
+systems. The smoothing kernel of the [`TotalLagrangianSPHSystem`](@ref) is used for solid
+mechanics instead.
+The correction values of the boundary particles and, with [`SummationDensity`](@ref), their
+density are sums over the hydrodynamic neighborhood in the current configuration,
+i.e., over all particles of fluids, boundaries and structures, including the structure itself,
+within the compact support of the boundary model, using their hydrodynamic masses and
+densities.
+
+The correction of the boundary model may differ from the correction of the fluid.
+However, pairs of a fluid particle and a structure particle at the same position
+are skipped when the kernel gradient of the fluid vanishes at zero distance.
+Then, the kernel gradient of the boundary model must also vanish at zero distance.
+Therefore, a boundary model with [`KernelCorrection`](@ref) or
+[`MixedKernelGradientCorrection`](@ref) requires all fluid systems to use one of these
+two corrections as well.
+These requirements are checked when constructing the [`Semidiscretization`](@ref).
 
 ## Repulsive Particles
 

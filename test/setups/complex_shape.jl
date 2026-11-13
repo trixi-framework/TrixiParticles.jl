@@ -2,6 +2,69 @@
     data_dir = pkgdir(TrixiParticles, "examples", "preprocessing", "data")
     validation_dir = pkgdir(TrixiParticles, "test", "preprocessing", "data")
 
+    @testset verbose=true "Sample Boundary" begin
+        particle_spacing = 0.1
+        positions = [
+            SVector(0.0, 0.0),
+            SVector(0.1, 0.0),
+            SVector(0.2, 0.0),
+            SVector(0.3, 0.0),
+            SVector(0.4, 0.0)
+        ]
+        distances = [0.01, 0.05, 0.1, 0.2, 0.3]
+
+        signed_distance_field = (; positions, distances, particle_spacing,
+                                 boundary_packing=true, max_signed_distance=0.3)
+
+        boundary = sample_boundary(signed_distance_field; boundary_density=1.0,
+                                   boundary_thickness=0.2, place_on_shell=false)
+        @test boundary.coordinates ≈ stack(positions[2:4])
+
+        boundary = sample_boundary(signed_distance_field; boundary_density=1.0,
+                                   boundary_thickness=0.2, place_on_shell=true)
+        @test boundary.coordinates ≈ stack(positions[3:4])
+
+        @test_throws ArgumentError sample_boundary(signed_distance_field;
+                                                   boundary_density=1.0,
+                                                   boundary_thickness=0.04,
+                                                   place_on_shell=false)
+
+        too_thin_sdf = (; positions, distances, particle_spacing,
+                        boundary_packing=true, max_signed_distance=0.1)
+        @test_throws ArgumentError sample_boundary(too_thin_sdf; boundary_density=1.0,
+                                                   boundary_thickness=0.2)
+
+        not_boundary_sdf = (; positions, distances, particle_spacing,
+                            boundary_packing=false, max_signed_distance=0.3)
+        @test_throws ArgumentError sample_boundary(not_boundary_sdf; boundary_density=1.0,
+                                                   boundary_thickness=0.2)
+
+        @testset "Single-layer roundoff" begin
+            for T in (Float32, Float64), place_on_shell in (false, true)
+                spacing = T(0.1)
+                offset = place_on_shell ? spacing : spacing / 2
+                gap = spacing / 100
+                distances = [offset - gap, prevfloat(offset), nextfloat(offset),
+                    offset + gap]
+                positions = [SVector(T(i), zero(T)) for i in eachindex(distances)]
+                sdf = (; positions, distances, particle_spacing=spacing,
+                       boundary_packing=true, max_signed_distance=3spacing)
+                boundary = sample_boundary(sdf; boundary_density=one(T),
+                                           boundary_thickness=offset, place_on_shell)
+                @test boundary.coordinates == stack(positions[2:3])
+            end
+
+            square = TrixiParticles.Polygon([0.0 0.0 1.0 1.0 0.0;
+                                             0.0 1.0 1.0 0.0 0.0])
+            sdf = SignedDistanceField(square, 0.1; use_for_boundary_packing=true,
+                                      max_signed_distance=0.3)
+            boundary = sample_boundary(sdf; boundary_density=1.0,
+                                       boundary_thickness=0.1, place_on_shell=true)
+            # Eleven grid points per side, one spacing outside the square.
+            @test nparticles(boundary) == 44
+        end
+    end
+
     @testset verbose=true "2D" begin
         @testset verbose=true "Shifted Rectangle" begin
             algorithms = [
@@ -41,7 +104,7 @@
         end
 
         @testset verbose=true "Real World Data" begin
-            files = ["hexagon", "circle", "inverted_open_curve"]
+            files = ["hexagon", "circle"]
             algorithms = [
                 WindingNumberHormann(),
                 WindingNumberJacobson(; hierarchical_winding=false)
@@ -72,7 +135,8 @@
                     # See https://docs.julialang.org/en/v1/base/base/#var%22name%22
                     coords = vcat((data.var"Points:0")', (data.var"Points:1")')
 
-                    geometry = load_geometry(joinpath(data_dir, files[j] * ".asc"))
+                    geometry = load_geometry(joinpath(data_dir, files[j] * ".asc");
+                                             close_curve=true)
 
                     shape_sampled = ComplexShape(geometry; particle_spacing=0.05,
                                                  density=1.0, point_in_geometry_algorithm)
@@ -80,6 +144,15 @@
                     @test isapprox(shape_sampled.coordinates, coords, atol=1e-2)
                 end
             end
+        end
+
+        @testset verbose=true "Open Geometry Validation" begin
+            open_square = [0.0 1.0 1.0 0.0;
+                           0.0 0.0 1.0 1.0]
+            geometry = TrixiParticles.Polygon(open_square; close_curve=false)
+
+            @test_throws ArgumentError ComplexShape(geometry; particle_spacing=0.1,
+                                                    density=1.0)
         end
 
         @testset verbose=true "Intersect of Overlapping Shapes and Geometries" begin

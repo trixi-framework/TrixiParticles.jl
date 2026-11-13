@@ -68,6 +68,7 @@
             @test system.max_iterations == max_iterations
             @test system.time_step == time_step
             @test length(system.density) == size(coordinates, 2)
+            @test TrixiParticles.system_state_equation(system) === nothing
 
             # A too-short acceleration vector triggers dimension validation
             error_str1 = "`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"
@@ -296,6 +297,76 @@
         @test v0 == velocity
     end
 
+    moving_wall_densities = (AdamiPressureExtrapolation(), BernoulliPressureExtrapolation(),
+                             ContinuityDensity(), PressureZeroing(), PressureMirroring(),
+                             PressureBoundaries(time_step=1e-3, omega=0.5))
+    moving_wall_velocities = (((0.0, 0.0), (0.0, 0.0)),
+                              ((1.0, 0.0), (1.0, 0.0)),
+                              ((-1.0, 0.0), (-1.0, 0.0)),
+                              ((0.0, 1.0), (0.0, 1.0)),
+                              ((0.4, -0.3), (0.2, 0.5)))
+    moving_wall_configurations = Iterators.product(moving_wall_densities, (false, true),
+                                                   moving_wall_velocities)
+    @testset "Moving-wall prediction: $boundary_density, boundary_first=$boundary_first, $velocities" for (boundary_density,
+                                                                                                           boundary_first,
+                                                                                                           velocities) in
+                                                                                                          moving_wall_configurations
+
+        fluid_velocity, wall_velocity = SVector.(velocities)
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        smoothing_length = 1.0
+        reference_density = 1000.0
+        time_step = 1e-3
+        viscosity = ViscosityAdami(nu=0.1)
+
+        # W(0) + W(1.5h) = 10 / (7pi) * (1 + 1/32) at h=1.
+        # Calibrate both masses so that the initial summation densities equal rho_0.
+        mass = reference_density / (10 / (7pi) * (1 + 1 / 32))
+        fluid_ic = InitialCondition(; coordinates=zeros(2, 1),
+                                    velocity=reshape(collect(fluid_velocity), 2, 1),
+                                    density=reference_density, mass,
+                                    particle_spacing=1.0)
+        fluid = ImplicitIncompressibleSPHSystem(fluid_ic; smoothing_kernel,
+                                                smoothing_length, reference_density,
+                                                time_step, viscosity)
+        wall_ic = InitialCondition(; coordinates=reshape([1.5, 0.0], 2, 1),
+                                   density=reference_density, mass,
+                                   particle_spacing=1.0)
+        boundary_model = BoundaryModelDummyParticles([reference_density], [mass],
+                                                     boundary_density, smoothing_kernel,
+                                                     smoothing_length; viscosity)
+        motion = iszero(wall_velocity) ? nothing :
+                 PrescribedMotion((x, t) -> x + wall_velocity * t, t -> true)
+        wall = WallBoundarySystem(wall_ic, boundary_model; prescribed_motion=motion)
+        systems = boundary_first ? (wall, fluid) : (fluid, wall)
+        semi = Semidiscretization(systems...; parallelization_backend=SerialBackend())
+        ode = semidiscretize(semi, (0.0, 0.01))
+        TrixiParticles.update_systems_and_nhs(ode.u0.x..., ode.p.semi, 0.0)
+
+        # The density increment uses the relative physical velocity. The last velocity
+        # pair distinguishes this from using the no-slip ghost velocity in the PPE.
+        pair_gradient = SVector(15 / (56pi), 0.0)
+        advection_velocity = SVector{2}(fluid.advection_velocity[:, 1])
+        density_increment = time_step * mass *
+                            dot(advection_velocity - wall_velocity, pair_gradient)
+        @test fluid.predicted_density[1] ≈ fluid.density[1] + density_increment
+        if boundary_density isa PressureBoundaries
+            @test boundary_model.cache.predicted_density[1] ≈
+                  boundary_model.cache.density[1] + density_increment
+        end
+
+        if fluid_velocity == wall_velocity
+            # Uniform translation must neither create viscous acceleration nor pressure,
+            # including when the translation has a component normal to the wall.
+            @test advection_velocity ≈ fluid_velocity
+            @test fluid.predicted_density[1] ≈ reference_density
+            @test isapprox(fluid.pressure[1], 0.0; atol=1e-6)
+            if boundary_density isa PressureBoundaries
+                @test isapprox(boundary_model.pressure[1], 0.0; atol=1e-6)
+            end
+        end
+    end
+
     # Validate helper routines that build the IISPH linear system and update pressures
     @trixi_testset "Solver helper calculations" begin
         smoothing_kernel = Val(:smoothing_kernel)
@@ -491,5 +562,31 @@
             @test TrixiParticles.minimum_iisph_iterations(system_iters) == 3
             @test TrixiParticles.maximum_iisph_iterations(system_iters) == 7
         end
+    end
+
+    @testset "Reject incompatible fluid systems" begin
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        smoothing_length = 0.5
+        coordinates = [0.0 0.1
+                       0.0 0.2]
+        velocity = zeros(2, 2)
+        mass = [1.0, 1.0]
+        density = [1000.0, 1000.0]
+        pressure = [0.0, 0.0]
+        ic = InitialCondition(; coordinates, velocity, mass, density, pressure)
+
+        iisph_system = ImplicitIncompressibleSPHSystem(ic;
+                                                       smoothing_kernel,
+                                                       smoothing_length,
+                                                       reference_density=1000.0,
+                                                       time_step=0.5)
+        edac_system = EntropicallyDampedSPHSystem(ic; smoothing_kernel,
+                                                  smoothing_length,
+                                                  sound_speed=10.0)
+
+        error_str = "`ImplicitIncompressibleSPHSystem` cannot be used together with " *
+                    "`EntropicallyDampedSPHSystem`"
+        @test_throws ArgumentError(error_str) Semidiscretization(iisph_system,
+                                                                 edac_system)
     end
 end

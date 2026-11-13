@@ -123,7 +123,7 @@
         initial_condition = rectangular_patch(particle_spacing, ntuple(_ -> 2, n_dims))
 
         boundary_face = n_dims == 2 ? ([0.0, 0.0], [0.0, 1.0]) :
-                        ([0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 1.0, 1.0])
+                        ([0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0])
         face_normal = n_dims == 2 ? [1.0, 0.0] : [1.0, 0.0, 0.0]
         inflow = BoundaryZone(; boundary_face, boundary_type=InFlow(), face_normal,
                               open_boundary_layers=10, density=1.0, particle_spacing)
@@ -167,5 +167,58 @@
 
         # Integrated: velocity + pressure + density (`BoundaryModelDynamicalPressureZhang` always uses `ContinuityDensity`)
         @test TrixiParticles.v_nvariables(open_boundary_edac_2) == n_dims + 2
+    end
+
+    # The buffer particles are part of the fluid. Like all fluid particles, they see their
+    # own pressure at a wall with `PressureMirroring`, and not the (unused) pressure
+    # stored in the wall.
+    @testset verbose=true "Mirrored Wall Neighbor" begin
+        particle_spacing = 0.1
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        smoothing_length = 1.2 * particle_spacing
+        state_equation = StateEquationCole(; sound_speed=20.0, exponent=1,
+                                           reference_density=1000.0)
+
+        # A buffer particle and a wall particle within the kernel support
+        buffer_ic = InitialCondition(; coordinates=zeros(2, 1), density=1020.0,
+                                     particle_spacing)
+        wall_ic = InitialCondition(; coordinates=reshape([0.0, -particle_spacing], 2, 1),
+                                   density=1000.0, particle_spacing)
+
+        fluid = WeaklyCompressibleSPHSystem(buffer_ic; smoothing_kernel, smoothing_length,
+                                            state_equation,
+                                            density_calculator=ContinuityDensity())
+        zone = BoundaryZone(; initial_condition=buffer_ic, boundary_type=InFlow(),
+                            boundary_face=([0.5particle_spacing, -1.0],
+                                           [0.5particle_spacing, 1.0]),
+                            face_normal=[1.0, 0.0], open_boundary_layers=3, density=1020.0,
+                            particle_spacing, reference_velocity=[0.0, 0.0])
+        open_boundary = OpenBoundarySystem(zone; fluid_system=fluid, buffer_size=0,
+                                           boundary_model=BoundaryModelDynamicalPressureZhang())
+        wall_model = BoundaryModelDummyParticles(wall_ic.density, wall_ic.mass,
+                                                 PressureMirroring(), smoothing_kernel,
+                                                 smoothing_length; state_equation)
+        wall = WallBoundarySystem(wall_ic, wall_model)
+
+        # Overwrite the pressure of the buffer particle because we skip the update step
+        p_buffer = 8000.0
+        open_boundary.cache.pressure .= p_buffer
+        v_open = vcat(buffer_ic.velocity, buffer_ic.density')
+
+        function interact_buffer_wall(wall_pressure)
+            wall.boundary_model.pressure .= wall_pressure
+            dv = zero(v_open)
+            TrixiParticles.interact!(dv, v_open, buffer_ic.coordinates, nothing,
+                                     wall_ic.coordinates, open_boundary, wall,
+                                     DummySemidiscretization())
+            return dv
+        end
+
+        # The result is the same as for a wall particle with the pressure of the buffer
+        # particle, independent of the pressure stored in the wall.
+        dv = interact_buffer_wall(0.0)
+        @test !iszero(dv)
+        @test dv ≈ interact_buffer_wall(p_buffer)
+        @test dv ≈ interact_buffer_wall(2 * p_buffer)
     end
 end
