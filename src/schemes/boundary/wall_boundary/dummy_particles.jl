@@ -30,8 +30,8 @@ Boundary model for [`WallBoundarySystem`](@ref).
                                 uses a correction with an asymmetric kernel gradient
                                 (see [Corrections](@ref boundary_corrections)).
                                 For a [`TotalLagrangianSPHSystem`](@ref) or a [`RigidBodySystem`](@ref),
-                                it must be `nothing`, since corrections at the boundary particles
-                                of structures are not supported yet.
+                                [`KernelCorrection`](@ref) and [`MixedKernelGradientCorrection`](@ref)
+                                require all fluid systems to use one of these corrections as well.
 - `viscosity`:                  Slip (default) or no-slip condition. See description below for further
                                 information.
 - `clip_negative_pressure=false`: Clip negative boundary pressures to avoid sticking
@@ -507,7 +507,10 @@ function compute_density!(boundary_model, ::SummationDensity, system, v, u, v_od
     (; cache) = boundary_model
     (; density) = cache # Density is in the cache for SummationDensity
 
-    summation_density!(system, semi, u, u_ode, density; particles=eachparticle(system))
+    # Use the kernel and smoothing length of the boundary model. For structures, this also
+    # selects the hydrodynamic neighborhood (see `has_hydrodynamic_neighborhood`).
+    summation_density!(system, semi, u, u_ode, density; particles=eachparticle(system),
+                       kernel_data=boundary_model)
 end
 
 function compute_density!(boundary_model, ::PressureBoundaries, system, v, u, v_ode, u_ode,

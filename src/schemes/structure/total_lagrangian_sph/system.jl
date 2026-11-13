@@ -33,9 +33,9 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
                     See [`PrescribedMotion`](@ref) for details.
 - `boundary_model`: Boundary model to compute the hydrodynamic density and pressure for
                     fluid-structure interaction (see [Boundary Models](@ref boundary_models)).
-                    For [`BoundaryModelDummyParticles`](@ref), [`ContinuityDensity`](@ref)
-                    is not supported and `correction` must be `nothing`, since corrections
-                    at the boundary particles of structures are not supported yet.
+                    For [`BoundaryModelDummyParticles`](@ref), see
+                    [Boundary Corrections](@ref boundary_corrections) for the supported
+                    corrections. [`ContinuityDensity`](@ref) is not supported.
 - `penalty_force`:  Penalty force to ensure regular particle position under large deformations
                     (see [`PenaltyForceGanzenmueller`](@ref)).
 - `viscosity`:      Artificial viscosity model to stabilize both the TLSPH and the FSI.
@@ -874,8 +874,6 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
                                 "specified when simulating a fluid-structure interaction."))
         end
     end
-
-    check_boundary_model_correction(system, boundary_model)
 
     foreach_system(systems) do neighbor
         check_smoothing_kernel_fsi(system, boundary_model, neighbor)

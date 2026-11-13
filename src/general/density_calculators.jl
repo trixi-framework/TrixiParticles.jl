@@ -23,27 +23,35 @@ difference of the coordinates, ``v_{ab} = v_a - v_b`` of the velocities of parti
 """
 struct ContinuityDensity end
 
+# `system` provides the particles and the neighbor search. `kernel_data` provides the smoothing
+# kernel and the smoothing length. It defaults to `system`; boundary models pass themselves,
+# so that structures use the kernel and hydrodynamic neighborhood of their boundary model.
 function summation_density!(system, semi, u, u_ode, density;
-                            particles=each_integrated_particle(system))
+                            particles=each_integrated_particle(system), kernel_data=system)
     set_zero!(density)
 
     # Use enabled neighbor systems for the density summation.
     @trixi_timeit timer() "compute density" begin
         foreach_system(semi) do neighbor_system
-            has_system_interaction(system, neighbor_system, semi) || return
+            has_hydrodynamic_interaction(system, neighbor_system, semi) || return
 
             u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
 
             system_coords = current_coordinates(u, system)
             neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
+            neighborhood_search = get_summation_neighborhood_search(kernel_data, system,
+                                                                    neighbor_system, semi)
 
             # Loop over all pairs of particles and neighbors within the kernel cutoff.
-            foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
-                                   semi;
-                                   points=particles) do particle, neighbor, pos_diff,
-                                                        distance
+            foreach_point_neighbor(system_coords, neighbor_coords, neighborhood_search;
+                                   points=particles,
+                                   parallelization_backend=semi.parallelization_backend) do particle,
+                                                                                            neighbor,
+                                                                                            pos_diff,
+                                                                                            distance
                 mass = hydrodynamic_mass(neighbor_system, neighbor)
-                density[particle] += mass * smoothing_kernel(system, distance, particle)
+                density[particle] += mass *
+                                     smoothing_kernel(kernel_data, distance, particle)
             end
         end
     end
