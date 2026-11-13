@@ -71,6 +71,7 @@ We provide six options to compute the boundary density and pressure, determined 
    and the pressure is computed from the density with the state equation.
 4. With [`ContinuityDensity`](@ref), the density is integrated from the continuity equation,
    and the pressure is computed from the density with the state equation.
+   This option is not supported for a [`TotalLagrangianSPHSystem`](@ref).
    Note that this causes a gap between fluid and boundary where the boundary is initialized
    without any contact to the fluid. This is due to overestimation of the boundary density
    as soon as the fluid comes in contact with boundary particles that initially did not have

@@ -68,6 +68,8 @@ for its `correction`).
 The correction values and, with [`SummationDensity`](@ref), the density of the boundary
 model are computed over the current hydrodynamic neighborhood, including the structure
 itself, independently of the frozen neighborhood of the solid mechanics.
+[`ContinuityDensity`](@ref) is not supported for the boundary model of a
+[`TotalLagrangianSPHSystem`](@ref).
 
 ```@autodocs
 Modules = [TrixiParticles]

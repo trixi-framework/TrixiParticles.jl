@@ -35,7 +35,7 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
                     fluid-structure interaction (see [Boundary Models](@ref boundary_models)).
                     For [`BoundaryModelDummyParticles`](@ref), see
                     [Boundary Corrections](@ref boundary_corrections) for the supported
-                    corrections.
+                    corrections. [`ContinuityDensity`](@ref) is not supported.
 - `penalty_force`:  Penalty force to ensure regular particle position under large deformations
                     (see [`PenaltyForceGanzenmueller`](@ref)).
 - `viscosity`:      Artificial viscosity model to stabilize both the TLSPH and the FSI.
@@ -122,6 +122,11 @@ function TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing
 
     if ndims(smoothing_kernel) != NDIMS
         throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
+    end
+
+    if boundary_model isa BoundaryModelDummyParticles{ContinuityDensity}
+        throw(ArgumentError("`BoundaryModelDummyParticles` with density calculator " *
+                            "`ContinuityDensity` is not supported for a `TotalLagrangianSPHSystem`"))
     end
 
     # Make acceleration an SVector
@@ -295,10 +300,6 @@ end
 
 @inline function v_nvariables(system::TotalLagrangianSPHSystem)
     return ndims(system)
-end
-
-@inline function v_nvariables(system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}})
-    return ndims(system) + 1
 end
 
 @inline function n_integrated_particles(system::TotalLagrangianSPHSystem)
@@ -632,30 +633,11 @@ function write_u0!(u0, system::TotalLagrangianSPHSystem)
 end
 
 function write_v0!(v0, system::TotalLagrangianSPHSystem)
-    (; initial_condition, boundary_model) = system
+    (; initial_condition) = system
 
     # This is as fast as a loop with `@inbounds`, but it's GPU-compatible
     indices = CartesianIndices((ndims(system), each_integrated_particle(system)))
     copyto!(v0, indices, initial_condition.velocity, indices)
-
-    write_v0!(v0, boundary_model, system)
-
-    return v0
-end
-
-function write_v0!(v0, model, system::TotalLagrangianSPHSystem)
-    return v0
-end
-
-function write_v0!(v0, ::BoundaryModelDummyParticles{ContinuityDensity},
-                   system::TotalLagrangianSPHSystem)
-    (; cache) = system.boundary_model
-    (; initial_density) = cache
-
-    for particle in each_integrated_particle(system)
-        # Set particle densities
-        v0[ndims(system) + 1, particle] = initial_density[particle]
-    end
 
     return v0
 end
@@ -867,13 +849,7 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
         end
     end
 
-    if boundary_model isa BoundaryModelDummyParticles &&
-       boundary_model.density_calculator isa ContinuityDensity
-        throw(ArgumentError("`BoundaryModelDummyParticles` with density calculator " *
-                            "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"))
-    end
-
     foreach_system(systems) do neighbor
-        check_boundary_model_fsi(system, boundary_model, neighbor)
+        check_smoothing_kernel_fsi(system, boundary_model, neighbor)
     end
 end

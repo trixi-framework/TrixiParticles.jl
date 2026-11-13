@@ -80,8 +80,8 @@ end
 # fluid kernels. The TLSPH kernel for solid mechanics may differ.
 # Note that this is only a restriction for `BoundaryModelDummyParticles`, since
 # `BoundaryModelMonaghanKajtar` always uses the compact support of the fluid.
-function check_boundary_model_fsi(system, boundary_model::BoundaryModelDummyParticles,
-                                  neighbor_system::AbstractFluidSystem)
+function check_smoothing_kernel_fsi(system, boundary_model::BoundaryModelDummyParticles,
+                                    neighbor_system::AbstractFluidSystem)
     smoothing_kernel_structure = boundary_model.smoothing_kernel
     smoothing_kernel_fluid = system_smoothing_kernel(neighbor_system)
     smoothing_length_structure = initial_smoothing_length(boundary_model)
@@ -112,7 +112,7 @@ function check_boundary_model_fsi(system, boundary_model::BoundaryModelDummyPart
     return system
 end
 
-check_boundary_model_fsi(system, boundary_model, neighbor_system) = system
+check_smoothing_kernel_fsi(system, boundary_model, neighbor_system) = system
 
 function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
                                    v_neighbor_system, u_neighbor_system,
@@ -131,11 +131,14 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
                            points=eachparticle) do particle, neighbor, pos_diff, distance
         # Skip neighbors with (almost) the same position if the fluid gradient vanishes,
         # because computing it would divide by zero (see `almostzero`). The boundary
-        # gradient also vanishes in this case (see `check_boundary_model_fsi`).
+        # gradient also vanishes in this case (see `check_smoothing_kernel_fsi`).
         # Note that `return` only exits the closure, i.e., skips the current neighbor.
-        skip_zero_distance(neighbor_system) &&
-            distance < almostzero(h) && return
+        if skip_zero_distance(neighbor_system) && distance < almostzero(h)
+            return
+        end
 
+        # Now we can safely call the unsafe version of the kernel gradient to avoid
+        # redundant zero checks.
         # Evaluate the gradient exactly as in the fluid-structure interaction, i.e.,
         # with the fluid particle's kernel and correction and the fluid-first displacement.
         # Note that we cannot just flip the sign of the structure-first gradient, since
@@ -165,8 +168,8 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
         # by the pressure acceleration of a fluid with an asymmetric corrected kernel
         # gradient and by the continuity equation of the boundary particles.
         # When the pressure acceleration requires it, compute it only once for both.
-        # This is the same gradient as in the fluid-structure interaction, since negating
-        # the fluid-first displacement is exact.
+        # Here `pos_diff` is `x_structure - x_fluid`, matching the displacement
+        # passed to the boundary model in the fluid-structure interaction.
         grad_kernel_boundary = boundary_pressure_kernel_grad(system_correction(neighbor_system),
                                                              particle_system, pos_diff,
                                                              distance, particle)
@@ -208,67 +211,29 @@ end
                                          neighbor_system::AbstractFluidSystem,
                                          particle, neighbor, pos_diff, distance,
                                          m_b, rho_a, rho_b, v_a, v_b, grad_kernel_fluid,
-                                         grad_kernel_boundary=nothing)
+                                         grad_kernel_boundary)
     return drho_particle
 end
 
 # `grad_kernel_boundary` is the kernel gradient of the boundary model at the structure
 # particle if it has already been computed for the pressure acceleration, or `nothing`.
 @inline function add_continuity_equation(drho_particle,
-                                         particle_system::Union{RigidBodySystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
-                                                                TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}}},
+                                         particle_system::RigidBodySystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
                                          neighbor_system::AbstractFluidSystem,
                                          particle, neighbor, pos_diff, distance,
                                          m_b, rho_a, rho_b, v_a, v_b, grad_kernel_fluid,
-                                         grad_kernel_boundary=nothing)
-    (; boundary_model) = particle_system
-
-    # As for a `WallBoundarySystem`, the density of the boundary particles evolves with
-    # the kernel gradient of the boundary model (including its correction)
-    # and not with the corrected kernel gradient of the fluid.
-    grad_kernel = boundary_continuity_kernel_grad(system_correction(neighbor_system),
-                                                  system_correction(boundary_model),
-                                                  boundary_model, pos_diff, distance,
-                                                  particle, grad_kernel_fluid,
-                                                  grad_kernel_boundary)
+                                         grad_kernel_boundary)
+    # Reuse the boundary gradient computed for the pressure acceleration when available.
+    # Otherwise compute it with the boundary model's own correction, which may differ
+    # from the fluid correction.
+    grad_kernel = isnothing(grad_kernel_boundary) ?
+                  smoothing_kernel_grad(particle_system.boundary_model, pos_diff,
+                                        distance, particle) :
+                  grad_kernel_boundary
 
     return add_continuity_equation(drho_particle,
                                    density_calculator(neighbor_system),
                                    m_b, rho_a, rho_b, v_a, v_b, grad_kernel, particle)
-end
-
-@inline function boundary_continuity_kernel_grad(fluid_correction, boundary_correction,
-                                                 boundary_model, pos_diff, distance,
-                                                 particle, grad_kernel_fluid,
-                                                 grad_kernel_boundary)
-    # Reuse the kernel gradient of the boundary model from the pressure acceleration
-    return grad_kernel_boundary
-end
-
-@inline function boundary_continuity_kernel_grad(fluid_correction, boundary_correction,
-                                                 boundary_model, pos_diff, distance,
-                                                 particle, grad_kernel_fluid,
-                                                 grad_kernel_boundary::Nothing)
-    # Use the kernel, smoothing length and correction of the boundary model. The kernel of
-    # a `TotalLagrangianSPHSystem` for solid mechanics may be different.
-    # Use the safe version, which handles particles at the same position. The gradient of
-    # `KernelCorrection` and `MixedKernelGradientCorrection` does not vanish there.
-    return smoothing_kernel_grad(boundary_model, pos_diff, distance, particle)
-end
-
-@inline function boundary_continuity_kernel_grad(::Union{Nothing,
-                                                         AkinciFreeSurfaceCorrection,
-                                                         ShepardKernelCorrection},
-                                                 ::Union{Nothing,
-                                                         AkinciFreeSurfaceCorrection,
-                                                         ShepardKernelCorrection},
-                                                 boundary_model, pos_diff, distance,
-                                                 particle, grad_kernel_fluid,
-                                                 grad_kernel_boundary::Nothing)
-    # Neither correction changes the gradient, and the kernel and smoothing length of the
-    # boundary model match the ones of the fluid (see `check_boundary_model_fsi`).
-    # Reversing the displacement only flips the sign of the uncorrected gradient.
-    return -grad_kernel_fluid
 end
 
 @inline function write_drho_particle!(dv, ::AbstractSystem, drho_particle, particle)
@@ -276,8 +241,7 @@ end
 end
 
 @propagate_inbounds function write_drho_particle!(dv,
-                                                  ::Union{RigidBodySystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
-                                                          TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}}},
+                                                  ::RigidBodySystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
                                                   drho_particle, particle)
     dv[end, particle] += drho_particle
 
