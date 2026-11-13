@@ -93,8 +93,6 @@ end
         for i in 1:ndims(system)
             @inbounds dv[i, particle] += dv_particle_[i]
         end
-
-        # TODO continuity equation for boundary model with `ContinuityDensity`?
     end
 
     return dv
@@ -117,6 +115,5 @@ function interact!(dv, v_particle_system, u_particle_system,
                    particle_system::TotalLagrangianSPHSystem,
                    neighbor_system::Union{WallBoundarySystem, OpenBoundarySystem}, semi;
                    eachparticle=each_integrated_particle(particle_system))
-    # TODO continuity equation?
     return dv
 end
