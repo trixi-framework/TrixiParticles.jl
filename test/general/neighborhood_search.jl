@@ -5,6 +5,8 @@
 
     TrixiParticles.nparticles(system::MockSystemOutOfBounds) = length(system.buffer.active_particle)
     Base.eltype(system::MockSystemOutOfBounds) = Float64
+    TrixiParticles.wrap_u(u_ode, ::MockSystemOutOfBounds, ::DummySemidiscretization) = u_ode
+    TrixiParticles.wrap_v(v_ode, ::MockSystemOutOfBounds, ::DummySemidiscretization) = v_ode
 
     @testset "Particles Inside Bounds" begin
         # Setup: 5 particles, all inside bounds

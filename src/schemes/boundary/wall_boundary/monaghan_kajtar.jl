@@ -86,6 +86,18 @@ end
                                  grad_kernel, nothing)
 end
 
+# The repulsive force does not depend on the kernel gradients of the pair
+@inline function pressure_acceleration_variable_h(::Val{true}, particle_system,
+                                                  neighbor_system::Union{WallBoundarySystem{<:BoundaryModelMonaghanKajtar},
+                                                                         TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
+                                                  particle, neighbor, m_a, m_b, p_a, p_b,
+                                                  rho_a, rho_b, pos_diff, distance,
+                                                  grad_kernel, correction)
+    return pressure_acceleration(particle_system, neighbor_system, particle, neighbor,
+                                 m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff, distance,
+                                 grad_kernel, correction)
+end
+
 @fastpow @inline function boundary_kernel(r, h)
     q = r / h
 

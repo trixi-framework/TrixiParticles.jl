@@ -302,6 +302,12 @@ function Base.similar(::Broadcast.Broadcasted{ThreadedBroadcastStyle{P}},
     return ThreadedBroadcastArray(similar(Array{T}, dims), parallelization_backend=P())
 end
 
+function Base.resize!(A::ThreadedBroadcastArray, length::Int)
+    resize!(A.array, length)
+
+    return A
+end
+
 # Like `copyto!`, but parallelize over particles to use the same memory access pattern
 # as the particle loops in the right-hand side.
 @inline function copyto_threaded!(dest::Matrix, src, parallelization_backend)
