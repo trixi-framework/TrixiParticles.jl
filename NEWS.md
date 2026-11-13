@@ -32,6 +32,10 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Important Bugfixes
 
+- Fixed double-counted Monaghan-Kajtar repulsion in TVF momentum and
+  background-pressure shifting operators (#1344).
+- Fixed pressure mirroring for TLSPH and rigid-body neighbors and for EDAC momentum,
+  pressure diffusion, and average-pressure reduction at walls and structures (#1341).
 - Fixed the fluid–structure pressure acceleration of fluids with `KernelCorrection`,
   `GradientCorrection`, `BlendedGradientCorrection` or `MixedKernelGradientCorrection` to use
   the smoothing kernel and smoothing length of the boundary model at the structure particles

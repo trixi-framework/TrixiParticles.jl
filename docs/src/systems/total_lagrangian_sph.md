@@ -141,6 +141,8 @@ In these cases, artificial viscosity is effective at stabilizing the fluid close
 structure, and we recommend using it in combination with penalty force to both
 prevent hourglass modes and stabilize the fluid close to the fluid-structure interface.
 
+TVF transport operators also use the boundary model's kernel gradient for dummy-particle
+fluid coupling, independently of the TLSPH self-interaction kernel.
 
 ## [Velocity Averaging](@id velocity_averaging)
 
