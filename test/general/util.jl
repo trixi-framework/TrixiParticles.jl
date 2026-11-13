@@ -51,6 +51,12 @@ end
     copyto!(A, TrixiParticles.ThreadedBroadcastArray(fill(2.0, 3, 3)))
     @test all(parent(A) .== 2)
 
+    # Test that `resize!` changes the wrapped array and returns the same object
+    A_vector = TrixiParticles.ThreadedBroadcastArray(ones(3))
+    @test resize!(A_vector, 5) === A_vector
+    @test length(parent(A_vector)) == 5
+    @test length(A_vector) == 5
+
     # Test that the resulting type of broadcasting is correct
     @test typeof(A .* 2) == typeof(A)
     @test typeof(A .+ B) == typeof(A)

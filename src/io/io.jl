@@ -80,7 +80,7 @@ function add_system_data!(system_data, system::AbstractFluidSystem)
     system_data["particle_spacing"] = particle_spacing(system, 1)
     system_data["density_calculator"] = type2string(system.density_calculator)
     system_data["smoothing_kernel"] = type2string(system.smoothing_kernel)
-    system_data["smoothing_length"] = system.cache.smoothing_length
+    system_data["smoothing_length"] = smoothing_length(system)
     system_data["acceleration"] = system.acceleration
     system_data["sound_speed"] = system_sound_speed(system)
     system_data["pressure_acceleration_formulation"] = nameof(system.pressure_acceleration_formulation)
@@ -103,7 +103,7 @@ function add_system_data!(system_data, system::ImplicitIncompressibleSPHSystem)
     system_data["particle_spacing"] = particle_spacing(system, 1)
     system_data["density_calculator"] = "SummationDensity"
     system_data["smoothing_kernel"] = type2string(system.smoothing_kernel)
-    system_data["smoothing_length"] = system.cache.smoothing_length
+    system_data["smoothing_length"] = smoothing_length(system)
     system_data["acceleration"] = system.acceleration
     system_data["pressure_acceleration_formulation"] = nameof(system.pressure_acceleration_formulation)
     add_system_data!(system_data, shifting_technique(system))
