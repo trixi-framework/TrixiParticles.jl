@@ -16,11 +16,43 @@ particle_shifting_from_callback!(u_ode, shifting, system, v_ode, semi, integrato
 
 create_cache_shifting(initial_condition, ::Nothing) = (;)
 
+# `delta_v` is stored as a flat vector with `ndims` entries per particle
+# (see `linear_index_vector`), so that it can be resized with particle refinement.
 function create_cache_shifting(initial_condition, ::AbstractShiftingTechnique)
-    delta_v = zeros(eltype(initial_condition), ndims(initial_condition),
-                    nparticles(initial_condition))
+    delta_v = zeros(eltype(initial_condition),
+                    ndims(initial_condition) * nparticles(initial_condition))
 
     return (; delta_v)
+end
+
+resize_cache_shifting!(cache, ::Nothing, NDIMS, n) = cache
+
+function resize_cache_shifting!(cache, ::AbstractShiftingTechnique, NDIMS, n)
+    resize_and_fill!(cache.delta_v, NDIMS * n, zero(eltype(cache.delta_v)))
+
+    return cache
+end
+
+# Index of the `i`-th component of `particle` in a flat vector with `NDIMS` entries
+# per particle
+@inline linear_index_vector(i, particle, NDIMS) = (particle - 1) * NDIMS + i
+
+# Return the entries of `particle` in a flat vector with `NDIMS` entries per particle
+# as an `SVector`
+@propagate_inbounds function extract_svector_flat(A, ::Val{NDIMS},
+                                                  particle) where {NDIMS}
+    return SVector(ntuple(@inline(i->A[linear_index_vector(i, particle, NDIMS)]), NDIMS))
+end
+
+# Add `value` to the entries of `particle` in a flat vector with `length(value)` entries
+# per particle
+@propagate_inbounds function add_svector_flat!(A, value, particle)
+    NDIMS = length(value)
+    for i in 1:NDIMS
+        A[linear_index_vector(i, particle, NDIMS)] += value[i]
+    end
+
+    return A
 end
 
 # `δv` is the correction to the particle velocity due to the shifting.
@@ -35,7 +67,7 @@ end
 end
 
 @propagate_inbounds function delta_v(system, ::AbstractShiftingTechnique, particle)
-    return extract_svector(system.cache.delta_v, system, particle)
+    return extract_svector_flat(system.cache.delta_v, Val(ndims(system)), particle)
 end
 
 function update_shifting!(system, shifting, v, u, v_ode, u_ode, semi)
@@ -340,7 +372,22 @@ struct MomentumEquationTermSun2019 end
                            pos_diff, distance, grad_kernel, correction)
 end
 
-@propagate_inbounds function add_dv_shifting(dv_particle, ::MomentumEquationTermSun2019,
+@propagate_inbounds function add_dv_shifting(dv_particle,
+                                             term::MomentumEquationTermSun2019,
+                                             system, neighbor_system,
+                                             v_system, v_neighbor_system,
+                                             particle, neighbor, m_a, m_b, rho_a, rho_b,
+                                             v_a, v_b, pos_diff, distance,
+                                             grad_kernel, correction)
+    return add_dv_shifting(Val(has_variable_smoothing_length(system, neighbor_system)),
+                           dv_particle, term, system, neighbor_system,
+                           v_system, v_neighbor_system, particle, neighbor,
+                           m_a, m_b, rho_a, rho_b, v_a, v_b, pos_diff, distance,
+                           grad_kernel, correction)
+end
+
+@propagate_inbounds function add_dv_shifting(::Val{false}, dv_particle,
+                                             ::MomentumEquationTermSun2019,
                                              system, neighbor_system,
                                              v_system, v_neighbor_system,
                                              particle, neighbor, m_a, m_b, rho_a, rho_b,
@@ -357,6 +404,40 @@ end
     dv_particle += div_fast(m_b, rho_b) *
                    (tensor_product * grad_kernel +
                     v_a * dot(delta_v_a - delta_v_b, grad_kernel))
+
+    return dv_particle
+end
+
+# Variable smoothing length formulation of Eq. 12 and 13 in Haftu et al.
+# (`MomentumEquationArtificialStress` in their code). Each tensor `A = v ⊗ δv / (ρ β)` is
+# multiplied by the kernel gradient of its own particle, and the divergence term uses the
+# kernel gradient and the `beta` of `particle`.
+# With equal smoothing lengths, equal densities and `beta = 1`, this is the term above.
+# Corrections are rejected with variable smoothing lengths (see `check_configuration`).
+@propagate_inbounds function add_dv_shifting(::Val{true}, dv_particle,
+                                             ::MomentumEquationTermSun2019,
+                                             system, neighbor_system,
+                                             v_system, v_neighbor_system,
+                                             particle, neighbor, m_a, m_b, rho_a, rho_b,
+                                             v_a, v_b, pos_diff, distance,
+                                             grad_kernel, correction)
+    delta_v_a = delta_v(system, particle)
+    delta_v_b = delta_v(neighbor_system, neighbor)
+
+    grad_kernel_a,
+    grad_kernel_b = pair_kernel_grads(system, neighbor_system,
+                                      pos_diff, distance, particle, neighbor)
+
+    beta_a = get_beta(system, particle)
+    beta_b = get_beta(neighbor_system, neighbor)
+
+    # Eq. 13
+    A_a = v_a * delta_v_a' / (rho_a * beta_a)
+    A_b = v_b * delta_v_b' / (rho_b * beta_b)
+
+    dv_particle += m_b * (A_a * grad_kernel_a + A_b * grad_kernel_b) +
+                   m_b / (rho_b * beta_a) * v_a *
+                   dot(delta_v_a - delta_v_b, grad_kernel_a)
 
     return dv_particle
 end
@@ -448,7 +529,14 @@ function v_max(shifting::ParticleShiftingTechnique{<:Any, <:Any, <:Any, false},
     return shifting.v_factor * sound_speed
 end
 
-@fastpow function update_shifting_inner!(system, shifting::ParticleShiftingTechnique,
+function update_shifting_inner!(system, shifting::ParticleShiftingTechnique,
+                                v, u, v_ode, u_ode, semi)
+    return update_shifting_inner!(Val(has_variable_smoothing_length(system)), system,
+                                  shifting, v, u, v_ode, u_ode, semi)
+end
+
+@fastpow function update_shifting_inner!(::Val{false}, system,
+                                         shifting::ParticleShiftingTechnique,
                                          v, u, v_ode, u_ode, semi)
     (; cache) = system
     (; delta_v) = cache
@@ -457,8 +545,7 @@ end
 
     v_max_ = v_max(shifting, v, system)
 
-    # TODO this needs to be adapted to multi-resolution.
-    # Section 3.2 explains what else needs to be changed.
+    # With variable smoothing lengths, the method below is used
     dx = particle_spacing(system, 1)
     Wdx = smoothing_kernel(system, dx, 1)
     h = smoothing_length(system, 1)
@@ -501,9 +588,67 @@ end
                        m_b / (rho_a + rho_b) * grad_kernel
 
             # Write into the buffer
-            for i in eachindex(delta_v_)
-                @inbounds delta_v[i, particle] += delta_v_[i]
-            end
+            @inbounds add_svector_flat!(delta_v, delta_v_, particle)
+        end
+    end
+
+    modify_shifting_at_free_surfaces!(system, u, semi)
+
+    return system
+end
+
+# Multi-resolution version of the method above for variable smoothing lengths.
+# As in the shifting of Haftu et al. (Eq. 15), the kernel is evaluated with the averaged
+# smoothing length `h_ab` of the pair, and `Wdx` with the corresponding particle spacing.
+# The scaling with the smoothing length and the particle spacing uses the values
+# of `particle`. With equal smoothing lengths, this is the method above.
+@fastpow function update_shifting_inner!(::Val{true}, system,
+                                         shifting::ParticleShiftingTechnique,
+                                         v, u, v_ode, u_ode, semi)
+    (; cache) = system
+    (; delta_v) = cache
+    smoothing_kernel = system_smoothing_kernel(system)
+
+    set_zero!(delta_v)
+
+    v_max_ = v_max(shifting, v, system)
+
+    # The particle spacing is the smoothing length divided by this factor
+    smoothing_length_factor = spacing_to_smoothing_length(system, one(eltype(system)))
+
+    foreach_system_wrapped(semi, v_ode,
+                           u_ode) do neighbor_system, v_neighbor, u_neighbor
+        if !has_system_interaction(system, neighbor_system, semi)
+            # No interaction between these systems.
+            return
+        end
+
+        system_coords = current_coordinates(u, system)
+        neighbor_coords = current_coordinates(u_neighbor, neighbor_system)
+
+        foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
+                               semi;
+                               points=each_integrated_particle(system)) do particle,
+                                                                           neighbor,
+                                                                           pos_diff,
+                                                                           distance
+            m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
+            rho_a = @inbounds current_density(v, system, particle)
+            rho_b = @inbounds current_density(v_neighbor, neighbor_system, neighbor)
+
+            h_a, h_b = pair_smoothing_lengths(system, neighbor_system, particle, neighbor)
+            h_ab = (h_a + h_b) / 2
+            dx_a = particle_spacing(system, particle)
+
+            W = kernel(smoothing_kernel, distance, h_ab)
+            Wdx = kernel(smoothing_kernel, h_ab / smoothing_length_factor, h_ab)
+            grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance, h_ab)
+
+            # See the method above for the scaling
+            delta_v_ = -v_max_ * (2 * h_a)^2 / (2 * dx_a) * (1 + (W / Wdx)^4 * 2 / 10) *
+                       m_b / (rho_a + rho_b) * grad_kernel
+
+            @inbounds add_svector_flat!(delta_v, delta_v_, particle)
         end
     end
 
@@ -546,8 +691,10 @@ function apply_particle_shifting!(u_ode, ::ParticleShiftingTechnique{false},
 
     # Add δr from the cache to the current coordinates
     @threaded semi for particle in eachparticle(system)
-        for i in axes(delta_v, 1)
-            @inbounds u[i, particle] += dt * delta_v[i, particle]
+        # Note that `delta_v(system, particle)` is zero for this shifting technique
+        delta_v_ = @inbounds extract_svector_flat(delta_v, Val(ndims(system)), particle)
+        for i in eachindex(delta_v_)
+            @inbounds u[i, particle] += dt * delta_v_[i]
         end
     end
 
@@ -719,9 +866,7 @@ function update_shifting_inner!(system, shifting::TransportVelocityAdami,
                                              system_correction(system))
 
             # Write into the buffer
-            for i in eachindex(delta_v_)
-                @inbounds delta_v[i, particle] += delta_v_[i]
-            end
+            @inbounds add_svector_flat!(delta_v, delta_v_, particle)
         end
     end
 

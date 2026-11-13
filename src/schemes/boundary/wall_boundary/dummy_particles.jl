@@ -599,9 +599,10 @@ end
     @boundscheck checkbounds(pressure, eachparticle(system))
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
-    foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords, semi;
-                           points=eachparticle(system)) do particle, neighbor,
-                                                           pos_diff, distance
+    foreach_symmetric_point_neighbor(system, neighbor_system, system_coords,
+                                     neighbor_coords, semi;
+                                     points=eachparticle(system)) do particle, neighbor,
+                                                                     pos_diff, distance
         @inbounds boundary_pressure_inner!(boundary_model, density_calculator, system,
                                            neighbor_system, v, v_neighbor_system,
                                            particle, neighbor, pos_diff, distance,
@@ -625,10 +626,13 @@ end
     @boundscheck checkbounds(pressure, eachparticle(system))
 
     # This needs to be serial to avoid race conditions when writing into `system`
-    foreach_point_neighbor(neighbor_system, system, neighbor_coords, system_coords, semi;
-                           points=each_integrated_particle(neighbor_system),
-                           parallelization_backend=SerialBackend()) do neighbor, particle,
-                                                                       pos_diff, distance
+    foreach_symmetric_point_neighbor(neighbor_system, system, neighbor_coords,
+                                     system_coords, semi;
+                                     points=each_integrated_particle(neighbor_system),
+                                     parallelization_backend=SerialBackend()) do neighbor,
+                                                                                 particle,
+                                                                                 pos_diff,
+                                                                                 distance
         # Since neighbor and particle are switched
         pos_diff = -pos_diff
         @inbounds boundary_pressure_inner!(boundary_model, density_calculator, system,
@@ -666,13 +670,35 @@ end
     sum_pressures = pressure_offset + fluid_pressure + dynamic_pressure_ +
                     hydrostatic_pressure
 
-    kernel_weight = smoothing_kernel(boundary_model, distance, particle)
+    kernel_weight = boundary_kernel_weight(boundary_model, system, neighbor_system,
+                                           distance, particle, neighbor)
 
     pressure[particle] += sum_pressures * kernel_weight
     cache.volume[particle] += kernel_weight
 
     interpolate_fluid_velocity!(cache, viscosity, neighbor_system, v_neighbor_system,
                                 kernel_weight, particle, neighbor)
+end
+
+@inline function boundary_kernel_weight(boundary_model, system, neighbor_system,
+                                        distance, particle, neighbor)
+    return boundary_kernel_weight(Val(has_variable_smoothing_length(neighbor_system)),
+                                  boundary_model, system, neighbor_system,
+                                  distance, particle, neighbor)
+end
+
+@inline function boundary_kernel_weight(::Val{false}, boundary_model, system,
+                                        neighbor_system, distance, particle, neighbor)
+    return smoothing_kernel(boundary_model, distance, particle)
+end
+
+@inline function boundary_kernel_weight(::Val{true}, boundary_model, system,
+                                        neighbor_system, distance, particle, neighbor)
+    # Eq. 19 in Haftu et al. (2023)
+    h_a, h_b = pair_smoothing_lengths(system, neighbor_system, particle, neighbor)
+    h_wf = (h_a + h_b) / 2
+
+    return kernel(boundary_model.smoothing_kernel, distance, h_wf)
 end
 
 @inline function dynamic_pressure(boundary_density_calculator, v,

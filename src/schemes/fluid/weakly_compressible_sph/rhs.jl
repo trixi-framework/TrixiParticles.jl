@@ -40,12 +40,17 @@ function interact!(dv, v_particle_system, u_particle_system,
         # Make sure that the returned names `dv_particle_` and `drho_particle_`
         # are not used inside the closure to avoid allocations.
         (dv_particle_,
-         drho_particle_) = @inbounds mapreduce_neighbor(dv_drho_sum, system_coords,
-                                                        neighbor_system_coords,
-                                                        neighborhood_search,
-                                                        backend, particle;
-                                                        init) do particle, neighbor,
-                                                                 pos_diff, distance
+         drho_particle_) = @inbounds mapreduce_symmetric_neighbor(dv_drho_sum,
+                                                                  particle_system,
+                                                                  neighbor_system,
+                                                                  system_coords,
+                                                                  neighbor_system_coords,
+                                                                  neighborhood_search,
+                                                                  backend, particle;
+                                                                  init) do particle,
+                                                                           neighbor,
+                                                                           pos_diff,
+                                                                           distance
             # Skip neighbors with (almost) the same position because the kernel gradient
             # is zero, but computing it would divide by zero (see `almostzero`).
             # Note that `return` only exits the closure, i.e., skips the current neighbor.
@@ -53,10 +58,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                 return init
             end
 
-            # Now that we know that `distance` is not zero, we can safely call the unsafe
-            # version of the kernel gradient to avoid redundant zero checks.
-            grad_kernel = smoothing_kernel_grad_unsafe(particle_system, pos_diff,
-                                                       distance, particle)
+            grad_kernel = symmetric_kernel_grad(particle_system, neighbor_system,
+                                                pos_diff, distance, particle, neighbor)
 
             # `foreach_neighbor` makes sure that `neighbor` is in bounds of `neighbor_system`
             m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
@@ -94,7 +97,6 @@ function interact!(dv, v_particle_system, u_particle_system,
 
             drho_particle = zero(rho_a)
 
-            # TODO If variable smoothing_length is used, this should use the neighbor smoothing length
             # Propagate `@inbounds` to the continuity equation, which accesses particle data
             drho_particle = @inbounds add_continuity_equation(drho_particle,
                                                               density_calculator,
@@ -142,12 +144,14 @@ end
      surface_tension_correction) = free_surface_correction(correction, particle_system,
                                                            rho_a, rho_b)
 
-    # For `ContinuityDensity` without correction, this is equivalent to
+    # For `ContinuityDensity` without correction and without variable smoothing lengths,
+    # this is equivalent to
     # dv_pressure = -m_b * (p_a + p_b) / (rho_a * rho_b) * grad_kernel.
-    dv_pressure = pressure_acceleration(particle_system, neighbor_system,
-                                        particle, neighbor,
-                                        m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
-                                        distance, grad_kernel, correction)
+    dv_pressure = pressure_acceleration_variable_h(particle_system, neighbor_system,
+                                                   particle, neighbor,
+                                                   m_a, m_b, p_a, p_b, rho_a, rho_b,
+                                                   pos_diff, distance, grad_kernel,
+                                                   correction)
     dv_particle += dv_pressure * pressure_correction
 
     dv_particle = add_dv_viscosity(dv_particle, particle_system, neighbor_system,
