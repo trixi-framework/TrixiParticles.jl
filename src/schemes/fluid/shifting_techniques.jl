@@ -475,11 +475,10 @@ end
 
         foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
                                semi;
-                               points=each_integrated_particle(system)
-                               ) do particle,
-                                    neighbor,
-                                    pos_diff,
-                                    distance
+                               points=each_integrated_particle(system)) do particle,
+                                                                           neighbor,
+                                                                           pos_diff,
+                                                                           distance
             # Normalized kernel corrections can have a nonzero local gradient at
             # zero separation. It is needed by physical consistency operators, but
             # must not shift a particle against itself (or a coincident neighbor).
@@ -671,11 +670,10 @@ function update_shifting_inner!(system, shifting::TransportVelocityAdami,
 
         foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
                                semi;
-                               points=each_integrated_particle(system)
-                               ) do particle,
-                                    neighbor,
-                                    pos_diff,
-                                    distance
+                               points=each_integrated_particle(system)) do particle,
+                                                                           neighbor,
+                                                                           pos_diff,
+                                                                           distance
             m_a = @inbounds hydrodynamic_mass(system, particle)
             m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
 
