@@ -18,21 +18,39 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Added an experimental surface-activity-weighted pressure-difference model for corrected
   WCSPH and EDAC free-surface simulations.
 
+### API Changes
+- Replaced the `correction` keyword of `WeaklyCompressibleSPHSystem`,
+  `EntropicallyDampedSPHSystem`, and `BoundaryModelDummyParticles` with
+  `density_correction`, `gradient_correction`, and `force_correction`.
+  Use `density_correction=ShepardKernelCorrection()` for density normalization,
+  `gradient_correction` for kernel/gradient corrections, and `force_correction` for
+  `AkinciFreeSurfaceCorrection` (#1285).
+- Custom functions passed as `pressure_acceleration` must accept both pair gradients
+  (`W_a`, `W_b`) when either interacting system uses an asymmetric gradient correction
+  (#1289).
+
 ### Important Bugfixes
 
-- Fixed Morris surface-tension curvature to accumulate the SPH sum over all interacting
-  systems before normalizing, making the result independent of system ordering and of
-  same-phase partitioning into multiple systems.
-- Fixed spurious curvature for `SurfaceTensionMorris` at planar multicolor interfaces by
-  restricting the curvature divergence stencil to same-phase neighbors with consistently
-  normalized normals, which also makes mixing Morris and Akinci systems well-defined.
-- Fixed interpolated `surface_activity` to apply the same minimum-support and
-  `ideal_density_threshold` rejection criteria as particle-based surface detection.
-- Fixed fluid VTK output with system buffers: `surface_activity`, `neighbor_count`,
-  `curvature`, `surface_tension` and `surface_stress_tensor` now hold exactly one value
-  per active particle.
-- Fixed the `dam_break_oil_film_2d.jl` example to assign distinct phase colors to water
-  and oil, so their interface is actually detected.
+- Fixed Morris curvature accumulation and planar multicolor interface stencils, and made
+  surface-activity interpolation use the particle detection thresholds (#1282).
+- Fixed buffered fluid VTK fields to contain one value per active particle, and assigned
+  distinct water/oil phase colors in `dam_break_oil_film_2d.jl` (#1282).
+- Fixed SPH correction updates to apply density corrections before pressure and update
+  boundary, gradient, and surface quantities in consistent phases across fluid and
+  structure systems (#1284).
+- Fixed Shepard density correction to handle invalid normalization coefficients,
+  finalize corrected density before pressure evaluation, and use evolved continuity
+  density for particle volumes during density reinitialization (#1292).
+- Fixed `KernelCorrection` to fall back to uncorrected gradients for invalid normalization
+  coefficients and preserve Float32 boundary correction caches (#1291).
+- Fixed gradient correction matrices to use raw kernel gradients, scale-independent
+  singularity detection, and identity fallback. Added validation of blended correction
+  factors and preserved boundary cache element types (#1290).
+- Fixed `MixedKernelGradientCorrection` to assemble its matrix from the kernel-corrected
+  raw gradient and preserve matching cache element types (#1288).
+- Fixed linear-momentum conservation for corrected pressure forces, made EDAC
+  average-pressure reduction pair-symmetric, and applied exact fluid-structure pressure
+  reaction forces (#1289).
 
 ## Version 0.5.4
 
@@ -41,21 +59,84 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Replaced the experimental `MechanicalWorkCalculatorCallback` with
   `MechanicalWorkCalculator`, which can be passed as a custom quantity to
   `PostprocessCallback` (#1228).
+- The smoothing kernel and smoothing length of a `BoundaryModelDummyParticles` of a
+  `TotalLagrangianSPHSystem` or `RigidBodySystem` must now be the same as those of all
+  fluid systems in the simulation (#1338, #1348).
+- A `BoundaryModelDummyParticles` of a `TotalLagrangianSPHSystem` or `RigidBodySystem` with
+  `KernelCorrection` or `MixedKernelGradientCorrection` now requires all fluid systems to
+  use one of these corrections as well (#1342, #1351).
 
-### Important Bugfixes
+### Features
 
 - Hardened surface tension model configuration by validating coefficients and surface-normal
   thresholds, avoiding unnecessary normal allocation for `CohesionForceAkinci`, and stabilizing
   Akinci cohesion and adhesion kernels across floating-point scales.
 - Added color-weighted fluid-fluid interface normals and consistently applied surface-normal
   validity thresholds to standalone, Akinci, and Morris calculations.
+- Added the `ThrustCalculator` custom quantity to calculate the hydrodynamic force exerted by
+  interacting fluid systems on a `TotalLagrangianSPHSystem` along a given `direction` (#1229).
+- Added `StructureMotionCalculator`, a custom quantity for the `PostprocessCallback`
+  that reconstructs displacement, deformation gradient and rotation
+  of a `TotalLagrangianSPHSystem` around a point in the initial configuration (#1356).
+- Added `plot(system, sol)` and `plot(system, v_ode, u_ode, semi)` to plot the particles
+  of a single system, which allows coloring by per-particle quantities via `zcolor` (#1298).
+- Added a tutorial on visualizing particle data and fields interpolated with
+  `interpolate_plane_2d` using Plots.jl (#1298).
+
+### Important Bugfixes
+
+- Fixed double-counted Monaghan-Kajtar repulsion in TVF momentum and
+  background-pressure shifting operators (#1344).
+- Fixed pressure mirroring for TLSPH and rigid-body neighbors and for EDAC momentum,
+  pressure diffusion, and average-pressure reduction at walls and structures (#1341).
+- Fixed the correction values of the `BoundaryModelDummyParticles` of a
+  `TotalLagrangianSPHSystem` or `RigidBodySystem`, which were not computed or computed with
+  the TLSPH kernel, the frozen TLSPH neighborhood or the contact search of rigid bodies.
+  They are now computed over the current hydrodynamic neighborhood, including the
+  structure itself. With `SummationDensity`, the density of these boundary models is now
+  computed in every time step instead of keeping its initial value (#1351).
+- Fixed the fluid–structure pressure acceleration of fluids with `KernelCorrection`,
+  `GradientCorrection`, `BlendedGradientCorrection` or `MixedKernelGradientCorrection` to use
+  the smoothing kernel and smoothing length of the boundary model at the structure particles
+  instead of those of the `TotalLagrangianSPHSystem`. Also fixed the assembly of the
+  correction matrix, which made `GradientCorrection` have no effect and
+  `BlendedGradientCorrection` depend on the order of the neighbors, so results with these
+  corrections change. `DensityDiffusionAntuono` now always uses the uncorrected kernel
+  gradient (#1342).
+- Fixed structure-fluid reaction forces with asymmetric corrected fluid kernel
+  gradients by evaluating the fluid-first gradient directly. The continuity equation
+  of `RigidBodySystem` boundaries with `ContinuityDensity` now uses the kernel gradient
+  of the boundary model instead of the corrected fluid gradient (#1338).
+- Fixed `RectangularShape` handling of coordinate-dependent density in hydrostatic pressure
+  initialization and prevented coordinate perturbation from changing the global random state (#1196).
+- Fixed asymmetric DEM contact forces near coincidence by using a pair-local
+  radius scale for the near-zero distance cutoff (#1347).
+- Fixed the sign of the quadratic term in `ArtificialViscosityMonaghan` (#1295).
 - Fixed mathematical inconsistencies in the SPH documentation, including incorrect
   formulas, inconsistent force-vs-acceleration notation, and wrong LaTeX text-mode
   commands (#1086).
 - Fixed restarting with EDAC from solution objects (#1213) and from VTK files (#1297).
+- Fixed characteristic open boundaries to keep fallback values local to each boundary zone
+  and reject unsupported bidirectional zones (#1203).
 - Fixed the custom quantities `kinetic_energy`, `total_mass`, `max_pressure`, `min_pressure`,
   `avg_pressure`, `max_density`, `min_density` and `avg_density` to only take active particles
   into account (#1184).
+- Fixed the IISPH pressure solver to clear stale density error contributions of
+  zero-pressure particles instead of retaining them in the termination condition (#1215).
+- Fixed the viscous force on structures in fluid-structure interaction, which had the wrong
+  sign (#1348).
+- Fixed matrix point inputs, including non-contiguous views, for winding-number algorithms
+  and `SignedDistanceField`. `WindingNumberJacobson()` now defaults to non-hierarchical
+  winding when no geometry is provided (#1188).
+
+### Documentation
+
+- Added a tutorial for setting up 2D simulations from geometry files, including a curved
+  pipe and a coastline dam-break basin (#1094).
+
+### Features
+
+- Added GPU support for particle packing (#1296).
 
 ## Version 0.5.3
 
@@ -71,6 +152,11 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Added the number of split integration time steps to the `InfoCallback` output
   when a `SplitIntegrationCallback` is used (#1194).
 
+### Performance
+
+- Improved multithreaded TLSPH performance on NUMA systems by initializing runtime
+  arrays in parallel (#1294).
+
 ### Important Bugfixes
 
 - Fixed signed-distance constraints in `ParticlePackingSystem` when using a separate
@@ -79,6 +165,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Fixed Bernoulli pressure extrapolation for moving wall boundaries and wall boundary
   restarts with `ContinuityDensity` (#1201).
 - Fixed `StepsizeCallback` for inviscid simulations (#1244).
+- Fixed unnecessary right-hand-side evaluations after state-mutating callbacks when using
+  `SymplecticPositionVerlet` (#1264).
 
 ## Version 0.5.2
 

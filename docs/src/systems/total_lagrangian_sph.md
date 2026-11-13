@@ -9,7 +9,7 @@ The governing equations with respect to the initial configuration are given by:
 \frac{\mathrm{D}\bm{v}}{\mathrm{D}t} = \frac{1}{\rho_0} \nabla_0 \cdot \bm{P} + \bm{g},
 ```
 where the zero subscript denotes a derivative with respect to the initial configuration
-and $\bm{P}$ is the first Piola-Kirchhoff (PK1) stress tensor.
+and ``\bm{P}`` is the first Piola-Kirchhoff (PK1) stress tensor.
 
 The discretized version of this equation is given by [O’Connor & Rogers (2021)](@cite OConnor2021):
 ```math
@@ -19,19 +19,19 @@ The discretized version of this equation is given by [O’Connor & Rogers (2021)
 ```
 with the correction matrix (see also [`GradientCorrection`](@ref))
 ```math
-\bm{L}_{0a} := \left( -\sum_{b} \frac{m_{0b}}{\rho_{0b}} \nabla_{0a} W(\bm{X}_{ab}) \bm{X}_{ab}^T \right)^{-1} \in \R^{d \times d}.
+\bm{L}_{0a} := \left( -\sum_{b} \frac{m_{0b}}{\rho_{0b}} \nabla_{0a} W(\bm{X}_{ab}) \bm{X}_{ab}^T \right)^{-1} \in \mathbb{R}^{d \times d}.
 ```
-The subscripts $a$ and $b$ denote quantities of particle $a$ and $b$, respectively.
+The subscripts ``a`` and ``b`` denote quantities of particles ``a`` and ``b``, respectively.
 The zero subscript on quantities denotes that the quantity is to be measured in the initial configuration.
-The difference in the initial coordinates is denoted by $\bm{X}_{ab} = \bm{X}_a - \bm{X}_b$,
-the difference in the current coordinates is denoted by $\bm{x}_{ab} = \bm{x}_a - \bm{x}_b$.
+The difference in the initial coordinates is denoted by ``\bm{X}_{ab} = \bm{X}_a - \bm{X}_b``,
+the difference in the current coordinates is denoted by ``\bm{x}_{ab} = \bm{x}_a - \bm{x}_b``.
 
-For the computation of the PK1 stress tensor, the deformation gradient $\bm{F}$ is computed per particle as
+For the computation of the PK1 stress tensor, the deformation gradient ``\bm{F}`` is computed per particle as
 ```math
 \bm{F}_a = \sum_b \frac{m_{0b}}{\rho_{0b}} \bm{x}_{ba} (\bm{L}_{0a}\nabla_{0a} W(\bm{X}_{ab}))^T \\
     \qquad  = -\left(\sum_b \frac{m_{0b}}{\rho_{0b}} \bm{x}_{ab} (\nabla_{0a} W(\bm{X}_{ab}))^T \right) \bm{L}_{0a}^T
 ```
-with $1 \leq i,j \leq d$.
+with ``1 \leq i,j \leq d``.
 From the deformation gradient, the Green-Lagrange strain
 ```math
 \bm{E} = \frac{1}{2}(\bm{F}^T\bm{F} - \bm{I})
@@ -53,9 +53,23 @@ and
 ```math
 \lambda = \frac{E\nu}{(1 + \nu)(1 - 2\nu)}
 ```
-are the Lamé coefficients, where $E$ is the Young's modulus and $\nu$ is the Poisson ratio.
+are the Lamé coefficients, where ``E`` is the Young's modulus and ``\nu`` is the Poisson ratio.
 
-The term $\bm{f}_a^{PF}$ is an optional penalty force. See e.g. [`PenaltyForceGanzenmueller`](@ref).
+The term ``\bm{f}_a^{PF}`` is an optional penalty force. See e.g. [`PenaltyForceGanzenmueller`](@ref).
+
+The smoothing kernel, the smoothing length and the correction matrix ``\bm{L}_{0a}`` above
+are only used for the solid mechanics of the structure.
+The interaction with fluids is determined by the `boundary_model`, which has its own
+smoothing kernel, smoothing length and correction
+(see [Boundary Models](@ref boundary_models)).
+When using [`BoundaryModelDummyParticles`](@ref), its smoothing kernel and smoothing length
+must match those of every fluid system (see [Boundary Corrections](@ref boundary_corrections)
+for its `correction`).
+The correction values and, with [`SummationDensity`](@ref), the density of the boundary
+model are computed over the current hydrodynamic neighborhood, including the structure
+itself, independently of the frozen neighborhood of the solid mechanics.
+[`ContinuityDensity`](@ref) is not supported for the boundary model of a
+[`TotalLagrangianSPHSystem`](@ref).
 
 ```@autodocs
 Modules = [TrixiParticles]
@@ -69,26 +83,26 @@ This is caused by the stiffness matrix having zero eigenvalues (so-called hourgl
 The name "hourglass modes" comes from the fact that elements can deform into an hourglass shape.
 
 Similar effects can occur in SPH as well.
-Particles can change positions without changing the SPH approximation of the deformation gradient $\bm{F}$,
+Particles can change positions without changing the SPH approximation of the deformation gradient ``\bm{F}``,
 thus, without causing an increase of energy.
 To ensure regular particle positions, we can apply similar correction forces as are used in FEM.
 
-[Ganzenmüller (2015)](@cite Ganzenmueller2015) introduced a so-called hourglass correction force or penalty force $f^{PF}$,
+[Ganzenmüller (2015)](@cite Ganzenmueller2015) introduced a so-called hourglass correction force or penalty force ``f^{PF}``,
 which is given by
 ```math
 \bm{f}_a^{PF} = \frac{1}{2} \alpha \sum_b \frac{m_{0a} m_{0b} W_{0ab}}{\rho_{0a}\rho_{0b} |\bm{X}_{ab}|^2}
                 \left( E \delta_{ab}^a + E \delta_{ba}^b \right) \frac{\bm{x}_{ab}}{|\bm{x}_{ab}|}
 ```
-The subscripts $a$ and $b$ denote quantities of particle $a$ and $b$, respectively.
+The subscripts ``a`` and ``b`` denote quantities of particles ``a`` and ``b``, respectively.
 The zero subscript on quantities denotes that the quantity is to be measured in the initial configuration.
-The difference in the initial coordinates is denoted by $\bm{X}_{ab} = \bm{X}_a - \bm{X}_b$,
-the difference in the current coordinates is denoted by $\bm{x}_{ab} = \bm{x}_a - \bm{x}_b$.
-Note that [Ganzenmüller (2015)](@cite Ganzenmueller2015) has a flipped sign here because they define $\bm{x}_{ab}$ the other way around.
+The difference in the initial coordinates is denoted by ``\bm{X}_{ab} = \bm{X}_a - \bm{X}_b``,
+the difference in the current coordinates is denoted by ``\bm{x}_{ab} = \bm{x}_a - \bm{x}_b``.
+Note that [Ganzenmüller (2015)](@cite Ganzenmueller2015) has a flipped sign here because they define ``\bm{x}_{ab}`` the other way around.
 
 This correction force is based on the potential energy density of a Hookean material.
-Thus, $E$ is the Young's modulus and $\alpha$ is a dimensionless coefficient that controls
+Thus, ``E`` is the Young's modulus and ``\alpha`` is a dimensionless coefficient that controls
 the amplitude of hourglass correction.
-The separation vector $\delta_{ab}^a$ indicates the change of distance which the particle separation should attain
+The separation vector ``\delta_{ab}^a`` indicates the change of distance which the particle separation should attain
 in order to minimize the error and is given by
 ```math
     \delta_{ab}^a = \frac{\bm{\epsilon}_{ab}^a \cdot \bm{x_{ab}}}{|\bm{x}_{ab}|},
@@ -130,6 +144,8 @@ In these cases, artificial viscosity is effective at stabilizing the fluid close
 structure, and we recommend using it in combination with penalty force to both
 prevent hourglass modes and stabilize the fluid close to the fluid-structure interface.
 
+TVF transport operators also use the boundary model's kernel gradient for dummy-particle
+fluid coupling, independently of the TLSPH self-interaction kernel.
 
 ## [Velocity Averaging](@id velocity_averaging)
 

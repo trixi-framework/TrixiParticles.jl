@@ -10,14 +10,8 @@ function interact!(dv, v_particle_system, u_particle_system,
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-    # For `distance == 0`, the analytical gradient is zero, but the unsafe gradient
-    # and the density diffusion divide by zero.
-    # To account for rounding errors, we check if `distance` is almost zero.
-    # Since the coordinates are in the order of the smoothing length `h`, `distance^2` is in
-    # the order of `h^2`, so we need to check `distance < sqrt(eps(h^2))`.
-    # Note that `sqrt(eps(h^2)) != eps(h)`.
     h = initial_smoothing_length(particle_system)
-    almostzero = sqrt(eps(h^2))
+    zero_distance_threshold = almostzero(h)
     zero_distance_mode = zero_distance_gradient_mode(particle_system, neighbor_system)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
@@ -29,11 +23,12 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                                                 distance
         # Skip neighbors with the same position when both endpoint gradients are zero.
         # Note that `return` only exits the closure, i.e., skips the current neighbor.
-        skip_zero_distance(zero_distance_mode, distance, almostzero) && return
+        skip_zero_distance(zero_distance_mode, distance, zero_distance_threshold) && return
 
         grad_kernel = local_smoothing_kernel_grad_unsafe(zero_distance_mode,
                                                          particle_system, pos_diff,
-                                                         distance, particle, almostzero)
+                                                         distance, particle,
+                                                         zero_distance_threshold)
 
         # `foreach_point_neighbor` makes sure that `particle` and `neighbor` are
         # in bounds of the respective system. For performance reasons, we use `@inbounds`

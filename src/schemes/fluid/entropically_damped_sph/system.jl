@@ -342,12 +342,21 @@ function update_quantities!(system::EntropicallyDampedSPHSystem, v, u,
     compute_density!(system, u, u_ode, semi, system.density_calculator)
 end
 
+function update_density_correction_values!(system::EntropicallyDampedSPHSystem, v, u,
+                                           v_ode, u_ode, semi, t)
+    (; correction) = system
+    density_correction = correction_density(correction)
+
+    compute_correction_values!(system, density_correction, u, v_ode, u_ode, semi)
+
+    return system
+end
+
 function update_density_correction!(system::EntropicallyDampedSPHSystem, v, u, v_ode,
                                     u_ode, semi, t)
     (; correction, density_calculator) = system
     density_correction = correction_density(correction)
 
-    compute_correction_values!(system, density_correction, u, v_ode, u_ode, semi)
     kernel_correct_density!(system, v, u, v_ode, u_ode, semi, density_correction,
                             density_calculator)
 
@@ -391,13 +400,13 @@ function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
                                                          MixedKernelGradientCorrection},
                                              system::EntropicallyDampedSPHSystem, u,
                                              v_ode, u_ode, semi)
-    (; cache, smoothing_kernel) = system
+    (; cache) = system
     (; correction_matrix) = cache
 
     system_coords = current_coordinates(u, system)
 
     compute_gradient_correction_matrix!(correction_matrix, system, system_coords,
-                                        v_ode, u_ode, semi, corr, smoothing_kernel)
+                                        v_ode, u_ode, semi, corr)
 end
 
 @inline function correction_matrix(system::EntropicallyDampedSPHSystem, particle)
@@ -432,6 +441,7 @@ function update_average_pressure!(system, ::Val{true}, v_ode, u_ode, semi)
     set_zero!(pressure_average)
     set_zero!(neighbor_counter)
 
+    v = wrap_v(v_ode, system, semi)
     u = wrap_u(u_ode, system, semi)
 
     # Use enabled neighbor systems for the average pressure.
@@ -454,8 +464,10 @@ function update_average_pressure!(system, ::Val{true}, v_ode, u_ode, semi)
                                                                                neighbor,
                                                                                pos_diff,
                                                                                distance
-                pressure_average[particle] += current_pressure(v_neighbor_system,
-                                                               neighbor_system, neighbor)
+                p_a = current_pressure(v, system, particle)
+                pressure_average[particle] += neighbor_pressure(v_neighbor_system,
+                                                                neighbor_system, neighbor,
+                                                                p_a)
                 neighbor_counter[particle] += 1
             end
         end

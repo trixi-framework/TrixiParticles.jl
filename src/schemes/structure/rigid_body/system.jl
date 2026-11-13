@@ -20,6 +20,9 @@ torque and applied consistently to all rigid particles.
 # Keywords
 - `boundary_model`: Boundary model for fluid-structure interaction
                     (see [Boundary Models](@ref boundary_models)).
+                    For [`BoundaryModelDummyParticles`](@ref), see
+                    [Boundary Corrections](@ref boundary_corrections) for the supported
+                    corrections.
 - `contact_model`: Optional rigid contact model.
                    If specified, rigid-wall and rigid-rigid collisions are enabled.
 - `acceleration`: Global acceleration vector applied to all rigid particles.
@@ -120,6 +123,7 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
              create_cache_contact_manifold(contact_model_, Val(NDIMS), ELTYPE,
                                            nparticles(initial_condition),
                                            max_manifolds_)...,
+             create_cache_structure_boundary(boundary_model, initial_condition)...,
              color=Int(color_value))
 
     system = RigidBodySystem(initial_condition, initial_velocity, mass,
@@ -266,24 +270,6 @@ end
     return correction_gradient(system.boundary_model.correction)
 end
 
-@inline function hydrodynamic_correction(system::RigidBodySystem{<:BoundaryModelDummyParticles})
-    return correction_gradient(system.boundary_model.correction)
-end
-
-@inline function kernel_correction_coefficient(system::RigidBodySystem{<:BoundaryModelDummyParticles},
-                                               particle)
-    return system.boundary_model.cache.kernel_correction_coefficient[particle]
-end
-
-@inline function dw_gamma(system::RigidBodySystem{<:BoundaryModelDummyParticles}, particle)
-    return extract_svector(system.boundary_model.cache.dw_gamma, system, particle)
-end
-
-@inline function correction_matrix(system::RigidBodySystem{<:BoundaryModelDummyParticles},
-                                   particle)
-    return extract_smatrix(system.boundary_model.cache.correction_matrix, system, particle)
-end
-
 function initialize!(system::RigidBodySystem, semi)
     initialize_colorfield!(system, system.boundary_model, semi)
     return system
@@ -310,8 +296,8 @@ end
                                  particle, neighbor, pos_diff, distance)
     (; adhesion_coefficient) = neighbor_system
 
-    # No adhesion with oneself. See `src/general/smoothing_kernels.jl` for more details.
-    distance^2 < eps(initial_smoothing_length(particle_system)^2) && return dv_particle
+    # No adhesion with oneself (see `almostzero`).
+    distance < almostzero(initial_smoothing_length(particle_system)) && return dv_particle
 
     abs(adhesion_coefficient) < eps() && return dv_particle
 
@@ -378,13 +364,6 @@ function restart_with!(system::RigidBodySystem, v, u)
     return system
 end
 
-function update_density_correction!(system::RigidBodySystem{<:BoundaryModelDummyParticles},
-                                    v, u, v_ode, u_ode, semi, t)
-    update_density_correction!(system.boundary_model, system, v, u, v_ode, u_ode, semi)
-
-    return system
-end
-
 function update_boundary_interpolation!(system::RigidBodySystem, v, u, v_ode, u_ode,
                                         semi, t)
     return update_boundary_interpolation!(system.boundary_model, system, v, u, v_ode,
@@ -399,13 +378,6 @@ end
 function update_boundary_interpolation!(boundary_model, system::RigidBodySystem, v, u,
                                         v_ode, u_ode, semi, t)
     update_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi)
-    return system
-end
-
-function update_gradient_correction!(system::RigidBodySystem{<:BoundaryModelDummyParticles},
-                                     v, u, v_ode, u_ode, semi, t)
-    update_gradient_correction!(system.boundary_model, system, v, u, v_ode, u_ode, semi)
-
     return system
 end
 
@@ -661,5 +633,7 @@ function check_configuration(system::RigidBodySystem, systems, nhs)
             throw(ArgumentError("a boundary model for `RigidBodySystem` must be specified " *
                                 "when simulating a fluid-structure interaction."))
         end
+
+        check_smoothing_kernel_fsi(system, boundary_model, neighbor)
     end
 end

@@ -29,6 +29,11 @@ TrixiParticles.SymplecticPositionVerlet() = SymplecticPositionVerlet()
 # and the corresponding cache in OrdinaryDiffEq.jl.
 OrdinaryDiffEqCore.default_linear_interpolation(alg::SymplecticPositionVerlet, prob) = true
 
+# The first stages are recomputed in every step, so there is no derivative to reuse.
+# Treating this method as FSAL would trigger an unnecessary RHS evaluation after callbacks
+# that modify the state.
+OrdinaryDiffEqCore.isfsal(::SymplecticPositionVerlet) = false
+
 @cache struct SymplecticPositionVerletCache{uType, rateType, uEltypeNoUnits} <:
               OrdinaryDiffEqMutableCache
     u::uType

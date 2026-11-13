@@ -217,8 +217,11 @@ end
 
 # === Neighborhood search creation ===
 function create_neighborhood_search(neighborhood_search, system, neighbor)
+    # Pair-local lists also need capacity for the query particles.
+    n_points = PointNeighbors.requires_update(neighborhood_search)[1] ?
+               max(nparticles(system), nparticles(neighbor)) : nparticles(neighbor)
     return copy_neighborhood_search(neighborhood_search, compact_support(system, neighbor),
-                                    nparticles(neighbor))
+                                    n_points)
 end
 
 function create_neighborhood_search(neighborhood_search, system::TotalLagrangianSPHSystem,
@@ -308,9 +311,17 @@ semi = Semidiscretization(system1, system2;
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-struct PairsNHSHandler{NHS} <: AbstractNHSHandler
+struct PairsNHSHandler{NHS, HNHS} <: AbstractNHSHandler
     neighborhood_searches::NHS
+    # Searches in the current configuration for the hydrodynamic sums of the boundary models
+    # of structures (see `has_hydrodynamic_neighborhood`), independent of the elastic
+    # self-interaction and contact searches. Other systems have an empty row.
+    # Neighbors with a reusable regular search have `nothing` instead of a search
+    # (see `uses_regular_hydrodynamic_search`).
+    hydrodynamic_neighborhood_searches::HNHS
 end
+
+PairsNHSHandler(searches) = PairsNHSHandler(searches, ())
 
 function PairsNHSHandler(neighborhood_search::AbstractNeighborhoodSearch, systems)
     searches = [create_neighborhood_search(neighborhood_search, system, neighbor)
@@ -318,7 +329,24 @@ function PairsNHSHandler(neighborhood_search::AbstractNeighborhoodSearch, system
 
     @assert isconcretetype(eltype(searches)) "neighborhood searches are not type-stable"
 
-    return PairsNHSHandler(searches)
+    hydrodynamic_searches = map(systems) do system
+        has_hydrodynamic_neighborhood(system) || return ()
+        radius = hydrodynamic_support(system)
+        return map(systems) do neighbor
+            uses_regular_hydrodynamic_search(neighbor) && return nothing
+            n_points = PointNeighbors.requires_update(neighborhood_search)[1] ?
+                       max(nparticles(system), nparticles(neighbor)) : nparticles(neighbor)
+            return copy_neighborhood_search(neighborhood_search, radius, n_points)
+        end
+    end
+
+    return PairsNHSHandler(searches, hydrodynamic_searches)
+end
+
+@inline function get_hydrodynamic_neighborhood_search(handler::PairsNHSHandler,
+                                                      system_index, neighbor_index,
+                                                      search_radius)
+    return handler.hydrodynamic_neighborhood_searches[system_index][neighbor_index]
 end
 
 function get_neighborhood_search(handler::PairsNHSHandler, system_index, neighbor_index,
@@ -389,6 +417,19 @@ function SharedNHSHandler(neighborhood_search::AbstractNeighborhoodSearch, syste
                                 for system in systems))
                     for neighbor in systems]
 
+    # Reuse shared searches at the compact support of the boundary models of structures
+    # for their hydrodynamic sums. In particular, the frozen TLSPH self-interaction search
+    # and the contact searches of rigid bodies don't describe the hydrodynamic neighborhood
+    # in the current configuration.
+    for system in systems
+        has_hydrodynamic_neighborhood(system) || continue
+        radius = hydrodynamic_support(system)
+        for radii in search_radii
+            push!(radii, radius)
+            sort!(unique!(radii))
+        end
+    end
+
     searches = [[copy_neighborhood_search(neighborhood_search, search_radius,
                                           nparticles(neighbor))
                  for search_radius in search_radii[neighbor_index]]
@@ -416,6 +457,39 @@ function get_neighborhood_search(handler::SharedNHSHandler, system_index, neighb
 end
 
 # === Neighborhood search lookup ===
+@inline function get_hydrodynamic_neighborhood_search(handler::SharedNHSHandler,
+                                                      system_index, neighbor_index,
+                                                      search_radius)
+    return get_neighborhood_search(handler, system_index, neighbor_index, search_radius)
+end
+
+# Neighborhood search for the hydrodynamic sums of the boundary model of a structure
+# (see `has_hydrodynamic_neighborhood`)
+@inline function get_hydrodynamic_neighborhood_search(system, neighbor, semi)
+    return get_hydrodynamic_neighborhood_search(semi.neighborhood_search_handler,
+                                                system_indices(system, semi),
+                                                system_indices(neighbor, semi),
+                                                hydrodynamic_support(system))
+end
+
+@inline function get_hydrodynamic_neighborhood_search(system,
+                                                      neighbor::AbstractFluidSystem, semi)
+    # Reuse the regular search (see `uses_regular_hydrodynamic_search`)
+    return get_neighborhood_search(system, neighbor, semi)
+end
+
+# Neighborhood search for sums over the neighbors of `system`, e.g., for correction values
+# or the density summation. `kernel_data` is the system or boundary model that provides the
+# smoothing kernel (see `compute_shepard_coeff!`).
+@inline function get_summation_neighborhood_search(kernel_data, system, neighbor, semi)
+    return get_neighborhood_search(system, neighbor, semi)
+end
+
+# Whether the particles of `neighbor` contribute to these sums
+@inline function has_hydrodynamic_interaction(system, neighbor, semi)
+    return has_system_interaction(system, neighbor, semi)
+end
+
 @inline function get_neighborhood_search(system, semi)
     return get_neighborhood_search(system, system, semi)
 end
@@ -469,6 +543,26 @@ function initialize_neighborhood_searches!(semi)
         end
     end
 
+    initialize_hydrodynamic_neighborhood_searches!(semi, initial_coordinates)
+
+    return semi
+end
+
+function initialize_hydrodynamic_neighborhood_searches!(semi, coordinates)
+    foreach_system(semi) do system
+        has_hydrodynamic_neighborhood(system) || return
+        foreach_system(semi) do neighbor
+            # Regular searches are initialized above
+            uses_regular_hydrodynamic_search(neighbor) && return
+            has_hydrodynamic_interaction(system, neighbor, semi) || return
+
+            search = get_hydrodynamic_neighborhood_search(system, neighbor, semi)
+            PointNeighbors.initialize!(search, coordinates(system), coordinates(neighbor);
+                                       eachindex_y=each_active_particle(neighbor),
+                                       parallelization_backend=PolyesterBackend())
+        end
+    end
+
     return semi
 end
 
@@ -508,6 +602,24 @@ function update_nhs!(semi, u_ode)
             neighborhood_search = get_neighborhood_search(system, neighbor, semi)
 
             update_nhs!(neighborhood_search, system, neighbor, u_system, u_neighbor, semi)
+        end
+    end
+
+    # Update the hydrodynamic searches of the boundary models of structures in the current
+    # configuration (see `has_hydrodynamic_neighborhood`)
+    foreach_system(semi) do system
+        has_hydrodynamic_neighborhood(system) || return
+        system_coords = current_coordinates(wrap_u(u_ode, system, semi), system)
+        foreach_system(semi) do neighbor
+            # Regular searches are updated above
+            uses_regular_hydrodynamic_search(neighbor) && return
+            has_hydrodynamic_interaction(system, neighbor, semi) || return
+
+            neighbor_coords = current_coordinates(wrap_u(u_ode, neighbor, semi), neighbor)
+            search = get_hydrodynamic_neighborhood_search(system, neighbor, semi)
+            update!(search, system_coords, neighbor_coords, semi;
+                    points_moving=(true, hydrodynamic_points_moving(neighbor)),
+                    eachindex_y=each_active_particle(neighbor))
         end
     end
 end

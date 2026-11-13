@@ -237,28 +237,44 @@ end
     return interaction_pressure_offset(system, particle)
 end
 
-# Formulation using both corrected gradients whenever either endpoint uses a correction that
-# breaks pair-gradient symmetry. Both directed evaluations then use the same formulation.
+# Boundary laws can specialize this wrapper without changing the inter-particle
+# operator used by transport-velocity corrections.
 @inline function pressure_acceleration(particle_system, neighbor_system, particle, neighbor,
                                        m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
                                        distance, W_a, correction;
                                        use_surface_pressure=true)
-    conservative_acceleration = if has_asymmetric_gradient(correction) ||
-                                   has_asymmetric_gradient(hydrodynamic_correction(neighbor_system))
-        W_b = hydrodynamic_smoothing_kernel_grad(neighbor_system, -pos_diff, distance,
-                                                 neighbor)
-
-        pressure_acceleration_formulation(particle_system)(m_a, m_b, rho_a, rho_b,
-                                                           p_a, p_b, W_a, W_b)
-    else
-        pressure_acceleration_formulation(particle_system)(m_a, m_b, rho_a, rho_b,
-                                                           p_a, p_b, W_a)
-    end
-
+    conservative_acceleration = pressure_acceleration_interparticle(particle_system,
+                                                                    neighbor_system,
+                                                                    particle, neighbor, m_a,
+                                                                    m_b, p_a, p_b,
+                                                                    rho_a, rho_b, pos_diff,
+                                                                    distance, W_a,
+                                                                    correction)
     use_surface_pressure || return conservative_acceleration
     return apply_surface_pressure(particle_system, neighbor_system, particle,
                                   conservative_acceleration, m_b, rho_a, rho_b, p_a, p_b,
                                   W_a)
+end
+
+# The inter-particle operator is also used for transport-velocity terms. It must
+# bypass boundary repulsion laws, which are physical forces rather than tensor
+# divergence or background-pressure operators.
+@inline function pressure_acceleration_interparticle(particle_system, neighbor_system,
+                                                     particle, neighbor,
+                                                     m_a, m_b, p_a, p_b, rho_a, rho_b,
+                                                     pos_diff, distance, W_a, correction)
+    # Both directed evaluations use both gradients whenever either endpoint is asymmetric.
+    if has_asymmetric_gradient(correction) ||
+       has_asymmetric_gradient(hydrodynamic_correction(neighbor_system))
+        W_b = hydrodynamic_smoothing_kernel_grad(neighbor_system, -pos_diff, distance,
+                                                 neighbor)
+
+        return pressure_acceleration_formulation(particle_system)(m_a, m_b, rho_a, rho_b,
+                                                                  p_a, p_b, W_a, W_b)
+    else
+        return pressure_acceleration_formulation(particle_system)(m_a, m_b, rho_a, rho_b,
+                                                                  p_a, p_b, W_a)
+    end
 end
 
 function check_pressure_acceleration_configuration(systems, interaction_matrix)
@@ -293,4 +309,14 @@ function check_pressure_acceleration_configuration(systems, interaction_matrix)
     end
 
     return nothing
+end
+
+# The last argument is the kernel gradient `W_b` of the neighbor if it has already been
+# computed (see `interact_structure_fluid!`), or `nothing` to compute it when required.
+@inline function pressure_acceleration(particle_system, neighbor_system, particle, neighbor,
+                                       m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
+                                       distance, W_a, correction, W_b::Nothing)
+    return pressure_acceleration(particle_system, neighbor_system, particle, neighbor,
+                                 m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff, distance,
+                                 W_a, correction)
 end

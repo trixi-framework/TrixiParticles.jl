@@ -60,7 +60,7 @@ The force exerted by particle ``b`` on particle ``a`` due to artificial viscosit
 ```math
 \bm{f}_{ab}^{\text{AV}} =
 \begin{cases}
-    m_a m_b \frac{\alpha c \mu_{ab} + \beta \mu_{ab}^2}{\bar{\rho}_{ab}}
+    m_a m_b \frac{\alpha c \mu_{ab} - \beta \mu_{ab}^2}{\bar{\rho}_{ab}}
     \nabla_a W_{ab}, & \text{if } \bm{v}_{ab} \cdot \bm{r}_{ab} < 0, \\
     0, & \text{otherwise}.
 \end{cases}
@@ -194,13 +194,15 @@ where
 - ``\dot\gamma``: shear-rate magnitude.
 
 In this implementation the shear-rate magnitude is approximated per particle pair as
-``\dot\gamma \approx \frac{\lVert \mathbf{v}_{ab} \rVert}{\lVert \mathbf{r}_{ab} \rVert + \epsilon}``,
-with ``\mathbf{v}_{ab}`` the relative velocity, ``\mathbf{r}_{ab}`` the position difference,
-and ``\epsilon`` a small regularization parameter.
+``\dot\gamma \approx \frac{\lVert \mathbf{v}_{ab} \rVert}{\max(\lVert \mathbf{r}_{ab} \rVert, \epsilon_{\dot\gamma} h)}``,
+with ``\mathbf{v}_{ab}`` the relative velocity, ``\mathbf{r}_{ab}`` the position
+difference, ``h`` the pair-averaged smoothing length, and ``\epsilon_{\dot\gamma}``
+a small dimensionless safety factor. This is a local pairwise approximation and
+not a full reconstruction of the continuum invariant ``\sqrt{2S:S}``.
 
-All viscosities here are kinematic viscosities (m²/s); dynamic viscosity is obtained internally
-via ``\eta = \rho \nu``. A Newtonian fluid is recovered for ``n = 1`` and
-``\nu_0 = \nu_\infty``
+All viscosities here are kinematic viscosities (m²/s); dynamic viscosity is obtained
+internally via ``\eta = \rho \nu``. A Newtonian fluid with ``\nu = \nu_0`` is
+recovered for ``n = 1``.
 
 ```@autodocs
 Modules = [TrixiParticles]
@@ -233,6 +235,10 @@ For fluid-structure interaction, a `TotalLagrangianSPHSystem` keeps its structur
 kernel independent from the hydrodynamic kernel stored in its boundary model. Hydrodynamic
 correction caches and fluid pressure interactions use the boundary-model kernel and smoothing
 length.
+For fluid-structure interaction with a [`TotalLagrangianSPHSystem`](@ref) or a
+[`RigidBodySystem`](@ref), the structure's [`BoundaryModelDummyParticles`](@ref) has its own
+`correction`. See [Boundary Corrections](@ref boundary_corrections) for how the fluid and
+boundary gradients enter the pressure acceleration and for the supported combinations.
 
 ```@autodocs
 Modules = [TrixiParticles]
