@@ -197,14 +197,6 @@ function compute_correction_values!(system, correction, u, v_ode, u_ode, semi)
     return system
 end
 
-@inline function get_correction_neighborhood_search(kernel_data, system, neighbor, semi)
-    return get_neighborhood_search(system, neighbor, semi)
-end
-
-@inline function has_correction_interaction(system, neighbor, semi)
-    return has_system_interaction(system, neighbor, semi)
-end
-
 function compute_correction_values!(system, ::ShepardKernelCorrection, u, v_ode, u_ode,
                                     semi)
     return compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode,
@@ -212,12 +204,12 @@ function compute_correction_values!(system, ::ShepardKernelCorrection, u, v_ode,
                                   system.cache.kernel_correction_coefficient)
 end
 
-# The correction values are sums over the neighbors of `system`. `kernel_data` provides the
-# smoothing kernel, the smoothing length and the correction values of the particles of `system`,
-# which are stored in the system itself or in its boundary model (for structures).
+# The correction-assembly helpers use `system` for the particles and the neighbor search.
+# The `kernel_data` keyword supplies the kernel, smoothing length and any existing correction
+# values needed for assembly. It defaults to `system`; boundary-model callers pass their model.
 function compute_shepard_coeff!(system, system_coords, v_ode, u_ode, semi,
                                 kernel_correction_coefficient,
-                                density_numerator=nothing, kernel_data=system)
+                                density_numerator=nothing; kernel_data=system)
     set_zero!(kernel_correction_coefficient)
     reset_density_numerator!(density_numerator)
 
@@ -226,14 +218,14 @@ function compute_shepard_coeff!(system, system_coords, v_ode, u_ode, semi,
         foreach_system_wrapped(semi, v_ode,
                                u_ode) do neighbor_system, v_neighbor_system,
                                          u_neighbor_system
-            if !has_correction_interaction(system, neighbor_system, semi)
-                # No hydrodynamic correction contribution from this system.
+            if !has_hydrodynamic_interaction(system, neighbor_system, semi)
+                # No hydrodynamic contribution from this system.
                 return
             end
 
             neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
-            neighborhood_search = get_correction_neighborhood_search(kernel_data, system,
-                                                                     neighbor_system, semi)
+            neighborhood_search = get_summation_neighborhood_search(kernel_data, system,
+                                                                    neighbor_system, semi)
 
             # Loop over all pairs of particles and neighbors within the kernel cutoff
             foreach_point_neighbor(system_coords, neighbor_coords, neighborhood_search;
@@ -307,9 +299,10 @@ function compute_correction_values!(system,
                                     ::Union{KernelCorrection,
                                             MixedKernelGradientCorrection}, system_coords,
                                     v_ode,
-                                    u_ode, semi, kernel_correction_coefficient, dw_gamma,
-                                    smoothing_kernel=system_smoothing_kernel(system),
+                                    u_ode, semi, kernel_correction_coefficient, dw_gamma;
                                     kernel_data=system)
+    smoothing_kernel = system_smoothing_kernel(kernel_data)
+
     set_zero!(kernel_correction_coefficient)
     set_zero!(dw_gamma)
 
@@ -318,15 +311,15 @@ function compute_correction_values!(system,
         foreach_system_wrapped(semi, v_ode,
                                u_ode) do neighbor_system, v_neighbor_system,
                                          u_neighbor_system
-            if !has_correction_interaction(system, neighbor_system, semi)
-                # No hydrodynamic correction contribution from this system.
+            if !has_hydrodynamic_interaction(system, neighbor_system, semi)
+                # No hydrodynamic contribution from this system.
                 return
             end
 
             neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-            neighborhood_search = get_correction_neighborhood_search(kernel_data, system,
-                                                                     neighbor_system, semi)
+            neighborhood_search = get_summation_neighborhood_search(kernel_data, system,
+                                                                    neighbor_system, semi)
 
             # Loop over all pairs of particles and neighbors within the kernel cutoff
             foreach_point_neighbor(system_coords, neighbor_coords, neighborhood_search;
@@ -467,7 +460,11 @@ function compute_gradient_correction_matrix!(corr_matrix, system, coordinates, d
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     foreach_point_neighbor(system, system, coordinates, coordinates,
                            semi) do particle, neighbor, pos_diff, distance
-        grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
+        # Assemble the matrix from the uncorrected kernel gradient. The corrected gradient
+        # of a fluid would use correction values of the fluid that are computed later
+        # in the update and are therefore not yet available.
+        grad_kernel = kernel_grad(system_smoothing_kernel(system), pos_diff, distance,
+                                  smoothing_length(system, particle))
         iszero(grad_kernel) && return
 
         volume = @inbounds mass[neighbor] / density_fun(neighbor)
@@ -488,8 +485,9 @@ end
 
 function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
                                              coordinates, v_ode, u_ode, semi,
-                                             correction, smoothing_kernel,
-                                             kernel_data=system)
+                                             correction; kernel_data=system)
+    smoothing_kernel = system_smoothing_kernel(kernel_data)
+
     set_zero!(corr_matrix)
 
     # The matrix is assembled from kernel gradients without gradient correction, since the
@@ -503,14 +501,14 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
         foreach_system_wrapped(semi, v_ode,
                                u_ode) do neighbor_system, v_neighbor_system,
                                          u_neighbor_system
-            if !has_correction_interaction(system, neighbor_system, semi)
-                # No hydrodynamic correction contribution from this system.
+            if !has_hydrodynamic_interaction(system, neighbor_system, semi)
+                # No hydrodynamic contribution from this system.
                 return
             end
 
             neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
-            neighborhood_search = get_correction_neighborhood_search(kernel_data, system,
-                                                                     neighbor_system, semi)
+            neighborhood_search = get_summation_neighborhood_search(kernel_data, system,
+                                                                    neighbor_system, semi)
 
             foreach_point_neighbor(coordinates, neighbor_coords, neighborhood_search;
                                    points=eachparticle(system),
