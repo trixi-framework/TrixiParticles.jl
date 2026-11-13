@@ -57,6 +57,7 @@ include("custom_quantities/custom_quantities.jl")
 include("general/neighborhood_search.jl")
 # `callbacks.jl` requires the system types to be defined
 include("callbacks/callbacks.jl")
+include("refinement/refinement.jl")
 
 # Note that `semidiscretization.jl` depends on the system types and has to be
 # included separately. The following files in turn depend on the semidiscretization type.

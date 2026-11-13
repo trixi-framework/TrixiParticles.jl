@@ -50,8 +50,8 @@
         semi = Semidiscretization(system1, system2, neighborhood_search=nothing)
 
         # Verification
-        @test semi.ranges_u == (1:6, 7:15)
-        @test semi.ranges_v == (1:6, 7:18)
+        @test semi.ranges_u == [1:6, 7:15]
+        @test semi.ranges_v == [1:6, 7:18]
 
         @test semi.neighborhood_search_handler isa TrixiParticles.PairsNHSHandler
 
