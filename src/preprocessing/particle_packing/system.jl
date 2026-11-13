@@ -100,6 +100,20 @@ struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C, AV,
     end
 end
 
+@inline surface_normal_method(::ParticlePackingSystem) = nothing
+@inline contributes_to_colorfield(::ParticlePackingSystem) = false
+
+function check_configuration(system::ParticlePackingSystem, systems, nhs)
+    return nothing
+end
+
+function calc_normal!(system::AbstractFluidSystem,
+                      neighbor_system::ParticlePackingSystem,
+                      u_system, v, v_neighbor_system, u_neighbor_system, semi,
+                      surface_normal_method, neighbor_surface_normal_method)
+    return system
+end
+
 function ParticlePackingSystem(shape::InitialCondition;
                                signed_distance_field::Union{SignedDistanceField, Nothing},
                                smoothing_kernel=SchoenbergQuinticSplineKernel{ndims(shape)}(),

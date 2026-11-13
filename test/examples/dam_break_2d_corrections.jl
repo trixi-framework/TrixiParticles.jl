@@ -68,10 +68,38 @@
                                          smoothing_length=1.5 * particle_spacing,
                                          boundary_density_calculator=ContinuityDensity(),
                                          fluid_density_calculator=ContinuityDensity(),
-                                         correction=nothing, use_reinit=true,
+                                         use_reinit=true,
                                          prefix="continuity_reinit", tspan, fluid_density,
                                          density_diffusion=nothing)
 
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol) == 0
+    end
+
+    @testset verbose=true "surface pressure $correction_name" for (correction_name,
+                                                                   correction) in
+                                                                  (("gradient",
+                                                                    GradientCorrection()),
+                                                                   ("mixed",
+                                                                    MixedKernelGradientCorrection()))
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "dam_break_2d.jl");
+                                         fluid_particle_spacing=particle_spacing,
+                                         smoothing_length=2 * particle_spacing,
+                                         smoothing_kernel=WendlandC6Kernel{2}(),
+                                         boundary_density_calculator=SummationDensity(),
+                                         fluid_density_calculator=SummationDensity(),
+                                         gradient_correction=correction,
+                                         surface_method=ColorfieldSurfaceDetection(ideal_density_threshold=0.9),
+                                         surface_pressure=SurfacePressureDifference(),
+                                         use_reinit=false, clip_negative_pressure=true,
+                                         prefix="surface_pressure_$(correction_name)",
+                                         tspan,
+                                         fluid_density, density_diffusion=nothing,
+                                         boundary_layers=5, sol=nothing)
+
+        sol = solve(ode, RDPK3SpFSAL35(), save_everystep=false, callback=callbacks)
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol) == 0
     end
@@ -81,6 +109,12 @@
         local correction = correction_dict[correction_name]
         local smoothing_kernel = smoothing_kernel_dict[correction_name]
         local smoothing_length = smoothing_length_dict[correction_name]
+        correction_kwargs = correction isa ShepardKernelCorrection ?
+                            (; density_correction=correction) :
+                            correction isa AkinciFreeSurfaceCorrection ?
+                            (; force_correction=correction) :
+                            correction isa Nothing ? (;) :
+                            (; gradient_correction=correction)
 
         println("="^100)
         println("fluid/dam_break_2d.jl with ", correction_name)
@@ -91,7 +125,7 @@
                                          fluid_particle_spacing=particle_spacing,
                                          smoothing_length,
                                          boundary_density_calculator=SummationDensity(),
-                                         fluid_density_calculator, correction,
+                                         fluid_density_calculator, correction_kwargs...,
                                          use_reinit=false,
                                          clip_negative_pressure=(fluid_density_calculator isa
                                                                  SummationDensity),

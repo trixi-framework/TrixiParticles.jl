@@ -20,6 +20,9 @@ torque and applied consistently to all rigid particles.
 # Keywords
 - `boundary_model`: Boundary model for fluid-structure interaction
                     (see [Boundary Models](@ref boundary_models)).
+                    For [`BoundaryModelDummyParticles`](@ref), see
+                    [Boundary Corrections](@ref boundary_corrections) for the supported
+                    corrections.
 - `contact_model`: Optional rigid contact model.
                    If specified, rigid-wall and rigid-rigid collisions are enabled.
 - `acceleration`: Global acceleration vector applied to all rigid particles.
@@ -31,12 +34,8 @@ torque and applied consistently to all rigid particles.
                           models when fluids interact with this rigid body. This is
                           only evaluated for fluid-structure interaction with
                           surface-tension-enabled fluid systems.
-- `color_value`: Integer label stored as `system.cache.color`.
-                 Currently this is used with `BoundaryModelDummyParticles` during
-                 colorfield initialization so fluids using
-                 [`ColorfieldSurfaceNormal`](@ref) can detect contact with rigid
-                 bodies, it participates in the multi-system color sanity check for
-                 surface-tension setups, and it is written to VTK output as `"color"`.
+- `color_value`: Integer phase tag stored as `system.cache.color` and written to VTK output.
+                 Rigid-body support in colorfield surface calculations is label-independent.
 """
 struct RigidBodySystem{BM, CTM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
                        ST, CM, CMV, I, II, AV, RF, RT, AAF, GA, C} <:
@@ -124,6 +123,7 @@ function RigidBodySystem(initial_condition; boundary_model=nothing,
              create_cache_contact_manifold(contact_model_, Val(NDIMS), ELTYPE,
                                            nparticles(initial_condition),
                                            max_manifolds_)...,
+             create_cache_structure_boundary(boundary_model, initial_condition)...,
              color=Int(color_value))
 
     system = RigidBodySystem(initial_condition, initial_velocity, mass,
@@ -267,7 +267,7 @@ end
 end
 
 @inline function system_correction(system::RigidBodySystem{<:BoundaryModelDummyParticles})
-    return system.boundary_model.correction
+    return correction_gradient(system.boundary_model.correction)
 end
 
 function initialize!(system::RigidBodySystem, semi)
@@ -275,14 +275,18 @@ function initialize!(system::RigidBodySystem, semi)
     return system
 end
 
-function calc_normal!(system::AbstractFluidSystem,
-                      neighbor_system::RigidBodySystem{<:BoundaryModelDummyParticles},
-                      u_system, v, v_neighbor_system, u_neighbor_system, semi,
-                      surface_normal_method, neighbor_surface_normal_method)
+function calc_surface!(system::AbstractFluidSystem,
+                       neighbor_system::RigidBodySystem{<:BoundaryModelDummyParticles},
+                       u_system, v, v_neighbor_system, u_neighbor_system, semi,
+                       surface_method_, neighbor_surface_method)
     haskey(neighbor_system.boundary_model.cache, :initial_colorfield) || return system
 
-    return calc_boundary_normal!(system, neighbor_system, u_system, v, u_neighbor_system,
-                                 semi, surface_normal_method)
+    return calc_boundary_surface!(system, neighbor_system, u_system, v, u_neighbor_system,
+                                  semi, surface_method_)
+end
+
+@inline function contributes_boundary_colorfield(system::RigidBodySystem{<:BoundaryModelDummyParticles})
+    return haskey(system.boundary_model.cache, :initial_colorfield)
 end
 
 @inline function add_dv_adhesion(dv_particle,
@@ -631,21 +635,5 @@ function check_configuration(system::RigidBodySystem, systems, nhs)
         end
 
         check_smoothing_kernel_fsi(system, boundary_model, neighbor)
-
-        if neighbor isa AbstractFluidSystem &&
-           neighbor.surface_normal_method isa ColorfieldSurfaceNormal
-            if !(boundary_model isa BoundaryModelDummyParticles)
-                throw(ArgumentError("`RigidBodySystem` is only compatible with " *
-                                    "`ColorfieldSurfaceNormal` when using " *
-                                    "`BoundaryModelDummyParticles`."))
-            end
-
-            if !haskey(boundary_model.cache, :initial_colorfield)
-                throw(ArgumentError("`RigidBodySystem` with `BoundaryModelDummyParticles` " *
-                                    "requires `reference_particle_spacing` to be set on " *
-                                    "the boundary model when used together with " *
-                                    "`ColorfieldSurfaceNormal` or a surface tension model."))
-            end
-        end
     end
 end

@@ -233,10 +233,13 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::AbstractFluidSystem, sem
 
     if surface_tension isa SurfaceTensionMorris ||
        surface_tension isa SurfaceTensionMomentumMorris
-        v = wrap_v(v_ode, system, semi)
-        dt_surface_tension = sqrt(current_density(v, system, 1) * smoothing_length_^3 /
-                                  (2 * pi * surface_tension.surface_tension_coefficient))
-        dt = min(dt, dt_surface_tension)
+        coefficient = surface_tension.surface_tension_coefficient
+        if !iszero(coefficient)
+            v = wrap_v(v_ode, system, semi)
+            dt_surface_tension = sqrt(current_density(v, system, 1) * smoothing_length_^3 /
+                                      (2 * pi * coefficient))
+            dt = min(dt, dt_surface_tension)
+        end
     end
 
     return dt
@@ -264,12 +267,25 @@ end
     return nothing
 end
 
-@inline function surface_normal_method(system::AbstractFluidSystem)
-    return system.surface_normal_method
+@inline function surface_method(system::AbstractFluidSystem)
+    hasproperty(system, :surface_method) || return nothing
+    return system.surface_method
 end
 
-@inline function surface_normal_method(system)
+@inline function surface_method(system)
     return nothing
+end
+
+function surface_normal_method(system)
+    Base.depwarn("`surface_normal_method(system)` is deprecated; use `surface_method(system)`",
+                 :surface_normal_method)
+    method = surface_method(system)
+    return computes_surface_normal(method) ? method : nothing
+end
+
+@inline contributes_to_colorfield(system) = false
+@inline function contributes_to_colorfield(system::AbstractFluidSystem)
+    return hasproperty(system.cache, :color)
 end
 
 function restart_u(system::AbstractFluidSystem, data)
@@ -314,17 +330,37 @@ function restart_v(system::AbstractFluidSystem, data)
     return velocity_total
 end
 
-function check_configuration(fluid_system::AbstractFluidSystem, systems, nhs)
-    if !(fluid_system isa ParticlePackingSystem) && !isnothing(fluid_system.surface_tension)
-        foreach_system(systems) do neighbor
-            if neighbor isa AbstractFluidSystem &&
-               isnothing(fluid_system.surface_tension) &&
-               isnothing(fluid_system.surface_normal_method)
-                throw(ArgumentError("either none or all fluid systems in a simulation need " *
-                                    "to use a surface tension model or a surface normal method."))
+function check_surface_configuration(systems, interaction_matrix)
+    for system_index in eachindex(systems)
+        fluid_system = systems[system_index]
+        fluid_system isa AbstractFluidSystem || continue
+        fluid_system isa ParticlePackingSystem && continue
+
+        for neighbor_index in eachindex(systems)
+            is_enabled_interaction(interaction_matrix[system_index, neighbor_index]) ||
+                continue
+            neighbor = systems[neighbor_index]
+
+            if requires_surface_normal(fluid_system.surface_tension) &&
+               neighbor isa AbstractFluidSystem && !(neighbor isa ParticlePackingSystem) &&
+               !computes_surface_normal(surface_method(neighbor))
+                throw(ArgumentError("all interacting fluid systems must use a surface method " *
+                                    "that computes normals when a surface-tension model " *
+                                    "requires interface normals"))
+            end
+
+            if is_colorfield_surface_method(surface_method(fluid_system)) &&
+               (neighbor isa WallBoundarySystem || neighbor isa RigidBodySystem) &&
+               !contributes_boundary_colorfield(neighbor)
+                throw(ArgumentError("colorfield surface methods require interacting wall " *
+                                    "and rigid-body systems to use " *
+                                    "`BoundaryModelDummyParticles` with " *
+                                    "`reference_particle_spacing` set"))
             end
         end
     end
+
+    return nothing
 end
 
 function system_data(system::AbstractFluidSystem, dv_ode, du_ode, v_ode, u_ode, semi)

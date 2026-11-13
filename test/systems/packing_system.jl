@@ -83,6 +83,9 @@
                                        smoothing_length_interpolation=1.0,
                                        background_pressure=1.0)
 
+        @test isnothing(TrixiParticles.surface_normal_method(system))
+        @test !TrixiParticles.contributes_to_colorfield(system)
+
         u = copy(initial_condition.coordinates)
 
         TrixiParticles.constrain_particles_onto_surface!(u, system,

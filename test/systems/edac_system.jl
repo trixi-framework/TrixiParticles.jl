@@ -127,7 +127,7 @@
         system = EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel,
                                              smoothing_length, sound_speed)
 
-        show_compact = "EntropicallyDampedSPHSystem{2}(SummationDensity(), nothing, nothing, Val{:smoothing_kernel}(), [0.0, 0.0], nothing, nothing) with 2 particles"
+        show_compact = "EntropicallyDampedSPHSystem{2}(SummationDensity(), nothing, nothing, Val{:smoothing_kernel}(), [0.0, 0.0], nothing, nothing, nothing) with 2 particles"
         @test repr(system) == show_compact
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -143,7 +143,8 @@
         │ average pressure reduction: ……… no                                                               │
         │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
         │ surface tension: …………………………………… nothing                                                          │
-        │ surface normal method: …………………… nothing                                                          │
+        │ surface method: ……………………………………… nothing                                                          │
+        │ surface pressure: ………………………………… nothing                                                          │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", system) == show_box
     end
@@ -244,7 +245,6 @@
                       nparticles(system))
         end
     end
-
     @trixi_testset "restart_with! with ContinuityDensity" begin
         coordinates = [0.5 2.0
                        1.0 2.0]
@@ -273,5 +273,34 @@
         @test system.initial_condition.coordinates == u_new
         @test system.initial_condition.velocity == velocity_new
         @test system.initial_condition.pressure == pressure_new
+    end
+
+    @testset verbose=true "deprecated surface_normal_method" begin
+        shape = RectangularShape(0.123, (2, 3), (-1.0, 0.1), density=1.0)
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        smoothing_length = 0.362
+
+        system = @test_deprecated EntropicallyDampedSPHSystem(shape; smoothing_kernel,
+                                                              smoothing_length,
+                                                              sound_speed=10.0,
+                                                              surface_normal_method=ColorfieldSurfaceNormal(),
+                                                              reference_particle_spacing=0.123)
+        @test system.surface_method isa ColorfieldSurfaceNormal
+        @test @test_deprecated(TrixiParticles.surface_normal_method(system)) isa
+              ColorfieldSurfaceNormal
+
+        detection = EntropicallyDampedSPHSystem(shape; smoothing_kernel,
+                                                smoothing_length, sound_speed=10.0,
+                                                surface_method=ColorfieldSurfaceDetection(),
+                                                reference_particle_spacing=0.123)
+        @test @test_deprecated(TrixiParticles.surface_normal_method(detection)) === nothing
+
+        error_str = "`surface_method` and deprecated `surface_normal_method` cannot both be set"
+        @test_throws ArgumentError(error_str) EntropicallyDampedSPHSystem(shape;
+                                                                          smoothing_kernel,
+                                                                          smoothing_length,
+                                                                          sound_speed=10.0,
+                                                                          surface_method=ColorfieldSurfaceDetection(),
+                                                                          surface_normal_method=ColorfieldSurfaceNormal())
     end
 end

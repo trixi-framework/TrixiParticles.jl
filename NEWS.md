@@ -4,6 +4,54 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.6.0
+
+### API Changes
+
+- Renamed the fluid-system keyword `surface_normal_method` to `surface_method` and added
+  detection-only surface methods. The old constructor keyword and accessor are deprecated.
+- The fluid `color_value` phase identifier is now always recorded in `meta.json` and written
+  as `color` field data in VTK output, also for fluids without a surface method.
+
+### Features
+
+- Added an experimental surface-activity-weighted pressure-difference model for corrected
+  WCSPH and EDAC free-surface simulations.
+
+### API Changes
+- Replaced the `correction` keyword of `WeaklyCompressibleSPHSystem`,
+  `EntropicallyDampedSPHSystem`, and `BoundaryModelDummyParticles` with
+  `density_correction`, `gradient_correction`, and `force_correction`.
+  Use `density_correction=ShepardKernelCorrection()` for density normalization,
+  `gradient_correction` for kernel/gradient corrections, and `force_correction` for
+  `AkinciFreeSurfaceCorrection` (#1285).
+- Custom functions passed as `pressure_acceleration` must accept both pair gradients
+  (`W_a`, `W_b`) when either interacting system uses an asymmetric gradient correction
+  (#1289).
+
+### Important Bugfixes
+
+- Fixed Morris curvature accumulation and planar multicolor interface stencils, and made
+  surface-activity interpolation use the particle detection thresholds (#1282).
+- Fixed buffered fluid VTK fields to contain one value per active particle, and assigned
+  distinct water/oil phase colors in `dam_break_oil_film_2d.jl` (#1282).
+- Fixed SPH correction updates to apply density corrections before pressure and update
+  boundary, gradient, and surface quantities in consistent phases across fluid and
+  structure systems (#1284).
+- Fixed Shepard density correction to handle invalid normalization coefficients,
+  finalize corrected density before pressure evaluation, and use evolved continuity
+  density for particle volumes during density reinitialization (#1292).
+- Fixed `KernelCorrection` to fall back to uncorrected gradients for invalid normalization
+  coefficients and preserve Float32 boundary correction caches (#1291).
+- Fixed gradient correction matrices to use raw kernel gradients, scale-independent
+  singularity detection, and identity fallback. Added validation of blended correction
+  factors and preserved boundary cache element types (#1290).
+- Fixed `MixedKernelGradientCorrection` to assemble its matrix from the kernel-corrected
+  raw gradient and preserve matching cache element types (#1288).
+- Fixed linear-momentum conservation for corrected pressure forces, made EDAC
+  average-pressure reduction pair-symmetric, and applied exact fluid-structure pressure
+  reaction forces (#1289).
+
 ## Version 0.5.4
 
 ### API Changes
@@ -14,9 +62,17 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - The smoothing kernel and smoothing length of a `BoundaryModelDummyParticles` of a
   `TotalLagrangianSPHSystem` or `RigidBodySystem` must now be the same as those of all
   fluid systems in the simulation (#1338, #1348).
+- A `BoundaryModelDummyParticles` of a `TotalLagrangianSPHSystem` or `RigidBodySystem` with
+  `KernelCorrection` or `MixedKernelGradientCorrection` now requires all fluid systems to
+  use one of these corrections as well (#1342, #1351).
 
 ### Features
 
+- Hardened surface tension model configuration by validating coefficients and surface-normal
+  thresholds, avoiding unnecessary normal allocation for `CohesionForceAkinci`, and stabilizing
+  Akinci cohesion and adhesion kernels across floating-point scales.
+- Added color-weighted fluid-fluid interface normals and consistently applied surface-normal
+  validity thresholds to standalone, Akinci, and Morris calculations.
 - Added the `ThrustCalculator` custom quantity to calculate the hydrodynamic force exerted by
   interacting fluid systems on a `TotalLagrangianSPHSystem` along a given `direction` (#1229).
 - Added `StructureMotionCalculator`, a custom quantity for the `PostprocessCallback`
@@ -29,6 +85,24 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Important Bugfixes
 
+- Fixed double-counted Monaghan-Kajtar repulsion in TVF momentum and
+  background-pressure shifting operators (#1344).
+- Fixed pressure mirroring for TLSPH and rigid-body neighbors and for EDAC momentum,
+  pressure diffusion, and average-pressure reduction at walls and structures (#1341).
+- Fixed the correction values of the `BoundaryModelDummyParticles` of a
+  `TotalLagrangianSPHSystem` or `RigidBodySystem`, which were not computed or computed with
+  the TLSPH kernel, the frozen TLSPH neighborhood or the contact search of rigid bodies.
+  They are now computed over the current hydrodynamic neighborhood, including the
+  structure itself. With `SummationDensity`, the density of these boundary models is now
+  computed in every time step instead of keeping its initial value (#1351).
+- Fixed the fluid–structure pressure acceleration of fluids with `KernelCorrection`,
+  `GradientCorrection`, `BlendedGradientCorrection` or `MixedKernelGradientCorrection` to use
+  the smoothing kernel and smoothing length of the boundary model at the structure particles
+  instead of those of the `TotalLagrangianSPHSystem`. Also fixed the assembly of the
+  correction matrix, which made `GradientCorrection` have no effect and
+  `BlendedGradientCorrection` depend on the order of the neighbors, so results with these
+  corrections change. `DensityDiffusionAntuono` now always uses the uncorrected kernel
+  gradient (#1342).
 - Fixed structure-fluid reaction forces with asymmetric corrected fluid kernel
   gradients by evaluating the fluid-first gradient directly. The continuity equation
   of `RigidBodySystem` boundaries with `ContinuityDensity` now uses the kernel gradient

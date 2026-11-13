@@ -178,3 +178,96 @@
         end
     end
 end
+
+@testset verbose=true "Surface Quantities Respect Active Particles" begin
+    mktempdir() do tmp_dir
+        shape = RectangularShape(0.1, (3, 3), (0.0, 0.0), density=1000.0)
+        fluid_system = WeaklyCompressibleSPHSystem(shape;
+                                                   smoothing_kernel=WendlandC2Kernel{2}(),
+                                                   smoothing_length=0.15,
+                                                   density_calculator=ContinuityDensity(),
+                                                   state_equation=StateEquationCole(sound_speed=10.0,
+                                                                                    reference_density=1000.0,
+                                                                                    exponent=1),
+                                                   surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.072),
+                                                   surface_method=ColorfieldSurfaceNormal(),
+                                                   reference_particle_spacing=0.1,
+                                                   buffer_size=5)
+
+        fluid_system.buffer.active_particle[8] = false
+        fluid_system.buffer.active_particle[9] = false
+        TrixiParticles.update_system_buffer!(fluid_system.buffer)
+        n_active = count(fluid_system.buffer.active_particle)
+
+        semi = Semidiscretization(fluid_system;
+                                  neighborhood_search=TrivialNeighborhoodSearch{2}())
+        ode = semidiscretize(semi, (0.0, 0.01))
+        trixi2vtk(ode.u0, semi, 0.0; output_directory=tmp_dir,
+                  prefix="surface_buffer", overwrite=true)
+
+        data = vtk2trixi(joinpath(tmp_dir, "surface_buffer_fluid_1_current.vtu"))
+        @test size(data.coordinates, 2) == n_active
+        @test length(data.surface_activity) == n_active
+        @test length(data.neighbor_count) == n_active
+        @test length(data.curvature) == n_active
+        @test length(data.surface_tension) == ndims(fluid_system) * n_active
+        @test data.color == 1
+
+        active = TrixiParticles.eachparticle(fluid_system)
+        @test data.surface_activity ==
+              fluid_system.cache.surface_activity[active]
+        @test data.neighbor_count == fluid_system.cache.neighbor_count[active]
+        @test data.curvature == fluid_system.cache.curvature[active]
+
+        vtk_file = TrixiParticles.ReadVTK.VTKFile(joinpath(tmp_dir,
+                                                           "surface_buffer_fluid_1_current.vtu"))
+        point_data = TrixiParticles.ReadVTK.get_point_data(vtk_file)
+        points = TrixiParticles.ReadVTK.get_points(vtk_file)
+        @test length(TrixiParticles.ReadVTK.get_data(point_data["surface_activity"])) ==
+              size(points, 2)
+        @test length(TrixiParticles.ReadVTK.get_data(point_data["curvature"])) ==
+              size(points, 2)
+    end
+end
+
+@testset verbose=true "Contributor Fluid Writes Color Without Surface Quantities" begin
+    mktempdir() do tmp_dir
+        y_coordinates = collect(0.0:0.1:0.4)
+        coordinates_a = hcat(([x, y] for x in 0.0:0.1:0.2 for y in y_coordinates)...)
+        coordinates_b = hcat(([x, y] for x in 0.3:0.1:0.5 for y in y_coordinates)...)
+        ic_a = InitialCondition(; coordinates=coordinates_a,
+                                density=fill(1000.0, size(coordinates_a, 2)),
+                                particle_spacing=0.1)
+        ic_b = InitialCondition(; coordinates=coordinates_b,
+                                density=fill(1000.0, size(coordinates_b, 2)),
+                                particle_spacing=0.1)
+        state_equation = StateEquationCole(sound_speed=10.0, reference_density=1000.0,
+                                           exponent=1)
+        system_a = WeaklyCompressibleSPHSystem(ic_a; smoothing_kernel=WendlandC2Kernel{2}(),
+                                               smoothing_length=0.15,
+                                               density_calculator=SummationDensity(),
+                                               state_equation,
+                                               surface_method=ColorfieldSurfaceDetection(),
+                                               reference_particle_spacing=0.1,
+                                               color_value=1)
+        system_b = WeaklyCompressibleSPHSystem(ic_b; smoothing_kernel=WendlandC2Kernel{2}(),
+                                               smoothing_length=0.15,
+                                               density_calculator=SummationDensity(),
+                                               state_equation,
+                                               reference_particle_spacing=0.1,
+                                               color_value=2)
+
+        semi = Semidiscretization(system_a, system_b)
+        ode = semidiscretize(semi, (0.0, 0.01))
+        trixi2vtk(ode.u0, semi, 0.0; output_directory=tmp_dir,
+                  prefix="contributor", overwrite=true)
+
+        data_a = vtk2trixi(joinpath(tmp_dir, "contributor_fluid_1_current.vtu"))
+        data_b = vtk2trixi(joinpath(tmp_dir, "contributor_fluid_2_current.vtu"))
+        @test data_a.color == 1
+        @test data_b.color == 2
+        @test hasproperty(data_a, :surface_activity)
+        @test !hasproperty(data_b, :surface_activity)
+        @test !hasproperty(data_b, :surf_normal)
+    end
+end

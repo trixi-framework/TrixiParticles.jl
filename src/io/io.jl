@@ -86,10 +86,14 @@ function add_system_data!(system_data, system::AbstractFluidSystem)
     system_data["pressure_acceleration_formulation"] = nameof(system.pressure_acceleration_formulation)
     add_system_data!(system_data, shifting_technique(system))
     add_system_data!(system_data, system.surface_tension)
-    add_system_data!(system_data, system.surface_normal_method)
+    add_system_data!(system_data, system.surface_method)
+    add_system_data!(system_data, surface_pressure_model(system))
     add_system_data!(system_data, system.viscosity)
     add_system_data!(system_data, system.correction)
     add_system_data!(system_data, system_state_equation(system))
+    if hasproperty(system.cache, :color)
+        system_data["color"] = system.cache.color
+    end
     if hasfield(typeof(system), :density_diffusion)
         add_system_data!(system_data, system.density_diffusion)
     end
@@ -107,7 +111,11 @@ function add_system_data!(system_data, system::ImplicitIncompressibleSPHSystem)
     system_data["acceleration"] = system.acceleration
     system_data["pressure_acceleration_formulation"] = nameof(system.pressure_acceleration_formulation)
     add_system_data!(system_data, shifting_technique(system))
+    add_system_data!(system_data, system.surface_method)
     add_system_data!(system_data, system.viscosity)
+    if hasproperty(system.cache, :color)
+        system_data["color"] = system.cache.color
+    end
 end
 
 function add_system_data!(system_data, system::TotalLagrangianSPHSystem)
@@ -306,6 +314,20 @@ function add_system_data!(system_data,
     system_data["correction_method"]["model"] = type2string(correction)
 end
 
+correction_metadata(correction) = Dict{String, Any}("model" => type2string(correction))
+
+function correction_metadata(correction::AkinciFreeSurfaceCorrection)
+    return Dict{String, Any}("model" => type2string(correction), "rho0" => correction.rho0)
+end
+
+function add_system_data!(system_data, correction::CorrectionConfiguration)
+    system_data["correction_method"] = Dict{String, Any}()
+    system_data["correction_method"]["model"] = type2string(correction)
+    system_data["correction_method"]["density"] = correction_metadata(correction.density)
+    system_data["correction_method"]["gradient"] = correction_metadata(correction.gradient)
+    system_data["correction_method"]["force"] = correction_metadata(correction.force)
+end
+
 function add_system_data!(system_data,
                           surface_tension::Union{CohesionForceAkinci, SurfaceTensionAkinci,
                                                  SurfaceTensionMorris,
@@ -315,11 +337,19 @@ function add_system_data!(system_data,
     system_data["surface_tension"]["surface_tension_coefficient"] = surface_tension.surface_tension_coefficient
 end
 
-function add_system_data!(system_data, surface_normal_method::ColorfieldSurfaceNormal)
-    system_data["surface_normal_method"] = Dict{String, Any}()
-    system_data["surface_normal_method"]["model"] = type2string(surface_normal_method)
-    system_data["surface_normal_method"]["boundary_contact_threshold"] = surface_normal_method.boundary_contact_threshold
-    system_data["surface_normal_method"]["ideal_density_threshold"] = surface_normal_method.ideal_density_threshold
+function add_system_data!(system_data, surface_method_::ColorfieldSurfaceMethod)
+    system_data["surface_method"] = Dict{String, Any}()
+    system_data["surface_method"]["model"] = type2string(surface_method_)
+    system_data["surface_method"]["computes_surface_normal"] = computes_surface_normal(surface_method_)
+    system_data["surface_method"]["boundary_contact_threshold"] = surface_method_.boundary_contact_threshold
+    system_data["surface_method"]["interface_threshold"] = surface_method_.interface_threshold
+    system_data["surface_method"]["ideal_density_threshold"] = surface_method_.ideal_density_threshold
+    system_data["surface_method"]["interface_taper_start"] = surface_method_.interface_taper_start
+    system_data["surface_method"]["interpolation_surface_threshold"] = surface_method_.interpolation_surface_threshold
+end
+
+function add_system_data!(system_data, surface_pressure::SurfacePressureDifference)
+    system_data["surface_pressure"] = Dict("model" => type2string(surface_pressure))
 end
 
 function add_system_data!(system_data, boundary_zone::BoundaryZone, indice)
