@@ -193,7 +193,10 @@ function update!(density_diffusion::DensityDiffusionAntuono, v, u, system, semi)
         rho_a = @inbounds current_density(v, system, particle)
         rho_b = @inbounds current_density(v, system, neighbor)
 
-        grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
+        # The renormalized density gradient uses the uncorrected kernel gradient,
+        # like the matrix `L` above (see the docstring of `DensityDiffusionAntuono`).
+        grad_kernel = kernel_grad(system_smoothing_kernel(system), pos_diff, distance,
+                                  smoothing_length(system, particle))
         L = @inbounds extract_smatrix(density_diffusion_correction_matrix, system,
                                       particle)
 
