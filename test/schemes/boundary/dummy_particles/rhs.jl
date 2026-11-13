@@ -76,14 +76,13 @@
 
             v_boundary_continuity = copy(initial_condition.density')
 
-            # TLSPH system
-            structure_system = TotalLagrangianSPHSystem(initial_condition; smoothing_kernel,
-                                                        smoothing_length, young_modulus=0.0,
-                                                        poisson_ratio=0.0,
-                                                        boundary_model=boundary_model_continuity)
+            # Rigid body. A `TotalLagrangianSPHSystem` doesn't support `ContinuityDensity`
+            # for its boundary model.
+            structure_system = RigidBodySystem(initial_condition;
+                                               boundary_model=boundary_model_continuity)
 
-            # Positions of the structure particles are not used here
-            u_structure = zeros(0, TrixiParticles.nparticles(structure_system))
+            # The coordinates of a rigid body are stored in `u`
+            u_structure = copy(initial_condition.coordinates)
             v_structure = vcat(initial_condition.velocity,
                                initial_condition.density')
 
@@ -91,7 +90,7 @@
                 "Fluid-Fluid" => second_fluid_system,
                 "Fluid-BoundaryDummyPressureZeroing" => boundary_system_zeroing,
                 "Fluid-BoundaryDummyContinuityDensity" => boundary_system_continuity,
-                "Fluid-TLSPH" => structure_system
+                "Fluid-RigidBody" => structure_system
             )
 
             if density_calculator isa SummationDensity
@@ -106,7 +105,7 @@
                 "Fluid-BoundaryDummyContinuityDensity" => (v_boundary_continuity,
                                                            u_boundary),
                 "Fluid-BoundaryDummySummationDensity" => (v_boundary, u_boundary),
-                "Fluid-TLSPH" => (v_structure, u_structure)
+                "Fluid-RigidBody" => (v_structure, u_structure)
             )
 
             return systems, vu
@@ -196,6 +195,15 @@
                     dv_neighbor = zero(v_neighbor)
                     TrixiParticles.interact!(dv_neighbor, v_neighbor, u_neighbor, v, u,
                                              neighbor_system, fluid_system, semi)
+
+                    if neighbor_system isa RigidBodySystem
+                        # A rigid body accumulates the forces on its particles instead of
+                        # their accelerations
+                        (; force_per_particle, boundary_model) = neighbor_system
+                        NDIMS = ndims(neighbor_system)
+                        mass = boundary_model.hydrodynamic_mass
+                        dv_neighbor[1:NDIMS, :] .= force_per_particle ./ mass'
+                    end
 
                     if neighbor_system isa WeaklyCompressibleSPHSystem
                         # If both are fluids, neighbor-neighbor interaction is necessary

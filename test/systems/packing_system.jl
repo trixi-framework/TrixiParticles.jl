@@ -41,6 +41,22 @@
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", system) == show_box
 
+        signed_distance_field = SignedDistanceField(geometry, 0.1;
+                                                    use_for_boundary_packing=true,
+                                                    max_signed_distance=0.3)
+        boundary_sampled = sample_boundary(signed_distance_field; boundary_density=1.0,
+                                           boundary_thickness=0.2,
+                                           place_on_shell=false)
+        system = ParticlePackingSystem(boundary_sampled; signed_distance_field,
+                                       background_pressure=1.0, is_boundary=true,
+                                       boundary_thickness=0.2)
+        @test system.shift_length == -0.25
+        @test_throws ArgumentError ParticlePackingSystem(boundary_sampled;
+                                                         signed_distance_field,
+                                                         background_pressure=1.0,
+                                                         is_boundary=true,
+                                                         boundary_thickness=0.4)
+
         system = ParticlePackingSystem(initial_condition,
                                        signed_distance_field=nothing,
                                        background_pressure=1.0)

@@ -119,10 +119,9 @@ fluid_system = WeaklyCompressibleSPHSystem(setup.fluid;
                                            density_diffusion=density_diffusion,
                                            acceleration=(0.0, -gravity))
 
-boundary_model = BoundaryModelDummyParticles(setup.wall.density, setup.wall.mass,
-                                             state_equation=state_equation,
-                                             AdamiPressureExtrapolation(),
-                                             smoothing_kernel, smoothing_length)
+# For the wall, we reuse the combined solid wall particles created above. The high-level
+# constructor obtains the smoothing kernel, smoothing length, and state equation from the fluid.
+boundary_model = BoundaryModelDummyParticles(setup.wall; fluid_system)
 boundary_system = WallBoundarySystem(setup.wall, boundary_model)
 
 semi = Semidiscretization(fluid_system, boundary_system)

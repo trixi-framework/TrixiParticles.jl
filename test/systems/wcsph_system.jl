@@ -105,6 +105,12 @@
             AkinciFreeSurfaceCorrection(1000.0),
             KernelCorrection()
         ]
+        correction_kwargs(correction) = correction isa ShepardKernelCorrection ?
+                                        (; density_correction=correction) :
+                                        correction isa AkinciFreeSurfaceCorrection ?
+                                        (; force_correction=correction) :
+                                        correction isa Nothing ? (;) :
+                                        (; gradient_correction=correction)
 
         @testset "$(setup_names[i])" for i in eachindex(setups)
             setup = setups[i]
@@ -126,14 +132,14 @@
                                                                                       smoothing_length,
                                                                                       density_calculator,
                                                                                       state_equation,
-                                                                                      correction=corr)
+                                                                                      correction_kwargs(corr)...)
                     continue
                 end
                 system = WeaklyCompressibleSPHSystem(setup; smoothing_kernel,
                                                      smoothing_length,
                                                      density_calculator,
                                                      state_equation,
-                                                     correction=corr)
+                                                     correction_kwargs(corr)...)
 
                 @test system isa WeaklyCompressibleSPHSystem{NDIMS}
                 @test system.initial_condition == setup

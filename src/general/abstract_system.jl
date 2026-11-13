@@ -139,19 +139,22 @@ end
     return skip_zero_distance(system_correction(system))
 end
 
+@inline function zero_distance_gradient_mode(system::AbstractSystem, neighbor_system)
+    return zero_distance_gradient_mode(system_correction(system),
+                                       hydrodynamic_correction(neighbor_system))
+end
+
+# Whether `system` can skip neighbors of `neighbor_system` at the same position.
+# By default, this only depends on the kernel gradient of `system`.
+# This can be dispatched if the kernel gradient of `neighbor_system` is also evaluated.
+@inline skip_zero_distance(system, neighbor_system) = skip_zero_distance(system)
+
 # Robust/safe version of the function below. In performance-critical code, manually check
 # the kernel support, call `skip_zero_distance` and then `smoothing_kernel_grad_unsafe`.
 @inline function smoothing_kernel_grad(system, pos_diff, distance, particle)
-    h = smoothing_length(system, particle)
-    compact_support_ = compact_support(system_smoothing_kernel(system), h)
-
-    # See `almostzero` for an explanation of the zero distance check
-    if distance >= compact_support_ ||
-       (skip_zero_distance(system) && distance < almostzero(h))
-        return zero(pos_diff)
-    end
-
-    return smoothing_kernel_grad_unsafe(system, pos_diff, distance, particle)
+    return corrected_kernel_grad(system_smoothing_kernel(system), pos_diff, distance,
+                                 smoothing_length(system, particle),
+                                 system_correction(system), system, particle)
 end
 
 # Skip the zero distance and compact support checks for maximum performance.
@@ -160,6 +163,16 @@ end
     return corrected_kernel_grad_unsafe(system_smoothing_kernel(system), pos_diff,
                                         distance, smoothing_length(system, particle),
                                         system_correction(system), system, particle)
+end
+
+# Hydrodynamic corrections of structure systems are stored in their boundary model and are
+# independent of corrections used by the structural scheme itself.
+@inline hydrodynamic_correction(system) = system_correction(system)
+@inline hydrodynamic_smoothing_length(system, particle) = smoothing_length(system, particle)
+@inline hydrodynamic_smoothing_kernel(system) = system_smoothing_kernel(system)
+
+@inline function hydrodynamic_smoothing_kernel_grad(system, pos_diff, distance, particle)
+    return smoothing_kernel_grad(system, pos_diff, distance, particle)
 end
 
 # System updates do nothing by default, but can be dispatched if needed
@@ -171,11 +184,27 @@ function update_quantities!(system, v, u, v_ode, u_ode, semi, t)
     return system
 end
 
+function update_density_correction_values!(system, v, u, v_ode, u_ode, semi, t)
+    return system
+end
+
+function update_density_correction!(system, v, u, v_ode, u_ode, semi, t)
+    return system
+end
+
 function update_pressure!(system, v, u, v_ode, u_ode, semi, t)
     return system
 end
 
 function update_boundary_interpolation!(system, v, u, v_ode, u_ode, semi, t)
+    return system
+end
+
+function update_gradient_correction!(system, v, u, v_ode, u_ode, semi, t)
+    return system
+end
+
+function update_surface_quantities!(system, v, u, v_ode, u_ode, semi, t)
     return system
 end
 
@@ -199,6 +228,10 @@ end
 
 @inline system_smoothing_kernel(system) = system.smoothing_kernel
 @inline system_correction(system) = nothing
+
+# Boundary model of systems that interact with fluids via dummy particles
+# (`WallBoundarySystem`, `TotalLagrangianSPHSystem`, `RigidBodySystem`), `nothing` otherwise
+@inline system_boundary_model(system) = nothing
 
 @inline particle_spacing(system, particle) = system.initial_condition.particle_spacing
 

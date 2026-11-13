@@ -213,21 +213,83 @@
         @test v0 == vcat(velocity, [0.8, 1.0]')
     end
 
+    @trixi_testset "Correction cache updates" begin
+        coordinates = [0.0 0.1 0.0
+                       0.0 0.0 0.1]
+        velocity = zeros(2, 3)
+        mass = ones(3)
+        density = fill(1000.0, 3)
+        pressure = zeros(3)
+        initial_condition = InitialCondition(; coordinates, velocity, mass, density,
+                                             pressure)
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        smoothing_length = 0.5
+
+        corrections = (ShepardKernelCorrection(), KernelCorrection(), GradientCorrection(),
+                       MixedKernelGradientCorrection())
+
+        @testset "$(typeof(correction))" for correction in corrections
+            density_correction = TrixiParticles.correction_density(correction)
+            gradient_correction = TrixiParticles.correction_gradient(correction)
+            system = EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel,
+                                                 smoothing_length, sound_speed=10.0,
+                                                 density_correction, gradient_correction,
+                                                 pressure_acceleration=nothing)
+            semi = Semidiscretization(system)
+
+            TrixiParticles.initialize_neighborhood_searches!(semi)
+
+            u_ode = vec(coordinates)
+            v0 = zeros(TrixiParticles.v_nvariables(system),
+                       TrixiParticles.n_integrated_particles(system))
+            TrixiParticles.write_v0!(v0, system)
+            v_ode = vec(v0)
+
+            v = TrixiParticles.wrap_v(v_ode, system, semi)
+            u = TrixiParticles.wrap_u(u_ode, system, semi)
+
+            for cache_key in (:kernel_correction_coefficient, :dw_gamma,
+                              :correction_matrix)
+                hasproperty(system.cache, cache_key) || continue
+
+                fill!(getproperty(system.cache, cache_key), NaN)
+            end
+
+            TrixiParticles.update_systems_and_nhs(v_ode, u_ode, semi, 0.0)
+
+            for cache_key in (:kernel_correction_coefficient, :dw_gamma,
+                              :correction_matrix)
+                hasproperty(system.cache, cache_key) || continue
+
+                @test all(isfinite, getproperty(system.cache, cache_key))
+            end
+        end
+    end
+
     @trixi_testset "Average Pressure" begin
         particle_spacing = 0.1
         smoothing_kernel = SchoenbergCubicSplineKernel{2}()
         smoothing_length = 1.6particle_spacing
 
         fluid = rectangular_patch(particle_spacing, (3, 3), seed=1)
+        wall = InitialCondition(; coordinates=zeros(2, 1), density=1000.0, particle_spacing)
+        model = BoundaryModelDummyParticles(wall.density, wall.mass, PressureMirroring(),
+                                            smoothing_kernel, smoothing_length)
+        wall_system = WallBoundarySystem(wall, model)
 
         transport_velocity = [nothing, TransportVelocityAdami(background_pressure=10000.0)]
         names = ["No TVF", "TransportVelocityAdami"]
-        @testset "$(names[i])" for i in eachindex(transport_velocity)
+        @testset "$(names[i]), mirrored wall=$mirrored_wall" for i in
+                                                                 eachindex(transport_velocity),
+                                                                 mirrored_wall in
+                                                                 (false, true)
+
             system = EntropicallyDampedSPHSystem(fluid; smoothing_kernel,
                                                  smoothing_length, sound_speed=0.0,
                                                  shifting_technique=transport_velocity[i],
                                                  average_pressure_reduction=true)
-            semi = Semidiscretization(system)
+            semi = mirrored_wall ? Semidiscretization(system, wall_system) :
+                   Semidiscretization(system)
 
             TrixiParticles.initialize_neighborhood_searches!(semi)
 
@@ -238,10 +300,14 @@
                                                     system.average_pressure_reduction,
                                                     v_ode, u_ode, semi)
 
-            @test all(i -> system.cache.neighbor_counter[i] == nparticles(system),
-                      nparticles(system))
-            @test all(i -> isapprox(system.cache.pressure_average[i], -50.968532955185964),
-                      nparticles(system))
+            # Every particle has all particles (including itself) and the wall as neighbors
+            n_neighbors = nparticles(system) + mirrored_wall
+            @test all(==(n_neighbors), system.cache.neighbor_counter)
+            # The wall contributes each fluid particle's own pressure, not its zero cache.
+            expected = mirrored_wall ?
+                       (sum(fluid.pressure) .+ fluid.pressure) / n_neighbors :
+                       fill(-50.968532955185964, nparticles(system))
+            @test system.cache.pressure_average ≈ expected
         end
     end
 
