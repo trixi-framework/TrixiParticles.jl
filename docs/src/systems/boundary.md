@@ -71,6 +71,7 @@ We provide six options to compute the boundary density and pressure, determined 
    and the pressure is computed from the density with the state equation.
 4. With [`ContinuityDensity`](@ref), the density is integrated from the continuity equation,
    and the pressure is computed from the density with the state equation.
+   This option is not supported for a [`TotalLagrangianSPHSystem`](@ref).
    Note that this causes a gap between fluid and boundary where the boundary is initialized
    without any contact to the fluid. This is due to overestimation of the boundary density
    as soon as the fluid comes in contact with boundary particles that initially did not have
@@ -198,16 +199,30 @@ for [`ContinuityDensity`](@ref),
 ```
 where ``\tilde{\nabla}_{r_a} W_{ab}`` is the corrected kernel gradient of the fluid particle ``a``
 and ``\tilde{\nabla}_{r_b} W_{ba}`` is the corrected kernel gradient of the boundary particle ``b``.
-The latter is computed with the `correction` of the boundary model, which should therefore
-be the same as the correction of the fluid system.
+The latter is computed with the `correction` of the boundary model. With `correction=nothing`,
+the boundary gradient is uncorrected, even when the fluid uses a correction.
 With [`ContinuityDensity`](@ref), the density of the boundary particles also evolves with the
 corrected kernel gradient of the boundary particles.
 
 For a [`TotalLagrangianSPHSystem`](@ref) or a [`RigidBodySystem`](@ref), the kernel gradient
-at each boundary particle uses the smoothing kernel, smoothing length and correction of
-the boundary model. Its smoothing kernel and smoothing length must match those of the
-fluid systems. The smoothing kernel of the [`TotalLagrangianSPHSystem`](@ref) is used for
-solid mechanics instead.
+at each boundary particle uses the smoothing kernel, smoothing length and correction of the
+boundary model. Its smoothing kernel and smoothing length must match those of the fluid
+systems. The smoothing kernel of the [`TotalLagrangianSPHSystem`](@ref) is used for solid
+mechanics instead.
+The correction values of the boundary particles and, with [`SummationDensity`](@ref), their
+density are sums over the hydrodynamic neighborhood in the current configuration,
+i.e., over all particles of fluids, boundaries and structures, including the structure itself,
+within the compact support of the boundary model, using their hydrodynamic masses and
+densities.
+
+The correction of the boundary model may differ from the correction of the fluid.
+However, pairs of a fluid particle and a structure particle at the same position
+are skipped when the kernel gradient of the fluid vanishes at zero distance.
+Then, the kernel gradient of the boundary model must also vanish at zero distance.
+Therefore, a boundary model with [`KernelCorrection`](@ref) or
+[`MixedKernelGradientCorrection`](@ref) requires all fluid systems to use one of these
+two corrections as well.
+These requirements are checked when constructing the [`Semidiscretization`](@ref).
 
 ## Repulsive Particles
 

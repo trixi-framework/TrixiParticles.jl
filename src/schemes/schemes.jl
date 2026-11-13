@@ -14,7 +14,8 @@ include("boundary/wall_boundary/monaghan_kajtar.jl")
 # Implicit incompressible SPH requires the `WallBoundarySystem`
 include("fluid/implicit_incompressible_sph/implicit_incompressible_sph.jl")
 
-# Dummy-particle correction caches require the concrete structure types.
+# The dummy-particle boundary models of structures require the concrete structure types.
+include("boundary/wall_boundary/structure_boundary_model.jl")
 include("boundary/wall_boundary/structure_corrections.jl")
 
 # Include rhs for all schemes

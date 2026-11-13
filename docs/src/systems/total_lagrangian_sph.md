@@ -62,6 +62,14 @@ are only used for the solid mechanics of the structure.
 The interaction with fluids is determined by the `boundary_model`, which has its own
 smoothing kernel, smoothing length and correction
 (see [Boundary Models](@ref boundary_models)).
+When using [`BoundaryModelDummyParticles`](@ref), its smoothing kernel and smoothing length
+must match those of every fluid system (see [Boundary Corrections](@ref boundary_corrections)
+for its `correction`).
+The correction values and, with [`SummationDensity`](@ref), the density of the boundary
+model are computed over the current hydrodynamic neighborhood, including the structure
+itself, independently of the frozen neighborhood of the solid mechanics.
+[`ContinuityDensity`](@ref) is not supported for the boundary model of a
+[`TotalLagrangianSPHSystem`](@ref).
 
 ```@autodocs
 Modules = [TrixiParticles]
@@ -138,10 +146,6 @@ prevent hourglass modes and stabilize the fluid close to the fluid-structure int
 
 TVF transport operators also use the boundary model's kernel gradient for dummy-particle
 fluid coupling, independently of the TLSPH self-interaction kernel.
-
-Boundary-model correction caches are assembled with hydrodynamic particle volumes
-over the current hydrodynamic neighborhood, including structure self-neighbors.
-The elastic self-interaction retains its frozen neighborhood and correction matrix.
 
 ## [Velocity Averaging](@id velocity_averaging)
 

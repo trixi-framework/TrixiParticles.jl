@@ -185,3 +185,13 @@ end
     return pressure_acceleration_formulation(particle_system)(m_a, m_b, rho_a, rho_b,
                                                               p_a, p_b, W_a, W_b)
 end
+
+# The last argument is the kernel gradient `W_b` of the neighbor if it has already been
+# computed (see `interact_structure_fluid!`), or `nothing` to compute it when required.
+@inline function pressure_acceleration(particle_system, neighbor_system, particle, neighbor,
+                                       m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
+                                       distance, W_a, correction, W_b::Nothing)
+    return pressure_acceleration(particle_system, neighbor_system, particle, neighbor,
+                                 m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff, distance,
+                                 W_a, correction)
+end

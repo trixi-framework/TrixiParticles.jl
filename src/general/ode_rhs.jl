@@ -112,6 +112,13 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
 
     update_implicit_sph!(semi, v_ode, u_ode, t)
 
+    # Refresh structure summation densities over the current hydrodynamic neighborhood
+    # before assembling any correction moments. This phase is not part of the isolated
+    # structural updates used by `SplitIntegrationCallback`.
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
+        update_structure_boundary_density!(system, v, u, v_ode, u_ode, semi)
+    end
+
     # Correction moments can use densities from every interacting system. Assemble every
     # coefficient before correcting any density so all systems observe the same state.
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
